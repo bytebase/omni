@@ -247,18 +247,35 @@
 |       append_line(');' || CHR(10));
 |
 |       -- Constraints
+|       -- A period's check constraint is named after the period, its hidden
+|       -- virtual column, and six hex digits Oracle draws anew on every run
+|       -- (A453584, then A482f68), with GENERATED = 'USER NAME'. It is read as
+|       -- <period>$PERIOD so the stored schema reads the same on every run.
 |       FOR k IN (
 |         SELECT constraint_name, constraint_type, search_condition_vc, generated,
-|                r_owner, r_constraint_name, delete_rule, status
-|         FROM user_constraints
-|         WHERE table_name = t.table_name AND constraint_type IN ('P', 'U', 'R', 'C')
-|         ORDER BY constraint_name
+|                r_owner, r_constraint_name, delete_rule, status,
+|                NVL2(period_name, period_name || '$PERIOD', constraint_name) AS shown_name
+|         FROM (
+|           SELECT uc.*, (
+|               SELECT MAX(p.column_name)
+|               FROM user_tab_cols p
+|               WHERE p.table_name = uc.table_name
+|                 AND p.hidden_column = 'YES' AND p.user_generated = 'NO' AND p.virtual_column = 'YES'
+|                 AND uc.constraint_type = 'C'
+|                 AND LENGTH(uc.constraint_name) = LENGTH(p.column_name) + 6
+|                 AND SUBSTR(uc.constraint_name, 1, LENGTH(p.column_name)) = p.column_name
+|                 AND REGEXP_LIKE(SUBSTR(uc.constraint_name, -6), '^[0-9a-f]{6}$', 'c')
+|             ) AS period_name
+|           FROM user_constraints uc
+|           WHERE uc.table_name = t.table_name AND uc.constraint_type IN ('P', 'U', 'R', 'C')
+|         )
+|         ORDER BY shown_name
 |       ) LOOP
 |         IF k.constraint_type = 'C' THEN
 |           IF k.generated = 'GENERATED NAME' AND REGEXP_LIKE(TRIM(k.search_condition_vc), '^"[^"]+" IS NOT NULL$') THEN
 |             CONTINUE;
 |           END IF;
-|           append_line('ALTER TABLE ' || q_id(t.table_name) || ' ADD CONSTRAINT ' || q_id(k.constraint_name) ||
+|           append_line('ALTER TABLE ' || q_id(t.table_name) || ' ADD CONSTRAINT ' || q_id(k.shown_name) ||
 |             ' CHECK (' || TRIM(k.search_condition_vc) || ')' ||
 |             CASE WHEN k.status = 'DISABLED' THEN ' DISABLE' ELSE '' END || ';' || CHR(10));
 |         ELSIF k.constraint_type IN ('P', 'U') THEN
@@ -3367,6 +3384,15 @@
 < ok 1 0
 > exec
 | CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(ORDER BY a, a PATTERN(a) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(ORDER BY a, a ASC PATTERN(a) DEFINE a AS 1 = 1)
 < error
 | 30732 ORA-30732: table contains no user-visible columns
 |

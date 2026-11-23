@@ -1584,6 +1584,656 @@
 : string
 | PK_T
 : null
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| A
+: string
+| A
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| A
+: string
+| B
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| A
+: string
+| D
+: null
+< row
+: string
+| constraint
+: string
+| SIMSHOP
+: string
+| A
+: string
+| A_PK
+: string
+| SIMSHOP
+< row
+: string
+| index
+: string
+| SIMSHOP
+: string
+| A
+: string
+| A_D_IDX
+: string
+| SIMSHOP
+< row
+: string
+| index
+: string
+| SIMSHOP
+: string
+| A
+: string
+| A_PK
+: string
+| SIMSHOP
+< row
+: string
+| object
+: string
+| SIMSHOP
+: null
+: string
+| A
+: string
+| TABLE
+< row
+: string
+| primary key
+: string
+| SIMSHOP
+: string
+| A
+: null
+: null
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| SIMSHOP
+: null
+: string
+| A
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| SIMSHOP
+: string
+| A
+: string
+| A_PK
+: null
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| DEPT
+: string
+| DEPTNO
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| DEPT
+: string
+| DNAME
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| DEPT
+: string
+| LOC
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| EMP
+: string
+| COMM
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| EMP
+: string
+| DEPTNO
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| EMP
+: string
+| EMPNO
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| EMP
+: string
+| ENAME
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| EMP
+: string
+| HIREDATE
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| EMP
+: string
+| JOB
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| EMP
+: string
+| MGR
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| EMP
+: string
+| SAL
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| EMP_V
+: string
+| DEPTNO
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| EMP_V
+: string
+| EMPNO
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| EMP_V
+: string
+| ENAME
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| MISC
+: string
+| BD
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| MISC
+: string
+| BF
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| MISC
+: string
+| CODE
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| MISC
+: string
+| DS
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| MISC
+: string
+| FL
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| MISC
+: string
+| FLAG
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| MISC
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| MISC
+: string
+| N
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| MISC
+: string
+| NAME
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| MISC
+: string
+| NOTE
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| MISC
+: string
+| R
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| MISC
+: string
+| TITLE
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| MISC
+: string
+| TS
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| MISC
+: string
+| TZ
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| MISC
+: string
+| YM
+: null
+< row
+: string
+| constraint
+: string
+| SIMSHOP
+: string
+| DEPT
+: string
+| DEPT_PK
+: string
+| SIMSHOP
+< row
+: string
+| constraint
+: string
+| SIMSHOP
+: string
+| EMP
+: string
+| EMP_DEPT_FK
+: string
+| SIMSHOP
+< row
+: string
+| constraint
+: string
+| SIMSHOP
+: string
+| EMP
+: string
+| EMP_PK
+: string
+| SIMSHOP
+< row
+: string
+| constraint
+: string
+| SIMSHOP
+: string
+| MISC
+: string
+| MISC_PK
+: string
+| SIMSHOP
+< row
+: string
+| index
+: string
+| SIMSHOP
+: string
+| DEPT
+: string
+| DEPT_PK
+: string
+| SIMSHOP
+< row
+: string
+| index
+: string
+| SIMSHOP
+: string
+| EMP
+: string
+| EMP_PK
+: string
+| SIMSHOP
+< row
+: string
+| index
+: string
+| SIMSHOP
+: string
+| MISC
+: string
+| MISC_PK
+: string
+| SIMSHOP
+< row
+: string
+| object
+: string
+| SIMSHOP
+: null
+: string
+| DEPT
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SIMSHOP
+: null
+: string
+| EMP
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SIMSHOP
+: null
+: string
+| EMP_V
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SIMSHOP
+: null
+: string
+| MISC
+: string
+| TABLE
+< row
+: string
+| primary key
+: string
+| SIMSHOP
+: string
+| DEPT
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SIMSHOP
+: string
+| EMP
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SIMSHOP
+: string
+| MISC
+: null
+: null
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| SIMSHOP
+: null
+: string
+| DEPT
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SIMSHOP
+: null
+: string
+| EMP
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SIMSHOP
+: null
+: string
+| MISC
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| SIMSHOP
+: string
+| DEPT
+: string
+| DEPT_PK
+: null
+< row
+: string
+| table constraint
+: string
+| SIMSHOP
+: string
+| EMP
+: string
+| EMP_DEPT_FK
+: null
+< row
+: string
+| table constraint
+: string
+| SIMSHOP
+: string
+| EMP
+: string
+| EMP_PK
+: null
+< row
+: string
+| table constraint
+: string
+| SIMSHOP
+: string
+| MISC
+: string
+| MISC_PK
+: null
+< row
+: string
+| view
+: string
+| SIMSHOP
+: null
+: string
+| EMP_V
+: string
+| VIEW
 
 == TestWalkSimulation default#2
 > exec
@@ -2815,6 +3465,11 @@
 | 14464 ORA-14464: compression type not specified
 |
 > exec
+| ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY LOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -4010,6 +4665,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -4780,6 +5440,11 @@
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
 > exec
+| ALTER SEQUENCE a SHARD EXTEND
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | ALTER SEQUENCE a NOSHARD
 < error
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
@@ -5489,6 +6154,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a NO LOG)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -5690,6 +6360,16 @@
 |
 > exec
 | ALTER TABLE a DROP UNUSED COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -5970,6 +6650,16 @@
 |
 > exec
 | ALTER TABLE a DROP CONSTRAINTS a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a ONLINE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -6819,6 +7509,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY LOW
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a INMEMORY MEMCOMPRESS FOR QUERY LOW
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -7538,6 +8233,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -9412,6 +10112,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -10822,6 +11537,11 @@
 | 64307 ORA-64307:  Exadata Hybrid Columnar Compression is not supported for tablespaces on this storage type
 |
 > exec
+| CREATE MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW AS SELECT 1 FROM dual
+< error
+| 64307 ORA-64307:  Exadata Hybrid Columnar Compression is not supported for tablespaces on this storage type
+|
+> exec
 | CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY LOW AS SELECT 1 FROM dual
 < error
 | 64307 ORA-64307:  Exadata Hybrid Columnar Compression is not supported for tablespaces on this storage type
@@ -11285,6 +12005,15 @@
 < ok 0 0
 > exec
 | CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY AS SELECT 1 FROM dual
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY LOW AS SELECT 1 FROM dual
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -12894,6 +13623,21 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz))) AS SELECT 1 FROM dual
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG))) AS SELECT 1 FROM dual
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG))) AS SELECT 1 FROM dual
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO))) AS SELECT 1 FROM dual
 < error
 | 904 ORA-00904: "A": invalid identifier
 |
@@ -14713,6 +15457,11 @@
 |
 > exec
 | CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+< error
+| 998 ORA-00998: must name this expression with a column alias
+|
+> exec
+| CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 < error
 | 998 ORA-00998: must name this expression with a column alias
 |
@@ -19718,6 +20467,11 @@
 | 14464 ORA-14464: compression type not specified
 |
 > exec
+| ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY LOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -20913,6 +21667,11 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -21679,6 +22438,11 @@
 |
 > exec
 | ALTER SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
+| ALTER SEQUENCE a SHARD EXTEND
 < error
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
@@ -23008,6 +23772,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a NO LOG)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 904 ORA-00904: "A": invalid identifier
@@ -23353,6 +24122,36 @@
 | CREATE INDEX a_c_idx ON a (c)
 < ok 0 0
 > exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT 1
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT pk_a PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_c_idx ON a (c)
+< ok 0 0
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT pk_a PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_c_idx ON a (c)
+< ok 0 0
+> exec
 | ALTER TABLE a DROP(a)
 < error
 | 904 ORA-00904: "A": invalid identifier
@@ -23649,6 +24448,16 @@
 |
 > exec
 | ALTER TABLE a DROP CONSTRAINTS a
+< error
+| 2443 ORA-02443: Cannot drop constraint  - nonexistent constraint
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a CASCADE
+< error
+| 2443 ORA-02443: Cannot drop constraint  - nonexistent constraint
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a ONLINE
 < error
 | 2443 ORA-02443: Cannot drop constraint  - nonexistent constraint
 |
@@ -24594,6 +25403,21 @@
 < ok 0 0
 > exec
 | ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT pk_a PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_c_idx ON a (c)
+< ok 0 0
+> exec
+| ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY LOW
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -25749,6 +26573,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
@@ -27953,6 +28782,21 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG)))
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG)))
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO)))
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
@@ -29273,6 +30117,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -29684,6 +30533,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -31249,6 +32103,21 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO))) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -32894,6 +33763,11 @@
 |
 > exec
 | CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -39037,6 +39911,11 @@
 | 14464 ORA-14464: compression type not specified
 |
 > exec
+| ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY LOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -40232,6 +41111,11 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -40998,6 +41882,11 @@
 |
 > exec
 | ALTER SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
+| ALTER SEQUENCE a SHARD EXTEND
 < error
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
@@ -42134,6 +43023,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a NO LOG)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 30567 ORA-30567: name already used by an existing log group
@@ -42433,6 +43327,30 @@
 < ok 0 0
 > exec
 | ALTER TABLE a DROP UNUSED COLUMNS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT 1
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -42783,6 +43701,30 @@
 < ok 0 0
 > exec
 | ALTER TABLE a DROP CONSTRAINTS a
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a DROP CONSTRAINT a CASCADE
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a DROP CONSTRAINT a ONLINE
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -43719,6 +44661,18 @@
 < ok 0 0
 > exec
 | ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY LOW
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -44679,6 +45633,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
@@ -46945,6 +47904,21 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG)))
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG)))
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO)))
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
@@ -48349,6 +49323,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -48760,6 +49739,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -50325,6 +51309,21 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO))) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -51949,6 +52948,11 @@
 |
 > exec
 | CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -57603,6 +58607,11 @@
 | 14464 ORA-14464: compression type not specified
 |
 > exec
+| ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY LOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -58924,6 +59933,11 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
 < error
 | 14253 ORA-14253: table is not partitioned by composite partition method
@@ -59697,6 +60711,11 @@
 |
 > exec
 | ALTER SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
+| ALTER SEQUENCE a SHARD EXTEND
 < error
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
@@ -60833,6 +61852,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a NO LOG)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < ok 0 0
 > exec
@@ -61118,6 +62142,30 @@
 |
 > exec
 | ALTER TABLE a DROP UNUSED COLUMNS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT 1
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -61433,6 +62481,16 @@
 |
 > exec
 | ALTER TABLE a DROP CONSTRAINTS a
+< error
+| 2443 ORA-02443: Cannot drop constraint  - nonexistent constraint
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a CASCADE
+< error
+| 2443 ORA-02443: Cannot drop constraint  - nonexistent constraint
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a ONLINE
 < error
 | 2443 ORA-02443: Cannot drop constraint  - nonexistent constraint
 |
@@ -62541,6 +63599,18 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY LOW
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a INMEMORY MEMCOMPRESS FOR QUERY LOW
 < ok 0 0
 > exec
@@ -63553,6 +64623,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
@@ -65826,6 +66901,21 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG)))
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG)))
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO)))
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
@@ -67254,6 +68344,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -67665,6 +68760,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -69230,6 +70330,21 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO))) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -70854,6 +71969,11 @@
 |
 > exec
 | CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -77000,6 +78120,11 @@
 | 14464 ORA-14464: compression type not specified
 |
 > exec
+| ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY LOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -78195,6 +79320,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -78965,6 +80095,11 @@
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
 > exec
+| ALTER SEQUENCE a SHARD EXTEND
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | ALTER SEQUENCE a NOSHARD
 < error
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
@@ -79680,6 +80815,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a NO LOG)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -79881,6 +81021,16 @@
 |
 > exec
 | ALTER TABLE a DROP UNUSED COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -80161,6 +81311,16 @@
 |
 > exec
 | ALTER TABLE a DROP CONSTRAINTS a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a ONLINE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -81010,6 +82170,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY LOW
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a INMEMORY MEMCOMPRESS FOR QUERY LOW
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -81741,6 +82906,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -83615,6 +84785,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -85337,6 +86522,11 @@
 | 64307 ORA-64307:  Exadata Hybrid Columnar Compression is not supported for tablespaces on this storage type
 |
 > exec
+| CREATE MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW AS SELECT 1 FROM dual
+< error
+| 64307 ORA-64307:  Exadata Hybrid Columnar Compression is not supported for tablespaces on this storage type
+|
+> exec
 | CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY LOW AS SELECT 1 FROM dual
 < error
 | 64307 ORA-64307:  Exadata Hybrid Columnar Compression is not supported for tablespaces on this storage type
@@ -85878,6 +87068,21 @@
 < ok 0 0
 > exec
 | CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY AS SELECT 1 FROM dual
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, c NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a ON t (c)
+< ok 0 0
+> exec
+| CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW BEGIN NULL; END;
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY LOW AS SELECT 1 FROM dual
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -87553,6 +88758,21 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz))) AS SELECT 1 FROM dual
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG))) AS SELECT 1 FROM dual
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG))) AS SELECT 1 FROM dual
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO))) AS SELECT 1 FROM dual
 < error
 | 904 ORA-00904: "A": invalid identifier
 |
@@ -89718,6 +90938,11 @@
 |
 > exec
 | CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+< error
+| 998 ORA-00998: must name this expression with a column alias
+|
+> exec
+| CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 < error
 | 998 ORA-00998: must name this expression with a column alias
 |
@@ -95892,6 +97117,11 @@
 | 14464 ORA-14464: compression type not specified
 |
 > exec
+| ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY LOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -97087,6 +98317,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
 < error
 | 1702 ORA-01702: a view is not appropriate here
@@ -97857,6 +99092,11 @@
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
 > exec
+| ALTER SEQUENCE a SHARD EXTEND
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | ALTER SEQUENCE a NOSHARD
 < error
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
@@ -98569,6 +99809,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a NO LOG)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -98770,6 +100015,16 @@
 |
 > exec
 | ALTER TABLE a DROP UNUSED COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -99050,6 +100305,16 @@
 |
 > exec
 | ALTER TABLE a DROP CONSTRAINTS a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a ONLINE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -99899,6 +101164,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY LOW
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a INMEMORY MEMCOMPRESS FOR QUERY LOW
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -100624,6 +101894,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -102498,6 +103773,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -103815,6 +105105,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -104226,6 +105521,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -105791,6 +107091,21 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO))) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -107416,6 +108731,11 @@
 |
 > exec
 | CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+< error
+| 998 ORA-00998: must name this expression with a column alias
+|
+> exec
+| CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 < error
 | 998 ORA-00998: must name this expression with a column alias
 |
@@ -113307,6 +114627,11 @@
 | 14464 ORA-14464: compression type not specified
 |
 > exec
+| ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW
+< error
+| 64307 ORA-64307:  Exadata Hybrid Columnar Compression is not supported for tablespaces on this storage type
+|
+> exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY LOW
 < error
 | 64307 ORA-64307:  Exadata Hybrid Columnar Compression is not supported for tablespaces on this storage type
@@ -114832,6 +116157,11 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -115608,6 +116938,11 @@
 |
 > exec
 | ALTER SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
+| ALTER SEQUENCE a SHARD EXTEND
 < error
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
@@ -116967,6 +118302,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a NO LOG)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < ok 0 0
 > exec
@@ -117318,6 +118658,36 @@
 < ok 0 0
 > exec
 | ALTER TABLE a DROP UNUSED COLUMNS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT 1
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -117740,6 +119110,16 @@
 | ALTER TABLE a DROP CONSTRAINTS a
 < error
 | 2443 ORA-02443: Cannot drop constraint  - nonexistent constraint
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a CASCADE
+< error
+| 2443 ORA-02443: Cannot drop constraint  - nonexistent constraint
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a ONLINE
+< error
+| 14416 ORA-14416: Online DDL's cannot be used because of materialized view container table
 |
 > exec
 | ALTER TABLE a DROP UNIQUE(a)
@@ -118673,6 +120053,21 @@
 < ok 0 0
 > exec
 | ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY LOW
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -119728,6 +121123,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
@@ -121902,6 +123302,21 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG)))
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG)))
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO)))
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
@@ -123365,6 +124780,11 @@
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
 |
 > exec
+| CREATE MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW AS SELECT 1 FROM dual
+< error
+| 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
+|
+> exec
 | CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY LOW AS SELECT 1 FROM dual
 < error
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
@@ -123776,6 +125196,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY AS SELECT 1 FROM dual
+< error
+| 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
+|
+> exec
+| CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY LOW AS SELECT 1 FROM dual
 < error
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
 |
@@ -125341,6 +126766,21 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz))) AS SELECT 1 FROM dual
+< error
+| 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG))) AS SELECT 1 FROM dual
+< error
+| 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG))) AS SELECT 1 FROM dual
+< error
+| 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO))) AS SELECT 1 FROM dual
 < error
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
 |
@@ -126986,6 +128426,11 @@
 |
 > exec
 | CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -133116,6 +134561,11 @@
 | 14464 ORA-14464: compression type not specified
 |
 > exec
+| ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY LOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -134311,6 +135761,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
 < error
 | 2201 ORA-02201: sequence not allowed here
@@ -135172,6 +136627,11 @@
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
 > exec
+| ALTER SEQUENCE a SHARD EXTEND
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | ALTER SEQUENCE a NOSHARD
 < error
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
@@ -135891,6 +137351,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a NO LOG)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -136092,6 +137557,16 @@
 |
 > exec
 | ALTER TABLE a DROP UNUSED COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -136372,6 +137847,16 @@
 |
 > exec
 | ALTER TABLE a DROP CONSTRAINTS a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a ONLINE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -137221,6 +138706,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY LOW
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a INMEMORY MEMCOMPRESS FOR QUERY LOW
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -137946,6 +139436,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -139820,6 +141315,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -141095,6 +142605,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -141506,6 +143021,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -143071,6 +144591,21 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO))) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -144695,6 +146230,11 @@
 |
 > exec
 | CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -150168,6 +151708,11 @@
 | 14464 ORA-14464: compression type not specified
 |
 > exec
+| ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY LOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -151363,6 +152908,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -152129,6 +153679,11 @@
 |
 > exec
 | ALTER SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
+| ALTER SEQUENCE a SHARD EXTEND
 < error
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
@@ -152908,6 +154463,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a NO LOG)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -153109,6 +154669,16 @@
 |
 > exec
 | ALTER TABLE a DROP UNUSED COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -153389,6 +154959,16 @@
 |
 > exec
 | ALTER TABLE a DROP CONSTRAINTS a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a ONLINE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -154294,6 +155874,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY LOW
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a INMEMORY MEMCOMPRESS FOR QUERY LOW
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -155019,6 +156604,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -157089,6 +158679,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -158493,6 +160098,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -158904,6 +160514,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -160469,6 +162084,21 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO))) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -162093,6 +163723,11 @@
 |
 > exec
 | CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -167678,6 +169313,11 @@
 | 14464 ORA-14464: compression type not specified
 |
 > exec
+| ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY LOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -168873,6 +170513,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -169643,6 +171288,11 @@
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
 > exec
+| ALTER SEQUENCE a SHARD EXTEND
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | ALTER SEQUENCE a NOSHARD
 < error
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
@@ -170355,6 +172005,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a NO LOG)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -170556,6 +172211,16 @@
 |
 > exec
 | ALTER TABLE a DROP UNUSED COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -170836,6 +172501,16 @@
 |
 > exec
 | ALTER TABLE a DROP CONSTRAINTS a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a ONLINE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -171685,6 +173360,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY LOW
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a INMEMORY MEMCOMPRESS FOR QUERY LOW
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -172410,6 +174090,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -174284,6 +175969,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -175566,6 +177266,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -175977,6 +177682,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -177542,6 +179252,21 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO))) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -179166,6 +180891,11 @@
 |
 > exec
 | CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -184618,6 +186348,11 @@
 | 14464 ORA-14464: compression type not specified
 |
 > exec
+| ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY LOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -185813,6 +187548,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -186583,6 +188323,11 @@
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
 > exec
+| ALTER SEQUENCE a SHARD EXTEND
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | ALTER SEQUENCE a NOSHARD
 < error
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
@@ -187295,6 +189040,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a NO LOG)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -187496,6 +189246,16 @@
 |
 > exec
 | ALTER TABLE a DROP UNUSED COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -187776,6 +189536,16 @@
 |
 > exec
 | ALTER TABLE a DROP CONSTRAINTS a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a ONLINE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -188625,6 +190395,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY LOW
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a INMEMORY MEMCOMPRESS FOR QUERY LOW
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -189350,6 +191125,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -191224,6 +193004,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -192592,6 +194387,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -193003,6 +194803,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -194568,6 +196373,21 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO))) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -196199,6 +198019,11 @@
 |
 > exec
 | CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -200497,5 +202322,5936 @@
 < error
 | 42421 ORA-42421: property graph does not exist
 |
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> query
+| SELECT mview_name FROM dba_mviews WHERE owner = 'SIMSHOP' ORDER BY 1
+< result
+< column "MVIEW_NAME" "NCHAR" "string"
+> query
+| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| A
+: string
+| 0
+> query
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
+< row
+: string
+| A
+: string
+| B
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| A
+: string
+| A
+: string
+| NUMBER
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| A
+: string
+| D
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SIMSHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| A_D_IDX
+: string
+| D
+: string
+| 0
+< row
+: string
+| A_PK
+: string
+| B
+: string
+| 0
+> query
+| SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
+< row
+: string
+| A
+: string
+| A_PK
+: string
+| P
+: null
+> query
+| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
+< row
+: string
+| A
+: string
+| A_D_IDX
+: string
+| NORMAL
+< row
+: string
+| A
+: string
+| A_PK
+: string
+| NORMAL
+> query
+| SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
+< result
+< column "VIEW_NAME" "NCHAR" "string"
+> query
+| SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SIMSHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
+< result
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
+> query
+| SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SIMSHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
+< result
+< column "SEQUENCE_NAME" "NCHAR" "string"
+> query
+| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
+< result
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
+> query
+| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SIMSHOP' ORDER BY synonym_name
+< result
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
+> query
+| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,USING,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
+< result
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
+< row
+: string
+| DUAL
+: string
+| SYS
+: string
+| DUAL
+: null
+> exec
+| CREATE VIEW v AS SELECT *
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS WITH FUNCTION a RETURN NUMBER IS BEGIN RETURN 1; END; SELECT *
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FOR UPDATE
+< error
+| 3048 ORA-03048: SQL reserved word 'FOR' is not syntactically valid following 'CREATE VIEW v AS SELECT * '
+|
+> exec
+| CREATE VIEW v AS WITH FUNCTION a RETURN NUMBER IS BEGIN RETURN 1; END; FUNCTION a RETURN NUMBER IS BEGIN RETURN 1; END; SELECT *
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS WITH a AS(SELECT *) SELECT *
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS WITH a ANALYTIC VIEW AS(USING a) SELECT *
+< error
+| 18385 ORA-18385: recursive WITH clause not allowed in a derived analytic view
+|
+> exec
+| CREATE VIEW v AS SELECT * UNION SELECT *
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * INTERSECT SELECT *
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * MINUS SELECT *
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * UNION ALL SELECT *
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * ORDER BY 1
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FOR UPDATE OF a
+< error
+| 3048 ORA-03048: SQL reserved word 'FOR' is not syntactically valid following 'CREATE VIEW v AS SELECT * '
+|
+> exec
+| CREATE VIEW v AS SELECT * FOR UPDATE OF a.a
+< error
+| 3048 ORA-03048: SQL reserved word 'FOR' is not syntactically valid following 'CREATE VIEW v AS SELECT * '
+|
+> exec
+| CREATE VIEW v AS SELECT * FOR UPDATE OF a.a.a
+< error
+| 3048 ORA-03048: SQL reserved word 'FOR' is not syntactically valid following 'CREATE VIEW v AS SELECT * '
+|
+> exec
+| CREATE VIEW v AS SELECT * FOR UPDATE OF a, a
+< error
+| 3048 ORA-03048: SQL reserved word 'FOR' is not syntactically valid following 'CREATE VIEW v AS SELECT * '
+|
+> exec
+| CREATE VIEW v AS SELECT * FOR UPDATE NOWAIT
+< error
+| 3048 ORA-03048: SQL reserved word 'FOR' is not syntactically valid following 'CREATE VIEW v AS SELECT * '
+|
+> exec
+| CREATE VIEW v AS SELECT * FOR UPDATE WAIT 1
+< error
+| 3048 ORA-03048: SQL reserved word 'FOR' is not syntactically valid following 'CREATE VIEW v AS SELECT * '
+|
+> exec
+| CREATE VIEW v AS SELECT * FOR UPDATE SKIP LOCKED
+< error
+| 3048 ORA-03048: SQL reserved word 'FOR' is not syntactically valid following 'CREATE VIEW v AS SELECT * '
+|
+> exec
+| CREATE VIEW v AS WITH PROCEDURE a IS BEGIN NULL; END; SELECT *
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS WITH a(a) AS(SELECT *) SELECT *
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS WITH a AS(SELECT *), a AS(SELECT *) SELECT *
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS WITH a ANALYTIC VIEW AS(USING a), a ANALYTIC VIEW AS(USING a) SELECT *
+< error
+| 18385 ORA-18385: recursive WITH clause not allowed in a derived analytic view
+|
+> exec
+| CREATE VIEW v AS SELECT /*+ a */ *
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT DISTINCT *
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT UNIQUE *
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT ALL *
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM a zzz
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM a CROSS JOIN a
+< error
+| 918 ORA-00918: : column ambiguously specified - appears in A and A
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a CROSS JOIN a zzz
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a, a
+< error
+| 918 ORA-00918: : column ambiguously specified - appears in A and A
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a, a zzz
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE VIEW v AS SELECT * WHERE 1 = 1
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * CONNECT BY 1 = 1
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * GROUP BY 1
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * WINDOW a AS()
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * QUALIFY 1 = 1
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * ORDER BY a
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * ORDER BY 1 ASC
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * ORDER BY 1 DESC
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * ORDER BY 1 NULLS FIRST
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * ORDER BY 1 NULLS LAST
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * ORDER BY 1, 1
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * OFFSET 1 ROW
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * OFFSET 1 ROWS
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FETCH FIRST ROW ONLY
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FETCH FIRST zzz ROW ONLY
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FETCH NEXT ROW ONLY
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FETCH NEXT zzz ROW ONLY
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FETCH FIRST 1 ROW ONLY
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FETCH FIRST 1 PERCENT ROW ONLY
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FETCH FIRST PERCENT ROW ONLY
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FETCH FIRST ROW WITH TIES
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW(USING a)
+< error
+| 18307 ORA-18307: analytic view "SIMSHOP"."A" does not exist
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW(USING a.a)
+< error
+| 18307 ORA-18307: analytic view "A"."A" does not exist
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES())
+< error
+| 18370 ORA-18370: The HIERARCHIES clause may only be specified for cubes.
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1))
+< error
+| 18307 ORA-18307: analytic view "SIMSHOP"."A" does not exist
+|
+> exec
+| CREATE VIEW v AS SELECT a.*
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| CREATE VIEW v AS SELECT 1
+< error
+| 998 ORA-00998: must name this expression with a column alias
+|
+> exec
+| CREATE VIEW v AS SELECT 1 zzz
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT a.a.*
+< error
+| 964 ORA-00964: table name not in FROM list
+|
+> exec
+| CREATE VIEW v AS SELECT a
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| CREATE VIEW v AS SELECT 1 a
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT 1 AS a
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM(a CROSS JOIN a)
+< error
+| 918 ORA-00918: : column ambiguously specified - appears in A and A
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a a
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM a CROSS JOIN a CROSS JOIN a
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a CROSS JOIN a CROSS JOIN a zzz
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a NATURAL LEFT JOIN a
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM a NATURAL LEFT JOIN a zzz
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM a CROSS APPLY a
+< error
+| 918 ORA-00918: : column ambiguously specified - appears in A and A
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a CROSS APPLY a zzz
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE VIEW v AS SELECT * START WITH 1 = 1 CONNECT BY 1 = 1
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * CONNECT BY NOCYCLE 1 = 1
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * CONNECT BY 1 = 1 START WITH 1 = 1
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * GROUP BY ROLLUP(1)
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * GROUP BY(1)
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * GROUP BY ROOT(1)
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * GROUP BY GROUPING SETS(1)
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * GROUP BY SETS(1)
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * GROUP BY 1, 1
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * GROUP BY 1 HAVING 1 = 1
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(zzz))
+< error
+| 18370 ORA-18370: The HIERARCHIES clause may only be specified for cubes.
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(a))
+< error
+| 18370 ORA-18370: The HIERARCHIES clause may only be specified for cubes.
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(a.a))
+< error
+| 18370 ORA-18370: The HIERARCHIES clause may only be specified for cubes.
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(a, a))
+< error
+| 18370 ORA-18370: The HIERARCHIES clause may only be specified for cubes.
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1, a TO 1 = 1))
+< error
+| 18307 ORA-18307: analytic view "SIMSHOP"."A" does not exist
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM(SELECT *)
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM(SELECT *) zzz
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM TABLE(1)
+< error
+| 22905 ORA-22905: Cannot access rows from unsupported input to TABLE operator.
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM TABLE(1) zzz
+< error
+| 22905 ORA-22905: Cannot access rows from unsupported input to TABLE operator.
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM TABLES(1)
+< error
+| 904 ORA-00904: "TABLES": invalid identifier
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW(USING a) zzz
+< error
+| 18307 ORA-18307: analytic view "SIMSHOP"."A" does not exist
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM zzz a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."ZZZ" does not exist
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a.a
+< error
+| 942 ORA-00942: table or view "A"."A" does not exist
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a.zzz a
+< error
+| 942 ORA-00942: table or view "A"."ZZZ" does not exist
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a PARTITION(a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a(a)
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a PARTITION(a) zzz
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a@a
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a@a zzz
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a AS OF SCN 1
+< error
+| 8181 ORA-08181: specified number is not a valid system change number
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a AS OF SCN 1 zzz
+< error
+| 8181 ORA-08181: specified number is not a valid system change number
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a SAMPLE(1)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM a(1)
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a SAMPLE(1) zzz
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) FOR a IN(1))
+< error
+| 56902 ORA-56902: non-aggregate expressions inside the PIVOT clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a PIVOT((1) FOR a IN(1))
+< error
+| 56902 ORA-56902: non-aggregate expressions inside the PIVOT clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a PIVOT(a() FOR a IN(1))
+< error
+| 56902 ORA-56902: non-aggregate expressions inside the PIVOT clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) FOR a IN())
+< error
+| 56902 ORA-56902: non-aggregate expressions inside the PIVOT clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) FOR a IN(1)) zzz
+< error
+| 56902 ORA-56902: non-aggregate expressions inside the PIVOT clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a UNPIVOT(a FOR a IN(a))
+< error
+| 918 ORA-00918: A: column ambiguously specified - appears in  and 
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a UNPIVOT(a FOR a IN(a)) zzz
+< error
+| 918 ORA-00918: A: column ambiguously specified - appears in  and 
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1) zzz
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a JOIN a ON 1 = 1
+< error
+| 918 ORA-00918: : column ambiguously specified - appears in A and A
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a NATURAL JOIN a
+< error
+| 918 ORA-00918: : column ambiguously specified - appears in A and A
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a NATURAL JOIN a zzz
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM a NATURAL INNER JOIN a
+< error
+| 918 ORA-00918: : column ambiguously specified - appears in A and A
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a NATURAL
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM a JOIN a USING(a)
+< error
+| 918 ORA-00918: : column ambiguously specified - appears in A and A
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a JOIN a USING(a, a)
+< error
+| 918 ORA-00918: : column ambiguously specified - appears in A and A
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a OUTER APPLY a
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE VIEW v AS SELECT * GROUP BY CUBE(1)
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * GROUP BY GROUPING SETS(ROLLUP(1))
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * GROUP BY GROUPING SETS((1))
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * GROUP BY GROUPING SETS(ROOT(1))
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * GROUP BY GROUPING SETS(1, 1)
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * WINDOW a AS(PARTITION BY 1)
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * WINDOW a AS(ORDER BY 1)
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a AS(1)))
+< error
+| 18307 ORA-18307: analytic view "SIMSHOP"."A" does not exist
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a PARTITION FOR(1)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a PARTITION(1)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a PARTITION FOR(1) zzz
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a SUBPARTITION(a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a SUBPARTITION(a) zzz
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a SUBPARTITION FOR(1)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a SUBPARTITION(1)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a SUBPARTITION FOR(1) zzz
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a PARTITION FOR(1, 1)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM TABLE(1)(+)
+< error
+| 22905 ORA-22905: Cannot access rows from unsupported input to TABLE operator.
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM TABLE(1)(+) zzz
+< error
+| 22905 ORA-22905: Cannot access rows from unsupported input to TABLE operator.
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW(USING a) a
+< error
+| 18307 ORA-18307: analytic view "SIMSHOP"."A" does not exist
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a VERSIONS BETWEEN SCN 1 AND 1
+< error
+| 8181 ORA-08181: specified number is not a valid system change number
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a VERSIONS BETWEEN SCN 1 AND 1 zzz
+< error
+| 8181 ORA-08181: specified number is not a valid system change number
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a VERSIONS PERIOD FOR a BETWEEN 1 AND 1
+< error
+| 55603 ORA-55603: invalid flashback archive or valid time period command
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a VERSIONS PERIOD FOR a BETWEEN 1 AND 1 zzz
+< error
+| 55603 ORA-55603: invalid flashback archive or valid time period command
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a AS OF PERIOD FOR a 1
+< error
+| 55603 ORA-55603: invalid flashback archive or valid time period command
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a AS OF PERIOD FOR a 1 zzz
+< error
+| 55603 ORA-55603: invalid flashback archive or valid time period command
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a AS OF TIMESTAMP 1
+< error
+| 932 ORA-00932: expression is of data type NUMBER, which is incompatible with expected data type TIMESTAMP
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a SAMPLE BLOCK(1)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM a SAMPLE
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM a SAMPLE(1) SEED(1)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM a SAMPLE(1) SEED(1) zzz
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM a PIVOT
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) zzz FOR a IN(1))
+< error
+| 56902 ORA-56902: non-aggregate expressions inside the PIVOT clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) a FOR a IN(1))
+< error
+| 56902 ORA-56902: non-aggregate expressions inside the PIVOT clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) AS a FOR a IN(1))
+< error
+| 56902 ORA-56902: non-aggregate expressions inside the PIVOT clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a PIVOT(a(1), a(1) FOR a IN(1))
+< error
+| 56902 ORA-56902: non-aggregate expressions inside the PIVOT clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a PIVOT(a(1),(1) FOR a IN(1))
+< error
+| 56902 ORA-56902: non-aggregate expressions inside the PIVOT clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a PIVOT(a(1), a() FOR a IN(1))
+< error
+| 56902 ORA-56902: non-aggregate expressions inside the PIVOT clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a PIVOT(a(1), a(1) zzz FOR a IN(1))
+< error
+| 56902 ORA-56902: non-aggregate expressions inside the PIVOT clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a UNPIVOT INCLUDE NULLS(a FOR a IN(a))
+< error
+| 918 ORA-00918: A: column ambiguously specified - appears in  and 
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a UNPIVOT
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM a UNPIVOT EXCLUDE NULLS(a FOR a IN(a))
+< error
+| 918 ORA-00918: A: column ambiguously specified - appears in  and 
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a UNPIVOT((a) FOR a IN(a))
+< error
+| 918 ORA-00918: A: column ambiguously specified - appears in  and 
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PARTITION BY a PATTERN(a) DEFINE a AS 1 = 1)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PARTITION BY a, a PATTERN(a) DEFINE a AS 1 = 1)
+< error
+| 918 ORA-00918: A: column ambiguously specified - appears in  and 
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(ORDER BY a PATTERN(a) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(ORDER BY a ASC PATTERN(a) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(ORDER BY a DESC PATTERN(a) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(ORDER BY a, a PATTERN(a) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(MEASURES 1 AS a PATTERN(a) DEFINE a AS 1 = 1)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(MEASURES 1 a PATTERN(a) DEFINE a AS 1 = 1)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(MEASURES 1 AS a, 1 AS a PATTERN(a) DEFINE a AS 1 = 1)
+< error
+| 918 ORA-00918: A: column ambiguously specified - appears in  and 
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(MEASURES 1 AS a, 1 a PATTERN(a) DEFINE a AS 1 = 1)
+< error
+| 918 ORA-00918: A: column ambiguously specified - appears in  and 
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(ONE ROW PER MATCH PATTERN(a) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH PATTERN(a) DEFINE a AS 1 = 1)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH SHOW EMPTY MATCHES PATTERN(a) DEFINE a AS 1 = 1)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH OMIT EMPTY MATCHES PATTERN(a) DEFINE a AS 1 = 1)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO a PATTERN(a) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP PAST LAST ROW PATTERN(a) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO NEXT ROW PATTERN(a) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO FIRST a PATTERN(a) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO LAST a PATTERN(a) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a) DEFINE a AS 1 = 1)
+< error
+| 62503 ORA-62503: illegal variable definition
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a), a =(a) DEFINE a AS 1 = 1)
+< error
+| 62503 ORA-62503: illegal variable definition
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1, a AS 1 = 1)
+< error
+| 62503 ORA-62503: illegal variable definition
+|
+> exec
+| CREATE VIEW v AS SELECT * WINDOW a AS(PARTITION BY(1))
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * WINDOW a AS(PARTITION BY 1, 1)
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a NATURAL RIGHT JOIN a
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM a NATURAL FULL JOIN a
+< error
+| 918 ORA-00918: : column ambiguously specified - appears in A and A
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a NATURAL LEFT OUTER JOIN a
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * GROUP BY ROLLUP(1, 1)
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a UNPIVOT(a FOR(a) IN(a))
+< error
+| 918 ORA-00918: A: column ambiguously specified - appears in  and 
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a UNPIVOT(a FOR(a, a) IN(a))
+< error
+| 918 ORA-00918: A: column ambiguously specified - appears in  and 
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) FOR a IN(1 zzz))
+< error
+| 56902 ORA-56902: non-aggregate expressions inside the PIVOT clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) FOR a IN(ANYSCHEMA))
+< error
+| 56901 ORA-56901: non-constant expression in pivot or unpivot values clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) FOR a IN((1)))
+< error
+| 56902 ORA-56902: non-aggregate expressions inside the PIVOT clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) FOR a IN((1) zzz))
+< error
+| 56902 ORA-56902: non-aggregate expressions inside the PIVOT clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) FOR a IN(1 a))
+< error
+| 56902 ORA-56902: non-aggregate expressions inside the PIVOT clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) FOR a IN(1 AS a))
+< error
+| 56902 ORA-56902: non-aggregate expressions inside the PIVOT clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) FOR a IN(1, 1))
+< error
+| 56902 ORA-56902: non-aggregate expressions inside the PIVOT clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) FOR a IN(1, 1 zzz))
+< error
+| 56902 ORA-56902: non-aggregate expressions inside the PIVOT clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a UNPIVOT(a FOR a IN((a)))
+< error
+| 918 ORA-00918: A: column ambiguously specified - appears in  and 
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a UNPIVOT(a FOR a IN(a AS 1))
+< error
+| 918 ORA-00918: A: column ambiguously specified - appears in  and 
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a UNPIVOT(a FOR a IN(a AS(1)))
+< error
+| 918 ORA-00918: A: column ambiguously specified - appears in  and 
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a UNPIVOT(a FOR a IN(a, a))
+< error
+| 918 ORA-00918: A: column ambiguously specified - appears in  and 
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a zzz) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a, a) DEFINE a AS 1 = 1)
+< error
+| 62503 ORA-62503: illegal variable definition
+|
+> exec
+| CREATE VIEW v AS SELECT * GROUP BY ROLLUP((zzz))
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * GROUP BY ROLLUP((1))
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * GROUP BY ROLLUP((1, 1))
+< error
+| 54058 ORA-54058: '*' not allowed in SELECT expressions without FROM clause
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a a) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a a zzz) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(()) DEFINE a AS 1 = 1)
+< error
+| 62503 ORA-62503: illegal variable definition
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(() zzz) DEFINE a AS 1 = 1)
+< error
+| 62503 ORA-62503: illegal variable definition
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE(a)) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE(a) zzz) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(PFILE(a)) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN((zzz)) DEFINE a AS 1 = 1)
+< error
+| 62503 ORA-62503: illegal variable definition
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN((a)) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN((a zzz)) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE(a zzz)) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE(a, a)) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE(a a)) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE(a, a zzz)) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> query
+| SELECT mview_name FROM dba_mviews WHERE owner = 'SIMSHOP' ORDER BY 1
+< result
+< column "MVIEW_NAME" "NCHAR" "string"
+> query
+| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| DEPT
+: string
+| 0
+< row
+: string
+| EMP
+: string
+| 0
+< row
+: string
+| MISC
+: string
+| 0
+> query
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
+< row
+: string
+| DEPT
+: string
+| DEPTNO
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| DEPT
+: string
+| DNAME
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| DEPT
+: string
+| LOC
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| EMP
+: string
+| EMPNO
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| EMP
+: string
+| ENAME
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| EMP
+: string
+| JOB
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| EMP
+: string
+| MGR
+: string
+| NUMBER
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| EMP
+: string
+| HIREDATE
+: string
+| DATE
+: string
+| Y
+: string
+| 5
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| EMP
+: string
+| SAL
+: string
+| NUMBER
+: string
+| Y
+: string
+| 6
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| EMP
+: string
+| COMM
+: string
+| NUMBER
+: string
+| Y
+: string
+| 7
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| EMP
+: string
+| DEPTNO
+: string
+| NUMBER
+: string
+| Y
+: string
+| 8
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| EMP_V
+: string
+| EMPNO
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| EMP_V
+: string
+| ENAME
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| EMP_V
+: string
+| DEPTNO
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| MISC
+: string
+| ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| MISC
+: string
+| CODE
+: string
+| CHAR
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| MISC
+: string
+| TITLE
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| MISC
+: string
+| NAME
+: string
+| NVARCHAR2
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| MISC
+: string
+| NOTE
+: string
+| CLOB
+: string
+| Y
+: string
+| 5
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| MISC
+: string
+| TS
+: string
+| TIMESTAMP(6)
+: string
+| Y
+: string
+| 6
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| MISC
+: string
+| TZ
+: string
+| TIMESTAMP(3) WITH TIME ZONE
+: string
+| Y
+: string
+| 7
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| MISC
+: string
+| BD
+: string
+| BINARY_DOUBLE
+: string
+| Y
+: string
+| 8
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| MISC
+: string
+| BF
+: string
+| BINARY_FLOAT
+: string
+| Y
+: string
+| 9
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| MISC
+: string
+| R
+: string
+| RAW
+: string
+| Y
+: string
+| 10
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| MISC
+: string
+| FL
+: string
+| FLOAT
+: string
+| Y
+: string
+| 11
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| MISC
+: string
+| YM
+: string
+| INTERVAL YEAR(2) TO MONTH
+: string
+| Y
+: string
+| 12
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| MISC
+: string
+| DS
+: string
+| INTERVAL DAY(2) TO SECOND(6)
+: string
+| Y
+: string
+| 13
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| MISC
+: string
+| N
+: string
+| NUMBER
+: string
+| Y
+: string
+| 14
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| MISC
+: string
+| FLAG
+: string
+| BOOLEAN
+: string
+| Y
+: string
+| 15
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SIMSHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| DEPT_PK
+: string
+| DEPTNO
+: string
+| 0
+< row
+: string
+| EMP_PK
+: string
+| EMPNO
+: string
+| 0
+< row
+: string
+| MISC_PK
+: string
+| ID
+: string
+| 0
+> query
+| SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
+< row
+: string
+| DEPT
+: string
+| DEPT_PK
+: string
+| P
+: null
+< row
+: string
+| DEPT
+: string
+| SYS_C9000002
+: string
+| C
+: string
+| "DNAME" IS NOT NULL
+< row
+: string
+| EMP
+: string
+| EMP_DEPT_FK
+: string
+| R
+: null
+< row
+: string
+| EMP
+: string
+| EMP_PK
+: string
+| P
+: null
+< row
+: string
+| EMP
+: string
+| SYS_C9000003
+: string
+| C
+: string
+| "ENAME" IS NOT NULL
+< row
+: string
+| MISC
+: string
+| MISC_PK
+: string
+| P
+: null
+> query
+| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
+< row
+: string
+| DEPT
+: string
+| DEPT_PK
+: string
+| NORMAL
+< row
+: string
+| EMP
+: string
+| EMP_PK
+: string
+| NORMAL
+< row
+: string
+| MISC
+: string
+| MISC_PK
+: string
+| NORMAL
+< row
+: string
+| MISC
+: string
+| SYS_IL9000000004C00001$$
+: string
+| LOB
+> query
+| SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
+< result
+< column "VIEW_NAME" "NCHAR" "string"
+< row
+: string
+| EMP_V
+> query
+| SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SIMSHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
+< result
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
+> query
+| SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SIMSHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
+< result
+< column "SEQUENCE_NAME" "NCHAR" "string"
+> query
+| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
+< result
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
+> query
+| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SIMSHOP' ORDER BY synonym_name
+< result
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
+> query
+| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,USING,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
+< result
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
+< row
+: string
+| DUAL
+: string
+| SYS
+: string
+| DUAL
+: null
+> exec
+| CREATE VIEW v AS SELECT * FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT e.* FROM emp e
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM emp, dept
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE VIEW v AS SELECT e.*, d.dname FROM emp e, dept d WHERE e.deptno = d.deptno
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT emp.ename, dept.dname FROM emp, dept WHERE emp.deptno = dept.deptno
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT omni_sim.emp.ename FROM omni_sim.emp
+< error
+| 942 ORA-00942: table or view "OMNI_SIM"."EMP" does not exist
+|
+> exec
+| CREATE VIEW v AS SELECT emp.ename FROM emp e
+< error
+| 904 ORA-00904: "EMP"."ENAME": invalid identifier
+|
+> exec
+| CREATE VIEW v AS SELECT emp.* FROM emp e
+< error
+| 904 ORA-00904: "EMP": invalid identifier
+|
+> exec
+| CREATE VIEW v AS SELECT ename "Name", job "job title" FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT "ename" FROM emp
+< error
+| 904 ORA-00904: "ename": invalid identifier
+|
+> exec
+| CREATE VIEW v AS SELECT ename AS name, job AS title FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename, ename FROM emp
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE VIEW v AS SELECT ename AS a, job AS a FROM emp
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE VIEW v AS SELECT e.ename, m.ename FROM emp e, emp m WHERE e.mgr = m.empno
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE VIEW v AS SELECT 1 FROM dual
+< error
+| 998 ORA-00998: must name this expression with a column alias
+|
+> exec
+| CREATE VIEW v AS SELECT sal + 1 FROM emp
+< error
+| 998 ORA-00998: must name this expression with a column alias
+|
+> exec
+| CREATE VIEW v AS SELECT UPPER(ename) FROM emp
+< error
+| 998 ORA-00998: must name this expression with a column alias
+|
+> exec
+| CREATE VIEW v AS SELECT nosuch FROM emp
+< error
+| 904 ORA-00904: "NOSUCH": invalid identifier
+|
+> exec
+| CREATE VIEW v AS SELECT ename FROM nosuch
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."NOSUCH" does not exist
+|
+> exec
+| CREATE VIEW v AS SELECT e.nosuch FROM emp e
+< error
+| 904 ORA-00904: "E"."NOSUCH": invalid identifier
+|
+> exec
+| CREATE VIEW v AS SELECT x.ename FROM emp e
+< error
+| 904 ORA-00904: "X"."ENAME": invalid identifier
+|
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp WHERE nosuch = 1
+< error
+| 904 ORA-00904: "NOSUCH": invalid identifier
+|
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp ORDER BY nosuch
+< error
+| 904 ORA-00904: "NOSUCH": invalid identifier
+|
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp GROUP BY nosuch
+< error
+| 904 ORA-00904: "NOSUCH": invalid identifier
+|
+> exec
+| CREATE VIEW v AS SELECT ename e1 FROM emp WHERE e1 = 'X'
+< error
+| 904 ORA-00904: "E1": invalid identifier
+|
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp ORDER BY 2
+< error
+| 1785 ORA-01785: ORDER BY item must be the number of a SELECT-list expression
+|
+> exec
+| CREATE VIEW v AS SELECT deptno FROM emp, dept
+< error
+| 918 ORA-00918: DEPTNO: column ambiguously specified - appears in DEPT and EMP
+|
+> exec
+| CREATE VIEW v AS SELECT sal FROM emp e JOIN emp m ON e.mgr = m.empno
+< error
+| 918 ORA-00918: SAL: column ambiguously specified - appears in  and 
+|
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp_v
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM emp_v
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM emp_v v JOIN dept d ON v.deptno = d.deptno
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
+| CREATE VIEW v AS SELECT ROWNUM rn, ename FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ROWNUM, ename FROM emp
+< error
+| 998 ORA-00998: must name this expression with a column alias
+|
+> exec
+| CREATE VIEW v AS SELECT ROWID rid, ename FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT DISTINCT job FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT UNIQUE job FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM misc
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT id, code, title, name, note, ts, tz, bd, bf, r, fl, ym, ds, n, flag FROM misc
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp WHERE deptno = :1
+< error
+| 1027 ORA-01027: bind variables not allowed for data definition operations
+|
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp SAMPLE (10)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp WITH READ ONLY
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename, sal FROM emp WHERE deptno = 10 WITH CHECK OPTION
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename, sal FROM emp WHERE deptno = 10 WITH CHECK OPTION CONSTRAINT v_chk
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp FOR UPDATE
+< error
+| 3048 ORA-03048: SQL reserved word 'FOR' is not syntactically valid following '...v AS SELECT ename FROM emp '
+|
+> exec
+| CREATE VIEW v AS SELECT ename, sal FROM emp ORDER BY sal DESC, ename
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT e.ename, d.dname FROM emp e JOIN dept d ON e.deptno = d.deptno
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT e.ename FROM emp e INNER JOIN dept d ON (e.deptno = d.deptno)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename, dname FROM emp JOIN dept USING (deptno)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM emp JOIN dept USING (deptno)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT e.deptno FROM emp e JOIN dept d USING (deptno)
+< error
+| 25154 ORA-25154: column part of USING clause cannot have qualifier
+|
+> exec
+| CREATE VIEW v AS SELECT e.ename FROM emp e JOIN dept d USING (nosuch)
+< error
+| 904 ORA-00904: "D"."NOSUCH": invalid identifier
+|
+> exec
+| CREATE VIEW v AS SELECT * FROM emp NATURAL JOIN dept
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM dept NATURAL JOIN emp_v
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT empno FROM emp NATURAL JOIN emp_v
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT e.ename, d.dname FROM emp e LEFT OUTER JOIN dept d ON e.deptno = d.deptno
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT e.ename, d.dname FROM emp e RIGHT JOIN dept d ON e.deptno = d.deptno
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT e.ename, d.dname FROM emp e FULL OUTER JOIN dept d ON e.deptno = d.deptno
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM emp FULL JOIN dept USING (deptno)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM emp LEFT JOIN dept USING (deptno)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM emp RIGHT JOIN dept USING (deptno)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM dept JOIN emp USING (deptno)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM (SELECT CAST(1 AS NUMBER(3)) k FROM dual) JOIN (SELECT CAST(1 AS NUMBER(5,1)) k FROM dual) USING (k)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM (SELECT CAST(1 AS NUMBER(3)) k FROM dual) LEFT JOIN (SELECT CAST(1 AS NUMBER(5,1)) k FROM dual) USING (k)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT e.ename, m.ename AS mgr_name FROM emp e LEFT JOIN emp m ON e.mgr = m.empno
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT e.deptno FROM emp e CROSS JOIN dept d
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT e.ename, d.dname, m.job FROM emp e JOIN dept d ON e.deptno = d.deptno JOIN emp m ON m.empno = e.mgr
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp e JOIN dept d ON e.deptno = d.deptno AND d.loc = 'DALLAS'
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT e.ename, d.loc FROM emp e, dept d WHERE e.deptno = d.deptno
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT e.ename, d.dname FROM emp e, dept d WHERE e.deptno = d.deptno(+)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT e.ename, d.dname, d.loc FROM emp e, dept d WHERE e.deptno(+) = d.deptno
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp e, dept d WHERE e.deptno = d.deptno(+) AND d.loc(+) = 'X'
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT e.ename FROM emp e, dept d WHERE e.deptno(+) = d.deptno(+)
+< error
+| 1468 ORA-01468: a predicate may reference only one outer-joined table
+|
+> exec
+| CREATE VIEW v AS SELECT e.ename FROM emp e LEFT JOIN dept d ON e.deptno = d.deptno(+)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT d.dname, e.ename FROM dept d CROSS APPLY (SELECT ename FROM emp WHERE emp.deptno = d.deptno) e
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT d.dname, x.cnt FROM dept d OUTER APPLY (SELECT COUNT(*) cnt FROM emp e WHERE e.deptno = d.deptno) x
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT d.dname, x.cnt FROM dept d, LATERAL (SELECT COUNT(*) cnt FROM emp e WHERE e.deptno = d.deptno) x
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM emp e, LATERAL (SELECT dname FROM dept d WHERE d.deptno = e.deptno)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT d.dname, COUNT(e.empno) cnt FROM dept d LEFT JOIN emp e ON e.deptno = d.deptno GROUP BY d.dname
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT x.ename FROM (SELECT ename, sal FROM emp WHERE sal > 1000) x
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM (SELECT ename, sal * 2 FROM emp)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM (SELECT ename, sal * 2 dbl FROM emp)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM (SELECT * FROM dept)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT x.* FROM (SELECT d.* FROM dept d) x
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT x FROM (SELECT 1 x FROM dual UNION ALL SELECT 2 FROM dual)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp WHERE deptno IN (SELECT deptno FROM dept WHERE loc = 'DALLAS')
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp e WHERE EXISTS (SELECT 1 FROM dept d WHERE d.deptno = e.deptno)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT d.deptno, d.dname FROM dept d WHERE NOT EXISTS (SELECT NULL FROM emp e WHERE e.deptno = d.deptno)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename, (SELECT dname FROM dept d WHERE d.deptno = e.deptno) dname FROM emp e
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename, (SELECT dname, loc FROM dept d WHERE d.deptno = e.deptno) x FROM emp e
+< error
+| 913 ORA-00913: too many values
+|
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp WHERE sal > ALL (SELECT sal FROM emp WHERE deptno = 30)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp WHERE deptno = ANY (10, 20)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp WHERE (deptno, job) IN (SELECT deptno, job FROM emp WHERE ename = 'SMITH')
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename, sal FROM emp e WHERE sal > (SELECT AVG(sal) FROM emp WHERE deptno = e.deptno)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT empno, ename FROM emp WHERE empno = (SELECT MAX(empno) FROM emp)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp WHERE empno = (SELECT empno, ename FROM emp)
+< error
+| 913 ORA-00913: too many values
+|
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp WHERE ename LIKE 'A%' AND sal BETWEEN 1000 AND 3000 AND deptno IN (10, 20) AND comm IS NOT NULL
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT d.dname, CURSOR(SELECT ename FROM emp e WHERE e.deptno = d.deptno) c FROM dept d
+< error
+| 22902 ORA-22902: CURSOR expression is not allowed in this context.
+|
+> exec
+| CREATE VIEW v AS WITH d AS (SELECT deptno, dname FROM dept) SELECT * FROM d
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS WITH d (no, name) AS (SELECT deptno, dname FROM dept) SELECT * FROM d
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS WITH d (no) AS (SELECT deptno, dname FROM dept) SELECT * FROM d
+< error
+| 32038 ORA-32038: number of WITH clause column names does not match number of elements in select list
+|
+> exec
+| CREATE VIEW v AS WITH a AS (SELECT empno, mgr FROM emp), b AS (SELECT empno FROM a WHERE mgr IS NULL) SELECT * FROM b
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS WITH d AS (SELECT * FROM dept) SELECT d.dname, e.ename FROM d JOIN emp e ON e.deptno = d.deptno
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS WITH r (empno, ename, lvl) AS (SELECT empno, ename, 1 FROM emp WHERE mgr IS NULL UNION ALL SELECT e.empno, e.ename, r.lvl + 1 FROM emp e JOIN r ON e.mgr = r.empno) SELECT * FROM r
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS WITH r (n) AS (SELECT 1 FROM dual UNION ALL SELECT n + 1 FROM r WHERE n < 5) SELECT n FROM r
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS WITH r AS (SELECT 1 n FROM dual UNION ALL SELECT n + 1 FROM r WHERE n < 5) SELECT n FROM r
+< error
+| 32039 ORA-32039: missing column alias list in recursive WITH clause element R
+|
+> exec
+| CREATE VIEW v AS WITH r (n) AS (SELECT 1 FROM dual UNION ALL SELECT n + 1 FROM r WHERE n < 5) SEARCH DEPTH FIRST BY n SET ord CYCLE n SET is_cycle TO 'Y' DEFAULT 'N' SELECT * FROM r
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS WITH d AS (SELECT deptno FROM dept) SELECT ename FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS WITH d AS (SELECT deptno FROM dept) SELECT dname FROM d
+< error
+| 904 ORA-00904: "DNAME": invalid identifier
+|
+> exec
+| CREATE VIEW v AS WITH FUNCTION dbl(x NUMBER) RETURN NUMBER IS BEGIN RETURN x * 2; END; SELECT dbl(sal) d FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT empno, ename FROM emp UNION SELECT deptno, dname FROM dept
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT empno FROM emp UNION ALL SELECT deptno FROM dept
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT deptno FROM dept MINUS SELECT deptno FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT deptno FROM dept INTERSECT SELECT deptno FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT deptno FROM dept EXCEPT SELECT deptno FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT deptno FROM dept MINUS ALL SELECT deptno FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT deptno FROM dept INTERSECT ALL SELECT deptno FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT empno, ename FROM emp UNION SELECT deptno FROM dept
+< error
+| 1789 ORA-01789: query block has incorrect number of result columns
+|
+> exec
+| CREATE VIEW v AS SELECT empno FROM emp UNION SELECT dname FROM dept
+< error
+| 1790 ORA-01790: expression must have same datatype as corresponding expression
+|
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp UNION SELECT dname FROM dept
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT job FROM emp UNION SELECT loc FROM dept ORDER BY 1
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp UNION SELECT dname FROM dept ORDER BY ename
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp UNION SELECT dname FROM dept ORDER BY dname
+< error
+| 904 ORA-00904: "DNAME": invalid identifier
+|
+> exec
+| CREATE VIEW v AS (SELECT ename FROM emp) UNION ALL (SELECT dname FROM dept)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT sal FROM emp UNION ALL SELECT comm FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT sal FROM emp UNION SELECT deptno FROM dept
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT code FROM misc UNION SELECT title FROM misc
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT NULL x FROM dual UNION SELECT ename FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT hiredate FROM emp UNION SELECT ts FROM misc
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename n FROM emp UNION SELECT dname FROM dept
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT 'a' c FROM dual UNION SELECT 'bcd' FROM dual
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT 'a' c FROM dual UNION ALL SELECT ename FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT 1 n FROM dual UNION SELECT 2.5 FROM dual
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM dept UNION SELECT * FROM dept
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT code FROM misc UNION SELECT code FROM misc
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT note FROM misc UNION SELECT note FROM misc
+< error
+| 22848 ORA-22848: cannot use CLOB type as comparison key
+|
+> exec
+| CREATE VIEW v AS SELECT note FROM misc UNION ALL SELECT note FROM misc
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT deptno, COUNT(*) cnt, SUM(sal) total, AVG(sal) avg_sal, MIN(hiredate) first_hire, MAX(ename) last_name FROM emp GROUP BY deptno
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT MAX(sal) mx, MIN(empno) mn, MAX(code) mc FROM misc, emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT deptno, COUNT(*) cnt FROM emp GROUP BY deptno HAVING COUNT(*) > 3
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT deptno, ename, COUNT(*) cnt FROM emp GROUP BY deptno
+< error
+| 979 ORA-00979: "ENAME": must appear in the GROUP BY clause or be used in an aggregate function
+|
+> exec
+| CREATE VIEW v AS SELECT ename, COUNT(*) cnt FROM emp
+< error
+| 937 ORA-00937: not a single-group group function
+|
+> exec
+| CREATE VIEW v AS SELECT deptno FROM emp WHERE SUM(sal) > 10 GROUP BY deptno
+< error
+| 934 ORA-00934: group function is not allowed here
+|
+> exec
+| CREATE VIEW v AS SELECT deptno, job, SUM(sal) s FROM emp GROUP BY ROLLUP (deptno, job)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT deptno, job, SUM(sal) s, GROUPING(job) g FROM emp GROUP BY CUBE (deptno, job)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT deptno, job, SUM(sal) s FROM emp GROUP BY GROUPING SETS ((deptno), (job), ())
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT COUNT(DISTINCT job) jobs FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT deptno, STDDEV(sal) sd, VARIANCE(sal) v, MEDIAN(sal) med FROM emp GROUP BY deptno
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT deptno, PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY sal) p50 FROM emp GROUP BY deptno
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT 1 + COUNT(*) c FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT deptno d, COUNT(*) c FROM emp GROUP BY d
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT deptno, COUNT(*) c FROM emp GROUP BY 1
+< error
+| 3162 ORA-03162: "DEPTNO": must appear in the GROUP BY clause or be used in an aggregate function as 'group_by_position_enabled' is FALSE
+|
+> exec
+| CREATE VIEW v AS SELECT MAX(AVG(sal)) m FROM emp GROUP BY deptno
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT MAX(AVG(sal)) m FROM emp
+< error
+| 978 ORA-00978: nested group function without GROUP BY
+|
+> exec
+| CREATE VIEW v AS SELECT deptno, MAX(AVG(sal)) m FROM emp GROUP BY deptno
+< error
+| 937 ORA-00937: not a single-group group function
+|
+> exec
+| CREATE VIEW v AS SELECT deptno, LISTAGG(ename, ',') WITHIN GROUP (ORDER BY ename) names FROM emp GROUP BY deptno
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT deptno, MAX(sal) KEEP (DENSE_RANK LAST ORDER BY hiredate) last_sal FROM emp GROUP BY deptno
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT SUM(bd) s, AVG(bf) a, MAX(ts) m, MIN(code) mc, COUNT(note) cn FROM misc
+< error
+| 22849 ORA-22849: Type CLOB is not supported for this function or operator.
+|
+> exec
+| CREATE VIEW v AS SELECT COUNT(*) c FROM misc GROUP BY note
+< error
+| 22848 ORA-22848: cannot use CLOB type as comparison key
+|
+> exec
+| CREATE VIEW v AS SELECT DISTINCT note FROM misc
+< error
+| 22848 ORA-22848: cannot use CLOB type as comparison key
+|
+> exec
+| CREATE VIEW v AS SELECT note FROM misc ORDER BY note
+< error
+| 22848 ORA-22848: cannot use CLOB type as comparison key
+|
+> exec
+| CREATE VIEW v AS SELECT ename, ROW_NUMBER() OVER (ORDER BY sal DESC) rn FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename, RANK() OVER (PARTITION BY deptno ORDER BY sal) rnk, DENSE_RANK() OVER (PARTITION BY deptno ORDER BY sal) drnk FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename, SUM(sal) OVER (PARTITION BY deptno) dept_sal FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename, AVG(sal) OVER (ORDER BY hiredate ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) mov FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename, LAG(sal) OVER (ORDER BY hiredate) prev, LEAD(sal, 1, 0) OVER (ORDER BY hiredate) nxt FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename, FIRST_VALUE(ename) OVER (PARTITION BY deptno ORDER BY sal) lowest FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename, NTILE(4) OVER (ORDER BY sal) q FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename, RATIO_TO_REPORT(sal) OVER () pct FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename, COUNT(*) OVER () total FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename, PERCENT_RANK() OVER (ORDER BY sal) pr, CUME_DIST() OVER (ORDER BY sal) cd FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename, sal FROM emp WHERE ROW_NUMBER() OVER (ORDER BY sal) = 1
+< error
+| 30483 ORA-30483: window  functions are not allowed here
+|
+> exec
+| CREATE VIEW v AS SELECT ename, SUM(sal) OVER w s FROM emp WINDOW w AS (PARTITION BY deptno)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename, sal, sal - AVG(sal) OVER (PARTITION BY deptno) diff FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT deptno, SUM(SUM(sal)) OVER () total FROM emp GROUP BY deptno
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ROW_NUMBER() OVER (ORDER BY note) r FROM misc
+< error
+| 22848 ORA-22848: cannot use CLOB type as comparison key
+|
+> exec
+| CREATE VIEW v AS SELECT LEVEL lvl, ename FROM emp CONNECT BY PRIOR empno = mgr START WITH mgr IS NULL
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename, SYS_CONNECT_BY_PATH(ename, '/') path, CONNECT_BY_ISLEAF leaf, CONNECT_BY_ROOT ename root FROM emp START WITH mgr IS NULL CONNECT BY NOCYCLE PRIOR empno = mgr
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename, LEVEL FROM emp CONNECT BY PRIOR empno = mgr ORDER SIBLINGS BY ename
+< error
+| 998 ORA-00998: must name this expression with a column alias
+|
+> exec
+| CREATE VIEW v AS SELECT LEVEL l FROM dual CONNECT BY LEVEL <= 10
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp START WITH mgr IS NULL CONNECT BY PRIOR empno = mgr
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT PRIOR ename p, ename FROM emp CONNECT BY PRIOR empno = mgr
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename, sal FROM emp ORDER BY sal DESC FETCH FIRST 5 ROWS ONLY
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp ORDER BY sal OFFSET 2 ROWS FETCH NEXT 3 ROWS ONLY
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp ORDER BY sal FETCH FIRST 10 PERCENT ROWS WITH TIES
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp WHERE ROWNUM <= 5
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp WHERE ROWNUM < 3 ORDER BY ename
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM (SELECT deptno, job, sal FROM emp) PIVOT (SUM(sal) FOR deptno IN (10 AS d10, 20 AS d20, 30 AS d30))
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM (SELECT deptno, job, sal FROM emp) PIVOT (SUM(sal) s, COUNT(*) c FOR deptno IN (10, 20))
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM (SELECT job, deptno, sal FROM emp) PIVOT (MAX(sal) FOR (job, deptno) IN (('CLERK', 10) AS c10, ('MANAGER', 20) AS m20))
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM (SELECT deptno, job, sal FROM emp) PIVOT (SUM(sal) FOR job IN ('CLERK', 'MANAGER'))
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM emp PIVOT (COUNT(*) FOR deptno IN (10 AS d10, 20 AS d20))
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM (SELECT empno, sal, comm FROM emp) UNPIVOT (amount FOR kind IN (sal AS 'SAL', comm AS 'COMM'))
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM (SELECT empno, sal, comm FROM emp) UNPIVOT INCLUDE NULLS (amount FOR kind IN (sal, comm))
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT CASE WHEN sal > 2000 THEN 'high' ELSE 'low' END band FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT CASE deptno WHEN 10 THEN 'ACCOUNTING' WHEN 20 THEN 'RESEARCH' END dname FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT CASE WHEN sal > 2000 THEN sal ELSE comm END x FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT CASE WHEN sal > 2000 THEN 'x' ELSE 1 END x FROM emp
+< error
+| 932 ORA-00932: expression (1) is of data type NUMBER, which is incompatible with expected data type CHAR
+|
+> exec
+| CREATE VIEW v AS SELECT CASE WHEN id > 1 THEN code ELSE title END x FROM misc
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT CASE WHEN id > 1 THEN ts ELSE NULL END x FROM misc
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT DECODE(deptno, 10, 'A', 20, 'BB', 'CCC') d FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT DECODE(deptno, 10, sal, comm) d FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT DECODE(job, 'CLERK', 1, 2) d FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT DECODE(id, 1, NULL, code) x FROM misc
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT NVL(comm, 0) c FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT NVL(job, 'none') j FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT NVL(NULL, 1) x FROM dual
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT NVL(title, name) x FROM misc
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT NVL2(comm, 'Y', 'N') has_comm FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT COALESCE(comm, sal, 0) c FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT COALESCE(NULL, code) x FROM misc
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT NULLIF(sal, comm) n FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT GREATEST(sal, comm) g, LEAST(ename, job) l FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename || ' ' || job label FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT CONCAT(ename, job) c FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT sal || 'x' x FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT sal * 12 + NVL(comm, 0) annual FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT sal + ename x FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT sal / 3 s, MOD(empno, 2) m, ROUND(sal, 1) r, TRUNC(sal) t, ABS(sal) a, CEIL(sal) c, FLOOR(sal) f, POWER(sal, 2) p, SQRT(sal) q FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT SIGN(sal) s, LN(sal) l, EXP(1) e, LOG(10, sal) lg FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT UPPER(ename) u, LOWER(ename) l, INITCAP(ename) i, LENGTH(ename) n, SUBSTR(ename, 1, 3) s, INSTR(ename, 'A') p FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT LPAD(ename, 15, '*') l, RPAD(job, 12) r, TRIM(ename) t, LTRIM(job) lt, RTRIM(job) rt, REPLACE(ename, 'A', 'a') rp, TRANSLATE(job, 'AB', 'ab') tr FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT REGEXP_SUBSTR(ename, '[A-Z]+') rs, REGEXP_REPLACE(job, 'A', 'B') rr, REGEXP_INSTR(ename, 'A') ri, REGEXP_COUNT(ename, 'A') rc FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT CHR(65) c, ASCII(ename) a FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT DUMP(ename) d, VSIZE(ename) v FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT TO_CHAR(hiredate, 'YYYY-MM-DD') d, TO_CHAR(sal) s, TO_CHAR(sal, '9999.99') f FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT TO_NUMBER('42') n, TO_DATE('2024-01-01', 'YYYY-MM-DD') d, TO_TIMESTAMP('2024-01-01', 'YYYY-MM-DD') t FROM dual
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT SYSDATE now, SYSTIMESTAMP ts, CURRENT_DATE cd, CURRENT_TIMESTAMP ct, LOCALTIMESTAMP lt FROM dual
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT USER u, UID i, SYS_GUID() g, USERENV('LANG') l FROM dual
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ADD_MONTHS(hiredate, 1) a, MONTHS_BETWEEN(SYSDATE, hiredate) m, LAST_DAY(hiredate) l, NEXT_DAY(hiredate, 'MONDAY') n, TRUNC(hiredate, 'MM') t, EXTRACT(YEAR FROM hiredate) y FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT hiredate + 1 d, hiredate - hiredate n, SYSDATE - hiredate days FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp WHERE hiredate > 5
+< error
+| 932 ORA-00932: expression (5) is of data type NUMBER, which is incompatible with expected data type DATE
+|
+> exec
+| CREATE VIEW v AS SELECT CAST(sal AS VARCHAR2(20)) s, CAST(ename AS CHAR(12)) c, CAST(empno AS NUMBER(10,2)) n, CAST(hiredate AS TIMESTAMP) t FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT CAST(NULL AS DATE) d, CAST('1' AS INTEGER) i, CAST(1 AS BINARY_DOUBLE) b FROM dual
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT 'abc' s, 1 n, 1.5 f, N'x' ns, DATE '2024-01-01' d, TIMESTAMP '2024-01-01 00:00:00' t, NULL z FROM dual
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT TRUE b FROM dual
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT UPPER(code) a, code || title b, LENGTH(note) c, SUBSTR(note, 1, 10) d, TO_CHAR(ts) e, bd + 1 f, bf * 2 g, ts + 1 h, ts - ts i, ds * 2 j FROM misc
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT TO_CLOB(title) c, TO_NCHAR(title) nc, RAWTOHEX(r) h, HEXTORAW('AB') rr FROM misc
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT JSON_OBJECT('name' VALUE ename) j FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT JSON_VALUE('{"a":1}', '$.a') j FROM dual
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT JSON_ARRAYAGG(ename) j FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT XMLELEMENT("e", ename) x FROM emp
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT empno, xt.c FROM emp, JSON_TABLE('{"a":[1,2]}', '$.a[*]' COLUMNS (c NUMBER PATH '$')) xt
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT column_value cv FROM TABLE(sys.odcinumberlist(1, 2, 3))
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM TABLE(sys.odcivarchar2list('a', 'b'))
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename, sal FROM emp MODEL DIMENSION BY (empno) MEASURES (sal, ename) RULES (sal[7369] = 0)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM emp MATCH_RECOGNIZE (ORDER BY hiredate MEASURES FIRST(ename) AS first_name PATTERN (a b*) DEFINE b AS sal > PREV(sal))
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT ename FROM emp AS OF TIMESTAMP SYSDATE - 1
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE dept (deptno NUMBER(2) CONSTRAINT dept_pk PRIMARY KEY, dname VARCHAR2(14) NOT NULL, loc VARCHAR2(13))
+< ok 0 0
+> exec
+| CREATE TABLE emp (empno NUMBER(4) CONSTRAINT emp_pk PRIMARY KEY, ename VARCHAR2(10) NOT NULL, job VARCHAR2(9), mgr NUMBER(4), hiredate DATE, sal NUMBER(7,2), comm NUMBER(7,2), deptno NUMBER(2) CONSTRAINT emp_dept_fk REFERENCES dept (deptno))
+< ok 0 0
+> exec
+| CREATE TABLE misc (id INTEGER CONSTRAINT misc_pk PRIMARY KEY, code CHAR(3), title VARCHAR2(20 CHAR), name NVARCHAR2(20), note CLOB, ts TIMESTAMP, tz TIMESTAMP(3) WITH TIME ZONE, bd BINARY_DOUBLE, bf BINARY_FLOAT, r RAW(16), fl FLOAT, ym INTERVAL YEAR TO MONTH, ds INTERVAL DAY TO SECOND, n NUMBER(*,2), flag BOOLEAN)
+< ok 0 0
+> exec
+| CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
+< ok 0 0
 
 == TestWalkSimulation default#3

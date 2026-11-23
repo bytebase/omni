@@ -1141,11 +1141,6 @@
           schema: ""
           table: t
           column: ""
-        - server: ""
-          database: db
-          schema: ""
-          table: t1
-          column: ""
     predicatecolumns: []
 - description: Multi-level CTE
   statement: WITH tt2 AS (WITH tt2 AS (SELECT * FROM t) SELECT MAX(a) FROM tt2) SELECT * FROM tt2;
@@ -1196,11 +1191,6 @@
           database: db
           schema: ""
           table: t
-          column: ""
-        - server: ""
-          database: db
-          schema: ""
-          table: tt2
           column: ""
     predicatecolumns: []
 - description: Test for CTE rename fields name
@@ -1282,11 +1272,6 @@
           database: db
           schema: ""
           table: t
-          column: ""
-        - server: ""
-          database: db
-          schema: ""
-          table: t1
           column: ""
     predicatecolumns: []
 - description: Test for Recursive Common Table Expression dependent closures
@@ -1384,11 +1369,6 @@
           schema: ""
           table: t
           column: ""
-        - server: ""
-          database: db
-          schema: ""
-          table: t1
-          column: ""
     predicatecolumns: []
 - description: Test for Non-Recursive Common Table Expression with RECURSIVE key words
   statement: WITH RECURSIVE t1 AS (SELECT 1 AS c1, 2 AS c2, 3 AS c3, 4 AS c4 UNION SELECT a, b, d, c FROM t) SELECT * FROM t1;
@@ -1469,10 +1449,5 @@
           database: db
           schema: ""
           table: t
-          column: ""
-        - server: ""
-          database: db
-          schema: ""
-          table: t1
           column: ""
     predicatecolumns: []

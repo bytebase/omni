@@ -441,6 +441,30 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS WITH XMLNAMESPACES(DEFAULT N'a') SELECT *
+|
+< error
+| 263 1 16 1 proc=_v Must specify table to select from.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS WITH XMLNAMESPACES(N'a' AS a) SELECT *
+|
+< error
+| 263 1 16 1 proc=_v Must specify table to select from.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT * ORDER BY 1
 |
 < error
@@ -2546,6 +2570,18 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT * FROM CONTAINSTABLE(a, PROPERTY(a, N'a'), 'a')
+|
+< error
+| 7601 4 16 1 proc=_v Cannot use a CONTAINS or FREETEXT predicate on column 'a' because it is not full-text indexed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, *)
 |
 < error
@@ -2902,6 +2938,18 @@
 < ok 0 -
 > exec
 | CREATE VIEW _v AS SELECT * FROM OPENJSON(1) WITH(a a 'a')
+|
+< error
+| 2715 14 16 1 proc=_v Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM OPENJSON(1) WITH(a a N'a')
 |
 < error
 | 2715 14 16 1 proc=_v Column, parameter, or variable #0: Cannot find data type a.
@@ -3342,6 +3390,19 @@
 |
 < error
 | 156 1 15 1 proc=_v Incorrect syntax near the keyword 'OPTION'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * OPTION(USE PLAN N'a')
+|
+< error
+| 156 1 15 1 proc=_v Incorrect syntax near the keyword 'OPTION'.
+| 154 1 15 1 proc=_v a USE database statement is not allowed in a procedure, function or trigger.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -5379,6 +5440,42 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT 1 N'a'
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| VIEW
+: string
+| dbo._v
+: string
+| CREATE VIEW _v AS SELECT 1 N'a'
+|
+|
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT 1 a
 |
 < ok 0 -
@@ -5407,6 +5504,18 @@
 | ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME AS OF N'a'
+|
+< error
+| 13544 2 16 1 proc=_v Temporal FOR SYSTEM_TIME clause can only be used with system-versioned tables. 'omni_TestQuerySimulation.dbo.a' is not a system-versioned table.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -31603,6 +31712,115 @@
 | CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT name COLLATE Compatibility_52_409_30003 AS n FROM customers
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| VIEW
+: string
+| dbo._v
+: string
+| CREATE VIEW _v AS SELECT name COLLATE Compatibility_52_409_30003 AS n FROM customers
+|
+|
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.customers
+: string
+| CREATE TABLE [dbo].[customers] ([id] int NOT NULL, [name] nvarchar(100) NULL, [region] varchar(10) NULL, [born] date NULL);
+| ALTER TABLE [dbo].[customers] ADD CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_double
+: string
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_orders
+: string
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.orders
+: string
+| CREATE TABLE [dbo].[orders] ([id] int NOT NULL, [customer_id] int NULL, [amount] decimal(10,2) NULL, [status] nvarchar(20) NULL, [created] datetime2(3) NULL, [doc] xml NULL);
+| ALTER TABLE [dbo].[orders] ADD CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| VIEW
+: string
+| dbo.v_customers
+: string
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+|
+< row
+: string
+| SCHEMA
+: string
+| s
+: string
+| CREATE SCHEMA [s];
+|
+< row
+: string
+| TABLE
+: string
+| s.orders
+: string
+| CREATE TABLE [s].[orders] ([id] int NOT NULL, [note] nvarchar(max) NULL);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT name COLLATE Latin1_General_CI_AS_WS_KS AS n FROM customers
 |
 < error
@@ -31933,6 +32151,114 @@
 < ok 0 -
 > exec
 | CREATE TABLE t (c NVARCHAR(10) COLLATE database_default)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.customers
+: string
+| CREATE TABLE [dbo].[customers] ([id] int NOT NULL, [name] nvarchar(100) NULL, [region] varchar(10) NULL, [born] date NULL);
+| ALTER TABLE [dbo].[customers] ADD CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_double
+: string
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_orders
+: string
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.orders
+: string
+| CREATE TABLE [dbo].[orders] ([id] int NOT NULL, [customer_id] int NULL, [amount] decimal(10,2) NULL, [status] nvarchar(20) NULL, [created] datetime2(3) NULL, [doc] xml NULL);
+| ALTER TABLE [dbo].[orders] ADD CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([c] nvarchar(10) NULL);
+|
+< row
+: string
+| VIEW
+: string
+| dbo.v_customers
+: string
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+|
+< row
+: string
+| SCHEMA
+: string
+| s
+: string
+| CREATE SCHEMA [s];
+|
+< row
+: string
+| TABLE
+: string
+| s.orders
+: string
+| CREATE TABLE [s].[orders] ([id] int NOT NULL, [note] nvarchar(max) NULL);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE TABLE t (c NVARCHAR(10) COLLATE compatibility_52_409_30003)
 |
 < ok 0 -
 > query

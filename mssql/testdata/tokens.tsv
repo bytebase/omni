@@ -56,3 +56,18 @@ uniqueConstraintTailOpt	(every site)	TSql160.g:29806 ON a filegroup
 foreignConstraintColumnsOpt	(every site)	TSql160.g:30091 a FOREIGN KEY's columns
 inlineIndexType	(every site)	TSql160.g:28624 CLUSTERED, NONCLUSTERED or HASH
 functionReturnTypeAndBody(functionAttributes)?	(every site)	TSql160.g:13029 a function's WITH options
+# Keyword choices tried at every site that names them, and not only where
+# their own alternatives' rows reach (see grammar.EveryAlternative).
+optionOnOff	(every alternative)	TSql160.g:5084 ON or OFF
+setOnOff	(every alternative)	TSql160.g:16684 a SET statement's ON or OFF
+databaseConfigurationOptionOnOffPrimary	(every alternative)	TSql160.g:5067 ON, OFF or PRIMARY
+uniqueRowFilter	(every alternative)	TSql160.g:18236 ALL or DISTINCT
+orderByOption	(every alternative)	TSql160.g:33010 ASC or DESC
+subqueryComparisonPredicateType	(every alternative)	TSql160.g:31311 ALL, ANY or SOME
+triggerScope	(every alternative)	TSql160.g:25412 DATABASE or ALL SERVER
+execStart	(every alternative)	TSql160.g:26214 EXECUTE or EXEC
+constraintEnforcement	(every alternative)	TSql160.g:27945 CHECK or NOCHECK
+assignmentWithOp	(every alternative)	TSql160.g:33665 a compound assignment operator
+dmlTriggerAction	(every alternative)	TSql160.g:25429 INSERT, UPDATE or DELETE
+actionWithQual	(every alternative)	TSql160.g:5445 an audited action
+stringLiteral	(every alternative)	TSql160.g:33464 a string, or an N'' one

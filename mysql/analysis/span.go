@@ -97,12 +97,15 @@ type tableSource interface {
 
 // pseudoTable is a derived relation: a CTE, subquery, alias or join.
 type pseudoTable struct {
-	Name    string
-	Columns []QuerySpanResult
+	// Database is the database of a table or view read through an alias,
+	// which MySQL still matches in db.alias.column; empty otherwise.
+	Database string
+	Name     string
+	Columns  []QuerySpanResult
 }
 
 func (p *pseudoTable) GetTableName() string                  { return p.Name }
-func (*pseudoTable) GetDatabaseName() string                 { return "" }
+func (p *pseudoTable) GetDatabaseName() string               { return p.Database }
 func (p *pseudoTable) GetQuerySpanResult() []QuerySpanResult { return p.Columns }
 
 // physicalView is a catalog view with its resolved columns.
