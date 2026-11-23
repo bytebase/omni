@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/analysis"
@@ -606,9 +607,35 @@ func (r *spanResolver) star(item *ast.SelectItem, sc *spanScope) []spanColumn {
 			return nil
 		}
 	}
-	except := map[string]bool{}
-	for _, c := range item.ExceptColumns {
-		except[strings.ToLower(c)] = true
+	// An excluded column drops from the relations its qualifier names, or
+	// from every relation when it has none.
+	type exclusion struct {
+		column string
+		rels   []*relation
+	}
+	var excluded []exclusion
+	for i, c := range item.ExceptColumns {
+		e := exclusion{column: c}
+		if i < len(item.ExceptNames) && item.ExceptNames[i] != nil && len(item.ExceptNames[i].Parts) > 1 {
+			parts := item.ExceptNames[i].Parts
+			e.rels = matching(sc.relations, parts[:len(parts)-1], r)
+			if len(e.rels) == 0 {
+				table := strings.Join(parts[:len(parts)-1], ".")
+				r.missing(NotFoundError{Table: &table, Column: &c})
+			}
+		}
+		excluded = append(excluded, e)
+	}
+	isExcluded := func(rel *relation, column string) bool {
+		for _, e := range excluded {
+			if !strings.EqualFold(e.column, column) {
+				continue
+			}
+			if e.rels == nil || slices.Contains(e.rels, rel) {
+				return true
+			}
+		}
+		return false
 	}
 	var cols []spanColumn
 	for _, rel := range rels {
@@ -618,7 +645,7 @@ func (r *spanResolver) star(item *ast.SelectItem, sc *spanScope) []spanColumn {
 			continue
 		}
 		for _, c := range rel.columns {
-			if except[strings.ToLower(c.name)] {
+			if isExcluded(rel, c.name) {
 				continue
 			}
 			cols = append(cols, spanColumn{name: c.name, sources: clone(c.sources), plain: !c.star, star: c.star})

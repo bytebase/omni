@@ -17146,6 +17146,17 @@ reject	reject	engine	suite:conformance	BUILD INDEX a ON a PARTITIONS a
 accept	accept	engine	suite:conformance	SHOW ALL ROUTINE LOAD WHERE a = 1
 accept	accept	engine	suite:conformance	SHOW ROUTINE LOAD WHERE a = 1 LIKE 'a'
 reject	reject	engine	suite:conformance	SHOW ROUTINE LOAD WHERE
+accept	accept	engine	suite:conformance	SELECT * EXCEPT (a, b) FROM t
+accept	accept	engine	suite:conformance	SELECT * EXCEPT (a) FROM t
+reject	reject	engine	suite:conformance	SELECT * EXCEPT (a)
+reject	reject	engine	suite:conformance	SELECT * EXCEPT (SELECT 1) FROM t
+accept	accept	engine	suite:conformance	SELECT * FROM t EXCEPT (SELECT * FROM u)
+reject	reject	engine	suite:conformance	SELECT a, * EXCEPT (b) FROM t
+reject	reject	engine	suite:conformance	SELECT a FROM t QUALIFY row_number() OVER (ORDER BY a) = 1
+accept	accept	engine	suite:conformance	SELECT a FROM t QUALIFY
+accept	accept	engine	suite:conformance	SELECT qualify FROM t
+reject	reject	engine	suite:conformance	WITH RECURSIVE r (n) AS (SELECT 1) SELECT n FROM r
+accept	accept	engine	suite:conformance	WITH recursive AS (SELECT 1) SELECT * FROM recursive
 reject	reject	engine	suite:comments	SELECT 1 // x
 reject	reject	engine	suite:comments	SELECT 1 # x
 reject	reject	engine	suite:comments	// x

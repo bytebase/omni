@@ -29,6 +29,8 @@ SELECT *, amount FROM orders
 SELECT c.*, o.amount FROM customers c JOIN orders o ON o.customer_id = c.id
 SELECT * FROM (SELECT * FROM customers) c
 SELECT * EXCEPT (amount, status) FROM orders
+SELECT * EXCEPT (o.id, c.email) FROM orders o CROSS JOIN customers c
+SELECT * EXCEPT (id) FROM orders o CROSS JOIN customers c
 
 -- Qualified names, other databases, catalogs and case.
 SELECT id FROM shop.orders

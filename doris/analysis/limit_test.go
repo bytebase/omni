@@ -72,9 +72,9 @@ func TestGetStatementWithResultLimit(t *testing.T) {
 		{
 			// The outer statement is a SelectStmt (its WITH clause), so it still
 			// gets the precise in-place edit despite the UNION ALL inside the CTE.
-			stmt:  "WITH RECURSIVE cte_count (n) AS ( SELECT 1 UNION ALL SELECT n + 1 FROM cte_count WHERE n < 3 ) SELECT n FROM cte_count;",
+			stmt:  "WITH cte_count (n) AS ( SELECT 1 UNION ALL SELECT n + 1 FROM cte_count WHERE n < 3 ) SELECT n FROM cte_count;",
 			count: 10,
-			want:  "WITH RECURSIVE cte_count (n) AS ( SELECT 1 UNION ALL SELECT n + 1 FROM cte_count WHERE n < 3 ) SELECT n FROM cte_count LIMIT 10;",
+			want:  "WITH cte_count (n) AS ( SELECT 1 UNION ALL SELECT n + 1 FROM cte_count WHERE n < 3 ) SELECT n FROM cte_count LIMIT 10;",
 		},
 		{
 			stmt:  "SELECT firstName FROM employees EXCEPT SELECT contactFirstName FROM customers;",

@@ -186,15 +186,8 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 		stmt.Having = having
 	}
 
-	// QUALIFY clause (Doris extension)
-	if p.cur.Kind == kwQUALIFY {
-		p.advance() // consume QUALIFY
-		qualify, err := p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Qualify = qualify
-	}
+	// No QUALIFY clause: DorisParser.g4's querySpecification has none at
+	// the pinned 3.1.4, which reads QUALIFY as the table's alias.
 
 	// ORDER BY clause
 	if p.cur.Kind == kwORDER {
@@ -601,8 +594,12 @@ func (p *Parser) parseIntersectChain(left ast.Node) (ast.Node, error) {
 // SELECT list
 // ---------------------------------------------------------------------------
 
-// parseSelectList parses comma-separated SELECT items.
+// parseSelectList parses comma-separated SELECT items, or the one item
+// * EXCEPT (namedExpressionSeq) (selectColumnClause, DorisParser.g4).
 func (p *Parser) parseSelectList() ([]*ast.SelectItem, error) {
+	if item, ok, err := p.parseStarExcept(); ok || err != nil {
+		return []*ast.SelectItem{item}, err
+	}
 	var items []*ast.SelectItem
 
 	item, err := p.parseSelectItem()
@@ -621,6 +618,80 @@ func (p *Parser) parseSelectList() ([]*ast.SelectItem, error) {
 	}
 
 	return items, nil
+}
+
+// parseStarExcept parses selectColumnClause's second alternative, the
+// whole select list: ASTERISK EXCEPT LEFT_PAREN namedExpressionSeq
+// RIGHT_PAREN (DorisParser.g4), which Doris refuses over a one-row
+// relation, so a FROM must follow. It reports false, consuming nothing,
+// when the parenthesis opens a query, SELECT * EXCEPT (SELECT ...),
+// ((WITH ...)) or (VALUES ...): that is a set operation. The choice looks through the
+// leading parentheses only, so it costs one token per parenthesis and
+// never parses an operand twice.
+func (p *Parser) parseStarExcept() (*ast.SelectItem, bool, error) {
+	if p.cur.Kind != int('*') || p.peekNext().Kind != kwEXCEPT {
+		return nil, false, nil
+	}
+	cp := p.save()
+	start := p.cur.Loc.Start
+	p.advance() // consume '*'
+	p.advance() // consume EXCEPT
+	if p.cur.Kind != int('(') {
+		p.restore(cp)
+		return nil, false, nil
+	}
+	for p.cur.Kind == int('(') {
+		p.advance()
+	}
+	if p.cur.Kind == kwSELECT || p.cur.Kind == kwWITH || p.cur.Kind == kwVALUES {
+		p.restore(cp)
+		return nil, false, nil
+	}
+	p.restore(cp)
+	p.advance() // consume '*'
+	p.advance() // consume EXCEPT
+	p.advance() // consume '('
+	item := &ast.SelectItem{Star: true}
+	for {
+		exprStart := p.cur.Loc.Start
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, true, err
+		}
+		// namedExpression: expression (AS? identifierOrText)?
+		if _, _, err := p.parseOptionalAlias(true); err != nil {
+			return nil, true, err
+		}
+		name := p.sourceText(ast.Loc{Start: exprStart, End: ast.NodeLoc(expr).End})
+		var written *ast.ObjectName
+		inner := expr
+		for {
+			paren, ok := inner.(*ast.ParenExpr)
+			if !ok {
+				break
+			}
+			inner = paren.Expr
+		}
+		if ref, ok := inner.(*ast.ColumnRef); ok && ref.Name != nil && len(ref.Name.Parts) > 0 {
+			name, written = ref.Name.Parts[len(ref.Name.Parts)-1], ref.Name
+		}
+		item.ExceptColumns = append(item.ExceptColumns, name)
+		item.ExceptNames = append(item.ExceptNames, written)
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, true, err
+	}
+	item.Loc = ast.Loc{Start: start, End: p.prev.Loc.End}
+	if p.cur.Kind != kwFROM {
+		// LogicalPlanBuilder refuses * EXCEPT over a one-row relation:
+		// SELECT * EXCEPT(CURRENT_DATE) is a rejection at the pin.
+		return nil, true, p.syntaxErrorAtCur()
+	}
+	return item, true, nil
 }
 
 // parseSelectItem parses one item in the SELECT list:
@@ -656,8 +727,8 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 
 	// Bare star: SELECT * [alias]. The engine accepts an alias here even
 	// though the ANTLR selectColumnClause has none: SELECT * zzz and
-	// SELECT * CURRENT_DATE are accepts. SELECT * EXCEPT(...) is not: the
-	// pinned 3.1.4 server refuses it, so EXCEPT is left as a set operator.
+	// SELECT * CURRENT_DATE are accepts. A whole list * EXCEPT (...) is
+	// parseStarExcept's; elsewhere EXCEPT is left as a set operator.
 	if p.cur.Kind == int('*') {
 		p.advance() // consume '*'
 		item := &ast.SelectItem{
@@ -810,7 +881,7 @@ func (p *Parser) parseAliasIdentifier() (string, ast.Loc, error) {
 // and should NOT be consumed as implicit aliases in SELECT context.
 func isSelectClauseKeyword(t int) bool {
 	switch t {
-	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwQUALIFY, kwORDER,
+	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER,
 		kwLIMIT, kwOFFSET, kwUNION, kwEXCEPT, kwINTERSECT,
 		kwINTO, kwON, kwJOIN, kwINNER, kwLEFT, kwRIGHT, kwFULL,
 		kwCROSS, kwNATURAL, kwWITH, kwSELECT, kwSET,
