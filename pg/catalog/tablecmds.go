@@ -318,6 +318,9 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 					if pcol.NotNull && !c.isNotNullNoInherit(parent, pcol.AttNum) {
 						existCD.NotNull = true
 						existCD.NotNullInhCount++
+						if existCD.InheritedNNName == "" {
+							existCD.InheritedNNName = c.notNullConstraintName(parent, pcol.AttNum)
+						}
 					}
 					// Merge default from parent if child has no default.
 					// pg: src/backend/commands/tablecmds.c — MergeAttributes (default conflict detection)
@@ -342,13 +345,16 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 					// New inherited column — not locally defined.
 					inheritNN := pcol.NotNull && !c.isNotNullNoInherit(parent, pcol.AttNum)
 					var nnInh int16
+					var inheritedNNName string
 					if inheritNN {
 						nnInh = 1
+						inheritedNNName = c.notNullConstraintName(parent, pcol.AttNum)
 					}
 					newCD := ColumnDef{
 						Name:             pcol.Name,
 						Type:             c.typeNameForOID(pcol.TypeOID, pcol.TypeMod),
 						NotNull:          inheritNN,
+						InheritedNNName:  inheritedNNName,
 						NotNullLocal:     false,
 						NotNullInhCount:  nnInh,
 						Default:          pcol.Default,
@@ -991,17 +997,21 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			}
 			isLocal := col.IsLocal
 			var inhCount int16
+			var conName string
 			if i < len(colDefs) {
 				if colDefs[i].NotNullConName != "" {
 					continue
 				}
 				isLocal = colDefs[i].NotNullLocal
 				inhCount = colDefs[i].NotNullInhCount
+				if colDefs[i].InheritedNNName != "" && c.checkConstraintNameFree(rel.OID, colDefs[i].InheritedNNName) == nil {
+					conName = colDefs[i].InheritedNNName
+				}
 			}
 			if !isLocal && pk != nil && slices.Contains(pk.Columns, col.AttNum) {
 				isLocal = true
 			}
-			if err := c.ensureNotNullConstraintWithInh(schema, rel, col, "", isLocal, inhCount); err != nil {
+			if err := c.ensureNotNullConstraintWithInh(schema, rel, col, conName, isLocal, inhCount); err != nil {
 				rollbackRelation()
 				return err
 			}

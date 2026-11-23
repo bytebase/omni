@@ -924,10 +924,14 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		if addedCol.NotNull {
 			isLocal := !recursing
 			var inhCount int16
+			var conName string
 			if recursing {
 				inhCount = 1
+				if parentName := c.inheritedNotNullConstraintName(rel, addedCol.Name); parentName != "" && c.checkConstraintNameFree(rel.OID, parentName) == nil {
+					conName = parentName
+				}
 			}
-			_ = c.ensureNotNullConstraintWithInh(schema, rel, addedCol, "", isLocal, inhCount)
+			_ = c.ensureNotNullConstraintWithInh(schema, rel, addedCol, conName, isLocal, inhCount)
 		}
 		return nil
 
@@ -2747,12 +2751,99 @@ func (c *Catalog) isNotNullNoInherit(rel *Relation, attnum int16) bool {
 	return false
 }
 
+// notNullConstraintName returns the name of rel's PG 18 NOT NULL constraint for
+// attnum, or "" if none exists.
+func (c *Catalog) notNullConstraintName(rel *Relation, attnum int16) string {
+	if c.Version() < PG18 || rel == nil {
+		return ""
+	}
+	for _, con := range c.consByRel[rel.OID] {
+		if con.Type == ConstraintNotNull && len(con.Columns) == 1 && con.Columns[0] == attnum {
+			return con.Name
+		}
+	}
+	return ""
+}
+
+// inheritedNotNullConstraintName looks up a direct parent's PG 18 NOT NULL
+// constraint name for colName on rel (used when ADD COLUMN recurses to children).
+func (c *Catalog) inheritedNotNullConstraintName(rel *Relation, colName string) string {
+	if c.Version() < PG18 || rel == nil {
+		return ""
+	}
+	var parentOIDs []uint32
+	if rel.PartitionOf != 0 {
+		parentOIDs = append(parentOIDs, rel.PartitionOf)
+	}
+	parentOIDs = append(parentOIDs, rel.InhParents...)
+	for _, poid := range parentOIDs {
+		parent := c.relationByOID[poid]
+		if parent == nil {
+			continue
+		}
+		if pi, ok := parent.colByName[colName]; ok {
+			if name := c.notNullConstraintName(parent, parent.Columns[pi].AttNum); name != "" {
+				return name
+			}
+		}
+	}
+	return ""
+}
+
+// chooseNotNullConstraintNameForTree picks a PG 18 NOT NULL constraint name for
+// rel that does not collide with any constraint on rel or on descendants that
+// will receive a new inherited NOT NULL constraint for colName.
+//
+// pg: src/backend/commands/tablecmds.c — ATExecSetNotNull (ChooseConstraintName)
+func (c *Catalog) chooseNotNullConstraintNameForTree(rel *Relation, colName string) string {
+	visited := make(map[uint32]bool)
+	var targets []*Relation
+	var collect func(r *Relation, isRoot bool)
+	collect = func(r *Relation, isRoot bool) {
+		if r == nil || visited[r.OID] {
+			return
+		}
+		visited[r.OID] = true
+		if !isRoot {
+			if ci, ok := r.colByName[colName]; ok && r.Columns[ci].NotNull {
+				return
+			}
+		}
+		targets = append(targets, r)
+		for _, childOID := range c.findChildRelations(r.OID) {
+			collect(c.relationByOID[childOID], false)
+		}
+	}
+	collect(rel, true)
+
+	freeInAll := func(name string) bool {
+		for _, t := range targets {
+			if c.checkConstraintNameFree(t.OID, name) != nil {
+				return false
+			}
+		}
+		return true
+	}
+
+	name := makePGObjectName(rel.Name, colName, "not_null")
+	for i := 1; ; i++ {
+		if freeInAll(name) {
+			return name
+		}
+		name = makePGObjectName(rel.Name, colName, fmt.Sprintf("not_null%d", i))
+	}
+}
+
 // setNotNullTree marks colName NOT NULL on rel and propagates the PG 18
 // cataloged NOT NULL constraint down inheritance/partition children, tracking
-// ConIsLocal, ConInhCount, and ConNoInherit accurately.
+// ConIsLocal, ConInhCount, ConNoInherit, and inherited constraint name accurately.
 //
 // pg: src/backend/commands/tablecmds.c — ATExecSetNotNull (PG 18)
 func (c *Catalog) setNotNullTree(rel *Relation, colName string, propagate, recursing bool) error {
+	return c.setNotNullTreeNamed(rel, colName, "", propagate, recursing)
+}
+
+func (c *Catalog) setNotNullTreeNamed(rel *Relation, colName, inheritedName string, propagate, recursing bool) error {
 	idx, exists := rel.colByName[colName]
 	if !exists {
 		return errUndefinedColumn(colName)
@@ -2773,6 +2864,7 @@ func (c *Catalog) setNotNullTree(rel *Relation, colName string, propagate, recur
 			Message: fmt.Sprintf("cannot change NO INHERIT status of NOT NULL constraint %q on relation %q", nnCon.Name, rel.Name),
 		}
 	}
+	conName := inheritedName
 	if !recursing {
 		hasChildren := len(c.findChildRelations(rel.OID)) > 0
 		if !propagate && rel.RelKind == 'p' && !wasNotNull && hasChildren {
@@ -2784,8 +2876,14 @@ func (c *Catalog) setNotNullTree(rel *Relation, colName string, propagate, recur
 		col.NotNull = true
 		if nnCon != nil {
 			nnCon.ConIsLocal = true
+			conName = nnCon.Name
 		} else {
-			_ = c.ensureNotNullConstraintWithInh(rel.Schema, rel, col, "", true, 0)
+			if propagate && hasChildren {
+				conName = c.chooseNotNullConstraintNameForTree(rel, col.Name)
+			} else {
+				conName = c.chooseNotNullConstraintName(rel, col.Name)
+			}
+			_ = c.ensureNotNullConstraintWithInh(rel.Schema, rel, col, conName, true, 0)
 			if !propagate && rel.RelKind != 'p' && hasChildren {
 				for _, con := range c.consByRel[rel.OID] {
 					if con.Type == ConstraintNotNull && len(con.Columns) == 1 && con.Columns[0] == col.AttNum {
@@ -2804,7 +2902,11 @@ func (c *Catalog) setNotNullTree(rel *Relation, colName string, propagate, recur
 			nnCon.ConInhCount++
 			return nil
 		}
-		_ = c.ensureNotNullConstraintWithInh(rel.Schema, rel, col, "", false, 1)
+		childName := ""
+		if conName != "" && c.checkConstraintNameFree(rel.OID, conName) == nil {
+			childName = conName
+		}
+		_ = c.ensureNotNullConstraintWithInh(rel.Schema, rel, col, childName, false, 1)
 		if wasNotNull || !propagate {
 			return nil
 		}
@@ -2814,7 +2916,7 @@ func (c *Catalog) setNotNullTree(rel *Relation, colName string, propagate, recur
 		if childRel == nil {
 			continue
 		}
-		if err := c.setNotNullTree(childRel, colName, true, true); err != nil {
+		if err := c.setNotNullTreeNamed(childRel, colName, conName, true, true); err != nil {
 			return err
 		}
 	}

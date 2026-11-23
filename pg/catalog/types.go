@@ -40,6 +40,7 @@ type ColumnDef struct {
 	ForeignOptions   []string             // per-column FDW options
 	IsFromType       bool                 // true if column came from OF TYPE (typed table)
 	NotNullConName   string               // explicit CONSTRAINT name NOT NULL (PG 18+)
+	InheritedNNName  string               // parent's NOT NULL constraint name when inherited (PG 18+)
 	NotNullLocal     bool                 // locally declared NOT NULL (vs purely inherited)
 	NotNullInhCount  int16                // count of direct parents enforcing NOT NULL
 }

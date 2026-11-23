@@ -489,10 +489,10 @@ CREATE TABLE c_ni () INHERITS (p_ni);
 	if got, c := execCodeVersion(t, PG18, noInhSetup, "ALTER TABLE c_ni NO INHERIT p_ni"); got != "" {
 		t.Fatalf("PG18 NO INHERIT: got %q, want ok", got)
 	} else {
-		if res, err := c.Exec("ALTER TABLE c_ni DROP CONSTRAINT c_ni_x_not_null", nil); err != nil {
+		if res, err := c.Exec("ALTER TABLE c_ni DROP CONSTRAINT p_ni_x_not_null", nil); err != nil {
 			t.Fatal(err)
 		} else if len(res) > 0 && res[0].Error != nil {
-			t.Fatalf("PG18 DROP CONSTRAINT c_ni_x_not_null after NO INHERIT: %v", res[0].Error)
+			t.Fatalf("PG18 DROP CONSTRAINT p_ni_x_not_null after NO INHERIT: %v", res[0].Error)
 		}
 		ch := c.GetRelation("public", "c_ni")
 		if ch.Columns[0].NotNull {
@@ -546,13 +546,13 @@ CREATE TABLE c_only () INHERITS (p_only);
 		if !ch.Columns[0].NotNull {
 			t.Fatalf("expected child c_only.x to retain NOT NULL after ONLY drop on parent")
 		}
-		if res, err := c.Exec("ALTER TABLE c_only DROP CONSTRAINT c_only_x_not_null", nil); err != nil {
+		if res, err := c.Exec("ALTER TABLE c_only DROP CONSTRAINT p_only_x_not_null", nil); err != nil {
 			t.Fatal(err)
 		} else if len(res) > 0 && res[0].Error != nil {
 			t.Fatalf("PG18 child DROP CONSTRAINT after parent ONLY drop: %v", res[0].Error)
 		}
 		if ch.Columns[0].NotNull {
-			t.Fatalf("expected c_only.x to become nullable after child drops c_only_x_not_null")
+			t.Fatalf("expected c_only.x to become nullable after child drops p_only_x_not_null")
 		}
 	}
 
@@ -593,13 +593,13 @@ CREATE TABLE p_po_1 PARTITION OF p_po FOR VALUES FROM (0) TO (100);
 		if !p1.Columns[0].NotNull {
 			t.Fatalf("expected partition p_po_1.x to retain NOT NULL after ONLY drop on parent")
 		}
-		if res, err := c.Exec("ALTER TABLE p_po_1 DROP CONSTRAINT p_po_1_x_not_null", nil); err != nil {
+		if res, err := c.Exec("ALTER TABLE p_po_1 DROP CONSTRAINT p_po_x_not_null", nil); err != nil {
 			t.Fatal(err)
 		} else if len(res) > 0 && res[0].Error != nil {
 			t.Fatalf("PG18 partition DROP CONSTRAINT after parent ONLY drop: %v", res[0].Error)
 		}
 		if p1.Columns[0].NotNull {
-			t.Fatalf("expected p_po_1.x to become nullable after partition drops p_po_1_x_not_null")
+			t.Fatalf("expected p_po_1.x to become nullable after partition drops p_po_x_not_null")
 		}
 	}
 
@@ -650,10 +650,12 @@ CREATE TABLE c_np () INHERITS (p1_np, p2_np);
 	if got, c := execCodeVersion(t, PG18, noopDropSetup, "ALTER TABLE ONLY p1_np ALTER x DROP NOT NULL"); got != "" {
 		t.Fatalf("PG18 no-op ONLY DROP NOT NULL: got %q, want ok", got)
 	} else {
-		if res, err := c.Exec("ALTER TABLE c_np DROP CONSTRAINT c_np_x_not_null", nil); err != nil {
+		if res, err := c.Exec("ALTER TABLE c_np DROP CONSTRAINT p2_np_x_not_null", nil); err != nil {
 			t.Fatal(err)
 		} else if len(res) == 0 || res[0].Error == nil {
 			t.Fatalf("expected child DROP CONSTRAINT to fail while p2_np still enforces NOT NULL")
+		} else {
+			assertErrorCode(t, res[0].Error, CodeInvalidTableDefinition)
 		}
 		if res, err := c.Exec("ALTER TABLE p2_np DROP CONSTRAINT p2_np_x_not_null", nil); err != nil {
 			t.Fatal(err)
@@ -889,6 +891,34 @@ COMMENT ON CONSTRAINT t_nn_cmt_x_not_null ON t_nn_cmt IS 'required';
 	}
 	if !sawCommentDrop {
 		t.Fatalf("expected COMMENT ON CONSTRAINT ... IS NULL when NOT NULL constraint is kept")
+	}
+
+	// Recursive SET NOT NULL preserves the parent's chosen NOT NULL constraint name on children,
+	// avoiding collisions across the inheritance hierarchy.
+	recSetNameSetup := `
+CREATE TABLE p_rsn (x int);
+CREATE TABLE c_rsn () INHERITS (p_rsn);
+ALTER TABLE p_rsn ALTER COLUMN x SET NOT NULL;
+`
+	if got, _ := execCodeVersion(t, PG18, recSetNameSetup, "COMMENT ON CONSTRAINT p_rsn_x_not_null ON c_rsn IS 'required'"); got != "" {
+		t.Fatalf("PG18 COMMENT ON inherited NOT NULL constraint p_rsn_x_not_null on c_rsn: got %q, want ok", got)
+	}
+
+	recSetCollSetup := `
+CREATE TABLE p_rsc (x int);
+CREATE TABLE c_rsc (CONSTRAINT p_rsc_x_not_null CHECK (x > 0)) INHERITS (p_rsc);
+`
+	if got, c := execCodeVersion(t, PG18, recSetCollSetup, "ALTER TABLE p_rsc ALTER COLUMN x SET NOT NULL"); got != "" {
+		t.Fatalf("PG18 recursive SET NOT NULL with child name collision: got %q, want ok", got)
+	} else {
+		p := c.GetRelation("public", "p_rsc")
+		ch := c.GetRelation("public", "c_rsc")
+		if gotP := c.notNullConstraintName(p, 1); gotP != "p_rsc_x_not_null1" {
+			t.Fatalf("p_rsc NOT NULL name = %q, want p_rsc_x_not_null1", gotP)
+		}
+		if gotC := c.notNullConstraintName(ch, 1); gotC != "p_rsc_x_not_null1" {
+			t.Fatalf("c_rsc NOT NULL name = %q, want p_rsc_x_not_null1", gotC)
+		}
 	}
 }
 
