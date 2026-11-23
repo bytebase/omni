@@ -1034,13 +1034,13 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 	}
 	if declared {
 		if !c.loadingSDL {
-			if err := checkColumnSRIDs(stmt.Columns); err != nil {
+			if err := c.checkColumnSRIDs(stmt.Columns); err != nil {
 				return err
 			}
 			if err := c.checkOversizeVarchars(stmt.Columns, tbl.Charset); err != nil {
 				return err
 			}
-			if err := checkGeographicSpatialKeys(tbl); err != nil {
+			if err := c.checkGeographicSpatialKeys(tbl); err != nil {
 				return err
 			}
 			spatialKeysForGeometry(tbl)

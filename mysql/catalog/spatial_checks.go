@@ -2,18 +2,37 @@ package catalog
 
 import (
 	"fmt"
+	"strings"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
 )
 
+// defineSRS records a spatial reference system CREATE SPATIAL REFERENCE
+// SYSTEM added, which a column's SRID may then name.
+func (c *Catalog) defineSRS(s *nodes.CreateSpatialRefSysStmt) {
+	if c.userSRS == nil {
+		c.userSRS = make(map[int]bool)
+	}
+	c.userSRS[int(s.SRID)] = strings.HasPrefix(strings.ToUpper(strings.TrimSpace(s.Definition)), "GEOGCS")
+}
+
+// lookupSRS reports whether srid names a spatial reference system the
+// server has, built in or added, and whether it is geographic.
+func (c *Catalog) lookupSRS(srid int) (exists, geographic bool) {
+	if geographic, ok := c.userSRS[srid]; ok {
+		return true, geographic
+	}
+	return lookupSRS(srid)
+}
+
 // checkColumnSRIDs refuses a column whose SRID names no spatial reference
 // system the server has (3548, mysql:8.0.46: GEOMETRY SRID 9999).
-func checkColumnSRIDs(defs []*nodes.ColumnDef) error {
+func (c *Catalog) checkColumnSRIDs(defs []*nodes.ColumnDef) error {
 	for _, def := range defs {
 		if def == nil || def.TypeName == nil || !def.TypeName.HasSRID {
 			continue
 		}
-		if exists, _ := lookupSRS(def.TypeName.SRID); !exists {
+		if exists, _ := c.lookupSRS(def.TypeName.SRID); !exists {
 			return &Error{Code: 3548, SQLState: "SR001", Message: fmt.Sprintf("There's no spatial reference system with SRID %d.", def.TypeName.SRID)}
 		}
 	}
@@ -25,7 +44,7 @@ func checkColumnSRIDs(defs []*nodes.ColumnDef) error {
 // column stays NOT NULL (1252), a FULLTEXT key's a character type (1283), and
 // no engine but InnoDB takes a SPATIAL key on a geographic SRID (1178)
 // (mysql:8.0.46).
-func checkKeysOverRedefinedColumns(tbl *Table, before map[*Column]bool) error {
+func (c *Catalog) checkKeysOverRedefinedColumns(tbl *Table, before map[*Column]bool) error {
 	for _, idx := range tbl.Indexes {
 		if !idx.Spatial && !idx.Fulltext {
 			continue
@@ -43,13 +62,13 @@ func checkKeysOverRedefinedColumns(tbl *Table, before map[*Column]bool) error {
 			}
 		}
 	}
-	return checkGeographicSpatialKeys(tbl)
+	return c.checkGeographicSpatialKeys(tbl)
 }
 
 // checkGeographicSpatialKeys refuses a SPATIAL key on a column of a
 // geographic SRID in a table whose engine is not InnoDB (1178): MyISAM takes
 // SRID 0 and 3857 and refuses 4326 (mysql:8.0.46).
-func checkGeographicSpatialKeys(tbl *Table) error {
+func (c *Catalog) checkGeographicSpatialKeys(tbl *Table) error {
 	if isInnoDBEngine(tbl.Engine) {
 		return nil
 	}
@@ -59,7 +78,7 @@ func checkGeographicSpatialKeys(tbl *Table) error {
 		}
 		for _, ic := range idx.Columns {
 			if col := tbl.GetColumn(ic.Name); col != nil && col.HasSRID {
-				if _, geographic := lookupSRS(col.SRID); geographic {
+				if _, geographic := c.lookupSRS(col.SRID); geographic {
 					return &Error{Code: 1178, SQLState: "42000", Message: "The storage engine for the table doesn't support geographic spatial reference systems"}
 				}
 			}

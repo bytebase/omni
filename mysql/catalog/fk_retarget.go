@@ -96,6 +96,13 @@ func (c *Catalog) referencingForeignKeys(parent *Table) []fkRef {
 	if parent == nil || parent.Database == nil {
 		return nil
 	}
+	return c.referencingForeignKeysOf(parent.Database.Name, parent.Name)
+}
+
+// referencingForeignKeysOf returns the foreign keys that reference the table
+// dbName.name: a table an ALTER TABLE renames is still referenced by its old
+// name until the statement ends (retargetReferences).
+func (c *Catalog) referencingForeignKeysOf(dbName, name string) []fkRef {
 	var refs []fkRef
 	for _, db := range c.databases {
 		for _, child := range db.Tables {
@@ -107,7 +114,7 @@ func (c *Catalog) referencingForeignKeys(parent *Table) []fkRef {
 				if refDB == "" && child.Database != nil {
 					refDB = child.Database.Name
 				}
-				if toLower(refDB) == toLower(parent.Database.Name) && toLower(con.RefTable) == toLower(parent.Name) {
+				if toLower(refDB) == toLower(dbName) && toLower(con.RefTable) == toLower(name) {
 					refs = append(refs, fkRef{child, con})
 				}
 			}

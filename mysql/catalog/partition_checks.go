@@ -352,7 +352,8 @@ func checkPartitionNamesKnown(pi *PartitionInfo, names []string, action string) 
 }
 
 // firstUnknownPartition returns the first name a list holds that the table
-// has no partition of, or "": TRUNCATE and EXCHANGE answer it with 1735.
+// has no partition or subpartition of, or "": TRUNCATE and EXCHANGE answer it
+// with 1735, and take a subpartition's name as well (p0sp0, mysql:8.0.46).
 func firstUnknownPartition(pi *PartitionInfo, names []string) string {
 	for _, name := range names {
 		if strings.EqualFold(name, "ALL") && len(names) == 1 {
@@ -362,7 +363,11 @@ func firstUnknownPartition(pi *PartitionInfo, names []string) string {
 		for _, pd := range pi.Partitions {
 			if strings.EqualFold(pd.Name, name) {
 				found = true
-				break
+			}
+			for _, sp := range pd.SubPartitions {
+				if sp != nil && strings.EqualFold(sp.Name, name) {
+					found = true
+				}
 			}
 		}
 		if !found {

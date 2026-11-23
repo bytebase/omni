@@ -4352,7 +4352,14 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 	case *nodes.DropEventStmt:
 		return c.dropEvent(s)
 	case *nodes.CreateSpatialRefSysStmt:
-		return validateCreateSpatialRefSys(s)
+		if err := validateCreateSpatialRefSys(s); err != nil {
+			return err
+		}
+		c.defineSRS(s)
+		return nil
+	case *nodes.DropSpatialRefSysStmt:
+		delete(c.userSRS, int(s.SRID))
+		return nil
 	case *nodes.CreateTablespaceStmt:
 		return c.createTablespace(s)
 	case *nodes.AlterTablespaceStmt:

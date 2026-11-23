@@ -540,7 +540,8 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 			return err
 		}
 	}
-	if err := c.checkRedefinedForeignKeyColumns(tbl, beforeColumns); err != nil {
+	dropChecksOfDroppedColumns(tbl, stmt.Commands, beforeConstraints)
+	if err := c.checkRedefinedForeignKeyColumns(tbl, db, origTableName, beforeColumns); err != nil {
 		undoAlter(db, origKey, tbl, snapshot)
 		return err
 	}
@@ -552,7 +553,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	for _, cmd := range stmt.Commands {
 		defs = append(defs, alterColumnDefs(cmd)...)
 	}
-	if err := checkColumnSRIDs(defs); err != nil {
+	if err := c.checkColumnSRIDs(defs); err != nil {
 		undoAlter(db, origKey, tbl, snapshot)
 		return err
 	}
@@ -560,7 +561,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		undoAlter(db, origKey, tbl, snapshot)
 		return err
 	}
-	if err := checkKeysOverRedefinedColumns(tbl, beforeColumns); err != nil {
+	if err := c.checkKeysOverRedefinedColumns(tbl, beforeColumns); err != nil {
 		undoAlter(db, origKey, tbl, snapshot)
 		return err
 	}
@@ -1493,18 +1494,6 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd, keepsOld
 		}
 	}
 
-	// A CHECK constraint on the dropped column alone goes with it; one that
-	// names another column was refused before the statement ran
-	// (checkConstraintColumnDeps).
-	kept := tbl.Constraints[:0]
-	for _, con := range tbl.Constraints {
-		if con.Type == ConCheck && checkExprReadsColumn(con.CheckExpr, cmd.Name) {
-			continue
-		}
-		kept = append(kept, con)
-	}
-	tbl.Constraints = kept
-
 	// Remove column from indexes; if index becomes empty, remove it entirely.
 	cleanupIndexesForDroppedColumn(tbl, cmd.Name)
 
@@ -2285,6 +2274,33 @@ func alterExprRefs(tbl *Table, commands []*nodes.AlterTableCmd, before map[*Cons
 	return append(refs, namedChecks(checks, made)...)
 }
 
+// dropChecksOfDroppedColumns drops, once every command has run, the CHECK
+// constraints that read a column the statement dropped: one that reads
+// another column was refused before the statement ran
+// (checkConstraintColumnDeps), and one a later command drops by name is gone
+// already, so DROP COLUMN a, DROP CHECK ck runs whatever the order. A CHECK
+// the statement adds (before holds the constraints the table had) is judged
+// by checkExprReferences instead: DROP COLUMN a, ADD CHECK (a > 1) is 1054.
+func dropChecksOfDroppedColumns(tbl *Table, commands []*nodes.AlterTableCmd, before map[*Constraint]bool) {
+	var dropped []string
+	for _, cmd := range commands {
+		if cmd != nil && cmd.Type == nodes.ATDropColumn && tbl.GetColumn(cmd.Name) == nil {
+			dropped = append(dropped, cmd.Name)
+		}
+	}
+	if len(dropped) == 0 {
+		return
+	}
+	kept := tbl.Constraints[:0]
+	for _, con := range tbl.Constraints {
+		if con.Type == ConCheck && before[con] && slices.ContainsFunc(dropped, func(col string) bool { return checkExprReadsColumn(con.CheckExpr, col) }) {
+			continue
+		}
+		kept = append(kept, con)
+	}
+	tbl.Constraints = kept
+}
+
 // checkConstraintColumnDeps refuses dropping or renaming a column a CHECK
 // constraint the statement keeps reads (3959). MySQL judges it before the
 // statement runs and before a generated column's dependency on the column
@@ -2358,18 +2374,23 @@ func checkConstraintColumnDeps(tbl *Table, commands []*nodes.AlterTableCmd) erro
 // SET NULL action writes stays nullable (1830). MySQL answers both whatever
 // foreign_key_checks says (mysql:8.0.46). before holds the table's columns
 // before the statement; a column that is not one of them was defined anew.
-func (c *Catalog) checkRedefinedForeignKeyColumns(tbl *Table, before map[*Column]bool) error {
+// The table was oldName in oldDB, which its references and the ones to it
+// still name: they follow a rename once the statement ends.
+func (c *Catalog) checkRedefinedForeignKeyColumns(tbl *Table, oldDB *Database, oldName string, before map[*Column]bool) error {
 	redefined := func(col *Column) bool { return col != nil && !before[col] }
 	for _, con := range tbl.Constraints {
 		if con.Type != ConForeignKey {
 			continue
 		}
-		refDB := tbl.Database
+		refDB := oldDB
 		if con.RefDatabase != "" {
 			refDB = c.GetDatabase(con.RefDatabase)
 		}
 		var parent *Table
-		if refDB != nil {
+		switch {
+		case refDB == oldDB && toLower(con.RefTable) == toLower(oldName):
+			parent = tbl
+		case refDB != nil:
 			parent = refDB.GetTable(con.RefTable)
 		}
 		for i, name := range con.Columns {
@@ -2386,7 +2407,7 @@ func (c *Catalog) checkRedefinedForeignKeyColumns(tbl *Table, before map[*Column
 			}
 		}
 	}
-	for _, ref := range c.referencingForeignKeys(tbl) {
+	for _, ref := range c.referencingForeignKeysOf(oldDB.Name, oldName) {
 		if ref.child == tbl {
 			continue
 		}

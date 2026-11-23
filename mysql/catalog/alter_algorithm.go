@@ -49,7 +49,7 @@ var (
 // alterDDLLimits classifies the operations of an ALTER TABLE: old is the
 // table before it and tbl the table it leaves. serverCopy reports an
 // operation the server itself runs by copying the table alone: adding a CHECK
-// constraint.
+// constraint that is enforced.
 func alterDDLLimits(old, tbl *Table, commands []*nodes.AlterTableCmd) (limits []ddlLimit, serverCopy bool) {
 	addsPrimary := false
 	for _, cmd := range commands {
@@ -68,7 +68,11 @@ func alterDDLLimits(old, tbl *Table, commands []*nodes.AlterTableCmd) (limits []
 				}
 				switch cc.Type {
 				case nodes.ColConstrCheck:
-					serverCopy = true
+					// A CHECK that is not enforced judges no row, so it
+					// runs in place and INSTANT (mysql:8.0.46).
+					if !cc.NotEnforced {
+						serverCopy = true
+					}
 				case nodes.ColConstrPrimaryKey, nodes.ColConstrUnique:
 					limits = append(limits, limitNotInstant)
 				}
@@ -108,7 +112,9 @@ func alterDDLLimits(old, tbl *Table, commands []*nodes.AlterTableCmd) (limits []
 			}
 			switch con.Type {
 			case nodes.ConstrCheck:
-				serverCopy = true
+				if !con.NotEnforced {
+					serverCopy = true
+				}
 			case nodes.ConstrFulltextIndex:
 				limits = append(limits, limitFulltext)
 			case nodes.ConstrPrimaryKey, nodes.ConstrUnique, nodes.ConstrIndex:

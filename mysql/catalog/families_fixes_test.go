@@ -421,3 +421,38 @@ func TestConvertBesideNumericModifyRunsInPlace(t *testing.T) {
 		t.Errorf("got %d", got)
 	}
 }
+
+func TestRoundThreeReviewCases(t *testing.T) {
+	// Each was read on mysql:8.0.46.
+	srs := `CREATE SPATIAL REFERENCE SYSTEM 1000001 NAME 'zz' DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["degree",0.017453292519943278],AXIS["Lat",NORTH],AXIS["Lon",EAST]]';`
+	for _, tc := range []struct {
+		setup, sql string
+		code       int
+	}{
+		{"CREATE TABLE t (a INT, b INT, CONSTRAINT ck CHECK (a > 0));", "ALTER TABLE t DROP COLUMN a, DROP CHECK ck", 0},
+		{"CREATE TABLE t (a INT, b INT);", "ALTER TABLE t ADD CONSTRAINT c2 CHECK (b > 0) NOT ENFORCED, ALGORITHM=INPLACE", 0},
+		{"CREATE TABLE t (a INT, b INT);", "ALTER TABLE t ADD CONSTRAINT c2 CHECK (b > 0) NOT ENFORCED, LOCK=NONE", 0},
+		{"CREATE TABLE t (a INT, b INT);", "ALTER TABLE t ADD COLUMN z INT CHECK (z > 0) NOT ENFORCED, ALGORITHM=INSTANT", 0},
+		{subpartitioned, "ALTER TABLE s EXCHANGE PARTITION p0sp0 WITH TABLE plain", 0},
+		{subpartitioned, "ALTER TABLE s TRUNCATE PARTITION p0sp0", 0},
+		{subpartitioned, "ALTER TABLE s REBUILD PARTITION p0sp0", 1507},
+		{subpartitioned, "ALTER TABLE s DROP PARTITION p0sp0", 1507},
+		{"CREATE TABLE p (id INT PRIMARY KEY); CREATE TABLE o.p (id BIGINT PRIMARY KEY); CREATE TABLE ch (pid INT, FOREIGN KEY (pid) REFERENCES p (id));", "ALTER TABLE ch RENAME TO o.ch, MODIFY pid INT", 0},
+		{srs, "CREATE TABLE g (x GEOMETRY SRID 1000001)", 0},
+		{srs + " DROP SPATIAL REFERENCE SYSTEM 1000001;", "CREATE TABLE g (x GEOMETRY SRID 1000001)", 3548},
+	} {
+		c := familiesCatalog(t, tc.setup)
+		if got := familiesCode(t, c, tc.sql); got != tc.code {
+			t.Errorf("%s: got %d, want %d", tc.sql, got, tc.code)
+		}
+	}
+	c := familiesCatalog(t, "CREATE TABLE p (id INT PRIMARY KEY); CREATE TABLE ch (pid INT, FOREIGN KEY (pid) REFERENCES p (id));")
+	mustExec(t, c, "ALTER TABLE ch RENAME TO o.ch, MODIFY pid INT")
+	if got := c.ShowCreateTable("o", "ch"); !strings.Contains(got, "REFERENCES `a`.`p` (`id`)") {
+		t.Errorf("moved child keeps its parent:\n%s", got)
+	}
+}
+
+const subpartitioned = `CREATE TABLE s (id INT NOT NULL, y INT NOT NULL) PARTITION BY RANGE (y) SUBPARTITION BY HASH (id) SUBPARTITIONS 2
+	(PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20));
+	CREATE TABLE plain (id INT NOT NULL, y INT NOT NULL);`
