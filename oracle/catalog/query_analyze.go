@@ -662,6 +662,15 @@ func (a *queryAnalyzer) analyzeCTE(d *cteDef, outer *qscope, env *cteEnv) error 
 			if _, _, err := a.expr(x, msc, clauseSelect); err != nil {
 				return err
 			}
+			// A mark is a one-character string or a boolean.
+			switch v := unparen(x).(type) {
+			case *ast.StringLiteral:
+				if len(v.Val) != 1 {
+					return oraError("32047", "cycle mark value and non-cycle mark value must be one byte character string values")
+				}
+			case *ast.NumberLiteral:
+				return oraError("32047", "cycle mark value and non-cycle mark value must be one byte character string values")
+			}
 		}
 	}
 	if c.Cycle != nil && c.Cycle.SetColumn != "" {

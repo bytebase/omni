@@ -171,6 +171,10 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		if err := a.windowSpec(n.Over, sc, map[string]bool{}); err != nil {
 			return qtype{}, false, err
 		}
+		if n.Distinct && a.windowOrdered(n.Over, sc, map[string]bool{}) {
+			// A DISTINCT analytic aggregate takes a partition only.
+			return qtype{}, false, oraError("30487", "ORDER BY not allowed here")
+		}
 		if needsWindowOrder[name] && n.FuncName.Schema == "" && !a.windowOrdered(n.Over, sc, map[string]bool{}) {
 			return qtype{}, false, oraError("30485", "missing ORDER BY expression in the window specification")
 		}
@@ -480,6 +484,14 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		t.bytes = 16
 		return t, false, nil
 	case "USERENV":
+		param, ok := literalString(argNode(n, 0))
+		if !ok {
+			return simpleType("UNKNOWN"), false, nil
+		}
+		switch strings.ToUpper(param) {
+		case "SESSIONID", "SID", "ENTRYID":
+			return numberType(), false, nil
+		}
 		return varchar2Bytes(52), false, nil
 	case "SYS_CONTEXT":
 		// A third argument sets the length, 1 to 4000; 256 otherwise.
