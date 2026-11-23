@@ -52,6 +52,18 @@ type Resolver struct {
 	// from the AST, which matches MySQL only for text written the way the
 	// rebuilt name spells it.
 	Source string
+	// DefaultSchema is the schema of the view the statement defines, or ""
+	// outside a view. When it is set, table references are written as MySQL
+	// stores a view (mysql:8.0.46 SHOW CREATE VIEW): a table of DefaultSchema
+	// loses its schema (FROM a.t in a view of a is written from `t`), an
+	// alias equal to its table's name is dropped (FROM t AS t is from `t`),
+	// and a column of an unaliased table of another schema is qualified by
+	// that schema as well (`o`.`x`.`id`).
+	DefaultSchema string
+
+	// shadowing holds the CTEs in scope while a FROM clause is read, keyed
+	// by lowered name.
+	shadowing map[string]*ResolverTable
 }
 
 // Resolve takes a SelectStmt and returns a new SelectStmt with all column
@@ -114,6 +126,7 @@ func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string
 				DefaultWeekFormat:   r.DefaultWeekFormat,
 				NormalizeCastAsYear: r.NormalizeCastAsYear,
 				Source:              r.Source,
+				DefaultSchema:       r.DefaultSchema,
 			}
 			cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
 			if vt := buildCTEVirtualTable(cte, cteResolver.Lookup, r.SchemaLookup); vt != nil {
@@ -160,6 +173,7 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 					DefaultWeekFormat:   r.DefaultWeekFormat,
 					NormalizeCastAsYear: r.NormalizeCastAsYear,
 					Source:              r.Source,
+					DefaultSchema:       r.DefaultSchema,
 				}
 				cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
 				vt := buildCTEVirtualTable(cte, cteResolver.Lookup, r.SchemaLookup)
@@ -212,6 +226,7 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 				DefaultWeekFormat:   r.DefaultWeekFormat,
 				NormalizeCastAsYear: r.NormalizeCastAsYear,
 				Source:              r.Source,
+				DefaultSchema:       r.DefaultSchema,
 			}
 			leftResolver.resolveWithCTEs(sel.Left, localCTETables)
 
@@ -229,6 +244,7 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 				DefaultWeekFormat:   r.DefaultWeekFormat,
 				NormalizeCastAsYear: r.NormalizeCastAsYear,
 				Source:              r.Source,
+				DefaultSchema:       r.DefaultSchema,
 			}
 			rightResolver.resolveWithCTEs(sel.Right, localCTETables)
 		} else {
@@ -240,6 +256,7 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 				DefaultWeekFormat:   r.DefaultWeekFormat,
 				NormalizeCastAsYear: r.NormalizeCastAsYear,
 				Source:              r.Source,
+				DefaultSchema:       r.DefaultSchema,
 			}
 			cteResolver.resolveWithCTEs(cte.Select, localCTETables)
 
@@ -269,7 +286,10 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 			stmt.TableSource = nil
 		}
 	}
+	// A CTE of a table's name keeps that table's schema (viewTableSchema).
+	r.shadowing = localCTETables
 	sc := r.buildScope(stmt.From, origLookup)
+	r.shadowing = nil
 	sc.parent = parentScope
 	sc.ctes = localCTETables
 	r.Lookup = origLookup
@@ -369,11 +389,15 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope, baseLoo
 		if table == nil {
 			return
 		}
+		schema := r.viewTableSchema(t)
 		effectiveName := t.Name
 		if t.Alias != "" {
 			effectiveName = t.Alias
 		}
 		sc.add(t, effectiveName, table)
+		if schema != "" {
+			sc.qualify(len(sc.tables)-1, schema)
+		}
 	case *ast.JoinClause:
 		r.addTableExprToScope(t.Left, sc, baseLookup)
 		r.addTableExprToScope(t.Right, sc, baseLookup)
@@ -388,6 +412,29 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope, baseLoo
 			}
 		}
 	}
+}
+
+// viewTableSchema rewrites a table reference of a view as MySQL stores it
+// (see DefaultSchema) and returns the schema its columns are qualified by, or
+// "" when they are qualified by the table's name or alias alone.
+func (r *Resolver) viewTableSchema(t *ast.TableRef) string {
+	if r.DefaultSchema == "" {
+		return ""
+	}
+	// The schema is kept where a CTE of the table's name would otherwise
+	// take the reference: MySQL drops an unreferenced CTE from a stored view
+	// (WITH t AS (SELECT 2 AS id) SELECT a.t.id FROM a.t is stored as
+	// select `t`.`id` AS `id` from `t`), which the catalog keeps.
+	if _, shadowed := r.shadowing[strings.ToLower(t.Name)]; t.Schema != "" && !shadowed && strings.EqualFold(t.Schema, r.DefaultSchema) {
+		t.Schema = ""
+	}
+	if t.Alias == t.Name {
+		t.Alias = ""
+	}
+	if t.Alias != "" {
+		return ""
+	}
+	return t.Schema
 }
 
 // resolveTargetList resolves all target list entries, expanding qualified stars.
@@ -466,6 +513,7 @@ func (r *Resolver) expandStar(sc *fromScope) []ast.ExprNode {
 		result = append(result, &ast.ResTarget{
 			Name: c.name,
 			Val: &ast.ColumnRef{
+				Schema: c.schema,
 				Table:  c.qualifier,
 				Column: c.name,
 			},
@@ -496,6 +544,7 @@ func (r *Resolver) expandQualifiedStar(tableName string, sc *fromScope) []ast.Ex
 		result = append(result, &ast.ResTarget{
 			Name: col.Name,
 			Val: &ast.ColumnRef{
+				Schema: sc.schemaOf(effectiveName),
 				Table:  effectiveName,
 				Column: col.Name,
 			},
@@ -686,6 +735,9 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprN
 				// Find the effective name from scope (preserves case)
 				if entry, ok := cur.FirstEqualFold(col.Table); ok {
 					col.Table = entry.Name
+					if r.DefaultSchema != "" {
+						col.Schema = cur.schemaOf(entry.Name)
+					}
 				}
 				return col
 			}
@@ -697,7 +749,7 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprN
 		// A column a NATURAL or USING join joins on is the one copy the join
 		// keeps, which comes from its right input in a RIGHT join.
 		if c, ok := cur.coalesced[strings.ToLower(col.Column)]; ok {
-			col.Table = c.qualifier
+			col.Schema, col.Table = c.schema, c.qualifier
 			return col
 		}
 
@@ -705,7 +757,7 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprN
 		// When more than one does, MySQL would raise ERROR 1052: Column 'x' in
 		// field list is ambiguous. TODO: return error
 		if entry, ok := cur.FirstWithColumn(col.Column); ok {
-			col.Table = entry.Name
+			col.Schema, col.Table = cur.schemaOf(entry.Name), entry.Name
 			return col
 		}
 	}

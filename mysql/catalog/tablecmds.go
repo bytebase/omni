@@ -1742,6 +1742,22 @@ func validatePartitionClauseShape(tbl *Table, pc *nodes.PartitionClause) error {
 	if err := validatePartitionClauseColumns(tbl, pc); err != nil {
 		return err
 	}
+	for _, pd := range pc.Partitions {
+		if err := checkPartitionValuesKind(pc.Type, len(pc.Columns), pd.Values); err != nil {
+			return err
+		}
+	}
+	if err := checkPartitionFieldTypes(tbl, pc.Type, pc.Columns, pc.Expr); err != nil {
+		return err
+	}
+	if partitionClauseHasSubpartitions(pc) {
+		if err := checkPartitionFieldTypes(tbl, pc.SubPartType, pc.SubPartColumns, pc.SubPartExpr); err != nil {
+			return err
+		}
+	}
+	if err := checkPartitionNamesUnique(pc.Partitions); err != nil {
+		return err
+	}
 	if pc.Type == nodes.PartitionRange && len(pc.Columns) > 0 {
 		// RANGE COLUMNS takes MAXVALUE in any partition: what it requires is
 		// bounds that strictly increase, compared column by column, and it
@@ -1768,6 +1784,11 @@ func validatePartitionClauseShape(tbl *Table, pc *nodes.PartitionClause) error {
 			}
 		}
 	}
+	if pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList {
+		if err := checkPartitionBounds(tbl, clauseBounds(pc)); err != nil {
+			return err
+		}
+	}
 	if err := validateSubpartitionDefinitions(pc); err != nil {
 		return err
 	}
@@ -1783,6 +1804,25 @@ func validatePartitionClauseShape(tbl *Table, pc *nodes.PartitionClause) error {
 		}
 	}
 	return nil
+}
+
+// clauseBounds is the partitioning a clause defines as far as its bounds go,
+// which checkPartitionBounds reads.
+func clauseBounds(pc *nodes.PartitionClause) *PartitionInfo {
+	pi := &PartitionInfo{Type: "RANGE", Columns: pc.Columns}
+	if pc.Type == nodes.PartitionList {
+		pi.Type = "LIST"
+	}
+	if len(pc.Columns) > 0 {
+		pi.Type += " COLUMNS"
+	}
+	for _, pd := range pc.Partitions {
+		if pd.Values == nil {
+			return nil
+		}
+		pi.Partitions = append(pi.Partitions, &PartitionDefInfo{Name: pd.Name, ValueExpr: partitionValueToString(pd.Values, pc.Type)})
+	}
+	return pi
 }
 
 // partitionClauseHasSubpartitions reports whether the clause writes a SUBPARTITION
@@ -4252,6 +4292,9 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		}
 		tbl.Constraints = append(tbl.Constraints, con)
 	}
+
+	// The copy is partitioned as its source is (mysql:8.0.46).
+	tbl.Partitioning = clonePartitionInfo(srcTbl.Partitioning)
 
 	likeSrcDB := srcDB.Name
 	if srcTbl.Database != nil {

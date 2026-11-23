@@ -12,11 +12,15 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 		oldName  string
 		tbl      *Table
 		snapshot Table
+		refs     func()
 	}
 	var applied []renameUndo
 	rollback := func(err error) error {
 		for i := len(applied) - 1; i >= 0; i-- {
 			u := applied[i]
+			if u.refs != nil {
+				u.refs()
+			}
 			if u.view != nil {
 				delete(u.newDB.Views, u.newKey)
 				u.view.Name = u.oldName
@@ -71,14 +75,14 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 			continue
 		}
 
-		applied = append(applied, renameUndo{
+		undo := renameUndo{
 			oldDB:    oldDB,
 			newDB:    newDB,
 			oldKey:   oldKey,
 			newKey:   newKey,
 			tbl:      tbl,
 			snapshot: cloneTable(tbl),
-		})
+		}
 		oldDBName := oldDB.Name
 		oldTableName := tbl.Name
 		delete(oldDB.Tables, oldKey)
@@ -86,6 +90,8 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 		tbl.Database = newDB
 		newDB.Tables[newKey] = tbl
 		stripTableQualifiersFromTableExprs(tbl, oldDBName, oldTableName, true, nil)
+		undo.refs = c.retargetReferences(tbl, oldDB, oldTableName, nil)
+		applied = append(applied, undo)
 	}
 	return nil
 }

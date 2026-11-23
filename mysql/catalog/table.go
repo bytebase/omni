@@ -304,6 +304,28 @@ type Event struct {
 // cloneTable returns a deep copy of the table's mutable state.
 // The returned Table shares the same Name, Database pointer, and scalar fields,
 // but has independent slices and maps so that mutations do not affect the original.
+// clonePartitionInfo deep-copies a table's partitioning, nil for none.
+func clonePartitionInfo(src *PartitionInfo) *PartitionInfo {
+	if src == nil {
+		return nil
+	}
+	pi := *src
+	pi.Columns = append([]string{}, src.Columns...)
+	pi.SubColumns = append([]string{}, src.SubColumns...)
+	pi.keyColumns = append([]string(nil), src.keyColumns...)
+	pi.Partitions = make([]*PartitionDefInfo, len(src.Partitions))
+	for i, sp := range src.Partitions {
+		pd := *sp
+		pd.SubPartitions = make([]*SubPartitionDefInfo, len(sp.SubPartitions))
+		for j, ss := range sp.SubPartitions {
+			sd := *ss
+			pd.SubPartitions[j] = &sd
+		}
+		pi.Partitions[i] = &pd
+	}
+	return &pi
+}
+
 func cloneTable(src *Table) Table {
 	dst := *src // shallow copy of all scalar fields
 
@@ -353,23 +375,7 @@ func cloneTable(src *Table) Table {
 	}
 
 	// Deep copy partitioning.
-	if src.Partitioning != nil {
-		pi := *src.Partitioning
-		pi.Columns = append([]string{}, src.Partitioning.Columns...)
-		pi.SubColumns = append([]string{}, src.Partitioning.SubColumns...)
-		pi.keyColumns = append([]string(nil), src.Partitioning.keyColumns...)
-		pi.Partitions = make([]*PartitionDefInfo, len(src.Partitioning.Partitions))
-		for i, sp := range src.Partitioning.Partitions {
-			pd := *sp
-			pd.SubPartitions = make([]*SubPartitionDefInfo, len(sp.SubPartitions))
-			for j, ss := range sp.SubPartitions {
-				sd := *ss
-				pd.SubPartitions[j] = &sd
-			}
-			pi.Partitions[i] = &pd
-		}
-		dst.Partitioning = &pi
-	}
+	dst.Partitioning = clonePartitionInfo(src.Partitioning)
 
 	return dst
 }

@@ -38,7 +38,7 @@ func TestSimulation(t *testing.T) {
 		Path:     filepath.Join("testdata", "simulate.tsv"),
 		Pins:     testcontainer.Pins,
 		Fixtures: filepath.Join("testdata", "fixtures"),
-		Rows:     rows,
+		Rows:     append(rows, familyRows...),
 		Omni:     simulationOmni,
 		Engine:   simulationEngine,
 	})
@@ -214,6 +214,7 @@ func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answe
 	if engine.Refused() {
 		return simulate.Omni{}
 	}
+	onlySimulationDatabase(c)
 
 	var stored strings.Builder
 	stored.WriteString(database)
@@ -241,6 +242,18 @@ func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answe
 		plan = "nothing, though from there it would run: " + GenerateMigrationWithNormalizer(want, c, back, n).SQL()
 	}
 	return simulate.Omni{Why: "to store what MySQL stores, the catalog would run: " + strings.Join(strings.Fields(plan), " ")}
+}
+
+// onlySimulationDatabase forgets every database but the row's: MySQL's side
+// is the SHOW CREATE texts of that database alone, so a table a fixture keeps
+// in a second one (schemas@cross) is compared through what the row's database
+// holds and references, not as a schema of its own.
+func onlySimulationDatabase(c *Catalog) {
+	for key, db := range c.databases {
+		if !strings.EqualFold(db.Name, simulationDatabase) {
+			delete(c.databases, key)
+		}
+	}
 }
 
 func TestSimulationExcludesProgramDDL(t *testing.T) {

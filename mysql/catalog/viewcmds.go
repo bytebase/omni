@@ -1657,6 +1657,7 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source strin
 		DefaultWeekFormat:   c.session.DefaultWeekFormat,
 		NormalizeCastAsYear: !c.hasStoredFunction(db, "cast_as_year"),
 		Source:              source,
+		DefaultSchema:       db.Name,
 	}
 	resolver.Resolve(sel)
 

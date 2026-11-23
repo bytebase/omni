@@ -261,7 +261,10 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		if v == nil {
 			t.Fatal("view db1.v not found")
 		}
-		wantDef := "select `t`.`id` AS `id`,`t`.`b` AS `b` from `db2`.`t`"
+		// A column of another schema's unaliased table is qualified by that
+		// schema too: mysql:8.0.46 stores CREATE VIEW a.v AS TABLE o.t as
+		// select `o`.`t`.`id` AS `id`,`o`.`t`.`b` AS `b` from `o`.`t`.
+		wantDef := "select `db2`.`t`.`id` AS `id`,`db2`.`t`.`b` AS `b` from `db2`.`t`"
 		if v.Definition != wantDef {
 			t.Errorf("definition = %q, want %q", v.Definition, wantDef)
 		}
@@ -274,7 +277,8 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		if vCTE == nil {
 			t.Fatal("view db1.v_cte not found")
 		}
-		wantCTEDef := "with `t` as (select 9 AS `z`) select `t`.`id` AS `id`,`t`.`b` AS `b` from `db2`.`t`"
+		// MySQL drops the unreferenced CTE as well, which the catalog keeps.
+		wantCTEDef := "with `t` as (select 9 AS `z`) select `db2`.`t`.`id` AS `id`,`db2`.`t`.`b` AS `b` from `db2`.`t`"
 		if vCTE.Definition != wantCTEDef {
 			t.Errorf("v_cte definition = %q, want %q", vCTE.Definition, wantCTEDef)
 		}

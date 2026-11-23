@@ -38667,3 +38667,11835 @@
 | ALTER VIEW utf8mb4 AS SELECT utf8mb4 WITH LOCAL CHECK OPTION;
 < error
 | 1347 HY000 'omni_t_simulation.utf8mb4' is not VIEW
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes CONVERT TO CHARACTER SET utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` mediumtext,
+|   `code` char(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int NOT NULL,
+|   `title` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+|   `body` mediumtext COLLATE utf8mb4_unicode_ci,
+|   `code` char(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes CONVERT TO CHARACTER SET latin1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` text,
+|   `code` char(10) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes CONVERT TO CHARACTER SET utf8mb3
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` mediumtext,
+|   `code` char(10) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes CONVERT TO CHARACTER SET DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` mediumtext,
+|   `code` char(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes CONVERT TO CHARACTER SET nope
+< error
+| 1115 42000 Unknown character set: 'nope'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes CONVERT TO CHARACTER SET utf8mb4 COLLATE latin1_swedish_ci
+< error
+| 1253 42000 COLLATION 'latin1_swedish_ci' is not valid for CHARACTER SET 'utf8mb4'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes CONVERT TO CHARACTER SET binary
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int NOT NULL,
+|   `title` varbinary(100) DEFAULT NULL,
+|   `body` blob,
+|   `code` binary(10) DEFAULT NULL,
+|   `tag` varbinary(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=binary
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes DEFAULT CHARSET = utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int NOT NULL,
+|   `title` varchar(100) CHARACTER SET latin1 DEFAULT NULL,
+|   `body` text CHARACTER SET latin1,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int NOT NULL,
+|   `title` varchar(100) CHARACTER SET latin1 DEFAULT NULL,
+|   `body` text CHARACTER SET latin1,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes COLLATE = latin1_bin
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int NOT NULL,
+|   `title` varchar(100) CHARACTER SET latin1 DEFAULT NULL,
+|   `body` text CHARACTER SET latin1,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes CHARACTER SET = latin1 COLLATE = utf8mb4_bin
+< error
+| 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes MODIFY title VARCHAR(100) CHARACTER SET utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int NOT NULL,
+|   `title` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+|   `body` text,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes MODIFY title VARCHAR(100) COLLATE utf8mb4_unicode_ci
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int NOT NULL,
+|   `title` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+|   `body` text,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes MODIFY title VARCHAR(100) CHARACTER SET latin1 COLLATE utf8mb4_bin
+< error
+| 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes MODIFY body TEXT CHARACTER SET utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes MODIFY code CHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_cs
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` text,
+|   `code` char(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_cs DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes MODIFY tag VARCHAR(20)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` text,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes ADD COLUMN extra VARCHAR(10)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` text,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   `extra` varchar(10) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes ADD COLUMN extra VARCHAR(10) CHARACTER SET binary
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` text,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   `extra` varbinary(10) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes ADD COLUMN extra VARCHAR(10) BINARY
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` text,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   `extra` varchar(10) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes ADD COLUMN extra ENUM('a', 'b') CHARACTER SET utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` text,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   `extra` enum('a','b') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| ALTER TABLE notes ADD COLUMN extra NATIONAL VARCHAR(10)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` text,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   `extra` varchar(10) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| CREATE TABLE n2 (a VARCHAR(10)) CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| n2
+: bytes
+| BASE TABLE
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `n2`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| n2
+: bytes
+| CREATE TABLE `n2` (
+|   `a` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+> query
+| SHOW CREATE TABLE `notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` text,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| CREATE TABLE n3 (a VARCHAR(20000)) CHARSET = utf8mb4
+< error
+| 1074 42000 Column length too big for column 'a' (max = 16383); use BLOB or TEXT instead
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| CREATE TABLE n4 (a VARCHAR(70000)) CHARSET = latin1
+< error
+| 1074 42000 Column length too big for column 'a' (max = 65535); use BLOB or TEXT instead
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| CREATE TABLE n5 (a VARCHAR(16383), b VARCHAR(10)) CHARSET = utf8mb4
+< error
+| 1118 42000 Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| CREATE TABLE n6 (a VARCHAR(10) CHARACTER SET latin1 COLLATE utf8mb4_bin)
+< error
+| 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE notes (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, code CHAR(10) CHARACTER SET ascii, tag VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=latin1
+< ok 0 0
+> exec
+| CREATE TABLE n7 LIKE notes
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| n7
+: bytes
+| BASE TABLE
+< row
+: bytes
+| notes
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `n7`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| n7
+: bytes
+| CREATE TABLE `n7` (
+|   `id` int NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` text,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+> query
+| SHOW CREATE TABLE `notes`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| notes
+: bytes
+| CREATE TABLE `notes` (
+|   `id` int NOT NULL,
+|   `title` varchar(100) DEFAULT NULL,
+|   `body` text,
+|   `code` char(10) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+|   `tag` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD CONSTRAINT fk_email FOREIGN KEY (email) REFERENCES customers (email)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int NOT NULL,
+|   `line` int NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `customer_id` int DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   KEY `fk_email` (`email`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_email` FOREIGN KEY (`email`) REFERENCES `customers` (`email`),
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD FOREIGN KEY (email) REFERENCES customers (email)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int NOT NULL,
+|   `line` int NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `customer_id` int DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   KEY `email` (`email`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`),
+|   CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`email`) REFERENCES `customers` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD CONSTRAINT fk_customer FOREIGN KEY (email) REFERENCES customers (email)
+< error
+| 1826 HY000 Duplicate foreign key constraint name 'fk_customer'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD CONSTRAINT fk_x FOREIGN KEY (customer_id) REFERENCES nope (id)
+< error
+| 1824 HY000 Failed to open the referenced table 'nope'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD CONSTRAINT fk_x FOREIGN KEY (customer_id) REFERENCES customers (nope)
+< error
+| 3734 HY000 Failed to add the foreign key constraint. Missing column 'nope' for constraint 'fk_x' in the referenced table 'customers'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD CONSTRAINT fk_x FOREIGN KEY (email) REFERENCES customers (id)
+< error
+| 3780 HY000 Referencing column 'email' and referenced column 'id' in foreign key constraint 'fk_x' are incompatible.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD CONSTRAINT fk_x FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE SET NULL
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int NOT NULL,
+|   `line` int NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `customer_id` int DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`),
+|   CONSTRAINT `fk_x` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE SET NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD CONSTRAINT fk_x FOREIGN KEY (id) REFERENCES customers (id) ON DELETE SET NULL
+< error
+| 1830 HY000 Column 'id' cannot be NOT NULL: needed in a foreign key constraint 'fk_x' SET NULL
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD CONSTRAINT fk_x FOREIGN KEY (customer_id) REFERENCES customers (id) ON UPDATE CASCADE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int NOT NULL,
+|   `line` int NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `customer_id` int DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`),
+|   CONSTRAINT `fk_x` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON UPDATE CASCADE
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD CONSTRAINT fk_x FOREIGN KEY (customer_id, email) REFERENCES customers (id, email)
+< error
+| 1822 HY000 Failed to add the foreign key constraint. Missing index for constraint 'fk_x' in the referenced table 'customers'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD CONSTRAINT fk_x FOREIGN KEY (customer_id) REFERENCES customers (id, email)
+< error
+| 1239 42000 Incorrect foreign key definition for 'fk_x': Key reference and table reference don't match
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD COLUMN v INT AS (customer_id + 1) STORED, ADD CONSTRAINT fk_v FOREIGN KEY (v) REFERENCES customers (id) ON UPDATE CASCADE
+< error
+| 3104 HY000 Cannot define foreign key with ON UPDATE CASCADE clause on a generated column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP FOREIGN KEY fk_customer
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int NOT NULL,
+|   `line` int NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `customer_id` int DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP FOREIGN KEY nope
+< error
+| 1091 42000 Can't DROP 'nope'; check that column/key exists
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP CONSTRAINT fk_customer
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int NOT NULL,
+|   `line` int NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `customer_id` int DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP INDEX idx_customer
+< error
+| 1553 HY000 Cannot drop index 'idx_customer': needed in a foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP FOREIGN KEY fk_customer, DROP INDEX idx_customer
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int NOT NULL,
+|   `line` int NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `customer_id` int DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE items DROP PRIMARY KEY
+< error
+| 1553 HY000 Cannot drop index 'PRIMARY': needed in a foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE customers DROP INDEX uk_email
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int NOT NULL,
+|   `line` int NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `customer_id` int DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| DROP TABLE customers
+< error
+| 3730 HY000 Cannot drop table 'customers' referenced by a foreign key constraint 'fk_customer' on table 'orders'.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| DROP TABLE orders
+< error
+| 3730 HY000 Cannot drop table 'orders' referenced by a foreign key constraint 'fk_items_order' on table 'items'.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| DROP TABLE items, orders, customers
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| DROP TABLE customers, orders, items
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| TRUNCATE TABLE customers
+< error
+| 1701 42000 Cannot truncate a table referenced in a foreign key constraint (`omni_t_simulation`.`orders`, CONSTRAINT `fk_customer`)
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| TRUNCATE TABLE items
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int NOT NULL,
+|   `line` int NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `customer_id` int DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| RENAME TABLE customers TO clients
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| clients
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `clients`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| clients
+: bytes
+| CREATE TABLE `clients` (
+|   `id` int NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int NOT NULL,
+|   `line` int NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `customer_id` int DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `clients` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders RENAME TO purchases
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| purchases
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int NOT NULL,
+|   `line` int NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `purchases` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `purchases`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| purchases
+: bytes
+| CREATE TABLE `purchases` (
+|   `id` int NOT NULL,
+|   `customer_id` int DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `purchases` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE customers RENAME COLUMN id TO cid
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `cid` int NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`cid`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int NOT NULL,
+|   `line` int NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `customer_id` int DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`cid`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders RENAME COLUMN customer_id TO client_id
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int NOT NULL,
+|   `line` int NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `client_id` int DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`client_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`client_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE customers MODIFY id BIGINT
+< error
+| 3780 HY000 Referencing column 'customer_id' and referenced column 'id' in foreign key constraint 'fk_customer' are incompatible.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders MODIFY customer_id BIGINT
+< error
+| 3780 HY000 Referencing column 'customer_id' and referenced column 'id' in foreign key constraint 'fk_customer' are incompatible.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders MODIFY customer_id INT NOT NULL
+< error
+| 1830 HY000 Column 'customer_id' cannot be NOT NULL: needed in a foreign key constraint 'fk_customer' SET NULL
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP COLUMN customer_id
+< error
+| 1828 HY000 Cannot drop column 'customer_id': needed in a foreign key constraint 'fk_customer'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE customers DROP COLUMN id
+< error
+| 1829 HY000 Cannot drop column 'id': needed in a foreign key constraint 'fk_customer' of table 'orders'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP COLUMN parent_id
+< error
+| 1828 HY000 Cannot drop column 'parent_id': needed in a foreign key constraint 'fk_parent'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE orders ENGINE = MyISAM
+< error
+| 3776 HY000 Cannot change table's storage engine because the table participates in a foreign key constraint.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| ALTER TABLE customers ENGINE = MyISAM
+< error
+| 3776 HY000 Cannot change table's storage engine because the table participates in a foreign key constraint.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| CREATE TABLE refunds (id INT PRIMARY KEY, order_id INT, FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE RESTRICT)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| refunds
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int NOT NULL,
+|   `line` int NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `customer_id` int DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `refunds`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| refunds
+: bytes
+| CREATE TABLE `refunds` (
+|   `id` int NOT NULL,
+|   `order_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `order_id` (`order_id`),
+|   CONSTRAINT `refunds_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE RESTRICT
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| CREATE TABLE refunds (id INT PRIMARY KEY, order_id BIGINT, FOREIGN KEY (order_id) REFERENCES orders (id))
+< error
+| 3780 HY000 Referencing column 'order_id' and referenced column 'id' in foreign key constraint 'refunds_ibfk_1' are incompatible.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| CREATE TABLE refunds (id INT PRIMARY KEY, order_id INT, FOREIGN KEY (order_id) REFERENCES orders (customer_id))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| refunds
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int NOT NULL,
+|   `line` int NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `customer_id` int DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `refunds`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| refunds
+: bytes
+| CREATE TABLE `refunds` (
+|   `id` int NOT NULL,
+|   `order_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `order_id` (`order_id`),
+|   CONSTRAINT `refunds_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`customer_id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| CREATE TABLE refunds (id INT PRIMARY KEY, order_id INT, CONSTRAINT fk_customer FOREIGN KEY (order_id) REFERENCES orders (id))
+< error
+| 1826 HY000 Duplicate foreign key constraint name 'fk_customer'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| CREATE TABLE refunds (id INT PRIMARY KEY, email VARCHAR(50) CHARACTER SET latin1, FOREIGN KEY (email) REFERENCES customers (email))
+< error
+| 3780 HY000 Referencing column 'email' and referenced column 'email' in foreign key constraint 'refunds_ibfk_1' are incompatible.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| CREATE TABLE self_ref (id INT PRIMARY KEY, p INT, FOREIGN KEY (p) REFERENCES self_ref (id) ON DELETE CASCADE)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| self_ref
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int NOT NULL,
+|   `line` int NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `customer_id` int DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `self_ref`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| self_ref
+: bytes
+| CREATE TABLE `self_ref` (
+|   `id` int NOT NULL,
+|   `p` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `p` (`p`),
+|   CONSTRAINT `self_ref_ibfk_1` FOREIGN KEY (`p`) REFERENCES `self_ref` (`id`) ON DELETE CASCADE
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| CREATE TABLE refunds (id INT PRIMARY KEY, order_id INT, FOREIGN KEY (order_id) REFERENCES orders (id)) ENGINE = MyISAM
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| refunds
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int NOT NULL,
+|   `line` int NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `customer_id` int DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `refunds`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| refunds
+: bytes
+| CREATE TABLE `refunds` (
+|   `id` int NOT NULL,
+|   `order_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `order_id` (`order_id`)
+| ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
+| CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
+| CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
+< ok 0 0
+> exec
+| CREATE TABLE refunds LIKE orders
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| customers
+: bytes
+| BASE TABLE
+< row
+: bytes
+| items
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| refunds
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `customers`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| customers
+: bytes
+| CREATE TABLE `customers` (
+|   `id` int NOT NULL,
+|   `email` varchar(100) NOT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `items`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| items
+: bytes
+| CREATE TABLE `items` (
+|   `order_id` int NOT NULL,
+|   `line` int NOT NULL,
+|   PRIMARY KEY (`order_id`,`line`),
+|   CONSTRAINT `fk_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `customer_id` int DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`),
+|   CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE SET NULL,
+|   CONSTRAINT `fk_parent` FOREIGN KEY (`parent_id`) REFERENCES `orders` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `refunds`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| refunds
+: bytes
+| CREATE TABLE `refunds` (
+|   `id` int NOT NULL,
+|   `customer_id` int DEFAULT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   `parent_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_customer` (`customer_id`),
+|   KEY `fk_parent` (`parent_id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ADD COLUMN initials VARCHAR(2) AS (CONCAT(LEFT(first_name, 1), LEFT(last_name, 1))) VIRTUAL
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   `initials` varchar(2) GENERATED ALWAYS AS (concat(left(`first_name`,1),left(`last_name`,1))) VIRTUAL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ADD COLUMN age2 INT AS (age * 2) STORED
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   `age2` int GENERATED ALWAYS AS ((`age` * 2)) STORED,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ADD COLUMN g INT AS (nope + 1)
+< error
+| 1054 42S22 Unknown column 'nope' in 'generated column function'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ADD COLUMN g DOUBLE AS (RAND())
+< error
+| 3763 HY000 Expression of generated column 'g' contains a disallowed function: rand.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ADD COLUMN g INT AS (g + 1)
+< error
+| 3107 HY000 Generated column can refer only to generated columns defined prior to it.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ADD COLUMN g INT AS (age + 1) VIRTUAL NOT NULL
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   `g` int GENERATED ALWAYS AS ((`age` + 1)) VIRTUAL NOT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ADD COLUMN g INT AS (age + 1) STORED, ADD INDEX idx_g (g)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   `g` int GENERATED ALWAYS AS ((`age` + 1)) STORED,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_g` (`g`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people DROP COLUMN first_name
+< error
+| 3959 HY000 Check constraint 'chk_names' uses column 'first_name', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people DROP COLUMN full_name
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people DROP COLUMN full_name, DROP COLUMN name_len, DROP COLUMN first_name
+< error
+| 3959 HY000 Check constraint 'chk_names' uses column 'first_name', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people MODIFY full_name VARCHAR(200) AS (CONCAT(last_name, ', ', first_name)) VIRTUAL
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(200) GENERATED ALWAYS AS (concat(`last_name`,_utf8mb4', ',`first_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people MODIFY full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) STORED
+< error
+| 3106 HY000 'Changing the STORED status' is not supported for generated columns.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people MODIFY name_len INT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int DEFAULT NULL,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people MODIFY full_name VARCHAR(101)
+< error
+| 3106 HY000 'Changing the STORED status' is not supported for generated columns.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people MODIFY age INT AS (id + 1) STORED
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int GENERATED ALWAYS AS ((`id` + 1)) STORED,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people RENAME COLUMN first_name TO given_name
+< error
+| 3959 HY000 Check constraint 'chk_names' uses column 'first_name', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people CHANGE first_name given_name VARCHAR(50) NOT NULL
+< error
+| 3959 HY000 Check constraint 'chk_names' uses column 'first_name', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ALTER COLUMN full_name SET DEFAULT 'x'
+< error
+| 1221 HY000 Incorrect usage of DEFAULT and generated column
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| CREATE TABLE gc2 (a INT, b INT AS (a + 1), c INT AS (b * 2) STORED, KEY ((b + 1)))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| gc2
+: bytes
+| BASE TABLE
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `gc2`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| gc2
+: bytes
+| CREATE TABLE `gc2` (
+|   `a` int DEFAULT NULL,
+|   `b` int GENERATED ALWAYS AS ((`a` + 1)) VIRTUAL,
+|   `c` int GENERATED ALWAYS AS ((`b` * 2)) STORED,
+|   KEY `functional_index` (((`b` + 1)))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| CREATE TABLE gc3 (a INT, b INT AS (c + 1), c INT AS (a + 1))
+< error
+| 3107 HY000 Generated column can refer only to generated columns defined prior to it.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| CREATE TABLE gc4 (a INT AUTO_INCREMENT PRIMARY KEY, b INT AS (a + 1))
+< error
+| 3109 HY000 Generated column 'b' cannot refer to auto-increment column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ADD INDEX idx_tags ((CAST(doc->'$.tags' AS UNSIGNED ARRAY)))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   KEY `idx_tags` ((cast(json_extract(`doc`,_utf8mb4'$.tags') as unsigned array))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ADD INDEX idx_expr ((age + 1))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   KEY `idx_expr` (((`age` + 1))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ADD INDEX idx_bad ((nope + 1))
+< error
+| 1054 42S22 Unknown column 'nope' in 'functional index'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ADD INDEX idx_rand ((RAND()))
+< error
+| 3758 HY000 Expression of functional index 'idx_rand' contains a disallowed function.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ADD INDEX idx_col ((age))
+< error
+| 3762 HY000 Functional index on a column is not supported. Consider using a regular index instead.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ADD INDEX idx_doc ((doc))
+< error
+| 3762 HY000 Functional index on a column is not supported. Consider using a regular index instead.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ADD UNIQUE INDEX uk_expr ((LOWER(first_name)), last_name)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_expr` ((lower(`first_name`)),`last_name`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| CREATE INDEX idx_upper ON people ((UPPER(first_name)))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   KEY `idx_upper` ((upper(`first_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people DROP INDEX idx_lower
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people DROP COLUMN last_name
+< error
+| 3959 HY000 Check constraint 'chk_names' uses column 'last_name', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| CREATE TABLE fx (a INT, KEY ((a)))
+< error
+| 3762 HY000 Functional index on a column is not supported. Consider using a regular index instead.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| CREATE TABLE fx (a INT, b VARCHAR(10), KEY f ((a + 1), b DESC))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| fx
+: bytes
+| BASE TABLE
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `fx`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| fx
+: bytes
+| CREATE TABLE `fx` (
+|   `a` int DEFAULT NULL,
+|   `b` varchar(10) DEFAULT NULL,
+|   KEY `f` (((`a` + 1)),`b` DESC)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| CREATE TABLE fx (a INT, PRIMARY KEY ((a + 1)))
+< error
+| 3756 HY000 The primary key cannot be a functional index
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ALTER INDEX idx_age VISIBLE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ALTER INDEX idx_full INVISIBLE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`) /*!80000 INVISIBLE */,
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ALTER INDEX `PRIMARY` INVISIBLE
+< error
+| 3522 HY000 A primary key index cannot be invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ALTER INDEX nope VISIBLE
+< error
+| 1176 42000 Key 'nope' doesn't exist in table 'people'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ADD UNIQUE KEY uk_age (age) INVISIBLE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ADD PRIMARY KEY (id) INVISIBLE
+< error
+| 3522 HY000 A primary key index cannot be invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| CREATE INDEX idx_name ON people (first_name) INVISIBLE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_name` (`first_name`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| CREATE TABLE inv (a INT NOT NULL, UNIQUE KEY u (a) INVISIBLE)
+< error
+| 3522 HY000 A primary key index cannot be invisible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ALTER COLUMN secret SET VISIBLE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ALTER COLUMN age SET INVISIBLE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people MODIFY secret BIGINT VISIBLE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` bigint DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ADD COLUMN hidden2 INT INVISIBLE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   `hidden2` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ALTER COLUMN id SET INVISIBLE, ALTER COLUMN first_name SET INVISIBLE, ALTER COLUMN last_name SET INVISIBLE, ALTER COLUMN full_name SET INVISIBLE, ALTER COLUMN name_len SET INVISIBLE, ALTER COLUMN doc SET INVISIBLE, ALTER COLUMN age SET INVISIBLE
+< error
+| 4028 HY000 A table must have at least one visible column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| CREATE TABLE allinv (a INT INVISIBLE)
+< error
+| 4028 HY000 A table must have at least one visible column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people DROP CHECK chk_age
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people DROP CONSTRAINT chk_names
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ALTER CHECK chk_names ENFORCED
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ALTER CONSTRAINT chk_age NOT ENFORCED
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)) /*!80016 NOT ENFORCED */,
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ADD CONSTRAINT chk_age CHECK (age < 200)
+< error
+| 3822 HY000 Duplicate check constraint name 'chk_age'.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ADD CONSTRAINT chk_max CHECK (age < 200)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_max` CHECK ((`age` < 200)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ADD CHECK (age < 200)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */,
+|   CONSTRAINT `people_chk_1` CHECK ((`age` < 200))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ADD CHECK (age < nope)
+< error
+| 1054 42S22 Unknown column 'nope' in 'check constraint people_chk_1 expression'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ADD CONSTRAINT chk_rand CHECK (age > RAND())
+< error
+| 3814 HY000 An expression of a check constraint 'chk_rand' contains disallowed function: rand.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people ADD CONSTRAINT chk_now CHECK (age < YEAR(NOW()))
+< error
+| 3814 HY000 An expression of a check constraint 'chk_now' contains disallowed function: now.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people DROP COLUMN age
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people RENAME COLUMN age TO years
+< error
+| 3959 HY000 Check constraint 'chk_age' uses column 'age', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people MODIFY age INT CHECK (age > 1)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */,
+|   CONSTRAINT `people_chk_1` CHECK ((`age` > 1))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| ALTER TABLE people DROP CHECK nope
+< error
+| 3821 HY000 Check constraint 'nope' is not found in the table.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| CREATE TABLE chk2 (a INT CHECK (a > 0), b INT, CHECK (a < b))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| chk2
+: bytes
+| BASE TABLE
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `chk2`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| chk2
+: bytes
+| CREATE TABLE `chk2` (
+|   `a` int DEFAULT NULL,
+|   `b` int DEFAULT NULL,
+|   CONSTRAINT `chk2_chk_1` CHECK ((`a` > 0)),
+|   CONSTRAINT `chk2_chk_2` CHECK ((`a` < `b`))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| CREATE TABLE chk3 (a INT, CONSTRAINT chk_age CHECK (a > 0))
+< error
+| 3822 HY000 Duplicate check constraint name 'chk_age'.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| CREATE TABLE chk4 (a INT AUTO_INCREMENT PRIMARY KEY, CHECK (a > 0))
+< error
+| 3818 HY000 Check constraint 'chk4_chk_1' cannot refer to an auto-increment column.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| CREATE TABLE chk5 LIKE people
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| chk5
+: bytes
+| BASE TABLE
+< row
+: bytes
+| people
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `chk5`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| chk5
+: bytes
+| CREATE TABLE `chk5` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk5_chk_1` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk5_chk_2` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `people`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| people
+: bytes
+| CREATE TABLE `people` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE people (id INT PRIMARY KEY, first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL, full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL, name_len INT AS (CHAR_LENGTH(first_name)) STORED, doc JSON, age INT, secret INT INVISIBLE, KEY idx_full (full_name), KEY idx_lower ((LOWER(last_name))), KEY idx_age (age) INVISIBLE, CONSTRAINT chk_age CHECK (age >= 0), CONSTRAINT chk_names CHECK (first_name <> last_name) NOT ENFORCED)
+< ok 0 0
+> exec
+| RENAME TABLE people TO persons
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| persons
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `persons`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| persons
+: bytes
+| CREATE TABLE `persons` (
+|   `id` int NOT NULL,
+|   `first_name` varchar(50) NOT NULL,
+|   `last_name` varchar(50) NOT NULL,
+|   `full_name` varchar(101) GENERATED ALWAYS AS (concat(`first_name`,_utf8mb4' ',`last_name`)) VIRTUAL,
+|   `name_len` int GENERATED ALWAYS AS (char_length(`first_name`)) STORED,
+|   `doc` json DEFAULT NULL,
+|   `age` int DEFAULT NULL,
+|   `secret` int DEFAULT NULL /*!80023 INVISIBLE */,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_age` (`age`) /*!80000 INVISIBLE */,
+|   KEY `idx_full` (`full_name`),
+|   KEY `idx_lower` ((lower(`last_name`))),
+|   CONSTRAINT `chk_age` CHECK ((`age` >= 0)),
+|   CONSTRAINT `chk_names` CHECK ((`first_name` <> `last_name`)) /*!80016 NOT ENFORCED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places ADD SPATIAL INDEX sp_area (area)
+< error
+| 1252 42000 All parts of a SPATIAL index must be NOT NULL
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places MODIFY area POLYGON NOT NULL SRID 0, ADD SPATIAL INDEX sp_area (area)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text,
+|   `loc` point NOT NULL /*!80003 SRID 4326 */,
+|   `area` polygon NOT NULL /*!80003 SRID 0 */,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   SPATIAL KEY `sp_area` (`area`),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places ADD SPATIAL INDEX sp_name (name)
+< error
+| 1687 42000 A SPATIAL index may only contain a geometrical type column
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| CREATE SPATIAL INDEX sp_loc2 ON places (loc)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text,
+|   `loc` point NOT NULL /*!80003 SRID 4326 */,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   SPATIAL KEY `sp_loc2` (`loc`),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places ADD INDEX idx_loc (loc)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text,
+|   `loc` point NOT NULL /*!80003 SRID 4326 */,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   SPATIAL KEY `idx_loc` (`loc`),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places ADD INDEX idx_loc (loc(10))
+< error
+| 1089 HY000 Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places MODIFY loc POINT NOT NULL
+< error
+| 3644 HY000 The SRID specification on the column 'loc' cannot be changed because there is a spatial index on the column. Please remove the spatial index before altering the SRID specification.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places MODIFY loc POINT NULL SRID 4326
+< error
+| 1252 42000 All parts of a SPATIAL index must be NOT NULL
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places MODIFY loc GEOMETRY NOT NULL SRID 4326
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text,
+|   `loc` geometry NOT NULL /*!80003 SRID 4326 */,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places DROP INDEX sp_loc
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text,
+|   `loc` point NOT NULL /*!80003 SRID 4326 */,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places ADD COLUMN g GEOMETRY SRID 9999
+< error
+| 3548 SR001 There's no spatial reference system with SRID 9999.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places ADD COLUMN g GEOMETRY NOT NULL SRID 3857
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text,
+|   `loc` point NOT NULL /*!80003 SRID 4326 */,
+|   `area` polygon DEFAULT NULL,
+|   `g` geometry NOT NULL /*!80003 SRID 3857 */,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places ADD SPATIAL INDEX sp_multi (loc, area)
+< error
+| 1070 42000 Too many key parts specified; max 1 parts allowed
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| CREATE TABLE p2 (g GEOMETRY NOT NULL, SPATIAL KEY (g))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| p2
+: bytes
+| BASE TABLE
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `p2`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| p2
+: bytes
+| CREATE TABLE `p2` (
+|   `g` geometry NOT NULL,
+|   SPATIAL KEY `g` (`g`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text,
+|   `loc` point NOT NULL /*!80003 SRID 4326 */,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| CREATE TABLE p3 (g GEOMETRY NOT NULL SRID 4326, SPATIAL KEY (g)) ENGINE = MyISAM
+< error
+| 1178 42000 The storage engine for the table doesn't support geographic spatial reference systems
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places ADD FULLTEXT INDEX ft_descr (descr)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text,
+|   `loc` point NOT NULL /*!80003 SRID 4326 */,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   FULLTEXT KEY `ft_name` (`name`),
+|   FULLTEXT KEY `ft_descr` (`descr`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places ADD FULLTEXT INDEX ft_both (name, descr)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text,
+|   `loc` point NOT NULL /*!80003 SRID 4326 */,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   FULLTEXT KEY `ft_name` (`name`),
+|   FULLTEXT KEY `ft_both` (`name`,`descr`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| CREATE FULLTEXT INDEX ft_descr ON places (descr) WITH PARSER ngram
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text,
+|   `loc` point NOT NULL /*!80003 SRID 4326 */,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   FULLTEXT KEY `ft_name` (`name`),
+|   FULLTEXT KEY `ft_descr` (`descr`) /*!50100 WITH PARSER `ngram` */ 
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places ADD FULLTEXT INDEX ft_id (id)
+< error
+| 1283 HY000 Column 'id' cannot be part of FULLTEXT index
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places ADD FULLTEXT INDEX ft_name (descr)
+< error
+| 1061 42000 Duplicate key name 'ft_name'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places ADD FULLTEXT INDEX ft_x (name) WITH PARSER nope
+< error
+| 1128 HY000 Function 'nope' is not defined
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places DROP INDEX ft_name
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text,
+|   `loc` point NOT NULL /*!80003 SRID 4326 */,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places DROP COLUMN name
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int NOT NULL,
+|   `descr` text,
+|   `loc` point NOT NULL /*!80003 SRID 4326 */,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places MODIFY name VARCHAR(200) NOT NULL
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int NOT NULL,
+|   `name` varchar(200) NOT NULL,
+|   `descr` text,
+|   `loc` point NOT NULL /*!80003 SRID 4326 */,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| ALTER TABLE places MODIFY name INT NOT NULL
+< error
+| 1283 HY000 Column 'name' cannot be part of FULLTEXT index
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| CREATE TABLE p4 (a TEXT, FULLTEXT KEY (a)) ENGINE = MyISAM
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| p4
+: bytes
+| BASE TABLE
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `p4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| p4
+: bytes
+| CREATE TABLE `p4` (
+|   `a` text,
+|   FULLTEXT KEY `a` (`a`)
+| ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text,
+|   `loc` point NOT NULL /*!80003 SRID 4326 */,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE places (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL, descr TEXT, loc POINT NOT NULL SRID 4326, area POLYGON, SPATIAL KEY sp_loc (loc), FULLTEXT KEY ft_name (name))
+< ok 0 0
+> exec
+| CREATE TABLE p5 (a VARCHAR(10), FULLTEXT KEY (a) KEY_BLOCK_SIZE = 4)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| p5
+: bytes
+| BASE TABLE
+< row
+: bytes
+| places
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `p5`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| p5
+: bytes
+| CREATE TABLE `p5` (
+|   `a` varchar(10) DEFAULT NULL,
+|   FULLTEXT KEY `a` (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `places`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| places
+: bytes
+| CREATE TABLE `places` (
+|   `id` int NOT NULL,
+|   `name` varchar(100) NOT NULL,
+|   `descr` text,
+|   `loc` point NOT NULL /*!80003 SRID 4326 */,
+|   `area` polygon DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sp_loc` (`loc`),
+|   FULLTEXT KEY `ft_name` (`name`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD COLUMN e INT, ALGORITHM = INSTANT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   `e` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD COLUMN e INT FIRST, ALGORITHM = INSTANT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `e` int DEFAULT NULL,
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD COLUMN e INT, ALGORITHM = INSTANT, LOCK = NONE
+< error
+| 1221 HY000 Incorrect usage of ALGORITHM=INSTANT and LOCK=NONE/SHARED/EXCLUSIVE
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD INDEX idx_c (c), ALGORITHM = INSTANT
+< error
+| 1845 0A000 ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD INDEX idx_c (c), ALGORITHM = INPLACE, LOCK = NONE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `idx_c` (`c`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t MODIFY c BIGINT, ALGORITHM = INPLACE
+< error
+| 1846 0A000 ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t MODIFY c BIGINT, LOCK = NONE
+< error
+| 1846 0A000 LOCK=NONE is not supported. Reason: Cannot change column type INPLACE. Try LOCK=SHARED.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t MODIFY c BIGINT, ALGORITHM = COPY, LOCK = SHARED
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c` bigint DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t MODIFY c BIGINT, ALGORITHM = COPY, LOCK = NONE
+< error
+| 1846 0A000 LOCK=NONE is not supported. Reason: COPY algorithm requires a lock. Try LOCK=SHARED.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t DROP PRIMARY KEY, ALGORITHM = INPLACE
+< error
+| 1846 0A000 ALGORITHM=INPLACE is not supported. Reason: Dropping a primary key is not allowed without also adding a new primary key. Try ALGORITHM=COPY.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t DROP PRIMARY KEY, ADD PRIMARY KEY (b, d), ALGORITHM = INPLACE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int NOT NULL,
+|   PRIMARY KEY (`b`,`d`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t RENAME COLUMN c TO c2, ALGORITHM = INSTANT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c2` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ALTER COLUMN c SET DEFAULT 5, ALGORITHM = INSTANT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT '5',
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t DROP COLUMN d, ALGORITHM = INSTANT
+< error
+| 1845 0A000 ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t DROP INDEX idx_d, ALGORITHM = INSTANT
+< error
+| 1845 0A000 ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t DROP INDEX idx_d, ALGORITHM = INPLACE, LOCK = NONE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t RENAME INDEX idx_d TO idx_d2, ALGORITHM = INSTANT
+< error
+| 1845 0A000 ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ENGINE = InnoDB, ALGORITHM = INPLACE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ENGINE = InnoDB, ALGORITHM = INSTANT
+< error
+| 1845 0A000 ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD COLUMN e INT AUTO_INCREMENT UNIQUE, ALGORITHM = INPLACE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   `e` int NOT NULL AUTO_INCREMENT,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `e` (`e`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD FULLTEXT INDEX ft (e), ALGORITHM = INPLACE
+< error
+| 1072 42000 Key column 'e' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD COLUMN e VARCHAR(10), ADD FULLTEXT INDEX ft (e), ALGORITHM = INPLACE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   `e` varchar(10) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   FULLTEXT KEY `ft` (`e`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ALGORITHM = DEFAULT, LOCK = DEFAULT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ALGORITHM = INSTANT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t LOCK = EXCLUSIVE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ALTER INDEX idx_d INVISIBLE, ALGORITHM = INSTANT
+< error
+| 1845 0A000 ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t CONVERT TO CHARACTER SET latin1, ALGORITHM = INPLACE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD CONSTRAINT chk CHECK (c > 0), ALGORITHM = INPLACE
+< error
+| 1845 0A000 ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t ADD CONSTRAINT chk CHECK (c > 0), ALGORITHM = INSTANT
+< error
+| 1845 0A000 ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE t DROP COLUMN c, ADD COLUMN c BIGINT, ALGORITHM = INSTANT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   `c` bigint DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE INDEX idx_c ON t (c) ALGORITHM = INPLACE LOCK = NONE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   KEY `idx_c` (`c`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE INDEX idx_c ON t (c) ALGORITHM = INSTANT
+< error
+| 1845 0A000 ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX idx_d ON t ALGORITHM = INSTANT
+< error
+| 1845 0A000 ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP INDEX idx_d ON t LOCK = NONE
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions ADD PARTITION PARTITIONS 2
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int NOT NULL,
+|   `host` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3 */
+> query
+| SHOW CREATE TABLE `sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int NOT NULL,
+|   `user_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| PARTITIONS 6 */
+> query
+| SHOW CREATE TABLE `tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY ()
+| PARTITIONS 2 */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions COALESCE PARTITION 2
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int NOT NULL,
+|   `host` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3 */
+> query
+| SHOW CREATE TABLE `sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int NOT NULL,
+|   `user_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| PARTITIONS 2 */
+> query
+| SHOW CREATE TABLE `tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY ()
+| PARTITIONS 2 */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions COALESCE PARTITION 4
+< error
+| 1508 HY000 Cannot remove all partitions, use DROP TABLE instead
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions COALESCE PARTITION 5
+< error
+| 1508 HY000 Cannot remove all partitions, use DROP TABLE instead
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions COALESCE PARTITION 0
+< error
+| 1515 HY000 At least one partition must be coalesced
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions DROP PARTITION p0
+< error
+| 1512 HY000 DROP PARTITION can only be used on RANGE/LIST partitions
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions ADD PARTITION (PARTITION p9 VALUES LESS THAN (10))
+< error
+| 1480 HY000 Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions ADD PARTITION (PARTITION p4)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int NOT NULL,
+|   `host` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3 */
+> query
+| SHOW CREATE TABLE `sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int NOT NULL,
+|   `user_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| (PARTITION p0 ENGINE = InnoDB,
+|  PARTITION p1 ENGINE = InnoDB,
+|  PARTITION p2 ENGINE = InnoDB,
+|  PARTITION p3 ENGINE = InnoDB,
+|  PARTITION p4 ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY ()
+| PARTITIONS 2 */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions ADD PARTITION (PARTITION p0)
+< error
+| 1517 HY000 Duplicate partition name p0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions REORGANIZE PARTITION
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int NOT NULL,
+|   `host` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3 */
+> query
+| SHOW CREATE TABLE `sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int NOT NULL,
+|   `user_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| PARTITIONS 1 */
+> query
+| SHOW CREATE TABLE `tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY ()
+| PARTITIONS 2 */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions REORGANIZE PARTITION p0, p1 INTO (PARTITION p01)
+< error
+| 1510 HY000 REORGANIZE PARTITION can only be used to reorganize partitions not to change their numbers
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions TRUNCATE PARTITION p1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int NOT NULL,
+|   `host` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3 */
+> query
+| SHOW CREATE TABLE `sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int NOT NULL,
+|   `user_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| PARTITIONS 4 */
+> query
+| SHOW CREATE TABLE `tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY ()
+| PARTITIONS 2 */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions TRUNCATE PARTITION ALL
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int NOT NULL,
+|   `host` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3 */
+> query
+| SHOW CREATE TABLE `sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int NOT NULL,
+|   `user_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| PARTITIONS 4 */
+> query
+| SHOW CREATE TABLE `tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY ()
+| PARTITIONS 2 */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions REBUILD PARTITION ALL
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int NOT NULL,
+|   `host` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3 */
+> query
+| SHOW CREATE TABLE `sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int NOT NULL,
+|   `user_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| PARTITIONS 4 */
+> query
+| SHOW CREATE TABLE `tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY ()
+| PARTITIONS 2 */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions PARTITION BY KEY (id) PARTITIONS 8
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int NOT NULL,
+|   `host` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3 */
+> query
+| SHOW CREATE TABLE `sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int NOT NULL,
+|   `user_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY (id)
+| PARTITIONS 8 */
+> query
+| SHOW CREATE TABLE `tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY ()
+| PARTITIONS 2 */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions PARTITION BY HASH (user_id) PARTITIONS 2
+< error
+| 1503 HY000 A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions ADD COLUMN x INT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int NOT NULL,
+|   `host` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3 */
+> query
+| SHOW CREATE TABLE `sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int NOT NULL,
+|   `user_id` int DEFAULT NULL,
+|   `x` int DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| PARTITIONS 4 */
+> query
+| SHOW CREATE TABLE `tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY ()
+| PARTITIONS 2 */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions ADD UNIQUE KEY uk_user (user_id)
+< error
+| 1503 HY000 A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE sessions REMOVE PARTITIONING
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int NOT NULL,
+|   `host` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3 */
+> query
+| SHOW CREATE TABLE `sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int NOT NULL,
+|   `user_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY ()
+| PARTITIONS 2 */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE tokens ADD PARTITION PARTITIONS 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int NOT NULL,
+|   `host` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3 */
+> query
+| SHOW CREATE TABLE `sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int NOT NULL,
+|   `user_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| PARTITIONS 4 */
+> query
+| SHOW CREATE TABLE `tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY ()
+| PARTITIONS 3 */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE tokens COALESCE PARTITION 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int NOT NULL,
+|   `host` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3 */
+> query
+| SHOW CREATE TABLE `sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int NOT NULL,
+|   `user_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| PARTITIONS 4 */
+> query
+| SHOW CREATE TABLE `tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY ()
+| PARTITIONS 1 */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE tokens MODIFY id VARCHAR(64) NOT NULL
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int NOT NULL,
+|   `host` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3 */
+> query
+| SHOW CREATE TABLE `sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int NOT NULL,
+|   `user_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| PARTITIONS 4 */
+> query
+| SHOW CREATE TABLE `tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(64) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY ()
+| PARTITIONS 2 */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE metrics ADD PARTITION PARTITIONS 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int NOT NULL,
+|   `host` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 4 */
+> query
+| SHOW CREATE TABLE `sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int NOT NULL,
+|   `user_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| PARTITIONS 4 */
+> query
+| SHOW CREATE TABLE `tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY ()
+| PARTITIONS 2 */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE metrics COALESCE PARTITION 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int NOT NULL,
+|   `host` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 2 */
+> query
+| SHOW CREATE TABLE `sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int NOT NULL,
+|   `user_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| PARTITIONS 4 */
+> query
+| SHOW CREATE TABLE `tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY ()
+| PARTITIONS 2 */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE metrics ADD PRIMARY KEY (id)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int NOT NULL,
+|   `host` int DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3 */
+> query
+| SHOW CREATE TABLE `sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int NOT NULL,
+|   `user_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| PARTITIONS 4 */
+> query
+| SHOW CREATE TABLE `tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY ()
+| PARTITIONS 2 */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE metrics ADD PRIMARY KEY (host)
+< error
+| 1503 HY000 A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| ALTER TABLE metrics ADD UNIQUE KEY uk_id_host (id, host)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int NOT NULL,
+|   `host` int DEFAULT NULL,
+|   UNIQUE KEY `uk_id_host` (`id`,`host`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3 */
+> query
+| SHOW CREATE TABLE `sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int NOT NULL,
+|   `user_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| PARTITIONS 4 */
+> query
+| SHOW CREATE TABLE `tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY ()
+| PARTITIONS 2 */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| CREATE TABLE h2 (a INT) PARTITION BY HASH (a) PARTITIONS 0
+< error
+| 1504 HY000 Number of partitions = 0 is not an allowed value
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| CREATE TABLE h3 (a VARCHAR(10)) PARTITION BY HASH (a)
+< error
+| 1659 HY000 Field 'a' is of a not allowed type for this type of partitioning
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| CREATE TABLE h4 (a VARCHAR(10)) PARTITION BY KEY (a) PARTITIONS 3
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| h4
+: bytes
+| BASE TABLE
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `h4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| h4
+: bytes
+| CREATE TABLE `h4` (
+|   `a` varchar(10) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY (a)
+| PARTITIONS 3 */
+> query
+| SHOW CREATE TABLE `metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int NOT NULL,
+|   `host` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3 */
+> query
+| SHOW CREATE TABLE `sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int NOT NULL,
+|   `user_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| PARTITIONS 4 */
+> query
+| SHOW CREATE TABLE `tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY ()
+| PARTITIONS 2 */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| CREATE TABLE h5 (a INT, b INT) PARTITION BY KEY (a, b) PARTITIONS 3
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| h5
+: bytes
+| BASE TABLE
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `h5`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| h5
+: bytes
+| CREATE TABLE `h5` (
+|   `a` int DEFAULT NULL,
+|   `b` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY (a,b)
+| PARTITIONS 3 */
+> query
+| SHOW CREATE TABLE `metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int NOT NULL,
+|   `host` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3 */
+> query
+| SHOW CREATE TABLE `sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int NOT NULL,
+|   `user_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| PARTITIONS 4 */
+> query
+| SHOW CREATE TABLE `tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY ()
+| PARTITIONS 2 */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| CREATE TABLE h6 (a INT, b INT) PARTITION BY HASH (a + b) PARTITIONS 2
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| h6
+: bytes
+| BASE TABLE
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `h6`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| h6
+: bytes
+| CREATE TABLE `h6` (
+|   `a` int DEFAULT NULL,
+|   `b` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH ((`a` + `b`))
+| PARTITIONS 2 */
+> query
+| SHOW CREATE TABLE `metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int NOT NULL,
+|   `host` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3 */
+> query
+| SHOW CREATE TABLE `sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int NOT NULL,
+|   `user_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| PARTITIONS 4 */
+> query
+| SHOW CREATE TABLE `tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY ()
+| PARTITIONS 2 */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| CREATE TABLE h7 (a INT) PARTITION BY HASH (a) PARTITIONS 2 (PARTITION x, PARTITION y)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| h7
+: bytes
+| BASE TABLE
+< row
+: bytes
+| metrics
+: bytes
+| BASE TABLE
+< row
+: bytes
+| sessions
+: bytes
+| BASE TABLE
+< row
+: bytes
+| tokens
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `h7`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| h7
+: bytes
+| CREATE TABLE `h7` (
+|   `a` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`a`)
+| (PARTITION x ENGINE = InnoDB,
+|  PARTITION y ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `metrics`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| metrics
+: bytes
+| CREATE TABLE `metrics` (
+|   `id` int NOT NULL,
+|   `host` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LINEAR HASH (`id`)
+| PARTITIONS 3 */
+> query
+| SHOW CREATE TABLE `sessions`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| sessions
+: bytes
+| CREATE TABLE `sessions` (
+|   `id` int NOT NULL,
+|   `user_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| PARTITIONS 4 */
+> query
+| SHOW CREATE TABLE `tokens`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| tokens
+: bytes
+| CREATE TABLE `tokens` (
+|   `id` varchar(32) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY KEY ()
+| PARTITIONS 2 */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| CREATE TABLE h8 (a INT) PARTITION BY HASH (a) PARTITIONS 3 (PARTITION x, PARTITION y)
+< error
+| 1064 42000 Wrong number of partitions defined, mismatch with previous setting near '(PARTITION x, PARTITION y)' at line 1
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE sessions (id INT NOT NULL PRIMARY KEY, user_id INT) PARTITION BY HASH (id) PARTITIONS 4;
+| CREATE TABLE tokens (id VARCHAR(32) NOT NULL PRIMARY KEY) PARTITION BY KEY () PARTITIONS 2;
+| CREATE TABLE metrics (id INT NOT NULL, host INT) PARTITION BY LINEAR HASH (id) PARTITIONS 3
+< ok 0 0
+> exec
+| CREATE TABLE h9 (a TEXT) PARTITION BY KEY (a)
+< error
+| 1502 HY000 A BLOB field is not allowed in partition function
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores ADD PARTITION (PARTITION pwest VALUES IN (5, 6))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY LIST  COLUMNS(country)
+| (PARTITION peu VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION pna VALUES IN ('US','CA') ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int NOT NULL,
+|   `region` int NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LIST (`region`)
+| (PARTITION pnorth VALUES IN (1,2) ENGINE = InnoDB,
+|  PARTITION psouth VALUES IN (3,4) ENGINE = InnoDB,
+|  PARTITION pwest VALUES IN (5,6) ENGINE = InnoDB) */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores ADD PARTITION (PARTITION pwest VALUES IN (2, 5))
+< error
+| 1495 HY000 Multiple definition of same constant in list partitioning
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores ADD PARTITION (PARTITION pwest VALUES LESS THAN (10))
+< error
+| 1480 HY000 Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores ADD PARTITION (PARTITION pnorth VALUES IN (9))
+< error
+| 1517 HY000 Duplicate partition name pnorth
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores ADD PARTITION (PARTITION pnull VALUES IN (NULL))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY LIST  COLUMNS(country)
+| (PARTITION peu VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION pna VALUES IN ('US','CA') ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int NOT NULL,
+|   `region` int NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LIST (`region`)
+| (PARTITION pnorth VALUES IN (1,2) ENGINE = InnoDB,
+|  PARTITION psouth VALUES IN (3,4) ENGINE = InnoDB,
+|  PARTITION pnull VALUES IN (NULL) ENGINE = InnoDB) */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores REORGANIZE PARTITION pnorth INTO (PARTITION pn1 VALUES IN (1), PARTITION pn2 VALUES IN (2))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY LIST  COLUMNS(country)
+| (PARTITION peu VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION pna VALUES IN ('US','CA') ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int NOT NULL,
+|   `region` int NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LIST (`region`)
+| (PARTITION pn1 VALUES IN (1) ENGINE = InnoDB,
+|  PARTITION pn2 VALUES IN (2) ENGINE = InnoDB,
+|  PARTITION psouth VALUES IN (3,4) ENGINE = InnoDB) */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores REORGANIZE PARTITION pnorth, psouth INTO (PARTITION pall VALUES IN (1, 2, 3, 4))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY LIST  COLUMNS(country)
+| (PARTITION peu VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION pna VALUES IN ('US','CA') ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int NOT NULL,
+|   `region` int NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LIST (`region`)
+| (PARTITION pall VALUES IN (1,2,3,4) ENGINE = InnoDB) */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores REORGANIZE PARTITION pnorth INTO (PARTITION pn VALUES IN (1, 2, 7))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY LIST  COLUMNS(country)
+| (PARTITION peu VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION pna VALUES IN ('US','CA') ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int NOT NULL,
+|   `region` int NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LIST (`region`)
+| (PARTITION pn VALUES IN (1,2,7) ENGINE = InnoDB,
+|  PARTITION psouth VALUES IN (3,4) ENGINE = InnoDB) */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores DROP PARTITION psouth
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY LIST  COLUMNS(country)
+| (PARTITION peu VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION pna VALUES IN ('US','CA') ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int NOT NULL,
+|   `region` int NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LIST (`region`)
+| (PARTITION pnorth VALUES IN (1,2) ENGINE = InnoDB) */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores DROP PARTITION pnorth, psouth
+< error
+| 1508 HY000 Cannot remove all partitions, use DROP TABLE instead
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores TRUNCATE PARTITION pnorth, psouth
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY LIST  COLUMNS(country)
+| (PARTITION peu VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION pna VALUES IN ('US','CA') ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int NOT NULL,
+|   `region` int NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LIST (`region`)
+| (PARTITION pnorth VALUES IN (1,2) ENGINE = InnoDB,
+|  PARTITION psouth VALUES IN (3,4) ENGINE = InnoDB) */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores COALESCE PARTITION 1
+< error
+| 1509 HY000 COALESCE PARTITION can only be used on HASH/KEY partitions
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores PARTITION BY LIST (id) (PARTITION p VALUES IN (1))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY LIST  COLUMNS(country)
+| (PARTITION peu VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION pna VALUES IN ('US','CA') ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int NOT NULL,
+|   `region` int NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LIST (`id`)
+| (PARTITION p VALUES IN (1) ENGINE = InnoDB) */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores PARTITION BY RANGE (region) (PARTITION p0 VALUES LESS THAN (3), PARTITION p1 VALUES LESS THAN MAXVALUE)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY LIST  COLUMNS(country)
+| (PARTITION peu VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION pna VALUES IN ('US','CA') ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int NOT NULL,
+|   `region` int NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (`region`)
+| (PARTITION p0 VALUES LESS THAN (3) ENGINE = InnoDB,
+|  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores REMOVE PARTITIONING
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY LIST  COLUMNS(country)
+| (PARTITION peu VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION pna VALUES IN ('US','CA') ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int NOT NULL,
+|   `region` int NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE stores MODIFY region BIGINT NOT NULL
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY LIST  COLUMNS(country)
+| (PARTITION peu VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION pna VALUES IN ('US','CA') ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int NOT NULL,
+|   `region` bigint NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LIST (`region`)
+| (PARTITION pnorth VALUES IN (1,2) ENGINE = InnoDB,
+|  PARTITION psouth VALUES IN (3,4) ENGINE = InnoDB) */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE cities ADD PARTITION (PARTITION pas VALUES IN ('JP'))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY LIST  COLUMNS(country)
+| (PARTITION peu VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION pna VALUES IN ('US','CA') ENGINE = InnoDB,
+|  PARTITION pas VALUES IN ('JP') ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int NOT NULL,
+|   `region` int NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LIST (`region`)
+| (PARTITION pnorth VALUES IN (1,2) ENGINE = InnoDB,
+|  PARTITION psouth VALUES IN (3,4) ENGINE = InnoDB) */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE cities ADD PARTITION (PARTITION pas VALUES IN ('US'))
+< error
+| 1495 HY000 Multiple definition of same constant in list partitioning
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| ALTER TABLE cities REORGANIZE PARTITION peu INTO (PARTITION pde VALUES IN ('DE'), PARTITION pfr VALUES IN ('FR'))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY LIST  COLUMNS(country)
+| (PARTITION pde VALUES IN ('DE') ENGINE = InnoDB,
+|  PARTITION pfr VALUES IN ('FR') ENGINE = InnoDB,
+|  PARTITION pna VALUES IN ('US','CA') ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int NOT NULL,
+|   `region` int NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LIST (`region`)
+| (PARTITION pnorth VALUES IN (1,2) ENGINE = InnoDB,
+|  PARTITION psouth VALUES IN (3,4) ENGINE = InnoDB) */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| CREATE TABLE l2 (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (1), PARTITION p1 VALUES IN (1))
+< error
+| 1495 HY000 Multiple definition of same constant in list partitioning
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| CREATE TABLE l3 (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES LESS THAN (1))
+< error
+| 1480 HY000 Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| CREATE TABLE l4 (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (NULL, 1))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| l4
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY LIST  COLUMNS(country)
+| (PARTITION peu VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION pna VALUES IN ('US','CA') ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `l4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| l4
+: bytes
+| CREATE TABLE `l4` (
+|   `a` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LIST (`a`)
+| (PARTITION p0 VALUES IN (NULL,1) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int NOT NULL,
+|   `region` int NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LIST (`region`)
+| (PARTITION pnorth VALUES IN (1,2) ENGINE = InnoDB,
+|  PARTITION psouth VALUES IN (3,4) ENGINE = InnoDB) */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| CREATE TABLE l5 (a INT, b INT) PARTITION BY LIST COLUMNS (a, b) (PARTITION p0 VALUES IN ((1, 1), (2, 2)), PARTITION p1 VALUES IN ((3, 3)))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| cities
+: bytes
+| BASE TABLE
+< row
+: bytes
+| l5
+: bytes
+| BASE TABLE
+< row
+: bytes
+| stores
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `cities`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| cities
+: bytes
+| CREATE TABLE `cities` (
+|   `id` int NOT NULL,
+|   `country` char(2) NOT NULL,
+|   PRIMARY KEY (`id`,`country`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY LIST  COLUMNS(country)
+| (PARTITION peu VALUES IN ('DE','FR') ENGINE = InnoDB,
+|  PARTITION pna VALUES IN ('US','CA') ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `l5`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| l5
+: bytes
+| CREATE TABLE `l5` (
+|   `a` int DEFAULT NULL,
+|   `b` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY LIST  COLUMNS(a,b)
+| (PARTITION p0 VALUES IN ((1,1),(2,2)) ENGINE = InnoDB,
+|  PARTITION p1 VALUES IN ((3,3)) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `stores`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| stores
+: bytes
+| CREATE TABLE `stores` (
+|   `id` int NOT NULL,
+|   `region` int NOT NULL,
+|   PRIMARY KEY (`id`,`region`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY LIST (`region`)
+| (PARTITION pnorth VALUES IN (1,2) ENGINE = InnoDB,
+|  PARTITION psouth VALUES IN (3,4) ENGINE = InnoDB) */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE stores (id INT NOT NULL, region INT NOT NULL, PRIMARY KEY (id, region)) PARTITION BY LIST (region) (PARTITION pnorth VALUES IN (1, 2), PARTITION psouth VALUES IN (3, 4));
+| CREATE TABLE cities (id INT NOT NULL, country CHAR(2) NOT NULL, PRIMARY KEY (id, country)) PARTITION BY LIST COLUMNS (country) (PARTITION peu VALUES IN ('DE', 'FR'), PARTITION pna VALUES IN ('US', 'CA'))
+< ok 0 0
+> exec
+| CREATE TABLE l6 (a INT) PARTITION BY LIST (a)
+< error
+| 1492 HY000 For LIST partitions each partition must be defined
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD PARTITION (PARTITION p2026 VALUES LESS THAN (2027))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p2023 VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION p2024 VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB,
+|  PARTITION p2026 VALUES LESS THAN (2027) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD PARTITION (PARTITION p2026 VALUES LESS THAN (2027), PARTITION p2027 VALUES LESS THAN (2028))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p2023 VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION p2024 VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB,
+|  PARTITION p2026 VALUES LESS THAN (2027) ENGINE = InnoDB,
+|  PARTITION p2027 VALUES LESS THAN (2028) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD PARTITION (PARTITION p2022 VALUES LESS THAN (2023))
+< error
+| 1493 HY000 VALUES LESS THAN value must be strictly increasing for each partition
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD PARTITION (PARTITION p2024 VALUES LESS THAN (2030))
+< error
+| 1517 HY000 Duplicate partition name p2024
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD PARTITION (PARTITION pmax VALUES LESS THAN MAXVALUE)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p2023 VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION p2024 VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD PARTITION (PARTITION px VALUES IN (2030))
+< error
+| 1480 HY000 Only LIST PARTITIONING can use VALUES IN in partition definition
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD PARTITION PARTITIONS 2
+< error
+| 1492 HY000 For RANGE partitions each partition must be defined
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP PARTITION p2023
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p2024 VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP PARTITION p2023, p2024
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP PARTITION p1999
+< error
+| 1507 HY000 Error in list of partitions to DROP
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP PARTITION p2023, p2024, p2025
+< error
+| 1508 HY000 Cannot remove all partitions, use DROP TABLE instead
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders REORGANIZE PARTITION p2025 INTO (PARTITION p2025 VALUES LESS THAN (2026), PARTITION p2026 VALUES LESS THAN (2027))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p2023 VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION p2024 VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB,
+|  PARTITION p2026 VALUES LESS THAN (2027) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders REORGANIZE PARTITION p2023, p2024 INTO (PARTITION p_old VALUES LESS THAN (2025))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p_old VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders REORGANIZE PARTITION p2024 INTO (PARTITION p2024 VALUES LESS THAN (2030))
+< error
+| 1493 HY000 VALUES LESS THAN value must be strictly increasing for each partition
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders REORGANIZE PARTITION p2023, p2025 INTO (PARTITION p VALUES LESS THAN (2026))
+< error
+| 1519 HY000 When reorganizing a set of partitions they must be in consecutive order
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders REORGANIZE PARTITION p2023 INTO (PARTITION p2024 VALUES LESS THAN (2024))
+< error
+| 1517 HY000 Duplicate partition name p2024
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders EXCHANGE PARTITION p2024 WITH TABLE orders_archive
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p2023 VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION p2024 VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders EXCHANGE PARTITION p2024 WITH TABLE orders_archive WITHOUT VALIDATION
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p2023 VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION p2024 VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders EXCHANGE PARTITION p2024 WITH TABLE logs
+< error
+| 1732 HY000 Table to exchange with partition is partitioned: 'logs'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders EXCHANGE PARTITION p1999 WITH TABLE orders_archive
+< error
+| 1735 HY000 Unknown partition 'p1999' in table 'orders'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders_archive EXCHANGE PARTITION p2024 WITH TABLE orders
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders TRUNCATE PARTITION p2023
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p2023 VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION p2024 VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders TRUNCATE PARTITION p2023, p1999
+< error
+| 1735 HY000 Unknown partition 'p1999' in table 'orders'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders ANALYZE PARTITION p2023
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p2023 VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION p2024 VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders REBUILD PARTITION p2023, p2024
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p2023 VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION p2024 VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders COALESCE PARTITION 1
+< error
+| 1509 HY000 COALESCE PARTITION can only be used on HASH/KEY partitions
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders REMOVE PARTITIONING
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders_archive REMOVE PARTITIONING
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders PARTITION BY RANGE (YEAR(created)) (PARTITION p0 VALUES LESS THAN (2025), PARTITION p1 VALUES LESS THAN MAXVALUE)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p0 VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders_archive PARTITION BY HASH (id) PARTITIONS 4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p2023 VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION p2024 VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY HASH (`id`)
+| PARTITIONS 4 */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders_archive PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN MAXVALUE)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p2023 VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION p2024 VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (`id`)
+| (PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+|  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders_archive PARTITION BY RANGE COLUMNS (created) (PARTITION p0 VALUES LESS THAN ('2025-01-01'), PARTITION p1 VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p2023 VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION p2024 VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(created)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01') ENGINE = InnoDB,
+|  PARTITION p1 VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders_archive PARTITION BY HASH (amount) PARTITIONS 2
+< error
+| 1659 HY000 Field 'amount' is of a not allowed type for this type of partitioning
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders_archive PARTITION BY KEY (amount) PARTITIONS 2
+< error
+| 1503 HY000 A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders_archive PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (5))
+< error
+| 1493 HY000 VALUES LESS THAN value must be strictly increasing for each partition
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD COLUMN note VARCHAR(20)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   `note` varchar(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p2023 VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION p2024 VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP PRIMARY KEY
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p2023 VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION p2024 VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD UNIQUE KEY uk_amount (amount)
+< error
+| 1503 HY000 A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD UNIQUE KEY uk_id_created (created, id)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`),
+|   UNIQUE KEY `uk_id_created` (`created`,`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p2023 VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION p2024 VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders MODIFY created DATETIME NOT NULL
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` datetime NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p2023 VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION p2024 VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders DROP COLUMN created
+< error
+| 3855 HY000 Column 'created' has a partitioning function dependency and cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders RENAME COLUMN created TO created_at
+< error
+| 3855 HY000 Column 'created' has a partitioning function dependency and cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE orders ADD CONSTRAINT fk_archive FOREIGN KEY (id, created) REFERENCES orders_archive (id, created)
+< error
+| 1506 HY000 Foreign keys are not yet supported in conjunction with partitioning
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE logs ADD PARTITION (PARTITION p1 VALUES LESS THAN ('2026-01-01 00:00:00'))
+< error
+| 1493 HY000 VALUES LESS THAN value must be strictly increasing for each partition
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE logs REORGANIZE PARTITION pmax INTO (PARTITION p1 VALUES LESS THAN ('2026-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION p1 VALUES LESS THAN ('2026-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p2023 VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION p2024 VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| ALTER TABLE logs DROP PARTITION pmax
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p2023 VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION p2024 VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| CREATE TABLE r2 (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (5))
+< error
+| 1493 HY000 VALUES LESS THAN value must be strictly increasing for each partition
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| CREATE TABLE r3 (a INT, b INT, PRIMARY KEY (a)) PARTITION BY RANGE (b) (PARTITION p0 VALUES LESS THAN (10))
+< error
+| 1503 HY000 A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| CREATE TABLE r4 (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN MAXVALUE, PARTITION p1 VALUES LESS THAN (10))
+< error
+| 1481 HY000 MAXVALUE can only be used in last partition definition
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| CREATE TABLE r5 (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p0 VALUES LESS THAN (20))
+< error
+| 1517 HY000 Duplicate partition name p0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| CREATE TABLE r6 (a INT, b INT) PARTITION BY RANGE (a) SUBPARTITION BY HASH (b) SUBPARTITIONS 2 (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN MAXVALUE)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+< row
+: bytes
+| r6
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p2023 VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION p2024 VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `r6`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| r6
+: bytes
+| CREATE TABLE `r6` (
+|   `a` int DEFAULT NULL,
+|   `b` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (`a`)
+| SUBPARTITION BY HASH (`b`)
+| SUBPARTITIONS 2
+| (PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+|  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| CREATE TABLE r7 (a VARCHAR(10)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))
+< error
+| 1659 HY000 Field 'a' is of a not allowed type for this type of partitioning
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| CREATE TABLE r8 LIKE orders
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+< row
+: bytes
+| r8
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p2023 VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION p2024 VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `r8`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| r8
+: bytes
+| CREATE TABLE `r8` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50100 PARTITION BY RANGE (year(`created`))
+| (PARTITION p2023 VALUES LESS THAN (2024) ENGINE = InnoDB,
+|  PARTITION p2024 VALUES LESS THAN (2025) ENGINE = InnoDB,
+|  PARTITION p2025 VALUES LESS THAN (2026) ENGINE = InnoDB) */
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE orders (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created)) PARTITION BY RANGE (YEAR(created)) (PARTITION p2023 VALUES LESS THAN (2024), PARTITION p2024 VALUES LESS THAN (2025), PARTITION p2025 VALUES LESS THAN (2026));
+| CREATE TABLE orders_archive (id INT NOT NULL, created DATE NOT NULL, amount DECIMAL(10,2), PRIMARY KEY (id, created));
+| CREATE TABLE logs (id INT NOT NULL, ts DATETIME NOT NULL, PRIMARY KEY (id, ts)) PARTITION BY RANGE COLUMNS (ts) (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> exec
+| DROP TABLE orders
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| logs
+: bytes
+| BASE TABLE
+< row
+: bytes
+| orders_archive
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `logs`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| logs
+: bytes
+| CREATE TABLE `logs` (
+|   `id` int NOT NULL,
+|   `ts` datetime NOT NULL,
+|   PRIMARY KEY (`id`,`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+| /*!50500 PARTITION BY RANGE  COLUMNS(ts)
+| (PARTITION p0 VALUES LESS THAN ('2025-01-01 00:00:00') ENGINE = InnoDB,
+|  PARTITION pmax VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */
+> query
+| SHOW CREATE TABLE `orders_archive`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| orders_archive
+: bytes
+| CREATE TABLE `orders_archive` (
+|   `id` int NOT NULL,
+|   `created` date NOT NULL,
+|   `amount` decimal(10,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`,`created`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; DROP DATABASE IF EXISTS omni_t_simulation_other;
+| CREATE DATABASE omni_t_simulation_other;
+| CREATE TABLE omni_t_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
+| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+< ok 0 0
+> exec
+| RENAME TABLE accounts TO omni_t_simulation_other.accounts
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| entries
+: bytes
+| BASE TABLE
+< row
+: bytes
+| ledger
+: bytes
+| BASE TABLE
+< row
+: bytes
+| v_accounts
+: bytes
+| VIEW
+> query
+| SHOW CREATE TABLE `entries`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| entries
+: bytes
+| CREATE TABLE `entries` (
+|   `id` int NOT NULL,
+|   `archived_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_archived` (`archived_id`),
+|   CONSTRAINT `fk_archived` FOREIGN KEY (`archived_id`) REFERENCES `omni_t_simulation_other`.`archived` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `ledger`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| ledger
+: bytes
+| CREATE TABLE `ledger` (
+|   `id` int NOT NULL,
+|   `account_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_account` (`account_id`),
+|   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `omni_t_simulation_other`.`accounts` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE VIEW `v_accounts`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_accounts
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_accounts` AS select `accounts`.`id` AS `id`,`accounts`.`name` AS `name` from `accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; DROP DATABASE IF EXISTS omni_t_simulation_other;
+| CREATE DATABASE omni_t_simulation_other;
+| CREATE TABLE omni_t_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
+| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+< ok 0 0
+> exec
+| RENAME TABLE entries TO omni_t_simulation_other.entries
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| accounts
+: bytes
+| BASE TABLE
+< row
+: bytes
+| ledger
+: bytes
+| BASE TABLE
+< row
+: bytes
+| v_accounts
+: bytes
+| VIEW
+> query
+| SHOW CREATE TABLE `accounts`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| accounts
+: bytes
+| CREATE TABLE `accounts` (
+|   `id` int NOT NULL,
+|   `name` varchar(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `ledger`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| ledger
+: bytes
+| CREATE TABLE `ledger` (
+|   `id` int NOT NULL,
+|   `account_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_account` (`account_id`),
+|   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE VIEW `v_accounts`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_accounts
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_accounts` AS select `accounts`.`id` AS `id`,`accounts`.`name` AS `name` from `accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; DROP DATABASE IF EXISTS omni_t_simulation_other;
+| CREATE DATABASE omni_t_simulation_other;
+| CREATE TABLE omni_t_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
+| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+< ok 0 0
+> exec
+| RENAME TABLE omni_t_simulation_other.archived TO archived
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| accounts
+: bytes
+| BASE TABLE
+< row
+: bytes
+| archived
+: bytes
+| BASE TABLE
+< row
+: bytes
+| entries
+: bytes
+| BASE TABLE
+< row
+: bytes
+| ledger
+: bytes
+| BASE TABLE
+< row
+: bytes
+| v_accounts
+: bytes
+| VIEW
+> query
+| SHOW CREATE TABLE `accounts`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| accounts
+: bytes
+| CREATE TABLE `accounts` (
+|   `id` int NOT NULL,
+|   `name` varchar(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `archived`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| archived
+: bytes
+| CREATE TABLE `archived` (
+|   `id` int NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `entries`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| entries
+: bytes
+| CREATE TABLE `entries` (
+|   `id` int NOT NULL,
+|   `archived_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_archived` (`archived_id`),
+|   CONSTRAINT `fk_archived` FOREIGN KEY (`archived_id`) REFERENCES `archived` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `ledger`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| ledger
+: bytes
+| CREATE TABLE `ledger` (
+|   `id` int NOT NULL,
+|   `account_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_account` (`account_id`),
+|   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE VIEW `v_accounts`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_accounts
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_accounts` AS select `accounts`.`id` AS `id`,`accounts`.`name` AS `name` from `accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; DROP DATABASE IF EXISTS omni_t_simulation_other;
+| CREATE DATABASE omni_t_simulation_other;
+| CREATE TABLE omni_t_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
+| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+< ok 0 0
+> exec
+| RENAME TABLE v_accounts TO omni_t_simulation_other.v_accounts
+< error
+| 1450 HY000 Changing schema from 'omni_t_simulation' to 'omni_t_simulation_other' is not allowed.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; DROP DATABASE IF EXISTS omni_t_simulation_other;
+| CREATE DATABASE omni_t_simulation_other;
+| CREATE TABLE omni_t_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
+| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+< ok 0 0
+> exec
+| RENAME TABLE accounts TO omni_t_simulation_nope.accounts
+< error
+| 1049 42000 Unknown database 'omni_t_simulation_nope'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; DROP DATABASE IF EXISTS omni_t_simulation_other;
+| CREATE DATABASE omni_t_simulation_other;
+| CREATE TABLE omni_t_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
+| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+< ok 0 0
+> exec
+| RENAME TABLE accounts TO omni_t_simulation_other.archived
+< error
+| 1050 42S01 Table 'archived' already exists
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; DROP DATABASE IF EXISTS omni_t_simulation_other;
+| CREATE DATABASE omni_t_simulation_other;
+| CREATE TABLE omni_t_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
+| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+< ok 0 0
+> exec
+| RENAME TABLE accounts TO acc2, acc2 TO omni_t_simulation_other.acc
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| entries
+: bytes
+| BASE TABLE
+< row
+: bytes
+| ledger
+: bytes
+| BASE TABLE
+< row
+: bytes
+| v_accounts
+: bytes
+| VIEW
+> query
+| SHOW CREATE TABLE `entries`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| entries
+: bytes
+| CREATE TABLE `entries` (
+|   `id` int NOT NULL,
+|   `archived_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_archived` (`archived_id`),
+|   CONSTRAINT `fk_archived` FOREIGN KEY (`archived_id`) REFERENCES `omni_t_simulation_other`.`archived` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `ledger`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| ledger
+: bytes
+| CREATE TABLE `ledger` (
+|   `id` int NOT NULL,
+|   `account_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_account` (`account_id`),
+|   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `omni_t_simulation_other`.`acc` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE VIEW `v_accounts`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_accounts
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_accounts` AS select `accounts`.`id` AS `id`,`accounts`.`name` AS `name` from `accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; DROP DATABASE IF EXISTS omni_t_simulation_other;
+| CREATE DATABASE omni_t_simulation_other;
+| CREATE TABLE omni_t_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
+| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+< ok 0 0
+> exec
+| RENAME TABLE accounts TO tmp, omni_t_simulation_other.archived TO accounts, tmp TO omni_t_simulation_other.archived
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| accounts
+: bytes
+| BASE TABLE
+< row
+: bytes
+| entries
+: bytes
+| BASE TABLE
+< row
+: bytes
+| ledger
+: bytes
+| BASE TABLE
+< row
+: bytes
+| v_accounts
+: bytes
+| VIEW
+> query
+| SHOW CREATE TABLE `accounts`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| accounts
+: bytes
+| CREATE TABLE `accounts` (
+|   `id` int NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `entries`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| entries
+: bytes
+| CREATE TABLE `entries` (
+|   `id` int NOT NULL,
+|   `archived_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_archived` (`archived_id`),
+|   CONSTRAINT `fk_archived` FOREIGN KEY (`archived_id`) REFERENCES `accounts` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `ledger`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| ledger
+: bytes
+| CREATE TABLE `ledger` (
+|   `id` int NOT NULL,
+|   `account_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_account` (`account_id`),
+|   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `omni_t_simulation_other`.`archived` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE VIEW `v_accounts`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_accounts
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_accounts` AS select `accounts`.`id` AS `id`,`accounts`.`name` AS `name` from `accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; DROP DATABASE IF EXISTS omni_t_simulation_other;
+| CREATE DATABASE omni_t_simulation_other;
+| CREATE TABLE omni_t_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
+| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+< ok 0 0
+> exec
+| ALTER TABLE accounts RENAME TO omni_t_simulation_other.accounts
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| entries
+: bytes
+| BASE TABLE
+< row
+: bytes
+| ledger
+: bytes
+| BASE TABLE
+< row
+: bytes
+| v_accounts
+: bytes
+| VIEW
+> query
+| SHOW CREATE TABLE `entries`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| entries
+: bytes
+| CREATE TABLE `entries` (
+|   `id` int NOT NULL,
+|   `archived_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_archived` (`archived_id`),
+|   CONSTRAINT `fk_archived` FOREIGN KEY (`archived_id`) REFERENCES `omni_t_simulation_other`.`archived` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `ledger`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| ledger
+: bytes
+| CREATE TABLE `ledger` (
+|   `id` int NOT NULL,
+|   `account_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_account` (`account_id`),
+|   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `omni_t_simulation_other`.`accounts` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE VIEW `v_accounts`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_accounts
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_accounts` AS select `accounts`.`id` AS `id`,`accounts`.`name` AS `name` from `accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; DROP DATABASE IF EXISTS omni_t_simulation_other;
+| CREATE DATABASE omni_t_simulation_other;
+| CREATE TABLE omni_t_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
+| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+< ok 0 0
+> exec
+| ALTER TABLE accounts RENAME TO omni_t_simulation_other.archived
+< error
+| 1050 42S01 Table 'archived' already exists
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; DROP DATABASE IF EXISTS omni_t_simulation_other;
+| CREATE DATABASE omni_t_simulation_other;
+| CREATE TABLE omni_t_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
+| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+< ok 0 0
+> exec
+| ALTER TABLE entries RENAME TO omni_t_simulation_other.entries, ADD COLUMN note INT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| accounts
+: bytes
+| BASE TABLE
+< row
+: bytes
+| ledger
+: bytes
+| BASE TABLE
+< row
+: bytes
+| v_accounts
+: bytes
+| VIEW
+> query
+| SHOW CREATE TABLE `accounts`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| accounts
+: bytes
+| CREATE TABLE `accounts` (
+|   `id` int NOT NULL,
+|   `name` varchar(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `ledger`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| ledger
+: bytes
+| CREATE TABLE `ledger` (
+|   `id` int NOT NULL,
+|   `account_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_account` (`account_id`),
+|   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE VIEW `v_accounts`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_accounts
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_accounts` AS select `accounts`.`id` AS `id`,`accounts`.`name` AS `name` from `accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; DROP DATABASE IF EXISTS omni_t_simulation_other;
+| CREATE DATABASE omni_t_simulation_other;
+| CREATE TABLE omni_t_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
+| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+< ok 0 0
+> exec
+| CREATE TABLE copy LIKE omni_t_simulation_other.archived
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| accounts
+: bytes
+| BASE TABLE
+< row
+: bytes
+| copy
+: bytes
+| BASE TABLE
+< row
+: bytes
+| entries
+: bytes
+| BASE TABLE
+< row
+: bytes
+| ledger
+: bytes
+| BASE TABLE
+< row
+: bytes
+| v_accounts
+: bytes
+| VIEW
+> query
+| SHOW CREATE TABLE `accounts`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| accounts
+: bytes
+| CREATE TABLE `accounts` (
+|   `id` int NOT NULL,
+|   `name` varchar(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `copy`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| copy
+: bytes
+| CREATE TABLE `copy` (
+|   `id` int NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `entries`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| entries
+: bytes
+| CREATE TABLE `entries` (
+|   `id` int NOT NULL,
+|   `archived_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_archived` (`archived_id`),
+|   CONSTRAINT `fk_archived` FOREIGN KEY (`archived_id`) REFERENCES `omni_t_simulation_other`.`archived` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `ledger`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| ledger
+: bytes
+| CREATE TABLE `ledger` (
+|   `id` int NOT NULL,
+|   `account_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_account` (`account_id`),
+|   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE VIEW `v_accounts`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_accounts
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_accounts` AS select `accounts`.`id` AS `id`,`accounts`.`name` AS `name` from `accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; DROP DATABASE IF EXISTS omni_t_simulation_other;
+| CREATE DATABASE omni_t_simulation_other;
+| CREATE TABLE omni_t_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
+| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+< ok 0 0
+> exec
+| CREATE TABLE t2 (id INT, FOREIGN KEY (id) REFERENCES omni_t_simulation_other.archived (id))
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| accounts
+: bytes
+| BASE TABLE
+< row
+: bytes
+| entries
+: bytes
+| BASE TABLE
+< row
+: bytes
+| ledger
+: bytes
+| BASE TABLE
+< row
+: bytes
+| t2
+: bytes
+| BASE TABLE
+< row
+: bytes
+| v_accounts
+: bytes
+| VIEW
+> query
+| SHOW CREATE TABLE `accounts`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| accounts
+: bytes
+| CREATE TABLE `accounts` (
+|   `id` int NOT NULL,
+|   `name` varchar(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `entries`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| entries
+: bytes
+| CREATE TABLE `entries` (
+|   `id` int NOT NULL,
+|   `archived_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_archived` (`archived_id`),
+|   CONSTRAINT `fk_archived` FOREIGN KEY (`archived_id`) REFERENCES `omni_t_simulation_other`.`archived` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `ledger`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| ledger
+: bytes
+| CREATE TABLE `ledger` (
+|   `id` int NOT NULL,
+|   `account_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_account` (`account_id`),
+|   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `t2`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t2
+: bytes
+| CREATE TABLE `t2` (
+|   `id` int DEFAULT NULL,
+|   KEY `id` (`id`),
+|   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`id`) REFERENCES `omni_t_simulation_other`.`archived` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE VIEW `v_accounts`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_accounts
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_accounts` AS select `accounts`.`id` AS `id`,`accounts`.`name` AS `name` from `accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; DROP DATABASE IF EXISTS omni_t_simulation_other;
+| CREATE DATABASE omni_t_simulation_other;
+| CREATE TABLE omni_t_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
+| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+< ok 0 0
+> exec
+| CREATE VIEW v2 AS SELECT id FROM omni_t_simulation_other.archived
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| accounts
+: bytes
+| BASE TABLE
+< row
+: bytes
+| entries
+: bytes
+| BASE TABLE
+< row
+: bytes
+| ledger
+: bytes
+| BASE TABLE
+< row
+: bytes
+| v2
+: bytes
+| VIEW
+< row
+: bytes
+| v_accounts
+: bytes
+| VIEW
+> query
+| SHOW CREATE TABLE `accounts`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| accounts
+: bytes
+| CREATE TABLE `accounts` (
+|   `id` int NOT NULL,
+|   `name` varchar(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `entries`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| entries
+: bytes
+| CREATE TABLE `entries` (
+|   `id` int NOT NULL,
+|   `archived_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_archived` (`archived_id`),
+|   CONSTRAINT `fk_archived` FOREIGN KEY (`archived_id`) REFERENCES `omni_t_simulation_other`.`archived` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `ledger`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| ledger
+: bytes
+| CREATE TABLE `ledger` (
+|   `id` int NOT NULL,
+|   `account_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_account` (`account_id`),
+|   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE VIEW `v2`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v2
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v2` AS select `omni_t_simulation_other`.`archived`.`id` AS `id` from `omni_t_simulation_other`.`archived`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE VIEW `v_accounts`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_accounts
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_accounts` AS select `accounts`.`id` AS `id`,`accounts`.`name` AS `name` from `accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; DROP DATABASE IF EXISTS omni_t_simulation_other;
+| CREATE DATABASE omni_t_simulation_other;
+| CREATE TABLE omni_t_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
+| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+< ok 0 0
+> exec
+| CREATE TABLE t3 AS SELECT * FROM omni_t_simulation_other.archived
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| accounts
+: bytes
+| BASE TABLE
+< row
+: bytes
+| entries
+: bytes
+| BASE TABLE
+< row
+: bytes
+| ledger
+: bytes
+| BASE TABLE
+< row
+: bytes
+| t3
+: bytes
+| BASE TABLE
+< row
+: bytes
+| v_accounts
+: bytes
+| VIEW
+> query
+| SHOW CREATE TABLE `accounts`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| accounts
+: bytes
+| CREATE TABLE `accounts` (
+|   `id` int NOT NULL,
+|   `name` varchar(20) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `entries`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| entries
+: bytes
+| CREATE TABLE `entries` (
+|   `id` int NOT NULL,
+|   `archived_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_archived` (`archived_id`),
+|   CONSTRAINT `fk_archived` FOREIGN KEY (`archived_id`) REFERENCES `omni_t_simulation_other`.`archived` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `ledger`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| ledger
+: bytes
+| CREATE TABLE `ledger` (
+|   `id` int NOT NULL,
+|   `account_id` int DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   KEY `fk_account` (`account_id`),
+|   CONSTRAINT `fk_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE TABLE `t3`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| t3
+: bytes
+| CREATE TABLE `t3` (
+|   `id` int NOT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> query
+| SHOW CREATE VIEW `v_accounts`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_accounts
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_accounts` AS select `accounts`.`id` AS `id`,`accounts`.`name` AS `name` from `accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; DROP DATABASE IF EXISTS omni_t_simulation_other;
+| CREATE DATABASE omni_t_simulation_other;
+| CREATE TABLE omni_t_simulation_other.archived (id INT PRIMARY KEY);
+| CREATE TABLE accounts (id INT PRIMARY KEY, name VARCHAR(20));
+| CREATE TABLE ledger (id INT PRIMARY KEY, account_id INT, CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts (id));
+| CREATE TABLE entries (id INT PRIMARY KEY, archived_id INT, CONSTRAINT fk_archived FOREIGN KEY (archived_id) REFERENCES omni_t_simulation_other.archived (id));
+| CREATE VIEW v_accounts AS SELECT id, name FROM accounts
+< ok 0 0
+> exec
+| DROP TABLE omni_t_simulation_other.archived, accounts
+< error
+| 3730 HY000 Cannot drop table 'archived' referenced by a foreign key constraint 'fk_archived' on table 'entries'.

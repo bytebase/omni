@@ -561,6 +561,11 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		undoAlter(db, origKey, tbl, snapshot)
 		return err
 	}
+	// The foreign keys that reference the table follow its new name and the
+	// columns the statement renamed, once nothing can undo the statement.
+	if renames := alterColumnRenames(stmt.Commands); len(renames) > 0 || tbl.Database != db || tbl.Name != origTableName {
+		c.retargetReferences(tbl, db, origTableName, renames)
+	}
 	// Clear transient cleanup tracking after successful ALTER.
 	tbl.droppedByCleanup = nil
 	return nil
@@ -1114,7 +1119,10 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		if tbl.Partitioning == nil {
 			return errPartitionMgmtOnNonPartitioned()
 		}
-		return nil
+		if cmd.AllPartitions || len(cmd.PartitionNames) == 1 && strings.EqualFold(cmd.PartitionNames[0], "ALL") {
+			return nil
+		}
+		return checkPartitionNamesKnown(tbl.Partitioning, cmd.PartitionNames, "REBUILD")
 	case nodes.ATDiscardPartitionTablespace:
 		if tbl.Partitioning == nil {
 			return errPartitionMgmtOnNonPartitioned()
@@ -2639,9 +2647,19 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd, target
 			}
 		}
 	}
+	if err := checkPartitionDefsKind(tbl.Partitioning, cmd.PartitionDefs); err != nil {
+		return err
+	}
 	if err := c.validatePartitionTablespaces(tbl.Name, tbl.Temporary, targetEngine, cmd.PartitionDefs); err != nil {
 		return err
 	}
+	// A HASH or KEY table lists its partitions by name once one was named
+	// (NumParts 0) and counts them otherwise. Naming one it adds lists them
+	// all, and partitions added by number to a named list are named after
+	// their position: ADD PARTITION (PARTITION x) on PARTITIONS 3 stores p0,
+	// p1, p2 and x, and ADD PARTITION PARTITIONS 2 on a and d stores a, d, p2
+	// and p3 (mysql:8.0.46).
+	named := isHashOrKeyPartitioning(tbl.Partitioning) && tbl.Partitioning.NumParts == 0 && len(tbl.Partitioning.Partitions) > 0
 	if cmd.Number > 0 && len(cmd.PartitionDefs) == 0 {
 		start := len(tbl.Partitioning.Partitions)
 		if start == 0 {
@@ -2653,6 +2671,9 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd, target
 			})
 		}
 		tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
+		if named {
+			tbl.Partitioning.NumParts = 0
+		}
 		return nil
 	}
 	existingNames := make(map[string]bool, len(tbl.Partitioning.Partitions))
@@ -2712,6 +2733,23 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd, target
 	}
 	if len(cmd.PartitionDefs) > 0 {
 		tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
+		if isHashOrKeyPartitioning(tbl.Partitioning) {
+			tbl.Partitioning.NumParts = 0
+		}
+	}
+	return checkPartitionBounds(tbl, tbl.Partitioning)
+}
+
+// checkPartitionDefsKind holds the definitions ADD or REORGANIZE PARTITION
+// writes to the VALUES clause of the table's method (1480).
+func checkPartitionDefsKind(pi *PartitionInfo, defs []*nodes.PartitionDef) error {
+	for _, pd := range defs {
+		if pd == nil {
+			continue
+		}
+		if err := checkPartitionValuesKind(partitionTypeFromString(pi.Type), len(pi.Columns), pd.Values); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -2721,11 +2759,17 @@ func (c *Catalog) alterDropPartition(tbl *Table, cmd *nodes.AlterTableCmd) error
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonPartitioned()
 	}
+	if isHashOrKeyPartitioning(tbl.Partitioning) {
+		return errDropOnlyRangeList()
+	}
 	// MySQL counts every name listed in DROP PARTITION against the table's
 	// partition count and answers 1508 when the count would drop all partitions
 	// (including duplicates like `DROP PARTITION p1, p1` on a 2-partition table).
 	if len(tbl.Partitioning.Partitions) > 0 && len(cmd.PartitionNames) >= len(tbl.Partitioning.Partitions) {
 		return errDropLastPartition()
+	}
+	if err := checkPartitionNamesKnown(tbl.Partitioning, cmd.PartitionNames, "DROP"); err != nil {
+		return err
 	}
 	dropSet := make(map[string]bool)
 	for _, name := range cmd.PartitionNames {
@@ -2757,6 +2801,9 @@ func (c *Catalog) alterTruncatePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 		return errTablespaceDiscarded(dbName, tbl.Name)
 	}
 	targetAll := len(cmd.PartitionNames) == 0 || (len(cmd.PartitionNames) == 1 && strings.EqualFold(cmd.PartitionNames[0], "ALL"))
+	if name := firstUnknownPartition(tbl.Partitioning, cmd.PartitionNames); !targetAll && !cmd.AllPartitions && name != "" {
+		return errUnknownPartition(name, tbl.Name)
+	}
 	if targetAll {
 		if tableHasDiscardedTablespace(tbl) {
 			return errTablespaceDiscarded(dbName, tbl.Name)
@@ -2781,19 +2828,28 @@ func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 	if !isHashOrKeyPartitioning(tbl.Partitioning) {
 		return errCoalesceOnlyOnHashPartition()
 	}
+	if cmd.Number == 0 {
+		return errCoalesceNone()
+	}
 	// Determine current partition count.
 	currentCount := len(tbl.Partitioning.Partitions)
 	if currentCount == 0 {
 		currentCount = tbl.Partitioning.NumParts
 	}
+	if cmd.Number >= currentCount {
+		return errDropLastPartition()
+	}
 	newCount := currentCount - cmd.Number
 	if newCount < 1 {
 		newCount = 1
 	}
+	named := tbl.Partitioning.NumParts == 0
 	if len(tbl.Partitioning.Partitions) > 0 {
 		tbl.Partitioning.Partitions = tbl.Partitioning.Partitions[:newCount]
 	}
-	tbl.Partitioning.NumParts = newCount
+	if !named {
+		tbl.Partitioning.NumParts = newCount
+	}
 	return nil
 }
 
@@ -2805,6 +2861,18 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd,
 	if len(cmd.PartitionNames) == 0 && len(cmd.PartitionDefs) == 0 && !isHashOrKeyPartitioning(tbl.Partitioning) {
 		return errReorgNoParam()
 	}
+	// REORGANIZE PARTITION with no names rebuilds a HASH or KEY table into its
+	// first partition: PARTITIONS 4 is stored as PARTITIONS 1, and partitions
+	// a, b and c as a alone (mysql:8.0.46).
+	if len(cmd.PartitionNames) == 0 && len(cmd.PartitionDefs) == 0 {
+		if len(tbl.Partitioning.Partitions) > 0 {
+			tbl.Partitioning.Partitions = tbl.Partitioning.Partitions[:1]
+		}
+		if tbl.Partitioning.NumParts > 0 {
+			tbl.Partitioning.NumParts = 1
+		}
+		return nil
+	}
 	if isRangeOrListPartitioning(tbl.Partitioning) {
 		for _, pd := range cmd.PartitionDefs {
 			if pd != nil && pd.Values == nil {
@@ -2812,9 +2880,30 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd,
 			}
 		}
 	}
+	if err := checkPartitionDefsKind(tbl.Partitioning, cmd.PartitionDefs); err != nil {
+		return err
+	}
+	if err := checkPartitionNamesKnown(tbl.Partitioning, cmd.PartitionNames, "REORGANIZE"); err != nil {
+		return err
+	}
+	// The partitions of a HASH or KEY table are reorganized into as many
+	// (1510), and those of a RANGE or LIST table must stand next to each other
+	// (1519).
+	if isHashOrKeyPartitioning(tbl.Partitioning) && len(cmd.PartitionDefs) != len(cmd.PartitionNames) {
+		return errReorganizeChangesCount()
+	}
+	first, last := reorganizedSpan(tbl.Partitioning, cmd.PartitionNames)
+	if isRangeOrListPartitioning(tbl.Partitioning) && last-first+1 != len(cmd.PartitionNames) {
+		return errReorganizeNotConsecutive()
+	}
 	if err := c.validatePartitionTablespaces(tbl.Name, tbl.Temporary, targetEngine, cmd.PartitionDefs); err != nil {
 		return err
 	}
+	var oldBound string
+	if last >= 0 {
+		oldBound = tbl.Partitioning.Partitions[last].ValueExpr
+	}
+	extendsLast := last == len(tbl.Partitioning.Partitions)-1
 	// Remove the old partitions.
 	dropSet := make(map[string]bool)
 	for _, name := range cmd.PartitionNames {
@@ -2905,7 +2994,37 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd,
 		result = append(result, newParts...)
 	}
 	tbl.Partitioning.Partitions = result
+	if err := checkPartitionBounds(tbl, tbl.Partitioning); err != nil {
+		return err
+	}
+	// The new RANGE partitions cover what the old ones did, up to the same
+	// bound, or past it when they include the table's last partition (1520).
+	if strings.HasPrefix(tbl.Partitioning.Type, "RANGE") && len(newParts) > 0 && oldBound != "" {
+		order, known := rangeBoundOrder(tbl, tbl.Partitioning, newParts[len(newParts)-1].ValueExpr, oldBound)
+		if known && (order < 0 || (order > 0 && !extendsLast)) {
+			return errReorganizeRange()
+		}
+	}
 	return nil
+}
+
+// reorganizedSpan returns the positions of the first and last partitions a
+// REORGANIZE names, or -1 and -1 when it names none the table has.
+func reorganizedSpan(pi *PartitionInfo, names []string) (first, last int) {
+	first, last = -1, -1
+	named := map[string]bool{}
+	for _, name := range names {
+		named[toLower(name)] = true
+	}
+	for i, pd := range pi.Partitions {
+		if named[toLower(pd.Name)] {
+			if first < 0 {
+				first = i
+			}
+			last = i
+		}
+	}
+	return first, last
 }
 
 // alterExchangePartition exchanges a partition with a non-partitioned table.
@@ -2915,6 +3034,7 @@ func (c *Catalog) alterExchangePartition(db *Database, tbl *Table, cmd *nodes.Al
 	// the table being altered is judged: mysql:8.0.46 answers 1146 for
 	// `ALTER TABLE a EXCHANGE PARTITION p0 WITH TABLE missing` on a table with no
 	// partitions, and 1505 only when that table exists.
+	var exchTbl *Table
 	if cmd.ExchangeTable != nil {
 		exchDB := db
 		if cmd.ExchangeTable.Schema != "" {
@@ -2923,13 +3043,21 @@ func (c *Catalog) alterExchangePartition(db *Database, tbl *Table, cmd *nodes.Al
 				return errNoSuchTable(cmd.ExchangeTable.Schema, cmd.ExchangeTable.Name)
 			}
 		}
-		exchTbl := exchDB.GetTable(cmd.ExchangeTable.Name)
+		exchTbl = exchDB.GetTable(cmd.ExchangeTable.Name)
 		if exchTbl == nil {
 			return errNoSuchTable(exchDB.Name, cmd.ExchangeTable.Name)
 		}
 	}
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonPartitioned()
+	}
+	// The table a partition is exchanged with has none (1732), and the
+	// partition is one the table has (1735).
+	if exchTbl != nil && exchTbl.Partitioning != nil {
+		return errExchangePartitioned(exchTbl.Name)
+	}
+	if name := firstUnknownPartition(tbl.Partitioning, []string{cmd.Name}); name != "" {
+		return errUnknownPartition(name, tbl.Name)
 	}
 	return nil
 }

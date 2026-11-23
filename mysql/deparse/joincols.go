@@ -38,6 +38,13 @@ type fromScope struct {
 	tables  []scopepkg.Entry
 	entries map[ast.TableExpr]int
 
+	// schemas maps the index in tables of an unaliased table of another
+	// schema than a view's to that schema, which qualifies its columns (see
+	// Resolver.DefaultSchema); schemaNames maps the name the scope knows
+	// that table by to the same schema.
+	schemas     map[int]string
+	schemaNames map[string]string
+
 	// spans maps each FROM item to the range [lo, hi) of tables under it.
 	spans map[ast.TableExpr][2]int
 
@@ -63,6 +70,7 @@ type fromScope struct {
 type joinColumn struct {
 	table     int    // index of its table in fromScope.tables
 	qualifier string // the name the scope knows its table by
+	schema    string // the schema that qualifies it too, or ""
 	name      string // the column's name in its table
 	pos       int    // the column's position in its table
 }
@@ -91,6 +99,23 @@ func (sc *fromScope) add(te ast.TableExpr, name string, table *ResolverTable) {
 	sc.Add(name, table)
 	sc.entries[te] = len(sc.tables)
 	sc.tables = append(sc.tables, scopepkg.Entry{Name: name, Table: table})
+}
+
+// qualify records that the columns of the table at index i of tables are
+// qualified by schema.
+func (sc *fromScope) qualify(i int, schema string) {
+	if sc.schemas == nil {
+		sc.schemas = make(map[int]string)
+		sc.schemaNames = make(map[string]string)
+	}
+	sc.schemas[i] = schema
+	sc.schemaNames[sc.tables[i].Name] = schema
+}
+
+// schemaOf returns the schema that qualifies the columns of the table the
+// scope knows by name, or "".
+func (sc *fromScope) schemaOf(name string) string {
+	return sc.schemaNames[name]
 }
 
 // span records the tables registered for a FROM item since lo.
@@ -137,7 +162,7 @@ func (sc *fromScope) tableColumns(te ast.TableExpr, includeInvisible bool) ([]jo
 	}
 	out := make([]joinColumn, len(cols))
 	for k, c := range cols {
-		out[k] = joinColumn{table: i, qualifier: e.Name, name: c.Name, pos: c.Position}
+		out[k] = joinColumn{table: i, qualifier: e.Name, schema: sc.schemas[i], name: c.Name, pos: c.Position}
 	}
 	return out, true
 }
@@ -391,8 +416,8 @@ func columnEqualities(lefts, rights []joinColumn) ast.ExprNode {
 	for i := range lefts {
 		eq := &ast.BinaryExpr{
 			Op:    ast.BinOpEq,
-			Left:  &ast.ColumnRef{Table: lefts[i].qualifier, Column: lefts[i].name},
-			Right: &ast.ColumnRef{Table: rights[i].qualifier, Column: rights[i].name},
+			Left:  &ast.ColumnRef{Schema: lefts[i].schema, Table: lefts[i].qualifier, Column: lefts[i].name},
+			Right: &ast.ColumnRef{Schema: rights[i].schema, Table: rights[i].qualifier, Column: rights[i].name},
 		}
 		if result == nil {
 			result = eq
