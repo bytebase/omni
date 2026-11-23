@@ -185,7 +185,6 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 	if isPrimary {
 		for _, attnum := range attnums {
 			rel.Columns[attnum-1].NotNull = true
-			c.ensureNotNullConstraint(schema, rel, rel.Columns[attnum-1], "")
 		}
 	}
 
@@ -236,6 +235,15 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 	}
 	// Index depends on its constraint (internal).
 	c.recordDependency('i', idx.OID, 0, 'c', con.OID, 0, DepInternal)
+
+	// Register PG 18 cataloged NOT NULL constraints after registering the PK
+	// itself so an explicit PK named <rel>_<col>_not_null reserves that name
+	// and the implicit NOT NULL constraint chooses a non-colliding suffix.
+	if isPrimary {
+		for _, attnum := range attnums {
+			_ = c.ensureNotNullConstraint(schema, rel, rel.Columns[attnum-1], "")
+		}
+	}
 
 	return nil
 }

@@ -348,6 +348,48 @@ CREATE TABLE p_pk_1 PARTITION OF p_pk FOR VALUES FROM (0) TO (100);
 			t.Fatalf("PG18 RENAME CONSTRAINT p_pk_1_k_not_null: %v", res[0].Error)
 		}
 	}
+
+	// An explicit PK named <rel>_<col>_not_null reserves that name; the implicit NOT NULL picks <rel>_<col>_not_null1.
+	if got, c := execCodeVersion(t, PG18, `CREATE TABLE t_pk_res (id int);`,
+		"ALTER TABLE t_pk_res ADD CONSTRAINT t_pk_res_id_not_null PRIMARY KEY (id)"); got != "" {
+		t.Fatalf("PG18 ADD CONSTRAINT t_pk_res_id_not_null PRIMARY KEY: got %q, want ok", got)
+	} else {
+		rel := c.GetRelation("public", "t_pk_res")
+		var nnName string
+		for _, con := range c.ConstraintsOf(rel.OID) {
+			if con.Type == ConstraintNotNull {
+				nnName = con.Name
+			}
+		}
+		if nnName != "t_pk_res_id_not_null1" {
+			t.Fatalf("implicit NOT NULL name = %q, want %q", nnName, "t_pk_res_id_not_null1")
+		}
+		if res, err := c.Exec("ALTER TABLE t_pk_res DROP CONSTRAINT t_pk_res_id_not_null", nil); err != nil {
+			t.Fatal(err)
+		} else if len(res) > 0 && res[0].Error != nil {
+			t.Fatalf("PG18 DROP CONSTRAINT t_pk_res_id_not_null (PK): %v", res[0].Error)
+		}
+	}
+
+	// Dropping a NOT NULL constraint on an ordinary inheritance parent propagates to children by column name.
+	inhNNSetup := `
+CREATE TABLE p_inh (x int NOT NULL);
+CREATE TABLE c_inh () INHERITS (p_inh);
+`
+	if got, c := execCodeVersion(t, PG18, inhNNSetup, "ALTER TABLE p_inh DROP CONSTRAINT p_inh_x_not_null"); got != "" {
+		t.Fatalf("PG18 DROP CONSTRAINT p_inh_x_not_null on inheritance parent: got %q, want ok", got)
+	} else {
+		p := c.GetRelation("public", "p_inh")
+		ch := c.GetRelation("public", "c_inh")
+		if p.Columns[0].NotNull || ch.Columns[0].NotNull {
+			t.Fatalf("expected both parent and child x to become nullable (p=%v, ch=%v)", p.Columns[0].NotNull, ch.Columns[0].NotNull)
+		}
+		for _, con := range c.ConstraintsOf(ch.OID) {
+			if con.Type == ConstraintNotNull {
+				t.Fatalf("expected child NOT NULL constraint to be dropped, still have %q", con.Name)
+			}
+		}
+	}
 }
 
 func TestPG18PartitionDetachPKNameAndJsonExpr(t *testing.T) {

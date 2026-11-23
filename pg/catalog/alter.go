@@ -345,26 +345,39 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 	for _, p := range pending {
 		subtype := nodes.AlterTableType(p.cmd.Subtype)
 		beforeCons := len(c.consByRel[rel.OID])
+		dropNotNull := false
+		if subtype == nodes.AT_DropConstraint {
+			for _, con := range c.consByRel[rel.OID] {
+				if con.Name == p.cmd.Name && con.Type == ConstraintNotNull {
+					dropNotNull = true
+					break
+				}
+			}
+		}
 		if err := c.execAlterTableCmd(schema, rel, relName, p.cmd, p.identityOptions, recurse, false); err != nil {
 			restore()
 			return err
 		}
 		if recurse && shouldRecurse(subtype) {
 			if subtype == nodes.AT_AddConstraint && rel.RelKind == 'p' && len(c.consByRel[rel.OID]) > beforeCons {
-				parentCon := c.consByRel[rel.OID][len(c.consByRel[rel.OID])-1]
-				if parentCon.IndexOID != 0 {
-					if parentIdx := c.indexes[parentCon.IndexOID]; parentIdx != nil {
-						if err := c.cloneIndexConstraintToPartitionTree(rel, parentIdx); err != nil {
-							restore()
-							return err
-						}
-						continue
+				var parentIdx *Index
+				for _, parentCon := range c.consByRel[rel.OID][beforeCons:] {
+					if parentCon.IndexOID != 0 {
+						parentIdx = c.indexes[parentCon.IndexOID]
+						break
 					}
 				}
+				if parentIdx != nil {
+					if err := c.cloneIndexConstraintToPartitionTree(rel, parentIdx); err != nil {
+						restore()
+						return err
+					}
+					continue
+				}
 			}
-			if subtype == nodes.AT_DropConstraint && rel.RelKind == 'p' {
-				// atDropConstraint already follows ConParentID links to drop
-				// partition child constraints and their backing indexes.
+			if subtype == nodes.AT_DropConstraint && (rel.RelKind == 'p' || dropNotNull) {
+				// atDropConstraint already follows ConParentID links for partition
+				// constraints and propagates NOT NULL drops to descendants by column.
 				continue
 			}
 			for _, childOID := range c.findChildRelations(rel.OID) {
@@ -983,7 +996,7 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		return c.addConstraint(schema, rel, cdef)
 
 	case nodes.AT_DropConstraint:
-		return c.atDropConstraint(schema, rel, atc.Name, cascade, atc.Missing_ok)
+		return c.atDropConstraint(schema, rel, atc.Name, cascade, atc.Missing_ok, recurse)
 
 	case nodes.AT_AlterColumnType:
 		cd, ok := atc.Def.(*nodes.ColumnDef)
@@ -2490,7 +2503,7 @@ func (c *Catalog) stripDroppedColumnGrants(relOID uint32, colName string) {
 // that depend on the index are the constraint's dependents too: a
 // foreign key referencing a primary key or unique constraint depends on
 // its index.
-func (c *Catalog) atDropConstraint(schema *Schema, rel *Relation, conName string, cascade, ifExists bool) error {
+func (c *Catalog) atDropConstraint(schema *Schema, rel *Relation, conName string, cascade, ifExists, recurse bool) error {
 	for _, con := range c.consByRel[rel.OID] {
 		if con.Name == conName {
 			if con.Type == ConstraintNotNull && len(con.Columns) == 1 {
@@ -2499,15 +2512,21 @@ func (c *Catalog) atDropConstraint(schema *Schema, rel *Relation, conName string
 					if err := c.atDropNotNull(rel, colName); err != nil {
 						return err
 					}
-					if rel.RelKind == 'p' {
-						// Propagate to all descendant partitions (AlterTableStmt skips
-						// child recursion for AT_DropConstraint on partitioned tables).
+					if recurse || rel.RelKind == 'p' {
+						// Propagate by column name across all descendant partitions and
+						// inheritance children (descendants name their own NOT NULL
+						// constraints independently).
+						seen := map[uint32]bool{rel.OID: true}
 						queue := c.findChildRelations(rel.OID)
 						for len(queue) > 0 {
 							childOID := queue[0]
 							queue = queue[1:]
+							if seen[childOID] {
+								continue
+							}
+							seen[childOID] = true
 							childRel := c.relationByOID[childOID]
-							if childRel == nil || childRel.PartitionOf == 0 {
+							if childRel == nil {
 								continue
 							}
 							if err := c.atDropNotNull(childRel, colName); err != nil {
