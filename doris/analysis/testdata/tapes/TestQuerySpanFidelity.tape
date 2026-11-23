@@ -130,6 +130,16 @@
 | {"columns":[{"name":"id","schema":"shop","table":"orders","orgTable":"orders","orgName":"id"},{"name":"customer_id","schema":"shop","table":"orders","orgTable":"orders","orgName":"customer_id"},{"name":"created_at","schema":"shop","table":"orders","orgTable":"orders","orgName":"created_at"}],"relations":["shop.orders"]}
 > raw
 | span shop
+| SELECT * EXCEPT (o.id, c.email) FROM orders o CROSS JOIN customers c
+< raw
+| {"columns":[{"name":"customer_id","schema":"shop","table":"o","orgTable":"orders","orgName":"customer_id"},{"name":"amount","schema":"shop","table":"o","orgTable":"orders","orgName":"amount"},{"name":"status","schema":"shop","table":"o","orgTable":"orders","orgName":"status"},{"name":"created_at","schema":"shop","table":"o","orgTable":"orders","orgName":"created_at"},{"name":"id","schema":"shop","table":"c","orgTable":"customers","orgName":"id"},{"name":"name","schema":"shop","table":"c","orgTable":"customers","orgName":"name"},{"name":"region","schema":"shop","table":"c","orgTable":"customers","orgName":"region"}],"relations":["shop.orders","shop.customers"]}
+> raw
+| span shop
+| SELECT * EXCEPT (id) FROM orders o CROSS JOIN customers c
+< raw
+| {"error":"errCode = 2, detailMessage = id is ambiguous: id#0, id#5."}
+> raw
+| span shop
 | SELECT id FROM shop.orders
 < raw
 | {"columns":[{"name":"id","schema":"shop","table":"orders","orgTable":"orders","orgName":"id"}],"relations":["shop.orders"]}

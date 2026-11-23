@@ -371,7 +371,6 @@ const (
 	kwPROFILE
 	kwPROPERTIES
 	kwPROPERTY
-	kwQUALIFY
 	kwQUANTILE_STATE
 	kwQUANTILE_UNION
 	kwQUARTER
@@ -385,7 +384,6 @@ const (
 	kwREBALANCE
 	kwRECENT
 	kwRECOVER
-	kwRECURSIVE
 	kwRECYCLE
 	kwREFERENCES
 	kwREFRESH
@@ -909,7 +907,6 @@ var keywordMap = map[string]TokenKind{
 	"profile":                              kwPROFILE,
 	"properties":                           kwPROPERTIES,
 	"property":                             kwPROPERTY,
-	"qualify":                              kwQUALIFY,
 	"quantile_state":                       kwQUANTILE_STATE,
 	"quantile_union":                       kwQUANTILE_UNION,
 	"quarter":                              kwQUARTER,
@@ -923,7 +920,6 @@ var keywordMap = map[string]TokenKind{
 	"rebalance":                            kwREBALANCE,
 	"recent":                               kwRECENT,
 	"recover":                              kwRECOVER,
-	"recursive":                            kwRECURSIVE,
 	"recycle":                              kwRECYCLE,
 	"references":                           kwREFERENCES,
 	"refresh":                              kwREFRESH,
@@ -1324,12 +1320,10 @@ var nonReservedKeywords = map[TokenKind]bool{
 	kwQUARTER:                true,
 	kwQUERY:                  true,
 	kwQUOTA:                  true,
-	kwQUALIFY:                true,
 	kwQUEUED:                 true,
 	kwRANDOM:                 true,
 	kwRECENT:                 true,
 	kwRECOVER:                true,
-	kwRECURSIVE:              true,
 	kwRECYCLE:                true,
 	kwREFRESH:                true,
 	kwREPEATABLE:             true,

@@ -21,7 +21,7 @@ a fresh server wrote the same file.
 | `DorisParser.g4`, every form of a keyword choice at every site, with near-misses | 146 | 146 | 0 | 0 |
 | `DorisLegacyParser.g4`, every form of a keyword choice at every site, with near-misses | 258 | 258 | 0 | 0 |
 
-Every row agrees: the 16,798 generated rows and the 355 `suite:` rows below.
+Every row agrees: the 16,798 generated rows and the 366 `suite:` rows below.
 #1461 closed the last 201 of them, the tails the grammar derives and omni read
 loosely: `INTERVAL 1 a` with a unit that is not one, `opt_partition`'s
 argument lists, the identifier set `nonReserved`, `EXPLAIN`'s table, function
@@ -49,11 +49,13 @@ scanner never makes (`../../testdata/tokens.tsv`).
 ## Suites
 
 `suite:conformance` holds the 339 cases of the container test that compared
-`Parse` with a running Doris (`TestDorisSyntaxConformance`) and 9 added
-since (the `BUILD INDEX` partition forms and `SHOW ROUTINE LOAD WHERE`), and
-`suite:comments` holds the 7 `//` and `#` lines Doris has no comment for, each
-judged by the same recording; all 355 agree. A statement added to a suite is a
-row with `?` in both verdict cells, judged by a recording:
+`Parse` with a running Doris (`TestDorisSyntaxConformance`) and 20 added
+since (the `BUILD INDEX` partition forms, `SHOW ROUTINE LOAD WHERE`, and the
+`* EXCEPT`, `QUALIFY` and `WITH RECURSIVE` forms `doris/analysis`'s span
+suite found), and `suite:comments` holds the 7 `//` and `#` lines Doris has
+no comment for, each judged by the same recording; all 366 agree. A statement
+added to a suite is a row with `?` in both verdict cells, judged by a
+recording:
 
 ```text
 ?	?	-	suite:conformance	<statement>
