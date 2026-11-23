@@ -731,4 +731,75 @@ CREATE TABLE [dbo].[t] (
 	require.NoError(t, err)
 	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ALTER COLUMN [b] INT`, ErrAlterComputedColumn)
 	require.Equal(t, "AS ([a] + 1)", columnByName(c.GetTable("dbo", "t"), "b").Type)
+
+	// 50. ALTER TABLE honors the database qualifier instead of altering local tables.
+	primaryMeta, err = LoadSQL(`CREATE TABLE [dbo].[t] ([id] INT NOT NULL);`)
+	require.NoError(t, err)
+	otherMeta, err = LoadSQL(`CREATE TABLE [dbo].[t] ([id] INT NOT NULL);`)
+	require.NoError(t, err)
+	c = New()
+	require.NoError(t, c.LoadMetadataInto(t.Context(), primaryMeta.Metadata(), "appdb"))
+	require.NoError(t, c.LoadMetadataInto(t.Context(), otherMeta.Metadata(), "otherdb"))
+	execExpectCode(t, c, `ALTER TABLE [unknown_db].[dbo].[t] ADD [x] INT`, ErrAlterTableNotFound)
+	require.Nil(t, columnByName(c.GetTable("dbo", "t"), "x"))
+	execExpectOK(t, c, `ALTER TABLE [otherdb].[dbo].[t] ADD [x] INT`)
+	require.Nil(t, columnByName(c.GetTable("dbo", "t"), "x"))
+	require.NotNil(t, columnByName(c.GetDatabaseTable("otherdb", "dbo", "t"), "x"))
+
+	// 51. SYSTEM_TIME period columns cannot be dropped while the period exists.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[t] (
+    [id] INT NOT NULL PRIMARY KEY,
+    [sys_start] DATETIME2 GENERATED ALWAYS AS ROW START NOT NULL,
+    [sys_end] DATETIME2 GENERATED ALWAYS AS ROW END NOT NULL,
+    PERIOD FOR SYSTEM_TIME ([sys_start], [sys_end])
+);
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] DROP COLUMN [sys_start]`, ErrDropPeriodColumn)
+	require.NotNil(t, columnByName(c.GetTable("dbo", "t"), "sys_start"))
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] DROP PERIOD FOR SYSTEM_TIME`)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] DROP COLUMN [sys_start]`)
+	require.Nil(t, columnByName(c.GetTable("dbo", "t"), "sys_start"))
+
+	// 52. DROP SEQUENCE rejects dropping a sequence referenced by a column DEFAULT.
+	c, err = LoadSQL(`
+CREATE SEQUENCE [dbo].[s] AS INT START WITH 1;
+GO
+CREATE TABLE [dbo].[t] ([id] INT CONSTRAINT [DF_t_id] DEFAULT (NEXT VALUE FOR [dbo].[s]));
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `DROP SEQUENCE [dbo].[s]`, ErrDropSchemaNotEmpty)
+	require.Len(t, c.GetSchema("dbo").Sequences, 1)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] DROP CONSTRAINT [DF_t_id]`)
+	execExpectOK(t, c, `DROP SEQUENCE [dbo].[s]`)
+	require.Empty(t, c.GetSchema("dbo").Sequences)
+
+	// 53. DROP CONSTRAINT rejects dropping a clustered primary key when an XML index exists.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[t] ([id] INT NOT NULL, [doc] XML, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([id]));
+GO
+CREATE PRIMARY XML INDEX [PXML_t_doc] ON [dbo].[t]([doc]);
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] DROP CONSTRAINT [PK_t]`, ErrDropPKWithXMLIndex)
+	require.NotNil(t, indexByName(c.GetTable("dbo", "t"), "PK_t"))
+	execExpectOK(t, c, `DROP INDEX [PXML_t_doc] ON [dbo].[t]`)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] DROP CONSTRAINT [PK_t]`)
+	require.Nil(t, indexByName(c.GetTable("dbo", "t"), "PK_t"))
+
+	// 54. ALTER SCHEMA TRANSFER rejects transferring objects referenced by WITH SCHEMABINDING consumers.
+	c, err = LoadSQL(`
+CREATE SCHEMA [app];
+GO
+CREATE TABLE [dbo].[t] ([a] INT NOT NULL);
+GO
+CREATE VIEW [dbo].[v] WITH SCHEMABINDING AS SELECT [a] FROM [dbo].[t];
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER SCHEMA [app] TRANSFER [dbo].[t]`, ErrTransferSchemaBound)
+	require.NotNil(t, c.GetTable("dbo", "t"))
+	require.Nil(t, c.GetTable("app", "t"))
+	execExpectCode(t, c, `ALTER SCHEMA [app] TRANSFER [dbo].[v]`, ErrTransferSchemaBound)
+	require.NotNil(t, c.GetView("dbo", "v"))
 }

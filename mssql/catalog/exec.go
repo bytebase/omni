@@ -804,6 +804,9 @@ func (c *Catalog) execAlterSchema(n *ast.AlterSchemaStmt) error {
 		if table == nil {
 			return mssqlErr(ErrSecurableNotFound, "Cannot find the object '%s', because it does not exist or you do not have permission.", n.TransferEntity)
 		}
+		if _, bound := schemaBoundTableConsumer(c, srcSchema.Name, table.Name); bound {
+			return mssqlErr(ErrTransferSchemaBound, "Cannot transfer a schemabound object.")
+		}
 		if collision := c.findTransferredTableCollision(targetSchema, table); collision != "" {
 			return mssqlErr(ErrDupObject, "There is already an object named '%s' in the database.", collision)
 		}
@@ -827,12 +830,12 @@ func (c *Catalog) execAlterSchema(n *ast.AlterSchemaStmt) error {
 				delete(c.tableByName, tableKey{schema: srcSchema.Name, table: t.Name})
 				oldPeriodKey := tableKey{schema: normalizeOrDefault(srcSchema.Name, c.defaultSchema), table: t.Name}
 				newPeriodKey := tableKey{schema: normalizeOrDefault(targetSchema.Name, c.defaultSchema), table: t.Name}
-				if c.systemTimeTables[oldPeriodKey] {
+				if periodCols, ok := c.systemTimeTables[oldPeriodKey]; ok {
 					delete(c.systemTimeTables, oldPeriodKey)
 					if c.systemTimeTables == nil {
-						c.systemTimeTables = make(map[tableKey]bool)
+						c.systemTimeTables = make(map[tableKey][2]string)
 					}
-					c.systemTimeTables[newPeriodKey] = true
+					c.systemTimeTables[newPeriodKey] = periodCols
 				}
 				if c.systemVersionedTables[oldPeriodKey] {
 					delete(c.systemVersionedTables, oldPeriodKey)
@@ -855,6 +858,12 @@ func (c *Catalog) execAlterSchema(n *ast.AlterSchemaStmt) error {
 	case kindView:
 		for i, v := range srcSchema.Views {
 			if strings.EqualFold(v.Name, objName) {
+				if isSchemaBound(v.Definition) {
+					return mssqlErr(ErrTransferSchemaBound, "Cannot transfer a schemabound object.")
+				}
+				if _, bound := schemaBoundObjectConsumer(c, srcSchema.Name, v.Name, nil); bound {
+					return mssqlErr(ErrTransferSchemaBound, "Cannot transfer a schemabound object.")
+				}
 				for _, tr := range v.Triggers {
 					if tr.Name != "" && c.lookupSchemaObject(targetSchema, tr.Name, false) != kindNone {
 						return mssqlErr(ErrDupObject, "There is already an object named '%s' in the database.", tr.Name)
@@ -881,6 +890,12 @@ func (c *Catalog) execAlterSchema(n *ast.AlterSchemaStmt) error {
 	case kindFunction:
 		for i, fn := range srcSchema.Functions {
 			if strings.EqualFold(fn.Name, objName) {
+				if isSchemaBound(fn.Definition) {
+					return mssqlErr(ErrTransferSchemaBound, "Cannot transfer a schemabound object.")
+				}
+				if _, bound := schemaBoundFunctionConsumer(c, srcSchema.Name, fn.Name, nil); bound {
+					return mssqlErr(ErrTransferSchemaBound, "Cannot transfer a schemabound object.")
+				}
 				srcSchema.Functions = append(srcSchema.Functions[:i], srcSchema.Functions[i+1:]...)
 				fn.Definition = qualifyModuleDefinition(fn.Definition, targetSchema.Name, true)
 				targetSchema.Functions = append(targetSchema.Functions, fn)
@@ -951,10 +966,10 @@ func (c *Catalog) execCreateTable(n *ast.CreateTableStmt, source string) error {
 	table := c.getOrCreateTable(schemaName, tableName)
 	if n.PeriodStartCol != "" && n.PeriodEndCol != "" {
 		if c.systemTimeTables == nil {
-			c.systemTimeTables = make(map[tableKey]bool)
+			c.systemTimeTables = make(map[tableKey][2]string)
 		}
 		periodKey := tableKey{schema: normalizeOrDefault(schemaName, c.defaultSchema), table: table.Name}
-		c.systemTimeTables[periodKey] = true
+		c.systemTimeTables[periodKey] = [2]string{n.PeriodStartCol, n.PeriodEndCol}
 		if n.TableOptions != nil {
 			for _, item := range n.TableOptions.Items {
 				if opt, ok := item.(*ast.TableOption); ok && strings.EqualFold(opt.Name, "SYSTEM_VERSIONING") && strings.EqualFold(opt.Value, "ON") {
@@ -1161,6 +1176,9 @@ func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt, source string) error {
 				(n.IncludeCols != nil && len(n.IncludeCols.Items) > 0) ||
 				!sameIndexKeyColumns(existingIdx.Expressions, index.Expressions) {
 				return mssqlErr(ErrDropExistingConstraintMismatch, "Cannot recreate index '%s'. The new index definition does not match the constraint being enforced by the existing index.", existingIdx.Name)
+			}
+			if existingIdx.Primary && isClusteredPrimaryKey(existingIdx) && !strings.EqualFold(index.Type, "CLUSTERED") && tableHasXMLIndex(table) {
+				return mssqlErr(ErrDropPKWithXMLIndex, "Cannot drop the clustered primary key '%s' on table '%s' because the table has an XML index.", existingIdx.Name, table.Name)
 			}
 		} else if _, fkName, referenced := indexReferencedByFK(c, schemaName, table, existingIdx); referenced {
 			if !index.Unique || n.Columnstore || n.WhereClause != nil || !sameIndexKeyColumns(existingIdx.Expressions, index.Expressions) {
@@ -1812,6 +1830,19 @@ func (c *Catalog) execAlterTable(n *ast.AlterTableStmt, source string) error {
 		return err
 	}
 
+	if n.Name != nil && n.Name.Database != "" {
+		targetCat := c.DatabaseCatalog(n.Name.Database)
+		if targetCat == nil {
+			return mssqlErr(ErrAlterTableNotFound, "Cannot find the object \"%s\" because it does not exist or you do not have permissions.", n.Name.Object)
+		}
+		if targetCat != c {
+			return targetCat.execAlterTableInCatalog(n, source)
+		}
+	}
+	return c.execAlterTableInCatalog(n, source)
+}
+
+func (c *Catalog) execAlterTableInCatalog(n *ast.AlterTableStmt, source string) error {
 	schemaName, tableName := tableRefSchemaObject(n.Name, c.defaultSchema)
 	schema := c.GetSchema(schemaName)
 	kind := c.lookupSchemaObject(schema, tableName, false)
@@ -1840,7 +1871,7 @@ func (c *Catalog) execAlterTable(n *ast.AlterTableStmt, source string) error {
 	savedIndexCounter := c.indexCounter
 	key := tableKey{schema: schema.Name, table: table.Name}
 	periodKey := tableKey{schema: normalizeOrDefault(schema.Name, c.defaultSchema), table: table.Name}
-	savedSystemTime := c.systemTimeTables[periodKey]
+	savedPeriodCols, savedSystemTime := c.systemTimeTables[periodKey]
 	savedSystemVersioned := c.systemVersionedTables[periodKey]
 	if tableIdx >= 0 {
 		schema.Tables[tableIdx] = staged
@@ -1860,9 +1891,9 @@ func (c *Catalog) execAlterTable(n *ast.AlterTableStmt, source string) error {
 			c.indexCounter = savedIndexCounter
 			if savedSystemTime {
 				if c.systemTimeTables == nil {
-					c.systemTimeTables = make(map[tableKey]bool)
+					c.systemTimeTables = make(map[tableKey][2]string)
 				}
-				c.systemTimeTables[periodKey] = true
+				c.systemTimeTables[periodKey] = savedPeriodCols
 			} else {
 				delete(c.systemTimeTables, periodKey)
 			}
@@ -1963,6 +1994,9 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 			}
 			return mssqlErr(ErrAlterColNotFound, "ALTER TABLE DROP COLUMN %s failed because column '%s' does not exist in table '%s'.", action.ColName, action.ColName, table.Name)
 		}
+		if c.isPeriodColumn(schemaName, table.Name, col.Name) {
+			return mssqlErr(ErrDropPeriodColumn, "Cannot drop column '%s' because it is used in the SYSTEM_TIME period definition.", col.Name)
+		}
 		if dep, ok := columnDependency(c, schemaName, table, col); ok {
 			return mssqlErr(ErrColumnDependentObject, "The object '%s' is dependent on column '%s'.", dep, col.Name)
 		}
@@ -1987,6 +2021,9 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 		}
 		if isComputedColumnType(col.Type) {
 			return mssqlErr(ErrAlterComputedColumn, "Cannot alter column '%s' because it is 'computed'.", col.Name)
+		}
+		if c.isPeriodColumn(schemaName, table.Name, col.Name) {
+			return mssqlErr(ErrDropPeriodColumn, "Cannot alter column '%s' because it is used in the SYSTEM_TIME period definition.", col.Name)
 		}
 		if !c.lenientMetadataLoad && !isValidDataType(action.DataType, false) {
 			typeName := ""
@@ -2137,18 +2174,18 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 			return mssqlErr(ErrSystemTimeInvalidCols, "Temporal generated always column '%s' has invalid data type.", periodCols[0].Name)
 		}
 		periodKey := tableKey{schema: normalizeOrDefault(schemaName, c.defaultSchema), table: table.Name}
-		if c.systemTimeTables[periodKey] {
+		if _, exists := c.systemTimeTables[periodKey]; exists {
 			return mssqlErr(ErrPeriodAlreadyDefined, "Cannot define SYSTEM_TIME period more than once on table '%s'.", table.Name)
 		}
 		if c.systemTimeTables == nil {
-			c.systemTimeTables = make(map[tableKey]bool)
+			c.systemTimeTables = make(map[tableKey][2]string)
 		}
-		c.systemTimeTables[periodKey] = true
+		c.systemTimeTables[periodKey] = [2]string{periodCols[0].Name, periodCols[1].Name}
 		return nil
 
 	case ast.ATDropPeriod:
 		periodKey := tableKey{schema: normalizeOrDefault(schemaName, c.defaultSchema), table: table.Name}
-		if !c.systemTimeTables[periodKey] {
+		if _, exists := c.systemTimeTables[periodKey]; !exists {
 			return mssqlErr(ErrDropPeriodNotDefined, "SYSTEM_TIME period cannot be dropped from table '%s', because SYSTEM_TIME period does not exist.", table.Name)
 		}
 		if c.systemVersionedTables[periodKey] {
@@ -2302,6 +2339,9 @@ func (c *Catalog) dropTableConstraint(schemaName string, table *metadata.TableMe
 			if refTable, fkName, referenced := indexReferencedByFK(c, schemaName, table, idx); referenced {
 				return false, mssqlErr(ErrDropConstraintReferencedByFK, "The constraint '%s' is being referenced by table '%s', foreign key constraint '%s'.", idx.Name, refTable, fkName)
 			}
+			if idx.Primary && isClusteredPrimaryKey(idx) && tableHasXMLIndex(table) {
+				return false, mssqlErr(ErrDropPKWithXMLIndex, "Cannot drop the clustered primary key '%s' on table '%s' because the table has an XML index.", idx.Name, table.Name)
+			}
 			table.Indexes = append(table.Indexes[:i], table.Indexes[i+1:]...)
 			return true, nil
 		}
@@ -2326,6 +2366,34 @@ func (c *Catalog) dropTableConstraint(schemaName string, table *metadata.TableMe
 		}
 	}
 	return false, nil
+}
+
+func (c *Catalog) isPeriodColumn(schemaName, tableName, colName string) bool {
+	periodKey := tableKey{schema: normalizeOrDefault(schemaName, c.defaultSchema), table: tableName}
+	cols, ok := c.systemTimeTables[periodKey]
+	if !ok {
+		return false
+	}
+	return strings.EqualFold(cols[0], colName) || strings.EqualFold(cols[1], colName)
+}
+
+func isClusteredPrimaryKey(idx *metadata.IndexMetadata) bool {
+	if idx == nil || !idx.Primary {
+		return false
+	}
+	return idx.Type == "" || strings.EqualFold(idx.Type, "CLUSTERED")
+}
+
+func tableHasXMLIndex(table *metadata.TableMetadata) bool {
+	if table == nil {
+		return false
+	}
+	for _, idx := range table.Indexes {
+		if strings.EqualFold(idx.Type, "XML") {
+			return true
+		}
+	}
+	return false
 }
 
 func tableHasPrimaryKey(table *metadata.TableMetadata) bool {
@@ -2788,7 +2856,7 @@ func (c *Catalog) execAlterTableSet(schemaName string, table *metadata.TableMeta
 		case "SYSTEM_VERSIONING":
 			periodKey := tableKey{schema: normalizeOrDefault(schemaName, c.defaultSchema), table: table.Name}
 			if val == "ON" {
-				if !c.systemTimeTables[periodKey] {
+				if _, exists := c.systemTimeTables[periodKey]; !exists {
 					return mssqlErr(ErrSystemVersioningNoPeriod, "Cannot set SYSTEM_VERSIONING to ON when SYSTEM_TIME period is not defined.")
 				}
 				if c.systemVersionedTables == nil {
@@ -3147,6 +3215,10 @@ func (c *Catalog) execDropObjects(n *ast.DropStmt, wantKind objectKind, sqlKind 
 				}); bound {
 					return mssqlErr(ErrDropSchemaNotEmpty, "Cannot DROP FUNCTION '%s' because it is being referenced by object '%s'.", objName, consumer)
 				}
+			} else if wantKind == kindSequence {
+				if consumer, bound := sequenceDefaultConsumer(targetCat, schema.Name, objName); bound {
+					return mssqlErr(ErrDropSchemaNotEmpty, "Cannot DROP SEQUENCE '%s' because it is being referenced by object '%s'.", objName, consumer)
+				}
 			}
 			seenOther[otherKey{cat: targetCat, schema: normalize(schema.Name), obj: normalize(objName)}] = true
 			targets = append(targets, dropTarget{cat: targetCat, schema: schema, name: objName})
@@ -3220,12 +3292,65 @@ func (c *Catalog) removeObject(schema *metadata.SchemaMetadata, kind objectKind,
 	}
 }
 
+func sequenceDefaultConsumer(c *Catalog, targetSchema, targetSeq string) (string, bool) {
+	for _, s := range c.schemas {
+		for _, t := range s.Tables {
+			for _, col := range t.Columns {
+				if col.Default == "" {
+					continue
+				}
+				if defaultReferencesSequenceInSchema(col.Default, s.Name, c.defaultSchema, targetSchema, targetSeq) {
+					name := col.DefaultConstraintName
+					if name == "" {
+						name = t.Name
+					}
+					return name, true
+				}
+			}
+		}
+	}
+	return "", false
+}
+
+func defaultReferencesSequenceInSchema(expression, tableSchema, defaultSchemaName, targetSchema, targetSeq string) bool {
+	if !defaultReferencesSequence(expression, targetSchema, targetSeq) {
+		return false
+	}
+	matches := sequenceReference.FindAllStringSubmatch(expression, -1)
+	for _, match := range matches {
+		parts := strings.Split(match[1], ".")
+		for i := range parts {
+			parts[i] = strings.Trim(parts[i], "[]")
+		}
+		if len(parts) == 0 || !strings.EqualFold(parts[len(parts)-1], targetSeq) {
+			continue
+		}
+		if len(parts) == 1 {
+			if strings.EqualFold(targetSchema, tableSchema) || strings.EqualFold(targetSchema, defaultSchemaName) {
+				return true
+			}
+			continue
+		}
+		if strings.EqualFold(parts[len(parts)-2], targetSchema) {
+			return true
+		}
+	}
+	return false
+}
+
 // --- TRUNCATE TABLE ---
 
 func (c *Catalog) execTruncateTable(n *ast.TruncateStmt) error {
-	schemaName, tableName := tableRefSchemaObject(n.Table, c.defaultSchema)
-	schema := c.GetSchema(schemaName)
-	kind := c.lookupSchemaObject(schema, tableName, false)
+	targetCat := c
+	if n.Table != nil && n.Table.Database != "" {
+		targetCat = c.DatabaseCatalog(n.Table.Database)
+		if targetCat == nil {
+			return mssqlErr(ErrTruncateNotFound, "Cannot find the object \"%s\" because it does not exist or you do not have permissions.", n.Table.Object)
+		}
+	}
+	schemaName, tableName := tableRefSchemaObject(n.Table, targetCat.defaultSchema)
+	schema := targetCat.GetSchema(schemaName)
+	kind := targetCat.lookupSchemaObject(schema, tableName, false)
 	switch kind {
 	case kindNone:
 		return mssqlErr(ErrTruncateNotFound, "Cannot find the object \"%s\" because it does not exist or you do not have permissions.", tableName)
@@ -3233,11 +3358,11 @@ func (c *Catalog) execTruncateTable(n *ast.TruncateStmt) error {
 	default:
 		return mssqlErr(ErrTruncateNotTable, "Cannot truncate object '%s' because it is not a table.", tableName)
 	}
-	table := c.resolveTableInSchema(schema, tableName)
+	table := targetCat.resolveTableInSchema(schema, tableName)
 	if table == nil {
 		return mssqlErr(ErrTruncateNotFound, "Cannot find the object \"%s\" because it does not exist or you do not have permissions.", tableName)
 	}
-	if fkName, referenced := hasInboundFK(c, schema.Name, table); referenced {
+	if fkName, referenced := hasInboundFK(targetCat, schema.Name, table); referenced {
 		return mssqlErr(ErrTruncateReferencedByFK, "Cannot truncate table '%s' because it is being referenced by a FOREIGN KEY constraint '%s'.", tableName, fkName)
 	}
 	return nil

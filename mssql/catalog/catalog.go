@@ -43,7 +43,7 @@ type Catalog struct {
 	skipViewIndexes                   bool
 	omitUnnamedDefaultConstraintNames bool
 	lenientMetadataLoad               bool
-	systemTimeTables                  map[tableKey]bool
+	systemTimeTables                  map[tableKey][2]string
 	systemVersionedTables             map[tableKey]bool
 }
 
@@ -60,7 +60,7 @@ func New() *Catalog {
 		schemasByFold:    make(map[string][]*metadata.SchemaMetadata),
 		tableByName:      make(map[tableKey]*metadata.TableMetadata),
 		databaseByName:        make(map[string]*Catalog),
-		systemTimeTables:      make(map[tableKey]bool),
+		systemTimeTables:      make(map[tableKey][2]string),
 		systemVersionedTables: make(map[tableKey]bool),
 	}
 }
@@ -259,7 +259,7 @@ func (c *Catalog) loadPrimaryMetadata(meta *metadata.DatabaseSchemaMetadata, dat
 	c.schemaByName = make(map[string]*metadata.SchemaMetadata)
 	c.schemasByFold = make(map[string][]*metadata.SchemaMetadata)
 	c.tableByName = make(map[tableKey]*metadata.TableMetadata)
-	c.systemTimeTables = make(map[tableKey]bool)
+	c.systemTimeTables = make(map[tableKey][2]string)
 	c.systemVersionedTables = make(map[tableKey]bool)
 	for _, schema := range meta.GetSchemas() {
 		c.addSchema(cloneSchema(schema))

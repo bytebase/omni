@@ -67,6 +67,7 @@ const (
 	ErrSwitchSameTable            = 4955
 	ErrAlterColNFRNotIdentity     = 4991
 	ErrColumnDependentObject      = 5074
+	ErrDropPKWithXMLIndex         = 6322
 	ErrXmlIndexNonXmlCol          = 6330
 	ErrXmlIndexMissingPrimary     = 6333
 	ErrXmlIndexNotTable           = 6334
@@ -85,11 +86,13 @@ const (
 	ErrSystemVersioningNoPeriod   = 13510
 	ErrPeriodAlreadyDefined       = 13514
 	ErrDropPeriodSystemVersioned  = 13554
+	ErrDropPeriodColumn           = 13561
 	ErrSystemVersioningNotEnabled = 13591
 	ErrDropPeriodNotDefined       = 13593
 	ErrAlterColHiddenNotPeriod    = 13735
 	ErrEdgeConstraintNonEdge      = 13930
 	ErrSecurableNotFound          = 15151
+	ErrTransferSchemaBound        = 15348
 	ErrInvalidMaskingFunction     = 16006
 	ErrFileTableDirectoryNonFT    = 33411
 	ErrClusteredCSOnView          = 35305
