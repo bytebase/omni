@@ -7,7 +7,6 @@ import (
 
 	metadatapb "github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/trino/catalog"
-	"github.com/bytebase/omni/trino/parser"
 )
 
 // SessionConfig configures multi-catalog, session-aware Trino SQL completion.
@@ -82,7 +81,7 @@ func LineOffsetToBytePos(s string, line, offset int) int {
 
 func statementScopeAtCaret(statement string, bytePos int) string {
 	bytePos = max(0, min(bytePos, len(statement)))
-	segs := parser.Split(statement)
+	segs := statementSegments(statement)
 	if len(segs) == 0 {
 		return statement
 	}

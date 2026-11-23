@@ -203,6 +203,9 @@ func TestDatabaseDefinitionFromProtoOnTrino(t *testing.T) {
 	}
 
 	for _, seg := range trinoparser.Split(ddl) {
+		if seg.Empty() {
+			continue
+		}
 		stmt := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(seg.Text), ";"))
 		if stmt == "" {
 			continue
