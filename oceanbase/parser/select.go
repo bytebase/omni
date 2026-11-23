@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/oceanbase/ast"
 )
 
@@ -742,6 +744,22 @@ func (p *Parser) parseSelectWithParensAt(start int) (*nodes.SelectStmt, error) {
 	}, nil
 }
 
+// extractSelectOptimizerHints returns the optimizer hint comment body (`/*+ ... */`)
+// immediately following SELECT in OceanBase's select_with_opt_hint rule
+// (`SELECT_HINT_BEGIN hint_list_with_end`). A regular comment (`/* ... */`
+// without `+`) or a hint preceded by a regular comment is ignored.
+func extractSelectOptimizerHints(gap string) []string {
+	rest := strings.TrimLeft(gap, " \t\r\n\f\v")
+	if !strings.HasPrefix(rest, "/*+") {
+		return nil
+	}
+	end := strings.Index(rest[3:], "*/")
+	if end < 0 {
+		return nil
+	}
+	return []string{rest[3 : 3+end]}
+}
+
 // parseSimpleSelect parses a single SELECT query primary (no leading WITH, no
 // trailing set operation). It greedily consumes its own ORDER BY / LIMIT /
 // locking; the enclosing select_clause hoists an unparenthesized last operand's
@@ -771,7 +789,10 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	stmt := &nodes.SelectStmt{Loc: nodes.Loc{Start: start}}
+	stmt := &nodes.SelectStmt{
+		Loc:            nodes.Loc{Start: start},
+		OptimizerHints: extractSelectOptimizerHints(p.inputText(p.prev.End, p.cur.Loc)),
+	}
 
 	// Parse SELECT options
 	for {

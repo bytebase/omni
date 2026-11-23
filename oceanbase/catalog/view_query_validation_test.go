@@ -113,6 +113,44 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		// Unsupported MATCH mode & APPROX without vector distance (1235).
 		{"match_query_expansion", "CREATE VIEW _v AS SELECT MATCH(s) AGAINST('x' WITH QUERY EXPANSION) FROM t", ErrNotSupportedYet},
 		{"approx_without_vector_sort", "CREATE VIEW _v AS SELECT a FROM a ORDER BY a APPROX LIMIT 1", ErrNotSupportedYet},
+
+		// Unknown unqualified & schema-qualified functions (1305).
+		{"unknown_func_no_args", "CREATE VIEW _v AS SELECT a()", ErrNoSuchFunction},
+		{"unknown_func_statistics_no_args", "CREATE VIEW _v AS SELECT STATISTICS()", ErrNoSuchFunction},
+		{"unknown_func_statistics_lit_arg", "CREATE VIEW _v AS SELECT STATISTICS('s')", ErrNoSuchFunction},
+		{"unknown_func_coalesce_aggr", "CREATE VIEW _v AS SELECT COALESCE_AGGR()", ErrNoSuchFunction},
+		{"unknown_func_replace_const", "CREATE VIEW _v AS SELECT REPLACE_CONST()", ErrNoSuchFunction},
+		{"unknown_func_decrypt", "CREATE VIEW _v AS SELECT DECRYPT()", ErrNoSuchFunction},
+		{"unknown_func_qualified", "CREATE VIEW _v AS SELECT a.a()", ErrNoSuchFunction},
+		{"unknown_func_qualified_statistics", "CREATE VIEW _v AS SELECT a.STATISTICS()", ErrNoSuchFunction},
+		{"unknown_func_qualified_builtin", "CREATE VIEW _v AS SELECT a.CURRENT_USER()", ErrNoSuchFunction},
+		{"unknown_func_existing_db_missing_fn", "CREATE VIEW _v AS SELECT db2.no_such_fn()", ErrNoSuchFunction},
+		{"unknown_func_col_error_precedes_1305", "CREATE VIEW _v AS SELECT STATISTICS(missing_col)", ErrNoSuchColumn},
+		{"unknown_func_aliased_arg_precedes_1305", "CREATE VIEW _v AS SELECT STATISTICS(a zzz)", 1583},
+
+		// CALC_PARTITION_ID argument validation precedes column resolution (1210).
+		{"calc_partition_id_2_col", "CREATE VIEW _v AS SELECT CALC_PARTITION_ID(a, a)", ErrWrongArguments},
+		{"calc_partition_id_3_col", "CREATE VIEW _v AS SELECT CALC_PARTITION_ID(a, a, a)", ErrWrongArguments},
+		{"calc_partition_id_1_arg", "CREATE VIEW _v AS SELECT CALC_PARTITION_ID(1)", ErrWrongArguments},
+		{"calc_partition_id_const_first_missing_second", "CREATE VIEW _v AS SELECT CALC_PARTITION_ID(1, missing_col)", ErrNoSuchColumn},
+
+		// Optimizer hint validation precedes column resolution (5063, 1210).
+		{"hint_load_batch_size_1_arg", "CREATE VIEW _v AS SELECT /*+ LOAD_BATCH_SIZE(1) */ a", ErrOBUnknownHint},
+		{"hint_load_batch_size_2_args", "CREATE VIEW _v AS SELECT /*+ LOAD_BATCH_SIZE(1, 's') */ a", ErrOBUnknownHint},
+		{"hint_load_batch_size_trailing_word", "CREATE VIEW _v AS SELECT /*+ LOAD_BATCH_SIZE(1) zzz */ a", ErrOBUnknownHint},
+		{"hint_load_batch_size_after_other", "CREATE VIEW _v AS SELECT /*+ PARALLEL(2) LOAD_BATCH_SIZE(1) */ 1", ErrOBUnknownHint},
+		{"hint_load_batch_size_subquery", "CREATE VIEW _v AS SELECT (SELECT /*+ LOAD_BATCH_SIZE(1) */ 1)", ErrOBUnknownHint},
+		{"hint_direct_bad_load_method", "CREATE VIEW _v AS SELECT /*+ DIRECT(TRUE, 1, 's') */ a", ErrWrongArguments},
+		{"hint_direct_bad_load_method_trailing", "CREATE VIEW _v AS SELECT /*+ DIRECT(FALSE, 0, 'bogus') zzz */ a", ErrWrongArguments},
+		// Malformed hint syntax is discarded by OceanBase and falls through to column resolution (1054).
+		{"hint_load_batch_size_malformed_empty", "CREATE VIEW _v AS SELECT /*+ LOAD_BATCH_SIZE() */ a", ErrNoSuchColumn},
+		{"hint_load_batch_size_malformed_missing_lparen", "CREATE VIEW _v AS SELECT /*+ LOAD_BATCH_SIZE 1) */ a", ErrNoSuchColumn},
+		{"hint_load_batch_size_malformed_missing_rparen", "CREATE VIEW _v AS SELECT /*+ LOAD_BATCH_SIZE(1 */ a", ErrNoSuchColumn},
+		{"hint_load_batch_size_malformed_trailing_paren", "CREATE VIEW _v AS SELECT /*+ LOAD_BATCH_SIZE(1) (bad) */ a", ErrNoSuchColumn},
+		{"hint_direct_malformed_missing_comma", "CREATE VIEW _v AS SELECT /*+ DIRECT(TRUE, 1 's') */ a", ErrNoSuchColumn},
+		{"hint_direct_2_args_valid_falls_through", "CREATE VIEW _v AS SELECT /*+ DIRECT(TRUE, 1) */ a", ErrNoSuchColumn},
+		{"hint_direct_valid_full_falls_through", "CREATE VIEW _v AS SELECT /*+ DIRECT(TRUE, 1, 'full') */ a", ErrNoSuchColumn},
+		{"hint_regular_comment_ignored", "CREATE VIEW _v AS SELECT /* LOAD_BATCH_SIZE(1) */ a", ErrNoSuchColumn},
 	}
 
 	for _, tc := range refusals {
@@ -142,6 +180,18 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		{"approx_with_vector_sort", "CREATE VIEW _v AS SELECT id FROM t ORDER BY L2_DISTANCE(v, '[1,2,3]') APPROX LIMIT 1", "approx limit 1"},
 		{"approx_with_vec_prefix_sort", "CREATE VIEW _v AS SELECT id FROM t ORDER BY VEC_COSINE_DISTANCE(v, '[1,2,3]') APPROX LIMIT 1", "approx limit 1"},
 		{"valid_json_query_path", "CREATE VIEW _v AS SELECT JSON_QUERY(s, '$.a') FROM t", "json_query("},
+		{"calc_partition_id_const_first", "CREATE VIEW _v AS SELECT CALC_PARTITION_ID(1, a) FROM a", "calc_partition_id("},
+		{"oceanbase_builtin_to_char", "CREATE VIEW _v AS SELECT TO_CHAR('x') AS x", "to_char('x')"},
+		{"oceanbase_builtin_to_pinyin", "CREATE VIEW _v AS SELECT TO_PINYIN('x') AS x", "to_pinyin('x')"},
+		{"oceanbase_builtin_split_part", "CREATE VIEW _v AS SELECT SPLIT_PART('a,b', ',', 1) AS x", "split_part("},
+		{"oceanbase_builtin_url_encode", "CREATE VIEW _v AS SELECT URL_ENCODE('a b') AS x", "url_encode("},
+		{"oceanbase_builtin_ob_version", "CREATE VIEW _v AS SELECT OB_VERSION() AS x", "ob_version()"},
+		{"oceanbase_builtin_ora_decode", "CREATE VIEW _v AS SELECT ORA_DECODE(1, 1, 'a') AS x", "ora_decode("},
+		{"hint_direct_2_args_accepted", "CREATE VIEW _v AS SELECT /*+ DIRECT(TRUE, 1) */ a FROM a", "select `a`.`a` AS `a` from `a`"},
+		{"hint_direct_full_accepted", "CREATE VIEW _v AS SELECT /*+ DIRECT(TRUE, 1, 'full') */ a FROM a", "select `a`.`a` AS `a` from `a`"},
+		{"hint_direct_inc_accepted", "CREATE VIEW _v AS SELECT /*+ DIRECT(TRUE, 1, 'inc') */ a FROM a", "select `a`.`a` AS `a` from `a`"},
+		{"hint_direct_inc_replace_accepted", "CREATE VIEW _v AS SELECT /*+ DIRECT(FALSE, 0, 'INC_REPLACE') */ a FROM a", "select `a`.`a` AS `a` from `a`"},
+		{"hint_regular_comment_accepted", "CREATE VIEW _v AS SELECT /* LOAD_BATCH_SIZE(1) */ a FROM a", "select `a`.`a` AS `a` from `a`"},
 	}
 
 	for _, tc := range accepted {
@@ -165,6 +215,38 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		c := setup(t)
 		if got := execCode(t, c, "CREATE TABLE t_var AS SELECT @v"); got != 0 {
 			t.Fatalf("CREATE TABLE t_var AS SELECT @v: unexpected error %d", got)
+		}
+	})
+
+	// User-defined stored functions resolve in the current database and via
+	// explicit schema qualification, while missing routines fail with 1305.
+	t.Run("stored_function_resolution_in_views", func(t *testing.T) {
+		c := setup(t)
+		mustExec(t, c, "CREATE FUNCTION my_fn(x INT) RETURNS INT DETERMINISTIC RETURN x + 1;")
+		mustExec(t, c, "CREATE FUNCTION db2.other_fn() RETURNS INT DETERMINISTIC RETURN 42;")
+		mustExec(t, c, "CREATE FUNCTION db2.current_user() RETURNS VARCHAR(32) DETERMINISTIC RETURN 'u';")
+		mustExec(t, c, "CREATE FUNCTION db2.calc_partition_id(x INT, y INT) RETURNS INT DETERMINISTIC RETURN x + y;")
+
+		if got := execCode(t, c, "CREATE VIEW v_sf1 AS SELECT my_fn(a) FROM a"); got != 0 {
+			t.Fatalf("unqualified stored function: unexpected error %d", got)
+		}
+		if got := execCode(t, c, "CREATE VIEW v_sf2 AS SELECT db1.my_fn(a) FROM a"); got != 0 {
+			t.Fatalf("same-db qualified stored function: unexpected error %d", got)
+		}
+		if got := execCode(t, c, "CREATE VIEW v_sf3 AS SELECT db2.other_fn()"); got != 0 {
+			t.Fatalf("cross-db qualified stored function: unexpected error %d", got)
+		}
+		if got := execCode(t, c, "CREATE VIEW v_sf4 AS SELECT db2.CURRENT_USER()"); got != 0 {
+			t.Fatalf("qualified stored function shadowing builtin: unexpected error %d", got)
+		}
+		if got := execCode(t, c, "CREATE VIEW v_sf5 AS SELECT db2.CALC_PARTITION_ID(a, a) FROM a"); got != 0 {
+			t.Fatalf("qualified stored function shadowing CALC_PARTITION_ID: unexpected error %d", got)
+		}
+		if got := execCode(t, c, "CREATE VIEW v_sf_miss1 AS SELECT other_fn()"); got != ErrNoSuchFunction {
+			t.Fatalf("unqualified call to other db's function: got %d, want %d", got, ErrNoSuchFunction)
+		}
+		if got := execCode(t, c, "CREATE VIEW v_sf_miss2 AS SELECT db2.my_fn(1)"); got != ErrNoSuchFunction {
+			t.Fatalf("wrong schema for stored function: got %d, want %d", got, ErrNoSuchFunction)
 		}
 	})
 

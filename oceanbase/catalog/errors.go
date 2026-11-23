@@ -74,6 +74,7 @@ const (
 	ErrWindowRangeFrameNumericType = 3596
 	ErrEmptyRowInTVC               = 3942
 	ErrDefaultAsValInTVC           = 3943
+	ErrOBUnknownHint               = 5063
 	ErrOBJSONPathSyntax            = 5454
 	ErrOBRemoteDBNotFound          = 5835
 	ErrOBWindowNotDefined          = 5929
@@ -117,6 +118,7 @@ var sqlStateMap = map[int]string{
 	ErrFKDupName:                         "HY000",
 	ErrCheckConstraintNotAllowed:         "HY000",
 	ErrCheckConstraintDupName:            "HY000",
+	ErrOBUnknownHint:                     "42000",
 }
 
 func sqlState(code int) string {
@@ -474,4 +476,8 @@ func errOBRemoteDBNotFound() error {
 
 func errOBWindowNotDefined(name string) error {
 	return &Error{Code: ErrOBWindowNotDefined, SQLState: "HY000", Message: fmt.Sprintf("Window name '%s' is not defined.", name)}
+}
+
+func errOBUnknownHint() error {
+	return &Error{Code: ErrOBUnknownHint, SQLState: sqlState(ErrOBUnknownHint), Message: "Unknown hint"}
 }
