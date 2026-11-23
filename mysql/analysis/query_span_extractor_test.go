@@ -539,8 +539,9 @@ FROM t`,
 		require.NoError(t, err)
 		require.Equal(t, Select, valuesSpan.Type)
 		require.Equal(t, []QuerySpanResult{
-			{Name: "1", SourceColumns: ColumnSet{}, IsPlainField: true},
-			{Name: "2+3", SourceColumns: ColumnSet{}, IsPlainField: false},
+			// MySQL names a VALUES column by its position (span.tsv).
+			{Name: "column_0", SourceColumns: ColumnSet{}, IsPlainField: true},
+			{Name: "column_1", SourceColumns: ColumnSet{}, IsPlainField: false},
 		}, valuesSpan.Results)
 	})
 }
@@ -561,7 +562,8 @@ func TestQuerySpanScenarioBatch1_RootAndQueryTypeCoverage(t *testing.T) {
 				statement: "VALUES ROW(DEFAULT)",
 				wantType:  Select,
 				wantResults: []QuerySpanResult{
-					{Name: "DEFAULT", SourceColumns: ColumnSet{}, IsPlainField: true},
+					// MySQL names a VALUES column by its position (span.tsv).
+					{Name: "column_0", SourceColumns: ColumnSet{}, IsPlainField: true},
 				},
 			},
 			{
