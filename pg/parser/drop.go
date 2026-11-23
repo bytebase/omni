@@ -15,7 +15,7 @@ import (
 //	    | DROP FUNCTION|PROCEDURE|ROUTINE|AGGREGATE [IF EXISTS] any_name_list opt_drop_behavior
 //	    | DROP TRIGGER|POLICY|RULE [IF EXISTS] name ON any_name opt_drop_behavior
 //	    | DROP EVENT TRIGGER [IF EXISTS] name opt_drop_behavior
-//	    | DROP LANGUAGE [IF EXISTS] name opt_drop_behavior
+//	    | DROP [PROCEDURAL] LANGUAGE [IF EXISTS] name opt_drop_behavior
 //	    | DROP PUBLICATION|SUBSCRIPTION [IF EXISTS] name_list opt_drop_behavior
 //	    | DROP INDEX CONCURRENTLY [IF EXISTS] any_name_list opt_drop_behavior
 //	    | DROP FOREIGN DATA WRAPPER [IF EXISTS] name_list opt_drop_behavior
@@ -90,6 +90,13 @@ func (p *Parser) parseDropStmtInner() (nodes.Node, error) {
 	case EVENT:
 		return p.parseDropEventTrigger()
 	case LANGUAGE:
+		return p.parseDropLanguage()
+	case PROCEDURAL:
+		// gram.y drop_type_name: opt_procedural LANGUAGE.
+		p.advance() // consume PROCEDURAL
+		if p.cur.Type != LANGUAGE {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseDropLanguage()
 	case PUBLICATION:
 		return p.parseDropNameList(nodes.OBJECT_PUBLICATION)
@@ -416,9 +423,10 @@ func (p *Parser) parseDropEventTrigger() (nodes.Node, error) {
 	}, nil
 }
 
-// parseDropLanguage parses DROP LANGUAGE statements.
+// parseDropLanguage parses DROP [PROCEDURAL] LANGUAGE statements, from
+// LANGUAGE.
 //
-//	DROP LANGUAGE [IF EXISTS] name opt_drop_behavior
+//	DROP [PROCEDURAL] LANGUAGE [IF EXISTS] name opt_drop_behavior
 func (p *Parser) parseDropLanguage() (nodes.Node, error) {
 	p.advance() // consume LANGUAGE
 

@@ -25,14 +25,21 @@ ok:1a2318639a72	ok:1a2318639a72	engine	one_table@column	simple_select/select_cla
 42703	42703	engine	one_table@column	into_clause/INTO_OptTempTableName!swap	CREATE VIEW _v AS SELECT INVOKER a
 0A000	0A000	engine	one_table@column	OptTempTableName/TEMPORARY_opt_table_qualified_name	CREATE VIEW _v AS SELECT INTO TEMPORARY a
 0A000	0A000	engine	one_table@column	OptTempTableName/TEMPORARY_opt_table_qualified_name!drop-2	CREATE VIEW _v AS SELECT INTO TEMPORARY
+0A000	0A000	engine	one_table@column	OptTempTableName/TEMPORARY_opt_table_qualified_name+opt_table	CREATE VIEW _v AS SELECT INTO TEMPORARY TABLE a
 0A000	0A000	engine	one_table@column	OptTempTableName/TEMP_opt_table_qualified_name	CREATE VIEW _v AS SELECT INTO TEMP a
 0A000	0A000	engine	one_table@column	OptTempTableName/TEMP_opt_table_qualified_name!drop-2	CREATE VIEW _v AS SELECT INTO TEMP
+0A000	0A000	engine	one_table@column	OptTempTableName/TEMP_opt_table_qualified_name+opt_table	CREATE VIEW _v AS SELECT INTO TEMP TABLE a
 0A000	0A000	engine	one_table@column	OptTempTableName/LOCAL_TEMPORARY_opt_table_qualified_name	CREATE VIEW _v AS SELECT INTO LOCAL TEMPORARY a
+0A000	0A000	engine	one_table@column	OptTempTableName/LOCAL_TEMPORARY_opt_table_qualified_name+opt_table	CREATE VIEW _v AS SELECT INTO LOCAL TEMPORARY TABLE a
 0A000	0A000	engine	one_table@column	OptTempTableName/LOCAL_TEMP_opt_table_qualified_name	CREATE VIEW _v AS SELECT INTO LOCAL TEMP a
+0A000	0A000	engine	one_table@column	OptTempTableName/LOCAL_TEMP_opt_table_qualified_name+opt_table	CREATE VIEW _v AS SELECT INTO LOCAL TEMP TABLE a
 0A000	0A000	engine	one_table@column	OptTempTableName/GLOBAL_TEMPORARY_opt_table_qualified_name	CREATE VIEW _v AS SELECT INTO GLOBAL TEMPORARY a
+0A000	0A000	engine	one_table@column	OptTempTableName/GLOBAL_TEMPORARY_opt_table_qualified_name+opt_table	CREATE VIEW _v AS SELECT INTO GLOBAL TEMPORARY TABLE a
 0A000	0A000	engine	one_table@column	OptTempTableName/GLOBAL_TEMP_opt_table_qualified_name	CREATE VIEW _v AS SELECT INTO GLOBAL TEMP a
+0A000	0A000	engine	one_table@column	OptTempTableName/GLOBAL_TEMP_opt_table_qualified_name+opt_table	CREATE VIEW _v AS SELECT INTO GLOBAL TEMP TABLE a
 0A000	0A000	engine	one_table@column	OptTempTableName/UNLOGGED_opt_table_qualified_name	CREATE VIEW _v AS SELECT INTO UNLOGGED a
 0A000	0A000	engine	one_table@column	OptTempTableName/UNLOGGED_opt_table_qualified_name!drop-2	CREATE VIEW _v AS SELECT INTO UNLOGGED
+0A000	0A000	engine	one_table@column	OptTempTableName/UNLOGGED_opt_table_qualified_name+opt_table	CREATE VIEW _v AS SELECT INTO UNLOGGED TABLE a
 0A000	0A000	engine	one_table@column	OptTempTableName/TABLE_qualified_name	CREATE VIEW _v AS SELECT INTO TABLE a
 ok:cd964642c37a	ok:cd964642c37a	engine	one_table@column	set_quantifier/ALL	CREATE VIEW _v AS SELECT UNION ALL SELECT
 ok:b2d578149ef2	ok:b2d578149ef2	engine	one_table@column	set_quantifier/DISTINCT	CREATE VIEW _v AS SELECT UNION DISTINCT SELECT

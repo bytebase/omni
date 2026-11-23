@@ -974,6 +974,7 @@ reject@11	reject@11	engine	opt_drop_behavior/RESTRICT!swap	TRUNCATE a RETURN
 accept	accept	engine	opt_drop_behavior/%empty	TRUNCATE a
 accept	accept	engine	CallStmt/CALL_func_application	CALL a()
 accept	accept	engine	CreateRoleStmt/CREATE_ROLE_RoleId_opt_with_OptRoleList	CREATE ROLE a
+accept	accept	engine	CreateRoleStmt/CREATE_ROLE_RoleId_opt_with_OptRoleList+opt_with	CREATE ROLE a WITH
 accept	accept	engine	opt_with/WITH	ALTER ROLE a WITH
 reject@18	reject@18	engine	opt_with/WITH!insert	ALTER ROLE a WITH zzz
 reject@13	reject@13	engine	opt_with/WITH!swap	ALTER ROLE a WITHIN
@@ -1051,11 +1052,13 @@ reject@23	reject@23	engine	CreateOptRoleElem/IN_P_GROUP_P_role_list!drop-3	CREAT
 reject@26	reject@26	engine	CreateOptRoleElem/IN_P_GROUP_P_role_list!insert	CREATE GROUP a IN GROUP a zzz
 reject@15	reject@15	engine	CreateOptRoleElem/IN_P_GROUP_P_role_list!swap	CREATE GROUP a INCLUDE GROUP a
 accept	accept	engine	CreateUserStmt/CREATE_USER_RoleId_opt_with_OptRoleList	CREATE USER a
+accept	accept	engine	CreateUserStmt/CREATE_USER_RoleId_opt_with_OptRoleList+opt_with	CREATE USER a WITH
 accept	accept	engine	AlterRoleStmt/ALTER_ROLE_RoleSpec_opt_with_AlterOptRoleList	ALTER ROLE a
 accept	accept	engine	AlterRoleStmt/ALTER_USER_RoleSpec_opt_with_AlterOptRoleList	ALTER USER a
 reject@10	reject@10	engine	AlterRoleStmt/ALTER_USER_RoleSpec_opt_with_AlterOptRoleList!drop-3	ALTER USER
 reject@13	reject@13	engine	AlterRoleStmt/ALTER_USER_RoleSpec_opt_with_AlterOptRoleList!insert	ALTER USER a zzz
 reject@0	reject@0	engine	AlterRoleStmt/ALTER_USER_RoleSpec_opt_with_AlterOptRoleList!swap	ALWAYS USER a
+accept	accept	engine	AlterRoleStmt/ALTER_USER_RoleSpec_opt_with_AlterOptRoleList+opt_with	ALTER USER a WITH
 accept	accept	engine	opt_in_database/%empty	ALTER ROLE a SET NAMES
 reject@13	reject@13	engine	opt_in_database/%empty!insert	ALTER ROLE a zzz SET NAMES
 accept	accept	engine	opt_in_database/IN_P_DATABASE_name	ALTER ROLE a IN DATABASE a SET NAMES
@@ -1118,6 +1121,7 @@ reject@20	reject@20	engine	DropRoleStmt/DROP_GROUP_P_IF_P_EXISTS_role_list!drop-
 reject@23	reject@23	engine	DropRoleStmt/DROP_GROUP_P_IF_P_EXISTS_role_list!insert	DROP GROUP IF EXISTS a zzz
 reject@0	reject@0	engine	DropRoleStmt/DROP_GROUP_P_IF_P_EXISTS_role_list!swap	EACH GROUP IF EXISTS a
 accept	accept	engine	CreateGroupStmt/CREATE_GROUP_P_RoleId_opt_with_OptRoleList	CREATE GROUP a
+accept	accept	engine	CreateGroupStmt/CREATE_GROUP_P_RoleId_opt_with_OptRoleList+opt_with	CREATE GROUP a WITH
 accept	accept	engine	AlterGroupStmt/ALTER_GROUP_P_RoleSpec_add_drop_USER_role_list	ALTER GROUP a ADD USER a
 accept	accept	engine	add_drop/ADD_P	ALTER EXTENSION a ADD EXTENSION a
 reject@22	reject@22	engine	add_drop/ADD_P!insert	ALTER EXTENSION a ADD zzz EXTENSION a
@@ -1517,6 +1521,7 @@ reject@36	reject@36	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_S
 reject@46	reject@46	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-9	ALTER TABLE ALL IN TABLESPACE a SET TABLESPACE
 reject@49	reject@49	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!insert	ALTER TABLE ALL IN TABLESPACE a SET TABLESPACE a zzz
 reject@0	reject@0	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!swap	ALWAYS TABLE ALL IN TABLESPACE a SET TABLESPACE a
+accept	accept	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait+opt_nowait	ALTER TABLE ALL IN TABLESPACE a SET TABLESPACE a NOWAIT
 accept	accept	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER TABLE ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
 reject@6	reject@6	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-1	TABLE ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
 reject@6	reject@6	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-2	ALTER ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
@@ -1532,6 +1537,7 @@ reject@47	reject@47	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_O
 reject@57	reject@57	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-12	ALTER TABLE ALL IN TABLESPACE a OWNED BY a SET TABLESPACE
 reject@60	reject@60	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!insert	ALTER TABLE ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a zzz
 reject@0	reject@0	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!swap	ALWAYS TABLE ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+accept	accept	engine	AlterTableStmt/ALTER_TABLE_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait+opt_nowait	ALTER TABLE ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a NOWAIT
 accept	accept	engine	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds	ALTER INDEX a DROP a
 reject@0	reject@0	engine	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds!drop-1	INDEX a DROP a
 reject@17	reject@17	engine	AlterTableStmt/ALTER_INDEX_qualified_name_alter_table_cmds!drop-3	ALTER INDEX DROP a
@@ -1568,6 +1574,7 @@ reject@36	reject@36	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_S
 reject@46	reject@46	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-9	ALTER INDEX ALL IN TABLESPACE a SET TABLESPACE
 reject@49	reject@49	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!insert	ALTER INDEX ALL IN TABLESPACE a SET TABLESPACE a zzz
 reject@0	reject@0	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!swap	ALWAYS INDEX ALL IN TABLESPACE a SET TABLESPACE a
+accept	accept	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait+opt_nowait	ALTER INDEX ALL IN TABLESPACE a SET TABLESPACE a NOWAIT
 accept	accept	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER INDEX ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
 reject@0	reject@0	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-1	INDEX ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
 reject@12	reject@12	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-3	ALTER INDEX IN TABLESPACE a OWNED BY a SET TABLESPACE a
@@ -1582,6 +1589,7 @@ reject@47	reject@47	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_O
 reject@57	reject@57	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-12	ALTER INDEX ALL IN TABLESPACE a OWNED BY a SET TABLESPACE
 reject@60	reject@60	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!insert	ALTER INDEX ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a zzz
 reject@0	reject@0	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!swap	ALWAYS INDEX ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+accept	accept	engine	AlterTableStmt/ALTER_INDEX_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait+opt_nowait	ALTER INDEX ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a NOWAIT
 accept	accept	engine	AlterTableStmt/ALTER_SEQUENCE_qualified_name_alter_table_cmds	ALTER SEQUENCE a DROP a
 reject@0	reject@0	engine	AlterTableStmt/ALTER_SEQUENCE_qualified_name_alter_table_cmds!drop-1	SEQUENCE a DROP a
 reject@20	reject@20	engine	AlterTableStmt/ALTER_SEQUENCE_qualified_name_alter_table_cmds!drop-3	ALTER SEQUENCE DROP a
@@ -1645,6 +1653,7 @@ reject@48	reject@48	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLE
 reject@58	reject@58	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!drop-10	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a SET TABLESPACE
 reject@61	reject@61	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!insert	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a SET TABLESPACE a zzz
 reject@0	reject@0	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait!swap	ALWAYS MATERIALIZED VIEW ALL IN TABLESPACE a SET TABLESPACE a
+accept	accept	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_SET_TABLESPACE_name_opt_nowait+opt_nowait	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a SET TABLESPACE a NOWAIT
 accept	accept	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
 reject@0	reject@0	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-1	MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
 reject@11	reject@11	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-2	ALTER VIEW ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
@@ -1661,6 +1670,7 @@ reject@59	reject@59	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLE
 reject@69	reject@69	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!drop-13	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY a SET TABLESPACE
 reject@72	reject@72	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!insert	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a zzz
 reject@0	reject@0	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait!swap	ALWAYS MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a
+accept	accept	engine	AlterTableStmt/ALTER_MATERIALIZED_VIEW_ALL_IN_P_TABLESPACE_name_OWNED_BY_role_list_SET_TABLESPACE_name_opt_nowait+opt_nowait	ALTER MATERIALIZED VIEW ALL IN TABLESPACE a OWNED BY a SET TABLESPACE a NOWAIT
 accept	accept	engine	AlterTableStmt/ALTER_FOREIGN_TABLE_relation_expr_alter_table_cmds	ALTER FOREIGN TABLE a DROP a
 reject@0	reject@0	engine	AlterTableStmt/ALTER_FOREIGN_TABLE_relation_expr_alter_table_cmds!drop-1	FOREIGN TABLE a DROP a
 reject@14	reject@14	engine	AlterTableStmt/ALTER_FOREIGN_TABLE_relation_expr_alter_table_cmds!drop-3	ALTER FOREIGN a DROP a
@@ -1698,6 +1708,7 @@ reject@41	reject@41	engine	partition_cmd/ATTACH_PARTITION_qualified_name_Partiti
 reject@14	reject@14	engine	partition_cmd/ATTACH_PARTITION_qualified_name_PartitionBoundSpec!swap	ALTER TABLE a ATTRIBUTE PARTITION a DEFAULT
 accept	accept	engine	partition_cmd/DETACH_PARTITION_qualified_name_opt_concurrently	ALTER TABLE a DETACH PARTITION a
 reject@14	reject@14	engine	partition_cmd/DETACH_PARTITION_qualified_name_opt_concurrently!swap	ALTER TABLE a DICTIONARY PARTITION a
+accept	accept	engine	partition_cmd/DETACH_PARTITION_qualified_name_opt_concurrently+opt_concurrently	ALTER TABLE a DETACH PARTITION a CONCURRENTLY
 accept	accept	engine	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE	ALTER TABLE a DETACH PARTITION a FINALIZE
 reject@14	reject@14	engine	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE!drop-1	ALTER TABLE a PARTITION a FINALIZE
 reject@21	reject@21	engine	partition_cmd/DETACH_PARTITION_qualified_name_FINALIZE!drop-2	ALTER TABLE a DETACH a FINALIZE
@@ -1739,6 +1750,7 @@ reject@22	reject@22	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_column_d
 reject@26	reject@26	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_column_default!drop-4	ALTER TABLE a ALTER a DROP
 reject@35	reject@35	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_column_default!insert	ALTER TABLE a ALTER a DROP DEFAULT zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_column_default!swap	ALTER TABLE a ALWAYS a DROP DEFAULT
+accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_column_default+opt_column	ALTER TABLE a ALTER COLUMN a DROP DEFAULT
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_P	ALTER TABLE a ALTER a DROP NOT NULL
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_P!drop-1	ALTER TABLE a a DROP NOT NULL
 reject@25	reject@25	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_P!drop-2	ALTER TABLE a ALTER DROP NOT NULL
@@ -1747,6 +1759,7 @@ reject@27	reject@27	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_
 reject@30	reject@30	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_P!drop-5	ALTER TABLE a ALTER a DROP NOT
 reject@36	reject@36	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_P!insert	ALTER TABLE a ALTER a DROP NOT NULL zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_P!swap	ALTER TABLE a ALWAYS a DROP NOT NULL
+accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_NOT_NULL_P+opt_column	ALTER TABLE a ALTER COLUMN a DROP NOT NULL
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P	ALTER TABLE a ALTER a SET NOT NULL
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P!drop-1	ALTER TABLE a a SET NOT NULL
 reject@24	reject@24	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P!drop-2	ALTER TABLE a ALTER SET NOT NULL
@@ -1754,6 +1767,7 @@ reject@26	reject@26	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P
 reject@29	reject@29	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P!drop-5	ALTER TABLE a ALTER a SET NOT
 reject@35	reject@35	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P!insert	ALTER TABLE a ALTER a SET NOT NULL zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P!swap	ALTER TABLE a ALWAYS a SET NOT NULL
+accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_NOT_NULL_P+opt_column	ALTER TABLE a ALTER COLUMN a SET NOT NULL
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)	ALTER TABLE a ALTER a SET EXPRESSION AS(a)
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)!drop-1	ALTER TABLE a a SET EXPRESSION AS(a)
 reject@24	reject@24	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)!drop-2	ALTER TABLE a ALTER SET EXPRESSION AS(a)
@@ -1765,12 +1779,14 @@ reject@40	reject@40	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION
 reject@41	reject@41	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)!drop-8	ALTER TABLE a ALTER a SET EXPRESSION AS(a
 reject@43	reject@43	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)!insert	ALTER TABLE a ALTER a SET EXPRESSION AS(a) zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)!swap	ALTER TABLE a ALWAYS a SET EXPRESSION AS(a)
+accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_EXPRESSION_AS_(_a_expr_)+opt_column	ALTER TABLE a ALTER COLUMN a SET EXPRESSION AS(a)
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION	ALTER TABLE a ALTER a DROP EXPRESSION
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION!drop-1	ALTER TABLE a a DROP EXPRESSION
 reject@25	reject@25	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION!drop-2	ALTER TABLE a ALTER DROP EXPRESSION
 reject@22	reject@22	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION!drop-3	ALTER TABLE a ALTER a EXPRESSION
 reject@38	reject@38	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION!insert	ALTER TABLE a ALTER a DROP EXPRESSION zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION!swap	ALTER TABLE a ALWAYS a DROP EXPRESSION
+accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION+opt_column	ALTER TABLE a ALTER COLUMN a DROP EXPRESSION
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION_IF_P_EXISTS	ALTER TABLE a ALTER a DROP EXPRESSION IF EXISTS
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION_IF_P_EXISTS!drop-1	ALTER TABLE a a DROP EXPRESSION IF EXISTS
 reject@25	reject@25	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION_IF_P_EXISTS!drop-2	ALTER TABLE a ALTER DROP EXPRESSION IF EXISTS
@@ -1780,6 +1796,7 @@ reject@38	reject@38	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSIO
 reject@40	reject@40	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION_IF_P_EXISTS!drop-6	ALTER TABLE a ALTER a DROP EXPRESSION IF
 reject@48	reject@48	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION_IF_P_EXISTS!insert	ALTER TABLE a ALTER a DROP EXPRESSION IF EXISTS zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION_IF_P_EXISTS!swap	ALTER TABLE a ALWAYS a DROP EXPRESSION IF EXISTS
+accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_EXPRESSION_IF_P_EXISTS+opt_column	ALTER TABLE a ALTER COLUMN a DROP EXPRESSION IF EXISTS
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS_set_statistics_value	ALTER TABLE a ALTER a SET STATISTICS 1
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS_set_statistics_value!drop-1	ALTER TABLE a a SET STATISTICS 1
 reject@24	reject@24	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS_set_statistics_value!drop-2	ALTER TABLE a ALTER SET STATISTICS 1
@@ -1788,6 +1805,7 @@ reject@26	reject@26	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS
 reject@36	reject@36	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS_set_statistics_value!drop-5	ALTER TABLE a ALTER a SET STATISTICS
 reject@39	reject@39	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS_set_statistics_value!insert	ALTER TABLE a ALTER a SET STATISTICS 1 zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS_set_statistics_value!swap	ALTER TABLE a ALWAYS a SET STATISTICS 1
+accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_STATISTICS_set_statistics_value+opt_column	ALTER TABLE a ALTER COLUMN a SET STATISTICS 1
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value	ALTER TABLE a ALTER 1 SET STATISTICS 1
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value!drop-1	ALTER TABLE a 1 SET STATISTICS 1
 reject@22	reject@22	engine	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value!drop-3	ALTER TABLE a ALTER 1 STATISTICS 1
@@ -1795,6 +1813,7 @@ reject@26	reject@26	engine	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTIC
 reject@36	reject@36	engine	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value!drop-5	ALTER TABLE a ALTER 1 SET STATISTICS
 reject@39	reject@39	engine	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value!insert	ALTER TABLE a ALTER 1 SET STATISTICS 1 zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value!swap	ALTER TABLE a ALWAYS 1 SET STATISTICS 1
+accept	accept	engine	alter_table_cmd/ALTER_opt_column_Iconst_SET_STATISTICS_set_statistics_value+opt_column	ALTER TABLE a ALTER COLUMN 1 SET STATISTICS 1
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions	ALTER TABLE a ALTER a SET(a)
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions!drop-1	ALTER TABLE a a SET(a)
 reject@23	reject@23	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions!drop-2	ALTER TABLE a ALTER SET(a)
@@ -1804,6 +1823,7 @@ reject@26	reject@26	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions
 reject@27	reject@27	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions!drop-6	ALTER TABLE a ALTER a SET(a
 reject@29	reject@29	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions!insert	ALTER TABLE a ALTER a SET(a) zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions!swap	ALTER TABLE a ALWAYS a SET(a)
+accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_reloptions+opt_column	ALTER TABLE a ALTER COLUMN a SET(a)
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions	ALTER TABLE a ALTER a RESET(a)
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions!drop-1	ALTER TABLE a a RESET(a)
 reject@25	reject@25	engine	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions!drop-2	ALTER TABLE a ALTER RESET(a)
@@ -1812,6 +1832,7 @@ reject@28	reject@28	engine	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptio
 reject@29	reject@29	engine	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions!drop-6	ALTER TABLE a ALTER a RESET(a
 reject@31	reject@31	engine	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions!insert	ALTER TABLE a ALTER a RESET(a) zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions!swap	ALTER TABLE a ALWAYS a RESET(a)
+accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_RESET_reloptions+opt_column	ALTER TABLE a ALTER COLUMN a RESET(a)
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_storage	ALTER TABLE a ALTER a SET STORAGE a
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_storage!drop-1	ALTER TABLE a a SET STORAGE a
 reject@24	reject@24	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_storage!drop-2	ALTER TABLE a ALTER SET STORAGE a
@@ -1820,6 +1841,7 @@ reject@26	reject@26	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_sto
 reject@33	reject@33	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_storage!drop-5	ALTER TABLE a ALTER a SET STORAGE
 reject@36	reject@36	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_storage!insert	ALTER TABLE a ALTER a SET STORAGE a zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_storage!swap	ALTER TABLE a ALWAYS a SET STORAGE a
+accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_storage+opt_column	ALTER TABLE a ALTER COLUMN a SET STORAGE a
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_compression	ALTER TABLE a ALTER a SET COMPRESSION a
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_compression!drop-1	ALTER TABLE a a SET COMPRESSION a
 reject@24	reject@24	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_compression!drop-2	ALTER TABLE a ALTER SET COMPRESSION a
@@ -1827,6 +1849,7 @@ reject@22	reject@22	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_com
 reject@37	reject@37	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_compression!drop-5	ALTER TABLE a ALTER a SET COMPRESSION
 reject@40	reject@40	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_compression!insert	ALTER TABLE a ALTER a SET COMPRESSION a zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_compression!swap	ALTER TABLE a ALWAYS a SET COMPRESSION a
+accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_SET_column_compression+opt_column	ALTER TABLE a ALTER COLUMN a SET COMPRESSION a
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList	ALTER TABLE a ALTER a ADD GENERATED ALWAYS AS IDENTITY
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList!drop-1	ALTER TABLE a a ADD GENERATED ALWAYS AS IDENTITY
 reject@24	reject@24	engine	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList!drop-2	ALTER TABLE a ALTER ADD GENERATED ALWAYS AS IDENTITY
@@ -1837,18 +1860,21 @@ reject@43	reject@43	engine	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATE
 reject@45	reject@45	engine	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList!drop-7	ALTER TABLE a ALTER a ADD GENERATED ALWAYS AS
 reject@55	reject@55	engine	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList!insert	ALTER TABLE a ALTER a ADD GENERATED ALWAYS AS IDENTITY zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList!swap	ALTER TABLE a ALWAYS a ADD GENERATED ALWAYS AS IDENTITY
+accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_ADD_P_GENERATED_generated_when_AS_IDENTITY_P_OptParenthesizedSeqOptList+opt_column	ALTER TABLE a ALTER COLUMN a ADD GENERATED ALWAYS AS IDENTITY
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_identity_column_option_list	ALTER TABLE a ALTER a RESTART
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_identity_column_option_list!drop-1	ALTER TABLE a a RESTART
 reject@27	reject@27	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_identity_column_option_list!drop-2	ALTER TABLE a ALTER RESTART
 reject@21	reject@21	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_identity_column_option_list!drop-3	ALTER TABLE a ALTER a
 reject@30	reject@30	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_identity_column_option_list!insert	ALTER TABLE a ALTER a RESTART zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_identity_column_option_list!swap	ALTER TABLE a ALWAYS a RESTART
+accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_identity_column_option_list+opt_column	ALTER TABLE a ALTER COLUMN a RESTART
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P	ALTER TABLE a ALTER a DROP IDENTITY
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P!drop-1	ALTER TABLE a a DROP IDENTITY
 reject@25	reject@25	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P!drop-2	ALTER TABLE a ALTER DROP IDENTITY
 reject@22	reject@22	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P!drop-3	ALTER TABLE a ALTER a IDENTITY
 reject@36	reject@36	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P!insert	ALTER TABLE a ALTER a DROP IDENTITY zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P!swap	ALTER TABLE a ALWAYS a DROP IDENTITY
+accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P+opt_column	ALTER TABLE a ALTER COLUMN a DROP IDENTITY
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P_IF_P_EXISTS	ALTER TABLE a ALTER a DROP IDENTITY IF EXISTS
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P_IF_P_EXISTS!drop-1	ALTER TABLE a a DROP IDENTITY IF EXISTS
 reject@25	reject@25	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P_IF_P_EXISTS!drop-2	ALTER TABLE a ALTER DROP IDENTITY IF EXISTS
@@ -1857,6 +1883,7 @@ reject@36	reject@36	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_
 reject@38	reject@38	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P_IF_P_EXISTS!drop-6	ALTER TABLE a ALTER a DROP IDENTITY IF
 reject@46	reject@46	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P_IF_P_EXISTS!insert	ALTER TABLE a ALTER a DROP IDENTITY IF EXISTS zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P_IF_P_EXISTS!swap	ALTER TABLE a ALWAYS a DROP IDENTITY IF EXISTS
+accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_DROP_IDENTITY_P_IF_P_EXISTS+opt_column	ALTER TABLE a ALTER COLUMN a DROP IDENTITY IF EXISTS
 accept	accept	engine	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior	ALTER TABLE a DROP IF EXISTS a
 reject@14	reject@14	engine	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior!drop-1	ALTER TABLE a IF EXISTS a
 reject@26	reject@26	engine	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior!drop-2	ALTER TABLE a DROP EXISTS a
@@ -1864,7 +1891,10 @@ reject@22	reject@22	engine	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt
 reject@28	reject@28	engine	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior!drop-4	ALTER TABLE a DROP IF EXISTS
 reject@31	reject@31	engine	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior!insert	ALTER TABLE a DROP IF EXISTS a zzz
 reject@14	reject@14	engine	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior!swap	ALTER TABLE a EACH IF EXISTS a
+accept	accept	engine	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior+opt_column	ALTER TABLE a DROP COLUMN IF EXISTS a
+accept	accept	engine	alter_table_cmd/DROP_opt_column_IF_P_EXISTS_ColId_opt_drop_behavior+opt_drop_behavior	ALTER TABLE a DROP IF EXISTS a CASCADE
 accept	accept	engine	alter_table_cmd/DROP_opt_column_ColId_opt_drop_behavior	ALTER TABLE a DROP a
+accept	accept	engine	alter_table_cmd/DROP_opt_column_ColId_opt_drop_behavior+opt_drop_behavior	ALTER TABLE a DROP a CASCADE
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_opt_set_data_TYPE_P_Typename_opt_collate_clause_alter_using	ALTER TABLE a ALTER a TYPE a
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_opt_set_data_TYPE_P_Typename_opt_collate_clause_alter_using!drop-1	ALTER TABLE a a TYPE a
 reject@25	reject@25	engine	alter_table_cmd/ALTER_opt_column_ColId_opt_set_data_TYPE_P_Typename_opt_collate_clause_alter_using!drop-2	ALTER TABLE a ALTER TYPE a
@@ -1872,6 +1902,7 @@ reject@22	reject@22	engine	alter_table_cmd/ALTER_opt_column_ColId_opt_set_data_T
 reject@26	reject@26	engine	alter_table_cmd/ALTER_opt_column_ColId_opt_set_data_TYPE_P_Typename_opt_collate_clause_alter_using!drop-4	ALTER TABLE a ALTER a TYPE
 reject@29	reject@29	engine	alter_table_cmd/ALTER_opt_column_ColId_opt_set_data_TYPE_P_Typename_opt_collate_clause_alter_using!insert	ALTER TABLE a ALTER a TYPE a zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_opt_set_data_TYPE_P_Typename_opt_collate_clause_alter_using!swap	ALTER TABLE a ALWAYS a TYPE a
+accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_opt_set_data_TYPE_P_Typename_opt_collate_clause_alter_using+opt_column	ALTER TABLE a ALTER COLUMN a TYPE a
 accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options	ALTER TABLE a ALTER a OPTIONS(a 's')
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options!drop-1	ALTER TABLE a a OPTIONS(a 's')
 reject@27	reject@27	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options!drop-2	ALTER TABLE a ALTER OPTIONS(a 's')
@@ -1882,6 +1913,7 @@ reject@31	reject@31	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_
 reject@35	reject@35	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options!drop-7	ALTER TABLE a ALTER a OPTIONS(a 's'
 reject@37	reject@37	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options!insert	ALTER TABLE a ALTER a OPTIONS(a 's') zzz
 reject@14	reject@14	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options!swap	ALTER TABLE a ALWAYS a OPTIONS(a 's')
+accept	accept	engine	alter_table_cmd/ALTER_opt_column_ColId_alter_generic_options+opt_column	ALTER TABLE a ALTER COLUMN a OPTIONS(a 's')
 accept	accept	engine	alter_table_cmd/ADD_P_TableConstraint	ALTER TABLE a ADD CHECK(a)
 reject@14	reject@14	engine	alter_table_cmd/ADD_P_TableConstraint!drop-1	ALTER TABLE a CHECK(a)
 reject@17	reject@17	engine	alter_table_cmd/ADD_P_TableConstraint!drop-2	ALTER TABLE a ADD(a)
@@ -1907,10 +1939,12 @@ reject@33	reject@33	engine	alter_table_cmd/DROP_CONSTRAINT_IF_P_EXISTS_name_opt_
 reject@39	reject@39	engine	alter_table_cmd/DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior!drop-5	ALTER TABLE a DROP CONSTRAINT IF EXISTS
 reject@42	reject@42	engine	alter_table_cmd/DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior!insert	ALTER TABLE a DROP CONSTRAINT IF EXISTS a zzz
 reject@14	reject@14	engine	alter_table_cmd/DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior!swap	ALTER TABLE a EACH CONSTRAINT IF EXISTS a
+accept	accept	engine	alter_table_cmd/DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior+opt_drop_behavior	ALTER TABLE a DROP CONSTRAINT IF EXISTS a CASCADE
 accept	accept	engine	alter_table_cmd/DROP_CONSTRAINT_name_opt_drop_behavior	ALTER TABLE a DROP CONSTRAINT a
 reject@29	reject@29	engine	alter_table_cmd/DROP_CONSTRAINT_name_opt_drop_behavior!drop-3	ALTER TABLE a DROP CONSTRAINT
 reject@32	reject@32	engine	alter_table_cmd/DROP_CONSTRAINT_name_opt_drop_behavior!insert	ALTER TABLE a DROP CONSTRAINT a zzz
 reject@14	reject@14	engine	alter_table_cmd/DROP_CONSTRAINT_name_opt_drop_behavior!swap	ALTER TABLE a EACH CONSTRAINT a
+accept	accept	engine	alter_table_cmd/DROP_CONSTRAINT_name_opt_drop_behavior+opt_drop_behavior	ALTER TABLE a DROP CONSTRAINT a CASCADE
 accept	accept	engine	alter_table_cmd/SET_WITHOUT_OIDS	ALTER TABLE a SET WITHOUT OIDS
 reject@14	reject@14	engine	alter_table_cmd/SET_WITHOUT_OIDS!drop-1	ALTER TABLE a WITHOUT OIDS
 reject@18	reject@18	engine	alter_table_cmd/SET_WITHOUT_OIDS!drop-2	ALTER TABLE a SET OIDS
@@ -2166,6 +2200,7 @@ accept	accept	engine	alter_identity_column_option/RESTART_opt_with_NumericOnly	A
 reject@22	reject@22	engine	alter_identity_column_option/RESTART_opt_with_NumericOnly!drop-1	ALTER TABLE a ALTER a 1.5
 reject@34	reject@34	engine	alter_identity_column_option/RESTART_opt_with_NumericOnly!insert	ALTER TABLE a ALTER a RESTART 1.5 zzz
 reject@22	reject@22	engine	alter_identity_column_option/RESTART_opt_with_NumericOnly!swap	ALTER TABLE a ALTER a RESTRICT 1.5
+accept	accept	engine	alter_identity_column_option/RESTART_opt_with_NumericOnly+opt_with	ALTER TABLE a ALTER a RESTART WITH 1.5
 accept	accept	engine	alter_identity_column_option/SET_SeqOptElem	ALTER TABLE a ALTER a SET CYCLE
 reject@22	reject@22	engine	alter_identity_column_option/SET_SeqOptElem!drop-1	ALTER TABLE a ALTER a CYCLE
 reject@25	reject@25	engine	alter_identity_column_option/SET_SeqOptElem!drop-2	ALTER TABLE a ALTER a SET
@@ -2250,6 +2285,7 @@ reject@17	reject@17	engine	alter_type_cmd/ADD_P_ATTRIBUTE_TableFuncElement_opt_d
 reject@28	reject@28	engine	alter_type_cmd/ADD_P_ATTRIBUTE_TableFuncElement_opt_drop_behavior!drop-3	ALTER TYPE a ADD ATTRIBUTE a
 reject@31	reject@31	engine	alter_type_cmd/ADD_P_ATTRIBUTE_TableFuncElement_opt_drop_behavior!insert	ALTER TYPE a ADD ATTRIBUTE a a zzz
 reject@13	reject@13	engine	alter_type_cmd/ADD_P_ATTRIBUTE_TableFuncElement_opt_drop_behavior!swap	ALTER TYPE a ADMIN ATTRIBUTE a a
+accept	accept	engine	alter_type_cmd/ADD_P_ATTRIBUTE_TableFuncElement_opt_drop_behavior+opt_drop_behavior	ALTER TYPE a ADD ATTRIBUTE a a CASCADE
 accept	accept	engine	alter_type_cmd/DROP_ATTRIBUTE_IF_P_EXISTS_ColId_opt_drop_behavior	ALTER TYPE a DROP ATTRIBUTE IF EXISTS a
 reject@13	reject@13	engine	alter_type_cmd/DROP_ATTRIBUTE_IF_P_EXISTS_ColId_opt_drop_behavior!drop-1	ALTER TYPE a ATTRIBUTE IF EXISTS a
 reject@18	reject@18	engine	alter_type_cmd/DROP_ATTRIBUTE_IF_P_EXISTS_ColId_opt_drop_behavior!drop-2	ALTER TYPE a DROP IF EXISTS a
@@ -2258,7 +2294,9 @@ reject@31	reject@31	engine	alter_type_cmd/DROP_ATTRIBUTE_IF_P_EXISTS_ColId_opt_d
 reject@37	reject@37	engine	alter_type_cmd/DROP_ATTRIBUTE_IF_P_EXISTS_ColId_opt_drop_behavior!drop-5	ALTER TYPE a DROP ATTRIBUTE IF EXISTS
 reject@40	reject@40	engine	alter_type_cmd/DROP_ATTRIBUTE_IF_P_EXISTS_ColId_opt_drop_behavior!insert	ALTER TYPE a DROP ATTRIBUTE IF EXISTS a zzz
 reject@13	reject@13	engine	alter_type_cmd/DROP_ATTRIBUTE_IF_P_EXISTS_ColId_opt_drop_behavior!swap	ALTER TYPE a EACH ATTRIBUTE IF EXISTS a
+accept	accept	engine	alter_type_cmd/DROP_ATTRIBUTE_IF_P_EXISTS_ColId_opt_drop_behavior+opt_drop_behavior	ALTER TYPE a DROP ATTRIBUTE IF EXISTS a CASCADE
 accept	accept	engine	alter_type_cmd/DROP_ATTRIBUTE_ColId_opt_drop_behavior	ALTER TYPE a DROP ATTRIBUTE a
+accept	accept	engine	alter_type_cmd/DROP_ATTRIBUTE_ColId_opt_drop_behavior+opt_drop_behavior	ALTER TYPE a DROP ATTRIBUTE a CASCADE
 accept	accept	engine	alter_type_cmd/ALTER_ATTRIBUTE_ColId_opt_set_data_TYPE_P_Typename_opt_collate_clause_opt_drop_behavior	ALTER TYPE a ALTER ATTRIBUTE a TYPE a
 reject@13	reject@13	engine	alter_type_cmd/ALTER_ATTRIBUTE_ColId_opt_set_data_TYPE_P_Typename_opt_collate_clause_opt_drop_behavior!drop-1	ALTER TYPE a ATTRIBUTE a TYPE a
 reject@19	reject@19	engine	alter_type_cmd/ALTER_ATTRIBUTE_ColId_opt_set_data_TYPE_P_Typename_opt_collate_clause_opt_drop_behavior!drop-2	ALTER TYPE a ALTER a TYPE a
@@ -2267,11 +2305,13 @@ reject@31	reject@31	engine	alter_type_cmd/ALTER_ATTRIBUTE_ColId_opt_set_data_TYP
 reject@35	reject@35	engine	alter_type_cmd/ALTER_ATTRIBUTE_ColId_opt_set_data_TYPE_P_Typename_opt_collate_clause_opt_drop_behavior!drop-5	ALTER TYPE a ALTER ATTRIBUTE a TYPE
 reject@38	reject@38	engine	alter_type_cmd/ALTER_ATTRIBUTE_ColId_opt_set_data_TYPE_P_Typename_opt_collate_clause_opt_drop_behavior!insert	ALTER TYPE a ALTER ATTRIBUTE a TYPE a zzz
 reject@13	reject@13	engine	alter_type_cmd/ALTER_ATTRIBUTE_ColId_opt_set_data_TYPE_P_Typename_opt_collate_clause_opt_drop_behavior!swap	ALTER TYPE a ALWAYS ATTRIBUTE a TYPE a
+accept	accept	engine	alter_type_cmd/ALTER_ATTRIBUTE_ColId_opt_set_data_TYPE_P_Typename_opt_collate_clause_opt_drop_behavior+opt_drop_behavior	ALTER TYPE a ALTER ATTRIBUTE a TYPE a CASCADE
 accept	accept	engine	ClosePortalStmt/CLOSE_cursor_name	CLOSE a
 accept	accept	engine	ClosePortalStmt/CLOSE_ALL	CLOSE ALL
 reject@10	reject@10	engine	ClosePortalStmt/CLOSE_ALL!insert	CLOSE ALL zzz
 reject@8	reject@8	engine	ClosePortalStmt/CLOSE_ALL!swap	CLUSTER ALL
 accept	accept	engine	CopyStmt/COPY_opt_binary_qualified_name_opt_column_list_copy_from_opt_program_copy_file_name_copy_delimiter_opt_with_copy_options_where_clause	COPY a FROM 's'
+accept	accept	engine	CopyStmt/COPY_opt_binary_qualified_name_opt_column_list_copy_from_opt_program_copy_file_name_copy_delimiter_opt_with_copy_options_where_clause+opt_with	COPY a FROM 's' WITH
 accept	accept	engine	CopyStmt/COPY_(_PreparableStmt_)_TO_opt_program_copy_file_name_opt_with_copy_options	COPY(SELECT) TO 's'
 reject@9	reject@9	engine	CopyStmt/COPY_(_PreparableStmt_)_TO_opt_program_copy_file_name_opt_with_copy_options!drop-1	(SELECT) TO 's'
 reject@5	reject@5	engine	CopyStmt/COPY_(_PreparableStmt_)_TO_opt_program_copy_file_name_opt_with_copy_options!drop-2	COPY SELECT) TO 's'
@@ -2281,6 +2321,7 @@ reject@13	reject@13	engine	CopyStmt/COPY_(_PreparableStmt_)_TO_opt_program_copy_
 reject@15	reject@15	engine	CopyStmt/COPY_(_PreparableStmt_)_TO_opt_program_copy_file_name_opt_with_copy_options!drop-6	COPY(SELECT) TO
 reject@20	reject@20	engine	CopyStmt/COPY_(_PreparableStmt_)_TO_opt_program_copy_file_name_opt_with_copy_options!insert	COPY(SELECT) TO 's' zzz
 reject@0	reject@0	engine	CopyStmt/COPY_(_PreparableStmt_)_TO_opt_program_copy_file_name_opt_with_copy_options!swap	COST(SELECT) TO 's'
+accept	accept	engine	CopyStmt/COPY_(_PreparableStmt_)_TO_opt_program_copy_file_name_opt_with_copy_options+opt_with	COPY(SELECT) TO 's' WITH
 accept	accept	engine	copy_from/FROM	COPY a FROM 's'
 reject@6	reject@6	engine	copy_from/FROM!truncate	COPY a
 reject@12	reject@12	engine	copy_from/FROM!insert	COPY a FROM zzz 's'
@@ -2316,10 +2357,12 @@ accept	accept	engine	copy_opt_item/DELIMITER_opt_as_Sconst	COPY a FROM 's' DELIM
 reject@16	reject@16	engine	copy_opt_item/DELIMITER_opt_as_Sconst!drop-1	COPY a FROM 's' 's'
 reject@25	reject@25	engine	copy_opt_item/DELIMITER_opt_as_Sconst!drop-2	COPY a FROM 's' DELIMITER
 reject@30	reject@30	engine	copy_opt_item/DELIMITER_opt_as_Sconst!insert	COPY a FROM 's' DELIMITER 's' zzz
+accept	accept	engine	copy_opt_item/DELIMITER_opt_as_Sconst+opt_as	COPY a FROM 's' DELIMITER AS 's'
 accept	accept	engine	copy_opt_item/NULL_P_opt_as_Sconst	COPY a FROM 's' NULL 's'
 reject@20	reject@20	engine	copy_opt_item/NULL_P_opt_as_Sconst!drop-2	COPY a FROM 's' NULL
 reject@25	reject@25	engine	copy_opt_item/NULL_P_opt_as_Sconst!insert	COPY a FROM 's' NULL 's' zzz
 reject@16	reject@16	engine	copy_opt_item/NULL_P_opt_as_Sconst!swap	COPY a FROM 's' NULLIF 's'
+accept	accept	engine	copy_opt_item/NULL_P_opt_as_Sconst+opt_as	COPY a FROM 's' NULL AS 's'
 accept	accept	engine	copy_opt_item/CSV	COPY a FROM 's' CSV
 reject@20	reject@20	engine	copy_opt_item/CSV!insert	COPY a FROM 's' CSV zzz
 reject@16	reject@16	engine	copy_opt_item/CSV!swap	COPY a FROM 's' CUBE
@@ -2330,10 +2373,12 @@ accept	accept	engine	copy_opt_item/QUOTE_opt_as_Sconst	COPY a FROM 's' QUOTE 's'
 reject@21	reject@21	engine	copy_opt_item/QUOTE_opt_as_Sconst!drop-2	COPY a FROM 's' QUOTE
 reject@26	reject@26	engine	copy_opt_item/QUOTE_opt_as_Sconst!insert	COPY a FROM 's' QUOTE 's' zzz
 reject@16	reject@16	engine	copy_opt_item/QUOTE_opt_as_Sconst!swap	COPY a FROM 's' QUOTES 's'
+accept	accept	engine	copy_opt_item/QUOTE_opt_as_Sconst+opt_as	COPY a FROM 's' QUOTE AS 's'
 accept	accept	engine	copy_opt_item/ESCAPE_opt_as_Sconst	COPY a FROM 's' ESCAPE 's'
 reject@22	reject@22	engine	copy_opt_item/ESCAPE_opt_as_Sconst!drop-2	COPY a FROM 's' ESCAPE
 reject@27	reject@27	engine	copy_opt_item/ESCAPE_opt_as_Sconst!insert	COPY a FROM 's' ESCAPE 's' zzz
 reject@16	reject@16	engine	copy_opt_item/ESCAPE_opt_as_Sconst!swap	COPY a FROM 's' EVENT 's'
+accept	accept	engine	copy_opt_item/ESCAPE_opt_as_Sconst+opt_as	COPY a FROM 's' ESCAPE AS 's'
 accept	accept	engine	copy_opt_item/FORCE_QUOTE_columnList	COPY a FROM 's' FORCE QUOTE a
 reject@22	reject@22	engine	copy_opt_item/FORCE_QUOTE_columnList!drop-1	COPY a FROM 's' QUOTE a
 reject@22	reject@22	engine	copy_opt_item/FORCE_QUOTE_columnList!drop-2	COPY a FROM 's' FORCE a
@@ -2425,6 +2470,7 @@ reject@29	reject@29	engine	copy_generic_opt_arg_list/copy_generic_opt_arg_list_,
 accept	accept	engine	copy_generic_opt_arg_list/copy_generic_opt_arg_list_,_copy_generic_opt_arg_list_item!swap	COPY a FROM 's'(a(TRUNCATE, TRUE))
 accept	accept	engine	copy_generic_opt_arg_list_item/opt_boolean_or_string	COPY a FROM 's'(a(TRUE))
 accept	accept	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a()
+accept	accept	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace+OptTemp	CREATE TEMPORARY TABLE a()
 accept	accept	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a()
 reject@9	reject@9	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-1	TABLE IF NOT EXISTS a()
 reject@7	reject@7	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-2	CREATE IF NOT EXISTS a()
@@ -2436,6 +2482,7 @@ reject@28	reject@28	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_quali
 reject@29	reject@29	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-8	CREATE TABLE IF NOT EXISTS a(
 reject@31	reject@31	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!insert	CREATE TABLE IF NOT EXISTS a() zzz
 reject@0	reject@0	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!swap	CROSS TABLE IF NOT EXISTS a()
+accept	accept	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_(_OptTableElementList_)_OptInherit_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace+OptTemp	CREATE TEMPORARY TABLE IF NOT EXISTS a()
 accept	accept	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a OF a
 reject@8	reject@8	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-1	TABLE a OF a
 reject@7	reject@7	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-2	CREATE a OF a
@@ -2444,6 +2491,7 @@ reject@15	reject@15	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any
 reject@17	reject@17	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-5	CREATE TABLE a OF
 reject@20	reject@20	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!insert	CREATE TABLE a OF a zzz
 reject@0	reject@0	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!swap	CROSS TABLE a OF a
+accept	accept	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace+OptTemp	CREATE TEMPORARY TABLE a OF a
 accept	accept	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a OF a
 reject@9	reject@9	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-1	TABLE IF NOT EXISTS a OF a
 reject@7	reject@7	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-2	CREATE IF NOT EXISTS a OF a
@@ -2455,6 +2503,7 @@ reject@29	reject@29	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_quali
 reject@31	reject@31	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-8	CREATE TABLE IF NOT EXISTS a OF
 reject@34	reject@34	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!insert	CREATE TABLE IF NOT EXISTS a OF a zzz
 reject@0	reject@0	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!swap	CROSS TABLE IF NOT EXISTS a OF a
+accept	accept	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_OF_any_name_OptTypedTableElementList_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace+OptTemp	CREATE TEMPORARY TABLE IF NOT EXISTS a OF a
 accept	accept	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a PARTITION OF a DEFAULT
 reject@8	reject@8	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-1	TABLE a PARTITION OF a DEFAULT
 reject@7	reject@7	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-2	CREATE a PARTITION OF a DEFAULT
@@ -2465,6 +2514,7 @@ reject@28	reject@28	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTIT
 reject@29	reject@29	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-7	CREATE TABLE a PARTITION OF a
 reject@38	reject@38	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!insert	CREATE TABLE a PARTITION OF a DEFAULT zzz
 reject@0	reject@0	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!swap	CROSS TABLE a PARTITION OF a DEFAULT
+accept	accept	engine	CreateStmt/CREATE_OptTemp_TABLE_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace+OptTemp	CREATE TEMPORARY TABLE a PARTITION OF a DEFAULT
 accept	accept	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE IF NOT EXISTS a PARTITION OF a DEFAULT
 reject@9	reject@9	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-1	TABLE IF NOT EXISTS a PARTITION OF a DEFAULT
 reject@7	reject@7	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-2	CREATE IF NOT EXISTS a PARTITION OF a DEFAULT
@@ -2478,6 +2528,7 @@ reject@42	reject@42	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_quali
 reject@43	reject@43	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!drop-10	CREATE TABLE IF NOT EXISTS a PARTITION OF a
 reject@52	reject@52	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!insert	CREATE TABLE IF NOT EXISTS a PARTITION OF a DEFAULT zzz
 reject@0	reject@0	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!swap	CROSS TABLE IF NOT EXISTS a PARTITION OF a DEFAULT
+accept	accept	engine	CreateStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_qualified_name_PARTITION_OF_qualified_name_OptTypedTableElementList_PartitionBoundSpec_OptPartitionSpec_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace+OptTemp	CREATE TEMPORARY TABLE IF NOT EXISTS a PARTITION OF a DEFAULT
 accept	accept	engine	OptTemp/TEMPORARY	CREATE TEMPORARY SEQUENCE a
 reject@6	reject@6	engine	OptTemp/TEMPORARY!truncate	CREATE
 reject@17	reject@17	engine	OptTemp/TEMPORARY!insert	CREATE TEMPORARY zzz SEQUENCE a
@@ -2740,6 +2791,9 @@ reject@25	reject@25	engine	ConstraintElem/UNIQUE_opt_unique_null_treatment_(_col
 reject@26	reject@26	engine	ConstraintElem/UNIQUE_opt_unique_null_treatment_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec!drop-4	ALTER TABLE a ADD UNIQUE(a
 reject@28	reject@28	engine	ConstraintElem/UNIQUE_opt_unique_null_treatment_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec!insert	ALTER TABLE a ADD UNIQUE(a) zzz
 reject@25	reject@25	engine	ConstraintElem/UNIQUE_opt_unique_null_treatment_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec!swap	ALTER TABLE a ADD UNKNOWN(a)
+accept	accept	engine	ConstraintElem/UNIQUE_opt_unique_null_treatment_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec+opt_unique_null_treatment	ALTER TABLE a ADD UNIQUE NULLS DISTINCT(a)
+reject@25	reject@25	engine	ConstraintElem/UNIQUE_opt_unique_null_treatment_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec+opt_unique_null_treatment!drop-2	ALTER TABLE a ADD UNIQUE DISTINCT(a)
+reject@30	reject@30	engine	ConstraintElem/UNIQUE_opt_unique_null_treatment_(_columnList_)_opt_c_include_opt_definition_OptConsTableSpace_ConstraintAttributeSpec+opt_unique_null_treatment!drop-3	ALTER TABLE a ADD UNIQUE NULLS(a)
 accept	accept	engine	ConstraintElem/UNIQUE_ExistingIndex_ConstraintAttributeSpec	ALTER TABLE a ADD UNIQUE USING INDEX a
 reject@18	reject@18	engine	ConstraintElem/UNIQUE_ExistingIndex_ConstraintAttributeSpec!drop-1	ALTER TABLE a ADD USING INDEX a
 reject@25	reject@25	engine	ConstraintElem/UNIQUE_ExistingIndex_ConstraintAttributeSpec!drop-2	ALTER TABLE a ADD UNIQUE INDEX a
@@ -3079,6 +3133,10 @@ reject@43	reject@43	engine	AlterStatsStmt/ALTER_STATISTICS_IF_P_EXISTS_any_name_
 reject@46	reject@46	engine	AlterStatsStmt/ALTER_STATISTICS_IF_P_EXISTS_any_name_SET_STATISTICS_set_statistics_value!insert	ALTER STATISTICS IF EXISTS a SET STATISTICS 1 zzz
 reject@0	reject@0	engine	AlterStatsStmt/ALTER_STATISTICS_IF_P_EXISTS_any_name_SET_STATISTICS_set_statistics_value!swap	ALWAYS STATISTICS IF EXISTS a SET STATISTICS 1
 accept	accept	engine	CreateAsStmt/CREATE_OptTemp_TABLE_create_as_target_AS_SelectStmt_opt_with_data	CREATE TABLE a AS SELECT
+accept	accept	engine	CreateAsStmt/CREATE_OptTemp_TABLE_create_as_target_AS_SelectStmt_opt_with_data+OptTemp	CREATE TEMPORARY TABLE a AS SELECT
+accept	accept	engine	CreateAsStmt/CREATE_OptTemp_TABLE_create_as_target_AS_SelectStmt_opt_with_data+opt_with_data	CREATE TABLE a AS SELECT WITH DATA
+accept	accept	engine	CreateAsStmt/CREATE_OptTemp_TABLE_create_as_target_AS_SelectStmt_opt_with_data+opt_with_data!drop-6	CREATE TABLE a AS SELECT DATA
+reject@29	reject@29	engine	CreateAsStmt/CREATE_OptTemp_TABLE_create_as_target_AS_SelectStmt_opt_with_data+opt_with_data!drop-7	CREATE TABLE a AS SELECT WITH
 accept	accept	engine	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data	CREATE TABLE IF NOT EXISTS a AS SELECT
 reject@9	reject@9	engine	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!drop-1	TABLE IF NOT EXISTS a AS SELECT
 reject@7	reject@7	engine	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!drop-2	CREATE IF NOT EXISTS a AS SELECT
@@ -3090,6 +3148,10 @@ reject@29	reject@29	engine	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_cre
 reject@31	reject@31	engine	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!drop-8	CREATE TABLE IF NOT EXISTS a AS
 accept	accept	engine	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!insert	CREATE TABLE IF NOT EXISTS a AS SELECT zzz
 reject@0	reject@0	engine	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!swap	CROSS TABLE IF NOT EXISTS a AS SELECT
+accept	accept	engine	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data+OptTemp	CREATE TEMPORARY TABLE IF NOT EXISTS a AS SELECT
+accept	accept	engine	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data+opt_with_data	CREATE TABLE IF NOT EXISTS a AS SELECT WITH DATA
+accept	accept	engine	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data+opt_with_data!drop-9	CREATE TABLE IF NOT EXISTS a AS SELECT DATA
+reject@43	reject@43	engine	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data+opt_with_data!drop-10	CREATE TABLE IF NOT EXISTS a AS SELECT WITH
 accept	accept	engine	create_as_target/qualified_name_opt_column_list_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace	CREATE TABLE a AS SELECT
 reject@12	reject@12	engine	create_as_target/qualified_name_opt_column_list_table_access_method_clause_OptWith_OnCommitOption_OptTableSpace!truncate	CREATE TABLE
 accept	accept	engine	opt_with_data/WITH_DATA_P	REFRESH MATERIALIZED VIEW a WITH DATA
@@ -3104,6 +3166,9 @@ reject@41	reject@41	engine	opt_with_data/WITH_NO_DATA_P!insert	REFRESH MATERIALI
 reject@28	reject@28	engine	opt_with_data/WITH_NO_DATA_P!swap	REFRESH MATERIALIZED VIEW a WITHIN NO DATA
 accept	accept	engine	opt_with_data/%empty	REFRESH MATERIALIZED VIEW a
 accept	accept	engine	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_create_mv_target_AS_SelectStmt_opt_with_data	CREATE MATERIALIZED VIEW a AS SELECT
+accept	accept	engine	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_create_mv_target_AS_SelectStmt_opt_with_data+opt_with_data	CREATE MATERIALIZED VIEW a AS SELECT WITH DATA
+accept	accept	engine	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_create_mv_target_AS_SelectStmt_opt_with_data+opt_with_data!drop-7	CREATE MATERIALIZED VIEW a AS SELECT DATA
+reject@41	reject@41	engine	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_create_mv_target_AS_SelectStmt_opt_with_data+opt_with_data!drop-8	CREATE MATERIALIZED VIEW a AS SELECT WITH
 accept	accept	engine	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT
 reject@0	reject@0	engine	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data!drop-1	MATERIALIZED VIEW IF NOT EXISTS a AS SELECT
 reject@15	reject@15	engine	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data!drop-2	CREATE VIEW IF NOT EXISTS a AS SELECT
@@ -3116,6 +3181,10 @@ reject@41	reject@41	engine	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_I
 reject@43	reject@43	engine	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data!drop-9	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS
 accept	accept	engine	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data!insert	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT zzz
 reject@0	reject@0	engine	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data!swap	CROSS MATERIALIZED VIEW IF NOT EXISTS a AS SELECT
+accept	accept	engine	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data+OptNoLog	CREATE UNLOGGED MATERIALIZED VIEW IF NOT EXISTS a AS SELECT
+accept	accept	engine	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data+opt_with_data	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT WITH DATA
+accept	accept	engine	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data+opt_with_data!drop-10	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT DATA
+reject@55	reject@55	engine	CreateMatViewStmt/CREATE_OptNoLog_MATERIALIZED_VIEW_IF_P_NOT_EXISTS_create_mv_target_AS_SelectStmt_opt_with_data+opt_with_data!drop-11	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT WITH
 accept	accept	engine	create_mv_target/qualified_name_opt_column_list_table_access_method_clause_opt_reloptions_OptTableSpace	CREATE MATERIALIZED VIEW a AS SELECT
 reject@24	reject@24	engine	create_mv_target/qualified_name_opt_column_list_table_access_method_clause_opt_reloptions_OptTableSpace!truncate	CREATE MATERIALIZED VIEW
 reject@27	reject@27	engine	create_mv_target/qualified_name_opt_column_list_table_access_method_clause_opt_reloptions_OptTableSpace!insert	CREATE MATERIALIZED VIEW a zzz AS SELECT
@@ -3125,6 +3194,7 @@ reject@7	reject@7	engine	OptNoLog/UNLOGGED!swap	CREATE UNTIL MATERIALIZED VIEW a
 accept	accept	engine	OptNoLog/%empty	CREATE MATERIALIZED VIEW a AS SELECT
 reject@7	reject@7	engine	OptNoLog/%empty!insert	CREATE zzz MATERIALIZED VIEW a AS SELECT
 accept	accept	engine	RefreshMatViewStmt/REFRESH_MATERIALIZED_VIEW_opt_concurrently_qualified_name_opt_with_data	REFRESH MATERIALIZED VIEW a
+accept	accept	engine	RefreshMatViewStmt/REFRESH_MATERIALIZED_VIEW_opt_concurrently_qualified_name_opt_with_data+opt_concurrently	REFRESH MATERIALIZED VIEW CONCURRENTLY a
 accept	accept	engine	CreateSeqStmt/CREATE_OptTemp_SEQUENCE_qualified_name_OptSeqOptList	CREATE SEQUENCE a
 accept	accept	engine	CreateSeqStmt/CREATE_OptTemp_SEQUENCE_IF_P_NOT_EXISTS_qualified_name_OptSeqOptList	CREATE SEQUENCE IF NOT EXISTS a
 reject@0	reject@0	engine	CreateSeqStmt/CREATE_OptTemp_SEQUENCE_IF_P_NOT_EXISTS_qualified_name_OptSeqOptList!drop-1	SEQUENCE IF NOT EXISTS a
@@ -3134,6 +3204,7 @@ reject@23	reject@23	engine	CreateSeqStmt/CREATE_OptTemp_SEQUENCE_IF_P_NOT_EXISTS
 reject@29	reject@29	engine	CreateSeqStmt/CREATE_OptTemp_SEQUENCE_IF_P_NOT_EXISTS_qualified_name_OptSeqOptList!drop-6	CREATE SEQUENCE IF NOT EXISTS
 reject@32	reject@32	engine	CreateSeqStmt/CREATE_OptTemp_SEQUENCE_IF_P_NOT_EXISTS_qualified_name_OptSeqOptList!insert	CREATE SEQUENCE IF NOT EXISTS a zzz
 reject@0	reject@0	engine	CreateSeqStmt/CREATE_OptTemp_SEQUENCE_IF_P_NOT_EXISTS_qualified_name_OptSeqOptList!swap	CROSS SEQUENCE IF NOT EXISTS a
+accept	accept	engine	CreateSeqStmt/CREATE_OptTemp_SEQUENCE_IF_P_NOT_EXISTS_qualified_name_OptSeqOptList+OptTemp	CREATE TEMPORARY SEQUENCE IF NOT EXISTS a
 accept	accept	engine	AlterSeqStmt/ALTER_SEQUENCE_qualified_name_SeqOptList	ALTER SEQUENCE a CYCLE
 accept	accept	engine	AlterSeqStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SeqOptList	ALTER SEQUENCE IF EXISTS a CYCLE
 reject@0	reject@0	engine	AlterSeqStmt/ALTER_SEQUENCE_IF_P_EXISTS_qualified_name_SeqOptList!drop-1	SEQUENCE IF EXISTS a CYCLE
@@ -3211,12 +3282,14 @@ accept	accept	engine	SeqOptElem/START_opt_with_NumericOnly	ALTER SEQUENCE a STAR
 reject@22	reject@22	engine	SeqOptElem/START_opt_with_NumericOnly!drop-2	ALTER SEQUENCE a START
 reject@27	reject@27	engine	SeqOptElem/START_opt_with_NumericOnly!insert	ALTER SEQUENCE a START 1.5 zzz
 reject@17	reject@17	engine	SeqOptElem/START_opt_with_NumericOnly!swap	ALTER SEQUENCE a STATEMENT 1.5
+accept	accept	engine	SeqOptElem/START_opt_with_NumericOnly+opt_with	ALTER SEQUENCE a START WITH 1.5
 accept	accept	engine	SeqOptElem/RESTART	ALTER SEQUENCE a RESTART
 reject@25	reject@25	engine	SeqOptElem/RESTART!insert	ALTER SEQUENCE a RESTART zzz
 reject@17	reject@17	engine	SeqOptElem/RESTART!swap	ALTER SEQUENCE a RESTRICT
 accept	accept	engine	SeqOptElem/RESTART_opt_with_NumericOnly	ALTER SEQUENCE a RESTART 1.5
 reject@29	reject@29	engine	SeqOptElem/RESTART_opt_with_NumericOnly!insert	ALTER SEQUENCE a RESTART 1.5 zzz
 reject@17	reject@17	engine	SeqOptElem/RESTART_opt_with_NumericOnly!swap	ALTER SEQUENCE a RESTRICT 1.5
+accept	accept	engine	SeqOptElem/RESTART_opt_with_NumericOnly+opt_with	ALTER SEQUENCE a RESTART WITH 1.5
 accept	accept	engine	SeqOptElem/UNLOGGED	ALTER SEQUENCE a UNLOGGED
 reject@26	reject@26	engine	SeqOptElem/UNLOGGED!insert	ALTER SEQUENCE a UNLOGGED zzz
 reject@17	reject@17	engine	SeqOptElem/UNLOGGED!swap	ALTER SEQUENCE a UNTIL
@@ -3253,6 +3326,10 @@ reject@18	reject@18	engine	CreatePLangStmt/CREATE_opt_or_replace_opt_trusted_opt
 reject@25	reject@25	engine	CreatePLangStmt/CREATE_opt_or_replace_opt_trusted_opt_procedural_LANGUAGE_name_HANDLER_handler_name_opt_inline_handler_opt_validator!drop-5	CREATE LANGUAGE a HANDLER
 reject@28	reject@28	engine	CreatePLangStmt/CREATE_opt_or_replace_opt_trusted_opt_procedural_LANGUAGE_name_HANDLER_handler_name_opt_inline_handler_opt_validator!insert	CREATE LANGUAGE a HANDLER a zzz
 reject@0	reject@0	engine	CreatePLangStmt/CREATE_opt_or_replace_opt_trusted_opt_procedural_LANGUAGE_name_HANDLER_handler_name_opt_inline_handler_opt_validator!swap	CROSS LANGUAGE a HANDLER a
+accept	accept	engine	CreatePLangStmt/CREATE_opt_or_replace_opt_trusted_opt_procedural_LANGUAGE_name_HANDLER_handler_name_opt_inline_handler_opt_validator+opt_or_replace	CREATE OR REPLACE LANGUAGE a HANDLER a
+reject@7	reject@7	engine	CreatePLangStmt/CREATE_opt_or_replace_opt_trusted_opt_procedural_LANGUAGE_name_HANDLER_handler_name_opt_inline_handler_opt_validator+opt_or_replace!drop-2	CREATE REPLACE LANGUAGE a HANDLER a
+reject@10	reject@10	engine	CreatePLangStmt/CREATE_opt_or_replace_opt_trusted_opt_procedural_LANGUAGE_name_HANDLER_handler_name_opt_inline_handler_opt_validator+opt_or_replace!drop-3	CREATE OR LANGUAGE a HANDLER a
+accept	accept	engine	CreatePLangStmt/CREATE_opt_or_replace_opt_trusted_opt_procedural_LANGUAGE_name_HANDLER_handler_name_opt_inline_handler_opt_validator+opt_procedural	CREATE PROCEDURAL LANGUAGE a HANDLER a
 accept	accept	engine	opt_trusted/TRUSTED	CREATE TRUSTED LANGUAGE a
 reject@15	reject@15	engine	opt_trusted/TRUSTED!insert	CREATE TRUSTED zzz LANGUAGE a
 reject@21	reject@21	engine	opt_trusted/TRUSTED!swap	CREATE TYPE LANGUAGE a
@@ -3301,6 +3378,7 @@ reject@25	reject@25	engine	DropTableSpaceStmt/DROP_TABLESPACE_IF_P_EXISTS_name!d
 reject@28	reject@28	engine	DropTableSpaceStmt/DROP_TABLESPACE_IF_P_EXISTS_name!insert	DROP TABLESPACE IF EXISTS a zzz
 reject@0	reject@0	engine	DropTableSpaceStmt/DROP_TABLESPACE_IF_P_EXISTS_name!swap	EACH TABLESPACE IF EXISTS a
 accept	accept	engine	CreateExtensionStmt/CREATE_EXTENSION_name_opt_with_create_extension_opt_list	CREATE EXTENSION a
+accept	accept	engine	CreateExtensionStmt/CREATE_EXTENSION_name_opt_with_create_extension_opt_list+opt_with	CREATE EXTENSION a WITH
 accept	accept	engine	CreateExtensionStmt/CREATE_EXTENSION_IF_P_NOT_EXISTS_name_opt_with_create_extension_opt_list	CREATE EXTENSION IF NOT EXISTS a
 reject@0	reject@0	engine	CreateExtensionStmt/CREATE_EXTENSION_IF_P_NOT_EXISTS_name_opt_with_create_extension_opt_list!drop-1	EXTENSION IF NOT EXISTS a
 reject@17	reject@17	engine	CreateExtensionStmt/CREATE_EXTENSION_IF_P_NOT_EXISTS_name_opt_with_create_extension_opt_list!drop-3	CREATE EXTENSION NOT EXISTS a
@@ -3309,6 +3387,7 @@ reject@24	reject@24	engine	CreateExtensionStmt/CREATE_EXTENSION_IF_P_NOT_EXISTS_
 reject@30	reject@30	engine	CreateExtensionStmt/CREATE_EXTENSION_IF_P_NOT_EXISTS_name_opt_with_create_extension_opt_list!drop-6	CREATE EXTENSION IF NOT EXISTS
 reject@33	reject@33	engine	CreateExtensionStmt/CREATE_EXTENSION_IF_P_NOT_EXISTS_name_opt_with_create_extension_opt_list!insert	CREATE EXTENSION IF NOT EXISTS a zzz
 reject@0	reject@0	engine	CreateExtensionStmt/CREATE_EXTENSION_IF_P_NOT_EXISTS_name_opt_with_create_extension_opt_list!swap	CROSS EXTENSION IF NOT EXISTS a
+accept	accept	engine	CreateExtensionStmt/CREATE_EXTENSION_IF_P_NOT_EXISTS_name_opt_with_create_extension_opt_list+opt_with	CREATE EXTENSION IF NOT EXISTS a WITH
 accept	accept	engine	create_extension_opt_list/create_extension_opt_list_create_extension_opt_item	CREATE EXTENSION a CASCADE
 reject@27	reject@27	engine	create_extension_opt_list/create_extension_opt_list_create_extension_opt_item!insert	CREATE EXTENSION a CASCADE zzz
 reject@19	reject@19	engine	create_extension_opt_list/create_extension_opt_list_create_extension_opt_item!swap	CREATE EXTENSION a CASCADED
@@ -3777,6 +3856,9 @@ accept	accept	engine	am_type/TABLE	CREATE ACCESS METHOD a TYPE TABLE HANDLER a
 reject@34	reject@34	engine	am_type/TABLE!insert	CREATE ACCESS METHOD a TYPE TABLE zzz HANDLER a
 reject@28	reject@28	engine	am_type/TABLE!swap	CREATE ACCESS METHOD a TYPE TABLES HANDLER a
 accept	accept	engine	CreateTrigStmt/CREATE_opt_or_replace_TRIGGER_name_TriggerActionTime_TriggerEvents_ON_qualified_name_TriggerReferencing_TriggerForSpec_TriggerWhen_EXECUTE_FUNCTION_or_PROCEDURE_func_name_(_TriggerFuncArgs_)	CREATE TRIGGER a BEFORE INSERT ON a EXECUTE FUNCTION a()
+accept	accept	engine	CreateTrigStmt/CREATE_opt_or_replace_TRIGGER_name_TriggerActionTime_TriggerEvents_ON_qualified_name_TriggerReferencing_TriggerForSpec_TriggerWhen_EXECUTE_FUNCTION_or_PROCEDURE_func_name_(_TriggerFuncArgs_)+opt_or_replace	CREATE OR REPLACE TRIGGER a BEFORE INSERT ON a EXECUTE FUNCTION a()
+reject@7	reject@7	engine	CreateTrigStmt/CREATE_opt_or_replace_TRIGGER_name_TriggerActionTime_TriggerEvents_ON_qualified_name_TriggerReferencing_TriggerForSpec_TriggerWhen_EXECUTE_FUNCTION_or_PROCEDURE_func_name_(_TriggerFuncArgs_)+opt_or_replace!drop-2	CREATE REPLACE TRIGGER a BEFORE INSERT ON a EXECUTE FUNCTION a()
+reject@10	reject@10	engine	CreateTrigStmt/CREATE_opt_or_replace_TRIGGER_name_TriggerActionTime_TriggerEvents_ON_qualified_name_TriggerReferencing_TriggerForSpec_TriggerWhen_EXECUTE_FUNCTION_or_PROCEDURE_func_name_(_TriggerFuncArgs_)+opt_or_replace!drop-3	CREATE OR TRIGGER a BEFORE INSERT ON a EXECUTE FUNCTION a()
 accept	accept	engine	CreateTrigStmt/CREATE_opt_or_replace_CONSTRAINT_TRIGGER_name_AFTER_TriggerEvents_ON_qualified_name_OptConstrFromTable_ConstraintAttributeSpec_FOR_EACH_ROW_TriggerWhen_EXECUTE_FUNCTION_or_PROCEDURE_func_name_(_TriggerFuncArgs_)	CREATE CONSTRAINT TRIGGER a AFTER INSERT ON a FOR EACH ROW EXECUTE FUNCTION a()
 reject@0	reject@0	engine	CreateTrigStmt/CREATE_opt_or_replace_CONSTRAINT_TRIGGER_name_AFTER_TriggerEvents_ON_qualified_name_OptConstrFromTable_ConstraintAttributeSpec_FOR_EACH_ROW_TriggerWhen_EXECUTE_FUNCTION_or_PROCEDURE_func_name_(_TriggerFuncArgs_)!drop-1	CONSTRAINT TRIGGER a AFTER INSERT ON a FOR EACH ROW EXECUTE FUNCTION a()
 accept	accept	engine	CreateTrigStmt/CREATE_opt_or_replace_CONSTRAINT_TRIGGER_name_AFTER_TriggerEvents_ON_qualified_name_OptConstrFromTable_ConstraintAttributeSpec_FOR_EACH_ROW_TriggerWhen_EXECUTE_FUNCTION_or_PROCEDURE_func_name_(_TriggerFuncArgs_)!drop-2	CREATE TRIGGER a AFTER INSERT ON a FOR EACH ROW EXECUTE FUNCTION a()
@@ -3796,6 +3878,9 @@ reject@77	reject@77	engine	CreateTrigStmt/CREATE_opt_or_replace_CONSTRAINT_TRIGG
 reject@78	reject@78	engine	CreateTrigStmt/CREATE_opt_or_replace_CONSTRAINT_TRIGGER_name_AFTER_TriggerEvents_ON_qualified_name_OptConstrFromTable_ConstraintAttributeSpec_FOR_EACH_ROW_TriggerWhen_EXECUTE_FUNCTION_or_PROCEDURE_func_name_(_TriggerFuncArgs_)!drop-16	CREATE CONSTRAINT TRIGGER a AFTER INSERT ON a FOR EACH ROW EXECUTE FUNCTION a(
 reject@80	reject@80	engine	CreateTrigStmt/CREATE_opt_or_replace_CONSTRAINT_TRIGGER_name_AFTER_TriggerEvents_ON_qualified_name_OptConstrFromTable_ConstraintAttributeSpec_FOR_EACH_ROW_TriggerWhen_EXECUTE_FUNCTION_or_PROCEDURE_func_name_(_TriggerFuncArgs_)!insert	CREATE CONSTRAINT TRIGGER a AFTER INSERT ON a FOR EACH ROW EXECUTE FUNCTION a() zzz
 reject@0	reject@0	engine	CreateTrigStmt/CREATE_opt_or_replace_CONSTRAINT_TRIGGER_name_AFTER_TriggerEvents_ON_qualified_name_OptConstrFromTable_ConstraintAttributeSpec_FOR_EACH_ROW_TriggerWhen_EXECUTE_FUNCTION_or_PROCEDURE_func_name_(_TriggerFuncArgs_)!swap	CROSS CONSTRAINT TRIGGER a AFTER INSERT ON a FOR EACH ROW EXECUTE FUNCTION a()
+reject	reject	engine	CreateTrigStmt/CREATE_opt_or_replace_CONSTRAINT_TRIGGER_name_AFTER_TriggerEvents_ON_qualified_name_OptConstrFromTable_ConstraintAttributeSpec_FOR_EACH_ROW_TriggerWhen_EXECUTE_FUNCTION_or_PROCEDURE_func_name_(_TriggerFuncArgs_)+opt_or_replace	CREATE OR REPLACE CONSTRAINT TRIGGER a AFTER INSERT ON a FOR EACH ROW EXECUTE FUNCTION a()
+reject@7	reject@7	engine	CreateTrigStmt/CREATE_opt_or_replace_CONSTRAINT_TRIGGER_name_AFTER_TriggerEvents_ON_qualified_name_OptConstrFromTable_ConstraintAttributeSpec_FOR_EACH_ROW_TriggerWhen_EXECUTE_FUNCTION_or_PROCEDURE_func_name_(_TriggerFuncArgs_)+opt_or_replace!drop-2	CREATE REPLACE CONSTRAINT TRIGGER a AFTER INSERT ON a FOR EACH ROW EXECUTE FUNCTION a()
+reject@10	reject@10	engine	CreateTrigStmt/CREATE_opt_or_replace_CONSTRAINT_TRIGGER_name_AFTER_TriggerEvents_ON_qualified_name_OptConstrFromTable_ConstraintAttributeSpec_FOR_EACH_ROW_TriggerWhen_EXECUTE_FUNCTION_or_PROCEDURE_func_name_(_TriggerFuncArgs_)+opt_or_replace!drop-3	CREATE OR CONSTRAINT TRIGGER a AFTER INSERT ON a FOR EACH ROW EXECUTE FUNCTION a()
 accept	accept	engine	TriggerActionTime/BEFORE	CREATE TRIGGER a BEFORE INSERT ON a EXECUTE FUNCTION a()
 reject@16	reject@16	engine	TriggerActionTime/BEFORE!truncate	CREATE TRIGGER a
 reject@24	reject@24	engine	TriggerActionTime/BEFORE!insert	CREATE TRIGGER a BEFORE zzz INSERT ON a EXECUTE FUNCTION a()
@@ -3860,6 +3945,7 @@ reject@69	reject@69	engine	TriggerTransitions/TriggerTransitions_TriggerTransiti
 reject@72	reject@72	engine	TriggerTransitions/TriggerTransitions_TriggerTransition!insert	CREATE TRIGGER a BEFORE INSERT ON a REFERENCING NEW TABLE a NEW TABLE a zzz EXECUTE FUNCTION a()
 reject@48	reject@48	engine	TriggerTransitions/TriggerTransitions_TriggerTransition!swap	CREATE TRIGGER a BEFORE INSERT ON a REFERENCING NEXT TABLE a NEW TABLE a EXECUTE FUNCTION a()
 accept	accept	engine	TriggerTransition/TransitionOldOrNew_TransitionRowOrTable_opt_as_TransitionRelName	CREATE TRIGGER a BEFORE INSERT ON a REFERENCING NEW TABLE a EXECUTE FUNCTION a()
+accept	accept	engine	TriggerTransition/TransitionOldOrNew_TransitionRowOrTable_opt_as_TransitionRelName+opt_as	CREATE TRIGGER a BEFORE INSERT ON a REFERENCING NEW TABLE AS a EXECUTE FUNCTION a()
 accept	accept	engine	TransitionOldOrNew/NEW	CREATE TRIGGER a BEFORE INSERT ON a REFERENCING NEW TABLE a EXECUTE FUNCTION a()
 reject@47	reject@47	engine	TransitionOldOrNew/NEW!truncate	CREATE TRIGGER a BEFORE INSERT ON a REFERENCING
 reject@52	reject@52	engine	TransitionOldOrNew/NEW!insert	CREATE TRIGGER a BEFORE INSERT ON a REFERENCING NEW zzz TABLE a EXECUTE FUNCTION a()
@@ -4033,6 +4119,9 @@ reject@22	reject@22	engine	DefineStmt/CREATE_opt_or_replace_AGGREGATE_func_name_
 reject@23	reject@23	engine	DefineStmt/CREATE_opt_or_replace_AGGREGATE_func_name_aggr_args_definition!drop-9	CREATE AGGREGATE a(*)(a
 reject@25	reject@25	engine	DefineStmt/CREATE_opt_or_replace_AGGREGATE_func_name_aggr_args_definition!insert	CREATE AGGREGATE a(*)(a) zzz
 reject@0	reject@0	engine	DefineStmt/CREATE_opt_or_replace_AGGREGATE_func_name_aggr_args_definition!swap	CROSS AGGREGATE a(*)(a)
+accept	accept	engine	DefineStmt/CREATE_opt_or_replace_AGGREGATE_func_name_aggr_args_definition+opt_or_replace	CREATE OR REPLACE AGGREGATE a(*)(a)
+reject@7	reject@7	engine	DefineStmt/CREATE_opt_or_replace_AGGREGATE_func_name_aggr_args_definition+opt_or_replace!drop-2	CREATE REPLACE AGGREGATE a(*)(a)
+reject@10	reject@10	engine	DefineStmt/CREATE_opt_or_replace_AGGREGATE_func_name_aggr_args_definition+opt_or_replace!drop-3	CREATE OR AGGREGATE a(*)(a)
 accept	accept	engine	DefineStmt/CREATE_opt_or_replace_AGGREGATE_func_name_old_aggr_definition	CREATE AGGREGATE a(a = a)
 reject@0	reject@0	engine	DefineStmt/CREATE_opt_or_replace_AGGREGATE_func_name_old_aggr_definition!drop-1	AGGREGATE a(a = a)
 reject@7	reject@7	engine	DefineStmt/CREATE_opt_or_replace_AGGREGATE_func_name_old_aggr_definition!drop-2	CREATE a(a = a)
@@ -4044,6 +4133,9 @@ reject@22	reject@22	engine	DefineStmt/CREATE_opt_or_replace_AGGREGATE_func_name_
 reject@24	reject@24	engine	DefineStmt/CREATE_opt_or_replace_AGGREGATE_func_name_old_aggr_definition!drop-8	CREATE AGGREGATE a(a = a
 reject@26	reject@26	engine	DefineStmt/CREATE_opt_or_replace_AGGREGATE_func_name_old_aggr_definition!insert	CREATE AGGREGATE a(a = a) zzz
 reject@0	reject@0	engine	DefineStmt/CREATE_opt_or_replace_AGGREGATE_func_name_old_aggr_definition!swap	CROSS AGGREGATE a(a = a)
+accept	accept	engine	DefineStmt/CREATE_opt_or_replace_AGGREGATE_func_name_old_aggr_definition+opt_or_replace	CREATE OR REPLACE AGGREGATE a(a = a)
+reject@7	reject@7	engine	DefineStmt/CREATE_opt_or_replace_AGGREGATE_func_name_old_aggr_definition+opt_or_replace!drop-2	CREATE REPLACE AGGREGATE a(a = a)
+reject@10	reject@10	engine	DefineStmt/CREATE_opt_or_replace_AGGREGATE_func_name_old_aggr_definition+opt_or_replace!drop-3	CREATE OR AGGREGATE a(a = a)
 accept	accept	engine	DefineStmt/CREATE_OPERATOR_any_operator_definition	CREATE OPERATOR ~(a)
 reject@7	reject@7	engine	DefineStmt/CREATE_OPERATOR_any_operator_definition!drop-2	CREATE ~(a)
 reject@15	reject@15	engine	DefineStmt/CREATE_OPERATOR_any_operator_definition!drop-3	CREATE OPERATOR(a)
@@ -4236,6 +4328,10 @@ reject@27	reject@27	engine	AlterEnumStmt/ALTER_TYPE_P_any_name_ADD_P_VALUE_P_opt
 reject@33	reject@33	engine	AlterEnumStmt/ALTER_TYPE_P_any_name_ADD_P_VALUE_P_opt_if_not_exists_Sconst_BEFORE_Sconst!drop-8	ALTER TYPE a ADD VALUE 's' BEFORE
 reject@38	reject@38	engine	AlterEnumStmt/ALTER_TYPE_P_any_name_ADD_P_VALUE_P_opt_if_not_exists_Sconst_BEFORE_Sconst!insert	ALTER TYPE a ADD VALUE 's' BEFORE 's' zzz
 reject@0	reject@0	engine	AlterEnumStmt/ALTER_TYPE_P_any_name_ADD_P_VALUE_P_opt_if_not_exists_Sconst_BEFORE_Sconst!swap	ALWAYS TYPE a ADD VALUE 's' BEFORE 's'
+accept	accept	engine	AlterEnumStmt/ALTER_TYPE_P_any_name_ADD_P_VALUE_P_opt_if_not_exists_Sconst_BEFORE_Sconst+opt_if_not_exists	ALTER TYPE a ADD VALUE IF NOT EXISTS 's' BEFORE 's'
+reject@23	reject@23	engine	AlterEnumStmt/ALTER_TYPE_P_any_name_ADD_P_VALUE_P_opt_if_not_exists_Sconst_BEFORE_Sconst+opt_if_not_exists!drop-6	ALTER TYPE a ADD VALUE NOT EXISTS 's' BEFORE 's'
+reject@26	reject@26	engine	AlterEnumStmt/ALTER_TYPE_P_any_name_ADD_P_VALUE_P_opt_if_not_exists_Sconst_BEFORE_Sconst+opt_if_not_exists!drop-7	ALTER TYPE a ADD VALUE IF EXISTS 's' BEFORE 's'
+reject@30	reject@30	engine	AlterEnumStmt/ALTER_TYPE_P_any_name_ADD_P_VALUE_P_opt_if_not_exists_Sconst_BEFORE_Sconst+opt_if_not_exists!drop-8	ALTER TYPE a ADD VALUE IF NOT 's' BEFORE 's'
 accept	accept	engine	AlterEnumStmt/ALTER_TYPE_P_any_name_ADD_P_VALUE_P_opt_if_not_exists_Sconst_AFTER_Sconst	ALTER TYPE a ADD VALUE 's' AFTER 's'
 reject@0	reject@0	engine	AlterEnumStmt/ALTER_TYPE_P_any_name_ADD_P_VALUE_P_opt_if_not_exists_Sconst_AFTER_Sconst!drop-1	TYPE a ADD VALUE 's' AFTER 's'
 reject@6	reject@6	engine	AlterEnumStmt/ALTER_TYPE_P_any_name_ADD_P_VALUE_P_opt_if_not_exists_Sconst_AFTER_Sconst!drop-2	ALTER a ADD VALUE 's' AFTER 's'
@@ -4246,6 +4342,10 @@ reject@23	reject@23	engine	AlterEnumStmt/ALTER_TYPE_P_any_name_ADD_P_VALUE_P_opt
 reject@32	reject@32	engine	AlterEnumStmt/ALTER_TYPE_P_any_name_ADD_P_VALUE_P_opt_if_not_exists_Sconst_AFTER_Sconst!drop-8	ALTER TYPE a ADD VALUE 's' AFTER
 reject@37	reject@37	engine	AlterEnumStmt/ALTER_TYPE_P_any_name_ADD_P_VALUE_P_opt_if_not_exists_Sconst_AFTER_Sconst!insert	ALTER TYPE a ADD VALUE 's' AFTER 's' zzz
 reject@0	reject@0	engine	AlterEnumStmt/ALTER_TYPE_P_any_name_ADD_P_VALUE_P_opt_if_not_exists_Sconst_AFTER_Sconst!swap	ALWAYS TYPE a ADD VALUE 's' AFTER 's'
+accept	accept	engine	AlterEnumStmt/ALTER_TYPE_P_any_name_ADD_P_VALUE_P_opt_if_not_exists_Sconst_AFTER_Sconst+opt_if_not_exists	ALTER TYPE a ADD VALUE IF NOT EXISTS 's' AFTER 's'
+reject@23	reject@23	engine	AlterEnumStmt/ALTER_TYPE_P_any_name_ADD_P_VALUE_P_opt_if_not_exists_Sconst_AFTER_Sconst+opt_if_not_exists!drop-6	ALTER TYPE a ADD VALUE NOT EXISTS 's' AFTER 's'
+reject@26	reject@26	engine	AlterEnumStmt/ALTER_TYPE_P_any_name_ADD_P_VALUE_P_opt_if_not_exists_Sconst_AFTER_Sconst+opt_if_not_exists!drop-7	ALTER TYPE a ADD VALUE IF EXISTS 's' AFTER 's'
+reject@30	reject@30	engine	AlterEnumStmt/ALTER_TYPE_P_any_name_ADD_P_VALUE_P_opt_if_not_exists_Sconst_AFTER_Sconst+opt_if_not_exists!drop-8	ALTER TYPE a ADD VALUE IF NOT 's' AFTER 's'
 accept	accept	engine	AlterEnumStmt/ALTER_TYPE_P_any_name_RENAME_VALUE_P_Sconst_TO_Sconst	ALTER TYPE a RENAME VALUE 's' TO 's'
 reject@0	reject@0	engine	AlterEnumStmt/ALTER_TYPE_P_any_name_RENAME_VALUE_P_Sconst_TO_Sconst!drop-1	TYPE a RENAME VALUE 's' TO 's'
 reject@6	reject@6	engine	AlterEnumStmt/ALTER_TYPE_P_any_name_RENAME_VALUE_P_Sconst_TO_Sconst!drop-2	ALTER a RENAME VALUE 's' TO 's'
@@ -4388,6 +4488,7 @@ reject@49	reject@49	engine	opclass_drop/FUNCTION_Iconst_(_type_list_)!drop-5	ALT
 reject@51	reject@51	engine	opclass_drop/FUNCTION_Iconst_(_type_list_)!insert	ALTER OPERATOR FAMILY a USING a DROP FUNCTION 1(a) zzz
 reject@37	reject@37	engine	opclass_drop/FUNCTION_Iconst_(_type_list_)!swap	ALTER OPERATOR FAMILY a USING a DROP FUNCTIONS 1(a)
 accept	accept	engine	DropOpClassStmt/DROP_OPERATOR_CLASS_any_name_USING_name_opt_drop_behavior	DROP OPERATOR CLASS a USING a
+accept	accept	engine	DropOpClassStmt/DROP_OPERATOR_CLASS_any_name_USING_name_opt_drop_behavior+opt_drop_behavior	DROP OPERATOR CLASS a USING a CASCADE
 accept	accept	engine	DropOpClassStmt/DROP_OPERATOR_CLASS_IF_P_EXISTS_any_name_USING_name_opt_drop_behavior	DROP OPERATOR CLASS IF EXISTS a USING a
 reject@0	reject@0	engine	DropOpClassStmt/DROP_OPERATOR_CLASS_IF_P_EXISTS_any_name_USING_name_opt_drop_behavior!drop-1	OPERATOR CLASS IF EXISTS a USING a
 reject@5	reject@5	engine	DropOpClassStmt/DROP_OPERATOR_CLASS_IF_P_EXISTS_any_name_USING_name_opt_drop_behavior!drop-2	DROP CLASS IF EXISTS a USING a
@@ -4399,7 +4500,9 @@ reject@32	reject@32	engine	DropOpClassStmt/DROP_OPERATOR_CLASS_IF_P_EXISTS_any_n
 reject@37	reject@37	engine	DropOpClassStmt/DROP_OPERATOR_CLASS_IF_P_EXISTS_any_name_USING_name_opt_drop_behavior!drop-8	DROP OPERATOR CLASS IF EXISTS a USING
 reject@40	reject@40	engine	DropOpClassStmt/DROP_OPERATOR_CLASS_IF_P_EXISTS_any_name_USING_name_opt_drop_behavior!insert	DROP OPERATOR CLASS IF EXISTS a USING a zzz
 reject@0	reject@0	engine	DropOpClassStmt/DROP_OPERATOR_CLASS_IF_P_EXISTS_any_name_USING_name_opt_drop_behavior!swap	EACH OPERATOR CLASS IF EXISTS a USING a
+accept	accept	engine	DropOpClassStmt/DROP_OPERATOR_CLASS_IF_P_EXISTS_any_name_USING_name_opt_drop_behavior+opt_drop_behavior	DROP OPERATOR CLASS IF EXISTS a USING a CASCADE
 accept	accept	engine	DropOpFamilyStmt/DROP_OPERATOR_FAMILY_any_name_USING_name_opt_drop_behavior	DROP OPERATOR FAMILY a USING a
+accept	accept	engine	DropOpFamilyStmt/DROP_OPERATOR_FAMILY_any_name_USING_name_opt_drop_behavior+opt_drop_behavior	DROP OPERATOR FAMILY a USING a CASCADE
 accept	accept	engine	DropOpFamilyStmt/DROP_OPERATOR_FAMILY_IF_P_EXISTS_any_name_USING_name_opt_drop_behavior	DROP OPERATOR FAMILY IF EXISTS a USING a
 reject@0	reject@0	engine	DropOpFamilyStmt/DROP_OPERATOR_FAMILY_IF_P_EXISTS_any_name_USING_name_opt_drop_behavior!drop-1	OPERATOR FAMILY IF EXISTS a USING a
 reject@5	reject@5	engine	DropOpFamilyStmt/DROP_OPERATOR_FAMILY_IF_P_EXISTS_any_name_USING_name_opt_drop_behavior!drop-2	DROP FAMILY IF EXISTS a USING a
@@ -4410,7 +4513,9 @@ reject@33	reject@33	engine	DropOpFamilyStmt/DROP_OPERATOR_FAMILY_IF_P_EXISTS_any
 reject@38	reject@38	engine	DropOpFamilyStmt/DROP_OPERATOR_FAMILY_IF_P_EXISTS_any_name_USING_name_opt_drop_behavior!drop-8	DROP OPERATOR FAMILY IF EXISTS a USING
 reject@41	reject@41	engine	DropOpFamilyStmt/DROP_OPERATOR_FAMILY_IF_P_EXISTS_any_name_USING_name_opt_drop_behavior!insert	DROP OPERATOR FAMILY IF EXISTS a USING a zzz
 reject@0	reject@0	engine	DropOpFamilyStmt/DROP_OPERATOR_FAMILY_IF_P_EXISTS_any_name_USING_name_opt_drop_behavior!swap	EACH OPERATOR FAMILY IF EXISTS a USING a
+accept	accept	engine	DropOpFamilyStmt/DROP_OPERATOR_FAMILY_IF_P_EXISTS_any_name_USING_name_opt_drop_behavior+opt_drop_behavior	DROP OPERATOR FAMILY IF EXISTS a USING a CASCADE
 accept	accept	engine	DropOwnedStmt/DROP_OWNED_BY_role_list_opt_drop_behavior	DROP OWNED BY a
+accept	accept	engine	DropOwnedStmt/DROP_OWNED_BY_role_list_opt_drop_behavior+opt_drop_behavior	DROP OWNED BY a CASCADE
 accept	accept	engine	ReassignOwnedStmt/REASSIGN_OWNED_BY_role_list_TO_RoleSpec	REASSIGN OWNED BY a TO a
 accept	accept	engine	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP TABLE IF EXISTS a
 reject@9	reject@9	engine	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior!drop-1	TABLE IF EXISTS a
@@ -4419,7 +4524,9 @@ reject@14	reject@14	engine	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_na
 reject@20	reject@20	engine	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior!drop-5	DROP TABLE IF EXISTS
 reject@23	reject@23	engine	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior!insert	DROP TABLE IF EXISTS a zzz
 reject@0	reject@0	engine	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior!swap	EACH TABLE IF EXISTS a
+accept	accept	engine	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP TABLE IF EXISTS a CASCADE
 accept	accept	engine	DropStmt/DROP_object_type_any_name_any_name_list_opt_drop_behavior	DROP TABLE a
+accept	accept	engine	DropStmt/DROP_object_type_any_name_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP TABLE a CASCADE
 accept	accept	engine	DropStmt/DROP_drop_type_name_IF_P_EXISTS_name_list_opt_drop_behavior	DROP EXTENSION IF EXISTS a
 reject@0	reject@0	engine	DropStmt/DROP_drop_type_name_IF_P_EXISTS_name_list_opt_drop_behavior!drop-1	EXTENSION IF EXISTS a
 reject@22	reject@22	engine	DropStmt/DROP_drop_type_name_IF_P_EXISTS_name_list_opt_drop_behavior!drop-3	DROP EXTENSION EXISTS a
@@ -4427,10 +4534,12 @@ reject@18	reject@18	engine	DropStmt/DROP_drop_type_name_IF_P_EXISTS_name_list_op
 reject@24	reject@24	engine	DropStmt/DROP_drop_type_name_IF_P_EXISTS_name_list_opt_drop_behavior!drop-5	DROP EXTENSION IF EXISTS
 reject@27	reject@27	engine	DropStmt/DROP_drop_type_name_IF_P_EXISTS_name_list_opt_drop_behavior!insert	DROP EXTENSION IF EXISTS a zzz
 reject@0	reject@0	engine	DropStmt/DROP_drop_type_name_IF_P_EXISTS_name_list_opt_drop_behavior!swap	EACH EXTENSION IF EXISTS a
+accept	accept	engine	DropStmt/DROP_drop_type_name_IF_P_EXISTS_name_list_opt_drop_behavior+opt_drop_behavior	DROP EXTENSION IF EXISTS a CASCADE
 accept	accept	engine	DropStmt/DROP_drop_type_name_name_list_opt_drop_behavior	DROP EXTENSION a
 reject@14	reject@14	engine	DropStmt/DROP_drop_type_name_name_list_opt_drop_behavior!drop-3	DROP EXTENSION
 reject@17	reject@17	engine	DropStmt/DROP_drop_type_name_name_list_opt_drop_behavior!insert	DROP EXTENSION a zzz
 reject@0	reject@0	engine	DropStmt/DROP_drop_type_name_name_list_opt_drop_behavior!swap	EACH EXTENSION a
+accept	accept	engine	DropStmt/DROP_drop_type_name_name_list_opt_drop_behavior+opt_drop_behavior	DROP EXTENSION a CASCADE
 accept	accept	engine	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior	DROP POLICY a ON a
 reject@5	reject@5	engine	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior!drop-2	DROP a ON a
 reject@12	reject@12	engine	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior!drop-3	DROP POLICY ON a
@@ -4438,6 +4547,7 @@ reject@14	reject@14	engine	DropStmt/DROP_object_type_name_on_any_name_name_ON_an
 reject@16	reject@16	engine	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior!drop-5	DROP POLICY a ON
 reject@19	reject@19	engine	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior!insert	DROP POLICY a ON a zzz
 reject@0	reject@0	engine	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior!swap	EACH POLICY a ON a
+accept	accept	engine	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior+opt_drop_behavior	DROP POLICY a ON a CASCADE
 accept	accept	engine	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior	DROP POLICY IF EXISTS a ON a
 reject@0	reject@0	engine	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior!drop-1	POLICY IF EXISTS a ON a
 reject@5	reject@5	engine	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior!drop-2	DROP IF EXISTS a ON a
@@ -4448,10 +4558,12 @@ reject@24	reject@24	engine	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXIST
 reject@26	reject@26	engine	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior!drop-7	DROP POLICY IF EXISTS a ON
 reject@29	reject@29	engine	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior!insert	DROP POLICY IF EXISTS a ON a zzz
 reject@0	reject@0	engine	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior!swap	EACH POLICY IF EXISTS a ON a
+accept	accept	engine	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior+opt_drop_behavior	DROP POLICY IF EXISTS a ON a CASCADE
 accept	accept	engine	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior	DROP TYPE a
 reject@9	reject@9	engine	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior!drop-3	DROP TYPE
 reject@12	reject@12	engine	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior!insert	DROP TYPE a zzz
 reject@0	reject@0	engine	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior!swap	EACH TYPE a
+accept	accept	engine	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior+opt_drop_behavior	DROP TYPE a CASCADE
 accept	accept	engine	DropStmt/DROP_TYPE_P_IF_P_EXISTS_type_name_list_opt_drop_behavior	DROP TYPE IF EXISTS a
 reject@0	reject@0	engine	DropStmt/DROP_TYPE_P_IF_P_EXISTS_type_name_list_opt_drop_behavior!drop-1	TYPE IF EXISTS a
 reject@10	reject@10	engine	DropStmt/DROP_TYPE_P_IF_P_EXISTS_type_name_list_opt_drop_behavior!drop-3	DROP TYPE EXISTS a
@@ -4459,11 +4571,13 @@ reject@13	reject@13	engine	DropStmt/DROP_TYPE_P_IF_P_EXISTS_type_name_list_opt_d
 reject@19	reject@19	engine	DropStmt/DROP_TYPE_P_IF_P_EXISTS_type_name_list_opt_drop_behavior!drop-5	DROP TYPE IF EXISTS
 reject@22	reject@22	engine	DropStmt/DROP_TYPE_P_IF_P_EXISTS_type_name_list_opt_drop_behavior!insert	DROP TYPE IF EXISTS a zzz
 reject@0	reject@0	engine	DropStmt/DROP_TYPE_P_IF_P_EXISTS_type_name_list_opt_drop_behavior!swap	EACH TYPE IF EXISTS a
+accept	accept	engine	DropStmt/DROP_TYPE_P_IF_P_EXISTS_type_name_list_opt_drop_behavior+opt_drop_behavior	DROP TYPE IF EXISTS a CASCADE
 accept	accept	engine	DropStmt/DROP_DOMAIN_P_type_name_list_opt_drop_behavior	DROP DOMAIN a
 reject@0	reject@0	engine	DropStmt/DROP_DOMAIN_P_type_name_list_opt_drop_behavior!drop-1	DOMAIN a
 reject@11	reject@11	engine	DropStmt/DROP_DOMAIN_P_type_name_list_opt_drop_behavior!drop-3	DROP DOMAIN
 reject@14	reject@14	engine	DropStmt/DROP_DOMAIN_P_type_name_list_opt_drop_behavior!insert	DROP DOMAIN a zzz
 reject@0	reject@0	engine	DropStmt/DROP_DOMAIN_P_type_name_list_opt_drop_behavior!swap	EACH DOMAIN a
+accept	accept	engine	DropStmt/DROP_DOMAIN_P_type_name_list_opt_drop_behavior+opt_drop_behavior	DROP DOMAIN a CASCADE
 accept	accept	engine	DropStmt/DROP_DOMAIN_P_IF_P_EXISTS_type_name_list_opt_drop_behavior	DROP DOMAIN IF EXISTS a
 reject@0	reject@0	engine	DropStmt/DROP_DOMAIN_P_IF_P_EXISTS_type_name_list_opt_drop_behavior!drop-1	DOMAIN IF EXISTS a
 reject@12	reject@12	engine	DropStmt/DROP_DOMAIN_P_IF_P_EXISTS_type_name_list_opt_drop_behavior!drop-3	DROP DOMAIN EXISTS a
@@ -4471,12 +4585,14 @@ reject@15	reject@15	engine	DropStmt/DROP_DOMAIN_P_IF_P_EXISTS_type_name_list_opt
 reject@21	reject@21	engine	DropStmt/DROP_DOMAIN_P_IF_P_EXISTS_type_name_list_opt_drop_behavior!drop-5	DROP DOMAIN IF EXISTS
 reject@24	reject@24	engine	DropStmt/DROP_DOMAIN_P_IF_P_EXISTS_type_name_list_opt_drop_behavior!insert	DROP DOMAIN IF EXISTS a zzz
 reject@0	reject@0	engine	DropStmt/DROP_DOMAIN_P_IF_P_EXISTS_type_name_list_opt_drop_behavior!swap	EACH DOMAIN IF EXISTS a
+accept	accept	engine	DropStmt/DROP_DOMAIN_P_IF_P_EXISTS_type_name_list_opt_drop_behavior+opt_drop_behavior	DROP DOMAIN IF EXISTS a CASCADE
 accept	accept	engine	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY a
 reject@0	reject@0	engine	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior!drop-1	INDEX CONCURRENTLY a
 reject@5	reject@5	engine	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior!drop-2	DROP CONCURRENTLY a
 reject@23	reject@23	engine	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior!drop-4	DROP INDEX CONCURRENTLY
 reject@26	reject@26	engine	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior!insert	DROP INDEX CONCURRENTLY a zzz
 reject@0	reject@0	engine	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior!swap	EACH INDEX CONCURRENTLY a
+accept	accept	engine	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP INDEX CONCURRENTLY a CASCADE
 accept	accept	engine	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a
 reject@0	reject@0	engine	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior!drop-1	INDEX CONCURRENTLY IF EXISTS a
 reject@5	reject@5	engine	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior!drop-2	DROP CONCURRENTLY IF EXISTS a
@@ -4486,6 +4602,7 @@ reject@27	reject@27	engine	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name
 reject@33	reject@33	engine	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior!drop-6	DROP INDEX CONCURRENTLY IF EXISTS
 reject@36	reject@36	engine	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior!insert	DROP INDEX CONCURRENTLY IF EXISTS a zzz
 reject@0	reject@0	engine	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior!swap	EACH INDEX CONCURRENTLY IF EXISTS a
+accept	accept	engine	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a CASCADE
 accept	accept	engine	object_type_any_name/TABLE	DROP TABLE a
 reject@4	reject@4	engine	object_type_any_name/TABLE!truncate	DROP
 reject@15	reject@15	engine	object_type_any_name/TABLE!insert	DROP TABLE zzz a
@@ -4581,6 +4698,7 @@ reject@5	reject@5	engine	drop_type_name/FOREIGN_DATA_P_WRAPPER!swap	DROP FORMAT 
 accept	accept	engine	drop_type_name/opt_procedural_LANGUAGE	DROP LANGUAGE a
 reject@18	reject@18	engine	drop_type_name/opt_procedural_LANGUAGE!insert	DROP LANGUAGE zzz a
 reject@5	reject@5	engine	drop_type_name/opt_procedural_LANGUAGE!swap	DROP LARGE a
+accept	accept	engine	drop_type_name/opt_procedural_LANGUAGE+opt_procedural	DROP PROCEDURAL LANGUAGE a
 accept	accept	engine	drop_type_name/PUBLICATION	DROP PUBLICATION a
 reject@21	reject@21	engine	drop_type_name/PUBLICATION!insert	DROP PUBLICATION zzz a
 reject@5	reject@5	engine	drop_type_name/PUBLICATION!swap	DROP QUOTE a
@@ -4625,6 +4743,7 @@ reject@12	reject@12	engine	type_name_list/type_name_list_,_Typename!drop-2	DROP 
 reject@12	reject@12	engine	type_name_list/type_name_list_,_Typename!drop-3	DROP TYPE a,
 reject@15	reject@15	engine	type_name_list/type_name_list_,_Typename!insert	DROP TYPE a, a zzz
 accept	accept	engine	TruncateStmt/TRUNCATE_opt_table_relation_expr_list_opt_restart_seqs_opt_drop_behavior	TRUNCATE a
+accept	accept	engine	TruncateStmt/TRUNCATE_opt_table_relation_expr_list_opt_restart_seqs_opt_drop_behavior+opt_table	TRUNCATE TABLE a
 accept	accept	engine	opt_restart_seqs/CONTINUE_P_IDENTITY_P	TRUNCATE a CONTINUE IDENTITY
 reject@11	reject@11	engine	opt_restart_seqs/CONTINUE_P_IDENTITY_P!drop-1	TRUNCATE a IDENTITY
 reject@19	reject@19	engine	opt_restart_seqs/CONTINUE_P_IDENTITY_P!drop-2	TRUNCATE a CONTINUE
@@ -4930,55 +5049,68 @@ accept	accept	engine	fetch_args/PRIOR_opt_from_in_cursor_name	FETCH PRIOR a
 accept	accept	engine	fetch_args/PRIOR_opt_from_in_cursor_name!drop-2	FETCH PRIOR
 reject@14	reject@14	engine	fetch_args/PRIOR_opt_from_in_cursor_name!insert	FETCH PRIOR a zzz
 reject@17	reject@17	engine	fetch_args/PRIOR_opt_from_in_cursor_name!swap	FETCH PRIVILEGES a
+accept	accept	engine	fetch_args/PRIOR_opt_from_in_cursor_name+opt_from_in	FETCH PRIOR FROM a
 accept	accept	engine	fetch_args/FIRST_P_opt_from_in_cursor_name	FETCH FIRST a
 accept	accept	engine	fetch_args/FIRST_P_opt_from_in_cursor_name!drop-2	FETCH FIRST
 reject@14	reject@14	engine	fetch_args/FIRST_P_opt_from_in_cursor_name!insert	FETCH FIRST a zzz
 reject@12	reject@12	engine	fetch_args/FIRST_P_opt_from_in_cursor_name!swap	FETCH FLOAT a
+accept	accept	engine	fetch_args/FIRST_P_opt_from_in_cursor_name+opt_from_in	FETCH FIRST FROM a
 accept	accept	engine	fetch_args/LAST_P_opt_from_in_cursor_name	FETCH LAST a
 accept	accept	engine	fetch_args/LAST_P_opt_from_in_cursor_name!drop-2	FETCH LAST
 reject@13	reject@13	engine	fetch_args/LAST_P_opt_from_in_cursor_name!insert	FETCH LAST a zzz
 reject@6	reject@6	engine	fetch_args/LAST_P_opt_from_in_cursor_name!swap	FETCH LATERAL a
+accept	accept	engine	fetch_args/LAST_P_opt_from_in_cursor_name+opt_from_in	FETCH LAST FROM a
 accept	accept	engine	fetch_args/ABSOLUTE_P_SignedIconst_opt_from_in_cursor_name	FETCH ABSOLUTE 1 a
 reject@15	reject@15	engine	fetch_args/ABSOLUTE_P_SignedIconst_opt_from_in_cursor_name!drop-2	FETCH ABSOLUTE a
 reject@16	reject@16	engine	fetch_args/ABSOLUTE_P_SignedIconst_opt_from_in_cursor_name!drop-3	FETCH ABSOLUTE 1
 reject@19	reject@19	engine	fetch_args/ABSOLUTE_P_SignedIconst_opt_from_in_cursor_name!insert	FETCH ABSOLUTE 1 a zzz
 reject@13	reject@13	engine	fetch_args/ABSOLUTE_P_SignedIconst_opt_from_in_cursor_name!swap	FETCH ACCESS 1 a
+accept	accept	engine	fetch_args/ABSOLUTE_P_SignedIconst_opt_from_in_cursor_name+opt_from_in	FETCH ABSOLUTE 1 FROM a
 accept	accept	engine	fetch_args/RELATIVE_P_SignedIconst_opt_from_in_cursor_name	FETCH RELATIVE 1 a
 reject@15	reject@15	engine	fetch_args/RELATIVE_P_SignedIconst_opt_from_in_cursor_name!drop-2	FETCH RELATIVE a
 reject@16	reject@16	engine	fetch_args/RELATIVE_P_SignedIconst_opt_from_in_cursor_name!drop-3	FETCH RELATIVE 1
 reject@19	reject@19	engine	fetch_args/RELATIVE_P_SignedIconst_opt_from_in_cursor_name!insert	FETCH RELATIVE 1 a zzz
 reject@14	reject@14	engine	fetch_args/RELATIVE_P_SignedIconst_opt_from_in_cursor_name!swap	FETCH RELEASE 1 a
+accept	accept	engine	fetch_args/RELATIVE_P_SignedIconst_opt_from_in_cursor_name+opt_from_in	FETCH RELATIVE 1 FROM a
 accept	accept	engine	fetch_args/SignedIconst_opt_from_in_cursor_name	FETCH 1 a
 reject@7	reject@7	engine	fetch_args/SignedIconst_opt_from_in_cursor_name!drop-2	FETCH 1
 reject@10	reject@10	engine	fetch_args/SignedIconst_opt_from_in_cursor_name!insert	FETCH 1 a zzz
+accept	accept	engine	fetch_args/SignedIconst_opt_from_in_cursor_name+opt_from_in	FETCH 1 FROM a
 accept	accept	engine	fetch_args/ALL_opt_from_in_cursor_name	FETCH ALL a
 reject@9	reject@9	engine	fetch_args/ALL_opt_from_in_cursor_name!drop-2	FETCH ALL
 reject@12	reject@12	engine	fetch_args/ALL_opt_from_in_cursor_name!insert	FETCH ALL a zzz
 reject@11	reject@11	engine	fetch_args/ALL_opt_from_in_cursor_name!swap	FETCH ALSO a
+accept	accept	engine	fetch_args/ALL_opt_from_in_cursor_name+opt_from_in	FETCH ALL FROM a
 accept	accept	engine	fetch_args/FORWARD_opt_from_in_cursor_name	FETCH FORWARD a
 accept	accept	engine	fetch_args/FORWARD_opt_from_in_cursor_name!drop-2	FETCH FORWARD
 reject@16	reject@16	engine	fetch_args/FORWARD_opt_from_in_cursor_name!insert	FETCH FORWARD a zzz
 reject@6	reject@6	engine	fetch_args/FORWARD_opt_from_in_cursor_name!swap	FETCH FREEZE a
+accept	accept	engine	fetch_args/FORWARD_opt_from_in_cursor_name+opt_from_in	FETCH FORWARD FROM a
 accept	accept	engine	fetch_args/FORWARD_SignedIconst_opt_from_in_cursor_name	FETCH FORWARD 1 a
 reject@15	reject@15	engine	fetch_args/FORWARD_SignedIconst_opt_from_in_cursor_name!drop-3	FETCH FORWARD 1
 reject@18	reject@18	engine	fetch_args/FORWARD_SignedIconst_opt_from_in_cursor_name!insert	FETCH FORWARD 1 a zzz
 reject@6	reject@6	engine	fetch_args/FORWARD_SignedIconst_opt_from_in_cursor_name!swap	FETCH FREEZE 1 a
+accept	accept	engine	fetch_args/FORWARD_SignedIconst_opt_from_in_cursor_name+opt_from_in	FETCH FORWARD 1 FROM a
 accept	accept	engine	fetch_args/FORWARD_ALL_opt_from_in_cursor_name	FETCH FORWARD ALL a
 reject@17	reject@17	engine	fetch_args/FORWARD_ALL_opt_from_in_cursor_name!drop-3	FETCH FORWARD ALL
 reject@20	reject@20	engine	fetch_args/FORWARD_ALL_opt_from_in_cursor_name!insert	FETCH FORWARD ALL a zzz
 reject@6	reject@6	engine	fetch_args/FORWARD_ALL_opt_from_in_cursor_name!swap	FETCH FREEZE ALL a
+accept	accept	engine	fetch_args/FORWARD_ALL_opt_from_in_cursor_name+opt_from_in	FETCH FORWARD ALL FROM a
 accept	accept	engine	fetch_args/BACKWARD_opt_from_in_cursor_name	FETCH BACKWARD a
 accept	accept	engine	fetch_args/BACKWARD_opt_from_in_cursor_name!drop-2	FETCH BACKWARD
 reject@17	reject@17	engine	fetch_args/BACKWARD_opt_from_in_cursor_name!insert	FETCH BACKWARD a zzz
 reject@13	reject@13	engine	fetch_args/BACKWARD_opt_from_in_cursor_name!swap	FETCH BEFORE a
+accept	accept	engine	fetch_args/BACKWARD_opt_from_in_cursor_name+opt_from_in	FETCH BACKWARD FROM a
 accept	accept	engine	fetch_args/BACKWARD_SignedIconst_opt_from_in_cursor_name	FETCH BACKWARD 1 a
 reject@16	reject@16	engine	fetch_args/BACKWARD_SignedIconst_opt_from_in_cursor_name!drop-3	FETCH BACKWARD 1
 reject@19	reject@19	engine	fetch_args/BACKWARD_SignedIconst_opt_from_in_cursor_name!insert	FETCH BACKWARD 1 a zzz
 reject@13	reject@13	engine	fetch_args/BACKWARD_SignedIconst_opt_from_in_cursor_name!swap	FETCH BEFORE 1 a
+accept	accept	engine	fetch_args/BACKWARD_SignedIconst_opt_from_in_cursor_name+opt_from_in	FETCH BACKWARD 1 FROM a
 accept	accept	engine	fetch_args/BACKWARD_ALL_opt_from_in_cursor_name	FETCH BACKWARD ALL a
 reject@18	reject@18	engine	fetch_args/BACKWARD_ALL_opt_from_in_cursor_name!drop-3	FETCH BACKWARD ALL
 reject@21	reject@21	engine	fetch_args/BACKWARD_ALL_opt_from_in_cursor_name!insert	FETCH BACKWARD ALL a zzz
 reject@13	reject@13	engine	fetch_args/BACKWARD_ALL_opt_from_in_cursor_name!swap	FETCH BEFORE ALL a
+accept	accept	engine	fetch_args/BACKWARD_ALL_opt_from_in_cursor_name+opt_from_in	FETCH BACKWARD ALL FROM a
 accept	accept	engine	from_in/FROM	FETCH FROM a
 reject@15	reject@15	engine	from_in/FROM!insert	FETCH FROM zzz a
 accept	accept	engine	from_in/IN_P	FETCH IN a
@@ -4990,7 +5122,16 @@ reject@11	reject@11	engine	opt_from_in/from_in!swap	FETCH NEXT FULL a
 accept	accept	engine	opt_from_in/%empty	FETCH NEXT a
 reject@15	reject@15	engine	opt_from_in/%empty!insert	FETCH NEXT zzz a
 accept	accept	engine	GrantStmt/GRANT_privileges_ON_privilege_target_TO_grantee_list_opt_grant_grant_option_opt_granted_by	GRANT SELECT ON a TO a
+accept	accept	engine	GrantStmt/GRANT_privileges_ON_privilege_target_TO_grantee_list_opt_grant_grant_option_opt_granted_by+opt_granted_by	GRANT SELECT ON a TO a GRANTED BY a
+reject@23	reject@23	engine	GrantStmt/GRANT_privileges_ON_privilege_target_TO_grantee_list_opt_grant_grant_option_opt_granted_by+opt_granted_by!drop-7	GRANT SELECT ON a TO a BY a
+reject@31	reject@31	engine	GrantStmt/GRANT_privileges_ON_privilege_target_TO_grantee_list_opt_grant_grant_option_opt_granted_by+opt_granted_by!drop-8	GRANT SELECT ON a TO a GRANTED a
+reject@33	reject@33	engine	GrantStmt/GRANT_privileges_ON_privilege_target_TO_grantee_list_opt_grant_grant_option_opt_granted_by+opt_granted_by!drop-9	GRANT SELECT ON a TO a GRANTED BY
 accept	accept	engine	RevokeStmt/REVOKE_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior	REVOKE SELECT ON a FROM a
+accept	accept	engine	RevokeStmt/REVOKE_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior+opt_granted_by	REVOKE SELECT ON a FROM a GRANTED BY a
+reject@26	reject@26	engine	RevokeStmt/REVOKE_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior+opt_granted_by!drop-7	REVOKE SELECT ON a FROM a BY a
+reject@34	reject@34	engine	RevokeStmt/REVOKE_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior+opt_granted_by!drop-8	REVOKE SELECT ON a FROM a GRANTED a
+reject@36	reject@36	engine	RevokeStmt/REVOKE_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior+opt_granted_by!drop-9	REVOKE SELECT ON a FROM a GRANTED BY
+accept	accept	engine	RevokeStmt/REVOKE_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior+opt_drop_behavior	REVOKE SELECT ON a FROM a CASCADE
 accept	accept	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior	REVOKE GRANT OPTION FOR SELECT ON a FROM a
 reject@13	reject@13	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior!drop-1	GRANT OPTION FOR SELECT ON a FROM a
 reject@14	reject@14	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior!drop-2	REVOKE OPTION FOR SELECT ON a FROM a
@@ -5003,6 +5144,11 @@ reject@36	reject@36	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_priv
 reject@40	reject@40	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior!drop-9	REVOKE GRANT OPTION FOR SELECT ON a FROM
 reject@43	reject@43	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior!insert	REVOKE GRANT OPTION FOR SELECT ON a FROM a zzz
 reject@0	reject@0	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior!swap	RIGHT GRANT OPTION FOR SELECT ON a FROM a
+accept	accept	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior+opt_granted_by	REVOKE GRANT OPTION FOR SELECT ON a FROM a GRANTED BY a
+reject@43	reject@43	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior+opt_granted_by!drop-10	REVOKE GRANT OPTION FOR SELECT ON a FROM a BY a
+reject@51	reject@51	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior+opt_granted_by!drop-11	REVOKE GRANT OPTION FOR SELECT ON a FROM a GRANTED a
+reject@53	reject@53	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior+opt_granted_by!drop-12	REVOKE GRANT OPTION FOR SELECT ON a FROM a GRANTED BY
+accept	accept	engine	RevokeStmt/REVOKE_GRANT_OPTION_FOR_privileges_ON_privilege_target_FROM_grantee_list_opt_granted_by_opt_drop_behavior+opt_drop_behavior	REVOKE GRANT OPTION FOR SELECT ON a FROM a CASCADE
 accept	accept	engine	privileges/privilege_list	GRANT SELECT ON a TO a
 reject@5	reject@5	engine	privileges/privilege_list!truncate	GRANT
 reject@13	reject@13	engine	privileges/privilege_list!insert	GRANT SELECT zzz ON a TO a
@@ -5222,7 +5368,16 @@ reject@29	reject@29	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_
 reject@24	reject@24	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by!drop-7	GRANT SELECT TO a WITH a
 reject@32	reject@32	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by!insert	GRANT SELECT TO a WITH a OPTION zzz
 reject@0	reject@0	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by!swap	GRANTED SELECT TO a WITH a OPTION
+accept	accept	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by+opt_granted_by	GRANT SELECT TO a WITH a OPTION GRANTED BY a
+reject@32	reject@32	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by+opt_granted_by!drop-8	GRANT SELECT TO a WITH a OPTION BY a
+reject@40	reject@40	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by+opt_granted_by!drop-9	GRANT SELECT TO a WITH a OPTION GRANTED a
+reject@42	reject@42	engine	GrantRoleStmt/GRANT_privilege_list_TO_role_list_WITH_grant_role_opt_list_opt_granted_by+opt_granted_by!drop-10	GRANT SELECT TO a WITH a OPTION GRANTED BY
 accept	accept	engine	RevokeRoleStmt/REVOKE_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior	REVOKE SELECT FROM a
+accept	accept	engine	RevokeRoleStmt/REVOKE_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior+opt_granted_by	REVOKE SELECT FROM a GRANTED BY a
+reject@21	reject@21	engine	RevokeRoleStmt/REVOKE_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior+opt_granted_by!drop-5	REVOKE SELECT FROM a BY a
+reject@29	reject@29	engine	RevokeRoleStmt/REVOKE_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior+opt_granted_by!drop-6	REVOKE SELECT FROM a GRANTED a
+reject@31	reject@31	engine	RevokeRoleStmt/REVOKE_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior+opt_granted_by!drop-7	REVOKE SELECT FROM a GRANTED BY
+accept	accept	engine	RevokeRoleStmt/REVOKE_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior+opt_drop_behavior	REVOKE SELECT FROM a CASCADE
 accept	accept	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior	REVOKE a OPTION FOR SELECT FROM a
 reject@0	reject@0	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior!drop-1	a OPTION FOR SELECT FROM a
 reject@14	reject@14	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior!drop-2	REVOKE OPTION FOR SELECT FROM a
@@ -5233,6 +5388,11 @@ reject@27	reject@27	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list
 reject@31	reject@31	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior!drop-7	REVOKE a OPTION FOR SELECT FROM
 reject@34	reject@34	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior!insert	REVOKE a OPTION FOR SELECT FROM a zzz
 reject@0	reject@0	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior!swap	RIGHT a OPTION FOR SELECT FROM a
+accept	accept	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior+opt_granted_by	REVOKE a OPTION FOR SELECT FROM a GRANTED BY a
+reject@34	reject@34	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior+opt_granted_by!drop-8	REVOKE a OPTION FOR SELECT FROM a BY a
+reject@42	reject@42	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior+opt_granted_by!drop-9	REVOKE a OPTION FOR SELECT FROM a GRANTED a
+reject@44	reject@44	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior+opt_granted_by!drop-10	REVOKE a OPTION FOR SELECT FROM a GRANTED BY
+accept	accept	engine	RevokeRoleStmt/REVOKE_ColId_OPTION_FOR_privilege_list_FROM_role_list_opt_granted_by_opt_drop_behavior+opt_drop_behavior	REVOKE a OPTION FOR SELECT FROM a CASCADE
 accept	accept	engine	grant_role_opt_list/grant_role_opt_list_,_grant_role_opt	GRANT SELECT TO a WITH a OPTION, a OPTION
 reject@29	reject@29	engine	grant_role_opt_list/grant_role_opt_list_,_grant_role_opt!drop-1	GRANT SELECT TO a WITH OPTION, a OPTION
 reject@24	reject@24	engine	grant_role_opt_list/grant_role_opt_list_,_grant_role_opt!drop-2	GRANT SELECT TO a WITH a, a OPTION
@@ -5293,6 +5453,7 @@ reject@49	reject@49	engine	DefACLAction/REVOKE_privileges_ON_defacl_privilege_ta
 reject@53	reject@53	engine	DefACLAction/REVOKE_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-6	ALTER DEFAULT PRIVILEGES REVOKE SELECT ON TABLES FROM
 reject@56	reject@56	engine	DefACLAction/REVOKE_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!insert	ALTER DEFAULT PRIVILEGES REVOKE SELECT ON TABLES FROM a zzz
 reject@25	reject@25	engine	DefACLAction/REVOKE_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!swap	ALTER DEFAULT PRIVILEGES RIGHT SELECT ON TABLES FROM a
+accept	accept	engine	DefACLAction/REVOKE_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior+opt_drop_behavior	ALTER DEFAULT PRIVILEGES REVOKE SELECT ON TABLES FROM a CASCADE
 accept	accept	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior	ALTER DEFAULT PRIVILEGES REVOKE GRANT OPTION FOR SELECT ON TABLES FROM a
 reject@38	reject@38	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-1	ALTER DEFAULT PRIVILEGES GRANT OPTION FOR SELECT ON TABLES FROM a
 reject@39	reject@39	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-2	ALTER DEFAULT PRIVILEGES REVOKE OPTION FOR SELECT ON TABLES FROM a
@@ -5305,6 +5466,7 @@ reject@66	reject@66	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_de
 reject@70	reject@70	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!drop-9	ALTER DEFAULT PRIVILEGES REVOKE GRANT OPTION FOR SELECT ON TABLES FROM
 reject@73	reject@73	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!insert	ALTER DEFAULT PRIVILEGES REVOKE GRANT OPTION FOR SELECT ON TABLES FROM a zzz
 reject@25	reject@25	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior!swap	ALTER DEFAULT PRIVILEGES RIGHT GRANT OPTION FOR SELECT ON TABLES FROM a
+accept	accept	engine	DefACLAction/REVOKE_GRANT_OPTION_FOR_privileges_ON_defacl_privilege_target_FROM_grantee_list_opt_drop_behavior+opt_drop_behavior	ALTER DEFAULT PRIVILEGES REVOKE GRANT OPTION FOR SELECT ON TABLES FROM a CASCADE
 accept	accept	engine	defacl_privilege_target/TABLES	ALTER DEFAULT PRIVILEGES GRANT SELECT ON TABLES TO a
 reject@40	reject@40	engine	defacl_privilege_target/TABLES!truncate	ALTER DEFAULT PRIVILEGES GRANT SELECT ON
 reject@48	reject@48	engine	defacl_privilege_target/TABLES!insert	ALTER DEFAULT PRIVILEGES GRANT SELECT ON TABLES zzz TO a
@@ -5325,6 +5487,10 @@ accept	accept	engine	defacl_privilege_target/SCHEMAS	ALTER DEFAULT PRIVILEGES GR
 reject@49	reject@49	engine	defacl_privilege_target/SCHEMAS!insert	ALTER DEFAULT PRIVILEGES GRANT SELECT ON SCHEMAS zzz TO a
 reject@41	reject@41	engine	defacl_privilege_target/SCHEMAS!swap	ALTER DEFAULT PRIVILEGES GRANT SELECT ON SCROLL TO a
 accept	accept	engine	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_opt_single_name_ON_relation_expr_access_method_clause_(_index_params_)_opt_include_opt_unique_null_treatment_opt_reloptions_OptTableSpace_where_clause	CREATE INDEX ON a(a)
+accept	accept	engine	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_opt_single_name_ON_relation_expr_access_method_clause_(_index_params_)_opt_include_opt_unique_null_treatment_opt_reloptions_OptTableSpace_where_clause+opt_concurrently	CREATE INDEX CONCURRENTLY ON a(a)
+accept	accept	engine	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_opt_single_name_ON_relation_expr_access_method_clause_(_index_params_)_opt_include_opt_unique_null_treatment_opt_reloptions_OptTableSpace_where_clause+opt_unique_null_treatment	CREATE INDEX ON a(a) NULLS DISTINCT
+reject@21	reject@21	engine	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_opt_single_name_ON_relation_expr_access_method_clause_(_index_params_)_opt_include_opt_unique_null_treatment_opt_reloptions_OptTableSpace_where_clause+opt_unique_null_treatment!drop-8	CREATE INDEX ON a(a) DISTINCT
+reject@26	reject@26	engine	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_opt_single_name_ON_relation_expr_access_method_clause_(_index_params_)_opt_include_opt_unique_null_treatment_opt_reloptions_OptTableSpace_where_clause+opt_unique_null_treatment!drop-9	CREATE INDEX ON a(a) NULLS
 accept	accept	engine	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_IF_P_NOT_EXISTS_name_ON_relation_expr_access_method_clause_(_index_params_)_opt_include_opt_unique_null_treatment_opt_reloptions_OptTableSpace_where_clause	CREATE INDEX IF NOT EXISTS a ON a(a)
 reject@0	reject@0	engine	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_IF_P_NOT_EXISTS_name_ON_relation_expr_access_method_clause_(_index_params_)_opt_include_opt_unique_null_treatment_opt_reloptions_OptTableSpace_where_clause!drop-1	INDEX IF NOT EXISTS a ON a(a)
 reject@7	reject@7	engine	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_IF_P_NOT_EXISTS_name_ON_relation_expr_access_method_clause_(_index_params_)_opt_include_opt_unique_null_treatment_opt_reloptions_OptTableSpace_where_clause!drop-2	CREATE IF NOT EXISTS a ON a(a)
@@ -5339,6 +5505,11 @@ reject@34	reject@34	engine	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_IF
 reject@35	reject@35	engine	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_IF_P_NOT_EXISTS_name_ON_relation_expr_access_method_clause_(_index_params_)_opt_include_opt_unique_null_treatment_opt_reloptions_OptTableSpace_where_clause!drop-11	CREATE INDEX IF NOT EXISTS a ON a(a
 reject@37	reject@37	engine	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_IF_P_NOT_EXISTS_name_ON_relation_expr_access_method_clause_(_index_params_)_opt_include_opt_unique_null_treatment_opt_reloptions_OptTableSpace_where_clause!insert	CREATE INDEX IF NOT EXISTS a ON a(a) zzz
 reject@0	reject@0	engine	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_IF_P_NOT_EXISTS_name_ON_relation_expr_access_method_clause_(_index_params_)_opt_include_opt_unique_null_treatment_opt_reloptions_OptTableSpace_where_clause!swap	CROSS INDEX IF NOT EXISTS a ON a(a)
+accept	accept	engine	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_IF_P_NOT_EXISTS_name_ON_relation_expr_access_method_clause_(_index_params_)_opt_include_opt_unique_null_treatment_opt_reloptions_OptTableSpace_where_clause+opt_unique	CREATE UNIQUE INDEX IF NOT EXISTS a ON a(a)
+accept	accept	engine	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_IF_P_NOT_EXISTS_name_ON_relation_expr_access_method_clause_(_index_params_)_opt_include_opt_unique_null_treatment_opt_reloptions_OptTableSpace_where_clause+opt_concurrently	CREATE INDEX CONCURRENTLY IF NOT EXISTS a ON a(a)
+accept	accept	engine	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_IF_P_NOT_EXISTS_name_ON_relation_expr_access_method_clause_(_index_params_)_opt_include_opt_unique_null_treatment_opt_reloptions_OptTableSpace_where_clause+opt_unique_null_treatment	CREATE INDEX IF NOT EXISTS a ON a(a) NULLS DISTINCT
+reject@37	reject@37	engine	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_IF_P_NOT_EXISTS_name_ON_relation_expr_access_method_clause_(_index_params_)_opt_include_opt_unique_null_treatment_opt_reloptions_OptTableSpace_where_clause+opt_unique_null_treatment!drop-12	CREATE INDEX IF NOT EXISTS a ON a(a) DISTINCT
+reject@42	reject@42	engine	IndexStmt/CREATE_opt_unique_INDEX_opt_concurrently_IF_P_NOT_EXISTS_name_ON_relation_expr_access_method_clause_(_index_params_)_opt_include_opt_unique_null_treatment_opt_reloptions_OptTableSpace_where_clause+opt_unique_null_treatment!drop-13	CREATE INDEX IF NOT EXISTS a ON a(a) NULLS
 accept	accept	engine	opt_unique/UNIQUE	CREATE UNIQUE INDEX ON a(a)
 reject@14	reject@14	engine	opt_unique/UNIQUE!insert	CREATE UNIQUE zzz INDEX ON a(a)
 reject@7	reject@7	engine	opt_unique/UNIQUE!swap	CREATE UNKNOWN INDEX ON a(a)
@@ -5430,6 +5601,9 @@ reject@20	reject@20	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_fun
 reject@27	reject@27	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_func_return_opt_createfunc_opt_list_opt_routine_body!drop-7	CREATE FUNCTION a() RETURNS
 reject@30	reject@30	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_func_return_opt_createfunc_opt_list_opt_routine_body!insert	CREATE FUNCTION a() RETURNS a zzz
 reject@0	reject@0	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_func_return_opt_createfunc_opt_list_opt_routine_body!swap	CROSS FUNCTION a() RETURNS a
+accept	accept	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_func_return_opt_createfunc_opt_list_opt_routine_body+opt_or_replace	CREATE OR REPLACE FUNCTION a() RETURNS a
+reject@7	reject@7	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_func_return_opt_createfunc_opt_list_opt_routine_body+opt_or_replace!drop-2	CREATE REPLACE FUNCTION a() RETURNS a
+reject@10	reject@10	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_func_return_opt_createfunc_opt_list_opt_routine_body+opt_or_replace!drop-3	CREATE OR FUNCTION a() RETURNS a
 accept	accept	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body	CREATE FUNCTION a() RETURNS TABLE(a a)
 reject@0	reject@0	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body!drop-1	FUNCTION a() RETURNS TABLE(a a)
 reject@7	reject@7	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body!drop-2	CREATE a() RETURNS TABLE(a a)
@@ -5443,7 +5617,13 @@ reject@35	reject@35	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_fun
 reject@37	reject@37	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body!drop-11	CREATE FUNCTION a() RETURNS TABLE(a a
 reject@39	reject@39	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body!insert	CREATE FUNCTION a() RETURNS TABLE(a a) zzz
 reject@0	reject@0	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body!swap	CROSS FUNCTION a() RETURNS TABLE(a a)
+accept	accept	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body+opt_or_replace	CREATE OR REPLACE FUNCTION a() RETURNS TABLE(a a)
+reject@7	reject@7	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body+opt_or_replace!drop-2	CREATE REPLACE FUNCTION a() RETURNS TABLE(a a)
+reject@10	reject@10	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_RETURNS_TABLE_(_table_func_column_list_)_opt_createfunc_opt_list_opt_routine_body+opt_or_replace!drop-3	CREATE OR FUNCTION a() RETURNS TABLE(a a)
 accept	accept	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_opt_createfunc_opt_list_opt_routine_body	CREATE FUNCTION a()
+accept	accept	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_opt_createfunc_opt_list_opt_routine_body+opt_or_replace	CREATE OR REPLACE FUNCTION a()
+reject@7	reject@7	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_opt_createfunc_opt_list_opt_routine_body+opt_or_replace!drop-2	CREATE REPLACE FUNCTION a()
+reject@10	reject@10	engine	CreateFunctionStmt/CREATE_opt_or_replace_FUNCTION_func_name_func_args_with_defaults_opt_createfunc_opt_list_opt_routine_body+opt_or_replace!drop-3	CREATE OR FUNCTION a()
 accept	accept	engine	CreateFunctionStmt/CREATE_opt_or_replace_PROCEDURE_func_name_func_args_with_defaults_opt_createfunc_opt_list_opt_routine_body	CREATE PROCEDURE a()
 reject@0	reject@0	engine	CreateFunctionStmt/CREATE_opt_or_replace_PROCEDURE_func_name_func_args_with_defaults_opt_createfunc_opt_list_opt_routine_body!drop-1	PROCEDURE a()
 reject@16	reject@16	engine	CreateFunctionStmt/CREATE_opt_or_replace_PROCEDURE_func_name_func_args_with_defaults_opt_createfunc_opt_list_opt_routine_body!drop-3	CREATE PROCEDURE()
@@ -5451,6 +5631,9 @@ reject@18	reject@18	engine	CreateFunctionStmt/CREATE_opt_or_replace_PROCEDURE_fu
 reject@19	reject@19	engine	CreateFunctionStmt/CREATE_opt_or_replace_PROCEDURE_func_name_func_args_with_defaults_opt_createfunc_opt_list_opt_routine_body!drop-5	CREATE PROCEDURE a(
 reject@21	reject@21	engine	CreateFunctionStmt/CREATE_opt_or_replace_PROCEDURE_func_name_func_args_with_defaults_opt_createfunc_opt_list_opt_routine_body!insert	CREATE PROCEDURE a() zzz
 reject@0	reject@0	engine	CreateFunctionStmt/CREATE_opt_or_replace_PROCEDURE_func_name_func_args_with_defaults_opt_createfunc_opt_list_opt_routine_body!swap	CROSS PROCEDURE a()
+accept	accept	engine	CreateFunctionStmt/CREATE_opt_or_replace_PROCEDURE_func_name_func_args_with_defaults_opt_createfunc_opt_list_opt_routine_body+opt_or_replace	CREATE OR REPLACE PROCEDURE a()
+reject@7	reject@7	engine	CreateFunctionStmt/CREATE_opt_or_replace_PROCEDURE_func_name_func_args_with_defaults_opt_createfunc_opt_list_opt_routine_body+opt_or_replace!drop-2	CREATE REPLACE PROCEDURE a()
+reject@10	reject@10	engine	CreateFunctionStmt/CREATE_opt_or_replace_PROCEDURE_func_name_func_args_with_defaults_opt_createfunc_opt_list_opt_routine_body+opt_or_replace!drop-3	CREATE OR PROCEDURE a()
 accept	accept	engine	opt_or_replace/OR_REPLACE	CREATE OR REPLACE LANGUAGE a
 reject@7	reject@7	engine	opt_or_replace/OR_REPLACE!drop-1	CREATE REPLACE LANGUAGE a
 reject@10	reject@10	engine	opt_or_replace/OR_REPLACE!drop-2	CREATE OR LANGUAGE a
@@ -5793,6 +5976,7 @@ reject@45	reject@45	engine	opt_restrict/RESTRICT!insert	ALTER FUNCTION AUTHORIZA
 reject@36	reject@36	engine	opt_restrict/RESTRICT!swap	ALTER FUNCTION AUTHORIZATION STRICT RETURN
 accept	accept	engine	opt_restrict/%empty	ALTER FUNCTION AUTHORIZATION STRICT
 accept	accept	engine	RemoveFuncStmt/DROP_FUNCTION_function_with_argtypes_list_opt_drop_behavior	DROP FUNCTION AUTHORIZATION
+accept	accept	engine	RemoveFuncStmt/DROP_FUNCTION_function_with_argtypes_list_opt_drop_behavior+opt_drop_behavior	DROP FUNCTION AUTHORIZATION CASCADE
 accept	accept	engine	RemoveFuncStmt/DROP_FUNCTION_IF_P_EXISTS_function_with_argtypes_list_opt_drop_behavior	DROP FUNCTION IF EXISTS AUTHORIZATION
 reject@0	reject@0	engine	RemoveFuncStmt/DROP_FUNCTION_IF_P_EXISTS_function_with_argtypes_list_opt_drop_behavior!drop-1	FUNCTION IF EXISTS AUTHORIZATION
 reject@5	reject@5	engine	RemoveFuncStmt/DROP_FUNCTION_IF_P_EXISTS_function_with_argtypes_list_opt_drop_behavior!drop-2	DROP IF EXISTS AUTHORIZATION
@@ -5801,11 +5985,13 @@ reject@17	reject@17	engine	RemoveFuncStmt/DROP_FUNCTION_IF_P_EXISTS_function_wit
 reject@23	reject@23	engine	RemoveFuncStmt/DROP_FUNCTION_IF_P_EXISTS_function_with_argtypes_list_opt_drop_behavior!drop-5	DROP FUNCTION IF EXISTS
 reject@38	reject@38	engine	RemoveFuncStmt/DROP_FUNCTION_IF_P_EXISTS_function_with_argtypes_list_opt_drop_behavior!insert	DROP FUNCTION IF EXISTS AUTHORIZATION zzz
 reject@0	reject@0	engine	RemoveFuncStmt/DROP_FUNCTION_IF_P_EXISTS_function_with_argtypes_list_opt_drop_behavior!swap	EACH FUNCTION IF EXISTS AUTHORIZATION
+accept	accept	engine	RemoveFuncStmt/DROP_FUNCTION_IF_P_EXISTS_function_with_argtypes_list_opt_drop_behavior+opt_drop_behavior	DROP FUNCTION IF EXISTS AUTHORIZATION CASCADE
 accept	accept	engine	RemoveFuncStmt/DROP_PROCEDURE_function_with_argtypes_list_opt_drop_behavior	DROP PROCEDURE AUTHORIZATION
 reject@0	reject@0	engine	RemoveFuncStmt/DROP_PROCEDURE_function_with_argtypes_list_opt_drop_behavior!drop-1	PROCEDURE AUTHORIZATION
 reject@14	reject@14	engine	RemoveFuncStmt/DROP_PROCEDURE_function_with_argtypes_list_opt_drop_behavior!drop-3	DROP PROCEDURE
 reject@29	reject@29	engine	RemoveFuncStmt/DROP_PROCEDURE_function_with_argtypes_list_opt_drop_behavior!insert	DROP PROCEDURE AUTHORIZATION zzz
 reject@0	reject@0	engine	RemoveFuncStmt/DROP_PROCEDURE_function_with_argtypes_list_opt_drop_behavior!swap	EACH PROCEDURE AUTHORIZATION
+accept	accept	engine	RemoveFuncStmt/DROP_PROCEDURE_function_with_argtypes_list_opt_drop_behavior+opt_drop_behavior	DROP PROCEDURE AUTHORIZATION CASCADE
 accept	accept	engine	RemoveFuncStmt/DROP_PROCEDURE_IF_P_EXISTS_function_with_argtypes_list_opt_drop_behavior	DROP PROCEDURE IF EXISTS AUTHORIZATION
 reject@0	reject@0	engine	RemoveFuncStmt/DROP_PROCEDURE_IF_P_EXISTS_function_with_argtypes_list_opt_drop_behavior!drop-1	PROCEDURE IF EXISTS AUTHORIZATION
 reject@22	reject@22	engine	RemoveFuncStmt/DROP_PROCEDURE_IF_P_EXISTS_function_with_argtypes_list_opt_drop_behavior!drop-3	DROP PROCEDURE EXISTS AUTHORIZATION
@@ -5813,11 +5999,13 @@ reject@18	reject@18	engine	RemoveFuncStmt/DROP_PROCEDURE_IF_P_EXISTS_function_wi
 reject@24	reject@24	engine	RemoveFuncStmt/DROP_PROCEDURE_IF_P_EXISTS_function_with_argtypes_list_opt_drop_behavior!drop-5	DROP PROCEDURE IF EXISTS
 reject@39	reject@39	engine	RemoveFuncStmt/DROP_PROCEDURE_IF_P_EXISTS_function_with_argtypes_list_opt_drop_behavior!insert	DROP PROCEDURE IF EXISTS AUTHORIZATION zzz
 reject@0	reject@0	engine	RemoveFuncStmt/DROP_PROCEDURE_IF_P_EXISTS_function_with_argtypes_list_opt_drop_behavior!swap	EACH PROCEDURE IF EXISTS AUTHORIZATION
+accept	accept	engine	RemoveFuncStmt/DROP_PROCEDURE_IF_P_EXISTS_function_with_argtypes_list_opt_drop_behavior+opt_drop_behavior	DROP PROCEDURE IF EXISTS AUTHORIZATION CASCADE
 accept	accept	engine	RemoveFuncStmt/DROP_ROUTINE_function_with_argtypes_list_opt_drop_behavior	DROP ROUTINE AUTHORIZATION
 reject@0	reject@0	engine	RemoveFuncStmt/DROP_ROUTINE_function_with_argtypes_list_opt_drop_behavior!drop-1	ROUTINE AUTHORIZATION
 reject@12	reject@12	engine	RemoveFuncStmt/DROP_ROUTINE_function_with_argtypes_list_opt_drop_behavior!drop-3	DROP ROUTINE
 reject@27	reject@27	engine	RemoveFuncStmt/DROP_ROUTINE_function_with_argtypes_list_opt_drop_behavior!insert	DROP ROUTINE AUTHORIZATION zzz
 reject@0	reject@0	engine	RemoveFuncStmt/DROP_ROUTINE_function_with_argtypes_list_opt_drop_behavior!swap	EACH ROUTINE AUTHORIZATION
+accept	accept	engine	RemoveFuncStmt/DROP_ROUTINE_function_with_argtypes_list_opt_drop_behavior+opt_drop_behavior	DROP ROUTINE AUTHORIZATION CASCADE
 accept	accept	engine	RemoveFuncStmt/DROP_ROUTINE_IF_P_EXISTS_function_with_argtypes_list_opt_drop_behavior	DROP ROUTINE IF EXISTS AUTHORIZATION
 reject@0	reject@0	engine	RemoveFuncStmt/DROP_ROUTINE_IF_P_EXISTS_function_with_argtypes_list_opt_drop_behavior!drop-1	ROUTINE IF EXISTS AUTHORIZATION
 reject@20	reject@20	engine	RemoveFuncStmt/DROP_ROUTINE_IF_P_EXISTS_function_with_argtypes_list_opt_drop_behavior!drop-3	DROP ROUTINE EXISTS AUTHORIZATION
@@ -5825,7 +6013,9 @@ reject@16	reject@16	engine	RemoveFuncStmt/DROP_ROUTINE_IF_P_EXISTS_function_with
 reject@22	reject@22	engine	RemoveFuncStmt/DROP_ROUTINE_IF_P_EXISTS_function_with_argtypes_list_opt_drop_behavior!drop-5	DROP ROUTINE IF EXISTS
 reject@37	reject@37	engine	RemoveFuncStmt/DROP_ROUTINE_IF_P_EXISTS_function_with_argtypes_list_opt_drop_behavior!insert	DROP ROUTINE IF EXISTS AUTHORIZATION zzz
 reject@0	reject@0	engine	RemoveFuncStmt/DROP_ROUTINE_IF_P_EXISTS_function_with_argtypes_list_opt_drop_behavior!swap	EACH ROUTINE IF EXISTS AUTHORIZATION
+accept	accept	engine	RemoveFuncStmt/DROP_ROUTINE_IF_P_EXISTS_function_with_argtypes_list_opt_drop_behavior+opt_drop_behavior	DROP ROUTINE IF EXISTS AUTHORIZATION CASCADE
 accept	accept	engine	RemoveAggrStmt/DROP_AGGREGATE_aggregate_with_argtypes_list_opt_drop_behavior	DROP AGGREGATE a(*)
+accept	accept	engine	RemoveAggrStmt/DROP_AGGREGATE_aggregate_with_argtypes_list_opt_drop_behavior+opt_drop_behavior	DROP AGGREGATE a(*) CASCADE
 accept	accept	engine	RemoveAggrStmt/DROP_AGGREGATE_IF_P_EXISTS_aggregate_with_argtypes_list_opt_drop_behavior	DROP AGGREGATE IF EXISTS a(*)
 reject@0	reject@0	engine	RemoveAggrStmt/DROP_AGGREGATE_IF_P_EXISTS_aggregate_with_argtypes_list_opt_drop_behavior!drop-1	AGGREGATE IF EXISTS a(*)
 reject@5	reject@5	engine	RemoveAggrStmt/DROP_AGGREGATE_IF_P_EXISTS_aggregate_with_argtypes_list_opt_drop_behavior!drop-2	DROP IF EXISTS a(*)
@@ -5837,7 +6027,9 @@ reject@27	reject@27	engine	RemoveAggrStmt/DROP_AGGREGATE_IF_P_EXISTS_aggregate_w
 reject@28	reject@28	engine	RemoveAggrStmt/DROP_AGGREGATE_IF_P_EXISTS_aggregate_with_argtypes_list_opt_drop_behavior!drop-8	DROP AGGREGATE IF EXISTS a(*
 reject@30	reject@30	engine	RemoveAggrStmt/DROP_AGGREGATE_IF_P_EXISTS_aggregate_with_argtypes_list_opt_drop_behavior!insert	DROP AGGREGATE IF EXISTS a(*) zzz
 reject@0	reject@0	engine	RemoveAggrStmt/DROP_AGGREGATE_IF_P_EXISTS_aggregate_with_argtypes_list_opt_drop_behavior!swap	EACH AGGREGATE IF EXISTS a(*)
+accept	accept	engine	RemoveAggrStmt/DROP_AGGREGATE_IF_P_EXISTS_aggregate_with_argtypes_list_opt_drop_behavior+opt_drop_behavior	DROP AGGREGATE IF EXISTS a(*) CASCADE
 reject@17	reject@17	engine	RemoveOperStmt/DROP_OPERATOR_operator_with_argtypes_list_opt_drop_behavior	DROP OPERATOR ~(a)
+reject@17	reject@17	engine	RemoveOperStmt/DROP_OPERATOR_operator_with_argtypes_list_opt_drop_behavior+opt_drop_behavior	DROP OPERATOR ~(a) CASCADE
 reject@27	reject@27	engine	RemoveOperStmt/DROP_OPERATOR_IF_P_EXISTS_operator_with_argtypes_list_opt_drop_behavior	DROP OPERATOR IF EXISTS ~(a)
 reject@0	reject@0	engine	RemoveOperStmt/DROP_OPERATOR_IF_P_EXISTS_operator_with_argtypes_list_opt_drop_behavior!drop-1	OPERATOR IF EXISTS ~(a)
 reject@5	reject@5	engine	RemoveOperStmt/DROP_OPERATOR_IF_P_EXISTS_operator_with_argtypes_list_opt_drop_behavior!drop-2	DROP IF EXISTS ~(a)
@@ -5849,6 +6041,7 @@ reject@26	reject@26	engine	RemoveOperStmt/DROP_OPERATOR_IF_P_EXISTS_operator_wit
 reject@27	reject@27	engine	RemoveOperStmt/DROP_OPERATOR_IF_P_EXISTS_operator_with_argtypes_list_opt_drop_behavior!drop-8	DROP OPERATOR IF EXISTS ~(a
 reject@27	reject@27	engine	RemoveOperStmt/DROP_OPERATOR_IF_P_EXISTS_operator_with_argtypes_list_opt_drop_behavior!insert	DROP OPERATOR IF EXISTS ~(a) zzz
 reject@0	reject@0	engine	RemoveOperStmt/DROP_OPERATOR_IF_P_EXISTS_operator_with_argtypes_list_opt_drop_behavior!swap	EACH OPERATOR IF EXISTS ~(a)
+reject@27	reject@27	engine	RemoveOperStmt/DROP_OPERATOR_IF_P_EXISTS_operator_with_argtypes_list_opt_drop_behavior+opt_drop_behavior	DROP OPERATOR IF EXISTS ~(a) CASCADE
 reject@17	reject@17	engine	oper_argtypes/(_Typename_)	DROP OPERATOR ~(a)
 accept	accept	engine	oper_argtypes/(_Typename_,_Typename_)	DROP OPERATOR ~(a, a)
 reject@16	reject@16	engine	oper_argtypes/(_Typename_,_Typename_)!drop-1	DROP OPERATOR ~ a, a)
@@ -5938,6 +6131,10 @@ reject@51	reject@51	engine	cast_context/AS_ASSIGNMENT!insert	CREATE CAST(a AS a)
 reject@37	reject@37	engine	cast_context/AS_ASSIGNMENT!swap	CREATE CAST(a AS a) WITHOUT FUNCTION ASC ASSIGNMENT
 accept	accept	engine	cast_context/%empty	CREATE CAST(a AS a) WITHOUT FUNCTION
 accept	accept	engine	DropCastStmt/DROP_CAST_opt_if_exists_(_Typename_AS_Typename_)_opt_drop_behavior	DROP CAST(a AS a)
+accept	accept	engine	DropCastStmt/DROP_CAST_opt_if_exists_(_Typename_AS_Typename_)_opt_drop_behavior+opt_if_exists	DROP CAST IF EXISTS(a AS a)
+reject@10	reject@10	engine	DropCastStmt/DROP_CAST_opt_if_exists_(_Typename_AS_Typename_)_opt_drop_behavior+opt_if_exists!drop-3	DROP CAST EXISTS(a AS a)
+reject@12	reject@12	engine	DropCastStmt/DROP_CAST_opt_if_exists_(_Typename_AS_Typename_)_opt_drop_behavior+opt_if_exists!drop-4	DROP CAST IF(a AS a)
+accept	accept	engine	DropCastStmt/DROP_CAST_opt_if_exists_(_Typename_AS_Typename_)_opt_drop_behavior+opt_drop_behavior	DROP CAST(a AS a) CASCADE
 accept	accept	engine	opt_if_exists/IF_P_EXISTS	DROP TRANSFORM IF EXISTS FOR a LANGUAGE a
 reject@15	reject@15	engine	opt_if_exists/IF_P_EXISTS!drop-1	DROP TRANSFORM EXISTS FOR a LANGUAGE a
 reject@18	reject@18	engine	opt_if_exists/IF_P_EXISTS!drop-2	DROP TRANSFORM IF FOR a LANGUAGE a
@@ -5947,6 +6144,9 @@ reject@15	reject@15	engine	opt_if_exists/IF_P_EXISTS!swap	DROP TRANSFORM ILIKE E
 accept	accept	engine	opt_if_exists/%empty	DROP TRANSFORM FOR a LANGUAGE a
 reject@15	reject@15	engine	opt_if_exists/%empty!insert	DROP TRANSFORM zzz FOR a LANGUAGE a
 accept	accept	engine	CreateTransformStmt/CREATE_opt_or_replace_TRANSFORM_FOR_Typename_LANGUAGE_name_(_transform_element_list_)	CREATE TRANSFORM FOR a LANGUAGE a(FROM SQL WITH FUNCTION AUTHORIZATION)
+accept	accept	engine	CreateTransformStmt/CREATE_opt_or_replace_TRANSFORM_FOR_Typename_LANGUAGE_name_(_transform_element_list_)+opt_or_replace	CREATE OR REPLACE TRANSFORM FOR a LANGUAGE a(FROM SQL WITH FUNCTION AUTHORIZATION)
+reject@7	reject@7	engine	CreateTransformStmt/CREATE_opt_or_replace_TRANSFORM_FOR_Typename_LANGUAGE_name_(_transform_element_list_)+opt_or_replace!drop-2	CREATE REPLACE TRANSFORM FOR a LANGUAGE a(FROM SQL WITH FUNCTION AUTHORIZATION)
+reject@10	reject@10	engine	CreateTransformStmt/CREATE_opt_or_replace_TRANSFORM_FOR_Typename_LANGUAGE_name_(_transform_element_list_)+opt_or_replace!drop-3	CREATE OR TRANSFORM FOR a LANGUAGE a(FROM SQL WITH FUNCTION AUTHORIZATION)
 accept	accept	engine	transform_element_list/FROM_SQL_P_WITH_FUNCTION_function_with_argtypes_,_TO_SQL_P_WITH_FUNCTION_function_with_argtypes	CREATE TRANSFORM FOR a LANGUAGE a(FROM SQL WITH FUNCTION AUTHORIZATION, TO SQL WITH FUNCTION AUTHORIZATION)
 reject@34	reject@34	engine	transform_element_list/FROM_SQL_P_WITH_FUNCTION_function_with_argtypes_,_TO_SQL_P_WITH_FUNCTION_function_with_argtypes!drop-1	CREATE TRANSFORM FOR a LANGUAGE a(SQL WITH FUNCTION AUTHORIZATION, TO SQL WITH FUNCTION AUTHORIZATION)
 reject@39	reject@39	engine	transform_element_list/FROM_SQL_P_WITH_FUNCTION_function_with_argtypes_,_TO_SQL_P_WITH_FUNCTION_function_with_argtypes!drop-2	CREATE TRANSFORM FOR a LANGUAGE a(FROM WITH FUNCTION AUTHORIZATION, TO SQL WITH FUNCTION AUTHORIZATION)
@@ -5990,16 +6190,19 @@ reject@54	reject@54	engine	transform_element_list/TO_SQL_P_WITH_FUNCTION_functio
 reject@69	reject@69	engine	transform_element_list/TO_SQL_P_WITH_FUNCTION_function_with_argtypes!insert	CREATE TRANSFORM FOR a LANGUAGE a(TO SQL WITH FUNCTION AUTHORIZATION zzz)
 reject@34	reject@34	engine	transform_element_list/TO_SQL_P_WITH_FUNCTION_function_with_argtypes!swap	CREATE TRANSFORM FOR a LANGUAGE a(TRAILING SQL WITH FUNCTION AUTHORIZATION)
 accept	accept	engine	DropTransformStmt/DROP_TRANSFORM_opt_if_exists_FOR_Typename_LANGUAGE_name_opt_drop_behavior	DROP TRANSFORM FOR a LANGUAGE a
+accept	accept	engine	DropTransformStmt/DROP_TRANSFORM_opt_if_exists_FOR_Typename_LANGUAGE_name_opt_drop_behavior+opt_drop_behavior	DROP TRANSFORM FOR a LANGUAGE a CASCADE
 accept	accept	engine	ReindexStmt/REINDEX_opt_reindex_option_list_reindex_target_relation_opt_concurrently_qualified_name	REINDEX INDEX a
 reject@0	reject@0	engine	ReindexStmt/REINDEX_opt_reindex_option_list_reindex_target_relation_opt_concurrently_qualified_name!drop-1	INDEX a
 reject@8	reject@8	engine	ReindexStmt/REINDEX_opt_reindex_option_list_reindex_target_relation_opt_concurrently_qualified_name!drop-2	REINDEX a
 reject@13	reject@13	engine	ReindexStmt/REINDEX_opt_reindex_option_list_reindex_target_relation_opt_concurrently_qualified_name!drop-3	REINDEX INDEX
 reject@16	reject@16	engine	ReindexStmt/REINDEX_opt_reindex_option_list_reindex_target_relation_opt_concurrently_qualified_name!insert	REINDEX INDEX a zzz
 reject@0	reject@0	engine	ReindexStmt/REINDEX_opt_reindex_option_list_reindex_target_relation_opt_concurrently_qualified_name!swap	RELATIVE INDEX a
+accept	accept	engine	ReindexStmt/REINDEX_opt_reindex_option_list_reindex_target_relation_opt_concurrently_qualified_name+opt_concurrently	REINDEX INDEX CONCURRENTLY a
 accept	accept	engine	ReindexStmt/REINDEX_opt_reindex_option_list_SCHEMA_opt_concurrently_name	REINDEX SCHEMA a
 reject@14	reject@14	engine	ReindexStmt/REINDEX_opt_reindex_option_list_SCHEMA_opt_concurrently_name!drop-3	REINDEX SCHEMA
 reject@17	reject@17	engine	ReindexStmt/REINDEX_opt_reindex_option_list_SCHEMA_opt_concurrently_name!insert	REINDEX SCHEMA a zzz
 reject@0	reject@0	engine	ReindexStmt/REINDEX_opt_reindex_option_list_SCHEMA_opt_concurrently_name!swap	RELATIVE SCHEMA a
+accept	accept	engine	ReindexStmt/REINDEX_opt_reindex_option_list_SCHEMA_opt_concurrently_name+opt_concurrently	REINDEX SCHEMA CONCURRENTLY a
 accept	accept	engine	ReindexStmt/REINDEX_opt_reindex_option_list_reindex_target_all_opt_concurrently_opt_single_name	REINDEX SYSTEM
 accept	accept	engine	reindex_target_relation/INDEX	REINDEX INDEX a
 reject@18	reject@18	engine	reindex_target_relation/INDEX!insert	REINDEX INDEX zzz a
@@ -6114,6 +6317,7 @@ reject@24	reject@24	engine	RenameStmt/ALTER_opt_procedural_LANGUAGE_name_RENAME_
 reject@26	reject@26	engine	RenameStmt/ALTER_opt_procedural_LANGUAGE_name_RENAME_TO_name!drop-6	ALTER LANGUAGE a RENAME TO
 reject@29	reject@29	engine	RenameStmt/ALTER_opt_procedural_LANGUAGE_name_RENAME_TO_name!insert	ALTER LANGUAGE a RENAME TO a zzz
 reject@0	reject@0	engine	RenameStmt/ALTER_opt_procedural_LANGUAGE_name_RENAME_TO_name!swap	ALWAYS LANGUAGE a RENAME TO a
+accept	accept	engine	RenameStmt/ALTER_opt_procedural_LANGUAGE_name_RENAME_TO_name+opt_procedural	ALTER PROCEDURAL LANGUAGE a RENAME TO a
 accept	accept	engine	RenameStmt/ALTER_OPERATOR_CLASS_any_name_USING_name_RENAME_TO_name	ALTER OPERATOR CLASS a USING a RENAME TO a
 reject@0	reject@0	engine	RenameStmt/ALTER_OPERATOR_CLASS_any_name_USING_name_RENAME_TO_name!drop-1	OPERATOR CLASS a USING a RENAME TO a
 reject@6	reject@6	engine	RenameStmt/ALTER_OPERATOR_CLASS_any_name_USING_name_RENAME_TO_name!drop-2	ALTER CLASS a USING a RENAME TO a
@@ -6329,6 +6533,7 @@ reject@23	reject@23	engine	RenameStmt/ALTER_TABLE_relation_expr_RENAME_opt_colum
 reject@25	reject@25	engine	RenameStmt/ALTER_TABLE_relation_expr_RENAME_opt_column_name_TO_name!drop-7	ALTER TABLE a RENAME a TO
 reject@28	reject@28	engine	RenameStmt/ALTER_TABLE_relation_expr_RENAME_opt_column_name_TO_name!insert	ALTER TABLE a RENAME a TO a zzz
 reject@0	reject@0	engine	RenameStmt/ALTER_TABLE_relation_expr_RENAME_opt_column_name_TO_name!swap	ALWAYS TABLE a RENAME a TO a
+accept	accept	engine	RenameStmt/ALTER_TABLE_relation_expr_RENAME_opt_column_name_TO_name+opt_column	ALTER TABLE a RENAME COLUMN a TO a
 accept	accept	engine	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_opt_column_name_TO_name	ALTER TABLE IF EXISTS a RENAME a TO a
 reject@9	reject@9	engine	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_opt_column_name_TO_name!drop-1	TABLE IF EXISTS a RENAME a TO a
 reject@6	reject@6	engine	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_opt_column_name_TO_name!drop-2	ALTER IF EXISTS a RENAME a TO a
@@ -6340,6 +6545,7 @@ reject@33	reject@33	engine	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENA
 reject@35	reject@35	engine	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_opt_column_name_TO_name!drop-9	ALTER TABLE IF EXISTS a RENAME a TO
 reject@38	reject@38	engine	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_opt_column_name_TO_name!insert	ALTER TABLE IF EXISTS a RENAME a TO a zzz
 reject@0	reject@0	engine	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_opt_column_name_TO_name!swap	ALWAYS TABLE IF EXISTS a RENAME a TO a
+accept	accept	engine	RenameStmt/ALTER_TABLE_IF_P_EXISTS_relation_expr_RENAME_opt_column_name_TO_name+opt_column	ALTER TABLE IF EXISTS a RENAME COLUMN a TO a
 accept	accept	engine	RenameStmt/ALTER_VIEW_qualified_name_RENAME_opt_column_name_TO_name	ALTER VIEW a RENAME a TO a
 reject@0	reject@0	engine	RenameStmt/ALTER_VIEW_qualified_name_RENAME_opt_column_name_TO_name!drop-1	VIEW a RENAME a TO a
 reject@18	reject@18	engine	RenameStmt/ALTER_VIEW_qualified_name_RENAME_opt_column_name_TO_name!drop-3	ALTER VIEW RENAME a TO a
@@ -6348,6 +6554,7 @@ reject@22	reject@22	engine	RenameStmt/ALTER_VIEW_qualified_name_RENAME_opt_colum
 reject@24	reject@24	engine	RenameStmt/ALTER_VIEW_qualified_name_RENAME_opt_column_name_TO_name!drop-7	ALTER VIEW a RENAME a TO
 reject@27	reject@27	engine	RenameStmt/ALTER_VIEW_qualified_name_RENAME_opt_column_name_TO_name!insert	ALTER VIEW a RENAME a TO a zzz
 reject@0	reject@0	engine	RenameStmt/ALTER_VIEW_qualified_name_RENAME_opt_column_name_TO_name!swap	ALWAYS VIEW a RENAME a TO a
+accept	accept	engine	RenameStmt/ALTER_VIEW_qualified_name_RENAME_opt_column_name_TO_name+opt_column	ALTER VIEW a RENAME COLUMN a TO a
 accept	accept	engine	RenameStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name	ALTER VIEW IF EXISTS a RENAME a TO a
 reject@0	reject@0	engine	RenameStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name!drop-1	VIEW IF EXISTS a RENAME a TO a
 reject@18	reject@18	engine	RenameStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name!drop-3	ALTER VIEW EXISTS a RENAME a TO a
@@ -6358,6 +6565,7 @@ reject@32	reject@32	engine	RenameStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_RENA
 reject@34	reject@34	engine	RenameStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name!drop-9	ALTER VIEW IF EXISTS a RENAME a TO
 reject@37	reject@37	engine	RenameStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name!insert	ALTER VIEW IF EXISTS a RENAME a TO a zzz
 reject@0	reject@0	engine	RenameStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name!swap	ALWAYS VIEW IF EXISTS a RENAME a TO a
+accept	accept	engine	RenameStmt/ALTER_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name+opt_column	ALTER VIEW IF EXISTS a RENAME COLUMN a TO a
 accept	accept	engine	RenameStmt/ALTER_MATERIALIZED_VIEW_qualified_name_RENAME_opt_column_name_TO_name	ALTER MATERIALIZED VIEW a RENAME a TO a
 reject@0	reject@0	engine	RenameStmt/ALTER_MATERIALIZED_VIEW_qualified_name_RENAME_opt_column_name_TO_name!drop-1	MATERIALIZED VIEW a RENAME a TO a
 reject@19	reject@19	engine	RenameStmt/ALTER_MATERIALIZED_VIEW_qualified_name_RENAME_opt_column_name_TO_name!drop-3	ALTER MATERIALIZED a RENAME a TO a
@@ -6367,6 +6575,7 @@ reject@35	reject@35	engine	RenameStmt/ALTER_MATERIALIZED_VIEW_qualified_name_REN
 reject@37	reject@37	engine	RenameStmt/ALTER_MATERIALIZED_VIEW_qualified_name_RENAME_opt_column_name_TO_name!drop-8	ALTER MATERIALIZED VIEW a RENAME a TO
 reject@40	reject@40	engine	RenameStmt/ALTER_MATERIALIZED_VIEW_qualified_name_RENAME_opt_column_name_TO_name!insert	ALTER MATERIALIZED VIEW a RENAME a TO a zzz
 reject@0	reject@0	engine	RenameStmt/ALTER_MATERIALIZED_VIEW_qualified_name_RENAME_opt_column_name_TO_name!swap	ALWAYS MATERIALIZED VIEW a RENAME a TO a
+accept	accept	engine	RenameStmt/ALTER_MATERIALIZED_VIEW_qualified_name_RENAME_opt_column_name_TO_name+opt_column	ALTER MATERIALIZED VIEW a RENAME COLUMN a TO a
 accept	accept	engine	RenameStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name	ALTER MATERIALIZED VIEW IF EXISTS a RENAME a TO a
 reject@0	reject@0	engine	RenameStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name!drop-1	MATERIALIZED VIEW IF EXISTS a RENAME a TO a
 reject@19	reject@19	engine	RenameStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name!drop-3	ALTER MATERIALIZED IF EXISTS a RENAME a TO a
@@ -6378,6 +6587,7 @@ reject@45	reject@45	engine	RenameStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualif
 reject@47	reject@47	engine	RenameStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name!drop-10	ALTER MATERIALIZED VIEW IF EXISTS a RENAME a TO
 reject@50	reject@50	engine	RenameStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name!insert	ALTER MATERIALIZED VIEW IF EXISTS a RENAME a TO a zzz
 reject@0	reject@0	engine	RenameStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name!swap	ALWAYS MATERIALIZED VIEW IF EXISTS a RENAME a TO a
+accept	accept	engine	RenameStmt/ALTER_MATERIALIZED_VIEW_IF_P_EXISTS_qualified_name_RENAME_opt_column_name_TO_name+opt_column	ALTER MATERIALIZED VIEW IF EXISTS a RENAME COLUMN a TO a
 accept	accept	engine	RenameStmt/ALTER_TABLE_relation_expr_RENAME_CONSTRAINT_name_TO_name	ALTER TABLE a RENAME CONSTRAINT a TO a
 reject@8	reject@8	engine	RenameStmt/ALTER_TABLE_relation_expr_RENAME_CONSTRAINT_name_TO_name!drop-1	TABLE a RENAME CONSTRAINT a TO a
 reject@19	reject@19	engine	RenameStmt/ALTER_TABLE_relation_expr_RENAME_CONSTRAINT_name_TO_name!drop-3	ALTER TABLE RENAME CONSTRAINT a TO a
@@ -6408,6 +6618,7 @@ reject@31	reject@31	engine	RenameStmt/ALTER_FOREIGN_TABLE_relation_expr_RENAME_o
 reject@33	reject@33	engine	RenameStmt/ALTER_FOREIGN_TABLE_relation_expr_RENAME_opt_column_name_TO_name!drop-8	ALTER FOREIGN TABLE a RENAME a TO
 reject@36	reject@36	engine	RenameStmt/ALTER_FOREIGN_TABLE_relation_expr_RENAME_opt_column_name_TO_name!insert	ALTER FOREIGN TABLE a RENAME a TO a zzz
 reject@0	reject@0	engine	RenameStmt/ALTER_FOREIGN_TABLE_relation_expr_RENAME_opt_column_name_TO_name!swap	ALWAYS FOREIGN TABLE a RENAME a TO a
+accept	accept	engine	RenameStmt/ALTER_FOREIGN_TABLE_relation_expr_RENAME_opt_column_name_TO_name+opt_column	ALTER FOREIGN TABLE a RENAME COLUMN a TO a
 accept	accept	engine	RenameStmt/ALTER_FOREIGN_TABLE_IF_P_EXISTS_relation_expr_RENAME_opt_column_name_TO_name	ALTER FOREIGN TABLE IF EXISTS a RENAME a TO a
 reject@0	reject@0	engine	RenameStmt/ALTER_FOREIGN_TABLE_IF_P_EXISTS_relation_expr_RENAME_opt_column_name_TO_name!drop-1	FOREIGN TABLE IF EXISTS a RENAME a TO a
 reject@14	reject@14	engine	RenameStmt/ALTER_FOREIGN_TABLE_IF_P_EXISTS_relation_expr_RENAME_opt_column_name_TO_name!drop-3	ALTER FOREIGN IF EXISTS a RENAME a TO a
@@ -6419,6 +6630,7 @@ reject@41	reject@41	engine	RenameStmt/ALTER_FOREIGN_TABLE_IF_P_EXISTS_relation_e
 reject@43	reject@43	engine	RenameStmt/ALTER_FOREIGN_TABLE_IF_P_EXISTS_relation_expr_RENAME_opt_column_name_TO_name!drop-10	ALTER FOREIGN TABLE IF EXISTS a RENAME a TO
 reject@46	reject@46	engine	RenameStmt/ALTER_FOREIGN_TABLE_IF_P_EXISTS_relation_expr_RENAME_opt_column_name_TO_name!insert	ALTER FOREIGN TABLE IF EXISTS a RENAME a TO a zzz
 reject@0	reject@0	engine	RenameStmt/ALTER_FOREIGN_TABLE_IF_P_EXISTS_relation_expr_RENAME_opt_column_name_TO_name!swap	ALWAYS FOREIGN TABLE IF EXISTS a RENAME a TO a
+accept	accept	engine	RenameStmt/ALTER_FOREIGN_TABLE_IF_P_EXISTS_relation_expr_RENAME_opt_column_name_TO_name+opt_column	ALTER FOREIGN TABLE IF EXISTS a RENAME COLUMN a TO a
 accept	accept	engine	RenameStmt/ALTER_RULE_name_ON_qualified_name_RENAME_TO_name	ALTER RULE a ON a RENAME TO a
 reject@0	reject@0	engine	RenameStmt/ALTER_RULE_name_ON_qualified_name_RENAME_TO_name!drop-1	RULE a ON a RENAME TO a
 reject@11	reject@11	engine	RenameStmt/ALTER_RULE_name_ON_qualified_name_RENAME_TO_name!drop-3	ALTER RULE ON a RENAME TO a
@@ -6541,6 +6753,7 @@ reject@32	reject@32	engine	RenameStmt/ALTER_TYPE_P_any_name_RENAME_ATTRIBUTE_nam
 reject@34	reject@34	engine	RenameStmt/ALTER_TYPE_P_any_name_RENAME_ATTRIBUTE_name_TO_name_opt_drop_behavior!drop-8	ALTER TYPE a RENAME ATTRIBUTE a TO
 reject@37	reject@37	engine	RenameStmt/ALTER_TYPE_P_any_name_RENAME_ATTRIBUTE_name_TO_name_opt_drop_behavior!insert	ALTER TYPE a RENAME ATTRIBUTE a TO a zzz
 reject@0	reject@0	engine	RenameStmt/ALTER_TYPE_P_any_name_RENAME_ATTRIBUTE_name_TO_name_opt_drop_behavior!swap	ALWAYS TYPE a RENAME ATTRIBUTE a TO a
+accept	accept	engine	RenameStmt/ALTER_TYPE_P_any_name_RENAME_ATTRIBUTE_name_TO_name_opt_drop_behavior+opt_drop_behavior	ALTER TYPE a RENAME ATTRIBUTE a TO a CASCADE
 accept	accept	engine	opt_column/COLUMN	ALTER TABLE a DROP COLUMN a
 reject@30	reject@30	engine	opt_column/COLUMN!insert	ALTER TABLE a DROP COLUMN zzz a
 reject@27	reject@27	engine	opt_column/COLUMN!swap	ALTER TABLE a DROP COLUMNS a
@@ -6563,6 +6776,7 @@ reject@41	reject@41	engine	AlterObjectDependsStmt/ALTER_PROCEDURE_function_with_
 reject@50	reject@50	engine	AlterObjectDependsStmt/ALTER_PROCEDURE_function_with_argtypes_opt_no_DEPENDS_ON_EXTENSION_name!drop-7	ALTER PROCEDURE AUTHORIZATION DEPENDS ON EXTENSION
 reject@53	reject@53	engine	AlterObjectDependsStmt/ALTER_PROCEDURE_function_with_argtypes_opt_no_DEPENDS_ON_EXTENSION_name!insert	ALTER PROCEDURE AUTHORIZATION DEPENDS ON EXTENSION a zzz
 reject@0	reject@0	engine	AlterObjectDependsStmt/ALTER_PROCEDURE_function_with_argtypes_opt_no_DEPENDS_ON_EXTENSION_name!swap	ALWAYS PROCEDURE AUTHORIZATION DEPENDS ON EXTENSION a
+accept	accept	engine	AlterObjectDependsStmt/ALTER_PROCEDURE_function_with_argtypes_opt_no_DEPENDS_ON_EXTENSION_name+opt_no	ALTER PROCEDURE AUTHORIZATION NO DEPENDS ON EXTENSION a
 accept	accept	engine	AlterObjectDependsStmt/ALTER_ROUTINE_function_with_argtypes_opt_no_DEPENDS_ON_EXTENSION_name	ALTER ROUTINE AUTHORIZATION DEPENDS ON EXTENSION a
 reject@0	reject@0	engine	AlterObjectDependsStmt/ALTER_ROUTINE_function_with_argtypes_opt_no_DEPENDS_ON_EXTENSION_name!drop-1	ROUTINE AUTHORIZATION DEPENDS ON EXTENSION a
 reject@22	reject@22	engine	AlterObjectDependsStmt/ALTER_ROUTINE_function_with_argtypes_opt_no_DEPENDS_ON_EXTENSION_name!drop-3	ALTER ROUTINE DEPENDS ON EXTENSION a
@@ -6572,6 +6786,7 @@ reject@39	reject@39	engine	AlterObjectDependsStmt/ALTER_ROUTINE_function_with_ar
 reject@48	reject@48	engine	AlterObjectDependsStmt/ALTER_ROUTINE_function_with_argtypes_opt_no_DEPENDS_ON_EXTENSION_name!drop-7	ALTER ROUTINE AUTHORIZATION DEPENDS ON EXTENSION
 reject@51	reject@51	engine	AlterObjectDependsStmt/ALTER_ROUTINE_function_with_argtypes_opt_no_DEPENDS_ON_EXTENSION_name!insert	ALTER ROUTINE AUTHORIZATION DEPENDS ON EXTENSION a zzz
 reject@0	reject@0	engine	AlterObjectDependsStmt/ALTER_ROUTINE_function_with_argtypes_opt_no_DEPENDS_ON_EXTENSION_name!swap	ALWAYS ROUTINE AUTHORIZATION DEPENDS ON EXTENSION a
+accept	accept	engine	AlterObjectDependsStmt/ALTER_ROUTINE_function_with_argtypes_opt_no_DEPENDS_ON_EXTENSION_name+opt_no	ALTER ROUTINE AUTHORIZATION NO DEPENDS ON EXTENSION a
 accept	accept	engine	AlterObjectDependsStmt/ALTER_TRIGGER_name_ON_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER TRIGGER a ON a DEPENDS ON EXTENSION a
 reject@0	reject@0	engine	AlterObjectDependsStmt/ALTER_TRIGGER_name_ON_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name!drop-1	TRIGGER a ON a DEPENDS ON EXTENSION a
 reject@6	reject@6	engine	AlterObjectDependsStmt/ALTER_TRIGGER_name_ON_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name!drop-2	ALTER a ON a DEPENDS ON EXTENSION a
@@ -6584,6 +6799,7 @@ reject@32	reject@32	engine	AlterObjectDependsStmt/ALTER_TRIGGER_name_ON_qualifie
 reject@41	reject@41	engine	AlterObjectDependsStmt/ALTER_TRIGGER_name_ON_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name!drop-9	ALTER TRIGGER a ON a DEPENDS ON EXTENSION
 reject@44	reject@44	engine	AlterObjectDependsStmt/ALTER_TRIGGER_name_ON_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name!insert	ALTER TRIGGER a ON a DEPENDS ON EXTENSION a zzz
 reject@0	reject@0	engine	AlterObjectDependsStmt/ALTER_TRIGGER_name_ON_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name!swap	ALWAYS TRIGGER a ON a DEPENDS ON EXTENSION a
+accept	accept	engine	AlterObjectDependsStmt/ALTER_TRIGGER_name_ON_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name+opt_no	ALTER TRIGGER a ON a NO DEPENDS ON EXTENSION a
 accept	accept	engine	AlterObjectDependsStmt/ALTER_MATERIALIZED_VIEW_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION a
 reject@0	reject@0	engine	AlterObjectDependsStmt/ALTER_MATERIALIZED_VIEW_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name!drop-1	MATERIALIZED VIEW a DEPENDS ON EXTENSION a
 reject@13	reject@13	engine	AlterObjectDependsStmt/ALTER_MATERIALIZED_VIEW_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name!drop-2	ALTER VIEW a DEPENDS ON EXTENSION a
@@ -6595,6 +6811,7 @@ reject@37	reject@37	engine	AlterObjectDependsStmt/ALTER_MATERIALIZED_VIEW_qualif
 reject@46	reject@46	engine	AlterObjectDependsStmt/ALTER_MATERIALIZED_VIEW_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name!drop-8	ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION
 reject@49	reject@49	engine	AlterObjectDependsStmt/ALTER_MATERIALIZED_VIEW_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name!insert	ALTER MATERIALIZED VIEW a DEPENDS ON EXTENSION a zzz
 reject@0	reject@0	engine	AlterObjectDependsStmt/ALTER_MATERIALIZED_VIEW_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name!swap	ALWAYS MATERIALIZED VIEW a DEPENDS ON EXTENSION a
+accept	accept	engine	AlterObjectDependsStmt/ALTER_MATERIALIZED_VIEW_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name+opt_no	ALTER MATERIALIZED VIEW a NO DEPENDS ON EXTENSION a
 accept	accept	engine	AlterObjectDependsStmt/ALTER_INDEX_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name	ALTER INDEX a DEPENDS ON EXTENSION a
 reject@0	reject@0	engine	AlterObjectDependsStmt/ALTER_INDEX_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name!drop-1	INDEX a DEPENDS ON EXTENSION a
 reject@6	reject@6	engine	AlterObjectDependsStmt/ALTER_INDEX_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name!drop-2	ALTER a DEPENDS ON EXTENSION a
@@ -6605,6 +6822,7 @@ reject@25	reject@25	engine	AlterObjectDependsStmt/ALTER_INDEX_qualified_name_opt
 reject@34	reject@34	engine	AlterObjectDependsStmt/ALTER_INDEX_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name!drop-7	ALTER INDEX a DEPENDS ON EXTENSION
 reject@37	reject@37	engine	AlterObjectDependsStmt/ALTER_INDEX_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name!insert	ALTER INDEX a DEPENDS ON EXTENSION a zzz
 reject@0	reject@0	engine	AlterObjectDependsStmt/ALTER_INDEX_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name!swap	ALWAYS INDEX a DEPENDS ON EXTENSION a
+accept	accept	engine	AlterObjectDependsStmt/ALTER_INDEX_qualified_name_opt_no_DEPENDS_ON_EXTENSION_name+opt_no	ALTER INDEX a NO DEPENDS ON EXTENSION a
 accept	accept	engine	opt_no/NO	ALTER FUNCTION AUTHORIZATION NO DEPENDS ON EXTENSION a
 reject@32	reject@32	engine	opt_no/NO!insert	ALTER FUNCTION AUTHORIZATION NO zzz DEPENDS ON EXTENSION a
 reject@29	reject@29	engine	opt_no/NO!swap	ALTER FUNCTION AUTHORIZATION NONE DEPENDS ON EXTENSION a
@@ -6937,6 +7155,7 @@ reject@23	reject@23	engine	AlterOwnerStmt/ALTER_opt_procedural_LANGUAGE_name_OWN
 reject@25	reject@25	engine	AlterOwnerStmt/ALTER_opt_procedural_LANGUAGE_name_OWNER_TO_RoleSpec!drop-6	ALTER LANGUAGE a OWNER TO
 reject@28	reject@28	engine	AlterOwnerStmt/ALTER_opt_procedural_LANGUAGE_name_OWNER_TO_RoleSpec!insert	ALTER LANGUAGE a OWNER TO a zzz
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_opt_procedural_LANGUAGE_name_OWNER_TO_RoleSpec!swap	ALWAYS LANGUAGE a OWNER TO a
+accept	accept	engine	AlterOwnerStmt/ALTER_opt_procedural_LANGUAGE_name_OWNER_TO_RoleSpec+opt_procedural	ALTER PROCEDURAL LANGUAGE a OWNER TO a
 accept	accept	engine	AlterOwnerStmt/ALTER_LARGE_P_OBJECT_P_NumericOnly_OWNER_TO_RoleSpec	ALTER LARGE OBJECT 1.5 OWNER TO a
 reject@0	reject@0	engine	AlterOwnerStmt/ALTER_LARGE_P_OBJECT_P_NumericOnly_OWNER_TO_RoleSpec!drop-1	LARGE OBJECT 1.5 OWNER TO a
 reject@6	reject@6	engine	AlterOwnerStmt/ALTER_LARGE_P_OBJECT_P_NumericOnly_OWNER_TO_RoleSpec!drop-2	ALTER OBJECT 1.5 OWNER TO a
@@ -7224,6 +7443,7 @@ reject@27	reject@27	engine	AlterSubscriptionStmt/ALTER_SUBSCRIPTION_name_SKIP_de
 reject@29	reject@29	engine	AlterSubscriptionStmt/ALTER_SUBSCRIPTION_name_SKIP_definition!insert	ALTER SUBSCRIPTION a SKIP(a) zzz
 reject@0	reject@0	engine	AlterSubscriptionStmt/ALTER_SUBSCRIPTION_name_SKIP_definition!swap	ALWAYS SUBSCRIPTION a SKIP(a)
 accept	accept	engine	DropSubscriptionStmt/DROP_SUBSCRIPTION_name_opt_drop_behavior	DROP SUBSCRIPTION a
+accept	accept	engine	DropSubscriptionStmt/DROP_SUBSCRIPTION_name_opt_drop_behavior+opt_drop_behavior	DROP SUBSCRIPTION a CASCADE
 accept	accept	engine	DropSubscriptionStmt/DROP_SUBSCRIPTION_IF_P_EXISTS_name_opt_drop_behavior	DROP SUBSCRIPTION IF EXISTS a
 reject@0	reject@0	engine	DropSubscriptionStmt/DROP_SUBSCRIPTION_IF_P_EXISTS_name_opt_drop_behavior!drop-1	SUBSCRIPTION IF EXISTS a
 reject@25	reject@25	engine	DropSubscriptionStmt/DROP_SUBSCRIPTION_IF_P_EXISTS_name_opt_drop_behavior!drop-3	DROP SUBSCRIPTION EXISTS a
@@ -7231,7 +7451,11 @@ reject@21	reject@21	engine	DropSubscriptionStmt/DROP_SUBSCRIPTION_IF_P_EXISTS_na
 reject@27	reject@27	engine	DropSubscriptionStmt/DROP_SUBSCRIPTION_IF_P_EXISTS_name_opt_drop_behavior!drop-5	DROP SUBSCRIPTION IF EXISTS
 reject@30	reject@30	engine	DropSubscriptionStmt/DROP_SUBSCRIPTION_IF_P_EXISTS_name_opt_drop_behavior!insert	DROP SUBSCRIPTION IF EXISTS a zzz
 reject@0	reject@0	engine	DropSubscriptionStmt/DROP_SUBSCRIPTION_IF_P_EXISTS_name_opt_drop_behavior!swap	EACH SUBSCRIPTION IF EXISTS a
+accept	accept	engine	DropSubscriptionStmt/DROP_SUBSCRIPTION_IF_P_EXISTS_name_opt_drop_behavior+opt_drop_behavior	DROP SUBSCRIPTION IF EXISTS a CASCADE
 accept	accept	engine	RuleStmt/CREATE_opt_or_replace_RULE_name_AS_ON_event_TO_qualified_name_where_clause_DO_opt_instead_RuleActionList	CREATE RULE a AS ON SELECT TO a DO NOTHING
+accept	accept	engine	RuleStmt/CREATE_opt_or_replace_RULE_name_AS_ON_event_TO_qualified_name_where_clause_DO_opt_instead_RuleActionList+opt_or_replace	CREATE OR REPLACE RULE a AS ON SELECT TO a DO NOTHING
+reject@7	reject@7	engine	RuleStmt/CREATE_opt_or_replace_RULE_name_AS_ON_event_TO_qualified_name_where_clause_DO_opt_instead_RuleActionList+opt_or_replace!drop-2	CREATE REPLACE RULE a AS ON SELECT TO a DO NOTHING
+reject@10	reject@10	engine	RuleStmt/CREATE_opt_or_replace_RULE_name_AS_ON_event_TO_qualified_name_where_clause_DO_opt_instead_RuleActionList+opt_or_replace!drop-3	CREATE OR RULE a AS ON SELECT TO a DO NOTHING
 accept	accept	engine	RuleActionList/NOTHING	CREATE RULE a AS ON SELECT TO a DO NOTHING
 reject@41	reject@41	engine	RuleActionList/NOTHING!swap	CREATE RULE a AS ON SELECT TO a DO NOTIFY
 accept	accept	engine	RuleActionList/RuleActionStmt	CREATE RULE a AS ON SELECT TO a DO SELECT
@@ -7318,9 +7542,17 @@ reject@0	reject@0	engine	TransactionStmt/START_TRANSACTION_transaction_mode_list
 accept	accept	engine	TransactionStmt/COMMIT_opt_transaction_opt_transaction_chain	COMMIT
 reject@7	reject@7	engine	TransactionStmt/COMMIT_opt_transaction_opt_transaction_chain!insert	COMMIT zzz
 reject@0	reject@0	engine	TransactionStmt/COMMIT_opt_transaction_opt_transaction_chain!swap	COMMITTED
+accept	accept	engine	TransactionStmt/COMMIT_opt_transaction_opt_transaction_chain+opt_transaction	COMMIT WORK
+accept	accept	engine	TransactionStmt/COMMIT_opt_transaction_opt_transaction_chain+opt_transaction_chain	COMMIT AND CHAIN
+reject@7	reject@7	engine	TransactionStmt/COMMIT_opt_transaction_opt_transaction_chain+opt_transaction_chain!drop-2	COMMIT CHAIN
+reject@10	reject@10	engine	TransactionStmt/COMMIT_opt_transaction_opt_transaction_chain+opt_transaction_chain!drop-3	COMMIT AND
 accept	accept	engine	TransactionStmt/ROLLBACK_opt_transaction_opt_transaction_chain	ROLLBACK
 reject@9	reject@9	engine	TransactionStmt/ROLLBACK_opt_transaction_opt_transaction_chain!insert	ROLLBACK zzz
 reject@0	reject@0	engine	TransactionStmt/ROLLBACK_opt_transaction_opt_transaction_chain!swap	ROLLUP
+accept	accept	engine	TransactionStmt/ROLLBACK_opt_transaction_opt_transaction_chain+opt_transaction	ROLLBACK WORK
+accept	accept	engine	TransactionStmt/ROLLBACK_opt_transaction_opt_transaction_chain+opt_transaction_chain	ROLLBACK AND CHAIN
+reject@9	reject@9	engine	TransactionStmt/ROLLBACK_opt_transaction_opt_transaction_chain+opt_transaction_chain!drop-2	ROLLBACK CHAIN
+reject@12	reject@12	engine	TransactionStmt/ROLLBACK_opt_transaction_opt_transaction_chain+opt_transaction_chain!drop-3	ROLLBACK AND
 accept	accept	engine	TransactionStmt/SAVEPOINT_ColId	SAVEPOINT a
 reject@9	reject@9	engine	TransactionStmt/SAVEPOINT_ColId!drop-2	SAVEPOINT
 reject@12	reject@12	engine	TransactionStmt/SAVEPOINT_ColId!insert	SAVEPOINT a zzz
@@ -7339,12 +7571,14 @@ reject@9	reject@9	engine	TransactionStmt/ROLLBACK_opt_transaction_TO_SAVEPOINT_C
 accept	accept	engine	TransactionStmt/ROLLBACK_opt_transaction_TO_SAVEPOINT_ColId!drop-4	ROLLBACK TO SAVEPOINT
 reject@24	reject@24	engine	TransactionStmt/ROLLBACK_opt_transaction_TO_SAVEPOINT_ColId!insert	ROLLBACK TO SAVEPOINT a zzz
 reject@0	reject@0	engine	TransactionStmt/ROLLBACK_opt_transaction_TO_SAVEPOINT_ColId!swap	ROLLUP TO SAVEPOINT a
+accept	accept	engine	TransactionStmt/ROLLBACK_opt_transaction_TO_SAVEPOINT_ColId+opt_transaction	ROLLBACK WORK TO SAVEPOINT a
 accept	accept	engine	TransactionStmt/ROLLBACK_opt_transaction_TO_ColId	ROLLBACK TO a
 reject@0	reject@0	engine	TransactionStmt/ROLLBACK_opt_transaction_TO_ColId!drop-1	TO a
 reject@9	reject@9	engine	TransactionStmt/ROLLBACK_opt_transaction_TO_ColId!drop-2	ROLLBACK a
 reject@11	reject@11	engine	TransactionStmt/ROLLBACK_opt_transaction_TO_ColId!drop-3	ROLLBACK TO
 reject@14	reject@14	engine	TransactionStmt/ROLLBACK_opt_transaction_TO_ColId!insert	ROLLBACK TO a zzz
 reject@0	reject@0	engine	TransactionStmt/ROLLBACK_opt_transaction_TO_ColId!swap	ROLLUP TO a
+accept	accept	engine	TransactionStmt/ROLLBACK_opt_transaction_TO_ColId+opt_transaction	ROLLBACK WORK TO a
 accept	accept	engine	TransactionStmt/PREPARE_TRANSACTION_Sconst	PREPARE TRANSACTION 's'
 reject@0	reject@0	engine	TransactionStmt/PREPARE_TRANSACTION_Sconst!drop-1	TRANSACTION 's'
 reject@8	reject@8	engine	TransactionStmt/PREPARE_TRANSACTION_Sconst!drop-2	PREPARE 's'
@@ -7363,9 +7597,14 @@ reject@17	reject@17	engine	TransactionStmt/ROLLBACK_PREPARED_Sconst!drop-3	ROLLB
 reject@22	reject@22	engine	TransactionStmt/ROLLBACK_PREPARED_Sconst!insert	ROLLBACK PREPARED 's' zzz
 reject@0	reject@0	engine	TransactionStmt/ROLLBACK_PREPARED_Sconst!swap	ROLLUP PREPARED 's'
 accept	accept	engine	TransactionStmtLegacy/BEGIN_P_opt_transaction_transaction_mode_list_or_empty	BEGIN
+accept	accept	engine	TransactionStmtLegacy/BEGIN_P_opt_transaction_transaction_mode_list_or_empty+opt_transaction	BEGIN WORK
 accept	accept	engine	TransactionStmtLegacy/END_P_opt_transaction_opt_transaction_chain	END
 reject@4	reject@4	engine	TransactionStmtLegacy/END_P_opt_transaction_opt_transaction_chain!insert	END zzz
 reject@0	reject@0	engine	TransactionStmtLegacy/END_P_opt_transaction_opt_transaction_chain!swap	ENUM
+accept	accept	engine	TransactionStmtLegacy/END_P_opt_transaction_opt_transaction_chain+opt_transaction	END WORK
+accept	accept	engine	TransactionStmtLegacy/END_P_opt_transaction_opt_transaction_chain+opt_transaction_chain	END AND CHAIN
+reject@4	reject@4	engine	TransactionStmtLegacy/END_P_opt_transaction_opt_transaction_chain+opt_transaction_chain!drop-2	END CHAIN
+reject@7	reject@7	engine	TransactionStmtLegacy/END_P_opt_transaction_opt_transaction_chain+opt_transaction_chain!drop-3	END AND
 accept	accept	engine	opt_transaction/WORK	ABORT WORK
 reject@11	reject@11	engine	opt_transaction/WORK!insert	ABORT WORK zzz
 reject@6	reject@6	engine	opt_transaction/WORK!swap	ABORT WRAPPER
@@ -7416,6 +7655,7 @@ reject@19	reject@19	engine	opt_transaction_chain/AND_NO_CHAIN!insert	ABORT AND N
 reject@6	reject@6	engine	opt_transaction_chain/AND_NO_CHAIN!swap	ABORT ANY NO CHAIN
 accept	accept	engine	opt_transaction_chain/%empty	ABORT
 accept	accept	engine	ViewStmt/CREATE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE VIEW a AS SELECT
+accept	accept	engine	ViewStmt/CREATE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option+OptTemp	CREATE TEMPORARY VIEW a AS SELECT
 accept	accept	engine	ViewStmt/CREATE_OR_REPLACE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE OR REPLACE VIEW a AS SELECT
 reject@0	reject@0	engine	ViewStmt/CREATE_OR_REPLACE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option!drop-1	OR REPLACE VIEW a AS SELECT
 reject@7	reject@7	engine	ViewStmt/CREATE_OR_REPLACE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option!drop-2	CREATE REPLACE VIEW a AS SELECT
@@ -7426,6 +7666,7 @@ reject@25	reject@25	engine	ViewStmt/CREATE_OR_REPLACE_OptTemp_VIEW_qualified_nam
 reject@27	reject@27	engine	ViewStmt/CREATE_OR_REPLACE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option!drop-7	CREATE OR REPLACE VIEW a AS
 accept	accept	engine	ViewStmt/CREATE_OR_REPLACE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE OR REPLACE VIEW a AS SELECT zzz
 reject@0	reject@0	engine	ViewStmt/CREATE_OR_REPLACE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option!swap	CROSS OR REPLACE VIEW a AS SELECT
+accept	accept	engine	ViewStmt/CREATE_OR_REPLACE_OptTemp_VIEW_qualified_name_opt_column_list_opt_reloptions_AS_SelectStmt_opt_check_option+OptTemp	CREATE OR REPLACE TEMPORARY VIEW a AS SELECT
 accept	accept	engine	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE RECURSIVE VIEW a(a) AS SELECT
 reject@0	reject@0	engine	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!drop-1	RECURSIVE VIEW a(a) AS SELECT
 accept	accept	engine	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!drop-2	CREATE VIEW a(a) AS SELECT
@@ -7438,6 +7679,7 @@ reject@27	reject@27	engine	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name
 reject@29	reject@29	engine	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!drop-9	CREATE RECURSIVE VIEW a(a) AS
 accept	accept	engine	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE RECURSIVE VIEW a(a) AS SELECT zzz
 reject@0	reject@0	engine	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!swap	CROSS RECURSIVE VIEW a(a) AS SELECT
+accept	accept	engine	ViewStmt/CREATE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option+OptTemp	CREATE TEMPORARY RECURSIVE VIEW a(a) AS SELECT
 accept	accept	engine	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option	CREATE OR REPLACE RECURSIVE VIEW a(a) AS SELECT
 reject@0	reject@0	engine	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!drop-1	OR REPLACE RECURSIVE VIEW a(a) AS SELECT
 reject@7	reject@7	engine	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!drop-2	CREATE REPLACE RECURSIVE VIEW a(a) AS SELECT
@@ -7452,6 +7694,7 @@ reject@38	reject@38	engine	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qua
 reject@40	reject@40	engine	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!drop-11	CREATE OR REPLACE RECURSIVE VIEW a(a) AS
 accept	accept	engine	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!insert	CREATE OR REPLACE RECURSIVE VIEW a(a) AS SELECT zzz
 reject@0	reject@0	engine	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option!swap	CROSS OR REPLACE RECURSIVE VIEW a(a) AS SELECT
+accept	accept	engine	ViewStmt/CREATE_OR_REPLACE_OptTemp_RECURSIVE_VIEW_qualified_name_(_columnList_)_opt_reloptions_AS_SelectStmt_opt_check_option+OptTemp	CREATE OR REPLACE TEMPORARY RECURSIVE VIEW a(a) AS SELECT
 accept	accept	engine	opt_check_option/WITH_CHECK_OPTION	CREATE VIEW a AS SELECT WITH CHECK OPTION
 reject@24	reject@24	engine	opt_check_option/WITH_CHECK_OPTION!drop-1	CREATE VIEW a AS SELECT CHECK OPTION
 reject@29	reject@29	engine	opt_check_option/WITH_CHECK_OPTION!drop-2	CREATE VIEW a AS SELECT WITH OPTION
@@ -7473,6 +7716,7 @@ reject@37	reject@37	engine	opt_check_option/WITH_LOCAL_CHECK_OPTION!swap	CREATE 
 accept	accept	engine	opt_check_option/%empty	CREATE VIEW a AS SELECT
 accept	accept	engine	LoadStmt/LOAD_file_name	LOAD 's'
 accept	accept	engine	CreatedbStmt/CREATE_DATABASE_name_opt_with_createdb_opt_list	CREATE DATABASE a
+accept	accept	engine	CreatedbStmt/CREATE_DATABASE_name_opt_with_createdb_opt_list+opt_with	CREATE DATABASE a WITH
 accept	accept	engine	createdb_opt_list/createdb_opt_items	ALTER DATABASE a a 1.5
 reject@17	reject@17	engine	createdb_opt_list/createdb_opt_items!drop-1	ALTER DATABASE a 1.5
 reject@26	reject@26	engine	createdb_opt_list/createdb_opt_items!insert	ALTER DATABASE a a 1.5 zzz
@@ -7562,6 +7806,7 @@ reject@16	reject@16	engine	DropdbStmt/DROP_DATABASE_name_opt_with_(_drop_option_
 reject@21	reject@21	engine	DropdbStmt/DROP_DATABASE_name_opt_with_(_drop_option_list_)!drop-6	DROP DATABASE a(FORCE
 reject@23	reject@23	engine	DropdbStmt/DROP_DATABASE_name_opt_with_(_drop_option_list_)!insert	DROP DATABASE a(FORCE) zzz
 reject@0	reject@0	engine	DropdbStmt/DROP_DATABASE_name_opt_with_(_drop_option_list_)!swap	EACH DATABASE a(FORCE)
+accept	accept	engine	DropdbStmt/DROP_DATABASE_name_opt_with_(_drop_option_list_)+opt_with	DROP DATABASE a WITH(FORCE)
 accept	accept	engine	DropdbStmt/DROP_DATABASE_IF_P_EXISTS_name_opt_with_(_drop_option_list_)	DROP DATABASE IF EXISTS a(FORCE)
 reject@0	reject@0	engine	DropdbStmt/DROP_DATABASE_IF_P_EXISTS_name_opt_with_(_drop_option_list_)!drop-1	DATABASE IF EXISTS a(FORCE)
 reject@5	reject@5	engine	DropdbStmt/DROP_DATABASE_IF_P_EXISTS_name_opt_with_(_drop_option_list_)!drop-2	DROP IF EXISTS a(FORCE)
@@ -7573,6 +7818,7 @@ reject@26	reject@26	engine	DropdbStmt/DROP_DATABASE_IF_P_EXISTS_name_opt_with_(_
 reject@31	reject@31	engine	DropdbStmt/DROP_DATABASE_IF_P_EXISTS_name_opt_with_(_drop_option_list_)!drop-8	DROP DATABASE IF EXISTS a(FORCE
 reject@33	reject@33	engine	DropdbStmt/DROP_DATABASE_IF_P_EXISTS_name_opt_with_(_drop_option_list_)!insert	DROP DATABASE IF EXISTS a(FORCE) zzz
 reject@0	reject@0	engine	DropdbStmt/DROP_DATABASE_IF_P_EXISTS_name_opt_with_(_drop_option_list_)!swap	EACH DATABASE IF EXISTS a(FORCE)
+accept	accept	engine	DropdbStmt/DROP_DATABASE_IF_P_EXISTS_name_opt_with_(_drop_option_list_)+opt_with	DROP DATABASE IF EXISTS a WITH(FORCE)
 accept	accept	engine	drop_option_list/drop_option	DROP DATABASE a(FORCE)
 reject@16	reject@16	engine	drop_option_list/drop_option!truncate	DROP DATABASE a(
 reject@22	reject@22	engine	drop_option_list/drop_option!insert	DROP DATABASE a(FORCE zzz)
@@ -7629,6 +7875,7 @@ reject@20	reject@20	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_DROP_CONSTRAI
 reject@30	reject@30	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_DROP_CONSTRAINT_name_opt_drop_behavior!drop-6	ALTER DOMAIN a DROP CONSTRAINT
 reject@33	reject@33	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_DROP_CONSTRAINT_name_opt_drop_behavior!insert	ALTER DOMAIN a DROP CONSTRAINT a zzz
 reject@0	reject@0	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_DROP_CONSTRAINT_name_opt_drop_behavior!swap	ALWAYS DOMAIN a DROP CONSTRAINT a
+accept	accept	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_DROP_CONSTRAINT_name_opt_drop_behavior+opt_drop_behavior	ALTER DOMAIN a DROP CONSTRAINT a CASCADE
 accept	accept	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior	ALTER DOMAIN a DROP CONSTRAINT IF EXISTS a
 reject@0	reject@0	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior!drop-1	DOMAIN a DROP CONSTRAINT IF EXISTS a
 reject@6	reject@6	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior!drop-2	ALTER a DROP CONSTRAINT IF EXISTS a
@@ -7640,6 +7887,7 @@ reject@34	reject@34	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_DROP_CONSTRAI
 reject@40	reject@40	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior!drop-8	ALTER DOMAIN a DROP CONSTRAINT IF EXISTS
 reject@43	reject@43	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior!insert	ALTER DOMAIN a DROP CONSTRAINT IF EXISTS a zzz
 reject@0	reject@0	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior!swap	ALWAYS DOMAIN a DROP CONSTRAINT IF EXISTS a
+accept	accept	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_DROP_CONSTRAINT_IF_P_EXISTS_name_opt_drop_behavior+opt_drop_behavior	ALTER DOMAIN a DROP CONSTRAINT IF EXISTS a CASCADE
 accept	accept	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_VALIDATE_CONSTRAINT_name	ALTER DOMAIN a VALIDATE CONSTRAINT a
 reject@0	reject@0	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_VALIDATE_CONSTRAINT_name!drop-1	DOMAIN a VALIDATE CONSTRAINT a
 reject@6	reject@6	engine	AlterDomainStmt/ALTER_DOMAIN_P_any_name_VALIDATE_CONSTRAINT_name!drop-2	ALTER a VALIDATE CONSTRAINT a
@@ -7748,7 +7996,9 @@ reject@0	reject@0	engine	ClusterStmt/CLUSTER_(_utility_option_list_)!swap	COALES
 accept	accept	engine	ClusterStmt/CLUSTER_opt_verbose_qualified_name_cluster_index_specification	CLUSTER a
 reject@10	reject@10	engine	ClusterStmt/CLUSTER_opt_verbose_qualified_name_cluster_index_specification!insert	CLUSTER a zzz
 reject@0	reject@0	engine	ClusterStmt/CLUSTER_opt_verbose_qualified_name_cluster_index_specification!swap	COALESCE a
+accept	accept	engine	ClusterStmt/CLUSTER_opt_verbose_qualified_name_cluster_index_specification+opt_verbose	CLUSTER VERBOSE a
 accept	accept	engine	ClusterStmt/CLUSTER_opt_verbose	CLUSTER
+accept	accept	engine	ClusterStmt/CLUSTER_opt_verbose+opt_verbose	CLUSTER VERBOSE
 accept	accept	engine	ClusterStmt/CLUSTER_opt_verbose_name_ON_qualified_name	CLUSTER a ON a
 reject@0	reject@0	engine	ClusterStmt/CLUSTER_opt_verbose_name_ON_qualified_name!drop-1	a ON a
 reject@8	reject@8	engine	ClusterStmt/CLUSTER_opt_verbose_name_ON_qualified_name!drop-2	CLUSTER ON a
@@ -7756,12 +8006,14 @@ reject@10	reject@10	engine	ClusterStmt/CLUSTER_opt_verbose_name_ON_qualified_nam
 reject@12	reject@12	engine	ClusterStmt/CLUSTER_opt_verbose_name_ON_qualified_name!drop-4	CLUSTER a ON
 reject@15	reject@15	engine	ClusterStmt/CLUSTER_opt_verbose_name_ON_qualified_name!insert	CLUSTER a ON a zzz
 reject@0	reject@0	engine	ClusterStmt/CLUSTER_opt_verbose_name_ON_qualified_name!swap	COALESCE a ON a
+accept	accept	engine	ClusterStmt/CLUSTER_opt_verbose_name_ON_qualified_name+opt_verbose	CLUSTER VERBOSE a ON a
 accept	accept	engine	cluster_index_specification/USING_name	CLUSTER a USING a
 reject@15	reject@15	engine	cluster_index_specification/USING_name!drop-2	CLUSTER a USING
 reject@18	reject@18	engine	cluster_index_specification/USING_name!insert	CLUSTER a USING a zzz
 reject@10	reject@10	engine	cluster_index_specification/USING_name!swap	CLUSTER a VACUUM a
 accept	accept	engine	cluster_index_specification/%empty	CLUSTER a
 accept	accept	engine	VacuumStmt/VACUUM_opt_full_opt_freeze_opt_verbose_opt_analyze_opt_vacuum_relation_list	VACUUM
+accept	accept	engine	VacuumStmt/VACUUM_opt_full_opt_freeze_opt_verbose_opt_analyze_opt_vacuum_relation_list+opt_verbose	VACUUM VERBOSE
 accept	accept	engine	VacuumStmt/VACUUM_(_utility_option_list_)_opt_vacuum_relation_list	VACUUM(a)
 reject@8	reject@8	engine	VacuumStmt/VACUUM_(_utility_option_list_)_opt_vacuum_relation_list!drop-2	VACUUM a)
 reject@7	reject@7	engine	VacuumStmt/VACUUM_(_utility_option_list_)_opt_vacuum_relation_list!drop-3	VACUUM()
@@ -7838,6 +8090,7 @@ reject@8	reject@8	engine	ExplainStmt/EXPLAIN_analyze_keyword_opt_verbose_Explain
 reject@15	reject@15	engine	ExplainStmt/EXPLAIN_analyze_keyword_opt_verbose_ExplainableStmt!drop-3	EXPLAIN ANALYZE
 accept	accept	engine	ExplainStmt/EXPLAIN_analyze_keyword_opt_verbose_ExplainableStmt!insert	EXPLAIN ANALYZE SELECT zzz
 reject@0	reject@0	engine	ExplainStmt/EXPLAIN_analyze_keyword_opt_verbose_ExplainableStmt!swap	EXPRESSION ANALYZE SELECT
+accept	accept	engine	ExplainStmt/EXPLAIN_analyze_keyword_opt_verbose_ExplainableStmt+opt_verbose	EXPLAIN ANALYZE VERBOSE SELECT
 accept	accept	engine	ExplainStmt/EXPLAIN_VERBOSE_ExplainableStmt	EXPLAIN VERBOSE SELECT
 reject@0	reject@0	engine	ExplainStmt/EXPLAIN_VERBOSE_ExplainableStmt!drop-1	VERBOSE SELECT
 reject@15	reject@15	engine	ExplainStmt/EXPLAIN_VERBOSE_ExplainableStmt!drop-3	EXPLAIN VERBOSE
@@ -7983,6 +8236,10 @@ reject@18	reject@18	engine	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_
 reject@25	reject@25	engine	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!drop-6	CREATE TABLE a AS EXECUTE
 reject@28	reject@28	engine	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!insert	CREATE TABLE a AS EXECUTE a zzz
 reject@0	reject@0	engine	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!swap	CROSS TABLE a AS EXECUTE a
+accept	accept	engine	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data+OptTemp	CREATE TEMPORARY TABLE a AS EXECUTE a
+accept	accept	engine	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data+opt_with_data	CREATE TABLE a AS EXECUTE a WITH DATA
+reject@28	reject@28	engine	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data+opt_with_data!drop-7	CREATE TABLE a AS EXECUTE a DATA
+reject@32	reject@32	engine	ExecuteStmt/CREATE_OptTemp_TABLE_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data+opt_with_data!drop-8	CREATE TABLE a AS EXECUTE a WITH
 accept	accept	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data	CREATE TABLE IF NOT EXISTS a AS EXECUTE a
 reject@9	reject@9	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!drop-1	TABLE IF NOT EXISTS a AS EXECUTE a
 reject@7	reject@7	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!drop-2	CREATE IF NOT EXISTS a AS EXECUTE a
@@ -7995,6 +8252,10 @@ reject@32	reject@32	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_crea
 reject@39	reject@39	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!drop-9	CREATE TABLE IF NOT EXISTS a AS EXECUTE
 reject@42	reject@42	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!insert	CREATE TABLE IF NOT EXISTS a AS EXECUTE a zzz
 reject@0	reject@0	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data!swap	CROSS TABLE IF NOT EXISTS a AS EXECUTE a
+accept	accept	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data+OptTemp	CREATE TEMPORARY TABLE IF NOT EXISTS a AS EXECUTE a
+accept	accept	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data+opt_with_data	CREATE TABLE IF NOT EXISTS a AS EXECUTE a WITH DATA
+reject@42	reject@42	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data+opt_with_data!drop-10	CREATE TABLE IF NOT EXISTS a AS EXECUTE a DATA
+reject@46	reject@46	engine	ExecuteStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_EXECUTE_name_execute_param_clause_opt_with_data+opt_with_data!drop-11	CREATE TABLE IF NOT EXISTS a AS EXECUTE a WITH
 accept	accept	engine	execute_param_clause/(_expr_list_)	EXECUTE a(a)
 reject@10	reject@10	engine	execute_param_clause/(_expr_list_)!drop-1	EXECUTE a a)
 reject@10	reject@10	engine	execute_param_clause/(_expr_list_)!drop-2	EXECUTE a()
@@ -8603,32 +8864,39 @@ accept	accept	engine	OptTempTableName/TEMPORARY_opt_table_qualified_name	SELECT 
 accept	accept	engine	OptTempTableName/TEMPORARY_opt_table_qualified_name!drop-2	SELECT INTO TEMPORARY
 reject@24	reject@24	engine	OptTempTableName/TEMPORARY_opt_table_qualified_name!insert	SELECT INTO TEMPORARY a zzz
 reject@17	reject@17	engine	OptTempTableName/TEMPORARY_opt_table_qualified_name!swap	SELECT INTO TEXT a
+accept	accept	engine	OptTempTableName/TEMPORARY_opt_table_qualified_name+opt_table	SELECT INTO TEMPORARY TABLE a
 accept	accept	engine	OptTempTableName/TEMP_opt_table_qualified_name	SELECT INTO TEMP a
 accept	accept	engine	OptTempTableName/TEMP_opt_table_qualified_name!drop-2	SELECT INTO TEMP
 reject@19	reject@19	engine	OptTempTableName/TEMP_opt_table_qualified_name!insert	SELECT INTO TEMP a zzz
 reject@21	reject@21	engine	OptTempTableName/TEMP_opt_table_qualified_name!swap	SELECT INTO TEMPLATE a
+accept	accept	engine	OptTempTableName/TEMP_opt_table_qualified_name+opt_table	SELECT INTO TEMP TABLE a
 accept	accept	engine	OptTempTableName/LOCAL_TEMPORARY_opt_table_qualified_name	SELECT INTO LOCAL TEMPORARY a
 reject@18	reject@18	engine	OptTempTableName/LOCAL_TEMPORARY_opt_table_qualified_name!drop-2	SELECT INTO LOCAL a
 reject@27	reject@27	engine	OptTempTableName/LOCAL_TEMPORARY_opt_table_qualified_name!drop-3	SELECT INTO LOCAL TEMPORARY
 reject@30	reject@30	engine	OptTempTableName/LOCAL_TEMPORARY_opt_table_qualified_name!insert	SELECT INTO LOCAL TEMPORARY a zzz
 reject@12	reject@12	engine	OptTempTableName/LOCAL_TEMPORARY_opt_table_qualified_name!swap	SELECT INTO LOCALTIME TEMPORARY a
+accept	accept	engine	OptTempTableName/LOCAL_TEMPORARY_opt_table_qualified_name+opt_table	SELECT INTO LOCAL TEMPORARY TABLE a
 accept	accept	engine	OptTempTableName/LOCAL_TEMP_opt_table_qualified_name	SELECT INTO LOCAL TEMP a
 reject@22	reject@22	engine	OptTempTableName/LOCAL_TEMP_opt_table_qualified_name!drop-3	SELECT INTO LOCAL TEMP
 reject@25	reject@25	engine	OptTempTableName/LOCAL_TEMP_opt_table_qualified_name!insert	SELECT INTO LOCAL TEMP a zzz
 reject@12	reject@12	engine	OptTempTableName/LOCAL_TEMP_opt_table_qualified_name!swap	SELECT INTO LOCALTIME TEMP a
+accept	accept	engine	OptTempTableName/LOCAL_TEMP_opt_table_qualified_name+opt_table	SELECT INTO LOCAL TEMP TABLE a
 accept	accept	engine	OptTempTableName/GLOBAL_TEMPORARY_opt_table_qualified_name	SELECT INTO GLOBAL TEMPORARY a
 reject@19	reject@19	engine	OptTempTableName/GLOBAL_TEMPORARY_opt_table_qualified_name!drop-2	SELECT INTO GLOBAL a
 reject@28	reject@28	engine	OptTempTableName/GLOBAL_TEMPORARY_opt_table_qualified_name!drop-3	SELECT INTO GLOBAL TEMPORARY
 reject@31	reject@31	engine	OptTempTableName/GLOBAL_TEMPORARY_opt_table_qualified_name!insert	SELECT INTO GLOBAL TEMPORARY a zzz
 reject@12	reject@12	engine	OptTempTableName/GLOBAL_TEMPORARY_opt_table_qualified_name!swap	SELECT INTO GRANT TEMPORARY a
+accept	accept	engine	OptTempTableName/GLOBAL_TEMPORARY_opt_table_qualified_name+opt_table	SELECT INTO GLOBAL TEMPORARY TABLE a
 accept	accept	engine	OptTempTableName/GLOBAL_TEMP_opt_table_qualified_name	SELECT INTO GLOBAL TEMP a
 reject@23	reject@23	engine	OptTempTableName/GLOBAL_TEMP_opt_table_qualified_name!drop-3	SELECT INTO GLOBAL TEMP
 reject@26	reject@26	engine	OptTempTableName/GLOBAL_TEMP_opt_table_qualified_name!insert	SELECT INTO GLOBAL TEMP a zzz
 reject@12	reject@12	engine	OptTempTableName/GLOBAL_TEMP_opt_table_qualified_name!swap	SELECT INTO GRANT TEMP a
+accept	accept	engine	OptTempTableName/GLOBAL_TEMP_opt_table_qualified_name+opt_table	SELECT INTO GLOBAL TEMP TABLE a
 accept	accept	engine	OptTempTableName/UNLOGGED_opt_table_qualified_name	SELECT INTO UNLOGGED a
 accept	accept	engine	OptTempTableName/UNLOGGED_opt_table_qualified_name!drop-2	SELECT INTO UNLOGGED
 reject@23	reject@23	engine	OptTempTableName/UNLOGGED_opt_table_qualified_name!insert	SELECT INTO UNLOGGED a zzz
 reject@18	reject@18	engine	OptTempTableName/UNLOGGED_opt_table_qualified_name!swap	SELECT INTO UNTIL a
+accept	accept	engine	OptTempTableName/UNLOGGED_opt_table_qualified_name+opt_table	SELECT INTO UNLOGGED TABLE a
 accept	accept	engine	OptTempTableName/TABLE_qualified_name	SELECT INTO TABLE a
 reject@17	reject@17	engine	OptTempTableName/TABLE_qualified_name!drop-2	SELECT INTO TABLE
 reject@20	reject@20	engine	OptTempTableName/TABLE_qualified_name!insert	SELECT INTO TABLE a zzz
@@ -9948,6 +10216,9 @@ reject@14	reject@14	engine	a_expr/UNIQUE_opt_unique_null_treatment_select_with_p
 reject@20	reject@20	engine	a_expr/UNIQUE_opt_unique_null_treatment_select_with_parens!drop-4	SELECT UNIQUE(SELECT
 reject@7	reject@7	engine	a_expr/UNIQUE_opt_unique_null_treatment_select_with_parens!insert	SELECT UNIQUE(SELECT) zzz
 reject@15	reject@15	engine	a_expr/UNIQUE_opt_unique_null_treatment_select_with_parens!swap	SELECT UNKNOWN(SELECT)
+reject@7	reject@7	engine	a_expr/UNIQUE_opt_unique_null_treatment_select_with_parens+opt_unique_null_treatment	SELECT UNIQUE NULLS DISTINCT(SELECT)
+reject@14	reject@14	engine	a_expr/UNIQUE_opt_unique_null_treatment_select_with_parens+opt_unique_null_treatment!drop-2	SELECT UNIQUE DISTINCT(SELECT)
+reject@19	reject@19	engine	a_expr/UNIQUE_opt_unique_null_treatment_select_with_parens+opt_unique_null_treatment!drop-3	SELECT UNIQUE NULLS(SELECT)
 accept	accept	engine	a_expr/a_expr_IS_DOCUMENT_P	SELECT a IS DOCUMENT
 reject@10	reject@10	engine	a_expr/a_expr_IS_DOCUMENT_P!drop-1	SELECT IS DOCUMENT
 accept	accept	engine	a_expr/a_expr_IS_DOCUMENT_P!insert	SELECT a IS DOCUMENT zzz

@@ -3646,10 +3646,8 @@ func (b *builder) setVariable(v *ast.VariableSetStmt) bool {
 //
 // pg: src/backend/commands/trigger.c — CreateTrigger
 func (b *builder) createTrigger(v *ast.CreateTrigStmt) bool {
-	if v.Replace && v.IsConstraint {
-		b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`CREATE OR REPLACE CONSTRAINT TRIGGER`")) // 0A000
-		return true
-	}
+	// CREATE OR REPLACE CONSTRAINT TRIGGER never reaches here: gram.y's
+	// action refuses it, and so does the parser.
 	if v.IsConstraint && v.Constrrel != nil {
 		b.exists(v.Constrrel, false)
 	}
