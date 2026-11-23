@@ -12,8 +12,9 @@ which describes the columns and what passes, and starts no server.
 | Rule | Rows | From |
 |---|---|---|
 | Generated alternatives (`Rule/symbols`) | 3,961 | `pkg/sql/parser/sql.y` (`../../testdata/sources.tsv`) and `../../testdata/tokens.tsv` |
-| Generated near-misses (`!drop-N`, `!truncate`, `!insert`, `!swap`) | 10,402 | single-token mutations of the generated alternatives |
-| **Total** | **14,363** | |
+| Optional clauses and keyword choices at every site (`Rule/symbols+rule`) | 421 | `(every site)` and `(every alternative)` rows of `../../testdata/tokens.tsv` |
+| Generated near-misses (`!drop-N`, `!truncate`, `!insert`, `!swap`) | 10,659 | single-token mutations of the generated alternatives |
+| **Total** | **15,041** | |
 
 - **The grammar is fetched, not committed.** CockroachDB's `pkg/sql/parser/sql.y`
   is subject to the CockroachDB Software License (BSL), which is not this repo's
@@ -29,7 +30,7 @@ which describes the columns and what passes, and starts no server.
   (`reindex_stmt`, `alter_unsupported_stmt`, `create_unsupported`,
   `drop_unsupported`, `opt_trusted`, `opt_procedural`), and 1 is
   `const_datetime/DATE` (`date` is not in `GetKeywordID` and lexes as `IDENT`).
-  `TestCompatibility` regenerates all 14,363 rows and fails if `compat.tsv`
+  `TestCompatibility` regenerates all 15,041 rows and fails if `compat.tsv`
   holds others.
 
 ## Where the verdict comes from
@@ -71,18 +72,18 @@ verdict classifier offline.
 
 | Rows | Total | Agree | Judge only | Omni only | Other |
 |---|---|---|---|---|---|
-| Alternatives | 3,961 | 3,961 | 0 | 0 | 0 |
-| Near-misses | 10,402 | 10,402 | 0 | 0 | 0 |
-| **All** | **14,363** | **14,363** | **0** | **0** | **0** |
+| Alternatives | 4,382 | 4,382 | 0 | 0 | 0 |
+| Near-misses | 10,659 | 10,659 | 0 | 0 | 0 |
+| **All** | **15,041** | **15,041** | **0** | **0** | **0** |
 
-CockroachDB `v25.2.3` accepts 3,820 of the 3,961 generated alternatives and
-rejects 141 in grammar actions or sub-parsers (e.g., `??`, `DO 's'` whose body
+CockroachDB `v25.2.3` accepts 4,199 of the 4,382 generated alternatives and
+rejects 183 in grammar actions or sub-parsers (e.g., `??`, `DO 's'` whose body
 is not valid PL/pgSQL, `ALTER INDEX a VISIBILITY 1.5` outside `[0, 1]`,
 duplicate options in repeated option lists, and `unimplemented` grammar actions
 such as `ALTER TYPE ... ATTRIBUTE` and `CREATE FUNCTION ... TRANSFORM`). It
-rejects 9,263 of the 10,402 near-misses and accepts 1,139 whose single-token
+rejects 9,515 of the 10,659 near-misses and accepts 1,144 whose single-token
 mutation still yields valid CockroachDB SQL. `cockroachdb-parser v0.25.2`
-agrees with live `cockroachdb/cockroach:v25.2.3` on all 14,363 rows (0
+agrees with live `cockroachdb/cockroach:v25.2.3` on all 15,041 rows (0
 disagreements).
 
 ## Commands
