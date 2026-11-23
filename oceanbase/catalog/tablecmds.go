@@ -70,7 +70,13 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			}
 			return false, errDupTable(tableName)
 		}
+		// A view of the name counts as taken, and IF NOT EXISTS makes that a
+		// note too: CREATE TABLE IF NOT EXISTS a(a TINYINT) over view a leaves
+		// the schema as it was (simulate.tsv, objects@view).
 		if db.Views[key] != nil {
+			if stmt.IfNotExists {
+				return true, nil
+			}
 			return false, errDupTable(tableName)
 		}
 		return false, nil
