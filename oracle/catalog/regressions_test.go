@@ -3348,3 +3348,41 @@ func TestCallsParseCalleeOnce(t *testing.T) {
 		t.Fatalf("signatures cached = %d, want 1", len(e.signatures))
 	}
 }
+
+// TestTriggersRowsAndReturning holds three more of Oracle's readings: an
+// INSTEAD OF trigger reads :NEW without FOR EACH ROW, adding a column
+// invalidates a whole-row INSERT but not one with a column list, and a
+// RETURNING clause reads the table's columns into the unit's variables.
+func TestTriggersRowsAndReturning(t *testing.T) {
+	status := func(c *Catalog, kind, name string) string {
+		for _, u := range c.unitStates() {
+			if u.kind == kind && u.name == name {
+				return strings.TrimSpace(u.status + " " + u.err)
+			}
+		}
+		return "missing"
+	}
+	c, err := LoadSQL("CREATE TABLE t (id NUMBER);\nCREATE VIEW v AS SELECT id FROM t;\n" +
+		"CREATE TRIGGER trg INSTEAD OF INSERT ON v BEGIN INSERT INTO t (id) VALUES (:NEW.id); END;\n/\n" +
+		"CREATE PROCEDURE whole IS BEGIN INSERT INTO t VALUES (1); END;\n/\n" +
+		"CREATE PROCEDURE listed IS BEGIN INSERT INTO t (id) VALUES (1); END;\n/\n" +
+		"CREATE PROCEDURE ret_ok IS v NUMBER; BEGIN INSERT INTO t (id) VALUES (1) RETURNING id INTO v; END;\n/\n" +
+		"CREATE PROCEDURE ret_col IS v NUMBER; BEGIN UPDATE t SET id = 2 RETURNING nope INTO v; END;\n/\n" +
+		"CREATE PROCEDURE ret_var IS BEGIN DELETE FROM t RETURNING id INTO missing_var; END;\n/\n" +
+		"ALTER TABLE t ADD (b NUMBER);\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []struct{ kind, name, status string }{
+		{unitTrigger, "TRG", "VALID"},
+		{unitProcedure, "WHOLE", "INVALID"},
+		{unitProcedure, "LISTED", "VALID"},
+		{unitProcedure, "RET_OK", "VALID"},
+		{unitProcedure, "RET_COL", "INVALID ORA-00904"},
+		{unitProcedure, "RET_VAR", "INVALID PLS-00201"},
+	} {
+		if got := status(c, want.kind, want.name); got != want.status {
+			t.Errorf("%s %s: %s, want %s", want.kind, want.name, got, want.status)
+		}
+	}
+}

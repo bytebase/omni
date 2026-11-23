@@ -322,6 +322,31 @@ func (c *plChecker) insert(a *queryAnalyzer, s *ast.InsertStmt) error {
 	case given < listed:
 		return oraError("00947", "not enough values")
 	}
+	return c.returning(a, s.Returning, f)
+}
+
+// returning checks a DML statement's RETURNING clause, which the parser
+// keeps as the returned expressions followed by the INTO targets: as many
+// of each, or Oracle refuses the statement. The expressions read the
+// target's columns; the targets are the unit's own.
+func (c *plChecker) returning(a *queryAnalyzer, list *ast.List, f *qfrom) error {
+	items := listItems(list)
+	if len(items) == 0 || len(items)%2 != 0 {
+		return nil
+	}
+	half := len(items) / 2
+	for _, item := range items[:half] {
+		if x, ok := item.(ast.ExprNode); ok {
+			if _, _, err := a.expr(x, &qscope{from: f}, clauseSelect); err != nil {
+				return err
+			}
+		}
+	}
+	for _, item := range items[half:] {
+		if x, ok := item.(ast.ExprNode); ok {
+			c.target(x)
+		}
+	}
 	return nil
 }
 
@@ -368,8 +393,10 @@ func (c *plChecker) update(a *queryAnalyzer, s *ast.UpdateStmt) error {
 	if err := c.setClauses(a, s.SetClauses, sc); err != nil {
 		return err
 	}
-	_, _, err = a.expr(s.WhereClause, sc, clauseWhere)
-	return err
+	if _, _, err := a.expr(s.WhereClause, sc, clauseWhere); err != nil {
+		return err
+	}
+	return c.returning(a, s.Returning, f)
 }
 
 func (c *plChecker) delete(a *queryAnalyzer, s *ast.DeleteStmt) error {
@@ -380,8 +407,10 @@ func (c *plChecker) delete(a *queryAnalyzer, s *ast.DeleteStmt) error {
 	if err != nil {
 		return err
 	}
-	_, _, err = a.expr(s.WhereClause, &qscope{from: f}, clauseWhere)
-	return err
+	if _, _, err := a.expr(s.WhereClause, &qscope{from: f}, clauseWhere); err != nil {
+		return err
+	}
+	return c.returning(a, s.Returning, f)
 }
 
 func (c *plChecker) merge(a *queryAnalyzer, s *ast.MergeStmt) error {

@@ -395,7 +395,8 @@ func (e *oracleMetadataExtractor) checkTrigger(n *ast.CreateTriggerStmt) bool {
 			}
 		}
 	}
-	if !n.ForEachRow && !n.Compound {
+	// An INSTEAD OF trigger is a row trigger whether or not it says so.
+	if !n.ForEachRow && !n.Compound && n.Timing != ast.TRIGGER_INSTEAD_OF {
 		if n.When != nil {
 			e.setError(oraError("04077", "WHEN clause cannot be used with table level triggers"))
 			return false
@@ -550,21 +551,26 @@ func sameSignature(definition, sig string) bool {
 }
 
 // invalidateColumnReaders marks INVALID the units that read a table an
-// ALTER TABLE renames, or a column it drops, renames or modifies, or read all of the table's
-// columns (%ROWTYPE, SELECT *, INSERT without a column list). A unit that
-// reads only other columns stays VALID, as Oracle tracks what it reads.
+// ALTER TABLE renames, or a column it drops, renames or modifies; and, when
+// it changes the columns at all, the units that read the whole row
+// (%ROWTYPE, SELECT *, INSERT without a column list). A unit that reads
+// only other columns stays VALID, as Oracle tracks what it reads.
 func (e *oracleMetadataExtractor) invalidateColumnReaders(n *ast.AlterTableStmt) {
 	if n.Name == nil {
 		return
 	}
 	table := n.Name.Name
 	var columns []string
+	wholeRow := false
 	for _, item := range listItems(n.Actions) {
 		action, ok := item.(*ast.AlterTableCmd)
 		if !ok {
 			continue
 		}
 		switch action.Action {
+		case ast.AT_ADD_COLUMN:
+			// A new column changes what a whole row holds.
+			wholeRow = true
 		case ast.AT_RENAME:
 			// A unit that names the table by its old name no longer
 			// finds it.
@@ -586,7 +592,7 @@ func (e *oracleMetadataExtractor) invalidateColumnReaders(n *ast.AlterTableStmt)
 			}
 		}
 	}
-	if len(columns) == 0 {
+	if len(columns) == 0 && !wholeRow {
 		return
 	}
 	e.invalidateReaders(table + ".*")
