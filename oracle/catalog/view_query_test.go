@@ -125,6 +125,8 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"undefined_window", `CREATE VIEW v AS SELECT SUM(id) OVER nosuch s FROM t`, "32784"},
 		{"qualify_alias", `CREATE VIEW v AS SELECT ROW_NUMBER() OVER (ORDER BY id) rn FROM t QUALIFY rn = 1`, ""},
 		{"distinct_to_char_clob", `CREATE VIEW v AS SELECT DISTINCT TO_CHAR(TO_CLOB('x')) x FROM t`, ""},
+		{"rollup_composite_column", `CREATE VIEW v AS SELECT id, n, COUNT(*) c FROM t GROUP BY ROLLUP((id, n))`, ""},
+		{"qualified_duplicate_column", `CREATE VIEW v AS SELECT x.c FROM (SELECT id c, n c FROM t) x`, "00918"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -271,6 +273,29 @@ CREATE VIEW w AS SELECT TO_CHAR(c) a, TO_CHAR(k) b, NVL(1, CAST(2 AS BINARY_DOUB
 				if col.GetType() != want[i] {
 					t.Errorf("W.%s type = %s, want %s", col.GetName(), col.GetType(), want[i])
 				}
+			}
+		}
+	}
+}
+
+func TestViewQueryStarKeepsDuplicateNamesApart(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TABLE t (id NUMBER);
+CREATE VIEW v (a, b) AS SELECT * FROM t x CROSS JOIN t y;
+CREATE VIEW w AS SELECT N'a' || 'b' n FROM dual;
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range c.Metadata().GetSchemas()[0].GetViews() {
+		switch v.GetName() {
+		case "V":
+			if want := `SELECT "X"."ID","Y"."ID" FROM t x CROSS JOIN t y`; v.GetDefinition() != want {
+				t.Errorf("V = %q, want %q", v.GetDefinition(), want)
+			}
+		case "W":
+			if got := v.GetColumns()[0].GetType(); got != "NVARCHAR2(2)" {
+				t.Errorf("W.N type = %s, want NVARCHAR2(2)", got)
 			}
 		}
 	}

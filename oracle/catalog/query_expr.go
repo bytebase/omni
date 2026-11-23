@@ -368,7 +368,7 @@ func concatType(l, r qtype) qtype {
 		return simpleType("CLOB")
 	}
 	if l.isNational() || r.isNational() {
-		return characterType("NVARCHAR2", l.byteLength()/dbCharBytes+r.byteLength()/dbCharBytes, false)
+		return characterType("NVARCHAR2", charCapacity(l)+charCapacity(r), false)
 	}
 	if (l.kind == "CHAR" || l.isNull()) && (r.kind == "CHAR" || r.isNull()) && !(l.isNull() && r.isNull()) {
 		// Two CHAR operands concatenate to a CHAR.
@@ -833,4 +833,18 @@ func operandWidth(x ast.ExprNode) int {
 		return len(listItems(row.Args))
 	}
 	return 1
+}
+
+// charCapacity is how many characters a value holds once converted to
+// characters: a character type's length, a number's 40, a datetime's 75.
+func charCapacity(t qtype) int {
+	switch {
+	case t.isCharacter():
+		return t.chars
+	case t.isNumeric():
+		return 40
+	case t.isDatetime():
+		return 75
+	}
+	return 0
 }

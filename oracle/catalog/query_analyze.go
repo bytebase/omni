@@ -1037,6 +1037,16 @@ func groupingExprs(item ast.Node) []ast.ExprNode {
 		return out
 	case *ast.ParenExpr:
 		return groupingExprs(g.Expr)
+	case *ast.FuncCallExpr:
+		// A composite column, (a, b), groups by each of its columns.
+		if g.FuncName == nil || g.FuncName.Name == "" {
+			var out []ast.ExprNode
+			for _, x := range listItems(g.Args) {
+				out = append(out, groupingExprs(x)...)
+			}
+			return out
+		}
+		return []ast.ExprNode{g}
 	case ast.ExprNode:
 		return []ast.ExprNode{g}
 	}
@@ -1114,12 +1124,22 @@ func (a *queryAnalyzer) selectTarget(rt *ast.ResTarget, sc *qscope, top bool) ([
 			return nil, err
 		}
 		cols := make([]qcol, 0, len(items))
+		count := map[string]int{}
+		for _, it := range items {
+			count[sc.from.itemCol(it).name]++
+		}
 		var names []string
 		for _, it := range items {
 			c := sc.from.itemCol(it)
 			c.expr = false
 			cols = append(cols, c)
-			names = append(names, quoteIdent(c.name))
+			name := quoteIdent(c.name)
+			if count[c.name] > 1 && it.rel != nil && it.rel.name != "" {
+				// A name * lists twice is written with its item, so the
+				// stored text reads the same columns.
+				name = quoteIdent(it.rel.name) + "." + name
+			}
+			names = append(names, name)
 		}
 		if top {
 			a.edits = append(a.edits, textEdit{start: x.Loc.Start, end: x.Loc.End, text: strings.Join(names, ",")})
@@ -1305,6 +1325,7 @@ func (a *queryAnalyzer) lookupQualified(from *qfrom, ref *ast.ColumnRef) (qcol, 
 		return qcol{}, false, nil
 	}
 	r := matches[0]
+	hit := -1
 	for i, c := range r.cols {
 		if c.name != ref.Column {
 			continue
@@ -1312,10 +1333,14 @@ func (a *queryAnalyzer) lookupQualified(from *qfrom, ref *ast.ColumnRef) (qcol, 
 		if r.merged[c.name] {
 			return qcol{}, true, oraError("25154", "column part of USING clause cannot have qualifier")
 		}
-		if len(matches) > 1 {
+		if len(matches) > 1 || hit >= 0 {
+			// Two items of the name, or one item with two such columns.
 			return qcol{}, true, oraError("00918", "%s: column ambiguously specified", ref.Column)
 		}
-		return r.col(i), true, nil
+		hit = i
+	}
+	if hit >= 0 {
+		return r.col(hit), true, nil
 	}
 	// ROWID and ORA_ROWSCN qualify by the item they read.
 	switch ref.Column {
