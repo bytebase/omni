@@ -1254,7 +1254,7 @@ func (b *builder) checkDMLInlineSubquery(target ast.TableExpr) bool {
 		rng = b.anchor()
 	}
 	// Check FROM DUAL or constant-only SELECT list.
-	if sel.FromClause != nil && len(sel.FromClause.Items) == 1 {
+	if sel.WithClause == nil && sel.FromClause != nil && len(sel.FromClause.Items) == 1 {
 		if tr, ok := sel.FromClause.Items[0].(*ast.TableRef); ok && tr.Name != nil && tr.Dblink == "" {
 			if strings.EqualFold(tr.Name.Name, "DUAL") && (tr.Name.Schema == "" || strings.EqualFold(tr.Name.Schema, "SYS")) {
 				b.fail(rng, review.UnsupportedForm, "Data manipulation is not legal on an inline view over DUAL.")
@@ -1726,7 +1726,7 @@ func (b *builder) checkCreateMviewExtra(v *ast.CreateViewStmt, r objRef) bool {
 		}
 	}
 	// Check single-table SELECT column references against a synced complete table.
-	if sel, ok := v.Query.(*ast.SelectStmt); ok && sel != nil && sel.Larg == nil && sel.FromClause != nil && len(sel.FromClause.Items) == 1 {
+	if sel, ok := v.Query.(*ast.SelectStmt); ok && sel != nil && sel.WithClause == nil && sel.Larg == nil && sel.FromClause != nil && len(sel.FromClause.Items) == 1 {
 		if tr, ok := sel.FromClause.Items[0].(*ast.TableRef); ok && tr.Name != nil && tr.Dblink == "" {
 			if br, ok := b.ref(tr.Name); ok {
 				if st := b.syncedTable(br); st != nil && st.complete && sel.TargetList != nil {
@@ -1779,9 +1779,10 @@ func (b *builder) checkTriggerUpdateOf(v *ast.CreateTriggerStmt, t objRef) {
 
 // dmlCheckInsertTableMeta checks INSERT column-count mismatches when no
 // explicit column list is given (using visibleInsCols from synced metadata),
-// omitted NOT NULL columns without defaults when no triggers may fire
-// (ORA-01400), and INSERT BY NAME SELECT column names (ORA-63875).
-func (b *builder) dmlCheckInsertTableMeta(o *ast.ObjectName, r objRef, cols *ast.List, vals *ast.List, sel *ast.SelectStmt, byName bool, rng review.Range) bool {
+// omitted NOT NULL columns without defaults when a row is guaranteed to be
+// inserted without error logging or triggers (ORA-01400), and INSERT BY NAME
+// SELECT column names (ORA-63875).
+func (b *builder) dmlCheckInsertTableMeta(o *ast.ObjectName, r objRef, cols *ast.List, vals *ast.List, sel *ast.SelectStmt, byName, guaranteedRow bool, rng review.Range) bool {
 	if rng == (review.Range{}) {
 		rng = r.rng
 	}
@@ -1832,9 +1833,10 @@ func (b *builder) dmlCheckInsertTableMeta(o *ast.ObjectName, r objRef, cols *ast
 		return false
 	}
 	// Explicit column list: check for omitted NOT NULL columns with no default/identity/virtual
-	// when no trigger may populate them (ORA-01400).
+	// only when a row is guaranteed to be inserted without error logging and no trigger may fire
+	// (ORA-01400). INSERT ... SELECT and conditional multi-table INSERT may insert zero rows.
 	if cols != nil && len(cols.Items) > 0 {
-		if b.w.triggers {
+		if !guaranteedRow || b.w.triggers {
 			return false
 		}
 		listed := make(map[string]bool, len(cols.Items))

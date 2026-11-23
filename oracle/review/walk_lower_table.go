@@ -494,6 +494,7 @@ func (b *builder) alterCmd(r objRef, kind string, c *ast.AlterTableCmd, declared
 		b.mutateIndexes(r)
 		return b.dropConstraint(r, c, rng)
 	case ast.AT_MODIFY_CONSTRAINT, ast.AT_ENABLE_DISABLE:
+		b.mutateColMeta(r)
 		b.mutateIndexes(r)
 		return b.constraintState(r, c, rng, declared, addedPK)
 	case ast.AT_RENAME_CONSTRAINT:

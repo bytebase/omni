@@ -763,6 +763,9 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 		return true
 	}
 	b.Order = walk.Lookups
+	k := r.key(spaceIndex)
+	idxFact, _ := b.look(k)
+	willCreateIndex := !v.IfNotExists || idxFact == walk.Absent
 	kind := ""
 	if v.Cluster != nil {
 		cl, ok := b.ref(v.Cluster)
@@ -833,25 +836,33 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 						b.columnNeeds(t, cr.Column, rng)
 					}
 				}
-				if b.checkCreateIndexLocal(v, t, b.syncedPartMeta(t), r.rng) {
-					return true
+				if willCreateIndex {
+					if b.checkCreateIndexLocal(v, t, b.syncedPartMeta(t), r.rng) {
+						return true
+					}
+					if b.checkDuplicateIndexCols(v, t, b.syncedIndexMeta(t), r.rng) {
+						return true
+					}
 				}
-				if b.checkDuplicateIndexCols(v, t, b.syncedIndexMeta(t), r.rng) {
-					return true
+				if !v.IfNotExists || idxFact != walk.Present {
+					b.mutateIndexes(t)
 				}
-				b.mutateIndexes(t)
 			}
 		case walk.Absent:
 			if objFact, objKind := b.look(t.key(spaceObject)); objFact == walk.Present && objKind != "" && objKind != kindSynonym {
 				b.wrongTarget(t, false)
 			} else if sr, _, sok := b.resolveSynonymTable(v.Table, t); sok {
-				if b.checkCreateIndexLocal(v, sr, b.syncedPartMeta(sr), r.rng) {
-					return true
+				if willCreateIndex {
+					if b.checkCreateIndexLocal(v, sr, b.syncedPartMeta(sr), r.rng) {
+						return true
+					}
+					if b.checkDuplicateIndexCols(v, sr, b.syncedIndexMeta(sr), r.rng) {
+						return true
+					}
 				}
-				if b.checkDuplicateIndexCols(v, sr, b.syncedIndexMeta(sr), r.rng) {
-					return true
+				if !v.IfNotExists || idxFact != walk.Present {
+					b.mutateIndexes(sr)
 				}
-				b.mutateIndexes(sr)
 			} else if !generated(spaceTable, t.name) {
 				keys := []walk.Key{t.key(spaceTable), t.key(spaceSynonym)}
 				if v.Table.Schema == "" {
@@ -874,9 +885,8 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 		// tables of its own.
 		b.Last = b.callsUserCode(v) || v.IndexType != nil
 	}
-	k := r.key(spaceIndex)
 	if v.IfNotExists {
-		switch f, _ := b.look(k); f {
+		switch idxFact {
 		case walk.Present:
 			return true
 		case walk.Unknown:
@@ -903,6 +913,9 @@ func (b *builder) createVectorIndex(v *ast.CreateVectorIndexStmt) bool {
 		return true
 	}
 	b.Order = walk.Lookups
+	k := r.key(spaceIndex)
+	idxFact, _ := b.look(k)
+	willCreateIndex := !v.IfNotExists || idxFact == walk.Absent
 	kind := ""
 	t, ok := b.ref(v.TableName)
 	if !ok {
@@ -918,10 +931,12 @@ func (b *builder) createVectorIndex(v *ast.CreateVectorIndexStmt) bool {
 		if got == kindTable {
 			if v.Column != "" {
 				b.columnNeeds(t, v.Column, t.rng)
-				if st := b.syncedColMeta(t); st != nil {
-					if sc, ok := st.colMeta[v.Column]; ok && sc.typ != "" && sc.typ != "VECTOR" {
-						b.fail(t.rng, review.UnsupportedForm, "Vector index column "+review.Code(ident(v.Column))+" in "+review.Code(t.written)+" must have VECTOR datatype.")
-						return true
+				if willCreateIndex {
+					if st := b.syncedColMeta(t); st != nil {
+						if sc, ok := st.colMeta[v.Column]; ok && sc.typ != "" && sc.typ != "VECTOR" {
+							b.fail(t.rng, review.UnsupportedForm, "Vector index column "+review.Code(ident(v.Column))+" in "+review.Code(t.written)+" must have VECTOR datatype.")
+							return true
+						}
 					}
 				}
 			}
@@ -935,7 +950,7 @@ func (b *builder) createVectorIndex(v *ast.CreateVectorIndexStmt) bool {
 		if objFact, objKind := b.look(t.key(spaceObject)); objFact == walk.Present && objKind != "" && objKind != kindSynonym {
 			b.wrongTarget(t, false)
 		} else if sr, _, sok := b.resolveSynonymTable(v.TableName, t); sok {
-			if v.Column != "" {
+			if willCreateIndex && v.Column != "" {
 				if st := b.syncedColMeta(sr); st != nil {
 					if sc, ok := st.colMeta[v.Column]; ok && sc.typ != "" && sc.typ != "VECTOR" {
 						b.fail(t.rng, review.UnsupportedForm, "Vector index column "+review.Code(ident(v.Column))+" in "+review.Code(sr.written)+" must have VECTOR datatype.")
@@ -961,9 +976,8 @@ func (b *builder) createVectorIndex(v *ast.CreateVectorIndexStmt) bool {
 			}
 		}
 	}
-	k := r.key(spaceIndex)
 	if v.IfNotExists {
-		switch f, _ := b.look(k); f {
+		switch idxFact {
 		case walk.Present:
 			return true
 		case walk.Unknown:
@@ -1855,7 +1869,7 @@ func (b *builder) dmlInsert(v *ast.InsertStmt) {
 				b.fail(rangeOf(into.Loc), review.UnsupportedForm, "INSERT column count does not match VALUES count.")
 				return
 			}
-			if b.dmlCheckInsertTableMeta(into.Table, r, into.Columns, into.Values, subSel, false, rangeOf(into.Loc)) {
+			if b.dmlCheckInsertTableMeta(into.Table, r, into.Columns, into.Values, subSel, false, false, rangeOf(into.Loc)) {
 				return
 			}
 		}
@@ -1894,7 +1908,8 @@ func (b *builder) dmlInsert(v *ast.InsertStmt) {
 		}
 	}
 	if v.ValuesRecord == nil && v.SetClauses == nil {
-		if b.dmlCheckInsertTableMeta(v.Table, r, v.Columns, v.Values, v.Select, v.ByName, b.anchor()) {
+		guaranteedRow := v.Values != nil && len(v.Values.Items) > 0 && v.Select == nil && v.ErrorLog == nil
+		if b.dmlCheckInsertTableMeta(v.Table, r, v.Columns, v.Values, v.Select, v.ByName, guaranteedRow, b.anchor()) {
 			return
 		}
 	}
@@ -2000,7 +2015,7 @@ func (b *builder) dmlDelete(v *ast.DeleteStmt) {
 	if t == nil || t.Name == "" {
 		// Inline subquery DELETE FROM (SELECT * FROM t) WHERE ...: check WHERE on single base table.
 		if sub, ok := v.Target.(*ast.SubqueryRef); ok && v.FromClause == nil {
-			if sel, ok := sub.Subquery.(*ast.SelectStmt); ok && sel != nil && sel.Larg == nil && sel.FromClause != nil && len(sel.FromClause.Items) == 1 {
+			if sel, ok := sub.Subquery.(*ast.SelectStmt); ok && sel != nil && sel.WithClause == nil && sel.Larg == nil && sel.FromClause != nil && len(sel.FromClause.Items) == 1 {
 				if tr, ok := sel.FromClause.Items[0].(*ast.TableRef); ok && tr.Name != nil && tr.Dblink == "" {
 					if br, ok := b.ref(tr.Name); ok {
 						if st := b.syncedTable(br); st != nil && st.complete {

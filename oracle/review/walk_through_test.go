@@ -808,6 +808,15 @@ func walkRichSchema() *metadata.DatabaseSchemaMetadata {
 				ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "FK_CHILD_PLAIN", ReferencedTable: "PLAIN"}},
 			},
 			{
+				Name: "PART_QUOTED_KEY",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "A,B", Type: "NUMBER", Nullable: true},
+				},
+				Partitions: []*metadata.TablePartitionMetadata{
+					{Name: "P1", Type: metadata.TablePartitionMetadata_RANGE, Expression: `"A,B"`, Value: "100"},
+				},
+			},
+			{
 				Name: "ERR$_PLAIN",
 				Columns: []*metadata.ColumnMetadata{
 					{Name: "ORA_ERR_NUMBER$", Type: "NUMBER", Nullable: true},
@@ -872,6 +881,10 @@ func TestWalkThroughOracleRichChecks(t *testing.T) {
 	noFinding(t, "ALTER TABLE part_hash COALESCE PARTITION;", rich)
 	oneFinding(t, "ALTER TABLE part_hash DROP PARTITION p1;", 0, "Cannot SPLIT, MERGE, or DROP partitions on a hash-partitioned table.", rich)
 
+	// Quoted partition key containing a comma must be parsed as a single partition key.
+	noFinding(t, "ALTER TABLE part_quoted_key ADD PARTITION p2 VALUES LESS THAN (200);", rich)
+	oneFinding(t, "ALTER TABLE part_quoted_key ADD PARTITION p2 VALUES LESS THAN (200, 300);", 0, "Partition bound value count does not match partitioning key count of `PART_QUOTED_KEY`.", rich)
+
 	// 3) Partition text contradictions (MERGE self, RENAME self, EXCHANGE self, SPLIT dup/missing comma).
 	oneFinding(t, "ALTER TABLE part_range MERGE PARTITIONS p1, p1;", 0, "Cannot merge partition `P1` with itself.", rich)
 	oneFinding(t, "ALTER TABLE part_range MERGE PARTITIONS FOR (1), p1;", 0, "MERGE PARTITIONS cannot mix FOR (...) with a partition name.", rich)
@@ -907,6 +920,7 @@ func TestWalkThroughOracleRichChecks(t *testing.T) {
 	oneFinding(t, "CREATE VECTOR INDEX vix ON plain (val) ORGANIZATION INMEMORY NEIGHBOR GRAPH;", 0, "Vector index column `VAL` in `PLAIN` must have VECTOR datatype.", rich)
 	noFinding(t, "CREATE VECTOR INDEX vix ON plain (vec) ORGANIZATION INMEMORY NEIGHBOR GRAPH;", rich)
 	oneFinding(t, "CREATE INDEX ix_dup ON plain (val);", 0, "Column list is already indexed on `PLAIN`.", rich)
+	noFinding(t, "CREATE INDEX IF NOT EXISTS ix_plain_val ON plain (val);", rich)
 	noFinding(t, "CREATE INDEX ix_desc ON plain (val DESC);", rich)
 
 	// 6) Pure-text DDL checks (all-virtual, self-synonym, PK/FK, ILM, ANNOTATIONS, INMEMORY, TRIGGER UPDATE OF).
@@ -936,7 +950,11 @@ func TestWalkThroughOracleRichChecks(t *testing.T) {
 	oneFinding(t, "INSERT INTO nokey_rich VALUES (1);", 0, "INSERT value count does not match column count of `NOKEY_RICH`.", rich)
 	noFinding(t, "INSERT INTO nokey_rich VALUES (1, 2);", rich)
 	oneFinding(t, "INSERT INTO plain (val) VALUES (1);", 0, "INSERT into `PLAIN` omits NOT NULL column `ID`.", rich)
+	noFinding(t, "INSERT INTO plain (val) SELECT 1 FROM dual WHERE 1 = 0;", rich)
+	noFinding(t, "INSERT INTO plain (val) VALUES (1) LOG ERRORS INTO err$_plain REJECT LIMIT UNLIMITED;", rich)
 	noFinding(t, "INSERT INTO plain (id, val) VALUES (1, 2);", rich)
+	// CTE shadowing a physical table name in CREATE MATERIALIZED VIEW / inline subquery.
+	noFinding(t, "CREATE MATERIALIZED VIEW mv_cte AS WITH plain AS (SELECT 1 z FROM dual) SELECT z FROM plain;", rich)
 	oneFinding(t, "INSERT INTO nokey_rich BY NAME SELECT 1 FROM dual;", 0, "Column `\"1\"` doesn't exist in `NOKEY_RICH`.", rich)
 	noFinding(t, "INSERT INTO nokey_rich BY NAME SELECT 1 a FROM dual;", rich)
 	oneFinding(t, "INSERT ALL INTO vw VALUES (1) SELECT 1 FROM dual;", 0, "`VW` is a view, not a table.", rich)
@@ -961,6 +979,7 @@ func TestWalkThroughOracleRichChecks(t *testing.T) {
 	// 8) Multi-statement mutation invalidation & OtherSpecs safety (no stale snapshot false positives).
 	noFinding(t, "ALTER TABLE plain MODIFY PARTITION BY HASH (val) PARTITIONS 2;\nALTER TABLE plain ADD PARTITION;", rich)
 	noFinding(t, "ALTER TABLE plain MODIFY (val NOT NULL);\nALTER TABLE plain MODIFY (val NULL);", rich)
+	noFinding(t, "ALTER TABLE plain DISABLE CONSTRAINT nn_id;\nINSERT INTO plain (val) VALUES (1);", rich)
 	noFinding(t, "DROP INDEX ix_plain_val;\nCREATE INDEX ix_plain_val2 ON plain (val);", rich)
 	noFinding(t, "ALTER TABLE nokey_rich ADD (z NUMBER);\nDELETE FROM nokey_rich WHERE z = 1;", rich)
 	oneFinding(t, "ALTER TABLE nokey_rich DROP COLUMN a;\nDELETE FROM nokey_rich WHERE a = 1;", 1, "Column `A` doesn't exist in `NOKEY_RICH`.", rich)

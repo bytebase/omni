@@ -289,15 +289,9 @@ func (s *oracleSnapshot) partitionsOf(st *syncedTable, parts []*metadata.TablePa
 	st.partNames = make(map[string]bool, len(parts))
 	st.partKeyCols = make(map[string]bool)
 	if expr := strings.TrimSpace(parts[0].GetExpression()); expr != "" {
-		for _, raw := range strings.Split(expr, ",") {
-			col := strings.TrimSpace(raw)
-			if len(col) >= 2 && col[0] == '"' && col[len(col)-1] == '"' {
-				col = strings.ReplaceAll(col[1:len(col)-1], `""`, `"`)
-			}
-			if col != "" {
-				st.partKeyCols[col] = true
-				st.partKeyCount++
-			}
+		for _, col := range splitOracleIdentList(expr) {
+			st.partKeyCols[col] = true
+			st.partKeyCount++
 		}
 	}
 	allInt := st.partType == metadata.TablePartitionMetadata_RANGE && st.partKeyCount == 1
@@ -327,6 +321,45 @@ func (s *oracleSnapshot) partitionsOf(st *syncedTable, parts []*metadata.TablePa
 	st.maxRangeHighVal = maxVal
 }
 
+// splitOracleIdentList splits a comma-separated list of Oracle identifiers
+// (such as a synced partition key expression), keeping commas inside
+// double-quoted identifiers intact and unescaping "" pairs.
+func splitOracleIdentList(expr string) []string {
+	var out []string
+	var cur strings.Builder
+	inQuote := false
+	flush := func() {
+		col := strings.TrimSpace(cur.String())
+		cur.Reset()
+		if len(col) >= 2 && col[0] == '"' && col[len(col)-1] == '"' {
+			col = strings.ReplaceAll(col[1:len(col)-1], `""`, `"`)
+		}
+		if col != "" {
+			out = append(out, col)
+		}
+	}
+	for i := 0; i < len(expr); i++ {
+		ch := expr[i]
+		if ch == '"' {
+			cur.WriteByte(ch)
+			if inQuote && i+1 < len(expr) && expr[i+1] == '"' {
+				cur.WriteByte(expr[i+1])
+				i++
+				continue
+			}
+			inQuote = !inQuote
+			continue
+		}
+		if ch == ',' && !inQuote {
+			flush()
+			continue
+		}
+		cur.WriteByte(ch)
+	}
+	flush()
+	return out
+}
+
 // indexesOf records a table's indexes. A primary key or unique constraint
 // and the index that enforces it are two objects with two names, which the
 // sync records as one entry under the index's (getConstraints,
@@ -337,8 +370,7 @@ func (s *oracleSnapshot) indexesOf(table string, st *syncedTable, indexes []*met
 		if idx.GetType() == "DOMAIN" {
 			s.domainTables[table] = true
 			s.domainIndexes[idx.GetName()] = true
-		}
-		if exprs := idx.GetExpressions(); len(exprs) > 0 {
+		} else if exprs := idx.GetExpressions(); len(exprs) > 0 {
 			cols := make([]string, 0, len(exprs))
 			plain := true
 			for _, e := range exprs {
