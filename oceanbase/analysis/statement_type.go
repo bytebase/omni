@@ -1,41 +1,41 @@
 package analysis
 
 import (
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/oceanbase/ast"
 )
 
-// StatementType is the kind of change a statement makes. The values mirror
-// Bytebase's storepb.StatementType names.
-type StatementType int
+// StatementType is the kind of change a statement makes.
+type StatementType = analysis.StatementType
 
 const (
-	StatementTypeUnspecified StatementType = iota
-	CreateDatabase
-	CreateTable
-	CreateView
-	CreateIndex
-	CreateEvent
-	CreateTrigger
-	CreateFunction
-	CreateProcedure
-	DropDatabase
-	DropTable
-	DropView
-	DropIndex
-	DropEvent
-	DropTrigger
-	DropFunction
-	DropProcedure
-	AlterDatabase
-	AlterTable
-	AlterView
-	AlterEvent
-	Truncate
-	Rename
-	Insert
-	Update
-	Delete
-	Execute
+	StatementTypeUnspecified = analysis.StatementTypeUnspecified
+	CreateDatabase           = analysis.CreateDatabase
+	CreateTable              = analysis.CreateTable
+	CreateView               = analysis.CreateView
+	CreateIndex              = analysis.CreateIndex
+	CreateEvent              = analysis.CreateEvent
+	CreateTrigger            = analysis.CreateTrigger
+	CreateFunction           = analysis.CreateFunction
+	CreateProcedure          = analysis.CreateProcedure
+	DropDatabase             = analysis.DropDatabase
+	DropTable                = analysis.DropTable
+	DropView                 = analysis.DropView
+	DropIndex                = analysis.DropIndex
+	DropEvent                = analysis.DropEvent
+	DropTrigger              = analysis.DropTrigger
+	DropFunction             = analysis.DropFunction
+	DropProcedure            = analysis.DropProcedure
+	AlterDatabase            = analysis.AlterDatabase
+	AlterTable               = analysis.AlterTable
+	AlterView                = analysis.AlterView
+	AlterEvent               = analysis.AlterEvent
+	Truncate                 = analysis.Truncate
+	Rename                   = analysis.Rename
+	Insert                   = analysis.Insert
+	Update                   = analysis.Update
+	Delete                   = analysis.Delete
+	Execute                  = analysis.Execute
 )
 
 // StatementTypeOf returns the type of a statement. A statement the switch does

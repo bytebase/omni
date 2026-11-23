@@ -3,47 +3,47 @@ package analysis
 import (
 	"strings"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/oracle/ast"
 )
 
-// StatementType is the kind of change a statement makes. The values mirror
-// Bytebase's storepb.StatementType names.
-type StatementType int
+// StatementType is the kind of change a statement makes.
+type StatementType = analysis.StatementType
 
 const (
-	StatementTypeUnspecified StatementType = iota
-	CreateDatabase
-	CreateTable
-	CreateIndex
-	CreateView
-	CreateSequence
-	CreateSchema
-	CreateFunction
-	CreateTrigger
-	CreateProcedure
-	CreateType
-	DropDatabase
-	DropTable
-	DropView
-	DropIndex
-	DropSequence
-	DropFunction
-	DropTrigger
-	DropProcedure
-	DropType
-	AlterDatabase
-	AlterTable
-	AlterIndex
-	AlterView
-	AlterSequence
-	AlterType
-	Truncate
-	Rename
-	Comment
-	Insert
-	Update
-	Delete
-	Execute
+	StatementTypeUnspecified = analysis.StatementTypeUnspecified
+	CreateDatabase           = analysis.CreateDatabase
+	CreateTable              = analysis.CreateTable
+	CreateIndex              = analysis.CreateIndex
+	CreateView               = analysis.CreateView
+	CreateSequence           = analysis.CreateSequence
+	CreateSchema             = analysis.CreateSchema
+	CreateFunction           = analysis.CreateFunction
+	CreateTrigger            = analysis.CreateTrigger
+	CreateProcedure          = analysis.CreateProcedure
+	CreateType               = analysis.CreateType
+	DropDatabase             = analysis.DropDatabase
+	DropTable                = analysis.DropTable
+	DropView                 = analysis.DropView
+	DropIndex                = analysis.DropIndex
+	DropSequence             = analysis.DropSequence
+	DropFunction             = analysis.DropFunction
+	DropTrigger              = analysis.DropTrigger
+	DropProcedure            = analysis.DropProcedure
+	DropType                 = analysis.DropType
+	AlterDatabase            = analysis.AlterDatabase
+	AlterTable               = analysis.AlterTable
+	AlterIndex               = analysis.AlterIndex
+	AlterView                = analysis.AlterView
+	AlterSequence            = analysis.AlterSequence
+	AlterType                = analysis.AlterType
+	Truncate                 = analysis.Truncate
+	Rename                   = analysis.Rename
+	Comment                  = analysis.Comment
+	Insert                   = analysis.Insert
+	Update                   = analysis.Update
+	Delete                   = analysis.Delete
+	Execute                  = analysis.Execute
 )
 
 // StatementTypeOf returns the type of a statement. A statement the switch does

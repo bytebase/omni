@@ -3,44 +3,44 @@ package analysis
 import (
 	"strings"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/redshift/ast"
 )
 
-// StatementType is the kind of change a statement makes. The values mirror
-// Bytebase's storepb.StatementType names.
-type StatementType int
+// StatementType is the kind of change a statement makes.
+type StatementType = analysis.StatementType
 
 const (
-	StatementTypeUnspecified StatementType = iota
-	CreateDatabase
-	CreateTable
-	CreateView
-	CreateIndex
-	CreateSequence
-	CreateSchema
-	CreateFunction
-	DropDatabase
-	DropTable
-	DropView
-	DropSchema
-	DropIndex
-	DropSequence
-	DropFunction
-	AlterDatabase
-	AlterTable
-	AlterView
-	AlterIndex
-	AlterSequence
-	RenameIndex
-	RenameSchema
-	RenameSequence
-	Comment
-	Truncate
-	Insert
-	Update
-	Delete
-	Merge
-	Execute
+	StatementTypeUnspecified = analysis.StatementTypeUnspecified
+	CreateDatabase           = analysis.CreateDatabase
+	CreateTable              = analysis.CreateTable
+	CreateView               = analysis.CreateView
+	CreateIndex              = analysis.CreateIndex
+	CreateSequence           = analysis.CreateSequence
+	CreateSchema             = analysis.CreateSchema
+	CreateFunction           = analysis.CreateFunction
+	DropDatabase             = analysis.DropDatabase
+	DropTable                = analysis.DropTable
+	DropView                 = analysis.DropView
+	DropSchema               = analysis.DropSchema
+	DropIndex                = analysis.DropIndex
+	DropSequence             = analysis.DropSequence
+	DropFunction             = analysis.DropFunction
+	AlterDatabase            = analysis.AlterDatabase
+	AlterTable               = analysis.AlterTable
+	AlterView                = analysis.AlterView
+	AlterIndex               = analysis.AlterIndex
+	AlterSequence            = analysis.AlterSequence
+	RenameIndex              = analysis.RenameIndex
+	RenameSchema             = analysis.RenameSchema
+	RenameSequence           = analysis.RenameSequence
+	Comment                  = analysis.Comment
+	Truncate                 = analysis.Truncate
+	Insert                   = analysis.Insert
+	Update                   = analysis.Update
+	Delete                   = analysis.Delete
+	Merge                    = analysis.Merge
+	Execute                  = analysis.Execute
 )
 
 // StatementTypeOf returns the type of a statement. A statement this switch does

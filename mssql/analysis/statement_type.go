@@ -1,33 +1,33 @@
 package analysis
 
 import (
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/mssql/ast"
 )
 
-// StatementType is the kind of change a statement makes. The values mirror
-// Bytebase's storepb.StatementType names.
-type StatementType int
+// StatementType is the kind of change a statement makes.
+type StatementType = analysis.StatementType
 
 const (
-	StatementTypeUnspecified StatementType = iota
-	AlterDatabase
-	AlterIndex
-	AlterTable
-	CreateDatabase
-	CreateIndex
-	CreateSchema
-	CreateTable
-	CreateView
-	DropDatabase
-	DropIndex
-	DropSchema
-	DropTable
-	DropView
-	Truncate
-	Delete
-	Insert
-	Update
-	Execute
+	StatementTypeUnspecified = analysis.StatementTypeUnspecified
+	AlterDatabase            = analysis.AlterDatabase
+	AlterIndex               = analysis.AlterIndex
+	AlterTable               = analysis.AlterTable
+	CreateDatabase           = analysis.CreateDatabase
+	CreateIndex              = analysis.CreateIndex
+	CreateSchema             = analysis.CreateSchema
+	CreateTable              = analysis.CreateTable
+	CreateView               = analysis.CreateView
+	DropDatabase             = analysis.DropDatabase
+	DropIndex                = analysis.DropIndex
+	DropSchema               = analysis.DropSchema
+	DropTable                = analysis.DropTable
+	DropView                 = analysis.DropView
+	Truncate                 = analysis.Truncate
+	Delete                   = analysis.Delete
+	Insert                   = analysis.Insert
+	Update                   = analysis.Update
+	Execute                  = analysis.Execute
 )
 
 // StatementTypeOf returns the type of a statement. A statement the switch does
