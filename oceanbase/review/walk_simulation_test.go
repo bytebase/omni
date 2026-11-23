@@ -15,8 +15,9 @@ import (
 )
 
 // TestWalkSimulation holds OceanBase's WALK_THROUGH to oceanbase/catalog's
-// simulate.tsv and programs/simulate.tsv offline: each fixture is built once
-// in the in-memory catalog, and every row is checked with no server started.
+// simulate.tsv, programs/simulate.tsv, and queries/simulate.tsv offline: each
+// fixture is built once in the in-memory catalog, and every row is checked
+// with no server started.
 func TestWalkSimulation(t *testing.T) {
 	same := (&oceanBaseEngine{}).Same
 	for _, suite := range []struct {
@@ -24,8 +25,9 @@ func TestWalkSimulation(t *testing.T) {
 		path     string
 		minFound int
 	}{
-		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 3050},
+		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 3140},
 		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 275},
+		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 3845},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
 			res := walktest.CheckSimulation(t, walktest.Simulation{
@@ -136,6 +138,11 @@ func oceanBaseCatalogInventory(c *obcatalog.Catalog, dbName string) []walktest.O
 			})
 		}
 		for _, con := range tbl.Constraints {
+			if con.Type == obcatalog.ConCheck {
+				objects = append(objects, walktest.Object{
+					Key: walk.Key{Space: spaceTableCheck, Parent: walk.Path(db.Name, tbl.Name), Name: con.Name},
+				})
+			}
 			if con.Type == obcatalog.ConForeignKey {
 				objects = append(objects,
 					walktest.Object{Key: walk.Key{Space: spaceForeignKey, Parent: walk.Path(db.Name), Name: con.Name}},

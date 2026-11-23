@@ -82,8 +82,11 @@ var shared struct {
 	pin       enginetest.Pin
 	container testcontainers.Container
 	config    *mysql.Config
-	// databases is what the image started with, which ResetToInitial leaves.
+	// databases, users and roles are what the image started with, which
+	// ResetToInitial leaves. It starts with no global function.
 	databases map[string]bool
+	users     map[string]bool
+	roles     map[string]bool
 	err       error
 }
 
@@ -176,7 +179,40 @@ func start(ctx context.Context, pin enginetest.Pin) error {
 	}
 	cfg.DBName = database
 	shared.config = cfg
-	return recordDatabases(ctx, db)
+	if err := recordDatabases(ctx, db); err != nil {
+		return err
+	}
+	return recordAccounts(ctx, db)
+}
+
+// recordAccounts notes the accounts and roles the image started with.
+func recordAccounts(ctx context.Context, db *sql.DB) error {
+	users, err := queryRows(ctx, db, usersQuery)
+	if err != nil {
+		return err
+	}
+	roles, err := queryRows(ctx, db, rolesQuery)
+	if err != nil {
+		return err
+	}
+	shared.users, shared.roles = set(users), set(roles)
+	return nil
+}
+
+// The first column of each is the account as 'user'@'host', the role's name,
+// and the global function's signature.
+const (
+	usersQuery           = "SHOW ALL GRANTS"
+	rolesQuery           = "SHOW ROLES"
+	globalFunctionsQuery = "SHOW GLOBAL FULL FUNCTIONS"
+)
+
+func set(names []string) map[string]bool {
+	m := make(map[string]bool, len(names))
+	for _, name := range names {
+		m[name] = true
+	}
+	return m
 }
 
 // recordDatabases notes the databases the image started with, waiting for
@@ -317,9 +353,9 @@ func Reset(t testing.TB, fn func(ctx context.Context, db *sql.DB) error) {
 	}
 }
 
-// ResetToInitial drops every database the pinned image did not start with, so
-// a test that reads the server's database list sees a fixed set. It runs in a
-// recording only.
+// ResetToInitial drops every database, account, role and global function the
+// pinned image did not start with, so a test that reads the server's databases
+// or accounts sees a fixed set. It runs in a recording only.
 func ResetToInitial(t testing.TB) {
 	t.Helper()
 	Reset(t, func(ctx context.Context, db *sql.DB) error {
@@ -335,24 +371,77 @@ func ResetToInitial(t testing.TB) {
 				return fmt.Errorf("drop %s: %w", name, err)
 			}
 		}
-		return nil
+		return DropInstanceObjects(ctx, db)
 	})
 }
 
-// queryRows reads the first column of every row.
+// DropInstanceObjects drops every account, role and global function the pinned
+// image did not start with: they belong to no database, so dropping a
+// database leaves them. A test that makes one calls it, through Reset, before
+// and after.
+func DropInstanceObjects(ctx context.Context, db *sql.DB) error {
+	var drops []string
+	users, err := queryRows(ctx, db, usersQuery)
+	if err != nil {
+		return err
+	}
+	for _, user := range users {
+		if !shared.users[user] {
+			// The identity is stated quoted, 'user'@'host', as DROP USER takes it.
+			drops = append(drops, "DROP USER IF EXISTS "+user)
+		}
+	}
+	roles, err := queryRows(ctx, db, rolesQuery)
+	if err != nil {
+		return err
+	}
+	for _, role := range roles {
+		if !shared.roles[role] {
+			drops = append(drops, "DROP ROLE IF EXISTS "+quoteName(role))
+		}
+	}
+	functions, err := queryRows(ctx, db, globalFunctionsQuery)
+	if err != nil {
+		return err
+	}
+	for _, signature := range functions {
+		// The listing states a variadic signature as f(int...), and DROP takes
+		// f(int, ...).
+		if strings.HasSuffix(signature, "...)") && !strings.HasSuffix(signature, ", ...)") {
+			signature = strings.TrimSuffix(signature, "...)") + ", ...)"
+		}
+		drops = append(drops, "DROP GLOBAL FUNCTION IF EXISTS "+signature)
+	}
+	for _, drop := range drops {
+		if _, err := db.ExecContext(ctx, drop); err != nil {
+			return fmt.Errorf("%s: %w", drop, err)
+		}
+	}
+	return nil
+}
+
+// queryRows reads the first column of every row, whatever columns follow it.
 func queryRows(ctx context.Context, db *sql.DB, query string) ([]string, error) {
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", query, err)
 	}
 	defer rows.Close()
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
 	var out []string
 	for rows.Next() {
-		var s string
-		if err := rows.Scan(&s); err != nil {
+		values := make([]sql.RawBytes, len(columns))
+		dest := make([]any, len(columns))
+		for i := range values {
+			dest[i] = &values[i]
+		}
+		if err := rows.Scan(dest...); err != nil {
 			return nil, err
 		}
-		out = append(out, s)
+		out = append(out, string(values[0]))
 	}
 	return out, rows.Err()
 }

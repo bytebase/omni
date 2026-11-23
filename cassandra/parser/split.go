@@ -2,6 +2,10 @@ package parser
 
 // Split splits a CQL input into segments at top-level semicolons, correctly
 // handling string literals, quoted identifiers, code blocks and comments.
+// Segments do not include the semicolon. A segment holding no statement (a
+// lone semicolon, or only whitespace and comments before one or at the end of
+// the input) is returned too, with Empty set, so a caller can account for
+// every semicolon; callers that want statements skip it.
 //
 // A semicolon inside a batch does not end the statement: BEGIN … BATCH and
 // APPLY BATCH frame one statement whose inner statements are separated by
@@ -15,10 +19,7 @@ func Split(sql string) []Segment {
 	pieceStart := 0
 	inBatch := false
 	emit := func(end int) {
-		seg := makeSegment(sql, start, end)
-		if !seg.Empty {
-			segments = append(segments, seg)
-		}
+		segments = append(segments, makeSegment(sql, start, end))
 	}
 	i := 0
 	for i < len(sql) {
@@ -30,7 +31,8 @@ func Split(sql string) []Segment {
 			i = skipQuotedIdent(sql, i)
 		case ch == '$' && i+1 < len(sql) && sql[i+1] == '$':
 			i = skipCodeBlock(sql, i)
-		case ch == '-' && i+1 < len(sql) && sql[i+1] == '-':
+		case (ch == '-' || ch == '/') && i+1 < len(sql) && sql[i+1] == ch:
+			// "--" and "//" both start a line comment, as in the lexer.
 			i = skipLineComment(sql, i)
 		case ch == '/' && i+1 < len(sql) && sql[i+1] == '*':
 			i = skipBlockComment(sql, i)
@@ -105,7 +107,10 @@ func endsBatch(text string) bool {
 	return secondLast.Type == tokAPPLY && last.Type == tokBATCH
 }
 
-// Segment represents a single SQL segment from splitting.
+// Segment represents a single SQL segment from splitting. Text is the
+// segment with its surrounding whitespace trimmed, and ByteStart and ByteEnd
+// are its range in the input. Empty reports that it holds no statement: it is
+// only whitespace and comments, or nothing at all.
 type Segment struct {
 	Text      string
 	ByteStart int
@@ -121,13 +126,21 @@ func makeSegment(sql string, start, end int) Segment {
 		end--
 	}
 	text := sql[start:end]
-	empty := len(text) == 0
 	return Segment{
 		Text:      text,
 		ByteStart: start,
 		ByteEnd:   end,
-		Empty:     empty,
+		Empty:     holdsNoToken(text),
 	}
+}
+
+// holdsNoToken reports whether text is only whitespace and comments, read as
+// the lexer reads them. An unterminated block comment is a lexer error, not
+// an empty segment: the parser's verdict on it is what the caller should read.
+func holdsNoToken(text string) bool {
+	lexer := NewLexer(text)
+	lexer.skipWhitespaceAndComments()
+	return lexer.Err == nil && lexer.pos == len(text)
 }
 
 func isWhitespace(c byte) bool {
@@ -178,7 +191,7 @@ func skipCodeBlock(sql string, i int) int {
 }
 
 func skipLineComment(sql string, i int) int {
-	i += 2 // skip --
+	i += 2 // skip -- or //
 	for i < len(sql) && sql[i] != '\n' {
 		i++
 	}

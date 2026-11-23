@@ -191,7 +191,7 @@ func (b *builder) dropDatabase(v *ast.DropDatabaseStmt) bool {
 // aside: a session's temporary tables outlive DROP DATABASE of theirs
 // (verified on 8.0 and 8.4).
 func (b *builder) clearDatabase(d string) {
-	for _, space := range []string{spaceRelation, spaceColumn, spaceIndex, spaceForeignKey, spaceTableForeignKey, spaceTrigger, spaceProcedure, spaceFunction, spaceEvent} {
+	for _, space := range []string{spaceRelation, spaceColumn, spaceIndex, spaceForeignKey, spaceTableForeignKey, spaceTableCheck, spaceTrigger, spaceProcedure, spaceFunction, spaceEvent} {
 		b.Clear(walk.Scope{Space: space, Parent: walk.Path(d), Deep: true})
 	}
 	for k := range b.w.materialized {
@@ -313,11 +313,8 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 	if v.Select != nil && b.callsStoredFunction(v.Select) {
 		b.forgetTemporary()
 	}
-	if b.w.oceanBase && v.Select != nil {
-		if col, ok := selectWithoutFromColRef(v.Select); ok {
-			b.fail(r.rng, nil, review.ObjectNotFound, notFound("column", ident(col), ""))
-			return true
-		}
+	if b.w.oceanBase && v.Select != nil && b.queryFails(v.Select, false) {
+		return true
 	}
 	if v.Temporary {
 		tk := tempKey(r.db, r.name)
@@ -769,9 +766,24 @@ func (b *builder) columnKeys(r tableRef, c *ast.ColumnDef) bool {
 			b.MayAdd(walk.Scope{Space: spaceIndex, Parent: tablePath(r.db, r.name)})
 		case ast.ColConstrReferences:
 			b.mayAddForeignKeys(r)
+		case ast.ColConstrCheck:
+			b.addsCheck(r, cc.Name)
 		}
 	}
 	return primary
+}
+
+// addsCheck records a CHECK constraint a statement adds to a table: of its
+// name, or of a generated one.
+func (b *builder) addsCheck(r tableRef, name string) {
+	if !b.w.oceanBase {
+		return
+	}
+	if k, ok := b.key(spaceTableCheck, name); ok {
+		b.Set(checkKey(r.db, r.name, k), walk.Present, "")
+		return
+	}
+	b.MayAdd(walk.Scope{Space: spaceTableCheck, Parent: tablePath(r.db, r.name)})
 }
 
 // constraint records a table constraint a CREATE or ALTER TABLE adds, and
@@ -785,6 +797,7 @@ func (b *builder) constraint(r tableRef, c *ast.Constraint) bool {
 		b.Set(idxKey(r.db, r.name, primaryIndex), walk.Present, "")
 		return true
 	case ast.ConstrCheck:
+		b.addsCheck(r, c.Name)
 	case ast.ConstrForeignKey:
 		// An engine that ignores foreign keys still adds the index (verified).
 		k, ok := b.key(spaceForeignKey, c.Name)

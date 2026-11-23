@@ -32,6 +32,14 @@ func walkSchema() *metadata.DatabaseSchemaMetadata {
 				},
 				{Name: "r", Columns: cols("id"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true}}},
 				{Name: "nokey", Columns: cols("a")},
+				{
+					Name:    "pt",
+					Columns: cols("id", "a", "b"),
+					Indexes: []*metadata.IndexMetadata{{Name: "i"}},
+					Partitions: []*metadata.TablePartitionMetadata{
+						{Name: "p0", Type: metadata.TablePartitionMetadata_RANGE, Expression: "`a`", Value: "10"},
+					},
+				},
 			},
 			Views:     []*metadata.ViewMetadata{{Name: "v"}},
 			Sequences: []*metadata.SequenceMetadata{{Name: "sq"}},

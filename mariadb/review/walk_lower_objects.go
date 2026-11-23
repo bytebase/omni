@@ -67,6 +67,9 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	}
 	if tf == walk.Present && tkind == relTable && (!v.IfNotExists || idxFact == walk.Absent) {
 		b.checkIndexColumns(r, v.Columns)
+		if !b.w.ignoresFKs[relKey(r.db, r.name)] && b.keyPartTypesFail(createIndexKeyKind(v), v.Columns, b.typeOf(r)) {
+			return true
+		}
 	}
 	b.Set(ik, walk.Present, "")
 	return true
@@ -92,6 +95,9 @@ func (b *builder) dropIndex(v *ast.DropIndexStmt) bool {
 		return true
 	}
 	b.tableNeeds(r)
+	if f == walk.Present && kind == relTable && b.fkIndexDropFails(r, []string{v.Name}, nil, b.anchor()) {
+		return true
+	}
 	return b.dropIndexName(r, v.Name, b.anchor(), v.IfExists)
 }
 
@@ -122,6 +128,9 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 			b.fail(rangeOf(ref.Loc), nil, review.ObjectNotFound, notFound("column", ident(ref.Column), "")) // 1054
 			return true
 		}
+		if b.viewQueryFails(v.Select, len(v.Columns) > 0) {
+			return true
+		}
 	}
 	b.Set(k, walk.Present, relView)
 	return true
@@ -138,6 +147,9 @@ func (b *builder) alterView(v *ast.AlterViewStmt) bool {
 		if f, kind := b.l.Lookup(k); f == walk.Present && kind == relView {
 			if ref := selectBareColumnNoFrom(v.Select); ref != nil {
 				b.fail(rangeOf(ref.Loc), nil, review.ObjectNotFound, notFound("column", ident(ref.Column), "")) // 1054
+				return true
+			}
+			if b.viewQueryFails(v.Select, len(v.Columns) > 0) {
 				return true
 			}
 		}

@@ -11,6 +11,35 @@ import (
 // statement lowers one statement (MySQL spec §5, with MariaDB spec §2.3),
 // false when the walk does not follow it, which ends the walk before it.
 func (b *builder) statement(n ast.Node) bool {
+	switch n.(type) {
+	case *ast.CreateDatabaseStmt, *ast.DropDatabaseStmt, *ast.CreateTableStmt, *ast.AlterTableStmt,
+		*ast.RenameTableStmt, *ast.DropTableStmt, *ast.CreateSequenceStmt, *ast.DropSequenceStmt:
+		// Each may replace, rename, or drop a sequence, whose values the
+		// walk then no longer knows (walker.sequences).
+		b.Session(func() { clear(b.w.sequences) })
+	}
+	// What may change a table's indexes or foreign keys (walker.fkTables).
+	switch v := n.(type) {
+	case *ast.AlterTableStmt:
+		b.touchTables(v.Table)
+		for _, c := range v.Commands {
+			if c != nil && (c.NewTable != nil || c.ExchangeTable != nil || c.ConvertTable != nil || c.Type == ast.ATRenameTable) {
+				b.Session(func() { clear(b.w.fkTables) })
+			}
+		}
+	case *ast.CreateIndexStmt:
+		b.touchTables(v.Table)
+	case *ast.DropIndexStmt:
+		b.touchTables(v.Table)
+	case *ast.CreateTableStmt:
+		b.touchTables(v.Table)
+	case *ast.CreateSequenceStmt:
+		b.touchTables(v.Name)
+	case *ast.DropTableStmt:
+		b.touchTables(v.Tables...)
+	case *ast.CreateDatabaseStmt, *ast.DropDatabaseStmt, *ast.RenameTableStmt, *ast.DropSequenceStmt:
+		b.Session(func() { clear(b.w.fkTables) })
+	}
 	switch v := n.(type) {
 	case *ast.CreateDatabaseStmt:
 		return b.createDatabase(v)
@@ -391,6 +420,7 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 		} else {
 			b.w.versioned[k] = verFact
 		}
+		delete(b.w.rangeOrList, k)
 		if old || kind != relTable || partFact == walk.Unknown {
 			delete(b.w.partitioned, k)
 		} else {
@@ -493,11 +523,13 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 		}
 	}
 	columns := make(map[string]bool)
+	types := make(map[string]string)
 	for _, c := range v.Columns {
 		k, ok := b.key(spaceColumn, c.Name)
 		if !ok {
 			continue
 		}
+		types[k] = astBaseType(c.TypeName)
 		if columns[k] {
 			b.fail(rangeOf(c.Loc), nil, review.DuplicateName, statesTwice("declares", "column", ident(c.Name)))
 			return true
@@ -505,6 +537,14 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 		columns[k] = true
 		if b.columnDefFails(c, r.written) {
 			return true
+		}
+	}
+	if v.Like == nil && v.Select == nil {
+		keyed := keyedColumns(v.Constraints)
+		for _, c := range v.Columns {
+			if b.autoIncrementUnkeyed(c, keyed) {
+				return true
+			}
 		}
 	}
 	primaries := 0
@@ -518,11 +558,18 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 		}
 	}
 	noExtraCols := v.Like == nil && v.Select == nil
+	// The key parts of a new InnoDB table are judged by the types its
+	// column list declares.
+	innoDB := noExtraCols && keepsFKs(engineOf(v.Options))
+	typeOf := func(k string) string { return types[k] }
 	for _, c := range v.Constraints {
 		switch c.Type {
 		case ast.ConstrPrimaryKey:
 			primaries++
 			if noExtraCols && b.checkCreateIndexColumns(c.IndexColumns, columns, r.written) {
+				return true
+			}
+			if innoDB && b.keyPartTypesFail(keyPlain, c.IndexColumns, typeOf) {
 				return true
 			}
 			continue
@@ -565,6 +612,9 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 		if noExtraCols && b.checkCreateIndexColumns(c.IndexColumns, columns, r.written) {
 			return true
 		}
+		if innoDB && b.keyPartTypesFail(constraintKeyKind(c), c.IndexColumns, typeOf) {
+			return true
+		}
 	}
 	if primaries > 1 {
 		b.fail(r.rng, nil, review.NameTaken, hasPrimaryKey(r.written))
@@ -588,7 +638,7 @@ func (b *builder) created(v *ast.CreateTableStmt, r tableRef, kind string, versi
 	}
 	for _, c := range v.Columns {
 		if k, ok := b.key(spaceColumn, c.Name); ok {
-			b.Set(colKey(r.db, r.name, k), walk.Present, "")
+			b.Set(colKey(r.db, r.name, k), walk.Present, astBaseType(c.TypeName))
 		}
 		b.columnKeys(r, c)
 	}

@@ -17,7 +17,13 @@ the SHA-256 of the vendored grammar files against the `grammar` row of
 | --- | --- | --- | --- | --- |
 | One per alternative | 1,207 | 1,207 (100.0%) | 0 | 0 |
 | Near-misses | 2,341 | 2,341 (100.0%) | 0 | 0 |
-| **All** | **3,548** | **3,548 (100.0%)** | **0** | **0** |
+| Hand-added (`suite:access-or-replace`) | 35 | 35 (100.0%) | 0 | 0 |
+| **All** | **3,583** | **3,583 (100.0%)** | **0** | **0** |
+
+The hand-added rows hold where an access entity takes `OR REPLACE`: after its
+keyword (`CREATE ROW POLICY OR REPLACE`), never before it, and not beside `IF NOT
+EXISTS`. The grammar has no rule for creating an access entity, and the driver's
+dump writes `CREATE ROW POLICY OR REPLACE`.
 
 To record or verify against the pinned ClickHouse container:
 
@@ -62,5 +68,6 @@ settings between `EXPLAIN AST` and the inner query (such as `graph = 1`),
 
 ## Remaining disagreements
 
-None — all 3,548 rows (1,207 grammar alternatives and 2,341 near-misses) agree
+None — all 3,583 rows (1,207 grammar alternatives, 2,341 near-misses and 35
+hand-added rows) agree
 with ClickHouse 26.8.38.9 (`0` ClickHouse-only, `0` omni-only).

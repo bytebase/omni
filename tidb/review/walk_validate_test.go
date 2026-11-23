@@ -162,16 +162,18 @@ func TestWalkThroughTiDBIndexesTablesViewsFKsAndPartitions(t *testing.T) {
 		{"ALTER TABLE t PARTITION BY HASH (nosuch);", "Column `nosuch` doesn't exist in `t`."},
 		{"ALTER TABLE t PARTITION BY RANGE (a) INTERVAL (10);", "TiDB requires `FIRST` and `LAST` partitions in `INTERVAL` partitioning."},
 		{"ALTER TABLE t PARTITION BY RANGE (a) INTERVAL (10) FIRST PARTITION LESS THAN (a) LAST PARTITION LESS THAN (100);", "Partition bound expression can't reference column `a`."},
-		{"ALTER TABLE t FIRST PARTITION LESS THAN (a);", "Partition bound expression can't reference column `a`."},
-		{"ALTER TABLE t ADD PARTITION (PARTITION p1 HISTORY);", "TiDB doesn't support `HISTORY` partitions."},
-		{"ALTER TABLE t ADD PARTITION (PARTITION p1 CURRENT);", "TiDB doesn't support `CURRENT` partitions."},
-		{"ALTER TABLE t ADD PARTITION (PARTITION p1 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20));", "This statement declares partition `p1` twice."},
-		{"ALTER TABLE t ADD PARTITION (PARTITION p1 (SUBPARTITION s1, SUBPARTITION s1));", "This statement declares subpartition `s1` twice."},
-		{"ALTER TABLE t ADD PARTITION (PARTITION p1 VALUES LESS THAN (a));", "Partition bound expression can't reference column `a`."},
-		{"ALTER TABLE t ANALYZE PARTITION p0 INDEX nosuch;", "Index `nosuch` doesn't exist in `t`."},
-		{"ALTER TABLE t EXCHANGE PARTITION p0 WITH TABLE t;", "TiDB can't exchange a partition of `t` with itself."},
-		{"ALTER TABLE t EXCHANGE PARTITION p0 WITH TABLE nosuch;", "Table `nosuch` doesn't exist."},
-		{"ALTER TABLE t EXCHANGE PARTITION p0 WITH TABLE v;", "`v` is a view, not a table."},
+		{"ALTER TABLE pt FIRST PARTITION LESS THAN (a);", "Partition bound expression can't reference column `a`."},
+		{"ALTER TABLE pt ADD PARTITION (PARTITION p1 HISTORY);", "TiDB doesn't support `HISTORY` partitions."},
+		{"ALTER TABLE pt ADD PARTITION (PARTITION p1 CURRENT);", "TiDB doesn't support `CURRENT` partitions."},
+		{"ALTER TABLE pt ADD PARTITION (PARTITION p1 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20));", "This statement declares partition `p1` twice."},
+		// TiDB reads the missing VALUES LESS THAN first (1479, verified).
+		{"ALTER TABLE pt ADD PARTITION (PARTITION p1 (SUBPARTITION s1, SUBPARTITION s1));", "Partition `p1` needs `VALUES LESS THAN` for `RANGE` partitioning."},
+		{"ALTER TABLE pt REORGANIZE PARTITION p0 INTO (PARTITION p1 VALUES LESS THAN (10) (SUBPARTITION s1, SUBPARTITION s1));", "This statement declares subpartition `s1` twice."},
+		{"ALTER TABLE pt ADD PARTITION (PARTITION p1 VALUES LESS THAN (a));", "Partition bound expression can't reference column `a`."},
+		{"ALTER TABLE pt ANALYZE PARTITION p0 INDEX nosuch;", "Index `nosuch` doesn't exist in `pt`."},
+		{"ALTER TABLE pt EXCHANGE PARTITION p0 WITH TABLE pt;", "TiDB can't exchange a partition of `pt` with itself."},
+		{"ALTER TABLE pt EXCHANGE PARTITION p0 WITH TABLE nosuch;", "Table `nosuch` doesn't exist."},
+		{"ALTER TABLE pt EXCHANGE PARTITION p0 WITH TABLE v;", "`v` is a view, not a table."},
 	} {
 		t.Run(tc.sql, func(t *testing.T) { oneFinding(t, tc.sql, 0, tc.want, shop) })
 	}
@@ -189,9 +191,9 @@ func TestWalkThroughTiDBIndexesTablesViewsFKsAndPartitions(t *testing.T) {
 		"RENAME TABLE t TO tmp, r TO t, tmp TO r;",
 		"ALTER TABLE t PARTITION BY HASH (a) PARTITIONS 4;",
 		"ALTER TABLE t PARTITION BY RANGE (a) INTERVAL (10) FIRST PARTITION LESS THAN (10) LAST PARTITION LESS THAN (100);",
-		"ALTER TABLE t ADD PARTITION (PARTITION p1 VALUES LESS THAN (100), PARTITION p2 VALUES LESS THAN MAXVALUE);",
-		"ALTER TABLE t ANALYZE PARTITION p0 INDEX i;",
-		"ALTER TABLE t EXCHANGE PARTITION p0 WITH TABLE nokey;",
+		"ALTER TABLE pt ADD PARTITION (PARTITION p1 VALUES LESS THAN (100), PARTITION p2 VALUES LESS THAN MAXVALUE);",
+		"ALTER TABLE pt ANALYZE PARTITION p0 INDEX i;",
+		"ALTER TABLE pt EXCHANGE PARTITION p0 WITH TABLE nokey;",
 	} {
 		t.Run("ok/"+sql, func(t *testing.T) { noFinding(t, sql, shop) })
 	}

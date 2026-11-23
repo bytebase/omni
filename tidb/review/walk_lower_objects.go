@@ -14,6 +14,10 @@ import (
 // a sequence, on which CREATE INDEX of an expression succeeds (verified).
 func (b *builder) tableOf(tr *ast.TableRef) (tableRef, bool, bool) {
 	r, st := b.ref(tr)
+	return b.tableOfRef(r, st)
+}
+
+func (b *builder) tableOfRef(r tableRef, st refState) (tableRef, bool, bool) {
 	switch st {
 	case refFailed:
 		return r, false, true
@@ -102,7 +106,16 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 }
 
 func (b *builder) dropIndex(v *ast.DropIndexStmt) bool {
-	r, ok, lowered := b.tableOf(v.Table)
+	// A view has no index to drop: DROP INDEX i ON v is 1091, not 1347
+	// (verified on v8.5.5); with IF EXISTS it is a note.
+	r, st := b.ref(v.Table)
+	if st == refOK && !v.IfExists {
+		if f, temp, kind := b.resolve(r); !temp && f == walk.Present && kind == relView {
+			b.fail(b.anchor(), []walk.Key{relKey(r.db, r.name)}, review.ObjectNotFound, notFound("index", ident(v.Name), r.written))
+			return true
+		}
+	}
+	r, ok, lowered := b.tableOfRef(r, st)
 	if !ok {
 		return lowered
 	}
@@ -131,6 +144,9 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 	}
 	if viewBodyHasNoTableStar(v.Select, b.w.sql, currentDB) {
 		b.fail(b.anchor(), nil, review.UnsupportedForm, review.Code("CREATE VIEW")+" expands "+review.Code("*")+" with no table to read from.")
+		return true
+	}
+	if b.viewBodyFails(v) {
 		return true
 	}
 	k := relKey(r.db, r.name)
@@ -201,6 +217,9 @@ func (b *builder) createSequence(v *ast.CreateSequenceStmt) bool {
 	if prior == walk.Absent && b.checkSequenceOptionsValid(r.written, v.Options, b.anchor()) {
 		return true
 	}
+	if prior != walk.Present {
+		b.Set(sequenceBoundsKey(r.db, r.name), walk.Unknown, "")
+	}
 	switch prior {
 	case walk.Present:
 		// A note: nothing is created (verified).
@@ -231,7 +250,9 @@ func (b *builder) alterSequence(v *ast.AlterSequenceStmt) bool {
 	k := relKey(r.db, r.name)
 	b.needKind(k, []string{relSequence}, r.rng, notFound("sequence", r.written, ""), r.written, "sequence") // 1146, 1347
 	if f, kind := b.l.Lookup(k); f == walk.Present && kind == relSequence {
-		b.checkSequenceOptionsValid(r.written, v.Options, b.anchor())
+		if !b.checkSequenceOptionsValid(r.written, v.Options, b.anchor()) {
+			b.sequenceBoundsFail(r, v.Options)
+		}
 	}
 	return true
 }
@@ -264,6 +285,7 @@ func (b *builder) dropSequence(v *ast.DropSequenceStmt) bool {
 		case f == walk.Present && kind == "":
 			b.Set(k, walk.Unknown, "")
 		}
+		b.Set(sequenceBoundsKey(r.db, r.name), walk.Unknown, "")
 	}
 	return true
 }

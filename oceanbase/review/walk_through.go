@@ -468,6 +468,11 @@ func objKey(space, db, name string) walk.Key {
 
 // fkKeys returns a table's foreign key's two keys: its name in the
 // database, and on the table.
+// checkKey is the key of a table's CHECK constraint.
+func checkKey(db, table, name string) walk.Key {
+	return walk.Key{Space: spaceTableCheck, Parent: tablePath(db, table), Name: name}
+}
+
 func fkKeys(r tableRef, name string) (walk.Key, walk.Key) {
 	return objKey(spaceForeignKey, r.db, name), walk.Key{Space: spaceTableForeignKey, Parent: tablePath(r.db, r.name), Name: name}
 }

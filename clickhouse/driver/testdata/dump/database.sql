@@ -291,3 +291,18 @@ AS SELECT
     name
 FROM omni_testdump.v_bridge;
 
+--
+-- Row policy structure for `everything` ON `omni_testdump`.*
+--
+CREATE ROW POLICY OR REPLACE everything ON omni_testdump.* FOR SELECT USING 1 TO omni_dump_reader;
+
+--
+-- Row policy structure for `odd policy` ON `omni_testdump`.`src`
+--
+CREATE ROW POLICY OR REPLACE `odd policy` ON omni_testdump.src AS RESTRICTIVE FOR SELECT USING id > 0 TO ALL EXCEPT omni_dump_reader;
+
+--
+-- Row policy structure for `tenant` ON `omni_testdump`.`src`
+--
+CREATE ROW POLICY OR REPLACE tenant ON omni_testdump.src FOR SELECT USING name != '' TO omni_dump_reader;
+
