@@ -660,7 +660,15 @@ func (p *Parser) parseStarExcept() (*ast.SelectItem, bool, error) {
 		}
 		name := p.sourceText(ast.Loc{Start: exprStart, End: ast.NodeLoc(expr).End})
 		var written *ast.ObjectName
-		if ref, ok := expr.(*ast.ColumnRef); ok && ref.Name != nil && len(ref.Name.Parts) > 0 {
+		inner := expr
+		for {
+			paren, ok := inner.(*ast.ParenExpr)
+			if !ok {
+				break
+			}
+			inner = paren.Expr
+		}
+		if ref, ok := inner.(*ast.ColumnRef); ok && ref.Name != nil && len(ref.Name.Parts) > 0 {
 			name, written = ref.Name.Parts[len(ref.Name.Parts)-1], ref.Name
 		}
 		item.ExceptColumns = append(item.ExceptColumns, name)
