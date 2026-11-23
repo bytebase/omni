@@ -1154,3 +1154,26 @@ func leadingDigits(val string) int {
 	}
 	return n
 }
+
+// aggregateDepth is how deep aggregate calls nest in x, outside subqueries:
+// 1 for SUM(a), 2 for MAX(SUM(a)).
+func aggregateDepth(x ast.Node) int {
+	depth := 0
+	walkExpr(x, func(n ast.Node) bool {
+		switch v := n.(type) {
+		case *ast.SubqueryExpr, *ast.ExistsExpr, *ast.SelectStmt:
+			return false
+		case *ast.FuncCallExpr:
+			if isAggregateCall(v) {
+				inner := 0
+				for _, arg := range listItems(v.Args) {
+					inner = max(inner, aggregateDepth(arg))
+				}
+				depth = max(depth, 1+inner)
+				return false
+			}
+		}
+		return true
+	})
+	return depth
+}

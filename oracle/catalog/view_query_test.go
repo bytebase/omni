@@ -204,6 +204,9 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"regexp_substr_national_union", `CREATE VIEW v AS SELECT REGEXP_SUBSTR(nv, N'.') x FROM t UNION ALL SELECT nv FROM t`, ""},
 		{"cycle_mark_bind", `CREATE VIEW v AS WITH r(n) AS (SELECT 1 FROM dual UNION ALL SELECT n + 1 FROM r WHERE n < 2) CYCLE n SET cyc TO :p DEFAULT 'N' SELECT n, cyc FROM r`, "01027"},
 		{"listagg_order_analytic", `CREATE VIEW v AS SELECT LISTAGG(dummy, ',') WITHIN GROUP (ORDER BY ROW_NUMBER() OVER (ORDER BY dummy)) x FROM dual`, "30483"},
+		{"distinct_parenthesized_order", `CREATE VIEW v AS SELECT DISTINCT (t.id) x FROM t ORDER BY t.id`, ""},
+		{"dual_flashback_bind", `CREATE VIEW v AS SELECT * FROM dual AS OF SCN :p`, "01027"},
+		{"aggregate_three_deep", `CREATE VIEW v AS SELECT MAX(SUM(AVG(id))) x FROM t GROUP BY n`, "00935"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -934,5 +937,25 @@ CREATE VIEW v AS SELECT 1 x FROM dual;
 	var refusal *Error
 	if !errors.As(results[0].Error, &refusal) || refusal.Code != "01731" {
 		t.Errorf("self-reading view: %v, want ORA-01731", results[0].Error)
+	}
+}
+
+func TestViewQueryCircularThroughSynonym(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE VIEW v AS SELECT 1 x FROM dual;
+CREATE SYNONYM s FOR v;
+CREATE VIEW w AS SELECT x FROM s;
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.SetServerConfig(StandardOracle23ServerConfig())
+	results, err := c.Exec(`CREATE OR REPLACE VIEW v AS SELECT x FROM w`, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var refusal *Error
+	if !errors.As(results[0].Error, &refusal) || refusal.Code != "01731" {
+		t.Errorf("cycle through a synonym: %v, want ORA-01731", results[0].Error)
 	}
 }

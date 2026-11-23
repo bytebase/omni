@@ -189,6 +189,9 @@ func (a *queryAnalyzer) tableRef(n *ast.TableRef, sc *qscope) (*qfrom, error) {
 		if n.Alias == nil {
 			rel.schema = "SYS"
 		}
+		if err := a.tableClauses(n, rel, sc); err != nil {
+			return nil, err
+		}
 		return relFrom(rel), nil
 	}
 	if schema != "" && schema != owner {
@@ -1331,7 +1334,8 @@ func (e *oracleMetadataExtractor) viewReads(view, target string, seen map[string
 		return false
 	}
 	for _, dep := range v.GetDependencyColumns() {
-		name := dep.GetTable()
+		// A synonym stands for what it names.
+		name := e.resolveSynonymTarget(dep.GetTable(), "")
 		if name == target {
 			return true
 		}

@@ -935,6 +935,11 @@ func (a *queryAnalyzer) analyzeBlock(sel *ast.SelectStmt, outer *qscope, ctes *c
 			nested = true
 		}
 	}
+	for _, x := range exprs {
+		if aggregateDepth(x) > 2 {
+			return nil, oraError("00935", "group function is nested too deeply")
+		}
+	}
 	if nested && len(listItems(sel.GroupClause)) == 0 {
 		return nil, oraError("00978", "nested group function without GROUP BY")
 	}
@@ -1697,6 +1702,10 @@ func unparen(x ast.ExprNode) ast.ExprNode {
 // resolves to a column is marked "c:".
 func (a *queryAnalyzer) groupKey(n ast.Node, sc *qscope) string {
 	prefix := "h:"
+	if ex, ok := n.(ast.ExprNode); ok {
+		// Parentheses change nothing: (t.id) keys as t.id does.
+		n = unparen(ex)
+	}
 	if ref, ok := n.(*ast.ColumnRef); ok && a.columnIdentity(ref, sc) != "" {
 		prefix = "c:"
 	}
