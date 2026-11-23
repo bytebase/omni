@@ -16,6 +16,7 @@ ok:32fc760ca150	ok:32fc760ca150	engine	one_table@column	now/NOW_SYM_func_datetim
 ok:0c73919c21bf	ok:0c73919c21bf	engine	one_table@column	now/NOW_SYM_func_datetime_precision!insert	CREATE VIEW _v AS SELECT CURRENT_TIMESTAMP zzz FROM utf8mb4
 1350	1350	engine	one_table@column	opt_load_data_charset/%empty	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's'
 1350	1350	engine	one_table@column	opt_load_data_charset/character_set_charset_name	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' CHARSET utf8mb4
+1350	1350	engine	one_table@column	opt_load_data_charset/character_set_charset_name+character_set/CHAR_SYM_SET_SYM	CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' CHAR SET utf8mb4
 ok:72815fb30f10	ok:72815fb30f10	engine	one_table@column	ws_num_codepoints/(_real_ulong_num_)	CREATE VIEW _v AS SELECT WEIGHT_STRING(utf8mb4 AS CHAR(1)) FROM utf8mb4
 1054	1054	engine	one_table@column	select_stmt/query_expression_locking_clause_list	CREATE VIEW _v AS SELECT utf8mb4 FOR UPDATE
 1350	1350	engine	one_table@column	select_stmt/select_stmt_with_into	CREATE VIEW _v AS SELECT utf8mb4 INTO utf8mb4
@@ -315,8 +316,24 @@ ok:ad0d1a7c3a99	ok:ad0d1a7c3a99	engine	one_table@column	function_call_nonkeyword
 1054	1054	engine	one_table@column	function_call_nonkeyword/SYSDATE_func_datetime_precision!insert	CREATE VIEW _v AS SELECT SYSDATE zzz FROM utf8mb4
 ok:045e10439a7a	ok:045e10439a7a	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)	CREATE VIEW _v AS SELECT TIMESTAMPADD(DAY, utf8mb4, utf8mb4) FROM utf8mb4
 ok:8e93a383ee58	ok:8e93a383ee58	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)!insert	CREATE VIEW _v AS SELECT TIMESTAMPADD(DAY, utf8mb4, utf8mb4) zzz FROM utf8mb4
+ok:0a9a04ad5121	ok:0a9a04ad5121	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/WEEK_SYM	CREATE VIEW _v AS SELECT TIMESTAMPADD(WEEK, utf8mb4, utf8mb4) FROM utf8mb4
+ok:0faa153d90b1	ok:0faa153d90b1	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/HOUR_SYM	CREATE VIEW _v AS SELECT TIMESTAMPADD(HOUR, utf8mb4, utf8mb4) FROM utf8mb4
+ok:6404206c4515	ok:6404206c4515	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/MINUTE_SYM	CREATE VIEW _v AS SELECT TIMESTAMPADD(MINUTE, utf8mb4, utf8mb4) FROM utf8mb4
+ok:4f1c9c86badd	ok:4f1c9c86badd	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/MONTH_SYM	CREATE VIEW _v AS SELECT TIMESTAMPADD(MONTH, utf8mb4, utf8mb4) FROM utf8mb4
+ok:c3db6f35e728	ok:c3db6f35e728	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/QUARTER_SYM	CREATE VIEW _v AS SELECT TIMESTAMPADD(QUARTER, utf8mb4, utf8mb4) FROM utf8mb4
+ok:7aa27a19313f	ok:7aa27a19313f	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/SECOND_SYM	CREATE VIEW _v AS SELECT TIMESTAMPADD(SECOND, utf8mb4, utf8mb4) FROM utf8mb4
+ok:4cb86bc313dd	ok:4cb86bc313dd	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/MICROSECOND_SYM	CREATE VIEW _v AS SELECT TIMESTAMPADD(MICROSECOND, utf8mb4, utf8mb4) FROM utf8mb4
+ok:0afbb4ced50a	ok:0afbb4ced50a	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_ADD_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/YEAR_SYM	CREATE VIEW _v AS SELECT TIMESTAMPADD(YEAR, utf8mb4, utf8mb4) FROM utf8mb4
 ok:b219e348f0ce	ok:b219e348f0ce	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(DAY, utf8mb4, utf8mb4) FROM utf8mb4
 ok:78e06b7d1a3b	ok:78e06b7d1a3b	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)!insert	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(DAY, utf8mb4, utf8mb4) zzz FROM utf8mb4
+ok:51134c32ce15	ok:51134c32ce15	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/WEEK_SYM	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(WEEK, utf8mb4, utf8mb4) FROM utf8mb4
+ok:9ada8e9149df	ok:9ada8e9149df	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/HOUR_SYM	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(HOUR, utf8mb4, utf8mb4) FROM utf8mb4
+ok:36757db08a18	ok:36757db08a18	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/MINUTE_SYM	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(MINUTE, utf8mb4, utf8mb4) FROM utf8mb4
+ok:4d66f72b8475	ok:4d66f72b8475	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/MONTH_SYM	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(MONTH, utf8mb4, utf8mb4) FROM utf8mb4
+ok:bdbc3dd79120	ok:bdbc3dd79120	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/QUARTER_SYM	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(QUARTER, utf8mb4, utf8mb4) FROM utf8mb4
+ok:a1505305c6a9	ok:a1505305c6a9	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/SECOND_SYM	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(SECOND, utf8mb4, utf8mb4) FROM utf8mb4
+ok:4556f2b8a190	ok:4556f2b8a190	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/MICROSECOND_SYM	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(MICROSECOND, utf8mb4, utf8mb4) FROM utf8mb4
+ok:7128e6c404f0	ok:7128e6c404f0	engine	one_table@column	function_call_nonkeyword/TIMESTAMP_DIFF_(_interval_time_stamp_,_expr_,_expr_)+interval_time_stamp/YEAR_SYM	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(YEAR, utf8mb4, utf8mb4) FROM utf8mb4
 ok:dea3f2e638ef	ok:dea3f2e638ef	engine	one_table@column	function_call_nonkeyword/UTC_DATE_SYM_optional_braces	CREATE VIEW _v AS SELECT UTC_DATE FROM utf8mb4
 ok:15fe77608040	ok:15fe77608040	engine	one_table@column	function_call_nonkeyword/UTC_DATE_SYM_optional_braces!insert	CREATE VIEW _v AS SELECT UTC_DATE zzz FROM utf8mb4
 ok:43327382d9da	ok:43327382d9da	engine	one_table@column	function_call_nonkeyword/UTC_TIME_SYM_func_datetime_precision	CREATE VIEW _v AS SELECT UTC_TIME FROM utf8mb4
@@ -499,6 +516,7 @@ ok:914118d95692	ok:914118d95692	engine	one_table@column	opt_gorder_clause/ORDER_
 ok:f576013d56ed	ok:f576013d56ed	engine	one_table@column	gorder_list/gorder_list_,_order_expr	CREATE VIEW _v AS SELECT GROUP_CONCAT(utf8mb4 ORDER BY utf8mb4, utf8mb4) FROM utf8mb4
 ok:b1886a91fa06	ok:b1886a91fa06	engine	one_table@column	cast_type/CHAR_SYM_opt_field_length_opt_charset_with_opt_binary	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS CHAR) FROM utf8mb4
 ok:d4a26b74dbd7	ok:d4a26b74dbd7	engine	one_table@column	cast_type/nchar_opt_field_length	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS NCHAR) FROM utf8mb4
+ok:ac35f83a7c5f	ok:ac35f83a7c5f	engine	one_table@column	cast_type/nchar_opt_field_length+nchar/NATIONAL_SYM_CHAR_SYM	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS NATIONAL CHAR) FROM utf8mb4
 ok:9001fcddee12	ok:9001fcddee12	engine	one_table@column	cast_type/SIGNED_SYM	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS SIGNED) FROM utf8mb4
 ok:982a397feca4	ok:982a397feca4	engine	one_table@column	cast_type/SIGNED_SYM_INT_SYM	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS SIGNED INT) FROM utf8mb4
 ok:313c69c1d30f	ok:313c69c1d30f	engine	one_table@column	cast_type/UNSIGNED_SYM	CREATE VIEW _v AS SELECT CAST(utf8mb4 AS UNSIGNED) FROM utf8mb4

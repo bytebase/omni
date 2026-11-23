@@ -8328,6 +8328,9 @@ func TestParseSelectIntoOutfileFields(t *testing.T) {
 	}
 }
 
+// TestParseSelectIntoOutfileCharset pins that TiDB's INTO OUTFILE takes no
+// character set: "INTO" "OUTFILE" stringLit Fields Lines (parser.y:10333).
+// TestKeywordChoiceSitesMatchTiDB holds the same answer from the server.
 func TestParseSelectIntoOutfileCharset(t *testing.T) {
 	tests := []string{
 		"SELECT * FROM t INTO OUTFILE '/tmp/data.csv' CHARACTER SET utf8",
@@ -8336,7 +8339,9 @@ func TestParseSelectIntoOutfileCharset(t *testing.T) {
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) accepted a character set TiDB's INTO OUTFILE does not take", sql)
+			}
 		})
 	}
 }

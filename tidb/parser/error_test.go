@@ -187,9 +187,10 @@ func TestParseError_Section_1_4_DMLIgnoredErrors(t *testing.T) {
 		// select.go: table alias parseIdentifier (2 sites — subquery AS at EOF)
 		{"subquery_as_trunc", "SELECT * FROM (SELECT 1) AS", "at end of input"},
 		{"lateral_subquery_as_trunc", "SELECT * FROM t, LATERAL (SELECT 1) AS", "at end of input"},
-		// select.go: INTO OUTFILE charset at EOF
-		{"outfile_charset_trunc", "SELECT 1 INTO OUTFILE 'f' CHARACTER SET", "at end of input"},
-		{"outfile_charset_short_trunc", "SELECT 1 INTO OUTFILE 'f' CHARSET", "at end of input"},
+		// select.go: INTO OUTFILE takes no charset in TiDB (parser.y:10333),
+		// so the error is at the word.
+		{"outfile_charset_trunc", "SELECT 1 INTO OUTFILE 'f' CHARACTER SET", "at or near \"CHARACTER\""},
+		{"outfile_charset_short_trunc", "SELECT 1 INTO OUTFILE 'f' CHARSET", "at or near \"CHARSET\""},
 		// set_show.go -> grant.go: SET DEFAULT ROLE at EOF (already errors)
 		{"set_default_role_trunc", "SET DEFAULT ROLE", "expected"},
 		// set_show.go -> grant.go: SET ROLE at EOF (already errors)

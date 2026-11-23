@@ -811,7 +811,7 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 	}
 
 	switch p.cur.Type {
-	case kwTABLE:
+	case kwTABLE, kwTABLES: // drop_table_stmt's table_or_tables in sql_yacc.yy
 		return p.parseDropTableStmt(start, temporary)
 
 	case kwSEQUENCE:

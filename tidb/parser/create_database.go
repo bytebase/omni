@@ -193,7 +193,7 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 	// TiDB takes it before PLACEMENT POLICY as well.
 	if p.cur.Type == kwDEFAULT {
 		switch p.peekNext().Type {
-		case kwCHARACTER, kwCHARSET, kwCOLLATE, kwENCRYPTION, kwPLACEMENT:
+		case kwCHARACTER, kwCHAR, kwCHARSET, kwCOLLATE, kwENCRYPTION, kwPLACEMENT:
 			p.advance()
 		default:
 			return nil, false, nil
@@ -201,7 +201,8 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 	}
 
 	switch {
-	case p.cur.Type == kwCHARACTER:
+	// CharsetKw: "CHARACTER" "SET" | "CHARSET" | "CHAR" "SET" (parser.y:13556).
+	case p.cur.Type == kwCHARACTER || p.cur.Type == kwCHAR:
 		p.advance()
 		if _, ok := p.match(kwSET); ok {
 			p.match('=') // optional =

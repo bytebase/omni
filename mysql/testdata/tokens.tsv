@@ -19,6 +19,38 @@ lvalue_variable	autocommit	a system variable SET assigns: an unknown name answer
 opt_if_not_exists	(every site)	IF NOT EXISTS
 if_exists	(every site)	IF EXISTS
 
+# Keyword choices tried at every site that names them, and not only where
+# their own alternatives' rows reach (see grammar.EveryAlternative).
+key_or_index	(every alternative)	sql_yacc.yy:7857 KEY or INDEX
+keys_or_index	(every alternative)	sql_yacc.yy:7867 KEYS, INDEX or INDEXES
+table_or_tables	(every alternative)	sql_yacc.yy:16132 TABLE or TABLES
+from_or_in	(every alternative)	sql_yacc.yy:13966 FROM or IN
+character_set	(every alternative)	sql_yacc.yy:7595 CHARACTER SET or CHARSET
+visibility	(every alternative)	sql_yacc.yy:8016 VISIBLE or INVISIBLE
+index_type	(every alternative)	sql_yacc.yy:8021 BTREE, RTREE or HASH
+with_validation	(every alternative)	sql_yacc.yy:8909 WITH or WITHOUT VALIDATION
+opt_restrict	(every alternative)	sql_yacc.yy:9189 RESTRICT or CASCADE
+replica	(every alternative)	sql_yacc.yy:9274 SLAVE or REPLICA
+opt_no_write_to_binlog	(every alternative)	sql_yacc.yy:9671 NO_WRITE_TO_BINLOG or LOCAL
+opt_chain	(every alternative)	sql_yacc.yy:17237 AND [NO] CHAIN
+opt_release	(every alternative)	sql_yacc.yy:17243 [NO] RELEASE
+master_or_binary	(every alternative)	sql_yacc.yy:13934 MASTER or BINARY
+describe_command	(every alternative)	sql_yacc.yy:14015 DESC or DESCRIBE
+duplicate	(every alternative)	sql_yacc.yy:14458 REPLACE or IGNORE
+opt_acl_type	(every alternative)	sql_yacc.yy:16479 TABLE, FUNCTION or PROCEDURE
+view_algorithm	(every alternative)	sql_yacc.yy:17439 ALGORITHM = UNDEFINED, MERGE or TEMPTABLE
+option_type	(every alternative)	sql_yacc.yy:15918 GLOBAL, PERSIST, PERSIST_ONLY, LOCAL or SESSION
+opt_var_type	(every alternative)	sql_yacc.yy:15926 GLOBAL, LOCAL or SESSION
+opt_show_cmd_type	(every alternative)	sql_yacc.yy:13959 FULL, EXTENDED or EXTENDED FULL
+ts_option_wait	(every alternative)	sql_yacc.yy:6136 WAIT or NO_WAIT
+delete_option	(every alternative)	sql_yacc.yy:7844 a foreign key's referential action
+nchar	(every alternative)	sql_yacc.yy:7281 NCHAR or NATIONAL CHAR
+varchar	(every alternative)	sql_yacc.yy:7286 CHAR VARYING or VARCHAR
+opt_ev_status	(every alternative)	sql_yacc.yy:3751 ENABLE, DISABLE or DISABLE ON SLAVE
+insert_lock_option	(every alternative)	sql_yacc.yy:13208 LOW_PRIORITY, DELAYED or HIGH_PRIORITY
+opt_resource_group_enable_disable	(every alternative)	sql_yacc.yy:18259 ENABLE or DISABLE
+interval_time_stamp	(every alternative)	sql_yacc.yy:12354 an interval unit TIMESTAMPADD takes
+
 # Literals, operators and the tokens the lexer forms from other text.
 ABORT_SYM	(unreachable)	the lexer's error token
 BIN_NUM	b'1'

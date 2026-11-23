@@ -111,9 +111,13 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	// measured 2026-11-07).
 	//
 	// Ref: charset and charset_name in mariadb-server sql/sql_yacc.yy.
-	if p.cur.Type == kwCHARACTER {
+	// character_set is CHAR_SYM SET_SYM or CHARSET, and CHAR_SYM is both
+	// CHAR and CHARACTER (lex.h): SET is required after either.
+	if p.cur.Type == kwCHARACTER || p.cur.Type == kwCHAR {
 		p.advance()
-		p.match(kwSET)
+		if _, err := p.expect(kwSET); err != nil {
+			return nil, err
+		}
 		name, err := p.parseCharsetName()
 		if err != nil {
 			return nil, err

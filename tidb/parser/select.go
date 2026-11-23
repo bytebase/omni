@@ -2068,23 +2068,8 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 		into.Outfile = p.cur.Str
 		p.advance()
 
-		// [CHARACTER SET charset_name]
-		if p.cur.Type == kwCHARACTER {
-			p.advance()
-			p.match(kwSET)
-			charset, _, csErr := p.parseIdent()
-			if csErr != nil {
-				return nil, csErr
-			}
-			into.Charset = charset
-		} else if p.cur.Type == kwCHARSET {
-			p.advance()
-			charset, _, csErr := p.parseIdent()
-			if csErr != nil {
-				return nil, csErr
-			}
-			into.Charset = charset
-		}
+		// TiDB's INTO OUTFILE takes no character set: "INTO" "OUTFILE"
+		// stringLit Fields Lines (parser.y:10333).
 
 		// [{FIELDS | COLUMNS} field_item ...]. SELECT ... INTO OUTFILE reads
 		// the same Fields rule LOAD DATA does: a non-empty list whose items --
