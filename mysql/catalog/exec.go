@@ -4346,7 +4346,7 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 	case *nodes.DropTriggerStmt:
 		return c.dropTrigger(s)
 	case *nodes.CreateEventStmt:
-		return c.createEvent(s)
+		return c.createEvent(s, true)
 	case *nodes.AlterEventStmt:
 		return c.alterEvent(s)
 	case *nodes.DropEventStmt:

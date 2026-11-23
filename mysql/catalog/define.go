@@ -167,5 +167,5 @@ func (c *Catalog) DefineEvent(stmt *nodes.CreateEventStmt) error {
 	if stmt == nil || stmt.Name == "" {
 		return errWrongArguments("DefineEvent")
 	}
-	return c.createEvent(stmt)
+	return c.createEvent(stmt, false)
 }

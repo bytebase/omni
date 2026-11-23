@@ -1,23 +1,26 @@
 package catalog
 
 import (
+	"errors"
 	"strings"
 	"testing"
+
+	gomysql "github.com/go-sql-driver/mysql"
 )
 
 // TestScenario_C22 covers Section C22 "ALTER TABLE algorithm / lock defaults"
 // from mysql/catalog/SCENARIOS-mysql-implicit-behavior.md.
 //
-// omni's catalog intentionally does NOT track ALGORITHM= / LOCK= clauses —
-// they are execution-time concerns, not persisted schema state. So these
-// tests verify three things per scenario:
+// omni's catalog stores nothing of ALGORITHM= / LOCK= clauses, but refuses a
+// clause the statement's operations cannot run under as MySQL does
+// (alter_algorithm.go). So these tests verify three things per scenario:
 //
-//  1. omni parses and accepts the ALTER ... ALGORITHM=... / LOCK=... form.
+//  1. omni parses the ALTER ... ALGORITHM=... / LOCK=... form.
 //  2. omni applies the underlying column/index change to catalog state
-//     identically whether or not an ALGORITHM/LOCK clause is present.
+//     identically whether or not an ALGORITHM/LOCK clause is present, and
+//     refuses with MySQL's code where MySQL refuses the clause.
 //  3. MySQL 8.0 actually accepts or rejects the statement as the scenario
-//     claims (oracle sanity check — a regression in MySQL wouldn't be an
-//     omni bug but would invalidate the assertion).
+//     claims.
 //
 // Algorithm selection (scenarios 22.1/22.2) is not directly observable from
 // the client side without inspecting internal counters, so those tests only
@@ -287,16 +290,8 @@ func TestScenario_C22(t *testing.T) {
 			!strings.Contains(oracleErr.Error(), "not supported") {
 			t.Errorf("oracle: unexpected error form: %v", oracleErr)
 		}
-		// omni must at least parse and (per catalog contract) apply the change.
 		results, err := c.Exec("ALTER TABLE t1 MODIFY COLUMN a INT, ALGORITHM=INPLACE;", nil)
-		if err != nil {
-			t.Errorf("omni: parse error on MODIFY + ALGORITHM=INPLACE: %v", err)
-		}
-		for _, r := range results {
-			if r.Error != nil {
-				t.Errorf("omni: exec error on stmt %d: %v", r.Index, r.Error)
-			}
-		}
+		requireSameRefusal(t, "22.6b", oracleErr, results, err)
 
 		// 22.6c: MODIFY with a genuine type change + LOCK=NONE → MySQL
 		// rejects. Column `a` is currently bigint (from 22.6a); changing it
@@ -309,14 +304,7 @@ func TestScenario_C22(t *testing.T) {
 			t.Errorf("oracle: expected error for MODIFY <typechange> ... LOCK=NONE, got nil")
 		}
 		results2, err2 := c.Exec("ALTER TABLE t1 MODIFY COLUMN a INT UNSIGNED, LOCK=NONE;", nil)
-		if err2 != nil {
-			t.Errorf("omni: parse error on MODIFY + LOCK=NONE: %v", err2)
-		}
-		for _, r := range results2 {
-			if r.Error != nil {
-				t.Errorf("omni: exec error on stmt %d: %v", r.Index, r.Error)
-			}
-		}
+		requireSameRefusal(t, "22.6c", oracleErr2, results2, err2)
 	})
 
 	// -----------------------------------------------------------------
@@ -340,17 +328,9 @@ func TestScenario_C22(t *testing.T) {
 			t.Errorf("oracle: unexpected error form: %v", oracleErr)
 		}
 
-		// omni: parser must accept; catalog applies PK swap regardless.
 		results, err := c.Exec(
 			"ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (a), ALGORITHM=INSTANT;", nil)
-		if err != nil {
-			t.Errorf("omni: parse error on PK rebuild + ALGORITHM=INSTANT: %v", err)
-		}
-		for _, r := range results {
-			if r.Error != nil {
-				t.Errorf("omni: exec error on stmt %d: %v", r.Index, r.Error)
-			}
-		}
+		requireSameRefusal(t, "22.7", oracleErr, results, err)
 	})
 
 	// -----------------------------------------------------------------
@@ -371,13 +351,9 @@ func TestScenario_C22(t *testing.T) {
 		if oracleErr == nil {
 			t.Errorf("oracle 22.8a: expected error for COPY op + LOCK=NONE, got nil")
 		}
-		results, _ := c.Exec(
+		results, err := c.Exec(
 			"ALTER TABLE t1 CHANGE COLUMN a a BIGINT UNSIGNED, LOCK=NONE;", nil)
-		for _, r := range results {
-			if r.Error != nil {
-				t.Errorf("omni 22.8a: exec error on stmt %d: %v", r.Index, r.Error)
-			}
-		}
+		requireSameRefusal(t, "22.8a", oracleErr, results, err)
 
 		// 22.8b: ADD COLUMN + ALGORITHM=INSTANT + LOCK=NONE → hard error
 		// ("Only LOCK=DEFAULT is permitted for operations using ALGORITHM=INSTANT").
@@ -388,14 +364,7 @@ func TestScenario_C22(t *testing.T) {
 		}
 		results2, err2 := c.Exec(
 			"ALTER TABLE t1 ADD COLUMN b INT, ALGORITHM=INSTANT, LOCK=NONE;", nil)
-		if err2 != nil {
-			t.Errorf("omni 22.8b: parse error: %v", err2)
-		}
-		for _, r := range results2 {
-			if r.Error != nil {
-				t.Errorf("omni 22.8b: exec error on stmt %d: %v", r.Index, r.Error)
-			}
-		}
+		requireSameRefusal(t, "22.8b", oracleErr2, results2, err2)
 
 		// 22.8c: ADD COLUMN + ALGORITHM=INSTANT (no LOCK) → succeeds.
 		// Note: b may already exist in omni catalog from 22.8b above; use c.
@@ -411,4 +380,26 @@ func TestScenario_C22(t *testing.T) {
 			t.Errorf("omni 22.8c: column c should be added")
 		}
 	})
+}
+
+// requireSameRefusal holds omni's answer to one statement to the error code
+// MySQL refused it with.
+func requireSameRefusal(t *testing.T, label string, oracleErr error, results []ExecResult, err error) {
+	t.Helper()
+	var refusal *gomysql.MySQLError
+	if !errors.As(oracleErr, &refusal) {
+		t.Errorf("%s: oracle answered %v, want a MySQL refusal", label, oracleErr)
+		return
+	}
+	if err != nil {
+		t.Errorf("%s: omni parse error: %v", label, err)
+		return
+	}
+	for _, r := range results {
+		var ce *Error
+		if errors.As(r.Error, &ce) && ce.Code == int(refusal.Number) {
+			return
+		}
+	}
+	t.Errorf("%s: omni did not refuse with %d (%s): %v", label, refusal.Number, refusal.Message, results)
 }
