@@ -54,7 +54,7 @@ func (c *Catalog) createRoutine(stmt *nodes.CreateFunctionStmt) error {
 			TypeName:  formatRoutineParamType(p),
 		}
 		if p.Default != nil {
-			param.Default = nodeToSQL(p.Default)
+			param.Default = strings.TrimSpace(p.DefaultText)
 		}
 		params = append(params, param)
 	}

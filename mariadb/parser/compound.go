@@ -733,6 +733,7 @@ func (p *Parser) parseSpParam(withDefault bool, before []string) (*nodes.FuncPar
 	if withDefault && p.cur.Type == kwDEFAULT {
 		defaultPos := p.pos()
 		p.advance()
+		exprStart := p.pos()
 		expr, err := p.parseExpr()
 		if err != nil {
 			return nil, err
@@ -743,7 +744,7 @@ func (p *Parser) parseSpParam(withDefault bool, before []string) (*nodes.FuncPar
 		if err := p.refuseUndeclaredDefaultNames(expr, before); err != nil {
 			return nil, err
 		}
-		param.Default = expr
+		param.Default, param.DefaultText = expr, p.inputText(exprStart, p.prev.End)
 	}
 
 	param.Loc.End = p.prev.End
@@ -1329,22 +1330,20 @@ func (p *Parser) parseForStmt(labelName string, labelStart int) (*nodes.ForStmt,
 
 // parseForBounds reads what a FOR loop runs over, after IN [REVERSE].
 func (p *Parser) parseForBounds(stmt *nodes.ForStmt) error {
-	if p.cur.Type == '(' {
-		switch p.peekNext().Type {
-		case kwSELECT, kwWITH, '(':
-			p.advance()
-			queryStart := p.pos()
-			sel, err := p.parseSelectStmt()
-			if err != nil {
-				return err
-			}
-			if selectHasInto(sel) {
-				return &ParseError{Message: "Cursor SELECT must not have INTO", Position: queryStart, Code: 1323}
-			}
-			stmt.Select = sel
-			_, err = p.expect(')')
+	// A '(' opens the loop's query only where a query begins inside it: ((1))..3 is a range.
+	if p.parenOpensQuery() {
+		p.advance()
+		queryStart := p.pos()
+		sel, err := p.parseSelectStmt()
+		if err != nil {
 			return err
 		}
+		if selectHasInto(sel) {
+			return &ParseError{Message: "Cursor SELECT must not have INTO", Position: queryStart, Code: 1323}
+		}
+		stmt.Select = sel
+		_, err = p.expect(')')
+		return err
 	}
 	boundTok := p.cur
 	lower, err := p.parseExpr()

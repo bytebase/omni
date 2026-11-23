@@ -1959,6 +1959,9 @@ type FuncParam struct {
 	RowFields []*RowField // MariaDB's ROW(name type, ...)
 	Anchor    *TypeAnchor // MariaDB's TYPE OF / ROW TYPE OF
 	Default   ExprNode    // MariaDB's DEFAULT expr, an IN parameter's value when a call leaves it out
+	// DefaultText is the DEFAULT expression as written, which SHOW CREATE echoes. It was
+	// written under the routine's sql_mode, so it reads the same when the routine is made again.
+	DefaultText string
 }
 
 func (p *FuncParam) nodeTag() {}

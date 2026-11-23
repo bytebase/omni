@@ -249,7 +249,7 @@ type RoutineParam struct {
 	Direction string // IN, OUT, INOUT, or empty where none is written
 	Name      string
 	TypeName  string // full type string
-	Default   string // the DEFAULT expression, empty for none
+	Default   string // the DEFAULT expression as written, empty for none
 }
 
 // Trigger represents a trigger in the catalog.
