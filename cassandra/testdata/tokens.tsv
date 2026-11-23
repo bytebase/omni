@@ -17,3 +17,12 @@ DURATION	1d	Lexer.g:366 a duration: digits and a unit
 cident	a	Parser.g:1449 a column name is written as a name: the rule lists EMPTY_QUOTED_NAME first, and every row naming a column would carry ""
 K_COLUMNFAMILY	TABLE	Lexer.g:94 COLUMNFAMILY | TABLE: rows write TABLE, the current name, and the judge takes either
 K_TABLES	TABLES	Lexer.g:96 COLUMNFAMILIES | TABLES: rows write TABLES, and the judge takes either
+# Optional clauses tried at every site the grammar allows them, and not only
+# at the one its own row reaches. Each is an inline (...)? group, which the
+# reader lowers to a rule named after the group, or a nullable rule.
+alterTableStatement(K_IF_K_EXISTS)?	(every site)	Parser.g:959 ALTER TABLE IF EXISTS, and :964, :973, :979 ALTER, DROP and RENAME IF EXISTS a column
+alterTypeStatement(K_IF_K_EXISTS)?	(every site)	Parser.g:1016 ALTER TYPE IF EXISTS, and :1022 RENAME IF EXISTS a field
+alterTableStatement(columnMask)?	(every site)	Parser.g:969 a MASKED WITH on a column ALTER TABLE ADD
+permissionOrAll(K_PERMISSION)?	(every site)	Parser.g:1145 a permission's noise word PERMISSION
+selectorModifier	(every site)	Parser.g:343 a field or element taken from a selector, as in WRITETIME(a.b)
+isStaticColumn	(every site)	Parser.g:989 STATIC on a column ALTER TABLE ADD
