@@ -140,6 +140,29 @@ func (b *builder) engineChangeFails(r tableRef, engine string) bool {
 	return true
 }
 
+// forgetFKRefs records that an ALTER TABLE that drops, renames, or
+// redefines a column of a table leaves the walk not knowing the columns of
+// the foreign keys it is in, on either side.
+func (b *builder) forgetFKRefs(r tableRef, d *alterDelta) {
+	if len(d.droppedCols) == 0 && len(d.renamedFrom) == 0 && len(d.modifiedCols) == 0 {
+		return
+	}
+	rel := relKey(r.db, r.name)
+	b.Session(func() {
+		delete(b.w.fkRefs, rel)
+		for child, fks := range b.w.fkRefs {
+			for name, fr := range fks {
+				if fr.parent == rel {
+					delete(fks, name)
+				}
+			}
+			if len(fks) == 0 {
+				delete(b.w.fkRefs, child)
+			}
+		}
+	})
+}
+
 // fkRef is a foreign key the sync lists in the target database: the table
 // it references and the columns it pairs, by key.
 type fkRef struct {

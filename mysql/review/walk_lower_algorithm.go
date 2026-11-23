@@ -177,7 +177,10 @@ func (b *builder) alterAlgorithmFails(v *ast.AlterTableStmt, r tableRef) bool {
 				continue
 			}
 			old, now := b.w.colTypes[colKey(r.db, r.name, k)], astBaseType(c.Column.TypeName)
-			if old != "" && now != "" && old != now && rebuilds("change a column's type") {
+			// FLOAT(p) is DOUBLE for p over 24, which the base type
+			// doesn't tell, so the two are left alone.
+			floating := (old == "float" || old == "double") && (now == "float" || now == "double")
+			if old != "" && now != "" && old != now && !floating && rebuilds("change a column's type") {
 				return true
 			}
 		case ast.ATAddConstraint, ast.ATAddIndex:

@@ -153,9 +153,10 @@ func queryLeaves(sel *ast.SelectStmt) []*ast.SelectStmt {
 }
 
 // queryTablesFail fails a query that reads a table the ledger shows doesn't
-// exist (1146): MySQL opens every table a view's query names before it
+// exist (1146): MySQL opens every table a view's query reads before it
 // resolves anything in it. A name some WITH clause of the query defines may
-// be that CTE, and is left alone.
+// be that CTE, and is left alone, as are the tables of a CTE's own query,
+// which MySQL doesn't open when nothing reads it.
 func (b *builder) queryTablesFail(sel *ast.SelectStmt, rng review.Range) bool {
 	ctes := cteNames(sel)
 	failed := false
@@ -163,8 +164,12 @@ func (b *builder) queryTablesFail(sel *ast.SelectStmt, rng review.Range) bool {
 		if failed {
 			return false
 		}
-		if _, ok := n.(*ast.ForUpdate); ok {
+		switch n.(type) {
+		case *ast.ForUpdate:
 			// A locking clause names the query's tables by alias.
+			return false
+		case *ast.CommonTableExpr:
+			// MySQL opens a CTE's tables only where the query reads it.
 			return false
 		}
 		tr, ok := n.(*ast.TableRef)
