@@ -25,6 +25,13 @@ const (
 	// identifier. A recognizer matches it only where the grammar spells it,
 	// never for a token class such as a name.
 	Reserved = "(reserved)"
+	// EverySite: a rule, named by itself, whose shortest form is nothing,
+	// as an optional IF NOT EXISTS is. Each alternative names the rule as
+	// nothing, so the clause gets a row only at the one site the rule's own
+	// alternative is reached through. Every alternative that names the rule
+	// gets one more row, with the rule written as its shortest form that is
+	// not nothing, labelled <alternative>+<rule>.
+	EverySite = "(every site)"
 	// Qualified, at the start of a row's note: the token is a name a
 	// recognizer also matches qualified, two or three of them joined by
 	// dots, as Snowflake writes db.schema.table wherever it takes a name.

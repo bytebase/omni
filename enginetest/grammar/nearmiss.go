@@ -82,6 +82,18 @@ func nearMisses(a builtAlt, kw []string, render func([]string) string) []Row {
 		out = append(out, Row{Rule: a.label + "!" + mut, Statement: render(toks)})
 	}
 
+	// A clause's row at a site breaks only the clause: dropping each of its
+	// tokens in turn.
+	if a.site != nil {
+		for i := a.site[0]; i < a.site[1]; i++ {
+			dropped := make([]string, 0, len(a.body)-1)
+			dropped = append(dropped, a.body[:i]...)
+			dropped = append(dropped, a.body[i+1:]...)
+			emit(fmt.Sprintf("drop-%d", i+1), join(a.prefix, dropped, a.suffix))
+		}
+		return out
+	}
+
 	// Drop each body token in turn.
 	for i := range a.body {
 		dropped := make([]string, 0, len(a.body)-1)
