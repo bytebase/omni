@@ -647,7 +647,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd, d *alterDelta) bool
 		b.addConstraint(r, c.Constraint, d)
 	case ast.ATDropIndex:
 		if k, ok := b.key(spaceIndex, c.Name); ok {
-			if b.dropIndexNeededByFK(r, k, d.droppedIndexes, d.droppedFKs, d.addedIndexes) {
+			if b.dropIndexNeededByFK(r, k, d.droppedIndexes, d.droppedFKs, d.droppedCols, d.renamedFrom, d.addedIndexes) {
 				b.fail(rng, nil, review.IndexBacksConstraint, "Index "+review.Code(ident(c.Name))+" in "+review.Code(r.written)+" is needed by a foreign key constraint.")
 				return true
 			}
@@ -656,7 +656,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd, d *alterDelta) bool
 	case ast.ATDropConstraint:
 		switch dropKindOf(c) {
 		case dropPrimaryKey:
-			if b.dropIndexNeededByFK(r, primaryIndex, d.droppedIndexes, d.droppedFKs, d.addedIndexes) {
+			if b.dropIndexNeededByFK(r, primaryIndex, d.droppedIndexes, d.droppedFKs, d.droppedCols, d.renamedFrom, d.addedIndexes) {
 				b.fail(rng, nil, review.IndexBacksConstraint, "Primary key of "+review.Code(r.written)+" is needed by a foreign key constraint.")
 				return true
 			}
@@ -855,7 +855,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd, d *alterDelta) bool
 			return true
 		}
 		var uqIdxs map[string]*indexMeta
-		idxComplete := b.w.tableIndexesComplete[rel] && len(d.renamedFrom) == 0
+		idxComplete := b.w.tableIndexesComplete[rel] && len(d.renamedFrom) == 0 && len(d.droppedCols) == 0
 		if idxComplete {
 			uqIdxs = make(map[string]*indexMeta)
 			for name, im := range b.w.tableIndexes[rel] {

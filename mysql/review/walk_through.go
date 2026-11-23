@@ -210,6 +210,16 @@ type walker struct {
 	noDatabase bool
 	lost       bool
 	fkChecks   review.Switch
+	// defaultEngine and defaultTmpEngine track session default_storage_engine
+	// and default_tmp_storage_engine ("" means default/InnoDB); the *Unknown
+	// flags are set when a SET assigns a value the walk cannot read.
+	defaultEngine           string
+	defaultEngineUnknown    bool
+	defaultTmpEngine        string
+	defaultTmpEngineUnknown bool
+	// innodbStrictOff is set when the session turns innodb_strict_mode off or
+	// to an unknown value, which downgrades InnoDB ROW_FORMAT=FIXED to a warning.
+	innodbStrictOff bool
 	// triggered lists the relations with a trigger, synced or created;
 	// anyTrigger is set when any table may have one the walk does not
 	// know. anyFunction is set when a call may run a stored function the

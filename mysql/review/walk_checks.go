@@ -711,7 +711,7 @@ func (b *builder) tableOptionsFails(opts []*ast.TableOption, finalEngine string,
 			return true
 		}
 	}
-	if strings.EqualFold(rowFormat, "FIXED") {
+	if strings.EqualFold(rowFormat, "FIXED") && !b.w.innodbStrictOff {
 		b.fail(rng, nil, review.UnsupportedForm, "InnoDB doesn't support "+review.Code("ROW_FORMAT = FIXED")+".")
 		return true
 	}
@@ -984,18 +984,20 @@ func indexCoversCols(idx *indexMeta, fkCols []string) bool {
 }
 
 // dropIndexNeededByFK reports whether dropping index dropKey (with optional
-// additional dropped indexes and dropped FKs in the same ALTER TABLE, plus
-// newly added indexes) leaves a surviving FK on rel without any backing index
-// (error 1553).
+// additional dropped indexes, dropped FKs, dropped/renamed columns, and newly
+// added indexes in the same ALTER TABLE) leaves a surviving FK on rel without
+// any backing index (error 1553).
 func (b *builder) dropIndexNeededByFK(
 	r tableRef,
 	dropKey string,
 	droppedIndexes map[string]bool,
 	droppedFKs map[string]bool,
+	droppedCols map[string]bool,
+	renamedFrom map[string]string,
 	addedIndexes []*indexMeta,
 ) bool {
 	rel := relKey(r.db, r.name)
-	if !b.fks || !b.w.tableIndexesComplete[rel] {
+	if !b.fks || !b.w.tableIndexesComplete[rel] || len(droppedCols) > 0 {
 		return false
 	}
 	idxs := b.w.tableIndexes[rel]
@@ -1025,8 +1027,19 @@ func (b *builder) dropIndexNeededByFK(
 			}
 		}
 		if !coveredElsewhere {
+			finalFKCols := fkCols
+			if len(renamedFrom) > 0 {
+				finalFKCols = make([]string, len(fkCols))
+				for i, fc := range fkCols {
+					if newK, ok := renamedFrom[fc]; ok {
+						finalFKCols[i] = newK
+					} else {
+						finalFKCols[i] = fc
+					}
+				}
+			}
 			for _, added := range addedIndexes {
-				if indexCoversCols(added, fkCols) {
+				if indexCoversCols(added, finalFKCols) {
 					coveredElsewhere = true
 					break
 				}

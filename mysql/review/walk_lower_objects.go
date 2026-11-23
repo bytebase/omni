@@ -94,7 +94,7 @@ func (b *builder) dropIndex(v *ast.DropIndexStmt) bool {
 	rel := relKey(r.db, r.name)
 	b.fks = !b.w.ignoresFKs[rel]
 	if k, ok := b.key(spaceIndex, v.Name); ok {
-		if b.dropIndexNeededByFK(r, k, nil, nil, nil) {
+		if b.dropIndexNeededByFK(r, k, nil, nil, nil, nil, nil) {
 			b.fail(b.anchor(), nil, review.IndexBacksConstraint, "Index "+review.Code(ident(v.Name))+" in "+review.Code(r.written)+" is needed by a foreign key constraint.")
 			return true
 		}
@@ -511,23 +511,60 @@ func (b *builder) set(v *ast.SetStmt) bool {
 		case global:
 			continue
 		}
-		if name != "foreign_key_checks" {
-			continue
-		}
-		on := review.SwitchUnknown
-		switch x := a.Value.(type) {
-		case *ast.IntLit:
-			on = review.SwitchOff
-			if x.Value != 0 {
-				on = review.SwitchOn
+		switch name {
+		case "foreign_key_checks":
+			on := review.SwitchUnknown
+			switch x := a.Value.(type) {
+			case *ast.IntLit:
+				on = review.SwitchOff
+				if x.Value != 0 {
+					on = review.SwitchOn
+				}
+			case *ast.BoolLit:
+				on = review.SwitchOff
+				if x.Value {
+					on = review.SwitchOn
+				}
 			}
-		case *ast.BoolLit:
-			on = review.SwitchOff
-			if x.Value {
-				on = review.SwitchOn
+			b.Session(func() { b.w.fkChecks = on })
+		case "default_storage_engine", "storage_engine":
+			eng, known := setEngineValue(a.Value)
+			b.Session(func() {
+				b.w.defaultEngine = eng
+				b.w.defaultEngineUnknown = !known
+			})
+		case "default_tmp_storage_engine":
+			eng, known := setEngineValue(a.Value)
+			b.Session(func() {
+				b.w.defaultTmpEngine = eng
+				b.w.defaultTmpEngineUnknown = !known
+			})
+		case "innodb_strict_mode":
+			strictOn := false
+			switch x := a.Value.(type) {
+			case *ast.IntLit:
+				strictOn = x.Value != 0
+			case *ast.BoolLit:
+				strictOn = x.Value
+			case *ast.StringLit:
+				strictOn = strings.EqualFold(strings.TrimSpace(x.Value), "ON")
+			case *ast.ColumnRef:
+				strictOn = strings.EqualFold(x.Column, "ON")
 			}
+			b.Session(func() { b.w.innodbStrictOff = !strictOn })
 		}
-		b.Session(func() { b.w.fkChecks = on })
 	}
 	return true
+}
+
+func setEngineValue(v ast.ExprNode) (string, bool) {
+	switch x := v.(type) {
+	case *ast.StringLit:
+		return strings.TrimSpace(x.Value), true
+	case *ast.ColumnRef:
+		if x.Schema == "" && x.Table == "" && !x.Star && x.Column != "" {
+			return x.Column, true
+		}
+	}
+	return "", false
 }

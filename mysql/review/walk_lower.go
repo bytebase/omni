@@ -269,9 +269,11 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 	if v.Table.Schema != "" {
 		b.databaseNeeds(r.db, v.Table.Schema, r.rng)
 	}
-	// The new table keeps foreign keys as its ENGINE does, or for LIKE as
-	// its source's does, which the walk must know.
-	b.fks = !v.Temporary && keepsFKs(engineOf(v.Options))
+	// The new table keeps foreign keys as its ENGINE does (falling back to the
+	// session default storage engine), or for LIKE as its source's does, which
+	// the walk must know.
+	effEngine, engKnown := b.createTableEngine(v)
+	b.fks = !v.Temporary && engKnown && keepsFKs(effEngine)
 	// The LIKE source is checked even when IF NOT EXISTS finds the table
 	// (verified).
 	if v.Like != nil {
@@ -391,6 +393,25 @@ func (*builder) constraintName(c *ast.Constraint) string {
 	return keyName(c)
 }
 
+// createTableEngine resolves the storage engine a CREATE TABLE without LIKE
+// will use, honoring any explicit ENGINE option and otherwise the session's
+// default_storage_engine / default_tmp_storage_engine.
+func (b *builder) createTableEngine(v *ast.CreateTableStmt) (string, bool) {
+	if eng := engineOf(v.Options); eng != "" {
+		return eng, true
+	}
+	if v.Temporary {
+		if b.w.defaultTmpEngineUnknown {
+			return "", false
+		}
+		return b.w.defaultTmpEngine, true
+	}
+	if b.w.defaultEngineUnknown {
+		return "", false
+	}
+	return b.w.defaultEngine, true
+}
+
 // tableTextFails fails a CREATE TABLE its text alone refutes (verified):
 // a column named twice (1060), two indexes of one name (1061), two foreign
 // keys of one name (1826, or 1061 for the index each would add), two
@@ -401,7 +422,8 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 		b.fail(r.rng, nil, review.UnsupportedForm, "Table "+review.Code(r.written)+" must have at least one column.")
 		return true
 	}
-	if b.tableOptionsFails(v.Options, engineOf(v.Options), v.Like == nil, r.rng) {
+	effEngine, engKnown := b.createTableEngine(v)
+	if b.tableOptionsFails(v.Options, effEngine, v.Like == nil && engKnown, r.rng) {
 		return true
 	}
 	columns := make(map[string]bool)
@@ -683,7 +705,7 @@ func (b *builder) created(v *ast.CreateTableStmt, r tableRef, optional bool) {
 		return
 	}
 	rel := relKey(r.db, r.name)
-	eng := engineOf(v.Options)
+	eng, engKnown := b.createTableEngine(v)
 	hasLikeOrSelect := v.Like != nil || v.Select != nil
 	var likeKey walk.Key
 	hasLike := false
@@ -777,7 +799,9 @@ func (b *builder) created(v *ast.CreateTableStmt, r tableRef, optional bool) {
 				b.w.partitionState[rel] = srcP.clone()
 			}
 		} else {
-			b.w.engines[rel] = eng
+			if engKnown {
+				b.w.engines[rel] = eng
+			}
 			b.w.partitionState[rel] = pinfo
 		}
 		for ck, bt := range colTypesMap {
