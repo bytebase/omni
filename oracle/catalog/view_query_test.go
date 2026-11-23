@@ -197,6 +197,7 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"cast_date_to_number", `CREATE VIEW v AS SELECT CAST(DATE '2020-01-01' AS NUMBER) x FROM dual`, "00932"},
 		{"subset_two_members", `CREATE VIEW v AS SELECT first_id FROM t MATCH_RECOGNIZE (ORDER BY id MEASURES FIRST(a.id) AS first_id PATTERN (a b) SUBSET s = (a, b) DEFINE a AS id > 0, b AS id > 0)`, ""},
 		{"qualified_star_only_key_not_grouped", `CREATE VIEW v AS SELECT w.* FROM w JOIN t USING (id) GROUP BY t.n`, "00979"},
+		{"scalar_with_over", `CREATE VIEW v AS SELECT UPPER('x') OVER () x FROM dual`, "00923"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -816,5 +817,38 @@ func TestViewQueryPartitionForBind(t *testing.T) {
 	var refusal *Error
 	if !errors.As(results[0].Error, &refusal) || refusal.Code != "01027" {
 		t.Errorf("PARTITION FOR bind: %v, want ORA-01027", results[0].Error)
+	}
+}
+
+func TestViewQueryRound36(t *testing.T) {
+	// Nested TABLE() collections stay linear.
+	q := "SELECT 1 FROM dual"
+	for i := 0; i < 30; i++ {
+		q = "SELECT column_value FROM TABLE(sys.odcinumberlist((" + q + ")))"
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, err := LoadSQL("CREATE VIEW v AS SELECT (" + q + ") x, COUNT(*) c FROM dual")
+		done <- err
+	}()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("nested TABLE() collections took more than 10s")
+	}
+
+	// t.* whose USING key would be ambiguous bare keeps its text.
+	c, err := LoadSQL(`
+CREATE TABLE t (id NUMBER, n NUMBER);
+CREATE TABLE u (id NUMBER);
+CREATE TABLE w (id NUMBER);
+CREATE VIEW v AS SELECT t.* FROM t JOIN u USING (id) CROSS JOIN w;
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := c.Metadata().GetSchemas()[0].GetViews()[0]
+	if want := "SELECT t.* FROM t JOIN u USING (id) CROSS JOIN w"; v.GetDefinition() != want {
+		t.Errorf("definition = %q, want %q", v.GetDefinition(), want)
 	}
 }

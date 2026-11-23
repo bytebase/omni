@@ -4090,9 +4090,18 @@ type viewDependencyVisitor struct {
 	scopes  []map[string]bool
 	markers []bool
 	result  *[]*metadatapb.DependencyColumn
+	// visited holds the nodes walked: a node two fields share (TABLE()'s
+	// Expr and FunctionCall) is walked once.
+	visited map[ast.Node]bool
 }
 
 func (v *viewDependencyVisitor) Visit(node ast.Node) ast.Visitor {
+	if node != nil {
+		if v.visited[node] {
+			return nil
+		}
+		v.visited[node] = true
+	}
 	if node == nil {
 		if len(v.markers) > 0 {
 			marker := v.markers[len(v.markers)-1]
@@ -4158,7 +4167,7 @@ func viewDependencyColumns(query ast.StmtNode, schema string) []*metadatapb.Depe
 		return nil
 	}
 	var result []*metadatapb.DependencyColumn
-	ast.Walk(&viewDependencyVisitor{schema: schema, seen: map[string]bool{}, result: &result}, query)
+	ast.Walk(&viewDependencyVisitor{schema: schema, seen: map[string]bool{}, result: &result, visited: map[ast.Node]bool{}}, query)
 	return result
 }
 

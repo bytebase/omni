@@ -643,6 +643,7 @@ func (a *queryAnalyzer) analyzeCTE(d *cteDef, outer *qscope, env *cteEnv) error 
 // clause, as a recursive WITH element does.
 func selectReferencesTable(sel *ast.SelectStmt, table string) bool {
 	found := false
+	seen := map[uintptr]bool{}
 	var walk func(v reflect.Value)
 	walk = func(v reflect.Value) {
 		if found || !v.IsValid() {
@@ -652,6 +653,13 @@ func selectReferencesTable(sel *ast.SelectStmt, table string) bool {
 		case reflect.Interface, reflect.Ptr:
 			if v.IsNil() {
 				return
+			}
+			if v.Kind() == reflect.Ptr {
+				// A shared subtree is walked once.
+				if seen[v.Pointer()] {
+					return
+				}
+				seen[v.Pointer()] = true
 			}
 			if tr, ok := v.Interface().(*ast.TableRef); ok {
 				if tr.Name != nil && tr.Name.Schema == "" && tr.Name.Name == table {
@@ -1329,9 +1337,15 @@ func (a *queryAnalyzer) selectTarget(rt *ast.ResTarget, sc *qscope, top bool) ([
 			cols := make([]qcol, 0, len(items))
 			var parts []string
 			qual := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(a.e.nodeText(x)), "*"))
+			expandable := true
 			for _, c := range items {
 				c.expr = false
 				if c.merged {
+					// A USING key takes no qualifier; if its bare name would
+					// be ambiguous, the star stays as written.
+					if _, _, err := a.lookupIn(sc.from, c.name); err != nil {
+						expandable = false
+					}
 					parts = append(parts, quoteIdent(c.name))
 				} else {
 					parts = append(parts, qual+quoteIdent(c.name))
@@ -1339,7 +1353,7 @@ func (a *queryAnalyzer) selectTarget(rt *ast.ResTarget, sc *qscope, top bool) ([
 				c.merged = false
 				cols = append(cols, c)
 			}
-			if top {
+			if top && expandable {
 				a.edits = append(a.edits, textEdit{start: x.Loc.Start, end: x.Loc.End, text: strings.Join(parts, ",")})
 			}
 			return cols, nil
@@ -1772,6 +1786,9 @@ func (a *queryAnalyzer) columnIdentity(ref *ast.ColumnRef, sc *qscope) string {
 // walkExpr visits an expression tree depth first; fn returns false to skip
 // a node's children.
 func walkExpr(n ast.Node, fn func(ast.Node) bool) {
+	// A node two fields share (TABLE()'s Expr and FunctionCall) is walked
+	// once.
+	seen := map[ast.Node]bool{}
 	var walk func(v reflect.Value)
 	walk = func(v reflect.Value) {
 		if !v.IsValid() {
@@ -1789,6 +1806,10 @@ func walkExpr(n ast.Node, fn func(ast.Node) bool) {
 				return
 			}
 			if node, ok := v.Interface().(ast.Node); ok {
+				if seen[node] {
+					return
+				}
+				seen[node] = true
 				if !fn(node) {
 					return
 				}

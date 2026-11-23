@@ -105,6 +105,12 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		}
 	}
 	aggregate := isAggregateCall(n)
+	if n.Over != nil && n.FuncName.Schema == "" && !aggregateNames[name] && !rankingNames[name] && !analyticOnly[name] {
+		if _, scalar := builtinArity[name]; scalar {
+			// A scalar function takes no OVER: Oracle reads OVER as an alias.
+			return qtype{}, false, oraError("00923", "FROM keyword not found where expected")
+		}
+	}
 	if aggregate && !clause.allowsAggregate() {
 		return qtype{}, false, oraError("00934", "group function is not allowed here")
 	}
