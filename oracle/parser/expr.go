@@ -3029,10 +3029,10 @@ func (p *Parser) parseJsonObjectOrArray(name string) (nodes.ExprNode, error) {
 			}
 			p.advance() // consume ','
 		}
-		if err := p.parseJSONConstructorClauses(name == "JSON_OBJECT", name == "JSON_OBJECT"); err != nil {
+		if err := p.parseJSONConstructorClauses(fc, name == "JSON_OBJECT", name == "JSON_OBJECT"); err != nil {
 			return nil, err
 		}
-	} else if err := p.parseJSONConstructorClauses(name == "JSON_OBJECT", name == "JSON_OBJECT"); err != nil {
+	} else if err := p.parseJSONConstructorClauses(fc, name == "JSON_OBJECT", name == "JSON_OBJECT"); err != nil {
 		return nil, err
 	}
 
@@ -3223,8 +3223,18 @@ func (p *Parser) parseJsonPathFunc(name string) (nodes.ExprNode, error) {
 		}
 	}
 
-	// Skip trailing keywords: RETURNING type, error clauses, wrapper clauses
-	// These may include keywords like RETURNING, ERROR, NULL, DEFAULT, EMPTY, etc.
+	// RETURNING type, kept for what the function returns.
+	if p.cur.Type == kwRETURNING {
+		p.advance()
+		tn, err := p.parseTypeName()
+		if err != nil {
+			return nil, err
+		}
+		fc.Returning = tn
+	}
+
+	// Skip trailing keywords: error clauses, wrapper clauses
+	// These may include keywords like ERROR, NULL, DEFAULT, EMPTY, etc.
 	// We consume everything until the closing paren.
 	depth := 0
 	for p.cur.Type != tokEOF {

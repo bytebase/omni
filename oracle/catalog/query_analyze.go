@@ -609,6 +609,17 @@ func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 		}
 	}
 
+	// A MODEL clause's partition, dimension and measure columns are what
+	// the select list reads.
+	tsc := sc
+	if sel.ModelClause != nil {
+		msc, err := a.model(sel.ModelClause, sc)
+		if err != nil {
+			return nil, err
+		}
+		tsc = msc
+	}
+
 	// The select list.
 	var cols []qcol
 	type target struct {
@@ -624,15 +635,23 @@ func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 		if !ok {
 			continue
 		}
-		tc, err := a.selectTarget(rt, sc, top)
+		tc, err := a.selectTarget(rt, tsc, top)
 		if err != nil {
 			return nil, err
 		}
 		targets = append(targets, target{rt: rt, cols: tc})
 		cols = append(cols, tc...)
-		starRefs = append(starRefs, a.starReferences(rt, sc)...)
+		starRefs = append(starRefs, a.starReferences(rt, tsc)...)
 	}
 	sc.aliases = cols
+	tsc.aliases = cols
+	var targetExprs []ast.ExprNode
+	for _, t := range targets {
+		if t.rt.Expr != nil {
+			targetExprs = append(targetExprs, t.rt.Expr)
+		}
+	}
+	targetExprs = append(targetExprs, starRefs...)
 
 	// GROUP BY, HAVING and the aggregate rules.
 	var groupKeys []string
@@ -688,7 +707,8 @@ func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 			exprs = append(exprs, sb.Expr)
 		}
 	}
-	grouped := len(listItems(sel.GroupClause)) > 0
+	// HAVING makes a block grouped even without GROUP BY or an aggregate.
+	grouped := len(listItems(sel.GroupClause)) > 0 || sel.HavingClause != nil
 	nested := false
 	for _, x := range exprs {
 		if containsAggregate(x, false) {
@@ -701,7 +721,7 @@ func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 	if nested && len(listItems(sel.GroupClause)) == 0 {
 		return nil, oraError("00978", "nested group function without GROUP BY")
 	}
-	if grouped {
+	if grouped && sel.ModelClause == nil {
 		for _, x := range exprs {
 			keyOf := func(n ast.Node) string {
 				if ref, ok := n.(*ast.ColumnRef); ok && sc.parent != nil && !a.resolvesLocally(ref, sc) {
@@ -738,8 +758,11 @@ func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 			if !ok {
 				continue
 			}
-			if err := a.orderItem(sb.Expr, sc, len(cols)); err != nil {
+			if err := a.orderItem(sb.Expr, tsc, len(cols)); err != nil {
 				return nil, err
+			}
+			if (sel.Distinct || sel.UniqueKw) && !a.selectedExpression(sb.Expr, targetExprs, cols, tsc) {
+				return nil, oraError("01791", "not a SELECTed expression")
 			}
 		}
 		if sel.FetchFirst != nil {
@@ -748,40 +771,141 @@ func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 			}
 		}
 	}
-	if sel.ModelClause != nil {
-		cols = a.modelColumns(sel, cols)
-	}
 	return &queryResult{cols: cols}, nil
 }
 
-// modelColumns applies a MODEL clause: a measure loses its NOT NULL, and a
-// numeric measure its precision.
-func (a *queryAnalyzer) modelColumns(sel *ast.SelectStmt, cols []qcol) []qcol {
-	mm := sel.ModelClause.MainModel
-	if mm == nil || mm.ColumnClauses == nil {
-		return cols
+// model analyzes a MODEL clause and returns the scope its select list
+// reads: the partition, dimension and measure columns, none NOT NULL, a
+// numeric measure without its precision. Its rules are analyzed there.
+func (a *queryAnalyzer) model(m *ast.ModelClause, sc *qscope) (*qscope, error) {
+	for _, ref := range m.RefModels {
+		if ref == nil || ref.Subquery == nil {
+			continue
+		}
+		if _, err := a.query(ref.Subquery, sc.parent, sc.ctes, false); err != nil {
+			return nil, err
+		}
 	}
-	measures := map[string]bool{}
-	for _, item := range listItems(mm.ColumnClauses.Measures) {
-		if rt, ok := item.(*ast.ResTarget); ok {
-			name := rt.Name
-			if name == "" {
-				if ref, ok := unparen(rt.Expr).(*ast.ColumnRef); ok {
-					name = ref.Column
+	rel := &qrel{}
+	mm := m.MainModel
+	if mm != nil && mm.ColumnClauses != nil {
+		cc := mm.ColumnClauses
+		for i, list := range []*ast.List{cc.PartitionBy, cc.DimensionBy, cc.Measures} {
+			for _, item := range listItems(list) {
+				rt, ok := item.(*ast.ResTarget)
+				if !ok || rt.Expr == nil {
+					continue
+				}
+				t, _, err := a.expr(rt.Expr, sc, clauseSelect)
+				if err != nil {
+					return nil, err
+				}
+				name := rt.Name
+				if name == "" {
+					if ref, ok := unparen(rt.Expr).(*ast.ColumnRef); ok {
+						name = ref.Column
+					} else {
+						name = derivedName(a.e.nodeText(rt.Expr))
+					}
+				}
+				if i == 2 && t.kind == "NUMBER" {
+					t = numberType()
+				}
+				rel.cols = append(rel.cols, qcol{name: name, typ: t})
+			}
+		}
+	}
+	msc := &qscope{parent: sc.parent, ctes: sc.ctes, from: relFrom(rel), windows: sc.windows}
+	if mm != nil && mm.RulesClause != nil {
+		rc := mm.RulesClause
+		for _, x := range []ast.ExprNode{rc.Iterate, rc.Until} {
+			if x == nil {
+				continue
+			}
+			if _, _, err := a.expr(x, msc, clauseSelect); err != nil {
+				return nil, err
+			}
+		}
+		for _, item := range listItems(rc.Rules) {
+			rule, ok := item.(*ast.ModelRule)
+			if !ok {
+				continue
+			}
+			if rule.Cell != nil {
+				for _, d := range listItems(rule.Cell.Dimensions) {
+					if x, ok := d.(ast.ExprNode); ok {
+						if err := a.modelExpr(x, msc); err != nil {
+							return nil, err
+						}
+					}
 				}
 			}
-			measures[name] = true
+			if rule.Expr != nil {
+				if err := a.modelExpr(rule.Expr, msc); err != nil {
+					return nil, err
+				}
+			}
 		}
 	}
-	out := make([]qcol, len(cols))
-	for i, c := range cols {
-		c.notNull = false
-		if measures[c.name] && c.typ.kind == "NUMBER" {
-			c.typ = numberType()
+	return msc, nil
+}
+
+// modelExpr checks an expression of a MODEL rule. Cell references and
+// MODEL's own functions (CV, PRESENTV, ...) are left untyped; what the
+// expression binds or names otherwise is checked as anywhere else.
+func (a *queryAnalyzer) modelExpr(x ast.ExprNode, sc *qscope) error {
+	var err error
+	walkExpr(x, func(n ast.Node) bool {
+		if err != nil {
+			return false
 		}
-		out[i] = c
+		switch v := n.(type) {
+		case *ast.BindVariable:
+			err = oraError("01027", "bind variables not allowed for data definition operations")
+			return false
+		case *ast.SubqueryExpr:
+			if sel, ok := v.Subquery.(*ast.SelectStmt); ok {
+				_, err = a.query(sel, sc, sc.ctes, false)
+			}
+			return false
+		case *ast.ColumnRef:
+			if v.Table == "" && v.Column != "*" {
+				if _, found, lerr := a.lookupIn(sc.from, v.Column); lerr != nil {
+					err = lerr
+				} else if !found {
+					if _, ok := keywordValues[v.Column]; !ok {
+						err = oraError("00904", "%q: invalid identifier", v.Column)
+					}
+				}
+			}
+			return false
+		}
+		return true
+	})
+	return err
+}
+
+// selectedExpression reports whether an ORDER BY item of a DISTINCT block
+// is one of its select-list items: a position, a column name, or an
+// expression written as a select-list one.
+func (a *queryAnalyzer) selectedExpression(x ast.ExprNode, targets []ast.ExprNode, cols []qcol, sc *qscope) bool {
+	if n, ok := unparen(x).(*ast.NumberLiteral); ok && !n.IsFloat {
+		return true
 	}
-	return out
+	if ref, ok := unparen(x).(*ast.ColumnRef); ok && ref.Table == "" {
+		for _, c := range cols {
+			if c.name == ref.Column {
+				return true
+			}
+		}
+	}
+	key := a.groupKey(x, sc)
+	for _, t := range targets {
+		if a.groupKey(t, sc) == key {
+			return true
+		}
+	}
+	return false
 }
 
 // fetchClause checks a row-limiting clause's offset and count, which a view

@@ -430,6 +430,7 @@ type FuncCallExpr struct {
 	OrderBy    *List       // ORDER BY within aggregate
 	KeepClause *KeepClause // KEEP (DENSE_RANK ...)
 	Over       *WindowSpec // OVER clause (analytic function)
+	Returning  *TypeName   // RETURNING datatype of a SQL/JSON function
 	Loc        Loc         // start location
 }
 

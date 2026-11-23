@@ -160,6 +160,15 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 			return t, false, nil
 		}
 	}
+	if n.Returning != nil {
+		// A SQL/JSON function returns the type its RETURNING clause names;
+		// VARCHAR2 without a length is VARCHAR2(4000).
+		t := typeNameType(n.Returning)
+		if t.kind == "VARCHAR2" && listItems(n.Returning.TypeMods) == nil {
+			t = varchar2Bytes(4000)
+		}
+		return t, false, nil
+	}
 	if aggregate || n.Over != nil {
 		return a.aggregateType(n, name, args, withinGroup)
 	}

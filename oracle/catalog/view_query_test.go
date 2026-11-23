@@ -105,6 +105,11 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"pivot_xml", `CREATE VIEW v AS SELECT n_xml FROM t PIVOT XML (SUM(id) FOR n IN (ANY))`, ""},
 		{"with_forward_reference", `CREATE VIEW v AS WITH a AS (SELECT id FROM b), b AS (SELECT id FROM t) SELECT id FROM a`, "00942"},
 		{"grouped_subquery_outer_reference", `CREATE VIEW v AS SELECT (SELECT COUNT(*) + u.n FROM t) x FROM t u`, ""},
+		{"model_measure_alias", `CREATE VIEW v AS SELECT s FROM t MODEL DIMENSION BY (id) MEASURES (n AS s) RULES (s[1] = 0)`, ""},
+		{"model_rule_bind", `CREATE VIEW v AS SELECT n FROM t MODEL DIMENSION BY (id) MEASURES (n) RULES (n[1] = :x)`, "01027"},
+		{"having_without_group_by", `CREATE VIEW v AS SELECT id FROM t HAVING id > 1`, "00937"},
+		{"distinct_order_by_unselected", `CREATE VIEW v AS SELECT DISTINCT id FROM t ORDER BY n`, "01791"},
+		{"distinct_order_by_selected", `CREATE VIEW v AS SELECT DISTINCT id x, n + 1 y FROM t ORDER BY x, n + 1, 1`, ""},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -183,6 +188,19 @@ CREATE VIEW v AS SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY d) p, PERCEN
 		t.Fatal(err)
 	}
 	want := []string{"DATE", "DATE", "NUMBER"}
+	for i, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
+		if col.GetType() != want[i] {
+			t.Errorf("%s type = %s, want %s", col.GetName(), col.GetType(), want[i])
+		}
+	}
+}
+
+func TestViewQueryJSONReturning(t *testing.T) {
+	c, err := LoadSQL(`CREATE VIEW v AS SELECT JSON_VALUE('{"id":1}', '$.id' RETURNING NUMBER) a, JSON_OBJECT('a' VALUE 1 RETURNING CLOB) b, JSON_QUERY('{}', '$' RETURNING VARCHAR2) c, JSON_VALUE('{}', '$.a') d FROM dual;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"NUMBER", "CLOB", "VARCHAR2(4000 BYTE)", "VARCHAR2(4000 BYTE)"}
 	for i, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
 		if col.GetType() != want[i] {
 			t.Errorf("%s type = %s, want %s", col.GetName(), col.GetType(), want[i])
