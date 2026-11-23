@@ -713,6 +713,14 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 			p.advance() // OR
 			p.advance() // ALTER
 			orAlter = true
+			// createOrAlterStatements (TSql160.g:774) is CREATE OR ALTER
+			// followed by FUNCTION, PROC/PROCEDURE, TRIGGER or VIEW only:
+			// SQL Server refuses CREATE OR ALTER TABLE (measured, Msg 102).
+			switch p.cur.Type {
+			case kwFUNCTION, kwPROC, kwPROCEDURE, kwTRIGGER, kwVIEW:
+			default:
+				return nil, p.syntaxErrorAtCur()
+			}
 		}
 	}
 

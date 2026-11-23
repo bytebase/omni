@@ -122,6 +122,7 @@ ok	one_table@missing	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF 
 4902	one_table@missing	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1088	one_table@missing	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1088	one_table@missing	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1088	one_table@missing	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	one_table@missing	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 208	one_table@missing	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1088	one_table@missing	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -160,8 +161,10 @@ ok	one_table@missing	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF 
 208	one_table@missing	outputClauseSelectColumn(As)?/As	DELETE a OUTPUT 1 AS 'a'
 1088	one_table@missing	identifierColumnList(identifierColumnReferenceExpression|~b17b9386)/graphPseudoColumn	CREATE STATISTICS a ON a($IDENTITY)
 1909	one_table@missing	identifierColumnList(Comma_(identifierColumnReferenceExpr~e4c92ada)*/Comma_(identifierColumnReferenceExpression|~b17b9386)_(~9c885048	CREATE STATISTICS a ON a(a, a)
+1087	one_table@missing	deleteSpecification/Delete_dmlTopRowFilterOpt_(From)?_dmlTarget_outputClaus~e9305aa0+fromClauseOpt	DELETE a FROM @a
 208	one_table@missing	deleteSpecification(From)?/From	DELETE FROM a
 208	one_table@missing	deleteSpecification(dmlWhereClause)?/dmlWhereClause	DELETE a WHERE 1 = 1
+208	one_table@missing	insertSpecification/Insert_dmlTopRowFilterOpt_(Into|Over)?_dmlTarget_(LeftP~57a9460f+dmlTopRowFilterOpt	INSERT TOP(1) a DEFAULT VALUES
 208	one_table@missing	insertSpecification(Into|Over)?/Into	INSERT INTO a DEFAULT VALUES
 208	one_table@missing	insertSpecification(Into|Over)?/Over	INSERT OVER a DEFAULT VALUES
 208	one_table@missing	insertSpecification(LeftParenthesis_insertColumn_(Comma_~1dbaf886)?/LeftParenthesis_insertColumn_(Comma_insertColumn)*_Righ~f0c23471	INSERT a(a) DEFAULT VALUES
@@ -170,6 +173,8 @@ ok	one_table@missing	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF 
 208	one_table@missing	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource	INSERT a EXECUTE a
 208	one_table@missing	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource!insert	INSERT a EXECUTE a zzz
 263	one_table@missing	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/selectInsertSource	INSERT a SELECT *
+137	one_table@missing	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+dmlTopRowFilterOpt	UPDATE TOP(1) a SET @a = 1
+137	one_table@missing	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+fromClauseOpt	UPDATE a SET @a = 1 FROM @a
 137	one_table@missing	updateSpecification(dmlWhereClause)?/dmlWhereClause	UPDATE a SET @a = 1 WHERE 1 = 1
 137	one_table@missing	setClausesList(Comma_setClause)*/Comma_setClause_(Comma_setClause)*	UPDATE a SET @a = 1, @a = 1
 208	one_table@missing	setClause/multiPartIdentifier_(setClauseColumnAssignment|setClaus~755a46d7	UPDATE a SET a = 1
@@ -186,6 +191,7 @@ ok	one_table@missing	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF 
 7202	one_table@missing	openRowset/openQueryRowset_simpleTableReferenceAliasOpt	DELETE OPENQUERY(a, 'a')
 208	one_table@missing	openRowset/adhocRowset_simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a
 208	one_table@missing	openRowset/adhocRowset_simpleTableReferenceAliasOpt!insert	DELETE OPENDATASOURCE('a', 'a').a zzz
+208	one_table@missing	openRowset/adhocRowset_simpleTableReferenceAliasOpt+simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a a
 208	one_table@missing	tableHint/simpleTableHint	DELETE a WITH(HOLDLOCK)
 208	one_table@missing	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_CELLS = 1)
 137	one_table@missing	dmlWhereClause/whereCurrentOfCursorClause	DELETE a WHERE CURRENT OF @a
@@ -260,6 +266,7 @@ ok	one_table@missing	createTableStatement(FILETABLE|EDGE)/EDGE	CREATE TABLE a AS
 4902	one_table@missing	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4902	one_table@missing	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4902	one_table@missing	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	one_table@missing	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4902	one_table@missing	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4902	one_table@missing	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4902	one_table@missing	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -274,6 +281,7 @@ ok	one_table@missing	createTableStatement(FILETABLE|EDGE)/EDGE	CREATE TABLE a AS
 8168	one_table@missing	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 4902	one_table@missing	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 4902	one_table@missing	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+4902	one_table@missing	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 4902	one_table@missing	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 4902	one_table@missing	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 4902	one_table@missing	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -287,6 +295,7 @@ ok	one_table@missing	createTableStatement(FILETABLE|EDGE)/EDGE	CREATE TABLE a AS
 8135	one_table@missing	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	one_table@missing	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 4902	one_table@missing	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	one_table@missing	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	one_table@missing	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 4902	one_table@missing	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 4902	one_table@missing	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -297,6 +306,7 @@ ok	one_table@missing	createTableStatement(FILETABLE|EDGE)/EDGE	CREATE TABLE a AS
 4902	one_table@missing	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4902	one_table@missing	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4902	one_table@missing	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	one_table@missing	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4902	one_table@missing	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4902	one_table@missing	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4902	one_table@missing	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -314,11 +324,13 @@ ok	one_table@missing	createTableStatement(FILETABLE|EDGE)/EDGE	CREATE TABLE a AS
 4902	one_table@missing	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 4902	one_table@missing	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 4902	one_table@missing	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+4902	one_table@missing	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4902	one_table@missing	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 4902	one_table@missing	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4902	one_table@missing	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4902	one_table@missing	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4902	one_table@missing	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+4902	one_table@missing	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 208	one_table@missing	parenthesizedOptExpressionWithDefaultList(expressionWithDefaultList)?/expressionWithDefaultList	DELETE a(1)
 15151	one_table@missing	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 6267	one_table@missing	assemblyName(Dot_identifier)?/Dot_identifier	CREATE TYPE a EXTERNAL NAME a.a
@@ -342,6 +354,9 @@ ok	one_table@missing	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists	DROP S
 4902	one_table@missing	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4902	one_table@missing	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4902	one_table@missing	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	one_table@missing	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	one_table@missing	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+ok	one_table@missing	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 ok	one_table@type	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	one_table@type	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	one_table@type	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -464,6 +479,7 @@ ok	one_table@type	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EXI
 4902	one_table@type	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1088	one_table@type	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1088	one_table@type	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1088	one_table@type	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	one_table@type	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 208	one_table@type	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1088	one_table@type	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -502,8 +518,10 @@ ok	one_table@type	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EXI
 208	one_table@type	outputClauseSelectColumn(As)?/As	DELETE a OUTPUT 1 AS 'a'
 1088	one_table@type	identifierColumnList(identifierColumnReferenceExpression|~b17b9386)/graphPseudoColumn	CREATE STATISTICS a ON a($IDENTITY)
 1909	one_table@type	identifierColumnList(Comma_(identifierColumnReferenceExpr~e4c92ada)*/Comma_(identifierColumnReferenceExpression|~b17b9386)_(~9c885048	CREATE STATISTICS a ON a(a, a)
+1087	one_table@type	deleteSpecification/Delete_dmlTopRowFilterOpt_(From)?_dmlTarget_outputClaus~e9305aa0+fromClauseOpt	DELETE a FROM @a
 208	one_table@type	deleteSpecification(From)?/From	DELETE FROM a
 208	one_table@type	deleteSpecification(dmlWhereClause)?/dmlWhereClause	DELETE a WHERE 1 = 1
+208	one_table@type	insertSpecification/Insert_dmlTopRowFilterOpt_(Into|Over)?_dmlTarget_(LeftP~57a9460f+dmlTopRowFilterOpt	INSERT TOP(1) a DEFAULT VALUES
 208	one_table@type	insertSpecification(Into|Over)?/Into	INSERT INTO a DEFAULT VALUES
 208	one_table@type	insertSpecification(Into|Over)?/Over	INSERT OVER a DEFAULT VALUES
 208	one_table@type	insertSpecification(LeftParenthesis_insertColumn_(Comma_~1dbaf886)?/LeftParenthesis_insertColumn_(Comma_insertColumn)*_Righ~f0c23471	INSERT a(a) DEFAULT VALUES
@@ -512,6 +530,8 @@ ok	one_table@type	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EXI
 208	one_table@type	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource	INSERT a EXECUTE a
 208	one_table@type	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource!insert	INSERT a EXECUTE a zzz
 263	one_table@type	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/selectInsertSource	INSERT a SELECT *
+137	one_table@type	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+dmlTopRowFilterOpt	UPDATE TOP(1) a SET @a = 1
+137	one_table@type	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+fromClauseOpt	UPDATE a SET @a = 1 FROM @a
 137	one_table@type	updateSpecification(dmlWhereClause)?/dmlWhereClause	UPDATE a SET @a = 1 WHERE 1 = 1
 137	one_table@type	setClausesList(Comma_setClause)*/Comma_setClause_(Comma_setClause)*	UPDATE a SET @a = 1, @a = 1
 208	one_table@type	setClause/multiPartIdentifier_(setClauseColumnAssignment|setClaus~755a46d7	UPDATE a SET a = 1
@@ -528,6 +548,7 @@ ok	one_table@type	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EXI
 7202	one_table@type	openRowset/openQueryRowset_simpleTableReferenceAliasOpt	DELETE OPENQUERY(a, 'a')
 208	one_table@type	openRowset/adhocRowset_simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a
 208	one_table@type	openRowset/adhocRowset_simpleTableReferenceAliasOpt!insert	DELETE OPENDATASOURCE('a', 'a').a zzz
+208	one_table@type	openRowset/adhocRowset_simpleTableReferenceAliasOpt+simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a a
 208	one_table@type	tableHint/simpleTableHint	DELETE a WITH(HOLDLOCK)
 208	one_table@type	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_CELLS = 1)
 137	one_table@type	dmlWhereClause/whereCurrentOfCursorClause	DELETE a WHERE CURRENT OF @a
@@ -602,6 +623,7 @@ ok	one_table@type	tableDefinitionCreateTable(Comma_tableElement)*/Comma_tableEle
 4902	one_table@type	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4902	one_table@type	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4902	one_table@type	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	one_table@type	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4902	one_table@type	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4902	one_table@type	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4902	one_table@type	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -616,6 +638,7 @@ ok	one_table@type	tableDefinitionCreateTable(Comma_tableElement)*/Comma_tableEle
 8168	one_table@type	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 4902	one_table@type	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 4902	one_table@type	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+4902	one_table@type	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 4902	one_table@type	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 4902	one_table@type	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 4902	one_table@type	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -629,6 +652,7 @@ ok	one_table@type	tableDefinitionCreateTable(Comma_tableElement)*/Comma_tableEle
 8135	one_table@type	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	one_table@type	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 4902	one_table@type	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	one_table@type	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	one_table@type	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 4902	one_table@type	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 4902	one_table@type	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -639,6 +663,7 @@ ok	one_table@type	tableDefinitionCreateTable(Comma_tableElement)*/Comma_tableEle
 4902	one_table@type	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4902	one_table@type	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4902	one_table@type	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	one_table@type	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4902	one_table@type	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4902	one_table@type	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4902	one_table@type	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -656,11 +681,13 @@ ok	one_table@type	tableDefinitionCreateTable(Comma_tableElement)*/Comma_tableEle
 4902	one_table@type	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 4902	one_table@type	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 4902	one_table@type	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+4902	one_table@type	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4902	one_table@type	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 4902	one_table@type	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4902	one_table@type	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4902	one_table@type	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4902	one_table@type	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+4902	one_table@type	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 208	one_table@type	parenthesizedOptExpressionWithDefaultList(expressionWithDefaultList)?/expressionWithDefaultList	DELETE a(1)
 15151	one_table@type	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 6267	one_table@type	assemblyName(Dot_identifier)?/Dot_identifier	CREATE TYPE a EXTERNAL NAME a.a
@@ -684,6 +711,9 @@ ok	one_table@type	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists	DROP SEQU
 4902	one_table@type	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4902	one_table@type	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4902	one_table@type	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	one_table@type	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	one_table@type	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+ok	one_table@type	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 ok	one_table@table	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	one_table@table	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	one_table@table	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -806,6 +836,7 @@ ok	one_table@table	dropTableStatement(If_Exists)?/If_Exists	DROP TABLE IF EXISTS
 2715	one_table@table	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1911	one_table@table	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1911	one_table@table	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1716	one_table@table	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	one_table@table	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 207	one_table@table	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1911	one_table@table	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -844,8 +875,10 @@ ok	one_table@table	outputClauseSelectColumn((As)?_(stringOrIdentifier))?/(As)?_s
 ok	one_table@table	outputClauseSelectColumn(As)?/As	DELETE a OUTPUT 1 AS 'a'
 13929	one_table@table	identifierColumnList(identifierColumnReferenceExpression|~b17b9386)/graphPseudoColumn	CREATE STATISTICS a ON a($IDENTITY)
 1909	one_table@table	identifierColumnList(Comma_(identifierColumnReferenceExpr~e4c92ada)*/Comma_(identifierColumnReferenceExpression|~b17b9386)_(~9c885048	CREATE STATISTICS a ON a(a, a)
+1087	one_table@table	deleteSpecification/Delete_dmlTopRowFilterOpt_(From)?_dmlTarget_outputClaus~e9305aa0+fromClauseOpt	DELETE a FROM @a
 ok	one_table@table	deleteSpecification(From)?/From	DELETE FROM a
 ok	one_table@table	deleteSpecification(dmlWhereClause)?/dmlWhereClause	DELETE a WHERE 1 = 1
+ok	one_table@table	insertSpecification/Insert_dmlTopRowFilterOpt_(Into|Over)?_dmlTarget_(LeftP~57a9460f+dmlTopRowFilterOpt	INSERT TOP(1) a DEFAULT VALUES
 ok	one_table@table	insertSpecification(Into|Over)?/Into	INSERT INTO a DEFAULT VALUES
 ok	one_table@table	insertSpecification(Into|Over)?/Over	INSERT OVER a DEFAULT VALUES
 207	one_table@table	insertSpecification(LeftParenthesis_insertColumn_(Comma_~1dbaf886)?/LeftParenthesis_insertColumn_(Comma_insertColumn)*_Righ~f0c23471	INSERT a(a) DEFAULT VALUES
@@ -854,6 +887,8 @@ ok	one_table@table	insertSpecification(Into|Over)?/Over	INSERT OVER a DEFAULT VA
 2809	one_table@table	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource	INSERT a EXECUTE a
 2809	one_table@table	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource!insert	INSERT a EXECUTE a zzz
 263	one_table@table	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/selectInsertSource	INSERT a SELECT *
+137	one_table@table	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+dmlTopRowFilterOpt	UPDATE TOP(1) a SET @a = 1
+137	one_table@table	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+fromClauseOpt	UPDATE a SET @a = 1 FROM @a
 137	one_table@table	updateSpecification(dmlWhereClause)?/dmlWhereClause	UPDATE a SET @a = 1 WHERE 1 = 1
 137	one_table@table	setClausesList(Comma_setClause)*/Comma_setClause_(Comma_setClause)*	UPDATE a SET @a = 1, @a = 1
 207	one_table@table	setClause/multiPartIdentifier_(setClauseColumnAssignment|setClaus~755a46d7	UPDATE a SET a = 1
@@ -870,6 +905,7 @@ ok	one_table@table	insertSpecification(Into|Over)?/Over	INSERT OVER a DEFAULT VA
 7202	one_table@table	openRowset/openQueryRowset_simpleTableReferenceAliasOpt	DELETE OPENQUERY(a, 'a')
 208	one_table@table	openRowset/adhocRowset_simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a
 208	one_table@table	openRowset/adhocRowset_simpleTableReferenceAliasOpt!insert	DELETE OPENDATASOURCE('a', 'a').a zzz
+208	one_table@table	openRowset/adhocRowset_simpleTableReferenceAliasOpt+simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a a
 ok	one_table@table	tableHint/simpleTableHint	DELETE a WITH(HOLDLOCK)
 ok	one_table@table	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_CELLS = 1)
 137	one_table@table	dmlWhereClause/whereCurrentOfCursorClause	DELETE a WHERE CURRENT OF @a
@@ -944,6 +980,7 @@ ok	one_table@table	constraintEnforcement/NoCheck	ALTER TABLE a NOCHECK CONSTRAIN
 1921	one_table@table	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 33411	one_table@table	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 13591	one_table@table	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	one_table@table	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4924	one_table@table	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4924	one_table@table	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4924	one_table@table	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -958,6 +995,7 @@ ok	one_table@table	constraintEnforcement/NoCheck	ALTER TABLE a NOCHECK CONSTRAIN
 8168	one_table@table	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 13593	one_table@table	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 4924	one_table@table	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+ok	one_table@table	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 10785	one_table@table	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 3728	one_table@table	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 ok	one_table@table	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -971,6 +1009,7 @@ ok	one_table@table	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE 
 8135	one_table@table	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	one_table@table	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 ok	one_table@table	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	one_table@table	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	one_table@table	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 10785	one_table@table	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 1909	one_table@table	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -981,6 +1020,7 @@ ok	one_table@table	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineI
 ok	one_table@table	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 ok	one_table@table	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 ok	one_table@table	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	one_table@table	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 16006	one_table@table	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 ok	one_table@table	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 1733	one_table@table	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -998,11 +1038,13 @@ ok	one_table@table	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc
 13930	one_table@table	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 1752	one_table@table	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 1909	one_table@table	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+1911	one_table@table	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 1911	one_table@table	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 2715	one_table@table	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 13930	one_table@table	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 13930	one_table@table	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 1769	one_table@table	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+ok	one_table@table	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 215	one_table@table	parenthesizedOptExpressionWithDefaultList(expressionWithDefaultList)?/expressionWithDefaultList	DELETE a(1)
 15151	one_table@table	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 6267	one_table@table	assemblyName(Dot_identifier)?/Dot_identifier	CREATE TYPE a EXTERNAL NAME a.a
@@ -1026,6 +1068,9 @@ ok	one_table@table	ignoreDupKeyIndexOption_IGNORE_DUP_KEY(On_(LeftParenthesis_su
 4955	one_table@table	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 ok	one_table@table	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4924	one_table@table	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	one_table@table	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	one_table@table	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+2010	one_table@table	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 ok	one_table@column	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	one_table@column	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	one_table@column	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1148,6 +1193,7 @@ ok	one_table@column	dropTableStatement(If_Exists)?/If_Exists	DROP TABLE IF EXIST
 2705	one_table@column	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 ok	one_table@column	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 ok	one_table@column	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1716	one_table@column	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	one_table@column	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 207	one_table@column	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 ok	one_table@column	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -1186,8 +1232,10 @@ ok	one_table@column	outputClauseSelectColumn((As)?_(stringOrIdentifier))?/(As)?_
 ok	one_table@column	outputClauseSelectColumn(As)?/As	DELETE a OUTPUT 1 AS 'a'
 13929	one_table@column	identifierColumnList(identifierColumnReferenceExpression|~b17b9386)/graphPseudoColumn	CREATE STATISTICS a ON a($IDENTITY)
 1909	one_table@column	identifierColumnList(Comma_(identifierColumnReferenceExpr~e4c92ada)*/Comma_(identifierColumnReferenceExpression|~b17b9386)_(~9c885048	CREATE STATISTICS a ON a(a, a)
+1087	one_table@column	deleteSpecification/Delete_dmlTopRowFilterOpt_(From)?_dmlTarget_outputClaus~e9305aa0+fromClauseOpt	DELETE a FROM @a
 ok	one_table@column	deleteSpecification(From)?/From	DELETE FROM a
 ok	one_table@column	deleteSpecification(dmlWhereClause)?/dmlWhereClause	DELETE a WHERE 1 = 1
+ok	one_table@column	insertSpecification/Insert_dmlTopRowFilterOpt_(Into|Over)?_dmlTarget_(LeftP~57a9460f+dmlTopRowFilterOpt	INSERT TOP(1) a DEFAULT VALUES
 ok	one_table@column	insertSpecification(Into|Over)?/Into	INSERT INTO a DEFAULT VALUES
 ok	one_table@column	insertSpecification(Into|Over)?/Over	INSERT OVER a DEFAULT VALUES
 ok	one_table@column	insertSpecification(LeftParenthesis_insertColumn_(Comma_~1dbaf886)?/LeftParenthesis_insertColumn_(Comma_insertColumn)*_Righ~f0c23471	INSERT a(a) DEFAULT VALUES
@@ -1196,6 +1244,8 @@ ok	one_table@column	insertSpecification(Comma_insertColumn)*/Comma_insertColumn_
 2809	one_table@column	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource	INSERT a EXECUTE a
 2809	one_table@column	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource!insert	INSERT a EXECUTE a zzz
 263	one_table@column	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/selectInsertSource	INSERT a SELECT *
+137	one_table@column	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+dmlTopRowFilterOpt	UPDATE TOP(1) a SET @a = 1
+137	one_table@column	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+fromClauseOpt	UPDATE a SET @a = 1 FROM @a
 137	one_table@column	updateSpecification(dmlWhereClause)?/dmlWhereClause	UPDATE a SET @a = 1 WHERE 1 = 1
 137	one_table@column	setClausesList(Comma_setClause)*/Comma_setClause_(Comma_setClause)*	UPDATE a SET @a = 1, @a = 1
 ok	one_table@column	setClause/multiPartIdentifier_(setClauseColumnAssignment|setClaus~755a46d7	UPDATE a SET a = 1
@@ -1212,6 +1262,7 @@ ok	one_table@column	setClause/multiPartIdentifier_(setClauseColumnAssignment|set
 7202	one_table@column	openRowset/openQueryRowset_simpleTableReferenceAliasOpt	DELETE OPENQUERY(a, 'a')
 208	one_table@column	openRowset/adhocRowset_simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a
 208	one_table@column	openRowset/adhocRowset_simpleTableReferenceAliasOpt!insert	DELETE OPENDATASOURCE('a', 'a').a zzz
+208	one_table@column	openRowset/adhocRowset_simpleTableReferenceAliasOpt+simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a a
 ok	one_table@column	tableHint/simpleTableHint	DELETE a WITH(HOLDLOCK)
 ok	one_table@column	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_CELLS = 1)
 137	one_table@column	dmlWhereClause/whereCurrentOfCursorClause	DELETE a WHERE CURRENT OF @a
@@ -1286,6 +1337,7 @@ ok	one_table@column	constraintEnforcement/NoCheck	ALTER TABLE a NOCHECK CONSTRAI
 1921	one_table@column	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 33411	one_table@column	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 13591	one_table@column	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	one_table@column	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 2761	one_table@column	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 16006	one_table@column	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 ok	one_table@column	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -1300,6 +1352,7 @@ ok	one_table@column	alterTableAlterColumnStatement(RowGuidColumn|Not_For_Replica
 8168	one_table@column	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 13593	one_table@column	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 ok	one_table@column	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+ok	one_table@column	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 10785	one_table@column	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 3728	one_table@column	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 ok	one_table@column	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -1313,6 +1366,7 @@ ok	one_table@column	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE
 8135	one_table@column	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	one_table@column	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 ok	one_table@column	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	one_table@column	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	one_table@column	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 10785	one_table@column	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 1909	one_table@column	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -1323,6 +1377,7 @@ ok	one_table@column	tableElement/tableConstraint	ALTER TABLE a ADD UNIQUE(a)
 2705	one_table@column	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 2705	one_table@column	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 2705	one_table@column	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	one_table@column	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 2705	one_table@column	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 2705	one_table@column	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 2705	one_table@column	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -1340,11 +1395,13 @@ ok	one_table@column	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cad
 13930	one_table@column	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 ok	one_table@column	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 1909	one_table@column	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+1921	one_table@column	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 ok	one_table@column	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 2705	one_table@column	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 13930	one_table@column	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 13930	one_table@column	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 ok	one_table@column	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+ok	one_table@column	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 215	one_table@column	parenthesizedOptExpressionWithDefaultList(expressionWithDefaultList)?/expressionWithDefaultList	DELETE a(1)
 15151	one_table@column	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 6267	one_table@column	assemblyName(Dot_identifier)?/Dot_identifier	CREATE TYPE a EXTERNAL NAME a.a
@@ -1368,6 +1425,9 @@ ok	one_table@column	ignoreDupKeyIndexOption_IGNORE_DUP_KEY(On_(LeftParenthesis_s
 4955	one_table@column	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 ok	one_table@column	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 1733	one_table@column	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	one_table@column	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	one_table@column	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+2010	one_table@column	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 ok	one_table@index	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	one_table@index	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	one_table@index	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1490,6 +1550,7 @@ ok	one_table@index	dropTableStatement(If_Exists)?/If_Exists	DROP TABLE IF EXISTS
 2705	one_table@index	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1913	one_table@index	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1913	one_table@index	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1716	one_table@index	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	one_table@index	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 207	one_table@index	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1913	one_table@index	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -1528,8 +1589,10 @@ ok	one_table@index	outputClauseSelectColumn((As)?_(stringOrIdentifier))?/(As)?_s
 ok	one_table@index	outputClauseSelectColumn(As)?/As	DELETE a OUTPUT 1 AS 'a'
 13929	one_table@index	identifierColumnList(identifierColumnReferenceExpression|~b17b9386)/graphPseudoColumn	CREATE STATISTICS a ON a($IDENTITY)
 1909	one_table@index	identifierColumnList(Comma_(identifierColumnReferenceExpr~e4c92ada)*/Comma_(identifierColumnReferenceExpression|~b17b9386)_(~9c885048	CREATE STATISTICS a ON a(a, a)
+1087	one_table@index	deleteSpecification/Delete_dmlTopRowFilterOpt_(From)?_dmlTarget_outputClaus~e9305aa0+fromClauseOpt	DELETE a FROM @a
 ok	one_table@index	deleteSpecification(From)?/From	DELETE FROM a
 ok	one_table@index	deleteSpecification(dmlWhereClause)?/dmlWhereClause	DELETE a WHERE 1 = 1
+515	one_table@index	insertSpecification/Insert_dmlTopRowFilterOpt_(Into|Over)?_dmlTarget_(LeftP~57a9460f+dmlTopRowFilterOpt	INSERT TOP(1) a DEFAULT VALUES
 515	one_table@index	insertSpecification(Into|Over)?/Into	INSERT INTO a DEFAULT VALUES
 515	one_table@index	insertSpecification(Into|Over)?/Over	INSERT OVER a DEFAULT VALUES
 515	one_table@index	insertSpecification(LeftParenthesis_insertColumn_(Comma_~1dbaf886)?/LeftParenthesis_insertColumn_(Comma_insertColumn)*_Righ~f0c23471	INSERT a(a) DEFAULT VALUES
@@ -1538,6 +1601,8 @@ ok	one_table@index	deleteSpecification(dmlWhereClause)?/dmlWhereClause	DELETE a 
 2809	one_table@index	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource	INSERT a EXECUTE a
 2809	one_table@index	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource!insert	INSERT a EXECUTE a zzz
 263	one_table@index	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/selectInsertSource	INSERT a SELECT *
+137	one_table@index	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+dmlTopRowFilterOpt	UPDATE TOP(1) a SET @a = 1
+137	one_table@index	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+fromClauseOpt	UPDATE a SET @a = 1 FROM @a
 137	one_table@index	updateSpecification(dmlWhereClause)?/dmlWhereClause	UPDATE a SET @a = 1 WHERE 1 = 1
 137	one_table@index	setClausesList(Comma_setClause)*/Comma_setClause_(Comma_setClause)*	UPDATE a SET @a = 1, @a = 1
 ok	one_table@index	setClause/multiPartIdentifier_(setClauseColumnAssignment|setClaus~755a46d7	UPDATE a SET a = 1
@@ -1554,6 +1619,7 @@ ok	one_table@index	setClause/multiPartIdentifier_(setClauseColumnAssignment|setC
 7202	one_table@index	openRowset/openQueryRowset_simpleTableReferenceAliasOpt	DELETE OPENQUERY(a, 'a')
 208	one_table@index	openRowset/adhocRowset_simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a
 208	one_table@index	openRowset/adhocRowset_simpleTableReferenceAliasOpt!insert	DELETE OPENDATASOURCE('a', 'a').a zzz
+208	one_table@index	openRowset/adhocRowset_simpleTableReferenceAliasOpt+simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a a
 ok	one_table@index	tableHint/simpleTableHint	DELETE a WITH(HOLDLOCK)
 ok	one_table@index	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_CELLS = 1)
 137	one_table@index	dmlWhereClause/whereCurrentOfCursorClause	DELETE a WHERE CURRENT OF @a
@@ -1628,6 +1694,7 @@ ok	one_table@index	constraintEnforcement/NoCheck	ALTER TABLE a NOCHECK CONSTRAIN
 1921	one_table@index	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 33411	one_table@index	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 13591	one_table@index	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	one_table@index	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 2761	one_table@index	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 2715	one_table@index	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 2715	one_table@index	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -1642,6 +1709,7 @@ ok	one_table@index	constraintEnforcement/NoCheck	ALTER TABLE a NOCHECK CONSTRAIN
 8168	one_table@index	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 13593	one_table@index	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 5074	one_table@index	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+5074	one_table@index	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 10785	one_table@index	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 3728	one_table@index	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 ok	one_table@index	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -1655,6 +1723,7 @@ ok	one_table@index	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE 
 8135	one_table@index	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	one_table@index	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 2715	one_table@index	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	one_table@index	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	one_table@index	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 10785	one_table@index	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 1909	one_table@index	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -1665,6 +1734,7 @@ ok	one_table@index	tableElement/tableConstraint	ALTER TABLE a ADD UNIQUE(a)
 2705	one_table@index	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 2705	one_table@index	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 2705	one_table@index	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	one_table@index	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 2705	one_table@index	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 2705	one_table@index	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 2705	one_table@index	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -1682,11 +1752,13 @@ ok	one_table@index	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc
 13930	one_table@index	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 ok	one_table@index	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 1909	one_table@index	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+1921	one_table@index	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 ok	one_table@index	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 2705	one_table@index	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 13930	one_table@index	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 13930	one_table@index	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 ok	one_table@index	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+ok	one_table@index	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 215	one_table@index	parenthesizedOptExpressionWithDefaultList(expressionWithDefaultList)?/expressionWithDefaultList	DELETE a(1)
 15151	one_table@index	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 6267	one_table@index	assemblyName(Dot_identifier)?/Dot_identifier	CREATE TYPE a EXTERNAL NAME a.a
@@ -1710,6 +1782,9 @@ ok	one_table@index	ignoreDupKeyIndexOption_IGNORE_DUP_KEY(On_(LeftParenthesis_su
 4955	one_table@index	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 ok	one_table@index	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 2715	one_table@index	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	one_table@index	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	one_table@index	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+2010	one_table@index	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 ok	objects@view	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@view	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@view	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1832,6 +1907,7 @@ ok	objects@view	dropViewStatement(If_Exists)?/If_Exists	DROP VIEW IF EXISTS a
 4909	objects@view	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1939	objects@view	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1939	objects@view	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1716	objects@view	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	objects@view	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 10610	objects@view	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1939	objects@view	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -1870,8 +1946,10 @@ ok	objects@view	outputClauseSelectColumn((As)?_(stringOrIdentifier))?/(As)?_stri
 ok	objects@view	outputClauseSelectColumn(As)?/As	DELETE a OUTPUT 1 AS 'a'
 1939	objects@view	identifierColumnList(identifierColumnReferenceExpression|~b17b9386)/graphPseudoColumn	CREATE STATISTICS a ON a($IDENTITY)
 1909	objects@view	identifierColumnList(Comma_(identifierColumnReferenceExpr~e4c92ada)*/Comma_(identifierColumnReferenceExpression|~b17b9386)_(~9c885048	CREATE STATISTICS a ON a(a, a)
+1087	objects@view	deleteSpecification/Delete_dmlTopRowFilterOpt_(From)?_dmlTarget_outputClaus~e9305aa0+fromClauseOpt	DELETE a FROM @a
 ok	objects@view	deleteSpecification(From)?/From	DELETE FROM a
 ok	objects@view	deleteSpecification(dmlWhereClause)?/dmlWhereClause	DELETE a WHERE 1 = 1
+515	objects@view	insertSpecification/Insert_dmlTopRowFilterOpt_(Into|Over)?_dmlTarget_(LeftP~57a9460f+dmlTopRowFilterOpt	INSERT TOP(1) a DEFAULT VALUES
 515	objects@view	insertSpecification(Into|Over)?/Into	INSERT INTO a DEFAULT VALUES
 515	objects@view	insertSpecification(Into|Over)?/Over	INSERT OVER a DEFAULT VALUES
 515	objects@view	insertSpecification(LeftParenthesis_insertColumn_(Comma_~1dbaf886)?/LeftParenthesis_insertColumn_(Comma_insertColumn)*_Righ~f0c23471	INSERT a(a) DEFAULT VALUES
@@ -1880,6 +1958,8 @@ ok	objects@view	deleteSpecification(dmlWhereClause)?/dmlWhereClause	DELETE a WHE
 2809	objects@view	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource	INSERT a EXECUTE a
 2809	objects@view	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource!insert	INSERT a EXECUTE a zzz
 263	objects@view	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/selectInsertSource	INSERT a SELECT *
+137	objects@view	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+dmlTopRowFilterOpt	UPDATE TOP(1) a SET @a = 1
+137	objects@view	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+fromClauseOpt	UPDATE a SET @a = 1 FROM @a
 137	objects@view	updateSpecification(dmlWhereClause)?/dmlWhereClause	UPDATE a SET @a = 1 WHERE 1 = 1
 137	objects@view	setClausesList(Comma_setClause)*/Comma_setClause_(Comma_setClause)*	UPDATE a SET @a = 1, @a = 1
 ok	objects@view	setClause/multiPartIdentifier_(setClauseColumnAssignment|setClaus~755a46d7	UPDATE a SET a = 1
@@ -1896,6 +1976,7 @@ ok	objects@view	setClause/multiPartIdentifier_(setClauseColumnAssignment|setClau
 7202	objects@view	openRowset/openQueryRowset_simpleTableReferenceAliasOpt	DELETE OPENQUERY(a, 'a')
 208	objects@view	openRowset/adhocRowset_simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a
 208	objects@view	openRowset/adhocRowset_simpleTableReferenceAliasOpt!insert	DELETE OPENDATASOURCE('a', 'a').a zzz
+208	objects@view	openRowset/adhocRowset_simpleTableReferenceAliasOpt+simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a a
 ok	objects@view	tableHint/simpleTableHint	DELETE a WITH(HOLDLOCK)
 ok	objects@view	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_CELLS = 1)
 137	objects@view	dmlWhereClause/whereCurrentOfCursorClause	DELETE a WHERE CURRENT OF @a
@@ -1970,6 +2051,7 @@ ok	objects@view	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_CELL
 4909	objects@view	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4909	objects@view	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	objects@view	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	objects@view	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4909	objects@view	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	objects@view	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	objects@view	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -1984,6 +2066,7 @@ ok	objects@view	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_CELL
 8168	objects@view	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 4909	objects@view	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 4909	objects@view	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+4909	objects@view	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 4909	objects@view	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 4909	objects@view	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 4909	objects@view	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -1997,6 +2080,7 @@ ok	objects@view	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_CELL
 8135	objects@view	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	objects@view	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 4909	objects@view	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	objects@view	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	objects@view	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 4909	objects@view	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 4909	objects@view	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -2007,6 +2091,7 @@ ok	objects@view	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_CELL
 4909	objects@view	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4909	objects@view	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	objects@view	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	objects@view	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4909	objects@view	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	objects@view	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	objects@view	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -2024,11 +2109,13 @@ ok	objects@view	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_CELL
 4909	objects@view	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 4909	objects@view	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 4909	objects@view	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+4909	objects@view	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4909	objects@view	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 4909	objects@view	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	objects@view	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4909	objects@view	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	objects@view	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+4909	objects@view	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 215	objects@view	parenthesizedOptExpressionWithDefaultList(expressionWithDefaultList)?/expressionWithDefaultList	DELETE a(1)
 15151	objects@view	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 6267	objects@view	assemblyName(Dot_identifier)?/Dot_identifier	CREATE TYPE a EXTERNAL NAME a.a
@@ -2052,6 +2139,9 @@ ok	objects@view	dropTypeStatement_TYPE(If_Exists)?/If_Exists	DROP TYPE IF EXISTS
 4909	objects@view	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	objects@view	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4909	objects@view	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	objects@view	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	objects@view	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+2010	objects@view	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 ok	objects@sequence	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@sequence	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@sequence	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2174,6 +2264,7 @@ ok	objects@sequence	dropSchemaStatement(If_Exists)?/If_Exists	DROP SCHEMA IF EXI
 4909	objects@sequence	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1914	objects@sequence	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1914	objects@sequence	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1914	objects@sequence	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	objects@sequence	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 208	objects@sequence	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1914	objects@sequence	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -2212,8 +2303,10 @@ ok	objects@sequence	dropSchemaStatement(If_Exists)?/If_Exists	DROP SCHEMA IF EXI
 208	objects@sequence	outputClauseSelectColumn(As)?/As	DELETE a OUTPUT 1 AS 'a'
 1929	objects@sequence	identifierColumnList(identifierColumnReferenceExpression|~b17b9386)/graphPseudoColumn	CREATE STATISTICS a ON a($IDENTITY)
 1909	objects@sequence	identifierColumnList(Comma_(identifierColumnReferenceExpr~e4c92ada)*/Comma_(identifierColumnReferenceExpression|~b17b9386)_(~9c885048	CREATE STATISTICS a ON a(a, a)
+1087	objects@sequence	deleteSpecification/Delete_dmlTopRowFilterOpt_(From)?_dmlTarget_outputClaus~e9305aa0+fromClauseOpt	DELETE a FROM @a
 208	objects@sequence	deleteSpecification(From)?/From	DELETE FROM a
 208	objects@sequence	deleteSpecification(dmlWhereClause)?/dmlWhereClause	DELETE a WHERE 1 = 1
+208	objects@sequence	insertSpecification/Insert_dmlTopRowFilterOpt_(Into|Over)?_dmlTarget_(LeftP~57a9460f+dmlTopRowFilterOpt	INSERT TOP(1) a DEFAULT VALUES
 208	objects@sequence	insertSpecification(Into|Over)?/Into	INSERT INTO a DEFAULT VALUES
 208	objects@sequence	insertSpecification(Into|Over)?/Over	INSERT OVER a DEFAULT VALUES
 208	objects@sequence	insertSpecification(LeftParenthesis_insertColumn_(Comma_~1dbaf886)?/LeftParenthesis_insertColumn_(Comma_insertColumn)*_Righ~f0c23471	INSERT a(a) DEFAULT VALUES
@@ -2222,6 +2315,8 @@ ok	objects@sequence	dropSchemaStatement(If_Exists)?/If_Exists	DROP SCHEMA IF EXI
 208	objects@sequence	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource	INSERT a EXECUTE a
 208	objects@sequence	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource!insert	INSERT a EXECUTE a zzz
 263	objects@sequence	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/selectInsertSource	INSERT a SELECT *
+137	objects@sequence	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+dmlTopRowFilterOpt	UPDATE TOP(1) a SET @a = 1
+137	objects@sequence	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+fromClauseOpt	UPDATE a SET @a = 1 FROM @a
 137	objects@sequence	updateSpecification(dmlWhereClause)?/dmlWhereClause	UPDATE a SET @a = 1 WHERE 1 = 1
 137	objects@sequence	setClausesList(Comma_setClause)*/Comma_setClause_(Comma_setClause)*	UPDATE a SET @a = 1, @a = 1
 208	objects@sequence	setClause/multiPartIdentifier_(setClauseColumnAssignment|setClaus~755a46d7	UPDATE a SET a = 1
@@ -2238,6 +2333,7 @@ ok	objects@sequence	dropSchemaStatement(If_Exists)?/If_Exists	DROP SCHEMA IF EXI
 7202	objects@sequence	openRowset/openQueryRowset_simpleTableReferenceAliasOpt	DELETE OPENQUERY(a, 'a')
 208	objects@sequence	openRowset/adhocRowset_simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a
 208	objects@sequence	openRowset/adhocRowset_simpleTableReferenceAliasOpt!insert	DELETE OPENDATASOURCE('a', 'a').a zzz
+208	objects@sequence	openRowset/adhocRowset_simpleTableReferenceAliasOpt+simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a a
 208	objects@sequence	tableHint/simpleTableHint	DELETE a WITH(HOLDLOCK)
 208	objects@sequence	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_CELLS = 1)
 137	objects@sequence	dmlWhereClause/whereCurrentOfCursorClause	DELETE a WHERE CURRENT OF @a
@@ -2312,6 +2408,7 @@ ok	objects@sequence	sequenceMinMaxOptionListElement(MINVALUE|MAXVALUE)/MAXVALUE	
 4909	objects@sequence	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4909	objects@sequence	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	objects@sequence	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	objects@sequence	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4909	objects@sequence	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	objects@sequence	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	objects@sequence	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -2326,6 +2423,7 @@ ok	objects@sequence	sequenceMinMaxOptionListElement(MINVALUE|MAXVALUE)/MAXVALUE	
 8168	objects@sequence	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 4909	objects@sequence	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 4909	objects@sequence	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+4909	objects@sequence	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 4909	objects@sequence	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 4909	objects@sequence	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 4909	objects@sequence	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -2339,6 +2437,7 @@ ok	objects@sequence	sequenceMinMaxOptionListElement(MINVALUE|MAXVALUE)/MAXVALUE	
 8135	objects@sequence	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	objects@sequence	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 4909	objects@sequence	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	objects@sequence	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	objects@sequence	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 4909	objects@sequence	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 4909	objects@sequence	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -2349,6 +2448,7 @@ ok	objects@sequence	sequenceMinMaxOptionListElement(MINVALUE|MAXVALUE)/MAXVALUE	
 4909	objects@sequence	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4909	objects@sequence	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	objects@sequence	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	objects@sequence	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4909	objects@sequence	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	objects@sequence	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	objects@sequence	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -2366,11 +2466,13 @@ ok	objects@sequence	sequenceMinMaxOptionListElement(MINVALUE|MAXVALUE)/MAXVALUE	
 4909	objects@sequence	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 4909	objects@sequence	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 4909	objects@sequence	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+4909	objects@sequence	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4909	objects@sequence	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 4909	objects@sequence	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	objects@sequence	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4909	objects@sequence	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	objects@sequence	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+4909	objects@sequence	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 208	objects@sequence	parenthesizedOptExpressionWithDefaultList(expressionWithDefaultList)?/expressionWithDefaultList	DELETE a(1)
 15151	objects@sequence	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 6267	objects@sequence	assemblyName(Dot_identifier)?/Dot_identifier	CREATE TYPE a EXTERNAL NAME a.a
@@ -2394,6 +2496,9 @@ ok	objects@sequence	sequenceNoOptionListElement_NO(MINVALUE|MAXVALUE|CACHE|CYCLE
 4909	objects@sequence	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	objects@sequence	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4909	objects@sequence	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	objects@sequence	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	objects@sequence	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+2010	objects@sequence	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 ok	objects@procedure	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@procedure	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@procedure	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2516,6 +2621,7 @@ ok	objects@procedure	dropProcedureStatement(If_Exists)?/If_Exists	DROP PROCEDURE
 4909	objects@procedure	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1914	objects@procedure	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1914	objects@procedure	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1914	objects@procedure	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	objects@procedure	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 208	objects@procedure	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1914	objects@procedure	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -2554,8 +2660,10 @@ ok	objects@procedure	dropProcedureStatement(If_Exists)?/If_Exists	DROP PROCEDURE
 208	objects@procedure	outputClauseSelectColumn(As)?/As	DELETE a OUTPUT 1 AS 'a'
 1929	objects@procedure	identifierColumnList(identifierColumnReferenceExpression|~b17b9386)/graphPseudoColumn	CREATE STATISTICS a ON a($IDENTITY)
 1909	objects@procedure	identifierColumnList(Comma_(identifierColumnReferenceExpr~e4c92ada)*/Comma_(identifierColumnReferenceExpression|~b17b9386)_(~9c885048	CREATE STATISTICS a ON a(a, a)
+1087	objects@procedure	deleteSpecification/Delete_dmlTopRowFilterOpt_(From)?_dmlTarget_outputClaus~e9305aa0+fromClauseOpt	DELETE a FROM @a
 208	objects@procedure	deleteSpecification(From)?/From	DELETE FROM a
 208	objects@procedure	deleteSpecification(dmlWhereClause)?/dmlWhereClause	DELETE a WHERE 1 = 1
+208	objects@procedure	insertSpecification/Insert_dmlTopRowFilterOpt_(Into|Over)?_dmlTarget_(LeftP~57a9460f+dmlTopRowFilterOpt	INSERT TOP(1) a DEFAULT VALUES
 208	objects@procedure	insertSpecification(Into|Over)?/Into	INSERT INTO a DEFAULT VALUES
 208	objects@procedure	insertSpecification(Into|Over)?/Over	INSERT OVER a DEFAULT VALUES
 208	objects@procedure	insertSpecification(LeftParenthesis_insertColumn_(Comma_~1dbaf886)?/LeftParenthesis_insertColumn_(Comma_insertColumn)*_Righ~f0c23471	INSERT a(a) DEFAULT VALUES
@@ -2564,6 +2672,8 @@ ok	objects@procedure	dropProcedureStatement(If_Exists)?/If_Exists	DROP PROCEDURE
 208	objects@procedure	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource	INSERT a EXECUTE a
 208	objects@procedure	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource!insert	INSERT a EXECUTE a zzz
 263	objects@procedure	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/selectInsertSource	INSERT a SELECT *
+137	objects@procedure	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+dmlTopRowFilterOpt	UPDATE TOP(1) a SET @a = 1
+137	objects@procedure	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+fromClauseOpt	UPDATE a SET @a = 1 FROM @a
 137	objects@procedure	updateSpecification(dmlWhereClause)?/dmlWhereClause	UPDATE a SET @a = 1 WHERE 1 = 1
 137	objects@procedure	setClausesList(Comma_setClause)*/Comma_setClause_(Comma_setClause)*	UPDATE a SET @a = 1, @a = 1
 208	objects@procedure	setClause/multiPartIdentifier_(setClauseColumnAssignment|setClaus~755a46d7	UPDATE a SET a = 1
@@ -2580,6 +2690,7 @@ ok	objects@procedure	dropProcedureStatement(If_Exists)?/If_Exists	DROP PROCEDURE
 7202	objects@procedure	openRowset/openQueryRowset_simpleTableReferenceAliasOpt	DELETE OPENQUERY(a, 'a')
 208	objects@procedure	openRowset/adhocRowset_simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a
 208	objects@procedure	openRowset/adhocRowset_simpleTableReferenceAliasOpt!insert	DELETE OPENDATASOURCE('a', 'a').a zzz
+208	objects@procedure	openRowset/adhocRowset_simpleTableReferenceAliasOpt+simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a a
 208	objects@procedure	tableHint/simpleTableHint	DELETE a WITH(HOLDLOCK)
 208	objects@procedure	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_CELLS = 1)
 137	objects@procedure	dmlWhereClause/whereCurrentOfCursorClause	DELETE a WHERE CURRENT OF @a
@@ -2654,6 +2765,7 @@ ok	objects@procedure	dropProcedureStatement(If_Exists)?/If_Exists	DROP PROCEDURE
 4909	objects@procedure	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4909	objects@procedure	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	objects@procedure	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	objects@procedure	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4909	objects@procedure	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	objects@procedure	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	objects@procedure	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -2668,6 +2780,7 @@ ok	objects@procedure	dropProcedureStatement(If_Exists)?/If_Exists	DROP PROCEDURE
 8168	objects@procedure	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 4909	objects@procedure	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 4909	objects@procedure	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+4909	objects@procedure	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 4909	objects@procedure	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 4909	objects@procedure	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 4909	objects@procedure	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -2681,6 +2794,7 @@ ok	objects@procedure	dropProcedureStatement(If_Exists)?/If_Exists	DROP PROCEDURE
 8135	objects@procedure	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	objects@procedure	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 4909	objects@procedure	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	objects@procedure	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	objects@procedure	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 4909	objects@procedure	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 4909	objects@procedure	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -2691,6 +2805,7 @@ ok	objects@procedure	dropProcedureStatement(If_Exists)?/If_Exists	DROP PROCEDURE
 4909	objects@procedure	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4909	objects@procedure	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	objects@procedure	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	objects@procedure	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4909	objects@procedure	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	objects@procedure	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	objects@procedure	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -2708,11 +2823,13 @@ ok	objects@procedure	dropProcedureStatement(If_Exists)?/If_Exists	DROP PROCEDURE
 4909	objects@procedure	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 4909	objects@procedure	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 4909	objects@procedure	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+4909	objects@procedure	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4909	objects@procedure	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 4909	objects@procedure	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	objects@procedure	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4909	objects@procedure	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	objects@procedure	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+4909	objects@procedure	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 208	objects@procedure	parenthesizedOptExpressionWithDefaultList(expressionWithDefaultList)?/expressionWithDefaultList	DELETE a(1)
 15151	objects@procedure	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 6267	objects@procedure	assemblyName(Dot_identifier)?/Dot_identifier	CREATE TYPE a EXTERNAL NAME a.a
@@ -2736,6 +2853,9 @@ ok	objects@procedure	dropTypeStatement_TYPE(If_Exists)?/If_Exists	DROP TYPE IF E
 4909	objects@procedure	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	objects@procedure	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4909	objects@procedure	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	objects@procedure	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	objects@procedure	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+ok	objects@procedure	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 ok	objects@function	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@function	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@function	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2858,6 +2978,7 @@ ok	objects@function	dropFunctionStatement(If_Exists)?/If_Exists	DROP FUNCTION IF
 4909	objects@function	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1914	objects@function	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1914	objects@function	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1914	objects@function	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	objects@function	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 208	objects@function	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1914	objects@function	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -2896,8 +3017,10 @@ ok	objects@function	dropFunctionStatement(If_Exists)?/If_Exists	DROP FUNCTION IF
 208	objects@function	outputClauseSelectColumn(As)?/As	DELETE a OUTPUT 1 AS 'a'
 1929	objects@function	identifierColumnList(identifierColumnReferenceExpression|~b17b9386)/graphPseudoColumn	CREATE STATISTICS a ON a($IDENTITY)
 1909	objects@function	identifierColumnList(Comma_(identifierColumnReferenceExpr~e4c92ada)*/Comma_(identifierColumnReferenceExpression|~b17b9386)_(~9c885048	CREATE STATISTICS a ON a(a, a)
+1087	objects@function	deleteSpecification/Delete_dmlTopRowFilterOpt_(From)?_dmlTarget_outputClaus~e9305aa0+fromClauseOpt	DELETE a FROM @a
 208	objects@function	deleteSpecification(From)?/From	DELETE FROM a
 208	objects@function	deleteSpecification(dmlWhereClause)?/dmlWhereClause	DELETE a WHERE 1 = 1
+208	objects@function	insertSpecification/Insert_dmlTopRowFilterOpt_(Into|Over)?_dmlTarget_(LeftP~57a9460f+dmlTopRowFilterOpt	INSERT TOP(1) a DEFAULT VALUES
 208	objects@function	insertSpecification(Into|Over)?/Into	INSERT INTO a DEFAULT VALUES
 208	objects@function	insertSpecification(Into|Over)?/Over	INSERT OVER a DEFAULT VALUES
 208	objects@function	insertSpecification(LeftParenthesis_insertColumn_(Comma_~1dbaf886)?/LeftParenthesis_insertColumn_(Comma_insertColumn)*_Righ~f0c23471	INSERT a(a) DEFAULT VALUES
@@ -2906,6 +3029,8 @@ ok	objects@function	dropFunctionStatement(If_Exists)?/If_Exists	DROP FUNCTION IF
 208	objects@function	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource	INSERT a EXECUTE a
 208	objects@function	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource!insert	INSERT a EXECUTE a zzz
 263	objects@function	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/selectInsertSource	INSERT a SELECT *
+137	objects@function	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+dmlTopRowFilterOpt	UPDATE TOP(1) a SET @a = 1
+137	objects@function	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+fromClauseOpt	UPDATE a SET @a = 1 FROM @a
 137	objects@function	updateSpecification(dmlWhereClause)?/dmlWhereClause	UPDATE a SET @a = 1 WHERE 1 = 1
 137	objects@function	setClausesList(Comma_setClause)*/Comma_setClause_(Comma_setClause)*	UPDATE a SET @a = 1, @a = 1
 208	objects@function	setClause/multiPartIdentifier_(setClauseColumnAssignment|setClaus~755a46d7	UPDATE a SET a = 1
@@ -2922,6 +3047,7 @@ ok	objects@function	dropFunctionStatement(If_Exists)?/If_Exists	DROP FUNCTION IF
 7202	objects@function	openRowset/openQueryRowset_simpleTableReferenceAliasOpt	DELETE OPENQUERY(a, 'a')
 208	objects@function	openRowset/adhocRowset_simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a
 208	objects@function	openRowset/adhocRowset_simpleTableReferenceAliasOpt!insert	DELETE OPENDATASOURCE('a', 'a').a zzz
+208	objects@function	openRowset/adhocRowset_simpleTableReferenceAliasOpt+simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a a
 208	objects@function	tableHint/simpleTableHint	DELETE a WITH(HOLDLOCK)
 208	objects@function	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_CELLS = 1)
 137	objects@function	dmlWhereClause/whereCurrentOfCursorClause	DELETE a WHERE CURRENT OF @a
@@ -2996,6 +3122,7 @@ ok	objects@function	dropFunctionStatement(If_Exists)?/If_Exists	DROP FUNCTION IF
 4909	objects@function	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4909	objects@function	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	objects@function	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	objects@function	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4909	objects@function	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	objects@function	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	objects@function	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -3010,6 +3137,7 @@ ok	objects@function	dropFunctionStatement(If_Exists)?/If_Exists	DROP FUNCTION IF
 8168	objects@function	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 4909	objects@function	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 4909	objects@function	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+4909	objects@function	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 4909	objects@function	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 4909	objects@function	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 4909	objects@function	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -3023,6 +3151,7 @@ ok	objects@function	dropFunctionStatement(If_Exists)?/If_Exists	DROP FUNCTION IF
 8135	objects@function	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	objects@function	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 4909	objects@function	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	objects@function	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	objects@function	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 4909	objects@function	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 4909	objects@function	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -3033,6 +3162,7 @@ ok	objects@function	dropFunctionStatement(If_Exists)?/If_Exists	DROP FUNCTION IF
 4909	objects@function	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4909	objects@function	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	objects@function	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	objects@function	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4909	objects@function	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	objects@function	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	objects@function	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -3050,11 +3180,13 @@ ok	objects@function	dropFunctionStatement(If_Exists)?/If_Exists	DROP FUNCTION IF
 4909	objects@function	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 4909	objects@function	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 4909	objects@function	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+4909	objects@function	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4909	objects@function	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 4909	objects@function	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	objects@function	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4909	objects@function	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	objects@function	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+4909	objects@function	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 208	objects@function	parenthesizedOptExpressionWithDefaultList(expressionWithDefaultList)?/expressionWithDefaultList	DELETE a(1)
 15151	objects@function	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 6267	objects@function	assemblyName(Dot_identifier)?/Dot_identifier	CREATE TYPE a EXTERNAL NAME a.a
@@ -3078,6 +3210,9 @@ ok	objects@function	dropTypeStatement_TYPE(If_Exists)?/If_Exists	DROP TYPE IF EX
 4909	objects@function	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	objects@function	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4909	objects@function	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	objects@function	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	objects@function	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+2010	objects@function	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 ok	objects@synonym	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@synonym	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@synonym	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -3200,6 +3335,7 @@ ok	objects@synonym	dropSchemaStatement(If_Exists)?/If_Exists	DROP SCHEMA IF EXIS
 4909	objects@synonym	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1914	objects@synonym	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1914	objects@synonym	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1914	objects@synonym	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	objects@synonym	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 208	objects@synonym	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1914	objects@synonym	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -3238,8 +3374,10 @@ ok	objects@synonym	outputClauseSelectColumn((As)?_(stringOrIdentifier))?/(As)?_s
 ok	objects@synonym	outputClauseSelectColumn(As)?/As	DELETE a OUTPUT 1 AS 'a'
 1929	objects@synonym	identifierColumnList(identifierColumnReferenceExpression|~b17b9386)/graphPseudoColumn	CREATE STATISTICS a ON a($IDENTITY)
 1909	objects@synonym	identifierColumnList(Comma_(identifierColumnReferenceExpr~e4c92ada)*/Comma_(identifierColumnReferenceExpression|~b17b9386)_(~9c885048	CREATE STATISTICS a ON a(a, a)
+1087	objects@synonym	deleteSpecification/Delete_dmlTopRowFilterOpt_(From)?_dmlTarget_outputClaus~e9305aa0+fromClauseOpt	DELETE a FROM @a
 ok	objects@synonym	deleteSpecification(From)?/From	DELETE FROM a
 ok	objects@synonym	deleteSpecification(dmlWhereClause)?/dmlWhereClause	DELETE a WHERE 1 = 1
+515	objects@synonym	insertSpecification/Insert_dmlTopRowFilterOpt_(Into|Over)?_dmlTarget_(LeftP~57a9460f+dmlTopRowFilterOpt	INSERT TOP(1) a DEFAULT VALUES
 515	objects@synonym	insertSpecification(Into|Over)?/Into	INSERT INTO a DEFAULT VALUES
 515	objects@synonym	insertSpecification(Into|Over)?/Over	INSERT OVER a DEFAULT VALUES
 515	objects@synonym	insertSpecification(LeftParenthesis_insertColumn_(Comma_~1dbaf886)?/LeftParenthesis_insertColumn_(Comma_insertColumn)*_Righ~f0c23471	INSERT a(a) DEFAULT VALUES
@@ -3248,6 +3386,8 @@ ok	objects@synonym	deleteSpecification(dmlWhereClause)?/dmlWhereClause	DELETE a 
 2809	objects@synonym	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource	INSERT a EXECUTE a
 2809	objects@synonym	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource!insert	INSERT a EXECUTE a zzz
 263	objects@synonym	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/selectInsertSource	INSERT a SELECT *
+137	objects@synonym	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+dmlTopRowFilterOpt	UPDATE TOP(1) a SET @a = 1
+137	objects@synonym	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+fromClauseOpt	UPDATE a SET @a = 1 FROM @a
 137	objects@synonym	updateSpecification(dmlWhereClause)?/dmlWhereClause	UPDATE a SET @a = 1 WHERE 1 = 1
 137	objects@synonym	setClausesList(Comma_setClause)*/Comma_setClause_(Comma_setClause)*	UPDATE a SET @a = 1, @a = 1
 ok	objects@synonym	setClause/multiPartIdentifier_(setClauseColumnAssignment|setClaus~755a46d7	UPDATE a SET a = 1
@@ -3264,6 +3404,7 @@ ok	objects@synonym	setClause/multiPartIdentifier_(setClauseColumnAssignment|setC
 7202	objects@synonym	openRowset/openQueryRowset_simpleTableReferenceAliasOpt	DELETE OPENQUERY(a, 'a')
 208	objects@synonym	openRowset/adhocRowset_simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a
 208	objects@synonym	openRowset/adhocRowset_simpleTableReferenceAliasOpt!insert	DELETE OPENDATASOURCE('a', 'a').a zzz
+208	objects@synonym	openRowset/adhocRowset_simpleTableReferenceAliasOpt+simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a a
 ok	objects@synonym	tableHint/simpleTableHint	DELETE a WITH(HOLDLOCK)
 ok	objects@synonym	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_CELLS = 1)
 137	objects@synonym	dmlWhereClause/whereCurrentOfCursorClause	DELETE a WHERE CURRENT OF @a
@@ -3338,6 +3479,7 @@ ok	objects@synonym	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_C
 4909	objects@synonym	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4909	objects@synonym	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	objects@synonym	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	objects@synonym	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4909	objects@synonym	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	objects@synonym	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	objects@synonym	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -3352,6 +3494,7 @@ ok	objects@synonym	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_C
 8168	objects@synonym	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 4909	objects@synonym	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 4909	objects@synonym	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+4909	objects@synonym	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 4909	objects@synonym	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 4909	objects@synonym	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 4909	objects@synonym	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -3365,6 +3508,7 @@ ok	objects@synonym	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_C
 8135	objects@synonym	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	objects@synonym	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 4909	objects@synonym	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	objects@synonym	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	objects@synonym	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 4909	objects@synonym	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 4909	objects@synonym	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -3375,6 +3519,7 @@ ok	objects@synonym	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_C
 4909	objects@synonym	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4909	objects@synonym	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	objects@synonym	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	objects@synonym	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4909	objects@synonym	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	objects@synonym	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	objects@synonym	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -3392,11 +3537,13 @@ ok	objects@synonym	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_C
 4909	objects@synonym	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 4909	objects@synonym	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 4909	objects@synonym	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+4909	objects@synonym	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4909	objects@synonym	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 4909	objects@synonym	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	objects@synonym	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4909	objects@synonym	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	objects@synonym	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+4909	objects@synonym	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 215	objects@synonym	parenthesizedOptExpressionWithDefaultList(expressionWithDefaultList)?/expressionWithDefaultList	DELETE a(1)
 15151	objects@synonym	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 6267	objects@synonym	assemblyName(Dot_identifier)?/Dot_identifier	CREATE TYPE a EXTERNAL NAME a.a
@@ -3420,6 +3567,9 @@ ok	objects@synonym	dropTypeStatement_TYPE(If_Exists)?/If_Exists	DROP TYPE IF EXI
 4909	objects@synonym	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	objects@synonym	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4909	objects@synonym	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	objects@synonym	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	objects@synonym	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+2010	objects@synonym	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 2714	objects@schema	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@schema	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@schema	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -3542,6 +3692,7 @@ ok	objects@schema	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EXI
 4902	objects@schema	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1088	objects@schema	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1088	objects@schema	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1088	objects@schema	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	objects@schema	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 208	objects@schema	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1088	objects@schema	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -3580,8 +3731,10 @@ ok	objects@schema	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EXI
 208	objects@schema	outputClauseSelectColumn(As)?/As	DELETE a OUTPUT 1 AS 'a'
 1088	objects@schema	identifierColumnList(identifierColumnReferenceExpression|~b17b9386)/graphPseudoColumn	CREATE STATISTICS a ON a($IDENTITY)
 1909	objects@schema	identifierColumnList(Comma_(identifierColumnReferenceExpr~e4c92ada)*/Comma_(identifierColumnReferenceExpression|~b17b9386)_(~9c885048	CREATE STATISTICS a ON a(a, a)
+1087	objects@schema	deleteSpecification/Delete_dmlTopRowFilterOpt_(From)?_dmlTarget_outputClaus~e9305aa0+fromClauseOpt	DELETE a FROM @a
 208	objects@schema	deleteSpecification(From)?/From	DELETE FROM a
 208	objects@schema	deleteSpecification(dmlWhereClause)?/dmlWhereClause	DELETE a WHERE 1 = 1
+208	objects@schema	insertSpecification/Insert_dmlTopRowFilterOpt_(Into|Over)?_dmlTarget_(LeftP~57a9460f+dmlTopRowFilterOpt	INSERT TOP(1) a DEFAULT VALUES
 208	objects@schema	insertSpecification(Into|Over)?/Into	INSERT INTO a DEFAULT VALUES
 208	objects@schema	insertSpecification(Into|Over)?/Over	INSERT OVER a DEFAULT VALUES
 208	objects@schema	insertSpecification(LeftParenthesis_insertColumn_(Comma_~1dbaf886)?/LeftParenthesis_insertColumn_(Comma_insertColumn)*_Righ~f0c23471	INSERT a(a) DEFAULT VALUES
@@ -3590,6 +3743,8 @@ ok	objects@schema	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EXI
 208	objects@schema	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource	INSERT a EXECUTE a
 208	objects@schema	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource!insert	INSERT a EXECUTE a zzz
 263	objects@schema	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/selectInsertSource	INSERT a SELECT *
+137	objects@schema	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+dmlTopRowFilterOpt	UPDATE TOP(1) a SET @a = 1
+137	objects@schema	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+fromClauseOpt	UPDATE a SET @a = 1 FROM @a
 137	objects@schema	updateSpecification(dmlWhereClause)?/dmlWhereClause	UPDATE a SET @a = 1 WHERE 1 = 1
 137	objects@schema	setClausesList(Comma_setClause)*/Comma_setClause_(Comma_setClause)*	UPDATE a SET @a = 1, @a = 1
 208	objects@schema	setClause/multiPartIdentifier_(setClauseColumnAssignment|setClaus~755a46d7	UPDATE a SET a = 1
@@ -3606,6 +3761,7 @@ ok	objects@schema	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EXI
 7202	objects@schema	openRowset/openQueryRowset_simpleTableReferenceAliasOpt	DELETE OPENQUERY(a, 'a')
 208	objects@schema	openRowset/adhocRowset_simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a
 208	objects@schema	openRowset/adhocRowset_simpleTableReferenceAliasOpt!insert	DELETE OPENDATASOURCE('a', 'a').a zzz
+208	objects@schema	openRowset/adhocRowset_simpleTableReferenceAliasOpt+simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a a
 208	objects@schema	tableHint/simpleTableHint	DELETE a WITH(HOLDLOCK)
 208	objects@schema	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_CELLS = 1)
 137	objects@schema	dmlWhereClause/whereCurrentOfCursorClause	DELETE a WHERE CURRENT OF @a
@@ -3680,6 +3836,7 @@ ok	objects@schema	createTableStatement(FILETABLE|EDGE)/EDGE	CREATE TABLE a AS ED
 4902	objects@schema	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4902	objects@schema	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4902	objects@schema	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	objects@schema	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4902	objects@schema	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4902	objects@schema	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4902	objects@schema	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -3694,6 +3851,7 @@ ok	objects@schema	createTableStatement(FILETABLE|EDGE)/EDGE	CREATE TABLE a AS ED
 8168	objects@schema	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 4902	objects@schema	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 4902	objects@schema	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+4902	objects@schema	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 4902	objects@schema	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 4902	objects@schema	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 4902	objects@schema	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -3707,6 +3865,7 @@ ok	objects@schema	createTableStatement(FILETABLE|EDGE)/EDGE	CREATE TABLE a AS ED
 8135	objects@schema	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	objects@schema	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 4902	objects@schema	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	objects@schema	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	objects@schema	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 4902	objects@schema	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 4902	objects@schema	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -3717,6 +3876,7 @@ ok	objects@schema	createTableStatement(FILETABLE|EDGE)/EDGE	CREATE TABLE a AS ED
 4902	objects@schema	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4902	objects@schema	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4902	objects@schema	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	objects@schema	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4902	objects@schema	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4902	objects@schema	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4902	objects@schema	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -3734,11 +3894,13 @@ ok	objects@schema	createTableStatement(FILETABLE|EDGE)/EDGE	CREATE TABLE a AS ED
 4902	objects@schema	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 4902	objects@schema	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 4902	objects@schema	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+4902	objects@schema	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4902	objects@schema	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 4902	objects@schema	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4902	objects@schema	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4902	objects@schema	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4902	objects@schema	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+4902	objects@schema	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 208	objects@schema	parenthesizedOptExpressionWithDefaultList(expressionWithDefaultList)?/expressionWithDefaultList	DELETE a(1)
 15151	objects@schema	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 6267	objects@schema	assemblyName(Dot_identifier)?/Dot_identifier	CREATE TYPE a EXTERNAL NAME a.a
@@ -3762,6 +3924,9 @@ ok	objects@schema	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists	DROP SEQU
 4902	objects@schema	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4902	objects@schema	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4902	objects@schema	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	objects@schema	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	objects@schema	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+ok	objects@schema	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 2714	objects@schema_nonempty	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@schema_nonempty	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@schema_nonempty	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -3884,6 +4049,7 @@ ok	objects@schema_nonempty	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGG
 4902	objects@schema_nonempty	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1088	objects@schema_nonempty	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1088	objects@schema_nonempty	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1088	objects@schema_nonempty	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	objects@schema_nonempty	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 208	objects@schema_nonempty	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1088	objects@schema_nonempty	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -3922,8 +4088,10 @@ ok	objects@schema_nonempty	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGG
 208	objects@schema_nonempty	outputClauseSelectColumn(As)?/As	DELETE a OUTPUT 1 AS 'a'
 1088	objects@schema_nonempty	identifierColumnList(identifierColumnReferenceExpression|~b17b9386)/graphPseudoColumn	CREATE STATISTICS a ON a($IDENTITY)
 1909	objects@schema_nonempty	identifierColumnList(Comma_(identifierColumnReferenceExpr~e4c92ada)*/Comma_(identifierColumnReferenceExpression|~b17b9386)_(~9c885048	CREATE STATISTICS a ON a(a, a)
+1087	objects@schema_nonempty	deleteSpecification/Delete_dmlTopRowFilterOpt_(From)?_dmlTarget_outputClaus~e9305aa0+fromClauseOpt	DELETE a FROM @a
 208	objects@schema_nonempty	deleteSpecification(From)?/From	DELETE FROM a
 208	objects@schema_nonempty	deleteSpecification(dmlWhereClause)?/dmlWhereClause	DELETE a WHERE 1 = 1
+208	objects@schema_nonempty	insertSpecification/Insert_dmlTopRowFilterOpt_(Into|Over)?_dmlTarget_(LeftP~57a9460f+dmlTopRowFilterOpt	INSERT TOP(1) a DEFAULT VALUES
 208	objects@schema_nonempty	insertSpecification(Into|Over)?/Into	INSERT INTO a DEFAULT VALUES
 208	objects@schema_nonempty	insertSpecification(Into|Over)?/Over	INSERT OVER a DEFAULT VALUES
 208	objects@schema_nonempty	insertSpecification(LeftParenthesis_insertColumn_(Comma_~1dbaf886)?/LeftParenthesis_insertColumn_(Comma_insertColumn)*_Righ~f0c23471	INSERT a(a) DEFAULT VALUES
@@ -3932,6 +4100,8 @@ ok	objects@schema_nonempty	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGG
 208	objects@schema_nonempty	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource	INSERT a EXECUTE a
 208	objects@schema_nonempty	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource!insert	INSERT a EXECUTE a zzz
 263	objects@schema_nonempty	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/selectInsertSource	INSERT a SELECT *
+137	objects@schema_nonempty	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+dmlTopRowFilterOpt	UPDATE TOP(1) a SET @a = 1
+137	objects@schema_nonempty	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+fromClauseOpt	UPDATE a SET @a = 1 FROM @a
 137	objects@schema_nonempty	updateSpecification(dmlWhereClause)?/dmlWhereClause	UPDATE a SET @a = 1 WHERE 1 = 1
 137	objects@schema_nonempty	setClausesList(Comma_setClause)*/Comma_setClause_(Comma_setClause)*	UPDATE a SET @a = 1, @a = 1
 208	objects@schema_nonempty	setClause/multiPartIdentifier_(setClauseColumnAssignment|setClaus~755a46d7	UPDATE a SET a = 1
@@ -3948,6 +4118,7 @@ ok	objects@schema_nonempty	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGG
 7202	objects@schema_nonempty	openRowset/openQueryRowset_simpleTableReferenceAliasOpt	DELETE OPENQUERY(a, 'a')
 208	objects@schema_nonempty	openRowset/adhocRowset_simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a
 208	objects@schema_nonempty	openRowset/adhocRowset_simpleTableReferenceAliasOpt!insert	DELETE OPENDATASOURCE('a', 'a').a zzz
+208	objects@schema_nonempty	openRowset/adhocRowset_simpleTableReferenceAliasOpt+simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a a
 208	objects@schema_nonempty	tableHint/simpleTableHint	DELETE a WITH(HOLDLOCK)
 208	objects@schema_nonempty	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_CELLS = 1)
 137	objects@schema_nonempty	dmlWhereClause/whereCurrentOfCursorClause	DELETE a WHERE CURRENT OF @a
@@ -4022,6 +4193,7 @@ ok	objects@schema_nonempty	createTableStatement(FILETABLE|EDGE)/EDGE	CREATE TABL
 4902	objects@schema_nonempty	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4902	objects@schema_nonempty	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4902	objects@schema_nonempty	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	objects@schema_nonempty	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4902	objects@schema_nonempty	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4902	objects@schema_nonempty	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4902	objects@schema_nonempty	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -4036,6 +4208,7 @@ ok	objects@schema_nonempty	createTableStatement(FILETABLE|EDGE)/EDGE	CREATE TABL
 8168	objects@schema_nonempty	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 4902	objects@schema_nonempty	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 4902	objects@schema_nonempty	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+4902	objects@schema_nonempty	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 4902	objects@schema_nonempty	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 4902	objects@schema_nonempty	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 4902	objects@schema_nonempty	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -4049,6 +4222,7 @@ ok	objects@schema_nonempty	createTableStatement(FILETABLE|EDGE)/EDGE	CREATE TABL
 8135	objects@schema_nonempty	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	objects@schema_nonempty	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 4902	objects@schema_nonempty	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	objects@schema_nonempty	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	objects@schema_nonempty	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 4902	objects@schema_nonempty	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 4902	objects@schema_nonempty	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -4059,6 +4233,7 @@ ok	objects@schema_nonempty	createTableStatement(FILETABLE|EDGE)/EDGE	CREATE TABL
 4902	objects@schema_nonempty	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4902	objects@schema_nonempty	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4902	objects@schema_nonempty	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	objects@schema_nonempty	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4902	objects@schema_nonempty	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4902	objects@schema_nonempty	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4902	objects@schema_nonempty	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -4076,11 +4251,13 @@ ok	objects@schema_nonempty	createTableStatement(FILETABLE|EDGE)/EDGE	CREATE TABL
 4902	objects@schema_nonempty	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 4902	objects@schema_nonempty	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 4902	objects@schema_nonempty	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+4902	objects@schema_nonempty	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4902	objects@schema_nonempty	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 4902	objects@schema_nonempty	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4902	objects@schema_nonempty	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4902	objects@schema_nonempty	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4902	objects@schema_nonempty	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+4902	objects@schema_nonempty	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 208	objects@schema_nonempty	parenthesizedOptExpressionWithDefaultList(expressionWithDefaultList)?/expressionWithDefaultList	DELETE a(1)
 15151	objects@schema_nonempty	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 6267	objects@schema_nonempty	assemblyName(Dot_identifier)?/Dot_identifier	CREATE TYPE a EXTERNAL NAME a.a
@@ -4104,6 +4281,9 @@ ok	objects@schema_nonempty	dropSequenceStatement_SEQUENCE(If_Exists)?/If_Exists	
 4902	objects@schema_nonempty	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4902	objects@schema_nonempty	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4902	objects@schema_nonempty	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	objects@schema_nonempty	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	objects@schema_nonempty	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+ok	objects@schema_nonempty	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 ok	objects@constraint	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@constraint	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@constraint	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -4226,6 +4406,7 @@ ok	objects@constraint	dropSchemaStatement(If_Exists)?/If_Exists	DROP SCHEMA IF E
 4909	objects@constraint	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1914	objects@constraint	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1914	objects@constraint	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1914	objects@constraint	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	objects@constraint	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 208	objects@constraint	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1914	objects@constraint	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -4264,8 +4445,10 @@ ok	objects@constraint	dropSchemaStatement(If_Exists)?/If_Exists	DROP SCHEMA IF E
 208	objects@constraint	outputClauseSelectColumn(As)?/As	DELETE a OUTPUT 1 AS 'a'
 1929	objects@constraint	identifierColumnList(identifierColumnReferenceExpression|~b17b9386)/graphPseudoColumn	CREATE STATISTICS a ON a($IDENTITY)
 1909	objects@constraint	identifierColumnList(Comma_(identifierColumnReferenceExpr~e4c92ada)*/Comma_(identifierColumnReferenceExpression|~b17b9386)_(~9c885048	CREATE STATISTICS a ON a(a, a)
+1087	objects@constraint	deleteSpecification/Delete_dmlTopRowFilterOpt_(From)?_dmlTarget_outputClaus~e9305aa0+fromClauseOpt	DELETE a FROM @a
 208	objects@constraint	deleteSpecification(From)?/From	DELETE FROM a
 208	objects@constraint	deleteSpecification(dmlWhereClause)?/dmlWhereClause	DELETE a WHERE 1 = 1
+208	objects@constraint	insertSpecification/Insert_dmlTopRowFilterOpt_(Into|Over)?_dmlTarget_(LeftP~57a9460f+dmlTopRowFilterOpt	INSERT TOP(1) a DEFAULT VALUES
 208	objects@constraint	insertSpecification(Into|Over)?/Into	INSERT INTO a DEFAULT VALUES
 208	objects@constraint	insertSpecification(Into|Over)?/Over	INSERT OVER a DEFAULT VALUES
 208	objects@constraint	insertSpecification(LeftParenthesis_insertColumn_(Comma_~1dbaf886)?/LeftParenthesis_insertColumn_(Comma_insertColumn)*_Righ~f0c23471	INSERT a(a) DEFAULT VALUES
@@ -4274,6 +4457,8 @@ ok	objects@constraint	dropSchemaStatement(If_Exists)?/If_Exists	DROP SCHEMA IF E
 208	objects@constraint	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource	INSERT a EXECUTE a
 208	objects@constraint	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource!insert	INSERT a EXECUTE a zzz
 263	objects@constraint	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/selectInsertSource	INSERT a SELECT *
+137	objects@constraint	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+dmlTopRowFilterOpt	UPDATE TOP(1) a SET @a = 1
+137	objects@constraint	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+fromClauseOpt	UPDATE a SET @a = 1 FROM @a
 137	objects@constraint	updateSpecification(dmlWhereClause)?/dmlWhereClause	UPDATE a SET @a = 1 WHERE 1 = 1
 137	objects@constraint	setClausesList(Comma_setClause)*/Comma_setClause_(Comma_setClause)*	UPDATE a SET @a = 1, @a = 1
 208	objects@constraint	setClause/multiPartIdentifier_(setClauseColumnAssignment|setClaus~755a46d7	UPDATE a SET a = 1
@@ -4290,6 +4475,7 @@ ok	objects@constraint	dropSchemaStatement(If_Exists)?/If_Exists	DROP SCHEMA IF E
 7202	objects@constraint	openRowset/openQueryRowset_simpleTableReferenceAliasOpt	DELETE OPENQUERY(a, 'a')
 208	objects@constraint	openRowset/adhocRowset_simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a
 208	objects@constraint	openRowset/adhocRowset_simpleTableReferenceAliasOpt!insert	DELETE OPENDATASOURCE('a', 'a').a zzz
+208	objects@constraint	openRowset/adhocRowset_simpleTableReferenceAliasOpt+simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a a
 208	objects@constraint	tableHint/simpleTableHint	DELETE a WITH(HOLDLOCK)
 208	objects@constraint	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_CELLS = 1)
 137	objects@constraint	dmlWhereClause/whereCurrentOfCursorClause	DELETE a WHERE CURRENT OF @a
@@ -4364,6 +4550,7 @@ ok	objects@constraint	dropSchemaStatement(If_Exists)?/If_Exists	DROP SCHEMA IF E
 4909	objects@constraint	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4909	objects@constraint	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	objects@constraint	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	objects@constraint	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4909	objects@constraint	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	objects@constraint	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	objects@constraint	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -4378,6 +4565,7 @@ ok	objects@constraint	dropSchemaStatement(If_Exists)?/If_Exists	DROP SCHEMA IF E
 8168	objects@constraint	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 4909	objects@constraint	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 4909	objects@constraint	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+4909	objects@constraint	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 4909	objects@constraint	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 4909	objects@constraint	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 4909	objects@constraint	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -4391,6 +4579,7 @@ ok	objects@constraint	dropSchemaStatement(If_Exists)?/If_Exists	DROP SCHEMA IF E
 8135	objects@constraint	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	objects@constraint	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 4909	objects@constraint	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	objects@constraint	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	objects@constraint	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 4909	objects@constraint	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 4909	objects@constraint	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -4401,6 +4590,7 @@ ok	objects@constraint	dropSchemaStatement(If_Exists)?/If_Exists	DROP SCHEMA IF E
 4909	objects@constraint	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4909	objects@constraint	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	objects@constraint	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	objects@constraint	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4909	objects@constraint	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	objects@constraint	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	objects@constraint	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -4418,11 +4608,13 @@ ok	objects@constraint	dropSchemaStatement(If_Exists)?/If_Exists	DROP SCHEMA IF E
 4909	objects@constraint	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 4909	objects@constraint	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 4909	objects@constraint	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+4909	objects@constraint	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4909	objects@constraint	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 4909	objects@constraint	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	objects@constraint	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4909	objects@constraint	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	objects@constraint	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+4909	objects@constraint	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 208	objects@constraint	parenthesizedOptExpressionWithDefaultList(expressionWithDefaultList)?/expressionWithDefaultList	DELETE a(1)
 15151	objects@constraint	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 6267	objects@constraint	assemblyName(Dot_identifier)?/Dot_identifier	CREATE TYPE a EXTERNAL NAME a.a
@@ -4446,6 +4638,9 @@ ok	objects@constraint	dropTypeStatement_TYPE(If_Exists)?/If_Exists	DROP TYPE IF 
 4909	objects@constraint	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	objects@constraint	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4909	objects@constraint	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	objects@constraint	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	objects@constraint	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+2010	objects@constraint	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 ok	objects@trigger	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@trigger	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@trigger	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -4568,6 +4763,7 @@ ok	objects@trigger	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EX
 4909	objects@trigger	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1914	objects@trigger	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1914	objects@trigger	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1914	objects@trigger	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	objects@trigger	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 208	objects@trigger	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1914	objects@trigger	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -4606,8 +4802,10 @@ ok	objects@trigger	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EX
 208	objects@trigger	outputClauseSelectColumn(As)?/As	DELETE a OUTPUT 1 AS 'a'
 1929	objects@trigger	identifierColumnList(identifierColumnReferenceExpression|~b17b9386)/graphPseudoColumn	CREATE STATISTICS a ON a($IDENTITY)
 1909	objects@trigger	identifierColumnList(Comma_(identifierColumnReferenceExpr~e4c92ada)*/Comma_(identifierColumnReferenceExpression|~b17b9386)_(~9c885048	CREATE STATISTICS a ON a(a, a)
+1087	objects@trigger	deleteSpecification/Delete_dmlTopRowFilterOpt_(From)?_dmlTarget_outputClaus~e9305aa0+fromClauseOpt	DELETE a FROM @a
 208	objects@trigger	deleteSpecification(From)?/From	DELETE FROM a
 208	objects@trigger	deleteSpecification(dmlWhereClause)?/dmlWhereClause	DELETE a WHERE 1 = 1
+208	objects@trigger	insertSpecification/Insert_dmlTopRowFilterOpt_(Into|Over)?_dmlTarget_(LeftP~57a9460f+dmlTopRowFilterOpt	INSERT TOP(1) a DEFAULT VALUES
 208	objects@trigger	insertSpecification(Into|Over)?/Into	INSERT INTO a DEFAULT VALUES
 208	objects@trigger	insertSpecification(Into|Over)?/Over	INSERT OVER a DEFAULT VALUES
 208	objects@trigger	insertSpecification(LeftParenthesis_insertColumn_(Comma_~1dbaf886)?/LeftParenthesis_insertColumn_(Comma_insertColumn)*_Righ~f0c23471	INSERT a(a) DEFAULT VALUES
@@ -4616,6 +4814,8 @@ ok	objects@trigger	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EX
 208	objects@trigger	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource	INSERT a EXECUTE a
 208	objects@trigger	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource!insert	INSERT a EXECUTE a zzz
 263	objects@trigger	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/selectInsertSource	INSERT a SELECT *
+137	objects@trigger	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+dmlTopRowFilterOpt	UPDATE TOP(1) a SET @a = 1
+137	objects@trigger	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+fromClauseOpt	UPDATE a SET @a = 1 FROM @a
 137	objects@trigger	updateSpecification(dmlWhereClause)?/dmlWhereClause	UPDATE a SET @a = 1 WHERE 1 = 1
 137	objects@trigger	setClausesList(Comma_setClause)*/Comma_setClause_(Comma_setClause)*	UPDATE a SET @a = 1, @a = 1
 208	objects@trigger	setClause/multiPartIdentifier_(setClauseColumnAssignment|setClaus~755a46d7	UPDATE a SET a = 1
@@ -4632,6 +4832,7 @@ ok	objects@trigger	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EX
 7202	objects@trigger	openRowset/openQueryRowset_simpleTableReferenceAliasOpt	DELETE OPENQUERY(a, 'a')
 208	objects@trigger	openRowset/adhocRowset_simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a
 208	objects@trigger	openRowset/adhocRowset_simpleTableReferenceAliasOpt!insert	DELETE OPENDATASOURCE('a', 'a').a zzz
+208	objects@trigger	openRowset/adhocRowset_simpleTableReferenceAliasOpt+simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a a
 208	objects@trigger	tableHint/simpleTableHint	DELETE a WITH(HOLDLOCK)
 208	objects@trigger	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_CELLS = 1)
 137	objects@trigger	dmlWhereClause/whereCurrentOfCursorClause	DELETE a WHERE CURRENT OF @a
@@ -4706,6 +4907,7 @@ ok	objects@trigger	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EX
 4909	objects@trigger	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4909	objects@trigger	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	objects@trigger	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	objects@trigger	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4909	objects@trigger	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	objects@trigger	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	objects@trigger	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -4720,6 +4922,7 @@ ok	objects@trigger	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EX
 8168	objects@trigger	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 4909	objects@trigger	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 4909	objects@trigger	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+4909	objects@trigger	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 4909	objects@trigger	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 4909	objects@trigger	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 4909	objects@trigger	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -4733,6 +4936,7 @@ ok	objects@trigger	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EX
 8135	objects@trigger	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	objects@trigger	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 4909	objects@trigger	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	objects@trigger	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	objects@trigger	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 4909	objects@trigger	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 4909	objects@trigger	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -4743,6 +4947,7 @@ ok	objects@trigger	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EX
 4909	objects@trigger	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4909	objects@trigger	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	objects@trigger	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	objects@trigger	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4909	objects@trigger	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	objects@trigger	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	objects@trigger	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -4760,11 +4965,13 @@ ok	objects@trigger	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EX
 4909	objects@trigger	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 4909	objects@trigger	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 4909	objects@trigger	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+4909	objects@trigger	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4909	objects@trigger	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 4909	objects@trigger	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	objects@trigger	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4909	objects@trigger	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	objects@trigger	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+4909	objects@trigger	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 208	objects@trigger	parenthesizedOptExpressionWithDefaultList(expressionWithDefaultList)?/expressionWithDefaultList	DELETE a(1)
 15151	objects@trigger	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 6267	objects@trigger	assemblyName(Dot_identifier)?/Dot_identifier	CREATE TYPE a EXTERNAL NAME a.a
@@ -4788,6 +4995,9 @@ ok	objects@trigger	dropTypeStatement_TYPE(If_Exists)?/If_Exists	DROP TYPE IF EXI
 4909	objects@trigger	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	objects@trigger	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4909	objects@trigger	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	objects@trigger	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	objects@trigger	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+2010	objects@trigger	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 ok	objects@xml_table	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@xml_table	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@xml_table	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -4910,6 +5120,7 @@ ok	objects@xml_table	dropTableStatement(If_Exists)?/If_Exists	DROP TABLE IF EXIS
 2705	objects@xml_table	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1977	objects@xml_table	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1977	objects@xml_table	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1716	objects@xml_table	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	objects@xml_table	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 207	objects@xml_table	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1977	objects@xml_table	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -4948,8 +5159,10 @@ ok	objects@xml_table	outputClauseSelectColumn((As)?_(stringOrIdentifier))?/(As)?
 ok	objects@xml_table	outputClauseSelectColumn(As)?/As	DELETE a OUTPUT 1 AS 'a'
 13929	objects@xml_table	identifierColumnList(identifierColumnReferenceExpression|~b17b9386)/graphPseudoColumn	CREATE STATISTICS a ON a($IDENTITY)
 1909	objects@xml_table	identifierColumnList(Comma_(identifierColumnReferenceExpr~e4c92ada)*/Comma_(identifierColumnReferenceExpression|~b17b9386)_(~9c885048	CREATE STATISTICS a ON a(a, a)
+1087	objects@xml_table	deleteSpecification/Delete_dmlTopRowFilterOpt_(From)?_dmlTarget_outputClaus~e9305aa0+fromClauseOpt	DELETE a FROM @a
 ok	objects@xml_table	deleteSpecification(From)?/From	DELETE FROM a
 ok	objects@xml_table	deleteSpecification(dmlWhereClause)?/dmlWhereClause	DELETE a WHERE 1 = 1
+515	objects@xml_table	insertSpecification/Insert_dmlTopRowFilterOpt_(Into|Over)?_dmlTarget_(LeftP~57a9460f+dmlTopRowFilterOpt	INSERT TOP(1) a DEFAULT VALUES
 515	objects@xml_table	insertSpecification(Into|Over)?/Into	INSERT INTO a DEFAULT VALUES
 515	objects@xml_table	insertSpecification(Into|Over)?/Over	INSERT OVER a DEFAULT VALUES
 515	objects@xml_table	insertSpecification(LeftParenthesis_insertColumn_(Comma_~1dbaf886)?/LeftParenthesis_insertColumn_(Comma_insertColumn)*_Righ~f0c23471	INSERT a(a) DEFAULT VALUES
@@ -4958,6 +5171,8 @@ ok	objects@xml_table	deleteSpecification(dmlWhereClause)?/dmlWhereClause	DELETE 
 2809	objects@xml_table	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource	INSERT a EXECUTE a
 2809	objects@xml_table	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource!insert	INSERT a EXECUTE a zzz
 263	objects@xml_table	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/selectInsertSource	INSERT a SELECT *
+137	objects@xml_table	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+dmlTopRowFilterOpt	UPDATE TOP(1) a SET @a = 1
+137	objects@xml_table	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+fromClauseOpt	UPDATE a SET @a = 1 FROM @a
 137	objects@xml_table	updateSpecification(dmlWhereClause)?/dmlWhereClause	UPDATE a SET @a = 1 WHERE 1 = 1
 137	objects@xml_table	setClausesList(Comma_setClause)*/Comma_setClause_(Comma_setClause)*	UPDATE a SET @a = 1, @a = 1
 206	objects@xml_table	setClause/multiPartIdentifier_(setClauseColumnAssignment|setClaus~755a46d7	UPDATE a SET a = 1
@@ -4974,6 +5189,7 @@ ok	objects@xml_table	deleteSpecification(dmlWhereClause)?/dmlWhereClause	DELETE 
 7202	objects@xml_table	openRowset/openQueryRowset_simpleTableReferenceAliasOpt	DELETE OPENQUERY(a, 'a')
 208	objects@xml_table	openRowset/adhocRowset_simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a
 208	objects@xml_table	openRowset/adhocRowset_simpleTableReferenceAliasOpt!insert	DELETE OPENDATASOURCE('a', 'a').a zzz
+208	objects@xml_table	openRowset/adhocRowset_simpleTableReferenceAliasOpt+simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a a
 ok	objects@xml_table	tableHint/simpleTableHint	DELETE a WITH(HOLDLOCK)
 ok	objects@xml_table	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_CELLS = 1)
 137	objects@xml_table	dmlWhereClause/whereCurrentOfCursorClause	DELETE a WHERE CURRENT OF @a
@@ -5048,6 +5264,7 @@ ok	objects@xml_table	constraintEnforcement/NoCheck	ALTER TABLE a NOCHECK CONSTRA
 1921	objects@xml_table	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 33411	objects@xml_table	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 13591	objects@xml_table	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	objects@xml_table	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 2761	objects@xml_table	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 2715	objects@xml_table	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 2715	objects@xml_table	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -5062,6 +5279,7 @@ ok	objects@xml_table	constraintEnforcement/NoCheck	ALTER TABLE a NOCHECK CONSTRA
 8168	objects@xml_table	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 13593	objects@xml_table	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 689	objects@xml_table	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+689	objects@xml_table	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 10785	objects@xml_table	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 3728	objects@xml_table	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 ok	objects@xml_table	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -5075,6 +5293,7 @@ ok	objects@xml_table	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABL
 8135	objects@xml_table	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	objects@xml_table	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 2715	objects@xml_table	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	objects@xml_table	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	objects@xml_table	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 10785	objects@xml_table	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 1909	objects@xml_table	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -5085,6 +5304,7 @@ ok	objects@xml_table	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABL
 2705	objects@xml_table	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 2705	objects@xml_table	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 2705	objects@xml_table	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	objects@xml_table	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 2705	objects@xml_table	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 2705	objects@xml_table	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 2705	objects@xml_table	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -5102,11 +5322,13 @@ ok	objects@xml_table	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6ca
 13930	objects@xml_table	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 206	objects@xml_table	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 1909	objects@xml_table	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+1919	objects@xml_table	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 1919	objects@xml_table	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 2705	objects@xml_table	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 13930	objects@xml_table	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 13930	objects@xml_table	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 1778	objects@xml_table	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+ok	objects@xml_table	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 215	objects@xml_table	parenthesizedOptExpressionWithDefaultList(expressionWithDefaultList)?/expressionWithDefaultList	DELETE a(1)
 15151	objects@xml_table	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 6267	objects@xml_table	assemblyName(Dot_identifier)?/Dot_identifier	CREATE TYPE a EXTERNAL NAME a.a
@@ -5130,6 +5352,9 @@ ok	objects@xml_table	ignoreDupKeyIndexOption_IGNORE_DUP_KEY(On_(LeftParenthesis_
 4955	objects@xml_table	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 ok	objects@xml_table	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 2715	objects@xml_table	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	objects@xml_table	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	objects@xml_table	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+2010	objects@xml_table	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 ok	objects@spatial_table	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	objects@spatial_table	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	objects@spatial_table	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -5252,6 +5477,7 @@ ok	objects@spatial_table	dropTableStatement(If_Exists)?/If_Exists	DROP TABLE IF 
 2705	objects@spatial_table	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1978	objects@spatial_table	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1978	objects@spatial_table	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1716	objects@spatial_table	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	objects@spatial_table	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 207	objects@spatial_table	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1978	objects@spatial_table	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -5290,8 +5516,10 @@ ok	objects@spatial_table	outputClauseSelectColumn((As)?_(stringOrIdentifier))?/(
 ok	objects@spatial_table	outputClauseSelectColumn(As)?/As	DELETE a OUTPUT 1 AS 'a'
 13929	objects@spatial_table	identifierColumnList(identifierColumnReferenceExpression|~b17b9386)/graphPseudoColumn	CREATE STATISTICS a ON a($IDENTITY)
 1909	objects@spatial_table	identifierColumnList(Comma_(identifierColumnReferenceExpr~e4c92ada)*/Comma_(identifierColumnReferenceExpression|~b17b9386)_(~9c885048	CREATE STATISTICS a ON a(a, a)
+1087	objects@spatial_table	deleteSpecification/Delete_dmlTopRowFilterOpt_(From)?_dmlTarget_outputClaus~e9305aa0+fromClauseOpt	DELETE a FROM @a
 ok	objects@spatial_table	deleteSpecification(From)?/From	DELETE FROM a
 ok	objects@spatial_table	deleteSpecification(dmlWhereClause)?/dmlWhereClause	DELETE a WHERE 1 = 1
+515	objects@spatial_table	insertSpecification/Insert_dmlTopRowFilterOpt_(Into|Over)?_dmlTarget_(LeftP~57a9460f+dmlTopRowFilterOpt	INSERT TOP(1) a DEFAULT VALUES
 515	objects@spatial_table	insertSpecification(Into|Over)?/Into	INSERT INTO a DEFAULT VALUES
 515	objects@spatial_table	insertSpecification(Into|Over)?/Over	INSERT OVER a DEFAULT VALUES
 515	objects@spatial_table	insertSpecification(LeftParenthesis_insertColumn_(Comma_~1dbaf886)?/LeftParenthesis_insertColumn_(Comma_insertColumn)*_Righ~f0c23471	INSERT a(a) DEFAULT VALUES
@@ -5300,6 +5528,8 @@ ok	objects@spatial_table	deleteSpecification(dmlWhereClause)?/dmlWhereClause	DEL
 2809	objects@spatial_table	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource	INSERT a EXECUTE a
 2809	objects@spatial_table	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/executeInsertSource!insert	INSERT a EXECUTE a zzz
 263	objects@spatial_table	insertSpecification((valuesInsertSource)|executeInsertSo~7d9d24da)/selectInsertSource	INSERT a SELECT *
+137	objects@spatial_table	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+dmlTopRowFilterOpt	UPDATE TOP(1) a SET @a = 1
+137	objects@spatial_table	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f+fromClauseOpt	UPDATE a SET @a = 1 FROM @a
 137	objects@spatial_table	updateSpecification(dmlWhereClause)?/dmlWhereClause	UPDATE a SET @a = 1 WHERE 1 = 1
 137	objects@spatial_table	setClausesList(Comma_setClause)*/Comma_setClause_(Comma_setClause)*	UPDATE a SET @a = 1, @a = 1
 206	objects@spatial_table	setClause/multiPartIdentifier_(setClauseColumnAssignment|setClaus~755a46d7	UPDATE a SET a = 1
@@ -5316,6 +5546,7 @@ ok	objects@spatial_table	deleteSpecification(dmlWhereClause)?/dmlWhereClause	DEL
 7202	objects@spatial_table	openRowset/openQueryRowset_simpleTableReferenceAliasOpt	DELETE OPENQUERY(a, 'a')
 208	objects@spatial_table	openRowset/adhocRowset_simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a
 208	objects@spatial_table	openRowset/adhocRowset_simpleTableReferenceAliasOpt!insert	DELETE OPENDATASOURCE('a', 'a').a zzz
+208	objects@spatial_table	openRowset/adhocRowset_simpleTableReferenceAliasOpt+simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a a
 ok	objects@spatial_table	tableHint/simpleTableHint	DELETE a WITH(HOLDLOCK)
 ok	objects@spatial_table	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_CELLS = 1)
 137	objects@spatial_table	dmlWhereClause/whereCurrentOfCursorClause	DELETE a WHERE CURRENT OF @a
@@ -5390,6 +5621,7 @@ ok	objects@spatial_table	constraintEnforcement/NoCheck	ALTER TABLE a NOCHECK CON
 1921	objects@spatial_table	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 33411	objects@spatial_table	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 13591	objects@spatial_table	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	objects@spatial_table	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 2761	objects@spatial_table	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 2715	objects@spatial_table	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 2715	objects@spatial_table	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -5404,6 +5636,7 @@ ok	objects@spatial_table	constraintEnforcement/NoCheck	ALTER TABLE a NOCHECK CON
 8168	objects@spatial_table	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 13593	objects@spatial_table	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 689	objects@spatial_table	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+689	objects@spatial_table	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 10785	objects@spatial_table	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 3728	objects@spatial_table	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 ok	objects@spatial_table	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -5417,6 +5650,7 @@ ok	objects@spatial_table	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER 
 8135	objects@spatial_table	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	objects@spatial_table	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 2715	objects@spatial_table	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	objects@spatial_table	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	objects@spatial_table	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 10785	objects@spatial_table	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 1909	objects@spatial_table	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -5427,6 +5661,7 @@ ok	objects@spatial_table	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER 
 2705	objects@spatial_table	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 2705	objects@spatial_table	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 2705	objects@spatial_table	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	objects@spatial_table	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 2705	objects@spatial_table	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 2705	objects@spatial_table	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 2705	objects@spatial_table	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -5444,11 +5679,13 @@ ok	objects@spatial_table	tableConstraint(uniqueTableConstraint|defaultTableCo~34
 13930	objects@spatial_table	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 206	objects@spatial_table	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 1909	objects@spatial_table	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+1919	objects@spatial_table	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 1919	objects@spatial_table	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 2705	objects@spatial_table	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 13930	objects@spatial_table	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 13930	objects@spatial_table	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 1778	objects@spatial_table	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+ok	objects@spatial_table	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 215	objects@spatial_table	parenthesizedOptExpressionWithDefaultList(expressionWithDefaultList)?/expressionWithDefaultList	DELETE a(1)
 15151	objects@spatial_table	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 6267	objects@spatial_table	assemblyName(Dot_identifier)?/Dot_identifier	CREATE TYPE a EXTERNAL NAME a.a
@@ -5472,3 +5709,6 @@ ok	objects@spatial_table	ignoreDupKeyIndexOption_IGNORE_DUP_KEY(On_(LeftParenthe
 4955	objects@spatial_table	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 ok	objects@spatial_table	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 2715	objects@spatial_table	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	objects@spatial_table	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	objects@spatial_table	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+2010	objects@spatial_table	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1

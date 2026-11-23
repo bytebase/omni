@@ -25,7 +25,10 @@ normalized DDL objects stored in the database afterwards. `TestSimulation`
 no server. The design is
 `docs/specs/2026-11-11-engine-compatibility-without-servers-design.md` §3.
 
-**3,072 / 3,072 rows (100.00%) agree** (256 statements × 12 fixtures).
+**3,168 / 3,192 rows (99.25%) agree** (266 statements × 12 fixtures). The 24
+that do not are `ALTER TABLE a ADD a a COLLATE a` and `ALTER TABLE a ALTER
+COLUMN a a COLLATE a`: SQL Server refuses the unknown collation first (448),
+and the catalog holds no collation list to check it against.
 
 ## Commands
 

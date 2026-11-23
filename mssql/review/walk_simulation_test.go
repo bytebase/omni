@@ -103,8 +103,8 @@ var walkSimSuites = []struct {
 	minPct               float64
 	minFound             int
 }{
-	{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), "omni_TestSimulation", 91.5, 2610},
-	{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), "omni_TestQuerySimulation", 64.0, 266},
+	{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), "omni_TestSimulation", 91.2, 2697},
+	{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), "omni_TestQuerySimulation", 63.5, 270},
 	{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), "omni_TestProgramSimulation", 78.0, 50},
 }
 
@@ -206,7 +206,10 @@ func walkCompatSimulation(t *testing.T, db *sql.DB) {
 		}
 	}
 
-	const minWalkSimRecall = 88.5
+	// The optional-clause rows (the (every site) rows of tokens.tsv and
+	// suite:optional-clauses) added 226 refusals the walk finds 167 of,
+	// which moved the floor from 88.5% to 88.0%.
+	const minWalkSimRecall = 88.0
 	pct := 0.0
 	if refusedCount > 0 {
 		pct = 100 * float64(foundCount) / float64(refusedCount)

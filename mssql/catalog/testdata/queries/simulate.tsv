@@ -29,6 +29,8 @@ ok:05fd082ad27f	ok:05fd082ad27f	engine	one_table@column	batch(statementOptSemi)*
 263	263	engine	one_table@column	queryExpression(Union|Except|Intersect)/Intersect	CREATE VIEW _v AS SELECT * INTERSECT SELECT *
 263	263	engine	one_table@column	queryExpression(All)?/All	CREATE VIEW _v AS SELECT * UNION ALL SELECT *
 263	263	engine	one_table@column	queryExpressionUnit/queryParenthesis	CREATE VIEW _v AS (SELECT *)
+263	263	engine	one_table@column	subquerySpecification/Select_uniqueRowFilterOpt_(topRowFilter)?_selectColumnO~71f7b042+uniqueRowFilterOpt	CREATE VIEW _v AS SELECT(SELECT ALL *)
+1087	1087	engine	one_table@column	subquerySpecification/Select_uniqueRowFilterOpt_(topRowFilter)?_selectColumnO~71f7b042+fromClauseOpt	CREATE VIEW _v AS SELECT(SELECT * FROM @a)
 263	263	engine	one_table@column	subquerySpecification(topRowFilter)?/topRowFilter	CREATE VIEW _v AS SELECT(SELECT TOP 1 *)
 263	263	engine	one_table@column	subquerySpecification(Comma_selectColumnOrStarExpression)*/Comma_selectColumnOrStarExpression_(Comma_selectColumnO~a01d7b1f	CREATE VIEW _v AS SELECT(SELECT *, *)
 263	263	engine	one_table@column	subquerySpecification(whereClause)?/whereClause	CREATE VIEW _v AS SELECT(SELECT * WHERE 1 = 1)
@@ -126,10 +128,13 @@ ok:95d316c68dde	ok:95d316c68dde	engine	one_table@column	selectTableReferenceElem
 1087	1087	engine	one_table@column	qualifiedJoin(Inner|Left_(Outer)?|Right_(Outer)?|F~e7ea2c4c)/Left_(Outer)?!swap	CREATE VIEW _v AS SELECT * FROM @a LEGACY_CARDINALITY_ESTIMATION JOIN @a ON 1 = 1
 1087	1087	engine	one_table@column	qualifiedJoin(Inner|Left_(Outer)?|Right_(Outer)?|F~e7ea2c4c)/Right_(Outer)?	CREATE VIEW _v AS SELECT * FROM @a RIGHT JOIN @a ON 1 = 1
 1087	1087	engine	one_table@column	qualifiedJoin(Inner|Left_(Outer)?|Right_(Outer)?|F~e7ea2c4c)/Right_(Outer)?!swap	CREATE VIEW _v AS SELECT * FROM @a ROLE JOIN @a ON 1 = 1
+1087	1087	engine	one_table@column	qualifiedJoin(Inner|Left_(Outer)?|Right_(Outer)?|F~e7ea2c4c)/Right_(Outer)?+qualifiedJoin(Outer)?	CREATE VIEW _v AS SELECT * FROM @a RIGHT OUTER JOIN @a ON 1 = 1
 1087	1087	engine	one_table@column	qualifiedJoin(Inner|Left_(Outer)?|Right_(Outer)?|F~e7ea2c4c)/Full_(Outer)?	CREATE VIEW _v AS SELECT * FROM @a FULL JOIN @a ON 1 = 1
 1087	1087	engine	one_table@column	qualifiedJoin(Inner|Left_(Outer)?|Right_(Outer)?|F~e7ea2c4c)/Full_(Outer)?!swap	CREATE VIEW _v AS SELECT * FROM @a FULLSCAN JOIN @a ON 1 = 1
+1087	1087	engine	one_table@column	qualifiedJoin(Inner|Left_(Outer)?|Right_(Outer)?|F~e7ea2c4c)/Full_(Outer)?+qualifiedJoin(Outer)?	CREATE VIEW _v AS SELECT * FROM @a FULL OUTER JOIN @a ON 1 = 1
 1087	1087	engine	one_table@column	qualifiedJoin(Outer)?/Outer	CREATE VIEW _v AS SELECT * FROM @a LEFT OUTER JOIN @a ON 1 = 1
 1087	1087	engine	one_table@column	joinHint/Merge	CREATE VIEW _v AS SELECT * FROM @a INNER MERGE JOIN @a ON 1 = 1
+215	215	engine	one_table@column	globalFunctionTableReference/identifier_LeftParenthesis_(expressionWithDefault_(Comm~d11d459f+simpleTableReferenceAliasOpt	CREATE VIEW _v AS SELECT * FROM a() a
 207	207	engine	one_table@column	globalFunctionTableReference(expressionWithDefault_(Comma_express~d88b6686)?/%empty!insert	CREATE VIEW _v AS SELECT * FROM a(zzz)
 215	215	engine	one_table@column	globalFunctionTableReference(expressionWithDefault_(Comma_express~d88b6686)?/expressionWithDefault_(Comma_expressionWithDefault)*	CREATE VIEW _v AS SELECT * FROM a(1)
 215	215	engine	one_table@column	globalFunctionTableReference(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*	CREATE VIEW _v AS SELECT * FROM a(1, 1)
@@ -141,6 +146,7 @@ ok:ea51deddddbf	ok:ea51deddddbf	engine	one_table@column	schemaObjectTableReferen
 ok:82b75cb99595	ok:82b75cb99595	engine	one_table@column	schemaObjectTableReference(oldForceIndex|nonParameterTableHints~07f45006)?/singleOldStyleTableHint	CREATE VIEW _v AS SELECT * FROM a a(FORCESEEK)
 1087	1087	engine	one_table@column	simpleTableReferenceAlias/(As)?_identifier	CREATE VIEW _v AS SELECT * FROM @a a
 1087	1087	engine	one_table@column	simpleTableReferenceAlias(As)?/As	CREATE VIEW _v AS SELECT * FROM @a AS a
+7601	7601	engine	one_table@column	fulltextTableReference/fullTextTable_LeftParenthesis_schemaObjectFourPartName_~1815b02c+simpleTableReferenceAliasOpt	CREATE VIEW _v AS SELECT * FROM CONTAINSTABLE(a, a, 'a') a
 7601	7601	engine	one_table@column	fulltextTableReference(fulltextTableOptions)?/fulltextTableOptions	CREATE VIEW _v AS SELECT * FROM CONTAINSTABLE(a, a, 'a', 1)
 7601	7601	engine	one_table@column	fullTextTable/FreeTextTable	CREATE VIEW _v AS SELECT * FROM FREETEXTTABLE(a, a, 'a')
 7601	7601	engine	one_table@column	fulltextTableColumnList/PROPERTY_LeftParenthesis_identifierColumnReferenceExpre~a9369749	CREATE VIEW _v AS SELECT * FROM CONTAINSTABLE(a, PROPERTY(a, 'a'), 'a')
@@ -155,9 +161,12 @@ ok:82b75cb99595	ok:82b75cb99595	engine	one_table@column	schemaObjectTableReferen
 208	208	engine	one_table@column	semanticTableReference/semanticSimilarityTableReference!swap	CREATE VIEW _v AS SELECT * FROM SEND(a, a, 1)
 41202	41202	engine	one_table@column	semanticTableReference/semanticSimilarityDetailsTableReference	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, 1)
 41202	41202	engine	one_table@column	semanticTableReference/semanticSimilarityDetailsTableReference!insert	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, 1) zzz
+41202	41202	engine	one_table@column	semanticKeyPhraseTableReference/SemanticKeyPhraseTable_LeftParenthesis_schemaObjectFour~bc0395c0+simpleTableReferenceAliasOpt	CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, a) a
 41202	41202	engine	one_table@column	semanticKeyPhraseTableReference(Comma_possibleNegativeConstant)?/Comma_possibleNegativeConstant	CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, a, 1)
+41202	41202	engine	one_table@column	semanticSimilarityTableReference/SemanticSimilarityTable_LeftParenthesis_schemaObjectFou~30b83cfc+simpleTableReferenceAliasOpt	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYTABLE(a, a, 1) a
+41202	41202	engine	one_table@column	semanticSimilarityDetailsTableReference/SemanticSimilarityDetailsTable_LeftParenthesis_schemaOb~e7b0027c+simpleTableReferenceAliasOpt	CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, 1) a
+137	137	engine	one_table@column	openXmlTableReference/OpenXml_LeftParenthesis_openXmlParams_RightParenthesis_~ea65ca99+simpleTableReferenceAliasOpt	CREATE VIEW _v AS SELECT * FROM OPENXML(@a, 'a') a
 137	137	engine	one_table@column	openXmlWithClauseOpt/((With_LeftParenthesis_openXmlSchemaI~257fe2b0)	CREATE VIEW _v AS SELECT * FROM OPENXML(@a, 'a') WITH a
-137	137	engine	one_table@column	openXmlWithClauseOpt/((With_LeftParenthesis_openXmlSchemaI~257fe2b0)!drop-1	CREATE VIEW _v AS SELECT * FROM OPENXML(@a, 'a') a
 137	137	engine	one_table@column	openXmlWithClauseOpt/((With_LeftParenthesis_openXmlSchemaI~257fe2b0)!insert	CREATE VIEW _v AS SELECT * FROM OPENXML(@a, 'a') WITH a zzz
 137	137	engine	one_table@column	openXmlWithClauseOpt((With_LeftParenthesis_openXmlSchemaI~257fe2b0)/With_LeftParenthesis_openXmlSchemaItemList_RightParenthesis	CREATE VIEW _v AS SELECT * FROM OPENXML(@a, 'a') WITH(a a)
 137	137	engine	one_table@column	openXmlWithClauseOpt((With_LeftParenthesis_openXmlSchemaI~257fe2b0)/With_LeftParenthesis_openXmlSchemaItemList_RightParenthesis!insert	CREATE VIEW _v AS SELECT * FROM OPENXML(@a, 'a') WITH(a a) zzz
@@ -274,6 +283,8 @@ ok:1f602bff0e62	ok:1f602bff0e62	engine	one_table@column	expressionPrimary(odbcFu
 243	243	engine	one_table@column	udtExpression(udtFunctionExpression|udtPropertyExpression)/udtFunctionExpression	CREATE VIEW _v AS SELECT a :: a()
 243	243	engine	one_table@column	udtExpression(udtFunctionExpression|udtPropertyExpression)/udtFunctionExpression!insert	CREATE VIEW _v AS SELECT a :: a() zzz
 243	243	engine	one_table@column	userDefinedTypeCallTarget/schemaObjectTwoPartName_DoubleColon!insert	CREATE VIEW _v AS SELECT a :: zzz a
+243	243	engine	one_table@column	udtPropertyExpression/identifier_collationOpt+collationOpt	CREATE VIEW _v AS SELECT a :: a COLLATE a
+243	243	engine	one_table@column	udtPropertyExpression/identifier_collationOpt+collationOpt!drop-2	CREATE VIEW _v AS SELECT a :: a a
 243	243	engine	one_table@column	convertCall(Comma_expression)?/Comma_expression	CREATE VIEW _v AS SELECT CONVERT(a, 1, 1)
 243	243	engine	one_table@column	tryConvertCall(Comma_expression)?/Comma_expression	CREATE VIEW _v AS SELECT TRY_CONVERT(a, 1, 1)
 4511	4511	engine	one_table@column	parameterlessCall/CurrentUser	CREATE VIEW _v AS SELECT CURRENT_USER
@@ -322,6 +333,7 @@ ok:e1b83eaff11c	ok:e1b83eaff11c	engine	one_table@column	parameterlessCall/Curren
 ok:5cc7f1d389b9	ok:5cc7f1d389b9	engine	one_table@column	stringOrIdentifier/identifier	CREATE VIEW _v AS SELECT 1 a
 137	137	engine	one_table@column	stringLiteralOrVariable/variable	CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME AS OF @a
 137	137	engine	one_table@column	stringLiteralOrVariable/variable!insert	CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME AS OF @a zzz
+ok:de65c8b97d97	ok:de65c8b97d97	engine	one_table@column	openJsonTableReference_OPENJSON/OPENJSON_LeftParenthesis_openJsonParams_RightParenthesi~3d152f0e+simpleTableReferenceAliasOpt	CREATE VIEW _v AS SELECT * FROM OPENJSON(1) a
 164	164	engine	one_table@column	groupingSetsSpec_GROUPING(Comma_groupingSet)*/Comma_groupingSet_(Comma_groupingSet)*	CREATE VIEW _v AS SELECT * GROUP BY GROUPING SETS(1, 1)
 10761	10761	engine	one_table@column	parseCall_PARSE(USING_expression)?/USING_expression	CREATE VIEW _v AS SELECT PARSE(1 AS a USING 1)
 10761	10761	engine	one_table@column	tryParseCall_TRY_PARSE(USING_expression)?/USING_expression	CREATE VIEW _v AS SELECT TRY_PARSE(1 AS a USING 1)
