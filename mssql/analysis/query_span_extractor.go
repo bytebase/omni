@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/mssql"
 	"github.com/bytebase/omni/mssql/ast"
 )
@@ -183,11 +184,58 @@ func (q *querySpanExtractor) tsqlFindTableSchemaByParts(linkedServer, rawDatabas
 		schema = rawSchema
 	}
 
+	rel, err := q.findRelation(database, schema, rawTable)
+	if err != nil {
+		return nil, err
+	}
+	switch {
+	case rel == nil:
+	case rel.view != nil:
+		viewColumns, err := q.getColumnsFromCreateView(rel.view.Definition, rel.database, rel.schema, rel.name)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get columns for view %s.%s.%s: %w", rel.database, rel.schema, rel.name, err)
+		}
+		return &physicalView{
+			Database: rel.database,
+			Schema:   rel.schema,
+			Name:     rel.name,
+			Columns:  viewColumns,
+		}, nil
+	default:
+		columns := make([]string, 0, len(rel.table.GetColumns()))
+		for _, c := range rel.table.GetColumns() {
+			columns = append(columns, c.Name)
+		}
+		return &physicalTable{
+			Database: rel.database,
+			Schema:   rel.schema,
+			Name:     rel.name,
+			Columns:  columns,
+		}, nil
+	}
+	return nil, &NotFoundError{
+		Database: &database,
+		Schema:   &schema,
+		Table:    &rawTable,
+	}
+}
+
+// catalogRelation is a table or a view of the catalog, named as the catalog
+// names it.
+type catalogRelation struct {
+	database, schema, name string
+	table                  *metadata.TableMetadata // nil for a view
+	view                   *metadata.ViewMetadata  // nil for a table
+}
+
+// findRelation looks a table or view up in the catalog. An empty database or
+// schema matches any. It returns nil for a name the catalog does not have, and
+// an error for a database the catalog lists but has not synced.
+func (q *querySpanExtractor) findRelation(database, schema, name string) (*catalogRelation, error) {
 	allDatabases, err := q.catalog.ListDatabaseNames()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list databases: %v", err)
 	}
-
 	for _, databaseName := range allDatabases {
 		if database != "" && !q.isIdentifierEqual(database, databaseName) {
 			continue
@@ -199,51 +247,46 @@ func (q *querySpanExtractor) tsqlFindTableSchemaByParts(linkedServer, rawDatabas
 		if databaseMeta == nil {
 			return nil, fmt.Errorf("database metadata for database %q not found (database not synced)", databaseName)
 		}
-
 		for _, schemaName := range databaseMeta.ListSchemaNames() {
 			if schema != "" && !q.isIdentifierEqual(schema, schemaName) {
 				continue
 			}
 			schemaSchema := databaseMeta.GetSchema(schemaName)
 			for _, tableName := range schemaSchema.ListTableNames() {
-				if !q.isIdentifierEqual(rawTable, tableName) {
-					continue
+				if q.isIdentifierEqual(name, tableName) {
+					table := schemaSchema.GetTable(tableName)
+					return &catalogRelation{database: databaseName, schema: schemaName, name: table.Name, table: table}, nil
 				}
-				table := schemaSchema.GetTable(tableName)
-				columns := make([]string, 0, len(table.GetColumns()))
-				for _, c := range table.GetColumns() {
-					columns = append(columns, c.Name)
-				}
-				return &physicalTable{
-					Database: databaseName,
-					Schema:   schemaName,
-					Name:     table.Name,
-					Columns:  columns,
-				}, nil
 			}
 			for _, viewName := range schemaSchema.ListViewNames() {
-				if !q.isIdentifierEqual(rawTable, viewName) {
-					continue
+				if q.isIdentifierEqual(name, viewName) {
+					view := schemaSchema.GetView(viewName)
+					return &catalogRelation{database: databaseName, schema: schemaName, name: view.Name, view: view}, nil
 				}
-				view := schemaSchema.GetView(viewName)
-				viewColumns, err := q.getColumnsFromCreateView(view.Definition, databaseName, schemaName, viewName)
-				if err != nil {
-					return nil, fmt.Errorf("failed to get columns for view %s.%s.%s: %w", databaseName, schemaName, viewName, err)
-				}
-				return &physicalView{
-					Database: databaseName,
-					Schema:   schemaName,
-					Name:     view.Name,
-					Columns:  viewColumns,
-				}, nil
 			}
 		}
 	}
-	return nil, &NotFoundError{
-		Database: &database,
-		Schema:   &schema,
-		Table:    &rawTable,
+	return nil, nil
+}
+
+// resolveAccessTables names each table and view the statement accesses as
+// the catalog names it, which is the name a grant or a policy on it holds:
+// SQL Server reads dbo.SALARIES as dbo.salaries. A name the catalog does not
+// have, or that cannot be looked up, stays as written; resolving the
+// statement's columns reports the failure. A view is not expanded into its
+// tables: SQL Server checks a reader's permission on the view alone when
+// its owner owns the tables too.
+func (q *querySpanExtractor) resolveAccessTables(tables ColumnSet) ColumnSet {
+	out := make(ColumnSet, len(tables))
+	for r := range tables {
+		if r.Server == "" && !strings.HasPrefix(r.Table, "#") {
+			if rel, _ := q.findRelation(r.Database, r.Schema, r.Table); rel != nil {
+				r.Database, r.Schema, r.Table = rel.database, rel.schema, rel.name
+			}
+		}
+		out[r] = true
 	}
+	return out
 }
 
 // getColumnsFromCreateView parses a CREATE VIEW definition with omni, extracts
@@ -398,17 +441,18 @@ func (q *querySpanExtractor) tsqlIsFieldSensitive(normalizedDatabaseName string,
 		return QuerySpanResult{}, fmt.Errorf(`no object name is specified`)
 	}
 
-	// We just need to iterate through the fromFieldList sequentially until we find the first matching object.
-	//
-	// It is safe if there are two or more objects in the fromFieldList have the same column name, because the executor
-	// will throw a compilation error if the column name is ambiguous.
-	// For example, there are two tables T1 and T2, and both of them have a column named "C1". The following query will throw
-	// a compilation error:
+	// The first table source of the FROM clause that has the column is the
+	// one it reads. A column that names no table and that two of them have is
+	// ambiguous, which SQL Server refuses (error 209):
 	//   SELECT C1 FROM T1, T2;
 	// Users can specify the table name to disambiguate:
 	//   SELECT T1.C1 FROM T1, T2;
 	// If an alias is set the original table name is shadowed:
 	//   SELECT T1.C1 FROM T1 AS T3, T2;  -- invalid
+	var (
+		found     QuerySpanResult
+		foundFrom tableSource
+	)
 	for _, tableSource := range q.tableSourcesFrom {
 		if mask&maskDatabaseName != 0 && !q.isIdentifierEqual(normalizedDatabaseName, tableSource.GetDatabaseName()) {
 			continue
@@ -423,8 +467,16 @@ func (q *querySpanExtractor) tsqlIsFieldSensitive(normalizedDatabaseName string,
 			if mask&maskColumnName != 0 && !q.isIdentifierEqual(normalizedColumnName, column.Name) {
 				continue
 			}
-			return column, nil
+			switch {
+			case foundFrom == nil:
+				found, foundFrom = column, tableSource
+			case foundFrom != tableSource && mask&maskTableName == 0:
+				return QuerySpanResult{}, &ambiguousColumnError{column: normalizedColumnName}
+			}
 		}
+	}
+	if foundFrom != nil {
+		return found, nil
 	}
 
 	for i := len(q.outerTableSources) - 1; i >= 0; i-- {
@@ -445,7 +497,23 @@ func (q *querySpanExtractor) tsqlIsFieldSensitive(normalizedDatabaseName string,
 			return column, nil
 		}
 	}
-	return QuerySpanResult{}, fmt.Errorf(`no matching column %q.%q.%q.%q`, normalizedDatabaseName, normalizedSchemaName, normalizedTableName, normalizedColumnName)
+	return QuerySpanResult{}, &unknownColumnError{database: normalizedDatabaseName, schema: normalizedSchemaName, table: normalizedTableName, column: normalizedColumnName}
+}
+
+// unknownColumnError is a column reference no table source in scope has,
+// which SQL Server refuses (error 207, or 4104 for a qualified one).
+type unknownColumnError struct{ database, schema, table, column string }
+
+func (e *unknownColumnError) Error() string {
+	return fmt.Sprintf(`no matching column %q.%q.%q.%q`, e.database, e.schema, e.table, e.column)
+}
+
+// ambiguousColumnError is a column reference that names no table and that two
+// table sources of the FROM clause have, which SQL Server refuses (error 209).
+type ambiguousColumnError struct{ column string }
+
+func (e *ambiguousColumnError) Error() string {
+	return fmt.Sprintf("ambiguous column name %q", e.column)
 }
 
 // isIdentifierEqual compares identifiers using the extractor's case sensitivity flag.
@@ -565,6 +633,9 @@ func (q *querySpanExtractor) getQuerySpan(statement string) (*ResolvedSpan, erro
 	if mixed {
 		return nil, ErrMixUserSystemTables
 	}
+	if !allSystems {
+		accessTables = q.resolveAccessTables(accessTables)
+	}
 
 	queryType := classifyQueryType(root, allSystems)
 	sel, isSelect := root.(*ast.SelectStmt)
@@ -616,6 +687,23 @@ func returnsRows(root ast.Node) bool {
 // extractFromSelectStmt processes a full SELECT statement (including set-ops,
 // WITH clause) and returns the result column set as a PseudoTable.
 func (q *querySpanExtractor) extractFromSelectStmt(sel *ast.SelectStmt) (*pseudoTable, error) {
+	if sel.ForClause != nil {
+		// FOR XML and FOR JSON return the rows as one document in one column,
+		// which SQL Server names for the mode, so the column holds every
+		// column of the select list.
+		inner := *sel
+		inner.ForClause = nil
+		rows, err := q.extractFromSelectStmt(&inner)
+		if err != nil {
+			return nil, err
+		}
+		doc := QuerySpanResult{Name: forClauseColumnName(sel.ForClause), SourceColumns: make(ColumnSet)}
+		for _, c := range rows.Columns {
+			doc.SourceColumns, _ = mergeColumnSet(doc.SourceColumns, c.SourceColumns)
+		}
+		return &pseudoTable{Columns: []QuerySpanResult{doc}}, nil
+	}
+
 	// WITH clause: populate CTE list BEFORE dispatching set-ops so that both
 	// arms of a `WITH cte AS (...) SELECT ... FROM cte UNION SELECT ... FROM cte`
 	// see the CTE in scope. The defer restores q.ctes on exit.
@@ -670,6 +758,15 @@ func (q *querySpanExtractor) extractFromSelectStmt(sel *ast.SelectStmt) (*pseudo
 	q.populateSelectIntoTempTable(sel, results)
 
 	return &pseudoTable{Columns: results}, nil
+}
+
+// forClauseColumnName is the name SQL Server gives the one column of a FOR XML
+// or FOR JSON query.
+func forClauseColumnName(f *ast.ForClause) string {
+	if f.Mode == ast.ForJSON {
+		return "JSON_F52E2B61-18A1-11d1-B105-00805F49916B"
+	}
+	return "XML_F52E2B61-18A1-11d1-B105-00805F49916B"
 }
 
 // collectPredicatesInScope walks a boolean expression in the extractor's
@@ -1658,9 +1755,7 @@ func (q *querySpanExtractor) extractTargetList(list *ast.List) ([]QuerySpanResul
 			if err != nil {
 				return nil, err
 			}
-			if v.Name != "" {
-				r.Name = v.Name
-			}
+			r.Name = resultName(v.Name, v.Val, r.Name)
 			results = append(results, r)
 		case *ast.StarExpr:
 			fields, err := q.expandStar(v)
@@ -1678,6 +1773,7 @@ func (q *querySpanExtractor) extractTargetList(list *ast.List) ([]QuerySpanResul
 				if err != nil {
 					return nil, err
 				}
+				r.Name = resultName("", expr, r.Name)
 				results = append(results, r)
 				continue
 			}
@@ -1685,6 +1781,23 @@ func (q *querySpanExtractor) extractTargetList(list *ast.List) ([]QuerySpanResul
 		}
 	}
 	return results, nil
+}
+
+// resultName is the name SQL Server gives a select-list item: its alias; for
+// a column reference, the column as the query spells it, not as the catalog
+// does; for a pseudo-column, resolved holds the name; anything else has no
+// name.
+func resultName(alias string, val ast.ExprNode, resolved string) string {
+	if alias != "" {
+		return alias
+	}
+	if ref, ok := val.(*ast.ColumnRef); ok {
+		if strings.HasPrefix(ref.Column, "$") {
+			return resolved
+		}
+		return ref.Column
+	}
+	return ""
 }
 
 func (q *querySpanExtractor) expandStar(s *ast.StarExpr) ([]QuerySpanResult, error) {

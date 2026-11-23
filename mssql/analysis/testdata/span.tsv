@@ -1,0 +1,359 @@
+# pin: default mcr.microsoft.com/mssql/server:2022-CU27-GDR1-ubuntu-22.04 sha256:cf8f0ab2ebe61feec2eed2629061a07d247f791c2a8ddda74a4ac9f06a291718 16.0.4305.5
+# columns: omni, expected, source, fixture, session, aspect, statement
+id, amount	id, amount	engine	shop	shop.dbo	results	SELECT id, amount FROM orders
+shop.dbo.orders.id | shop.dbo.orders.amount	shop.dbo.orders.id | shop.dbo.orders.amount	engine	shop	shop.dbo	lineage	SELECT id, amount FROM orders
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT id, amount FROM orders
+order_id, amount	order_id, amount	engine	shop	shop.dbo	results	SELECT o.id AS order_id, o.amount FROM orders o
+shop.dbo.orders.id | shop.dbo.orders.amount	shop.dbo.orders.id | shop.dbo.orders.amount	engine	shop	shop.dbo	lineage	SELECT o.id AS order_id, o.amount FROM orders o
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT o.id AS order_id, o.amount FROM orders o
+"", ""	"", ""	engine	shop	shop.dbo	results	SELECT id + customer_id, UPPER(status) FROM orders
+shop.dbo.orders.customer_id shop.dbo.orders.id | shop.dbo.orders.status	~ | ~	engine	shop	shop.dbo	lineage	SELECT id + customer_id, UPPER(status) FROM orders
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT id + customer_id, UPPER(status) FROM orders
+a, b	a, b	engine	shop	shop.dbo	results	SELECT CAST(amount AS varchar(20)) AS a, TRY_CAST(status AS int) AS b FROM orders
+shop.dbo.orders.amount | shop.dbo.orders.status	~ | ~	engine	shop	shop.dbo	lineage	SELECT CAST(amount AS varchar(20)) AS a, TRY_CAST(status AS int) AS b FROM orders
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT CAST(amount AS varchar(20)) AS a, TRY_CAST(status AS int) AS b FROM orders
+one, b	one, b	engine	shop	shop.dbo	results	SELECT 1 AS one, 'a' AS b
+- | -	~ | ~	engine	shop	shop.dbo	lineage	SELECT 1 AS one, 'a' AS b
+-	-	engine	shop	shop.dbo	tables	SELECT 1 AS one, 'a' AS b
+x, y	x, y	engine	shop	shop.dbo	results	SELECT x = id, y = amount FROM orders
+shop.dbo.orders.id | shop.dbo.orders.amount	shop.dbo.orders.id | shop.dbo.orders.amount	engine	shop	shop.dbo	lineage	SELECT x = id, y = amount FROM orders
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT x = id, y = amount FROM orders
+id, amount	id, amount	engine	shop	shop.dbo	results	SELECT amount AS id, id AS amount FROM orders
+shop.dbo.orders.amount | shop.dbo.orders.id	shop.dbo.orders.amount | shop.dbo.orders.id	engine	shop	shop.dbo	lineage	SELECT amount AS id, id AS amount FROM orders
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT amount AS id, id AS amount FROM orders
+id	id	engine	shop	shop.dbo	results	SELECT 'lit' AS id FROM orders
+-	~	engine	shop	shop.dbo	lineage	SELECT 'lit' AS id FROM orders
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT 'lit' AS id FROM orders
+n, now	n, now	engine	shop	shop.dbo	results	SELECT NULL AS n, GETDATE() AS now
+- | -	~ | ~	engine	shop	shop.dbo	lineage	SELECT NULL AS n, GETDATE() AS now
+-	-	engine	shop	shop.dbo	tables	SELECT NULL AS n, GETDATE() AS now
+contact	contact	engine	shop	shop.dbo	results	SELECT CASE WHEN region = 'vip' THEN name ELSE email END AS contact FROM customers
+shop.dbo.customers.email shop.dbo.customers.name shop.dbo.customers.region	~	engine	shop	shop.dbo	lineage	SELECT CASE WHEN region = 'vip' THEN name ELSE email END AS contact FROM customers
+shop.dbo.customers	shop.dbo.customers	engine	shop	shop.dbo	tables	SELECT CASE WHEN region = 'vip' THEN name ELSE email END AS contact FROM customers
+c, r	c, r	engine	shop	shop.dbo	results	SELECT COALESCE(name, email) AS c, ISNULL(region, 'none') AS r FROM customers
+shop.dbo.customers.email shop.dbo.customers.name | shop.dbo.customers.region	~ | ~	engine	shop	shop.dbo	lineage	SELECT COALESCE(name, email) AS c, ISNULL(region, 'none') AS r FROM customers
+shop.dbo.customers	shop.dbo.customers	engine	shop	shop.dbo	tables	SELECT COALESCE(name, email) AS c, ISNULL(region, 'none') AS r FROM customers
+s	s	engine	shop	shop.dbo	results	SELECT IIF(amount > 10, status, NULL) AS s FROM orders
+shop.dbo.orders.amount shop.dbo.orders.status	~	engine	shop	shop.dbo	lineage	SELECT IIF(amount > 10, status, NULL) AS s FROM orders
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT IIF(amount > 10, status, NULL) AS s FROM orders
+ne, ne2	ne, ne2	engine	shop	shop.dbo	results	SELECT CONCAT(name, '-', email) AS ne, name + email AS ne2 FROM customers
+shop.dbo.customers.email shop.dbo.customers.name | shop.dbo.customers.email shop.dbo.customers.name	~ | ~	engine	shop	shop.dbo	lineage	SELECT CONCAT(name, '-', email) AS ne, name + email AS ne2 FROM customers
+shop.dbo.customers	shop.dbo.customers	engine	shop	shop.dbo	tables	SELECT CONCAT(name, '-', email) AS ne, name + email AS ne2 FROM customers
+select, from	select, from	engine	shop	shop.dbo	results	SELECT id AS [select], name AS "from" FROM customers
+shop.dbo.customers.id | shop.dbo.customers.name	shop.dbo.customers.id | shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT id AS [select], name AS "from" FROM customers
+shop.dbo.customers	shop.dbo.customers	engine	shop	shop.dbo	tables	SELECT id AS [select], name AS "from" FROM customers
+region	region	engine	shop	shop.dbo	results	SELECT DISTINCT region FROM customers
+shop.dbo.customers.region	shop.dbo.customers.region	engine	shop	shop.dbo	lineage	SELECT DISTINCT region FROM customers
+shop.dbo.customers	shop.dbo.customers	engine	shop	shop.dbo	tables	SELECT DISTINCT region FROM customers
+id, amount	id, amount	engine	shop	shop.dbo	results	SELECT TOP 5 id, amount FROM orders ORDER BY amount DESC
+shop.dbo.orders.id | shop.dbo.orders.amount	shop.dbo.orders.id | shop.dbo.orders.amount	engine	shop	shop.dbo	lineage	SELECT TOP 5 id, amount FROM orders ORDER BY amount DESC
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT TOP 5 id, amount FROM orders ORDER BY amount DESC
+name	name	engine	shop	shop.dbo	results	SELECT TOP (10) PERCENT name FROM customers ORDER BY name
+shop.dbo.customers.name	shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT TOP (10) PERCENT name FROM customers ORDER BY name
+shop.dbo.customers	shop.dbo.customers	engine	shop	shop.dbo	tables	SELECT TOP (10) PERCENT name FROM customers ORDER BY name
+id	id	engine	shop	shop.dbo	results	SELECT id FROM orders ORDER BY id OFFSET 5 ROWS FETCH NEXT 5 ROWS ONLY
+shop.dbo.orders.id	shop.dbo.orders.id	engine	shop	shop.dbo	lineage	SELECT id FROM orders ORDER BY id OFFSET 5 ROWS FETCH NEXT 5 ROWS ONLY
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT id FROM orders ORDER BY id OFFSET 5 ROWS FETCH NEXT 5 ROWS ONLY
+id	id	engine	shop	shop.dbo	results	SELECT id FROM orders WITH (NOLOCK)
+shop.dbo.orders.id	shop.dbo.orders.id	engine	shop	shop.dbo	lineage	SELECT id FROM orders WITH (NOLOCK)
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT id FROM orders WITH (NOLOCK)
+id	id	engine	shop	shop.dbo	results	SELECT id FROM dbo.orders
+shop.dbo.orders.id	shop.dbo.orders.id	engine	shop	shop.dbo	lineage	SELECT id FROM dbo.orders
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT id FROM dbo.orders
+id	id	engine	shop	shop.dbo	results	SELECT id FROM shop.dbo.orders
+shop.dbo.orders.id	shop.dbo.orders.id	engine	shop	shop.dbo	lineage	SELECT id FROM shop.dbo.orders
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT id FROM shop.dbo.orders
+id	id	engine	shop	shop.dbo	results	SELECT id FROM shop..orders
+shop.dbo.orders.id	shop.dbo.orders.id	engine	shop	shop.dbo	lineage	SELECT id FROM shop..orders
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT id FROM shop..orders
+id, amount	id, amount	engine	shop	shop.dbo	results	SELECT orders.id, dbo.orders.amount FROM dbo.orders
+shop.dbo.orders.id | shop.dbo.orders.amount	shop.dbo.orders.id | shop.dbo.orders.amount	engine	shop	shop.dbo	lineage	SELECT orders.id, dbo.orders.amount FROM dbo.orders
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT orders.id, dbo.orders.amount FROM dbo.orders
+id, name, email, region	id, name, email, region	engine	shop	shop.dbo	results	SELECT * FROM customers
+shop.dbo.customers.id | shop.dbo.customers.name | shop.dbo.customers.email | shop.dbo.customers.region	shop.dbo.customers.id | shop.dbo.customers.name | shop.dbo.customers.email | shop.dbo.customers.region	engine	shop	shop.dbo	lineage	SELECT * FROM customers
+shop.dbo.customers	shop.dbo.customers	engine	shop	shop.dbo	tables	SELECT * FROM customers
+id, name, email, region	id, name, email, region	engine	shop	shop.dbo	results	SELECT c.* FROM customers c
+shop.dbo.customers.id | shop.dbo.customers.name | shop.dbo.customers.email | shop.dbo.customers.region	shop.dbo.customers.id | shop.dbo.customers.name | shop.dbo.customers.email | shop.dbo.customers.region	engine	shop	shop.dbo	lineage	SELECT c.* FROM customers c
+shop.dbo.customers	shop.dbo.customers	engine	shop	shop.dbo	tables	SELECT c.* FROM customers c
+id, name, email, region, again	id, name, email, region, again	engine	shop	shop.dbo	results	SELECT *, id AS again FROM customers
+shop.dbo.customers.id | shop.dbo.customers.name | shop.dbo.customers.email | shop.dbo.customers.region | shop.dbo.customers.id	shop.dbo.customers.id | shop.dbo.customers.name | shop.dbo.customers.email | shop.dbo.customers.region | shop.dbo.customers.id	engine	shop	shop.dbo	lineage	SELECT *, id AS again FROM customers
+shop.dbo.customers	shop.dbo.customers	engine	shop	shop.dbo	tables	SELECT *, id AS again FROM customers
+id, customer_id, amount, status, created, name	id, customer_id, amount, status, created, name	engine	shop	shop.dbo	results	SELECT o.*, c.name FROM orders o JOIN customers c ON c.id = o.customer_id
+shop.dbo.orders.id | shop.dbo.orders.customer_id | shop.dbo.orders.amount | shop.dbo.orders.status | shop.dbo.orders.created | shop.dbo.customers.name	shop.dbo.orders.id | shop.dbo.orders.customer_id | shop.dbo.orders.amount | shop.dbo.orders.status | shop.dbo.orders.created | shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT o.*, c.name FROM orders o JOIN customers c ON c.id = o.customer_id
+shop.dbo.customers, shop.dbo.orders	shop.dbo.customers, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT o.*, c.name FROM orders o JOIN customers c ON c.id = o.customer_id
+id, customer_id, amount, status, created, id, name, email, region	id, customer_id, amount, status, created, id, name, email, region	engine	shop	shop.dbo	results	SELECT * FROM orders o JOIN customers c ON c.id = o.customer_id
+shop.dbo.orders.id | shop.dbo.orders.customer_id | shop.dbo.orders.amount | shop.dbo.orders.status | shop.dbo.orders.created | shop.dbo.customers.id | shop.dbo.customers.name | shop.dbo.customers.email | shop.dbo.customers.region	shop.dbo.orders.id | shop.dbo.orders.customer_id | shop.dbo.orders.amount | shop.dbo.orders.status | shop.dbo.orders.created | shop.dbo.customers.id | shop.dbo.customers.name | shop.dbo.customers.email | shop.dbo.customers.region	engine	shop	shop.dbo	lineage	SELECT * FROM orders o JOIN customers c ON c.id = o.customer_id
+shop.dbo.customers, shop.dbo.orders	shop.dbo.customers, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT * FROM orders o JOIN customers c ON c.id = o.customer_id
+id, customer_id, amount, status, created, id, name, email, region	id, customer_id, amount, status, created, id, name, email, region	engine	shop	shop.dbo	results	SELECT o.*, c.* FROM orders o, customers c WHERE c.id = o.customer_id
+shop.dbo.orders.id | shop.dbo.orders.customer_id | shop.dbo.orders.amount | shop.dbo.orders.status | shop.dbo.orders.created | shop.dbo.customers.id | shop.dbo.customers.name | shop.dbo.customers.email | shop.dbo.customers.region	shop.dbo.orders.id | shop.dbo.orders.customer_id | shop.dbo.orders.amount | shop.dbo.orders.status | shop.dbo.orders.created | shop.dbo.customers.id | shop.dbo.customers.name | shop.dbo.customers.email | shop.dbo.customers.region	engine	shop	shop.dbo	lineage	SELECT o.*, c.* FROM orders o, customers c WHERE c.id = o.customer_id
+shop.dbo.customers, shop.dbo.orders	shop.dbo.customers, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT o.*, c.* FROM orders o, customers c WHERE c.id = o.customer_id
+id, name, salary, manager_id, dept_id, ssn	id, name, salary, manager_id, dept_id, ssn	engine	shop	shop.dbo	results	SELECT * FROM hr.employees
+shop.hr.employees.id | shop.hr.employees.name | shop.hr.employees.salary | shop.hr.employees.manager_id | shop.hr.employees.dept_id | shop.hr.employees.ssn	shop.hr.employees.id | shop.hr.employees.name | shop.hr.employees.salary | shop.hr.employees.manager_id | shop.hr.employees.dept_id | shop.hr.employees.ssn	engine	shop	shop.dbo	lineage	SELECT * FROM hr.employees
+shop.hr.employees	shop.hr.employees	engine	shop	shop.dbo	tables	SELECT * FROM hr.employees
+id, customer_id, amount, status, created	id, customer_id, amount, status, created	engine	shop	shop.dbo	results	SELECT TOP 3 * FROM orders ORDER BY amount DESC
+shop.dbo.orders.id | shop.dbo.orders.customer_id | shop.dbo.orders.amount | shop.dbo.orders.status | shop.dbo.orders.created	shop.dbo.orders.id | shop.dbo.orders.customer_id | shop.dbo.orders.amount | shop.dbo.orders.status | shop.dbo.orders.created	engine	shop	shop.dbo	lineage	SELECT TOP 3 * FROM orders ORDER BY amount DESC
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT TOP 3 * FROM orders ORDER BY amount DESC
+id, name	id, name	engine	shop	shop.dbo	results	SELECT o.id, c.name FROM orders o INNER JOIN customers c ON o.customer_id = c.id
+shop.dbo.orders.id | shop.dbo.customers.name	shop.dbo.orders.id | shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT o.id, c.name FROM orders o INNER JOIN customers c ON o.customer_id = c.id
+shop.dbo.customers, shop.dbo.orders	shop.dbo.customers, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT o.id, c.name FROM orders o INNER JOIN customers c ON o.customer_id = c.id
+id, name	id, name	engine	shop	shop.dbo	results	SELECT o.id, c.name FROM orders o LEFT JOIN customers c ON o.customer_id = c.id
+shop.dbo.orders.id | shop.dbo.customers.name	shop.dbo.orders.id | shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT o.id, c.name FROM orders o LEFT JOIN customers c ON o.customer_id = c.id
+shop.dbo.customers, shop.dbo.orders	shop.dbo.customers, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT o.id, c.name FROM orders o LEFT JOIN customers c ON o.customer_id = c.id
+id, name	id, name	engine	shop	shop.dbo	results	SELECT o.id, c.name FROM orders o RIGHT OUTER JOIN customers c ON o.customer_id = c.id
+shop.dbo.orders.id | shop.dbo.customers.name	shop.dbo.orders.id | shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT o.id, c.name FROM orders o RIGHT OUTER JOIN customers c ON o.customer_id = c.id
+shop.dbo.customers, shop.dbo.orders	shop.dbo.customers, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT o.id, c.name FROM orders o RIGHT OUTER JOIN customers c ON o.customer_id = c.id
+id, name	id, name	engine	shop	shop.dbo	results	SELECT o.id, c.name FROM orders o FULL JOIN customers c ON o.customer_id = c.id
+shop.dbo.orders.id | shop.dbo.customers.name	shop.dbo.orders.id | shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT o.id, c.name FROM orders o FULL JOIN customers c ON o.customer_id = c.id
+shop.dbo.customers, shop.dbo.orders	shop.dbo.customers, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT o.id, c.name FROM orders o FULL JOIN customers c ON o.customer_id = c.id
+id, name	id, name	engine	shop	shop.dbo	results	SELECT o.id, p.name FROM orders o CROSS JOIN products p
+shop.dbo.orders.id | shop.dbo.products.name	shop.dbo.orders.id | shop.dbo.products.name	engine	shop	shop.dbo	lineage	SELECT o.id, p.name FROM orders o CROSS JOIN products p
+shop.dbo.orders, shop.dbo.products	shop.dbo.orders, shop.dbo.products	engine	shop	shop.dbo	tables	SELECT o.id, p.name FROM orders o CROSS JOIN products p
+name, manager	name, manager	engine	shop	shop.dbo	results	SELECT e.name, m.name AS manager FROM hr.employees e LEFT JOIN hr.employees m ON m.id = e.manager_id
+shop.hr.employees.name | shop.hr.employees.name	shop.hr.employees.name | shop.hr.employees.name	engine	shop	shop.dbo	lineage	SELECT e.name, m.name AS manager FROM hr.employees e LEFT JOIN hr.employees m ON m.id = e.manager_id
+shop.hr.employees	shop.hr.employees	engine	shop	shop.dbo	tables	SELECT e.name, m.name AS manager FROM hr.employees e LEFT JOIN hr.employees m ON m.id = e.manager_id
+name, product, qty	name, product, qty	engine	shop	shop.dbo	results	SELECT c.name, p.name AS product, i.qty FROM customers c JOIN orders o ON o.customer_id = c.id JOIN order_items i ON i.order_id = o.id JOIN products p ON p.id = i.product_id
+shop.dbo.customers.name | shop.dbo.products.name | shop.dbo.order_items.qty	shop.dbo.customers.name | shop.dbo.products.name | shop.dbo.order_items.qty	engine	shop	shop.dbo	lineage	SELECT c.name, p.name AS product, i.qty FROM customers c JOIN orders o ON o.customer_id = c.id JOIN order_items i ON i.order_id = o.id JOIN products p ON p.id = i.product_id
+shop.dbo.customers, shop.dbo.order_items, shop.dbo.orders, shop.dbo.products	shop.dbo.customers, shop.dbo.order_items, shop.dbo.orders, shop.dbo.products	engine	shop	shop.dbo	tables	SELECT c.name, p.name AS product, i.qty FROM customers c JOIN orders o ON o.customer_id = c.id JOIN order_items i ON i.order_id = o.id JOIN products p ON p.id = i.product_id
+id, name	id, name	engine	shop	shop.dbo	results	SELECT o.id, c.name FROM orders o JOIN (customers c JOIN hr.customers h ON h.id = c.id) ON c.id = o.customer_id
+shop.dbo.orders.id | shop.dbo.customers.name	shop.dbo.orders.id | shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT o.id, c.name FROM orders o JOIN (customers c JOIN hr.customers h ON h.id = c.id) ON c.id = o.customer_id
+shop.dbo.customers, shop.dbo.orders, shop.hr.customers	shop.dbo.customers, shop.dbo.orders, shop.hr.customers	engine	shop	shop.dbo	tables	SELECT o.id, c.name FROM orders o JOIN (customers c JOIN hr.customers h ON h.id = c.id) ON c.id = o.customer_id
+name, amount	name, amount	engine	shop	shop.dbo	results	SELECT c.name, x.amount FROM customers c CROSS APPLY (SELECT TOP 1 o.amount FROM orders o WHERE o.customer_id = c.id ORDER BY o.amount DESC) x
+shop.dbo.customers.name | shop.dbo.orders.amount	shop.dbo.customers.name | shop.dbo.orders.amount	engine	shop	shop.dbo	lineage	SELECT c.name, x.amount FROM customers c CROSS APPLY (SELECT TOP 1 o.amount FROM orders o WHERE o.customer_id = c.id ORDER BY o.amount DESC) x
+shop.dbo.customers, shop.dbo.orders	shop.dbo.customers, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT c.name, x.amount FROM customers c CROSS APPLY (SELECT TOP 1 o.amount FROM orders o WHERE o.customer_id = c.id ORDER BY o.amount DESC) x
+name, n	name, n	engine	shop	shop.dbo	results	SELECT c.name, x.n FROM customers c OUTER APPLY (SELECT COUNT(*) AS n FROM orders o WHERE o.customer_id = c.id) x
+shop.dbo.customers.name | -	shop.dbo.customers.name | ~	engine	shop	shop.dbo	lineage	SELECT c.name, x.n FROM customers c OUTER APPLY (SELECT COUNT(*) AS n FROM orders o WHERE o.customer_id = c.id) x
+shop.dbo.customers, shop.dbo.orders	shop.dbo.customers, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT c.name, x.n FROM customers c OUTER APPLY (SELECT COUNT(*) AS n FROM orders o WHERE o.customer_id = c.id) x
+id, cname	id, cname	engine	shop	shop.dbo	results	SELECT id, (SELECT name FROM customers c WHERE c.id = o.customer_id) AS cname FROM orders o
+shop.dbo.orders.id | shop.dbo.customers.name	shop.dbo.orders.id | ~	engine	shop	shop.dbo	lineage	SELECT id, (SELECT name FROM customers c WHERE c.id = o.customer_id) AS cname FROM orders o
+shop.dbo.customers, shop.dbo.orders	shop.dbo.customers, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT id, (SELECT name FROM customers c WHERE c.id = o.customer_id) AS cname FROM orders o
+n	n	engine	shop	shop.dbo	results	SELECT (SELECT COUNT(*) FROM orders) AS n
+-	~	engine	shop	shop.dbo	lineage	SELECT (SELECT COUNT(*) FROM orders) AS n
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT (SELECT COUNT(*) FROM orders) AS n
+id, amount	id, amount	engine	shop	shop.dbo	results	SELECT * FROM (SELECT id, amount FROM orders) AS t
+shop.dbo.orders.id | shop.dbo.orders.amount	shop.dbo.orders.id | shop.dbo.orders.amount	engine	shop	shop.dbo	lineage	SELECT * FROM (SELECT id, amount FROM orders) AS t
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT * FROM (SELECT id, amount FROM orders) AS t
+x	x	engine	shop	shop.dbo	results	SELECT t.x FROM (SELECT id AS x FROM orders) t
+shop.dbo.orders.id	shop.dbo.orders.id	engine	shop	shop.dbo	lineage	SELECT t.x FROM (SELECT id AS x FROM orders) t
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT t.x FROM (SELECT id AS x FROM orders) t
+a, b	a, b	engine	shop	shop.dbo	results	SELECT a, b FROM (SELECT id, name FROM customers) AS t(a, b)
+shop.dbo.customers.id | shop.dbo.customers.name	shop.dbo.customers.id | shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT a, b FROM (SELECT id, name FROM customers) AS t(a, b)
+shop.dbo.customers	shop.dbo.customers	engine	shop	shop.dbo	tables	SELECT a, b FROM (SELECT id, name FROM customers) AS t(a, b)
+id, name	id, name	engine	shop	shop.dbo	results	SELECT * FROM (SELECT * FROM (SELECT id, name FROM customers) a) b
+shop.dbo.customers.id | shop.dbo.customers.name	shop.dbo.customers.id | shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT * FROM (SELECT * FROM (SELECT id, name FROM customers) a) b
+shop.dbo.customers	shop.dbo.customers	engine	shop	shop.dbo	tables	SELECT * FROM (SELECT * FROM (SELECT id, name FROM customers) a) b
+name	name	engine	shop	shop.dbo	results	SELECT name FROM customers WHERE id IN (SELECT customer_id FROM orders)
+shop.dbo.customers.name	shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT name FROM customers WHERE id IN (SELECT customer_id FROM orders)
+shop.dbo.customers, shop.dbo.orders	shop.dbo.customers, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT name FROM customers WHERE id IN (SELECT customer_id FROM orders)
+name	name	engine	shop	shop.dbo	results	SELECT name FROM customers c WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id)
+shop.dbo.customers.name	shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT name FROM customers c WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id)
+shop.dbo.customers, shop.dbo.orders	shop.dbo.customers, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT name FROM customers c WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id)
+name	name	engine	shop	shop.dbo	results	SELECT name FROM customers WHERE id = (SELECT MAX(customer_id) FROM orders)
+shop.dbo.customers.name	shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT name FROM customers WHERE id = (SELECT MAX(customer_id) FROM orders)
+shop.dbo.customers, shop.dbo.orders	shop.dbo.customers, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT name FROM customers WHERE id = (SELECT MAX(customer_id) FROM orders)
+id, has_items	id, has_items	engine	shop	shop.dbo	results	SELECT id, CASE WHEN EXISTS (SELECT 1 FROM order_items i WHERE i.order_id = o.id) THEN 'y' ELSE 'n' END AS has_items FROM orders o
+shop.dbo.orders.id | -	shop.dbo.orders.id | ~	engine	shop	shop.dbo	lineage	SELECT id, CASE WHEN EXISTS (SELECT 1 FROM order_items i WHERE i.order_id = o.id) THEN 'y' ELSE 'n' END AS has_items FROM orders o
+shop.dbo.order_items, shop.dbo.orders	shop.dbo.order_items, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT id, CASE WHEN EXISTS (SELECT 1 FROM order_items i WHERE i.order_id = o.id) THEN 'y' ELSE 'n' END AS has_items FROM orders o
+k	k	engine	shop	shop.dbo	results	SELECT v.k FROM (VALUES (1), (2)) AS v(k)
+-	~	engine	shop	shop.dbo	lineage	SELECT v.k FROM (VALUES (1), (2)) AS v(k)
+-	-	engine	shop	shop.dbo	tables	SELECT v.k FROM (VALUES (1), (2)) AS v(k)
+x	x	engine	shop	shop.dbo	results	SELECT u.x FROM (SELECT id AS x FROM orders UNION ALL SELECT id FROM customers) u
+shop.dbo.customers.id shop.dbo.orders.id	~	engine	shop	shop.dbo	lineage	SELECT u.x FROM (SELECT id AS x FROM orders UNION ALL SELECT id FROM customers) u
+shop.dbo.customers, shop.dbo.orders	shop.dbo.customers, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT u.x FROM (SELECT id AS x FROM orders UNION ALL SELECT id FROM customers) u
+id, name	id, name	engine	shop	shop.dbo	results	WITH c AS (SELECT id, name FROM customers) SELECT * FROM c
+shop.dbo.customers.id | shop.dbo.customers.name	shop.dbo.customers.id | shop.dbo.customers.name	engine	shop	shop.dbo	lineage	WITH c AS (SELECT id, name FROM customers) SELECT * FROM c
+shop.dbo.customers	shop.dbo.customers	engine	shop	shop.dbo	tables	WITH c AS (SELECT id, name FROM customers) SELECT * FROM c
+x, y	x, y	engine	shop	shop.dbo	results	WITH c(x, y) AS (SELECT id, name FROM customers) SELECT x, y FROM c
+shop.dbo.customers.id | shop.dbo.customers.name	shop.dbo.customers.id | shop.dbo.customers.name	engine	shop	shop.dbo	lineage	WITH c(x, y) AS (SELECT id, name FROM customers) SELECT x, y FROM c
+shop.dbo.customers	shop.dbo.customers	engine	shop	shop.dbo	tables	WITH c(x, y) AS (SELECT id, name FROM customers) SELECT x, y FROM c
+name, id	name, id	engine	shop	shop.dbo	results	WITH a AS (SELECT id, customer_id FROM orders), b AS (SELECT a.id, c.name FROM a JOIN customers c ON c.id = a.customer_id) SELECT name, id FROM b
+shop.dbo.customers.name | shop.dbo.orders.id	shop.dbo.customers.name | shop.dbo.orders.id	engine	shop	shop.dbo	lineage	WITH a AS (SELECT id, customer_id FROM orders), b AS (SELECT a.id, c.name FROM a JOIN customers c ON c.id = a.customer_id) SELECT name, id FROM b
+shop.dbo.customers, shop.dbo.orders	shop.dbo.customers, shop.dbo.orders	engine	shop	shop.dbo	tables	WITH a AS (SELECT id, customer_id FROM orders), b AS (SELECT a.id, c.name FROM a JOIN customers c ON c.id = a.customer_id) SELECT name, id FROM b
+id	id	engine	shop	shop.dbo	results	WITH c AS (SELECT id FROM orders) SELECT x.id FROM c x JOIN c y ON x.id = y.id
+shop.dbo.orders.id	shop.dbo.orders.id	engine	shop	shop.dbo	lineage	WITH c AS (SELECT id FROM orders) SELECT x.id FROM c x JOIN c y ON x.id = y.id
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	WITH c AS (SELECT id FROM orders) SELECT x.id FROM c x JOIN c y ON x.id = y.id
+id, name	id, name	engine	shop	shop.dbo	results	WITH orders AS (SELECT id, name FROM customers) SELECT * FROM orders
+shop.dbo.customers.id | shop.dbo.customers.name	shop.dbo.customers.id | shop.dbo.customers.name	engine	shop	shop.dbo	lineage	WITH orders AS (SELECT id, name FROM customers) SELECT * FROM orders
+shop.dbo.customers	shop.dbo.customers	engine	shop	shop.dbo	tables	WITH orders AS (SELECT id, name FROM customers) SELECT * FROM orders
+id, manager_id, name	id, manager_id, name	engine	shop	shop.dbo	results	WITH r AS (SELECT id, manager_id, name FROM hr.employees WHERE manager_id IS NULL UNION ALL SELECT e.id, e.manager_id, e.name FROM hr.employees e JOIN r ON e.manager_id = r.id) SELECT * FROM r
+shop.hr.employees.id | shop.hr.employees.manager_id | shop.hr.employees.name	~ | ~ | ~	engine	shop	shop.dbo	lineage	WITH r AS (SELECT id, manager_id, name FROM hr.employees WHERE manager_id IS NULL UNION ALL SELECT e.id, e.manager_id, e.name FROM hr.employees e JOIN r ON e.manager_id = r.id) SELECT * FROM r
+shop.hr.employees	shop.hr.employees	engine	shop	shop.dbo	tables	WITH r AS (SELECT id, manager_id, name FROM hr.employees WHERE manager_id IS NULL UNION ALL SELECT e.id, e.manager_id, e.name FROM hr.employees e JOIN r ON e.manager_id = r.id) SELECT * FROM r
+n, label	n, label	engine	shop	shop.dbo	results	WITH r(n, label) AS (SELECT 1, CAST(name AS nvarchar(100)) FROM products UNION ALL SELECT n + 1, label FROM r WHERE n < 3) SELECT n, label FROM r
+- | shop.dbo.products.name	~ | ~	engine	shop	shop.dbo	lineage	WITH r(n, label) AS (SELECT 1, CAST(name AS nvarchar(100)) FROM products UNION ALL SELECT n + 1, label FROM r WHERE n < 3) SELECT n, label FROM r
+shop.dbo.products	shop.dbo.products	engine	shop	shop.dbo	tables	WITH r(n, label) AS (SELECT 1, CAST(name AS nvarchar(100)) FROM products UNION ALL SELECT n + 1, label FROM r WHERE n < 3) SELECT n, label FROM r
+id	id	engine	shop	shop.dbo	results	SELECT id FROM orders UNION SELECT id FROM customers
+shop.dbo.customers.id shop.dbo.orders.id	~	engine	shop	shop.dbo	lineage	SELECT id FROM orders UNION SELECT id FROM customers
+shop.dbo.customers, shop.dbo.orders	shop.dbo.customers, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT id FROM orders UNION SELECT id FROM customers
+k, amount	k, amount	engine	shop	shop.dbo	results	SELECT id AS k, amount FROM orders UNION ALL SELECT order_id, price FROM order_items
+shop.dbo.order_items.order_id shop.dbo.orders.id | shop.dbo.order_items.price shop.dbo.orders.amount	~ | ~	engine	shop	shop.dbo	lineage	SELECT id AS k, amount FROM orders UNION ALL SELECT order_id, price FROM order_items
+shop.dbo.order_items, shop.dbo.orders	shop.dbo.order_items, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT id AS k, amount FROM orders UNION ALL SELECT order_id, price FROM order_items
+name	name	engine	shop	shop.dbo	results	SELECT name FROM customers INTERSECT SELECT name FROM hr.employees
+shop.dbo.customers.name shop.hr.employees.name	shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT name FROM customers INTERSECT SELECT name FROM hr.employees
+shop.dbo.customers, shop.hr.employees	shop.dbo.customers, shop.hr.employees	engine	shop	shop.dbo	tables	SELECT name FROM customers INTERSECT SELECT name FROM hr.employees
+name	name	engine	shop	shop.dbo	results	SELECT name FROM customers EXCEPT SELECT name FROM products
+shop.dbo.customers.name shop.dbo.products.name	shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT name FROM customers EXCEPT SELECT name FROM products
+shop.dbo.customers, shop.dbo.products	shop.dbo.customers, shop.dbo.products	engine	shop	shop.dbo	tables	SELECT name FROM customers EXCEPT SELECT name FROM products
+name	name	engine	shop	shop.dbo	results	SELECT name FROM customers UNION SELECT name FROM hr.employees ORDER BY name
+shop.dbo.customers.name shop.hr.employees.name	~	engine	shop	shop.dbo	lineage	SELECT name FROM customers UNION SELECT name FROM hr.employees ORDER BY name
+shop.dbo.customers, shop.hr.employees	shop.dbo.customers, shop.hr.employees	engine	shop	shop.dbo	tables	SELECT name FROM customers UNION SELECT name FROM hr.employees ORDER BY name
+id, name	id, name	engine	shop	shop.dbo	results	SELECT id, name FROM customers UNION SELECT id, name FROM products UNION SELECT id, name FROM hr.departments
+shop.dbo.customers.id shop.dbo.products.id shop.hr.departments.id | shop.dbo.customers.name shop.dbo.products.name shop.hr.departments.name	~ | ~	engine	shop	shop.dbo	lineage	SELECT id, name FROM customers UNION SELECT id, name FROM products UNION SELECT id, name FROM hr.departments
+shop.dbo.customers, shop.dbo.products, shop.hr.departments	shop.dbo.customers, shop.dbo.products, shop.hr.departments	engine	shop	shop.dbo	tables	SELECT id, name FROM customers UNION SELECT id, name FROM products UNION SELECT id, name FROM hr.departments
+id, customer_id, gross, customer_name	id, customer_id, gross, customer_name	engine	shop	shop.dbo	results	SELECT * FROM order_totals
+shop.dbo.orders.id | shop.dbo.orders.customer_id | shop.dbo.orders.amount | shop.dbo.customers.name	shop.dbo.orders.id | shop.dbo.orders.customer_id | ~ | shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT * FROM order_totals
+shop.dbo.order_totals	shop.dbo.customers, shop.dbo.order_totals, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT * FROM order_totals
+id, gross	id, gross	engine	shop	shop.dbo	results	SELECT id, gross FROM order_totals
+shop.dbo.orders.id | shop.dbo.orders.amount	shop.dbo.orders.id | ~	engine	shop	shop.dbo	lineage	SELECT id, gross FROM order_totals
+shop.dbo.order_totals	shop.dbo.customers, shop.dbo.order_totals, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT id, gross FROM order_totals
+customer_name	customer_name	engine	shop	shop.dbo	results	SELECT customer_name FROM dbo.order_totals WHERE customer_id = 1
+shop.dbo.customers.name	shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT customer_name FROM dbo.order_totals WHERE customer_id = 1
+shop.dbo.order_totals	shop.dbo.customers, shop.dbo.order_totals, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT customer_name FROM dbo.order_totals WHERE customer_id = 1
+id, customer_name, gross	id, customer_name, gross	engine	shop	shop.dbo	results	SELECT * FROM big_orders
+shop.dbo.orders.id | shop.dbo.customers.name | shop.dbo.orders.amount	shop.dbo.orders.id | shop.dbo.customers.name | ~	engine	shop	shop.dbo	lineage	SELECT * FROM big_orders
+shop.dbo.big_orders	shop.dbo.big_orders, shop.dbo.customers, shop.dbo.order_totals, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT * FROM big_orders
+customer_name, status	customer_name, status	engine	shop	shop.dbo	results	SELECT b.customer_name, o.status FROM big_orders b JOIN orders o ON o.id = b.id
+shop.dbo.customers.name | shop.dbo.orders.status	shop.dbo.customers.name | shop.dbo.orders.status	engine	shop	shop.dbo	lineage	SELECT b.customer_name, o.status FROM big_orders b JOIN orders o ON o.id = b.id
+shop.dbo.big_orders, shop.dbo.orders	shop.dbo.big_orders, shop.dbo.customers, shop.dbo.order_totals, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT b.customer_name, o.status FROM big_orders b JOIN orders o ON o.id = b.id
+staff_id, staff_name, dept	staff_id, staff_name, dept	engine	shop	shop.dbo	results	SELECT * FROM hr.staff
+shop.hr.employees.id | shop.hr.employees.name | shop.hr.departments.name	shop.hr.employees.id | shop.hr.employees.name | shop.hr.departments.name	engine	shop	shop.dbo	lineage	SELECT * FROM hr.staff
+shop.hr.staff	shop.hr.departments, shop.hr.employees, shop.hr.staff	engine	shop	shop.dbo	tables	SELECT * FROM hr.staff
+staff_name, dept	staff_name, dept	engine	shop	shop.dbo	results	SELECT staff_name, dept FROM hr.staff WHERE staff_id = 1
+shop.hr.employees.name | shop.hr.departments.name	shop.hr.employees.name | shop.hr.departments.name	engine	shop	shop.dbo	lineage	SELECT staff_name, dept FROM hr.staff WHERE staff_id = 1
+shop.hr.staff	shop.hr.departments, shop.hr.employees, shop.hr.staff	engine	shop	shop.dbo	tables	SELECT staff_name, dept FROM hr.staff WHERE staff_id = 1
+name	name	engine	shop	shop.dbo	results	SELECT * FROM all_people
+shop.dbo.customers.name shop.hr.employees.name	~	engine	shop	shop.dbo	lineage	SELECT * FROM all_people
+shop.dbo.all_people	shop.dbo.all_people, shop.dbo.customers, shop.hr.employees	engine	shop	shop.dbo	tables	SELECT * FROM all_people
+id, name, category	id, name, category	engine	shop	shop.dbo	results	SELECT * FROM v_products
+shop.dbo.products.id | shop.dbo.products.name | shop.dbo.products.category	shop.dbo.products.id | shop.dbo.products.name | shop.dbo.products.category	engine	shop	shop.dbo	lineage	SELECT * FROM v_products
+shop.dbo.v_products	shop.dbo.products, shop.dbo.v_products	engine	shop	shop.dbo	tables	SELECT * FROM v_products
+id, amount	id, amount	engine	shop	shop.dbo	results	SELECT * FROM archived
+archive.dbo.old_orders.id | archive.dbo.old_orders.amount	archive.dbo.old_orders.id | archive.dbo.old_orders.amount	engine	shop	shop.dbo	lineage	SELECT * FROM archived
+shop.dbo.archived	archive.dbo.old_orders, shop.dbo.archived	engine	shop	shop.dbo	tables	SELECT * FROM archived
+customer_name	customer_name	engine	shop	shop.dbo	results	SELECT customer_name FROM order_totals WHERE id IN (SELECT id FROM big_orders)
+shop.dbo.customers.name	shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT customer_name FROM order_totals WHERE id IN (SELECT id FROM big_orders)
+shop.dbo.big_orders, shop.dbo.order_totals	shop.dbo.big_orders, shop.dbo.customers, shop.dbo.order_totals, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT customer_name FROM order_totals WHERE id IN (SELECT id FROM big_orders)
+VipName	VipName	engine	shop	shop.dbo	results	SELECT * FROM [Vip Names]
+shop.dbo.customers.name	shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT * FROM [Vip Names]
+shop.dbo.Vip Names	shop.dbo.Vip Names, shop.dbo.customers	engine	shop	shop.dbo	tables	SELECT * FROM [Vip Names]
+VipName	VipName	engine	shop	shop.dbo	results	SELECT VipName FROM dbo.[Vip Names]
+shop.dbo.customers.name	shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT VipName FROM dbo.[Vip Names]
+shop.dbo.Vip Names	shop.dbo.Vip Names, shop.dbo.customers	engine	shop	shop.dbo	tables	SELECT VipName FROM dbo.[Vip Names]
+id, staff_name	id, staff_name	engine	shop	shop.dbo	results	SELECT t.id, s.staff_name FROM order_totals t JOIN hr.staff s ON s.staff_id = t.customer_id
+shop.dbo.orders.id | shop.hr.employees.name	shop.dbo.orders.id | shop.hr.employees.name	engine	shop	shop.dbo	lineage	SELECT t.id, s.staff_name FROM order_totals t JOIN hr.staff s ON s.staff_id = t.customer_id
+shop.dbo.order_totals, shop.hr.staff	shop.dbo.customers, shop.dbo.order_totals, shop.dbo.orders, shop.hr.departments, shop.hr.employees, shop.hr.staff	engine	shop	shop.dbo	tables	SELECT t.id, s.staff_name FROM order_totals t JOIN hr.staff s ON s.staff_id = t.customer_id
+id, customer_id, amount	id, customer_id, amount	engine	shop	shop.dbo	results	SELECT * FROM archive.dbo.old_orders
+archive.dbo.old_orders.id | archive.dbo.old_orders.customer_id | archive.dbo.old_orders.amount	archive.dbo.old_orders.id | archive.dbo.old_orders.customer_id | archive.dbo.old_orders.amount	engine	shop	shop.dbo	lineage	SELECT * FROM archive.dbo.old_orders
+archive.dbo.old_orders	archive.dbo.old_orders	engine	shop	shop.dbo	tables	SELECT * FROM archive.dbo.old_orders
+id, amount	id, amount	engine	shop	shop.dbo	results	SELECT * FROM archive.dbo.recent
+archive.dbo.old_orders.id | archive.dbo.old_orders.amount	archive.dbo.old_orders.id | archive.dbo.old_orders.amount	engine	shop	shop.dbo	lineage	SELECT * FROM archive.dbo.recent
+archive.dbo.recent	archive.dbo.old_orders, archive.dbo.recent	engine	shop	shop.dbo	tables	SELECT * FROM archive.dbo.recent
+name, amount	name, amount	engine	shop	shop.dbo	results	SELECT c.name, a.amount FROM customers c JOIN archive.dbo.old_orders a ON a.customer_id = c.id
+shop.dbo.customers.name | archive.dbo.old_orders.amount	shop.dbo.customers.name | archive.dbo.old_orders.amount	engine	shop	shop.dbo	lineage	SELECT c.name, a.amount FROM customers c JOIN archive.dbo.old_orders a ON a.customer_id = c.id
+archive.dbo.old_orders, shop.dbo.customers	archive.dbo.old_orders, shop.dbo.customers	engine	shop	shop.dbo	tables	SELECT c.name, a.amount FROM customers c JOIN archive.dbo.old_orders a ON a.customer_id = c.id
+Order ID, total	Order ID, total	engine	shop	shop.dbo	results	SELECT [Order ID], [Unit Price] * Qty AS total FROM [Order Details]
+shop.dbo.Order Details.Order ID | shop.dbo.Order Details.Qty shop.dbo.Order Details.Unit Price	shop.dbo.Order Details.Order ID | ~	engine	shop	shop.dbo	lineage	SELECT [Order ID], [Unit Price] * Qty AS total FROM [Order Details]
+shop.dbo.Order Details	shop.dbo.Order Details	engine	shop	shop.dbo	tables	SELECT [Order ID], [Unit Price] * Qty AS total FROM [Order Details]
+Order ID, Qty	Order ID, Qty	engine	shop	shop.dbo	results	SELECT "Order ID", Qty FROM "Order Details"
+shop.dbo.Order Details.Order ID | shop.dbo.Order Details.Qty	shop.dbo.Order Details.Order ID | shop.dbo.Order Details.Qty	engine	shop	shop.dbo	lineage	SELECT "Order ID", Qty FROM "Order Details"
+shop.dbo.Order Details	shop.dbo.Order Details	engine	shop	shop.dbo	tables	SELECT "Order ID", Qty FROM "Order Details"
+Order ID	Order ID	engine	shop	shop.dbo	results	SELECT d.[Order ID] FROM dbo.[Order Details] AS d
+shop.dbo.Order Details.Order ID	shop.dbo.Order Details.Order ID	engine	shop	shop.dbo	lineage	SELECT d.[Order ID] FROM dbo.[Order Details] AS d
+shop.dbo.Order Details	shop.dbo.Order Details	engine	shop	shop.dbo	tables	SELECT d.[Order ID] FROM dbo.[Order Details] AS d
+Order ID, Unit Price, Qty	Order ID, Unit Price, Qty	engine	shop	shop.dbo	results	SELECT * FROM [Order Details]
+shop.dbo.Order Details.Order ID | shop.dbo.Order Details.Unit Price | shop.dbo.Order Details.Qty	shop.dbo.Order Details.Order ID | shop.dbo.Order Details.Unit Price | shop.dbo.Order Details.Qty	engine	shop	shop.dbo	lineage	SELECT * FROM [Order Details]
+shop.dbo.Order Details	shop.dbo.Order Details	engine	shop	shop.dbo	tables	SELECT * FROM [Order Details]
+id, camelname	id, camelname	engine	shop	shop.dbo	results	SELECT id, camelname FROM mixedcase
+shop.dbo.MixedCase.Id | shop.dbo.MixedCase.CamelName	shop.dbo.MixedCase.Id | shop.dbo.MixedCase.CamelName	engine	shop	shop.dbo	lineage	SELECT id, camelname FROM mixedcase
+shop.dbo.MixedCase	shop.dbo.MixedCase	engine	shop	shop.dbo	tables	SELECT id, camelname FROM mixedcase
+ID, NAME	ID, NAME	engine	shop	shop.dbo	results	SELECT ID, NAME FROM CUSTOMERS
+shop.dbo.customers.id | shop.dbo.customers.name	shop.dbo.customers.id | shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT ID, NAME FROM CUSTOMERS
+shop.dbo.customers	shop.dbo.customers	engine	shop	shop.dbo	tables	SELECT ID, NAME FROM CUSTOMERS
+Id, CamelName	Id, CamelName	engine	shop	shop.dbo	results	SELECT [Id], [CamelName] FROM [dbo].[MixedCase]
+shop.dbo.MixedCase.Id | shop.dbo.MixedCase.CamelName	shop.dbo.MixedCase.Id | shop.dbo.MixedCase.CamelName	engine	shop	shop.dbo	lineage	SELECT [Id], [CamelName] FROM [dbo].[MixedCase]
+shop.dbo.MixedCase	shop.dbo.MixedCase	engine	shop	shop.dbo	tables	SELECT [Id], [CamelName] FROM [dbo].[MixedCase]
+Customer Name	Customer Name	engine	shop	shop.dbo	results	SELECT c.NAME AS [Customer Name] FROM Customers AS C
+shop.dbo.customers.name	shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT c.NAME AS [Customer Name] FROM Customers AS C
+shop.dbo.customers	shop.dbo.customers	engine	shop	shop.dbo	tables	SELECT c.NAME AS [Customer Name] FROM Customers AS C
+Id, CamelName	Id, CamelName	engine	shop	shop.dbo	results	SELECT * FROM MIXEDCASE
+shop.dbo.MixedCase.Id | shop.dbo.MixedCase.CamelName	shop.dbo.MixedCase.Id | shop.dbo.MixedCase.CamelName	engine	shop	shop.dbo	lineage	SELECT * FROM MIXEDCASE
+shop.dbo.MixedCase	shop.dbo.MixedCase	engine	shop	shop.dbo	tables	SELECT * FROM MIXEDCASE
+id	id	engine	shop	shop.dbo	results	SELECT customers.id FROM orders AS customers
+shop.dbo.orders.id	shop.dbo.orders.id	engine	shop	shop.dbo	lineage	SELECT customers.id FROM orders AS customers
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT customers.id FROM orders AS customers
+name	name	engine	shop	shop.dbo	results	SELECT orders.name FROM customers AS orders
+shop.dbo.customers.name	shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT orders.name FROM customers AS orders
+shop.dbo.customers	shop.dbo.customers	engine	shop	shop.dbo	tables	SELECT orders.name FROM customers AS orders
+nickname	nickname	engine	shop	shop.dbo	results	SELECT customers.nickname FROM hr.customers
+shop.hr.customers.nickname	shop.hr.customers.nickname	engine	shop	shop.dbo	lineage	SELECT customers.nickname FROM hr.customers
+shop.hr.customers	shop.hr.customers	engine	shop	shop.dbo	tables	SELECT customers.nickname FROM hr.customers
+id, name	id, name	engine	shop	shop.dbo	results	SELECT c.id, d.name FROM hr.customers c JOIN dbo.customers d ON d.id = c.id
+shop.hr.customers.id | shop.dbo.customers.name	shop.hr.customers.id | shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT c.id, d.name FROM hr.customers c JOIN dbo.customers d ON d.id = c.id
+shop.dbo.customers, shop.hr.customers	shop.dbo.customers, shop.hr.customers	engine	shop	shop.dbo	tables	SELECT c.id, d.name FROM hr.customers c JOIN dbo.customers d ON d.id = c.id
+name	name	engine	shop	shop.dbo	results	SELECT customers.name FROM hr.customers AS h JOIN customers ON customers.id = h.id
+shop.dbo.customers.name	shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT customers.name FROM hr.customers AS h JOIN customers ON customers.id = h.id
+shop.dbo.customers, shop.hr.customers	shop.dbo.customers, shop.hr.customers	engine	shop	shop.dbo	tables	SELECT customers.name FROM hr.customers AS h JOIN customers ON customers.id = h.id
+id, rn	id, rn	engine	shop	shop.dbo	results	SELECT id, ROW_NUMBER() OVER (ORDER BY amount) AS rn FROM orders
+shop.dbo.orders.id | shop.dbo.orders.amount	shop.dbo.orders.id | ~	engine	shop	shop.dbo	lineage	SELECT id, ROW_NUMBER() OVER (ORDER BY amount) AS rn FROM orders
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT id, ROW_NUMBER() OVER (ORDER BY amount) AS rn FROM orders
+id, total	id, total	engine	shop	shop.dbo	results	SELECT id, SUM(amount) OVER (PARTITION BY customer_id) AS total FROM orders
+shop.dbo.orders.id | shop.dbo.orders.amount shop.dbo.orders.customer_id	shop.dbo.orders.id | ~	engine	shop	shop.dbo	lineage	SELECT id, SUM(amount) OVER (PARTITION BY customer_id) AS total FROM orders
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT id, SUM(amount) OVER (PARTITION BY customer_id) AS total FROM orders
+id, prev	id, prev	engine	shop	shop.dbo	results	SELECT id, LAG(amount) OVER (ORDER BY created) AS prev FROM orders
+shop.dbo.orders.id | shop.dbo.orders.amount shop.dbo.orders.created	shop.dbo.orders.id | ~	engine	shop	shop.dbo	lineage	SELECT id, LAG(amount) OVER (ORDER BY created) AS prev FROM orders
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT id, LAG(amount) OVER (ORDER BY created) AS prev FROM orders
+name, r	name, r	engine	shop	shop.dbo	results	SELECT name, RANK() OVER (PARTITION BY dept_id ORDER BY salary DESC) AS r FROM hr.employees
+shop.hr.employees.name | shop.hr.employees.dept_id shop.hr.employees.salary	shop.hr.employees.name | ~	engine	shop	shop.dbo	lineage	SELECT name, RANK() OVER (PARTITION BY dept_id ORDER BY salary DESC) AS r FROM hr.employees
+shop.hr.employees	shop.hr.employees	engine	shop	shop.dbo	tables	SELECT name, RANK() OVER (PARTITION BY dept_id ORDER BY salary DESC) AS r FROM hr.employees
+id, first_status	id, first_status	engine	shop	shop.dbo	results	SELECT id, FIRST_VALUE(status) OVER (PARTITION BY customer_id ORDER BY created) AS first_status FROM orders
+shop.dbo.orders.id | shop.dbo.orders.created shop.dbo.orders.customer_id shop.dbo.orders.status	shop.dbo.orders.id | ~	engine	shop	shop.dbo	lineage	SELECT id, FIRST_VALUE(status) OVER (PARTITION BY customer_id ORDER BY created) AS first_status FROM orders
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT id, FIRST_VALUE(status) OVER (PARTITION BY customer_id ORDER BY created) AS first_status FROM orders
+""	""	engine	shop	shop.dbo	results	SELECT COUNT(*) FROM orders
+-	~	engine	shop	shop.dbo	lineage	SELECT COUNT(*) FROM orders
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT COUNT(*) FROM orders
+customer_id, total	customer_id, total	engine	shop	shop.dbo	results	SELECT customer_id, SUM(amount) AS total FROM orders GROUP BY customer_id
+shop.dbo.orders.customer_id | shop.dbo.orders.amount	shop.dbo.orders.customer_id | ~	engine	shop	shop.dbo	lineage	SELECT customer_id, SUM(amount) AS total FROM orders GROUP BY customer_id
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT customer_id, SUM(amount) AS total FROM orders GROUP BY customer_id
+customer_id, ""	customer_id, ""	engine	shop	shop.dbo	results	SELECT customer_id, COUNT(*) FROM orders GROUP BY customer_id HAVING COUNT(*) > 1
+shop.dbo.orders.customer_id | -	shop.dbo.orders.customer_id | ~	engine	shop	shop.dbo	lineage	SELECT customer_id, COUNT(*) FROM orders GROUP BY customer_id HAVING COUNT(*) > 1
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT customer_id, COUNT(*) FROM orders GROUP BY customer_id HAVING COUNT(*) > 1
+m	m	engine	shop	shop.dbo	results	SELECT MAX(name) AS m FROM customers
+shop.dbo.customers.name	~	engine	shop	shop.dbo	lineage	SELECT MAX(name) AS m FROM customers
+shop.dbo.customers	shop.dbo.customers	engine	shop	shop.dbo	tables	SELECT MAX(name) AS m FROM customers
+region, n	region, n	engine	shop	shop.dbo	results	SELECT region, COUNT(DISTINCT id) AS n FROM customers GROUP BY region
+shop.dbo.customers.region | shop.dbo.customers.id	shop.dbo.customers.region | ~	engine	shop	shop.dbo	lineage	SELECT region, COUNT(DISTINCT id) AS n FROM customers GROUP BY region
+shop.dbo.customers	shop.dbo.customers	engine	shop	shop.dbo	tables	SELECT region, COUNT(DISTINCT id) AS n FROM customers GROUP BY region
+names	names	engine	shop	shop.dbo	results	SELECT STRING_AGG(name, ',') AS names FROM customers
+shop.dbo.customers.name	~	engine	shop	shop.dbo	lineage	SELECT STRING_AGG(name, ',') AS names FROM customers
+shop.dbo.customers	shop.dbo.customers	engine	shop	shop.dbo	tables	SELECT STRING_AGG(name, ',') AS names FROM customers
+region, l	region, l	engine	shop	shop.dbo	results	SELECT region, SUM(LEN(name)) AS l FROM customers GROUP BY ROLLUP (region)
+shop.dbo.customers.region | shop.dbo.customers.name	shop.dbo.customers.region | ~	engine	shop	shop.dbo	lineage	SELECT region, SUM(LEN(name)) AS l FROM customers GROUP BY ROLLUP (region)
+shop.dbo.customers	shop.dbo.customers	engine	shop	shop.dbo	tables	SELECT region, SUM(LEN(name)) AS l FROM customers GROUP BY ROLLUP (region)
+error:omni	customer_id, new, paid	engine	shop	shop.dbo	results	SELECT * FROM (SELECT customer_id, status, amount FROM orders) s PIVOT (SUM(amount) FOR status IN ([new], [paid])) p
+error:omni	shop.dbo.orders.customer_id | ~ | ~	engine	shop	shop.dbo	lineage	SELECT * FROM (SELECT customer_id, status, amount FROM orders) s PIVOT (SUM(amount) FOR status IN ([new], [paid])) p
+error:omni	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT * FROM (SELECT customer_id, status, amount FROM orders) s PIVOT (SUM(amount) FOR status IN ([new], [paid])) p
+value	value	engine	shop	shop.dbo	results	SELECT value FROM STRING_SPLIT('a,b', ',')
+-	~	engine	shop	shop.dbo	lineage	SELECT value FROM STRING_SPLIT('a,b', ',')
+-	-	engine	shop	shop.dbo	tables	SELECT value FROM STRING_SPLIT('a,b', ',')
+JSON_F52E2B61-18A1-11d1-B105-00805F49916B	JSON_F52E2B61-18A1-11d1-B105-00805F49916B	engine	shop	shop.dbo	results	SELECT id FROM orders FOR JSON PATH
+shop.dbo.orders.id	~	engine	shop	shop.dbo	lineage	SELECT id FROM orders FOR JSON PATH
+shop.dbo.orders	shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT id FROM orders FOR JSON PATH
+error:207	error:207	engine	shop	shop.dbo	results	SELECT nope FROM orders
+error:207	error:207	engine	shop	shop.dbo	lineage	SELECT nope FROM orders
+error:207	error:207	engine	shop	shop.dbo	tables	SELECT nope FROM orders
+error:208	error:208	engine	shop	shop.dbo	results	SELECT * FROM missing_table
+error:208	error:208	engine	shop	shop.dbo	lineage	SELECT * FROM missing_table
+error:208	error:208	engine	shop	shop.dbo	tables	SELECT * FROM missing_table
+error:209	error:209	engine	shop	shop.dbo	results	SELECT id FROM orders o JOIN customers c ON c.id = o.customer_id
+error:209	error:209	engine	shop	shop.dbo	lineage	SELECT id FROM orders o JOIN customers c ON c.id = o.customer_id
+error:209	error:209	engine	shop	shop.dbo	tables	SELECT id FROM orders o JOIN customers c ON c.id = o.customer_id
+id, customer_id, amount	id, customer_id, amount	engine	shop	archive.dbo	results	SELECT * FROM old_orders
+archive.dbo.old_orders.id | archive.dbo.old_orders.customer_id | archive.dbo.old_orders.amount	archive.dbo.old_orders.id | archive.dbo.old_orders.customer_id | archive.dbo.old_orders.amount	engine	shop	archive.dbo	lineage	SELECT * FROM old_orders
+archive.dbo.old_orders	archive.dbo.old_orders	engine	shop	archive.dbo	tables	SELECT * FROM old_orders
+id, amount	id, amount	engine	shop	archive.dbo	results	SELECT id, amount FROM recent
+archive.dbo.old_orders.id | archive.dbo.old_orders.amount	archive.dbo.old_orders.id | archive.dbo.old_orders.amount	engine	shop	archive.dbo	lineage	SELECT id, amount FROM recent
+archive.dbo.recent	archive.dbo.old_orders, archive.dbo.recent	engine	shop	archive.dbo	tables	SELECT id, amount FROM recent
+name	name	engine	shop	archive.dbo	results	SELECT c.name FROM shop.dbo.customers c JOIN old_orders o ON o.customer_id = c.id
+shop.dbo.customers.name	shop.dbo.customers.name	engine	shop	archive.dbo	lineage	SELECT c.name FROM shop.dbo.customers c JOIN old_orders o ON o.customer_id = c.id
+archive.dbo.old_orders, shop.dbo.customers	archive.dbo.old_orders, shop.dbo.customers	engine	shop	archive.dbo	tables	SELECT c.name FROM shop.dbo.customers c JOIN old_orders o ON o.customer_id = c.id
+id, customer_id, gross, customer_name	id, customer_id, gross, customer_name	engine	shop	archive.dbo	results	SELECT * FROM shop.dbo.order_totals
+shop.dbo.orders.id | shop.dbo.orders.customer_id | shop.dbo.orders.amount | shop.dbo.customers.name	shop.dbo.orders.id | shop.dbo.orders.customer_id | ~ | shop.dbo.customers.name	engine	shop	archive.dbo	lineage	SELECT * FROM shop.dbo.order_totals
+shop.dbo.order_totals	shop.dbo.customers, shop.dbo.order_totals, shop.dbo.orders	engine	shop	archive.dbo	tables	SELECT * FROM shop.dbo.order_totals
