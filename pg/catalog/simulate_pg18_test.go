@@ -456,6 +456,78 @@ CREATE TABLE c_mi () INHERITS (p1_mi, p2_mi);
 			t.Fatalf("expected c_mi.x to become nullable after both parents dropped NOT NULL")
 		}
 	}
+
+	// Recursive SET NOT NULL on a partitioned table records inherited NOT NULL on partitions
+	// so a subsequent DROP CONSTRAINT on the parent also drops the partition's NOT NULL.
+	partSetDropSetup := `
+CREATE TABLE p_sd (x int, k int) PARTITION BY RANGE (k);
+CREATE TABLE p_sd_1 PARTITION OF p_sd FOR VALUES FROM (0) TO (100);
+`
+	if got, c := execCodeVersion(t, PG18, partSetDropSetup, "ALTER TABLE p_sd ALTER COLUMN x SET NOT NULL"); got != "" {
+		t.Fatalf("PG18 SET NOT NULL on partitioned table: got %q, want ok", got)
+	} else {
+		p := c.GetRelation("public", "p_sd")
+		p1 := c.GetRelation("public", "p_sd_1")
+		if !p.Columns[0].NotNull || !p1.Columns[0].NotNull {
+			t.Fatalf("expected both parent and partition x to be NOT NULL")
+		}
+		if res, err := c.Exec("ALTER TABLE p_sd DROP CONSTRAINT p_sd_x_not_null", nil); err != nil {
+			t.Fatal(err)
+		} else if len(res) > 0 && res[0].Error != nil {
+			t.Fatalf("PG18 DROP CONSTRAINT p_sd_x_not_null: %v", res[0].Error)
+		}
+		if p.Columns[0].NotNull || p1.Columns[0].NotNull {
+			t.Fatalf("expected both parent and partition x to become nullable (p=%v, p1=%v)", p.Columns[0].NotNull, p1.Columns[0].NotNull)
+		}
+	}
+
+	// NO INHERIT updates NOT NULL constraint inheritance metadata so the detached child can drop it.
+	noInhSetup := `
+CREATE TABLE p_ni (x int NOT NULL);
+CREATE TABLE c_ni () INHERITS (p_ni);
+`
+	if got, c := execCodeVersion(t, PG18, noInhSetup, "ALTER TABLE c_ni NO INHERIT p_ni"); got != "" {
+		t.Fatalf("PG18 NO INHERIT: got %q, want ok", got)
+	} else {
+		if res, err := c.Exec("ALTER TABLE c_ni DROP CONSTRAINT c_ni_x_not_null", nil); err != nil {
+			t.Fatal(err)
+		} else if len(res) > 0 && res[0].Error != nil {
+			t.Fatalf("PG18 DROP CONSTRAINT c_ni_x_not_null after NO INHERIT: %v", res[0].Error)
+		}
+		ch := c.GetRelation("public", "c_ni")
+		if ch.Columns[0].NotNull {
+			t.Fatalf("expected c_ni.x to become nullable after NO INHERIT + DROP CONSTRAINT")
+		}
+	}
+
+	// INHERIT increments NOT NULL inheritance metadata; ADD COLUMN NOT NULL on parent marks child inherited.
+	addInhSetup := `
+CREATE TABLE p_ai (x int NOT NULL);
+CREATE TABLE c_ai (x int NOT NULL);
+`
+	if got, c := execCodeVersion(t, PG18, addInhSetup, "ALTER TABLE c_ai INHERIT p_ai"); got != "" {
+		t.Fatalf("PG18 INHERIT: got %q, want ok", got)
+	} else {
+		if res, err := c.Exec("ALTER TABLE c_ai DROP CONSTRAINT c_ai_x_not_null", nil); err != nil {
+			t.Fatal(err)
+		} else if len(res) == 0 || res[0].Error == nil {
+			t.Fatalf("expected DROP CONSTRAINT c_ai_x_not_null to fail while inheriting from p_ai")
+		}
+		if res, err := c.Exec("ALTER TABLE p_ai ADD COLUMN z int NOT NULL", nil); err != nil {
+			t.Fatal(err)
+		} else if len(res) > 0 && res[0].Error != nil {
+			t.Fatalf("PG18 ADD COLUMN z NOT NULL: %v", res[0].Error)
+		}
+		if res, err := c.Exec("ALTER TABLE p_ai DROP CONSTRAINT p_ai_z_not_null", nil); err != nil {
+			t.Fatal(err)
+		} else if len(res) > 0 && res[0].Error != nil {
+			t.Fatalf("PG18 DROP CONSTRAINT p_ai_z_not_null: %v", res[0].Error)
+		}
+		ch := c.GetRelation("public", "c_ai")
+		if ch.Columns[1].NotNull {
+			t.Fatalf("expected inherited column c_ai.z to become nullable after parent drops p_ai_z_not_null")
+		}
+	}
 }
 
 func TestPG18PartitionDetachPKNameAndJsonExpr(t *testing.T) {

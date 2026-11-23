@@ -380,6 +380,11 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 				// constraints and propagates NOT NULL drops to descendants by column.
 				continue
 			}
+			if (subtype == nodes.AT_SetNotNull || subtype == nodes.AT_DropNotNull) && c.Version() >= PG18 {
+				// PG 18 SET/DROP NOT NULL propagates through setNotNullTree /
+				// dropNotNullConstraintTree with ConIsLocal and ConInhCount tracking.
+				continue
+			}
 			for _, childOID := range c.findChildRelations(rel.OID) {
 				childRel := c.relationByOID[childOID]
 				if childRel == nil {
@@ -942,9 +947,15 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		return c.atDropDefault(rel, atc.Name)
 
 	case nodes.AT_DropNotNull:
+		if c.Version() >= PG18 && !recursing {
+			return c.dropNotNullConstraintTree(rel, atc.Name, recurse || rel.RelKind == 'p', false)
+		}
 		return c.atDropNotNull(rel, atc.Name)
 
 	case nodes.AT_SetNotNull:
+		if c.Version() >= PG18 && !recursing {
+			return c.setNotNullTree(rel, atc.Name, recurse || rel.RelKind == 'p', false)
+		}
 		return c.atSetNotNull(rel, atc.Name)
 
 	case nodes.AT_DropColumn:
@@ -2331,7 +2342,15 @@ func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, col
 		c.recordDependency('s', identitySeq.OID, 0, 'r', rel.OID, int32(col.AttNum), DepAuto)
 	}
 	if col.NotNull {
-		if err := c.ensureNotNullConstraint(schema, rel, col, colDef.NotNullConName); err != nil {
+		nnName := colDef.NotNullConName
+		isLocal := true
+		var inhCount int16
+		if recursing {
+			nnName = ""
+			isLocal = false
+			inhCount = 1
+		}
+		if err := c.ensureNotNullConstraintWithInh(schema, rel, col, nnName, isLocal, inhCount); err != nil {
 			return err
 		}
 	}
@@ -2672,6 +2691,56 @@ func (c *Catalog) atDropNotNull(rel *Relation, colName string) error {
 
 	col.NotNull = false
 	c.removeNotNullConstraint(rel.Schema, rel, col.AttNum)
+	return nil
+}
+
+// setNotNullTree marks colName NOT NULL on rel and propagates the PG 18
+// cataloged NOT NULL constraint down inheritance/partition children, tracking
+// ConIsLocal and ConInhCount accurately.
+func (c *Catalog) setNotNullTree(rel *Relation, colName string, propagate, recursing bool) error {
+	idx, exists := rel.colByName[colName]
+	if !exists {
+		return errUndefinedColumn(colName)
+	}
+	col := rel.Columns[idx]
+	wasNotNull := col.NotNull
+	col.NotNull = true
+
+	var nnCon *Constraint
+	for _, con := range c.consByRel[rel.OID] {
+		if con.Type == ConstraintNotNull && len(con.Columns) == 1 && con.Columns[0] == col.AttNum {
+			nnCon = con
+			break
+		}
+	}
+	if !recursing {
+		if nnCon != nil {
+			nnCon.ConIsLocal = true
+		} else {
+			_ = c.ensureNotNullConstraintWithInh(rel.Schema, rel, col, "", true, 0)
+		}
+		if wasNotNull || !propagate {
+			return nil
+		}
+	} else {
+		if nnCon != nil {
+			nnCon.ConInhCount++
+			return nil
+		}
+		_ = c.ensureNotNullConstraintWithInh(rel.Schema, rel, col, "", false, 1)
+		if wasNotNull || !propagate {
+			return nil
+		}
+	}
+	for _, childOID := range c.findChildRelations(rel.OID) {
+		childRel := c.relationByOID[childOID]
+		if childRel == nil {
+			continue
+		}
+		if err := c.setNotNullTree(childRel, colName, true, true); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -3369,6 +3438,18 @@ func (c *Catalog) atExecAttachPartition(schema *Schema, parent *Relation, pc *no
 	c.cloneIndexesToPartition(schema, parent, part)
 	c.cloneRowTriggersToPartition(parent, part)
 	c.cloneForeignKeyConstraints(schema, parent, part)
+	if c.Version() >= PG18 {
+		for _, pcol := range parent.Columns {
+			if !pcol.NotNull {
+				continue
+			}
+			if ci, ok := part.colByName[pcol.Name]; ok {
+				partCol := part.Columns[ci]
+				partCol.NotNull = true
+				_ = c.ensureNotNullConstraintWithInh(part.Schema, part, partCol, "", false, 1)
+			}
+		}
+	}
 
 	return nil
 }
@@ -4255,6 +4336,20 @@ func (c *Catalog) atAddInherit(rel *Relation, rv *nodes.RangeVar) error {
 			}
 			if pcol.NotNull {
 				childCol.NotNull = true
+				if c.Version() >= PG18 {
+					var existing *Constraint
+					for _, con := range c.consByRel[rel.OID] {
+						if con.Type == ConstraintNotNull && len(con.Columns) == 1 && con.Columns[0] == childCol.AttNum {
+							existing = con
+							break
+						}
+					}
+					if existing != nil {
+						existing.ConInhCount++
+					} else {
+						_ = c.ensureNotNullConstraintWithInh(rel.Schema, rel, childCol, "", false, 1)
+					}
+				}
 			}
 			childCol.InhCount++
 		} else {
@@ -4279,6 +4374,9 @@ func (c *Catalog) atAddInherit(rel *Relation, rv *nodes.RangeVar) error {
 			}
 			rel.Columns = append(rel.Columns, col)
 			rel.colByName[col.Name] = len(rel.Columns) - 1
+			if col.NotNull {
+				_ = c.ensureNotNullConstraintWithInh(rel.Schema, rel, col, "", false, 1)
+			}
 		}
 	}
 
@@ -4328,6 +4426,7 @@ func (c *Catalog) atDropInherit(rel *Relation, rv *nodes.RangeVar) error {
 	rel.InhCount--
 
 	// Decrement InhCount on inherited columns; if InhCount→0, set IsLocal=true.
+	// Also update PG 18 cataloged NOT NULL constraint inheritance metadata.
 	for _, pcol := range parent.Columns {
 		if existIdx, exists := rel.colByName[pcol.Name]; exists {
 			childCol := rel.Columns[existIdx]
@@ -4335,6 +4434,19 @@ func (c *Catalog) atDropInherit(rel *Relation, rv *nodes.RangeVar) error {
 			if childCol.InhCount <= 0 {
 				childCol.IsLocal = true
 				childCol.InhCount = 0
+			}
+			if pcol.NotNull && c.Version() >= PG18 {
+				for _, con := range c.consByRel[rel.OID] {
+					if con.Type == ConstraintNotNull && len(con.Columns) == 1 && con.Columns[0] == childCol.AttNum {
+						if con.ConInhCount > 0 {
+							con.ConInhCount--
+						}
+						if con.ConInhCount == 0 {
+							con.ConIsLocal = true
+						}
+						break
+					}
+				}
 			}
 		}
 	}
