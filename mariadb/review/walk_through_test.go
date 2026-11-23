@@ -682,6 +682,8 @@ func TestWalkThroughMariaDBRecallFamilies(t *testing.T) {
 	oneFinding(t, "CREATE TABLE IF NOT EXISTS empty_t;", 0, "Table `empty_t` must have at least one column.", shop)
 	oneFinding(t, "CREATE TABLE bad_per (PERIOD FOR SYSTEM_TIME (a, b));", 0, "Table `bad_per` requires `WITH SYSTEM VERSIONING` for `PERIOD FOR SYSTEM_TIME`.", shop)
 	noFinding(t, "CREATE TABLE ok_per (id INT, s TIMESTAMP(6) GENERATED ALWAYS AS ROW START, e TIMESTAMP(6) GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME (s, e)) WITH SYSTEM VERSIONING;", shop)
+	// Column-level WITHOUT SYSTEM VERSIONING normalizes the period away into an ordinary table.
+	noFinding(t, "CREATE TABLE ok_norm (x INT WITHOUT SYSTEM VERSIONING, rs INT GENERATED ALWAYS AS ROW START, re INT GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME (rs, re));", shop)
 
 	// 6. Bare column without FROM in views/CTAS and event schedules (1054), and event self-rename (1551).
 	oneFinding(t, "CREATE VIEW v_bad AS SELECT nosuch;", 0, "Column `nosuch` doesn't exist.", shop)

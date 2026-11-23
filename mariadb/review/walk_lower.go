@@ -414,22 +414,35 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 
 // declaresVersioning reports whether a CREATE TABLE makes a system-versioned
 // table: WITH SYSTEM VERSIONING, of the table or of a column, or a PERIOD
-// FOR SYSTEM_TIME, which needs it (4125, verified).
+// FOR SYSTEM_TIME without a normalizing column-level WITHOUT SYSTEM VERSIONING.
 func declaresVersioning(v *ast.CreateTableStmt) bool {
-	if v.PeriodStartCol != "" {
+	if declaresExplicitSystemVersioning(v) {
 		return true
 	}
-	return declaresExplicitSystemVersioning(v)
+	return v.PeriodStartCol != "" && !hasColumnVersioning(v)
 }
 
 func declaresExplicitSystemVersioning(v *ast.CreateTableStmt) bool {
 	for _, o := range v.Options {
-		if o != nil && strings.EqualFold(o.Name, "SYSTEM VERSIONING") {
+		if o != nil && !o.EngineDefined && strings.EqualFold(o.Name, "SYSTEM VERSIONING") {
 			return true
 		}
 	}
 	for _, c := range v.Columns {
-		if c.SystemVersioningWithSeen {
+		if c != nil && c.SystemVersioningWithSeen {
+			return true
+		}
+	}
+	return false
+}
+
+// hasColumnVersioning reports whether any column carries column-level
+// WITH or WITHOUT SYSTEM VERSIONING. A WITHOUT column on an otherwise
+// non-versioned table causes MariaDB to normalize PERIOD FOR SYSTEM_TIME
+// away into an ordinary table rather than rejecting with 4125.
+func hasColumnVersioning(v *ast.CreateTableStmt) bool {
+	for _, c := range v.Columns {
+		if c != nil && (c.SystemVersioning != ast.ColVersioningNone || c.SystemVersioningWithSeen) {
 			return true
 		}
 	}
@@ -465,7 +478,7 @@ func (b *builder) namesTooLong(v *ast.CreateTableStmt) bool {
 // named PRIMARY (1280), duplicate or missing index columns (1060, 1072),
 // self-referencing column expressions (4029), or FK column count mismatches (1239).
 func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
-	if v.PeriodStartCol != "" && !declaresExplicitSystemVersioning(v) {
+	if v.PeriodStartCol != "" && !declaresExplicitSystemVersioning(v) && !hasColumnVersioning(v) {
 		b.fail(r.rng, nil, review.UnsupportedForm, "Table "+review.Code(r.written)+" requires "+review.Code("WITH SYSTEM VERSIONING")+" for "+review.Code("PERIOD FOR SYSTEM_TIME")+".")
 		return true
 	}
