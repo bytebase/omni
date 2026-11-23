@@ -46,6 +46,9 @@ type ColumnDiffEntry struct {
 	Action    DiffAction
 	OldColumn *metadata.ColumnMetadata
 	NewColumn *metadata.ColumnMetadata
+	// collationChanged reports, for an altered column, that its collation
+	// changes once an omitted COLLATE resolves to the database's default.
+	collationChanged bool
 }
 
 // IndexDiffEntry describes an index or key constraint change.
@@ -148,6 +151,13 @@ func (d *SchemaDiff) IsEmpty() bool {
 // Diff compares from and to. from is the current state and to is the desired one.
 func Diff(from, to *Catalog) *SchemaDiff {
 	diff := &SchemaDiff{DatabaseName: to.DatabaseName()}
+	// The migration runs on from's database, so a column written without
+	// COLLATE on either side takes from's default collation. A desired state
+	// parsed from SQL text knows none, so the synced side supplies it.
+	collation := from.collation
+	if collation == "" {
+		collation = to.collation
+	}
 
 	for _, name := range sortedSchemaNames(from.schemas) {
 		oldSchema := from.schemaByName[name]
@@ -178,7 +188,7 @@ func Diff(from, to *Catalog) *SchemaDiff {
 			addNewSchemaObjects(diff, name, newSchema)
 			continue
 		}
-		compareSchemaObjects(diff, name, oldSchema, newSchema)
+		compareSchemaObjects(diff, name, oldSchema, newSchema, collation)
 	}
 
 	sortDiff(diff)
@@ -335,7 +345,7 @@ func addNewSchemaObjects(diff *SchemaDiff, schemaName string, schema *metadata.S
 	}
 }
 
-func compareSchemaObjects(diff *SchemaDiff, schemaName string, oldSchema, newSchema *metadata.SchemaMetadata) {
+func compareSchemaObjects(diff *SchemaDiff, schemaName string, oldSchema, newSchema *metadata.SchemaMetadata, collation string) {
 	for _, name := range sortedTableNames(oldSchema) {
 		oldTable := tableByName(oldSchema, name)
 		if newTable := tableByName(newSchema, name); newTable == nil {
@@ -367,7 +377,7 @@ func compareSchemaObjects(diff *SchemaDiff, schemaName string, oldSchema, newSch
 		if oldTable.GetSkipDump() {
 			continue
 		}
-		if tableDiff := compareTableDetails(schemaName, name, oldTable, newTable); tableDiff != nil {
+		if tableDiff := compareTableDetails(schemaName, name, oldTable, newTable, collation); tableDiff != nil {
 			diff.Tables = append(diff.Tables, tableDiff)
 		}
 	}
@@ -379,7 +389,7 @@ func compareSchemaObjects(diff *SchemaDiff, schemaName string, oldSchema, newSch
 	compareSequences(diff, schemaName, oldSchema, newSchema)
 }
 
-func compareTableDetails(schemaName, tableName string, oldTable, newTable *metadata.TableMetadata) *TableDiffEntry {
+func compareTableDetails(schemaName, tableName string, oldTable, newTable *metadata.TableMetadata, collation string) *TableDiffEntry {
 	tableDiff := &TableDiffEntry{
 		Action:     DiffAlter,
 		SchemaName: schemaName,
@@ -388,7 +398,7 @@ func compareTableDetails(schemaName, tableName string, oldTable, newTable *metad
 		NewTable:   newTable,
 	}
 	hasChanges := false
-	if changes := compareColumns(oldTable, newTable); len(changes) > 0 {
+	if changes := compareColumns(oldTable, newTable, collation); len(changes) > 0 {
 		tableDiff.Columns = changes
 		hasChanges = true
 	}
@@ -417,7 +427,7 @@ func compareTableDetails(schemaName, tableName string, oldTable, newTable *metad
 	return tableDiff
 }
 
-func compareColumns(oldTable, newTable *metadata.TableMetadata) []*ColumnDiffEntry {
+func compareColumns(oldTable, newTable *metadata.TableMetadata, collation string) []*ColumnDiffEntry {
 	var changes []*ColumnDiffEntry
 	for _, oldColumn := range oldTable.GetColumns() {
 		if columnByName(newTable, oldColumn.Name) == nil {
@@ -430,14 +440,60 @@ func compareColumns(oldTable, newTable *metadata.TableMetadata) []*ColumnDiffEnt
 			changes = append(changes, &ColumnDiffEntry{Action: DiffCreate, NewColumn: newColumn})
 			continue
 		}
-		if !columnsEqual(oldColumn, newColumn) {
-			changes = append(changes, &ColumnDiffEntry{Action: DiffAlter, OldColumn: oldColumn, NewColumn: newColumn})
+		if !columnsEqual(oldColumn, newColumn, collation) {
+			changes = append(changes, &ColumnDiffEntry{
+				Action:           DiffAlter,
+				OldColumn:        oldColumn,
+				NewColumn:        newColumn,
+				collationChanged: collationChanged(oldColumn, newColumn, columnCollationDefault(oldColumn, newColumn, collation)),
+			})
 		}
 	}
 	return changes
 }
 
-func columnsEqual(a, b *metadata.ColumnMetadata) bool {
+// effectiveCollation is the collation SQL Server stores for a column: its own,
+// or the database's default when it was written without COLLATE. Empty when
+// neither is known.
+func effectiveCollation(column *metadata.ColumnMetadata, collation string) string {
+	if column.Collation != "" {
+		return column.Collation
+	}
+	return collation
+}
+
+// collationsDiffer reports a collation difference the diff can prove. An
+// omitted COLLATE against an explicit one is no difference while the
+// database's default is unknown.
+func collationsDiffer(a, b *metadata.ColumnMetadata, collation string) bool {
+	ac, bc := effectiveCollation(a, collation), effectiveCollation(b, collation)
+	return ac != "" && bc != "" && !strings.EqualFold(ac, bc)
+}
+
+// collationChanged reports whether the migration must treat an altered
+// column's collation as changing, which rebuilds the indexes and keys on it.
+// While the database's default is unknown, an omitted COLLATE against an
+// explicit one may be a change, so it counts as one.
+func collationChanged(a, b *metadata.ColumnMetadata, collation string) bool {
+	ac, bc := effectiveCollation(a, collation), effectiveCollation(b, collation)
+	if ac != "" && bc != "" {
+		return !strings.EqualFold(ac, bc)
+	}
+	return a.Collation != b.Collation
+}
+
+// columnCollationDefault is the collation an omitted COLLATE resolves to for
+// the pair: the database's default, or none for a computed column, which
+// takes its expression's collation.
+func columnCollationDefault(a, b *metadata.ColumnMetadata, collation string) string {
+	if isComputedColumnType(a.Type) || isComputedColumnType(b.Type) {
+		return ""
+	}
+	return collation
+}
+
+func columnsEqual(a, b *metadata.ColumnMetadata, collation string) bool {
+	collation = columnCollationDefault(a, b, collation)
 	if isComputedColumnType(a.Type) || isComputedColumnType(b.Type) {
 		if !expressionsEqual(a.Type, b.Type) {
 			return false
@@ -454,7 +510,7 @@ func columnsEqual(a, b *metadata.ColumnMetadata) bool {
 	if a.Comment != b.Comment || a.CharacterSet != b.CharacterSet {
 		return false
 	}
-	if a.Collation != b.Collation && a.Collation != "" && b.Collation != "" {
+	if collationsDiffer(a, b, collation) {
 		return false
 	}
 	if a.OnUpdate != b.OnUpdate || a.DefaultOnNull != b.DefaultOnNull {

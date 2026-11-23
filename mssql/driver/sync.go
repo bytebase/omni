@@ -97,9 +97,11 @@ func SyncDatabase(ctx context.Context, db *sql.DB, databaseName string) (*metada
 		return nil, fmt.Errorf("failed to get synonyms from database %q: %w", databaseName, err)
 	}
 	// Changes run as the user that syncs, so this is where their unqualified
-	// names land.
+	// names land. The database's collation is what a character column written
+	// without COLLATE takes, so a diff can compare such a column exactly.
 	var defaultSchema string
-	if err := txn.QueryRow("SELECT SCHEMA_NAME()").Scan(&defaultSchema); err != nil {
+	var collation sql.NullString
+	if err := txn.QueryRow("SELECT SCHEMA_NAME(), CONVERT(nvarchar(128), DATABASEPROPERTYEX(DB_NAME(), 'Collation'))").Scan(&defaultSchema, &collation); err != nil {
 		return nil, fmt.Errorf("failed to get the default schema of database %q: %w", databaseName, err)
 	}
 	for schemaName, tables := range tableMap {
@@ -126,6 +128,7 @@ func SyncDatabase(ctx context.Context, db *sql.DB, databaseName string) (*metada
 	databaseMetadata := &metadatapb.DatabaseSchemaMetadata{
 		Name:          databaseName,
 		DefaultSchema: defaultSchema,
+		Collation:     collation.String,
 	}
 	for _, schemaName := range schemaNames {
 		databaseMetadata.Schemas = append(databaseMetadata.Schemas, &metadatapb.SchemaMetadata{
@@ -1434,7 +1437,7 @@ func getKeys(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.IndexMet
 	        LEFT JOIN sys.schemas s ON s.schema_id = o.schema_id
 	        LEFT JOIN sys.extended_properties p ON p.major_id = co.object_id AND p.class = 1 AND p.name = 'MS_Description'
 	WHERE i.index_id > 0 AND (i.is_primary_key = 1 OR i.is_unique_constraint = 1) AND o.type IN ('U', 'V') AND s.name in (%s)
-	ORDER BY s.name ASC, i.name ASC, ic.key_ordinal ASC
+	ORDER BY s.name ASC, o.name ASC, i.name ASC, ic.key_ordinal ASC
 	`, quoteList(schemas))
 
 	rows, err := txn.Query(dumpKeySQL)
