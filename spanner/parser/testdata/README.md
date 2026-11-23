@@ -20,12 +20,14 @@ end-to-end with `OMNI_RECORD=verify` with zero differences.
 
 | Rows | Total | Agree | Only Spanner accepts | Only omni accepts | Agreement |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| One per alternative | 2,614 | 2,614 | 0 | 0 | 100.00% |
-| Near-misses | 6,223 | 6,223 | 0 | 0 | 100.00% |
-| **All** | **8,837** | **8,837** | **0** | **0** | **100.00%** |
+| One per alternative | 2,737 | 2,737 | 0 | 0 | 100.00% |
+| Near-misses | 6,503 | 6,503 | 0 | 0 | 100.00% |
+| **All** | **9,240** | **9,240** | **0** | **0** | **100.00%** |
 
 `select_column_expr`'s `ATTACHED_ALIAS` alternative gets no generated row: it
-refuses every input (`../../../googlesql/testdata/tokens.tsv`).
+refuses every input (`../../../googlesql/testdata/tokens.tsv`). The optional
+clauses that file marks `(every site)` add 403 rows; Spanner refuses one of
+them that omni accepted, `CREATE VIEW IF NOT EXISTS`, now refused.
 
 ### Comparison with union `googlesql/parser` (`googlesql/parser/testdata/compat.tsv`)
 

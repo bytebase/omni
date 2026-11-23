@@ -150,7 +150,7 @@ func (p *Parser) parseCreateLocalityGroup(create Token, orReplace bool, scope st
 	stmt.Name = name
 
 	if p.cur.Type == kwOPTIONS {
-		opts, err := p.parseDDLOptionsList()
+		opts, err := p.parseLocalityGroupOptions()
 		if err != nil {
 			return nil, err
 		}
@@ -189,7 +189,7 @@ func (p *Parser) parseAlterLocalityGroup(alter Token) (ast.Node, error) {
 		if p.cur.Type != kwOPTIONS {
 			return nil, p.syntaxErrorAtCur()
 		}
-		opts, err := p.parseDDLOptionsList()
+		opts, err := p.parseLocalityGroupOptions()
 		if err != nil {
 			return nil, err
 		}
@@ -198,6 +198,27 @@ func (p *Parser) parseAlterLocalityGroup(alter Token) (ast.Node, error) {
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// parseLocalityGroupOptions parses a LOCALITY GROUP's OPTIONS ( … ), which
+// needs at least one option in every dialect, not only Spanner's: LOCALITY
+// GROUP is Spanner DDL alone, whose `OPTIONS ( locality_group_option [, ...] )`
+// lists one or more
+// (https://cloud.google.com/spanner/docs/reference/standard-sql/data-definition-language#create_locality_group).
+// The emulator answers "Encountered ')' while parsing: identifier" to an empty
+// list, and BigQuery refuses the statement.
+func (p *Parser) parseLocalityGroupOptions() ([]*ast.OptionsEntry, error) {
+	opts, err := p.parseOptionsList()
+	if err != nil {
+		return nil, err
+	}
+	if len(opts) == 0 {
+		return nil, &ParseError{
+			Position: p.prev.Loc.Start, End: p.prev.Loc.End,
+			Message: "syntax error: LOCALITY GROUP OPTIONS() requires at least one option",
+		}
+	}
+	return opts, nil
 }
 
 // parseDropLocalityGroup parses a DROP LOCALITY GROUP body. The DROP keyword has

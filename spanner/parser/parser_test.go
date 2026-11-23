@@ -269,6 +269,9 @@ func TestSpannerRejectsBigQueryOnlySyntax(t *testing.T) {
 		"CREATE LOCALITY GROUP a OPTIONS ()",
 		"ALTER DATABASE db SET OPTIONS ()",
 		"ALTER TABLE t ALTER COLUMN c SET OPTIONS ()",
+
+		// Spanner's CREATE VIEW takes OR REPLACE but no IF NOT EXISTS.
+		"CREATE VIEW IF NOT EXISTS a SQL SECURITY INVOKER AS SELECT 1",
 	}
 
 	for _, sql := range rejected {
