@@ -1168,10 +1168,21 @@ func (e *querySpanExtractor) starColumns(sel *ast.SelectStmt, rt *ast.ResTarget,
 	if sel.FromClause == nil {
 		return nil, false
 	}
-	qualifier := ""
-	if cr, ok := rt.Val.(*ast.ColumnRef); ok && cr.Fields != nil && len(cr.Fields.Items) >= 2 {
-		if s, ok := cr.Fields.Items[len(cr.Fields.Items)-2].(*ast.String); ok {
-			qualifier = s.Str
+	// The names before the star: [table], [schema, table] or
+	// [database, schema, table].
+	var qualifiers []string
+	if cr, ok := rt.Val.(*ast.ColumnRef); ok && cr.Fields != nil {
+		for _, f := range cr.Fields.Items {
+			if s, ok := f.(*ast.String); ok {
+				qualifiers = append(qualifiers, s.Str)
+			}
+		}
+	}
+	qualifier, schema := "", ""
+	if n := len(qualifiers); n > 0 {
+		qualifier = qualifiers[n-1]
+		if n > 1 {
+			schema = qualifiers[n-2]
 		}
 	}
 	var columns []QuerySpanResult
@@ -1180,7 +1191,7 @@ func (e *querySpanExtractor) starColumns(sel *ast.SelectStmt, rt *ast.ResTarget,
 			columns = append(columns, e.extractColumnsFromFromItem(item, analyzer, fromTables)...)
 			continue
 		}
-		if named := fromItemNamed(item, qualifier); named != nil {
+		if named := e.fromItemNamed(item, schema, qualifier); named != nil {
 			return e.extractColumnsFromFromItem(named, analyzer, fromTables), true
 		}
 	}
@@ -1188,17 +1199,35 @@ func (e *querySpanExtractor) starColumns(sel *ast.SelectStmt, rt *ast.ResTarget,
 }
 
 // fromItemNamed returns the FROM item, item or one an alias-less join of it
-// holds, whose reference name is name, or nil.
-func fromItemNamed(item ast.Node, name string) ast.Node {
+// holds, whose reference name is name, or nil. A schema, as in
+// schema.table.*, matches only an unaliased table in that schema, written
+// with it or found there through the search path.
+//
+// pg: src/backend/parser/parse_relation.c — refnameNamespaceItem
+func (e *querySpanExtractor) fromItemNamed(item ast.Node, schema, name string) ast.Node {
 	aliasOf := func(a *ast.Alias) string {
 		if a == nil {
 			return ""
 		}
 		return a.Aliasname
 	}
+	if schema != "" {
+		if _, ok := item.(*ast.RangeVar); !ok {
+			if j, ok := item.(*ast.JoinExpr); !ok || j.Alias != nil {
+				return nil
+			}
+		}
+	}
 	switch v := item.(type) {
 	case *ast.RangeVar:
-		if ref := aliasOf(v.Alias); ref == name || ref == "" && v.Relname == name {
+		ref := aliasOf(v.Alias)
+		if schema != "" {
+			if ref == "" && v.Relname == name && e.relationSchema(v) == schema {
+				return v
+			}
+			return nil
+		}
+		if ref == name || ref == "" && v.Relname == name {
 			return v
 		}
 	case *ast.RangeSubselect:
@@ -1222,12 +1251,26 @@ func fromItemNamed(item ast.Node, name string) ast.Node {
 			}
 			return nil
 		}
-		if l := fromItemNamed(v.Larg, name); l != nil {
+		if l := e.fromItemNamed(v.Larg, schema, name); l != nil {
 			return l
 		}
-		return fromItemNamed(v.Rarg, name)
+		return e.fromItemNamed(v.Rarg, schema, name)
 	}
 	return nil
+}
+
+// relationSchema is the schema of the relation rv names: its own, or the
+// first schema of the search path that has it.
+func (e *querySpanExtractor) relationSchema(rv *ast.RangeVar) string {
+	if rv.Schemaname != "" {
+		return rv.Schemaname
+	}
+	db, err := e.getDatabaseMetadata(e.defaultDatabase)
+	if err != nil || db == nil {
+		return ""
+	}
+	schema, _ := db.SearchRelation(e.searchPath, rv.Relname)
+	return schema
 }
 
 // rangeFunctionName is the name of the first function of a FROM item, the

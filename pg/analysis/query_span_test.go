@@ -764,3 +764,23 @@ func TestResolveQuerySpanFallbackQualifiedStar(t *testing.T) {
 		require.Equal(t, want, got, statement)
 	}
 }
+
+// In the fallback, schema.table.* expands the table of that schema, written
+// with it or found through the search path.
+func TestResolveQuerySpanFallbackSchemaQualifiedStar(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{Name: "db", Schemas: []*metadatapb.SchemaMetadata{
+		{Name: "public", Tables: []*metadatapb.TableMetadata{{Name: "t", Columns: []*metadatapb.ColumnMetadata{column("a", "int4")}}}},
+		{Name: "private", Tables: []*metadatapb.TableMetadata{{Name: "t", Columns: []*metadatapb.ColumnMetadata{column("ssn", "text")}}}},
+	}}
+	const jt = "JSON_TABLE('{}'::jsonb, '$' COLUMNS (v int PATH '$.x')) jt"
+	for _, statement := range []string{
+		"SELECT public.t.*, private.t.* FROM public.t, private.t, " + jt,
+		"SELECT public.t.*, private.t.* FROM t, private.t, " + jt,
+	} {
+		var got []string
+		for _, r := range spanFor(t, statement, meta).Results {
+			got = append(got, columnNames(r.SourceColumns)...)
+		}
+		require.Equal(t, []string{"db.public.t.a", "db.private.t.ssn"}, got, statement)
+	}
+}
