@@ -611,10 +611,18 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// ADD PARTITION [NO_WRITE_TO_BINLOG | LOCAL] [PARTITIONS n | (partition_definition, ...)]
+	// ADD PARTITION [IF NOT EXISTS] [NO_WRITE_TO_BINLOG | LOCAL]
+	// [PARTITIONS n | (partition_definition, ...)]: sql_yacc.yy's
+	// add_partition_rule (ADD PARTITION_SYM opt_if_not_exists
+	// opt_no_write_to_binlog add_part_extra).
 	if p.cur.Type == kwPARTITION {
 		p.advance()
 		cmd.Type = nodes.ATAddPartition
+		ifNotExists, err := p.parseCreateIfNotExists(false)
+		if err != nil {
+			return nil, err
+		}
+		cmd.IfNotExists = ifNotExists
 		cmd.NoWriteToBinlog = p.parseNoWriteToBinlog()
 		if p.cur.Type == kwPARTITIONS {
 			p.advance()
@@ -927,11 +935,18 @@ func (p *Parser) expectDropKey() error {
 	return err
 }
 
-// parseAlterModify parses MODIFY [COLUMN] col_name column_definition [FIRST | AFTER col_name].
+// parseAlterModify parses MODIFY [COLUMN] [IF EXISTS] col_name
+// column_definition [FIRST | AFTER col_name]: sql_yacc.yy's alter_list_item
+// arm MODIFY_SYM opt_column opt_if_exists_table_element field_spec opt_place.
 func (p *Parser) parseAlterModify(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, error) {
 	p.advance() // consume MODIFY
 	cmd.Type = nodes.ATModifyColumn
 	p.match(kwCOLUMN)
+	ifExists, err := p.parseOptIfExists()
+	if err != nil {
+		return nil, err
+	}
+	cmd.IfExists = ifExists
 
 	// Completion: after MODIFY [COLUMN], offer columnref.
 	p.checkCursor()
@@ -955,11 +970,19 @@ func (p *Parser) parseAlterModify(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 	return cmd, nil
 }
 
-// parseAlterChange parses CHANGE [COLUMN] old_col_name new_col_name column_definition [FIRST | AFTER col_name].
+// parseAlterChange parses CHANGE [COLUMN] [IF EXISTS] old_col_name
+// new_col_name column_definition [FIRST | AFTER col_name]: sql_yacc.yy's
+// alter_list_item arm CHANGE opt_column opt_if_exists_table_element
+// field_ident field_spec opt_place.
 func (p *Parser) parseAlterChange(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, error) {
 	p.advance() // consume CHANGE
 	cmd.Type = nodes.ATChangeColumn
 	p.match(kwCOLUMN)
+	ifExists, err := p.parseOptIfExists()
+	if err != nil {
+		return nil, err
+	}
+	cmd.IfExists = ifExists
 
 	// Completion: after CHANGE [COLUMN], offer columnref (old name).
 	p.checkCursor()
@@ -1009,7 +1032,7 @@ func (p *Parser) parseAlterChange(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 // arms of ALTER in alter_list_item, MariaDB mariadb-11.8.8 sql/sql_yacc.yy
 // lines 8094 and 8111.
 //
-//	ALTER [COLUMN] col_name {
+//	ALTER [COLUMN] [IF EXISTS] col_name {
 //	    SET DEFAULT {literal | (expr)}
 //	  | DROP DEFAULT
 //	}
@@ -1093,8 +1116,14 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 		return cmd, nil
 	}
 
-	// ALTER [COLUMN] col_name ...
+	// ALTER [COLUMN] [IF EXISTS] col_name ..., opt_if_exists_table_element
+	// in both column arms.
 	p.match(kwCOLUMN)
+	ifExists, err := p.parseOptIfExists()
+	if err != nil {
+		return nil, err
+	}
+	cmd.IfExists = ifExists
 
 	name, err := p.parseFieldIdent()
 	if err != nil {
@@ -1163,9 +1192,15 @@ func (p *Parser) parseAlterRename(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 
 	switch p.cur.Type {
 	case kwCOLUMN:
-		// RENAME COLUMN old_col_name TO new_col_name
+		// RENAME COLUMN [IF EXISTS] old_col_name TO new_col_name:
+		// RENAME COLUMN_SYM opt_if_exists_table_element ident TO_SYM ident.
 		p.advance()
 		cmd.Type = nodes.ATRenameColumn
+		ifExists, err := p.parseOptIfExists()
+		if err != nil {
+			return nil, err
+		}
+		cmd.IfExists = ifExists
 		// Completion: after RENAME COLUMN, offer columnref.
 		p.checkCursor()
 		if p.collectMode() {
@@ -1189,9 +1224,16 @@ func (p *Parser) parseAlterRename(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 		cmd.NewName = newName
 
 	case kwINDEX, kwKEY:
-		// RENAME {INDEX | KEY} old_index_name TO new_index_name
+		// RENAME {INDEX | KEY} [IF EXISTS] old_index_name TO new_index_name:
+		// RENAME key_or_index opt_if_exists_table_element field_ident TO_SYM
+		// field_ident.
 		p.advance()
 		cmd.Type = nodes.ATRenameIndex
+		ifExists, err := p.parseOptIfExists()
+		if err != nil {
+			return nil, err
+		}
+		cmd.IfExists = ifExists
 		// Completion: after RENAME INDEX, offer index_ref.
 		p.checkCursor()
 		if p.collectMode() {

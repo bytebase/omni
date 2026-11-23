@@ -83,7 +83,10 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		// columns: the walk ends here as a precaution (MariaDB spec §2.3).
 		return false
 	}
-	if v.IfExists {
+	// DROP PARTITION IF EXISTS sets the statement's one IF EXISTS flag
+	// (alter_commands in sql_yacc.yy): mariadb:11.8.8 runs
+	// `ALTER TABLE a DROP PARTITION IF EXISTS a` with no table a.
+	if v.IfExists || alterDropsPartitionIfExists(v.Commands) {
 		if f == walk.Absent {
 			// IF EXISTS turns a missing table into a note and skips all
 			// subcommands (measured on mariadb:11.8.8).
@@ -96,6 +99,13 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	b.tableNeeds(r)
 	if f == walk.Absent || kind == relView {
 		return true
+	}
+	if cmds, known := b.presentIfExists(v.Commands, r); !known {
+		return false
+	} else if len(cmds) != len(v.Commands) {
+		kept := *v
+		kept.Commands = cmds
+		v = &kept
 	}
 	// System-versioning and partitioning checks against the known base table.
 	rel := relKey(r.db, r.name)
@@ -186,6 +196,62 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		return b.alterRename(r, rename, kind)
 	}
 	return true
+}
+
+// presentIfExists returns cmds without the CHANGE, MODIFY, ALTER [COLUMN],
+// RENAME COLUMN and RENAME KEY commands whose IF EXISTS names a column or key
+// the table lacks: MariaDB drops them with a note before the statement runs
+// (handle_if_exists_options, sql/sql_table.cc), and mariadb:11.8.8 runs
+// `ALTER TABLE a CHANGE IF EXISTS a a INT` over a table with no column a.
+// known is false when the walk cannot tell whether one is there.
+func (b *builder) presentIfExists(cmds []*ast.AlterTableCmd, r tableRef) (kept []*ast.AlterTableCmd, known bool) {
+	kept = cmds[:0:0]
+	for _, c := range cmds {
+		if c == nil || !c.IfExists {
+			kept = append(kept, c)
+			continue
+		}
+		var fact walk.Key
+		switch c.Type {
+		case ast.ATChangeColumn, ast.ATModifyColumn, ast.ATAlterColumnDefault, ast.ATRenameColumn:
+			name := c.Name
+			if name == "" && c.Column != nil {
+				name = c.Column.Name
+			}
+			k, ok := b.key(spaceColumn, name)
+			if !ok {
+				return nil, false
+			}
+			fact = colKey(r.db, r.name, k)
+		case ast.ATRenameIndex:
+			k, ok := b.key(spaceIndex, c.Name)
+			if !ok {
+				return nil, false
+			}
+			fact = idxKey(r.db, r.name, k)
+		default:
+			kept = append(kept, c)
+			continue
+		}
+		switch f, _ := b.l.Lookup(fact); f {
+		case walk.Present:
+			kept = append(kept, c)
+		case walk.Unknown:
+			return nil, false
+		}
+	}
+	return kept, true
+}
+
+// alterDropsPartitionIfExists reports whether an ALTER TABLE holds DROP
+// PARTITION IF EXISTS.
+func alterDropsPartitionIfExists(cmds []*ast.AlterTableCmd) bool {
+	for _, c := range cmds {
+		if c != nil && c.Type == ast.ATDropPartition && c.IfExists {
+			return true
+		}
+	}
+	return false
 }
 
 // rangeOrListFails checks the partition maintenance of an ALTER TABLE of
@@ -982,7 +1048,19 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 		}
 	default:
 		isRegular := (c.Type == ast.ConstrIndex || c.Type == ast.ConstrUnique) && indexTypeSupportsFK(c.IndexType, c.IndexOptions)
-		if k, ok := b.key(spaceIndex, c.Name); ok {
+		name := c.Name
+		if name == "" && c.IfNotExists && len(c.IndexColumns) > 0 {
+			// An unnamed key is named after its first column, and IF NOT
+			// EXISTS looks for that name: mariadb:11.8.8 skips
+			// `ADD FULLTEXT IF NOT EXISTS (a)` over a table with a key a,
+			// before it judges the column's type.
+			if ic := c.IndexColumns[0]; ic != nil && !ic.Functional {
+				if ref, ok := ic.Expr.(*ast.ColumnRef); ok && !ref.Star {
+					name = ref.Column
+				}
+			}
+		}
+		if k, ok := b.key(spaceIndex, name); ok {
 			ik := idxKey(r.db, r.name, k)
 			if c.IfNotExists {
 				if b.addedIdxs[k] {
@@ -1244,6 +1322,10 @@ func (b *builder) renameTable(v *ast.RenameTableStmt) bool {
 		}
 		if _, tt, _ := b.resolve(to); temp || tt || f == walk.Unknown {
 			return false
+		}
+		if v.IfExists && f == walk.Absent {
+			// IF EXISTS skips a missing table with a note (mariadb:11.8.8).
+			continue
 		}
 		if from.db == to.db && from.name == to.name {
 			var keys []walk.Key

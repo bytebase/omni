@@ -311,6 +311,9 @@ func (b *builder) alterSequenceTable(v *ast.AlterTableStmt, r tableRef) bool {
 				colName = c.Column.Name
 			}
 			if !isSequenceColumn(colName) {
+				if c.IfExists {
+					continue
+				}
 				b.fail(rng, keys, review.ObjectNotFound, notFound("column", ident(colName), r.written))
 				return true
 			}
@@ -318,6 +321,9 @@ func (b *builder) alterSequenceTable(v *ast.AlterTableStmt, r tableRef) bool {
 			return true
 		case ast.ATChangeColumn, ast.ATAlterColumnDefault, ast.ATRenameColumn:
 			if !isSequenceColumn(c.Name) {
+				if c.IfExists {
+					continue
+				}
 				b.fail(rng, keys, review.ObjectNotFound, notFound("column", ident(c.Name), r.written))
 				return true
 			}

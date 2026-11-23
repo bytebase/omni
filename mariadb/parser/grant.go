@@ -1341,11 +1341,11 @@ func (p *Parser) parseDropUserStmt(start int) (*nodes.DropUserStmt, error) {
 	stmt := &nodes.DropUserStmt{Loc: nodes.Loc{Start: start}}
 
 	// [IF EXISTS]
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		stmt.IfExists = true
+	ifExists, err := p.parseOptIfExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfExists = ifExists
 
 	// user [, user] ...
 	users, err := p.parseUserList()
@@ -1371,11 +1371,11 @@ func (p *Parser) parseAlterUserStmt(start int) (*nodes.AlterUserStmt, error) {
 	stmt := &nodes.AlterUserStmt{Loc: nodes.Loc{Start: start}}
 
 	// [IF EXISTS]
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		stmt.IfExists = true
+	ifExists, err := p.parseOptIfExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfExists = ifExists
 
 	// Check for ALTER USER USER() ... (user_func_auth_option or registration_option)
 	if p.cur.Type == kwUSER && p.peekNext().Type == '(' {
@@ -1877,11 +1877,11 @@ func (p *Parser) parseDropRoleStmt(start int) (*nodes.DropRoleStmt, error) {
 	stmt := &nodes.DropRoleStmt{Loc: nodes.Loc{Start: start}}
 
 	// [IF EXISTS]
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		stmt.IfExists = true
+	ifExists, err := p.parseOptIfExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfExists = ifExists
 
 	// role [, role] ...
 	roles, err := p.parseRoleRefList()

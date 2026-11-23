@@ -26,8 +26,13 @@ of the `SHOW CREATE` texts the database holds afterwards. `TestSimulation`
 no server. The design is
 `docs/specs/2026-11-11-engine-compatibility-without-servers-design.md` §3.
 
-**5,069 / 5,069 rows (100.00%) agree** (459 statements × 11 fixtures, and
-20 family rows).
+**5,496 / 5,498 rows (99.96%) agree** (498 statements × 11 fixtures, and
+20 family rows). The two that do not came with the `IF [NOT] EXISTS` rows the
+parser grammar's `(every site)` clauses add (`../../parser/testdata/README.md`):
+`ALTER TABLE a DROP FOREIGN KEY IF EXISTS a` on `objects@partitioned`, which
+MariaDB runs and omni answers 1506, and `ALTER TABLE a ADD FOREIGN KEY IF NOT
+EXISTS(a) REFERENCES a` on `objects@fk`, which MariaDB skips and omni adds as
+`a_ibfk_1`.
 
 ## Commands
 

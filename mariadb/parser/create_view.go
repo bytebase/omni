@@ -16,7 +16,7 @@ import (
 //	    [ALGORITHM = {UNDEFINED | MERGE | TEMPTABLE}]
 //	    [DEFINER = user]
 //	    [SQL SECURITY { DEFINER | INVOKER }]
-//	    VIEW view_name [(column_list)]
+//	    VIEW [IF NOT EXISTS] view_name [(column_list)]
 //	    AS select_statement
 //	    [WITH [CASCADED | LOCAL] CHECK OPTION]
 func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateViewStmt, error) {
@@ -60,6 +60,16 @@ func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateVi
 	if _, err := p.expect(kwVIEW); err != nil {
 		return nil, err
 	}
+
+	// IF NOT EXISTS: sql_yacc.yy's create rule, both VIEW_SYM alternatives
+	// (create_or_replace [view_algorithm] definer_opt opt_view_suid VIEW_SYM
+	// opt_if_not_exists table_ident). LEX::add_create_view refuses it with
+	// OR REPLACE.
+	ifNotExists, err := p.parseCreateIfNotExists(orReplace)
+	if err != nil {
+		return nil, err
+	}
+	stmt.IfNotExists = ifNotExists
 
 	// Completion: after CREATE VIEW, identifier context (no specific candidates).
 	p.checkCursor()

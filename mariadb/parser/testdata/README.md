@@ -6,8 +6,8 @@
 `sql_yacc.yy` at the pinned release, then its near-misses: the statement with
 one token dropped, the end cut off, a stray word inserted, or a keyword
 swapped, followed by 7 `suite:json-operators` rows pinning the `->` and `->>`
-operators MariaDB has no grammar for (12,960 generated rows and 7 `suite:`
-rows, 12,967 in all: 12,967 / 12,967 (100.00%) agreeing, 0 only MariaDB
+operators MariaDB has no grammar for (13,167 generated rows and 7 `suite:`
+rows, 13,174 in all: 13,174 / 13,174 (100.00%) agreeing, 0 only MariaDB
 accepts, and 0 only omni accepts).
 Each row has omni's verdict and MariaDB's. `TestCompatibility`
 (`compat_test.go`) reads it through `enginetest/compat`, which describes the
@@ -24,6 +24,12 @@ rows from the grammar and fails if the file holds others.
 - **Token forms** are in `../../testdata/tokens.tsv`, read off MariaDB's
   keyword table (`sql/lex.h`) and lexer (`sql/sql_lex.cc`). A new release's
   tokens need rows there.
+- **`IF [NOT] EXISTS` is tried at every site.** A statement writes each
+  optional clause as nothing, so `opt_if_not_exists`, `opt_if_exists` and
+  their `_table_element` forms would appear only where their own alternative's
+  row reaches. `tokens.tsv` marks them `(every site)`: each alternative naming
+  one gets a row labelled `<alternative>+<rule>` with the clause written out,
+  and near-misses dropping each of its words.
 - **82 alternatives have no row,** because they need a token the lexer never
   produces under the default `sql_mode`: the `_ORACLE_SYM` tokens, `||` under
   `PIPES_AS_CONCAT`, `NOT` under `HIGH_NOT_PRECEDENCE`, and five keywords that
@@ -37,7 +43,7 @@ To judge new rows, or every row after a pin bump in `../../testdata/pins.tsv`:
 OMNI_RECORD=1 go test ./mariadb/parser/ -run '^TestCompatibility$'
 ```
 
-It starts the pinned image and judges all 12,967 rows in about 20 seconds.
+It starts the pinned image and judges all 13,174 rows in about 20 seconds.
 After a parser fix, commit the rows that now agree:
 
 ```bash

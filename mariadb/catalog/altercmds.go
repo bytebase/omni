@@ -53,8 +53,11 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 			}
 			return errWrongObject(db.Name, tableName, "BASE TABLE")
 		}
-		// IF EXISTS makes a missing table a note (1146 as a warning).
-		if stmt.IfExists {
+		// IF EXISTS makes a missing table a note (1146 as a warning). So does
+		// DROP PARTITION IF EXISTS: alter_commands' action sets the statement's
+		// one IF EXISTS flag (sql_yacc.yy, mariadb-11.8.8), and mariadb:11.8.8
+		// runs `ALTER TABLE a DROP PARTITION IF EXISTS a` with no table a.
+		if stmt.IfExists || dropsPartitionIfExists(stmt.Commands) {
 			return nil
 		}
 		return errNoSuchTable(db.Name, tableName)
@@ -387,6 +390,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	if err != nil {
 		return err
 	}
+	skip = skipAbsentIfExists(tbl, stmt.Commands, skip)
 
 	charsetPlan, err := c.planAlterCharset(tbl, stmt.Commands)
 	if err != nil {
@@ -3297,6 +3301,48 @@ func (c *Catalog) planAlterCharset(tbl *Table, cmds []*nodes.AlterTableCmd) (alt
 		plan.tableCharset, plan.tableCollation = plan.convertCharset, plan.convertCollation
 	}
 	return plan, nil
+}
+
+// skipAbsentIfExists adds to skip the CHANGE, MODIFY, ALTER [COLUMN], RENAME
+// COLUMN and RENAME KEY commands whose IF EXISTS names a column or key the
+// table did not begin the statement with. MariaDB drops them with a note
+// before the ALTER runs (handle_if_exists_options, sql/sql_table.cc,
+// mariadb-11.8.8): mariadb:11.8.8 runs `ALTER TABLE a CHANGE IF EXISTS a a
+// INT` over a table with no column a and changes nothing.
+func skipAbsentIfExists(tbl *Table, cmds []*nodes.AlterTableCmd, skip map[*nodes.AlterTableCmd]bool) map[*nodes.AlterTableCmd]bool {
+	for _, cmd := range cmds {
+		if cmd == nil || !cmd.IfExists {
+			continue
+		}
+		var present bool
+		switch cmd.Type {
+		case nodes.ATChangeColumn, nodes.ATModifyColumn, nodes.ATAlterColumnDefault, nodes.ATRenameColumn:
+			_, present = tbl.colByName[toLower(cmd.Name)]
+		case nodes.ATRenameIndex:
+			present = indexNameExists(tbl, cmd.Name)
+		default:
+			continue
+		}
+		if present {
+			continue
+		}
+		if skip == nil {
+			skip = map[*nodes.AlterTableCmd]bool{}
+		}
+		skip[cmd] = true
+	}
+	return skip
+}
+
+// dropsPartitionIfExists reports whether an ALTER TABLE holds DROP PARTITION
+// IF EXISTS.
+func dropsPartitionIfExists(cmds []*nodes.AlterTableCmd) bool {
+	for _, cmd := range cmds {
+		if cmd != nil && cmd.Type == nodes.ATDropPartition && cmd.IfExists {
+			return true
+		}
+	}
+	return false
 }
 
 // computeSkippedAlterAdditions identifies ADD COLUMN IF NOT EXISTS and ADD

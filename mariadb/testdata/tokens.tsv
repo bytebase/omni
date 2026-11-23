@@ -62,6 +62,13 @@ simple_target_specification	@a	the target of GET DIAGNOSTICS: LEX::create_item_f
 known_storage_engines	InnoDB	ha_resolve_by_name, ER_UNKNOWN_STORAGE_ENGINE
 storage_engines	InnoDB	resolve_storage_engine_with_error
 
+# Optional clauses tried at every site the grammar allows them, and not only
+# where their own alternative's row reaches (see grammar.EverySite).
+opt_if_not_exists	(every site)	IF NOT EXISTS
+opt_if_exists	(every site)	IF EXISTS
+opt_if_not_exists_table_element	(every site)	IF NOT EXISTS on an ALTER TABLE element
+opt_if_exists_table_element	(every site)	IF EXISTS on an ALTER TABLE element
+
 # Operators and keywords of lex.h.
 PREPARE_SYM	PREPARE
 DEALLOCATE_SYM	DEALLOCATE
