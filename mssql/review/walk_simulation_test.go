@@ -71,9 +71,47 @@ type walkSimRow struct {
 
 const walkSimVerdictsPath = "testdata/walk_simulation_verdicts.tsv"
 
-// TestWalkSimulation holds MSSQL's WALK_THROUGH to every unique grammar-derived
-// DDL/DML statement SQL Server 2022 accepts in mssql/parser/testdata/compat.tsv,
-// across all fixtures in testdata/fixtures/:
+// TestWalkSimulation holds MSSQL's WALK_THROUGH to each statement suite
+// SQL Server 2022 judged, each reported on its own: compat, the
+// grammar-derived statements of mssql/parser/testdata/compat.tsv on this
+// package's fixtures (walkCompatSimulation), and mssql/catalog's
+// simulate.tsv suites, checked offline on the in-memory catalog
+// (walkCatalogSimulation).
+func TestWalkSimulation(t *testing.T) {
+	db := startMSSQL(t)
+	t.Run("compat", func(t *testing.T) { walkCompatSimulation(t, db) })
+	for _, suite := range walkSimSuites {
+		t.Run(suite.name, func(t *testing.T) {
+			res := walkCatalogSimulation(t, suite.path, suite.database)
+			pct := 0.0
+			if res.Refused > 0 {
+				pct = 100 * float64(res.Found) / float64(res.Refused)
+			}
+			if res.Found < suite.minFound || pct < suite.minPct {
+				t.Errorf("%s recall regressed: got %d/%d (%.1f%%), want at least %d (%.1f%%)",
+					suite.name, res.Found, res.Refused, pct, suite.minFound, suite.minPct)
+			}
+		})
+	}
+}
+
+// walkSimSuites are mssql/catalog's simulate.tsv suites, with the database
+// their recording ran in (testcontainer.Database of the catalog's test) and
+// the recall each holds.
+var walkSimSuites = []struct {
+	name, path, database string
+	minPct               float64
+	minFound             int
+}{
+	{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), "omni_TestSimulation", 91.5, 2610},
+	{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), "omni_TestQuerySimulation", 64.0, 266},
+	{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), "omni_TestProgramSimulation", 78.0, 50},
+}
+
+// walkCompatSimulation holds MSSQL's WALK_THROUGH to every unique
+// grammar-derived DDL/DML statement SQL Server 2022 accepts in
+// mssql/parser/testdata/compat.tsv, across all fixtures in
+// testdata/fixtures/:
 //
 //   - Hard invariant: for every (fixture, statement) pair SQL Server 2022
 //     accepts, WALK_THROUGH MUST report 0 findings.
@@ -87,7 +125,7 @@ const walkSimVerdictsPath = "testdata/walk_simulation_verdicts.tsv"
 // and mirrored in testdata/walk_simulation_verdicts.tsv so offline CI runs with
 // zero Docker. Run with OMNI_RECORD=1 to re-record against the pinned SQL
 // Server 2022 container, or OMNI_RECORD=verify to verify read-only against it.
-func TestWalkSimulation(t *testing.T) {
+func walkCompatSimulation(t *testing.T, db *sql.DB) {
 	mode, err := enginetest.RunMode()
 	if err != nil {
 		t.Fatal(err)
@@ -98,7 +136,6 @@ func TestWalkSimulation(t *testing.T) {
 	}
 
 	stmts := loadWalkSimStatements(t)
-	db := startMSSQL(t)
 	ctx := context.Background()
 	conn, err := db.Conn(ctx)
 	if err != nil {
@@ -169,12 +206,12 @@ func TestWalkSimulation(t *testing.T) {
 		}
 	}
 
-	const minWalkSimRecall = 85.0
+	const minWalkSimRecall = 88.5
 	pct := 0.0
 	if refusedCount > 0 {
 		pct = 100 * float64(foundCount) / float64(refusedCount)
 	}
-	t.Logf("TestWalkSimulation: %d rows (%d fixtures x %d statements): %d ok, %d refused; WALK_THROUGH found %d/%d refusals (%.1f%%), %d false positives, %d unsound, %d syntax-skipped",
+	t.Logf("compat: %d rows (%d fixtures x %d statements): %d ok, %d refused; WALK_THROUGH found %d/%d refusals (%.1f%%), %d false positives, %d unsound, %d syntax-skipped",
 		total, len(walkSimFixtures), len(stmts), okCount, refusedCount, foundCount, refusedCount, pct, falsePositives, unsound, syntaxSkipped)
 	if pct < minWalkSimRecall {
 		t.Errorf("WALK_THROUGH recall %.1f%% (%d/%d) dropped below %.1f%% floor", pct, foundCount, refusedCount, minWalkSimRecall)
@@ -277,6 +314,9 @@ func reviewSimStatement(t testing.TB, stmt string, target review.Target) (*walkt
 	result, err := Review(context.Background(), stmt, review.Options{Rules: []review.Rule{review.WalkThrough}}, []review.Target{target})
 	if err != nil {
 		t.Fatalf("Review(%q): %v", stmt, err)
+	}
+	for _, f := range result.Failures {
+		t.Errorf("Review(%q) could not evaluate target %d: %v", stmt, f.Target, f.Err)
 	}
 	var out *walktest.Finding
 	for _, f := range result.Findings {

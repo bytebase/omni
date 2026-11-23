@@ -303,7 +303,12 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 		b.fail(rangeOf(v.Name.Loc), review.TriggerSchemaMismatch, "Trigger "+review.Code(object(v.Name))+" must be in the schema of "+review.Code(t.written)+".")
 		return true
 	}
-	b.tableNeeds(t, []string{kindTable, kindView}, msgMissing("table", t.written), notKind(t.written, "table or view", kindTable, kindView))
+	if strings.EqualFold(v.TriggerType, "INSTEAD OF") {
+		b.tableNeeds(t, []string{kindTable, kindView}, msgMissing("table", t.written), notKind(t.written, "table or view", kindTable, kindView))
+	} else {
+		// An AFTER trigger is a table's alone (8197, verified).
+		b.tableNeeds(t, []string{kindTable}, msgMissing("table", t.written), notKind(t.written, "table", kindTable))
+	}
 	r := objRef{schema: t.schema, parent: t.parent, where: t.where, written: object(v.Name), rng: rangeOf(v.Name.Loc)}
 	if v.Name.Schema != "" {
 		r, ok = b.ref(v.Name, true)
@@ -315,6 +320,20 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 	}
 	if r.where == placed {
 		b.moduleChecks(r, verb, kindTrigger)
+	}
+	pseudo := ""
+	if b.knownTable(t) {
+		pseudo = t.tablePath()
+	}
+	if v.ExternalName == "" {
+		// A trigger is in its table's schema.
+		schema := ""
+		if t.where == placed && !t.temp {
+			schema = t.schema.spelling
+		}
+		done := b.enterModule(schema)
+		b.moduleBody(v.Body, nil, nil, pseudo, t.written)
+		done()
 	}
 	b.arriveObject(r, kindTrigger)
 	b.Session(func() { b.w.triggers = true })

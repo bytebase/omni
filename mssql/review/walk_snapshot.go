@@ -136,6 +136,9 @@ type snapTable struct {
 	// colTypes maps exact synced column spelling to its lowercased base type
 	// name (empty for computed or untyped columns).
 	colTypes map[string]string
+	// defaults maps the exact synced spelling of a column to the name of
+	// its default constraint.
+	defaults map[string]string
 	primary  bool
 	// edge is set for a graph edge table, whose edge constraints the sync
 	// skips.
@@ -273,6 +276,12 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 				if df := c.GetDefaultConstraintName(); df != "" {
 					st.constraints.add(df, kindDF)
 					objs.add(df, kindDF)
+				}
+				if df := c.GetDefaultConstraintName(); df != "" {
+					if st.defaults == nil {
+						st.defaults = make(map[string]string)
+					}
+					st.defaults[c.GetName()] = df
 				}
 			}
 			for _, i := range t.GetIndexes() {
