@@ -167,6 +167,9 @@ type binder struct {
 	setOrder map[*ast.SelectStmt]bool
 	// hoisted holds the first operands whose WITH a set operation bound.
 	hoisted map[*ast.SelectStmt]bool
+	// clauses holds the clause each enclosing subquery is in, innermost
+	// last.
+	clauses []qclause
 	// existsBody holds the queries EXISTS tests, whose select list SQL
 	// Server does not hold to their GROUP BY.
 	existsBody map[*ast.SelectStmt]bool
@@ -2232,7 +2235,9 @@ func (b *binder) subquery(q ast.Node, sc *qscope, x ectx, single bool) (qtype, e
 	if sel == nil {
 		return qtUnknown, nil
 	}
+	b.clauses = append(b.clauses, x.clause)
 	cols, opaque, err := b.query(sel, sc)
+	b.clauses = b.clauses[:len(b.clauses)-1]
 	if err != nil {
 		return qtUnknown, err
 	}
@@ -2335,7 +2340,7 @@ func (b *binder) funcCall(f *ast.FuncCallExpr, sc *qscope, x ectx) (qtype, error
 	}
 	if agg {
 		switch {
-		case x.clause == clWhere:
+		case x.clause == clWhere && !b.outerAggregate(f, sc, x):
 			return qtUnknown, mssqlErr(147, "An aggregate may not appear in the WHERE clause unless it is in a subquery contained in a HAVING clause or a select list, and the column being aggregated is an outer reference.")
 		case x.clause == clGroup:
 			return qtUnknown, mssqlErr(144, "Cannot use an aggregate or a subquery in an expression used for the group by list of a GROUP BY clause.")
@@ -2412,6 +2417,38 @@ func (b *binder) funcCall(f *ast.FuncCallExpr, sc *qscope, x ectx) (qtype, error
 		return argTypes[0], nil
 	}
 	return qtUnknown, nil
+}
+
+// outerAggregate reports whether an aggregate in a subquery's WHERE belongs
+// to an enclosing query: its columns all bind outside the subquery, and the
+// subquery is in that query's select list or HAVING (the exception Msg 147
+// states).
+func (b *binder) outerAggregate(f *ast.FuncCallExpr, sc *qscope, x ectx) bool {
+	if len(b.clauses) == 0 {
+		return false
+	}
+	switch b.clauses[len(b.clauses)-1] {
+	case clSelect, clHaving, clOrder:
+	default:
+		return false
+	}
+	inner := x
+	inner.aggDepth++
+	if _, err := b.expr(f.Args, sc, inner); err != nil {
+		return false
+	}
+	refs := 0
+	outer := true
+	ast.Inspect(f.Args, func(n ast.Node) bool {
+		if ref, ok := n.(*ast.ColumnRef); ok {
+			refs++
+			if bound, ok := b.bound[ref]; !ok || bound.block == x.block {
+				outer = false
+			}
+		}
+		return true
+	})
+	return refs > 0 && outer
 }
 
 // over binds an OVER clause; name is the windowed function's.

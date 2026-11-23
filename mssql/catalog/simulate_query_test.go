@@ -482,6 +482,8 @@ func TestViewBinding(t *testing.T) {
 		{"full-text index follows a schema transfer", []string{"CREATE FULLTEXT INDEX ON x (name) KEY INDEX pk_x", "CREATE SCHEMA s", "ALTER SCHEMA s TRANSFER dbo.x"}, "CREATE VIEW v AS SELECT id FROM s.x WHERE CONTAINS(name, 'a')", 0},
 		{"STRING_SPLIT without its ordinal", nil, "CREATE VIEW v (value) AS SELECT * FROM STRING_SPLIT('a,b', ',', 0)", 0},
 		{"STRING_SPLIT with its ordinal", nil, "CREATE VIEW v (value) AS SELECT * FROM STRING_SPLIT('a,b', ',', 1)", 8158},
+		{"outer aggregate in a HAVING subquery", nil, "CREATE VIEW v AS SELECT SUM(id) AS s FROM t HAVING EXISTS (SELECT 1 WHERE SUM(t.id) > 0)", 0},
+		{"local aggregate in a subquery's WHERE", nil, "CREATE VIEW v AS SELECT SUM(id) AS s FROM t HAVING EXISTS (SELECT 1 FROM u WHERE SUM(u.id) > 0)", 147},
 		{"grouped star in EXISTS", nil, "CREATE VIEW v AS SELECT 1 AS n WHERE EXISTS (SELECT * FROM x GROUP BY id)", 0},
 		{"xml nodes as a table source", []string{"CREATE TABLE xd (id INT NOT NULL, doc XML NULL)"}, "CREATE VIEW v AS SELECT xd.id, n.x.value('.', 'int') AS v FROM xd CROSS APPLY doc.nodes('/r') AS n(x)", 0},
 	}
