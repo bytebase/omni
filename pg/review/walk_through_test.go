@@ -525,6 +525,7 @@ func TestWalkThroughFunctionsTriggersPoliciesAndAlterSubcommands(t *testing.T) {
 	schema.Schemas[0].Views = []*metadata.ViewMetadata{{Name: "v"}}
 	schema.Schemas[0].MaterializedViews = []*metadata.MaterializedViewMetadata{{Name: "mv"}}
 	schema.Schemas[0].Sequences = []*metadata.SequenceMetadata{{Name: "q"}}
+	schema.Schemas[0].Functions = []*metadata.FunctionMetadata{{Name: "unsynced_fn"}}
 	target := review.Target{Schema: schema, SessionUser: "u"}
 
 	for sql, wantCode := range map[string]review.FindingCode{
@@ -671,5 +672,434 @@ func TestWalkThroughFunctionsTriggersPoliciesAndAlterSubcommands(t *testing.T) {
 		if got := walkFindings(t, sql, noUser); len(got) != 0 {
 			t.Errorf("%q (no SessionUser): findings = %+v, want none", sql, got)
 		}
+	}
+}
+
+func TestWalkThroughRoutinesExcludedMiddleAndOptions(t *testing.T) {
+	schema := walkSchema()
+	schema.Schemas[0].Tables[0].Indexes = []*metadata.IndexMetadata{{Name: "t_a_idx"}}
+	schema.Schemas[0].Tables[0].Triggers = []*metadata.TriggerMetadata{{Name: "tr_existing"}}
+	schema.Schemas[0].Tables = append(schema.Schemas[0].Tables, &metadata.TableMetadata{
+		Name:       "parted",
+		Columns:    []*metadata.ColumnMetadata{{Name: "k"}},
+		Partitions: []*metadata.TablePartitionMetadata{{Name: "parted_1"}},
+	})
+	schema.Schemas[0].Views = []*metadata.ViewMetadata{{
+		Name:    "v",
+		Columns: []*metadata.ColumnMetadata{{Name: "a"}, {Name: "b"}},
+	}}
+	schema.Schemas[0].MaterializedViews = []*metadata.MaterializedViewMetadata{{Name: "mv"}}
+	schema.Schemas[0].Sequences = []*metadata.SequenceMetadata{{Name: "q"}}
+	schema.Schemas[0].CompositeTypes = []*metadata.CompositeTypeMetadata{{Name: "pair"}}
+	schema.Schemas[0].EnumTypes = []*metadata.EnumTypeMetadata{{Name: "mood"}}
+	schema.Schemas[0].RangeTypes = []*metadata.RangeTypeMetadata{
+		{Name: "myrange"},
+		{Name: "customrange", MultirangeName: "custom_mr"},
+		{Name: "r_mr", MultirangeName: "public.r_mr_multirange"},
+	}
+	schema.Schemas[0].ExternalTables = []*metadata.ExternalTableMetadata{{Name: "ft"}}
+	schema.Schemas[0].Functions = []*metadata.FunctionMetadata{
+		{Name: "fn_existing", Definition: "CREATE OR REPLACE FUNCTION public.fn_existing() RETURNS void LANGUAGE sql AS ''"},
+		{Name: "trig_fn", Definition: "CREATE OR REPLACE FUNCTION public.trig_fn() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$"},
+		{Name: "synced_proc", Definition: "CREATE OR REPLACE PROCEDURE public.synced_proc() LANGUAGE sql AS ''"},
+		{Name: "ambig_routine"},
+	}
+	schema.Schemas[0].Procedures = []*metadata.ProcedureMetadata{{Name: "proc_existing"}}
+	schema.Schemas = append(schema.Schemas, &metadata.SchemaMetadata{
+		Name: "s1",
+		Functions: []*metadata.FunctionMetadata{
+			{Name: "ov_fn", Definition: "CREATE OR REPLACE FUNCTION s1.ov_fn(text) RETURNS void LANGUAGE sql AS ''"},
+		},
+	}, &metadata.SchemaMetadata{
+		Name: "s2",
+		Functions: []*metadata.FunctionMetadata{
+			{Name: "ov_fn", Definition: "CREATE OR REPLACE FUNCTION s2.ov_fn(int) RETURNS void LANGUAGE sql AS ''"},
+		},
+	})
+	schema.Name = "mydb"
+	target := review.Target{Schema: schema, SessionUser: "u"}
+
+	for sql, wantCode := range map[string]review.FindingCode{
+		// Missing routines across ALTER/DROP/COMMENT/OWNER/DEPENDS/TRIGGER.
+		"ALTER FUNCTION missing_fn STRICT;":                                             review.ObjectNotFound,
+		"ALTER PROCEDURE missing_proc STRICT;":                                          review.ObjectNotFound,
+		"ALTER ROUTINE missing_rtn STRICT;":                                             review.ObjectNotFound,
+		"ALTER PROCEDURE fn_existing STRICT;":                                           review.ObjectNotFound,
+		"ALTER FUNCTION proc_existing STRICT;":                                          review.ObjectNotFound,
+		"DROP FUNCTION missing_fn;":                                                     review.ObjectNotFound,
+		"DROP PROCEDURE missing_proc;":                                                  review.ObjectNotFound,
+		"COMMENT ON PROCEDURE missing_proc IS 'x';":                                     review.ObjectNotFound,
+		"ALTER FUNCTION missing_fn RENAME TO fn2;":                                      review.ObjectNotFound,
+		"ALTER PROCEDURE missing_proc SET SCHEMA public;":                               review.ObjectNotFound,
+		"ALTER FUNCTION fn_existing SET SCHEMA nosuch;":                                 review.ObjectNotFound,
+		"ALTER FUNCTION missing_fn OWNER TO bob;":                                       review.ObjectNotFound,
+		"ALTER PROCEDURE missing_proc OWNER TO bob;":                                    review.ObjectNotFound,
+		"ALTER PROCEDURE missing_proc DEPENDS ON EXTENSION e;":                          review.ObjectNotFound,
+		"COMMENT ON FUNCTION nosuch.missing_fn IS 'x';":                                 review.ObjectNotFound,
+		"DROP ROUTINE nosuch.missing_rtn;":                                              review.ObjectNotFound,
+		"CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION no_fn();":   review.ObjectNotFound,
+		"CREATE TRIGGER tr BEFORE INSERT ON t WHEN (a > 0) EXECUTE FUNCTION trig_fn();": review.UnsupportedForm,
+		"ALTER TABLE t ENABLE TRIGGER missing_trig;":                                    review.ObjectNotFound,
+		"ALTER TABLE t DISABLE TRIGGER missing_trig;":                                   review.ObjectNotFound,
+		"DROP TRIGGER missing_trig ON t;":                                               review.ObjectNotFound,
+		"ALTER TRIGGER missing_trig ON t RENAME TO tr2;":                                review.ObjectNotFound,
+		"ALTER TRIGGER missing_trig ON t DEPENDS ON EXTENSION e;":                       review.ObjectNotFound,
+		// Self-referencing creations (law of excluded middle).
+		"CREATE DOMAIN d AS d;":               review.UnsupportedForm,
+		"CREATE DOMAIN public.d AS public.d;": review.UnsupportedForm,
+		"CREATE TABLE x (c x);":               review.UnsupportedForm,
+		"CREATE TABLE x OF x;":                review.UnsupportedForm,
+		"CREATE TYPE c AS (a c);":             review.UnsupportedForm,
+		// Self-renames and enum self-values.
+		"ALTER DOMAIN unsynced_dom RENAME TO unsynced_dom;":             review.DuplicateName,
+		"ALTER DOMAIN unsynced_dom RENAME CONSTRAINT c TO c;":           review.DuplicateName,
+		"ALTER TYPE unsynced_typ RENAME TO unsynced_typ;":               review.DuplicateName,
+		"ALTER TABLE t RENAME CONSTRAINT unsynced_con TO unsynced_con;": review.DuplicateName,
+		"ALTER POLICY unsynced_pol ON t RENAME TO unsynced_pol;":        review.DuplicateName,
+		"ALTER TYPE pair RENAME ATTRIBUTE x TO x;":                      review.DuplicateName,
+		"ALTER TYPE q RENAME ATTRIBUTE x TO y;":                         review.WrongObjectKind,
+		"ALTER TYPE t_a_idx RENAME ATTRIBUTE x TO x;":                   review.DuplicateName,
+		"ALTER TABLE t_a_idx RENAME COLUMN x TO x;":                     review.DuplicateName,
+		"ALTER TYPE unsynced_enum ADD VALUE 'x' BEFORE 'x';":            review.UnsupportedForm,
+		"ALTER TYPE unsynced_enum ADD VALUE 'x' AFTER 'x';":             review.UnsupportedForm,
+		"ALTER TYPE unsynced_enum RENAME VALUE 'x' TO 'x';":             review.UnsupportedForm,
+		// DROP TYPE array without IF EXISTS.
+		"DROP TYPE unsynced_dom[];":     review.UnsupportedForm,
+		"DROP TYPE unsynced_dom ARRAY;": review.UnsupportedForm,
+		// FROM-less SELECT with unbound column, OR REPLACE VIEW column drop, EXECUTE.
+		"CREATE VIEW v2 AS SELECT zzz;":               review.ObjectNotFound,
+		"CREATE TABLE t2 AS SELECT zzz;":              review.ObjectNotFound,
+		"CREATE TABLE IF NOT EXISTS t AS SELECT zzz;": review.ObjectNotFound,
+		"CREATE MATERIALIZED VIEW mv2 AS SELECT zzz;": review.ObjectNotFound,
+		"CREATE OR REPLACE VIEW v AS SELECT 1;":       review.UnsupportedForm,
+		"CREATE TABLE t2 AS EXECUTE missing_plan;":    review.ObjectNotFound,
+		// ALTER TABLE / SEQUENCE options, compression, relkinds, identity, EXCLUDE.
+		"ALTER TABLE t ALTER COLUMN a SET COMPRESSION bogus;":   review.UnsupportedForm,
+		"ALTER TABLE mv ALTER COLUMN a SET COMPRESSION bogus;":  review.UnsupportedForm,
+		"ALTER TABLE mv ALTER COLUMN a SET STORAGE bogus;":      review.UnsupportedForm,
+		"ALTER TABLE mv ALTER COLUMN 1 SET STATISTICS 10;":      review.UnsupportedForm,
+		"ALTER TABLE t ALTER COLUMN a SET (bogus = 1);":         review.UnsupportedForm,
+		"ALTER TABLE t ALTER COLUMN a RESTART RESTART;":         review.UnsupportedForm,
+		"ALTER TABLE t ALTER COLUMN a RESTART 1.5;":             review.UnsupportedForm,
+		"ALTER TABLE v ALTER COLUMN a RESTART;":                 review.UnsupportedForm,
+		"ALTER TABLE v ALTER COLUMN a DROP IDENTITY;":           review.UnsupportedForm,
+		"ALTER TABLE v SET (bogus = true);":                     review.UnsupportedForm,
+		"ALTER TABLE t SET (fillfactor = 70, fillfactor = 80);": review.UnsupportedForm,
+		"ALTER TABLE parted SET (fillfactor = 70);":             review.WrongObjectKind,
+		"ALTER TABLE parted SET WITHOUT CLUSTER;":               review.UnsupportedForm,
+		"ALTER TABLE parted NOT OF;":                            review.WrongObjectKind,
+		"ALTER TABLE v SET WITHOUT OIDS;":                       review.WrongObjectKind,
+		"ALTER TABLE v ENABLE RULE r;":                          review.WrongObjectKind,
+		"ALTER TABLE t NO INHERIT t;":                           review.UnsupportedForm,
+		"ALTER TABLE t ADD EXCLUDE (missing_col WITH =);":       review.ObjectNotFound,
+		"ALTER TYPE pair DROP ATTRIBUTE x, DROP ATTRIBUTE x;":   review.DuplicateName,
+		"ALTER SEQUENCE q OWNED BY col_only;":                   review.UnsupportedForm,
+		"ALTER SEQUENCE q OWNED BY otherdb.public.t.a;":         review.CrossDatabaseReference,
+		"ALTER SEQUENCE q OWNED BY a.b.c.d.e;":                  review.UnsupportedForm,
+		"ALTER SEQUENCE q SEQUENCE NAME s2;":                    review.UnsupportedForm,
+		"ALTER SEQUENCE q LOGGED;":                              review.UnsupportedForm,
+		"ALTER SEQUENCE q UNLOGGED;":                            review.UnsupportedForm,
+		"ALTER SEQUENCE q AS text;":                             review.UnsupportedForm,
+		"ALTER SEQUENCE q AS otherdb.pg_catalog.int8;":          review.CrossDatabaseReference,
+		"CREATE SEQUENCE q2 AS otherdb.pg_catalog.int8;":        review.CrossDatabaseReference,
+		"ALTER SEQUENCE q AS mydb.public.int8;":                 review.UnsupportedForm,
+		"ALTER FUNCTION synced_proc STRICT;":                    review.ObjectNotFound,
+		"ALTER FUNCTION fn_existing ROWS 10;":                   review.UnsupportedForm,
+		"DROP FUNCTION fn_existing(int);":                       review.ObjectNotFound,
+	} {
+		got := walkFindings(t, sql, target)
+		if len(got) != 1 || !slices.Equal(got[0].Codes, []review.FindingCode{wantCode}) {
+			t.Errorf("%q: findings = %+v, want one %s", sql, got, wantCode)
+		}
+	}
+
+	// Control cases (0 false positives): valid routines, overloads, built-in
+	// pg_catalog / system-excluded routines, search_path shadowing for domains,
+	// valid reloptions/compression/sequence/trigger/view forms.
+	for _, sql := range []string{
+		// Synced routines & routine creation/overloads.
+		"ALTER FUNCTION fn_existing STRICT;",
+		"ALTER PROCEDURE proc_existing SET search_path = public;",
+		"ALTER PROCEDURE synced_proc SET search_path = public;",
+		"ALTER ROUTINE synced_proc SET search_path = public;",
+		"ALTER FUNCTION ambig_routine STRICT;",
+		"ALTER PROCEDURE ambig_routine SET search_path = public;",
+		"ALTER ROUTINE ambig_routine RENAME TO ambig_renamed;\nALTER PROCEDURE ambig_renamed SET search_path = public;",
+		"ALTER ROUTINE fn_existing STRICT;",
+		"ALTER ROUTINE proc_existing SET search_path = public;",
+		"DROP FUNCTION fn_existing;",
+		"DROP FUNCTION IF EXISTS missing_fn;",
+		"DROP PROCEDURE IF EXISTS missing_proc;",
+		"DROP ROUTINE IF EXISTS missing_rtn;",
+		// Omitted aggregates (prokind = 'a') are accepted by COMMENT ON FUNCTION/ROUTINE,
+		// ALTER FUNCTION/ROUTINE ... DEPENDS ON EXTENSION, DROP/RENAME/SET SCHEMA/OWNER ROUTINE,
+		// and PARALLEL-only ALTER ROUTINE.
+		"COMMENT ON FUNCTION public.total(integer) IS 'sum';",
+		"COMMENT ON ROUTINE public.total(integer) IS 'sum';",
+		"DROP ROUTINE public.total(integer);",
+		"ALTER ROUTINE public.total(integer) RENAME TO total2;",
+		"ALTER ROUTINE public.total(integer) SET SCHEMA public;",
+		"ALTER ROUTINE public.total(integer) OWNER TO bob;",
+		"ALTER ROUTINE public.total(integer) PARALLEL SAFE;",
+		"ALTER FUNCTION public.total(integer) DEPENDS ON EXTENSION e;",
+		"ALTER ROUTINE public.total(integer) DEPENDS ON EXTENSION e;",
+		"CREATE FUNCTION f_ov(int) RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE FUNCTION f_ov(text) RETURNS int LANGUAGE sql AS 'SELECT 1';\nDROP FUNCTION f_ov(int);\nDROP FUNCTION f_ov(text);",
+		"SET search_path = s1, s2;\nALTER FUNCTION ov_fn(int) RENAME TO ov_renamed;\nDROP FUNCTION s2.ov_renamed(int);",
+		"SET search_path = s1, s2;\nDROP FUNCTION ov_fn(int);\nDROP FUNCTION s1.ov_fn(text);",
+		"CREATE FUNCTION pg_temp.tf() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$;\nCREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION tf();",
+		// Built-in pg_catalog, Bytebase-excluded, and range constructor routines (never falsely absent).
+		"CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION suppress_redundant_updates_trigger();",
+		"CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION pg_custom_trig();",
+		"CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION hypopg_trig();",
+		"ALTER FUNCTION lower(text) IMMUTABLE;",
+		"ALTER FUNCTION pg_catalog.abs(int) IMMUTABLE;",
+		"ALTER FUNCTION public.cbrt(double precision) IMMUTABLE;",
+		"COMMENT ON FUNCTION public.myrange(int, int) IS 'range ctor';",
+		"COMMENT ON FUNCTION public.myrange_multirange() IS 'multirange ctor';",
+		"COMMENT ON FUNCTION public.custom_mr() IS 'custom multirange ctor';",
+		"DROP FUNCTION pg_my_ext_fn();",
+		"DROP FUNCTION hypopg_reset();",
+		// Trigger WHEN valid forms (OLD/NEW/subquery) and PostgreSQL internal constraint triggers.
+		"CREATE TRIGGER tr BEFORE UPDATE ON t FOR EACH ROW WHEN (OLD.a IS DISTINCT FROM NEW.a) EXECUTE FUNCTION trig_fn();",
+		"CREATE TRIGGER tr BEFORE UPDATE ON t FOR EACH ROW WHEN (OLD IS DISTINCT FROM NEW) EXECUTE FUNCTION trig_fn();",
+		"CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW WHEN (EXISTS (SELECT 1 FROM t WHERE a = 1)) EXECUTE FUNCTION trig_fn();",
+		"ALTER TABLE t ENABLE TRIGGER tr_existing;",
+		"ALTER TABLE t ENABLE TRIGGER ALL;",
+		"ALTER TABLE t ENABLE TRIGGER USER;",
+		"ALTER TABLE t ENABLE TRIGGER \"RI_ConstraintTrigger_c_1234\";",
+		"ALTER TABLE t ENABLE TRIGGER \"Unique_ConstraintTrigger_1234\";",
+		"ALTER TABLE t ENABLE TRIGGER \"PK_ConstraintTrigger_1234\";",
+		// Valid self-named types against pg_catalog built-in or another schema on search_path.
+		"CREATE DOMAIN text AS text;",
+		"CREATE TABLE text (a text);",
+		"CREATE SCHEMA s_dom;\nSET search_path = s_dom, public;\nCREATE DOMAIN d AS d;",
+		"CREATE TYPE r_drop AS RANGE (SUBTYPE = int4);\nDROP TYPE r_drop;",
+		// Dropping a synced range type invalidates its companion multirange type.
+		"DROP TYPE public.customrange;\nCREATE TYPE public.custom_mr AS ENUM ('x');",
+		"DROP TYPE public.r_mr;\nCREATE TYPE public.r_mr_multirange AS ENUM ('x');",
+		"ALTER TYPE public.customrange RENAME TO customrange2;\nDROP TYPE public.customrange2;\nCREATE TYPE public.custom_mr AS ENUM ('x');",
+		"ALTER TYPE public.custom_mr RENAME TO custom_mr2;\nDROP TYPE public.customrange;\nCREATE TYPE public.custom_mr2 AS ENUM ('x');",
+		// Enum ADD VALUE IF NOT EXISTS with same neighbor (valid no-op when value exists).
+		"ALTER TYPE mood ADD VALUE IF NOT EXISTS 'a' BEFORE 'a';",
+		// DROP TYPE IF EXISTS array / SETOF.
+		"DROP TYPE IF EXISTS unsynced_dom[];",
+		"DROP TYPE SETOF mood;",
+		// Valid view, CTAS, EXECUTE IF NOT EXISTS on existing table.
+		"CREATE VIEW v_ok AS SELECT 1 AS x, (SELECT a FROM t LIMIT 1);",
+		"CREATE VIEW v_ord AS SELECT 1 AS x ORDER BY x;",
+		"CREATE OR REPLACE VIEW v AS SELECT 1 AS a, 2 AS b;",
+		"CREATE OR REPLACE VIEW v AS SELECT 1 AS a, 2 AS b, 3 AS c;",
+		"CREATE TABLE IF NOT EXISTS t AS EXECUTE existing_plan;",
+		// Valid column/view/table/sequence options.
+		"ALTER TABLE t ALTER COLUMN a SET COMPRESSION lz4;",
+		"ALTER TABLE t ALTER COLUMN a SET COMPRESSION pglz;",
+		"ALTER TABLE t ALTER COLUMN a SET COMPRESSION default;",
+		"ALTER TABLE t ALTER COLUMN a SET (n_distinct = 100);",
+		"ALTER TABLE v SET (security_barrier = true, security_invoker = false);",
+		"ALTER TABLE v ALTER COLUMN a DROP IDENTITY IF EXISTS;",
+		"ALTER TABLE t SET (fillfactor = 80);",
+		"ALTER TABLE parted SET (toast.autovacuum_enabled = false);",
+		"ALTER FOREIGN TABLE ft SET WITHOUT OIDS;",
+		"ALTER TABLE t ADD EXCLUDE (a WITH =);",
+		"ALTER SEQUENCE q SET LOGGED;",
+		"ALTER SEQUENCE q SET UNLOGGED;",
+		"ALTER SEQUENCE q OWNED BY NONE;",
+		"ALTER SEQUENCE q OWNED BY t.a;",
+		"ALTER SEQUENCE q OWNED BY mydb.public.t.a;",
+		"ALTER SEQUENCE q AS bigint;",
+		"ALTER SEQUENCE q AS mydb.pg_catalog.int8;",
+		"CREATE SEQUENCE q_db AS mydb.pg_catalog.int8;",
+	} {
+		if got := walkFindings(t, sql, target); len(got) != 0 {
+			t.Errorf("%q: findings = %+v, want none", sql, got)
+		}
+	}
+}
+
+func TestWalkThroughSyncedColumnAndDependencyChecks(t *testing.T) {
+	schema := &metadata.DatabaseSchemaMetadata{
+		Name:       "mydb",
+		SearchPath: `"$user", public`,
+		Schemas: []*metadata.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadata.TableMetadata{
+				{
+					Name: "t",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id", Position: 1, Type: "integer", Nullable: false},
+						{Name: "n", Position: 2, Type: "integer", Nullable: true},
+						{Name: "flag", Position: 3, Type: "boolean", Nullable: false},
+						{Name: "ident", Position: 4, Type: "integer", Nullable: false, IdentityGeneration: metadata.ColumnMetadata_ALWAYS},
+						{Name: "gen", Position: 5, Type: "integer", Nullable: true, Generation: &metadata.GenerationMetadata{Type: metadata.GenerationMetadata_TYPE_STORED, Expression: "id + 1"}},
+					},
+					Indexes: []*metadata.IndexMetadata{
+						{Name: "t_pkey", Primary: true, Unique: true, IsConstraint: true, Definition: "CREATE UNIQUE INDEX t_pkey ON public.t USING btree (id) INCLUDE (flag)"},
+						{Name: "t_n_idx", Definition: "CREATE INDEX t_n_idx ON public.t USING btree (n) INCLUDE (flag)"},
+					},
+					Triggers: []*metadata.TriggerMetadata{
+						{Name: "tr_t", Body: "CREATE TRIGGER tr_t BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION public.tf()"},
+					},
+				},
+				{
+					Name: "child",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "cid", Position: 1, Type: "integer", Nullable: false},
+						{Name: "tid", Position: 2, Type: "integer", Nullable: true},
+					},
+					ForeignKeys: []*metadata.ForeignKeyMetadata{
+						{Name: "child_tid_fkey", ReferencedSchema: "public", ReferencedTable: "t"},
+					},
+				},
+				{
+					Name: "p_inh",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "cid", Position: 1, Type: "integer", Nullable: false},
+					},
+				},
+				{
+					Name: "u",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "n", Position: 1, Type: "boolean", Nullable: true},
+					},
+				},
+				{
+					Name: "parted",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "k", Position: 1, Type: "integer", Nullable: false},
+						{Name: "v", Position: 2, Type: "integer", Nullable: true},
+					},
+					Partitions: []*metadata.TablePartitionMetadata{
+						{Name: "parted_1", Expression: "RANGE (k)"},
+					},
+				},
+			},
+			CompositeTypes: []*metadata.CompositeTypeMetadata{
+				{Name: "pair", Attributes: []*metadata.CompositeTypeAttribute{{Name: "x", Type: "integer"}}},
+			},
+			Functions: []*metadata.FunctionMetadata{
+				{Name: "tf", Definition: "CREATE OR REPLACE FUNCTION public.tf() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$"},
+				{Name: "tf2", Definition: "CREATE OR REPLACE FUNCTION public.tf2() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$"},
+				{Name: "body_proc_text", Definition: "CREATE FUNCTION public.body_proc_text() RETURNS text LANGUAGE sql AS $$SELECT 'CREATE OR REPLACE PROCEDURE'$$"},
+				{Name: "with_def", Definition: "CREATE OR REPLACE FUNCTION public.with_def(a integer, b integer DEFAULT 1) RETURNS integer LANGUAGE sql IMMUTABLE AS 'SELECT a + b'"},
+			},
+		}},
+	}
+	target := review.Target{Schema: schema, SessionUser: "u"}
+
+	for sql, wantCode := range map[string]review.FindingCode{
+		"ALTER TABLE t ALTER n DROP EXPRESSION;":                     review.UnsupportedForm,
+		"ALTER TABLE t ALTER n SET EXPRESSION AS (1);":               review.UnsupportedForm,
+		"ALTER TABLE t ALTER n DROP IDENTITY;":                       review.UnsupportedForm,
+		"ALTER TABLE t ALTER n RESTART;":                             review.UnsupportedForm,
+		"ALTER TABLE t ALTER n ADD GENERATED ALWAYS AS IDENTITY;":    review.UnsupportedForm,
+		"ALTER TABLE t ALTER flag ADD GENERATED ALWAYS AS IDENTITY;": review.UnsupportedForm,
+		"ALTER TABLE t ALTER id DROP NOT NULL;":                      review.UnsupportedForm,
+		"ALTER TABLE parted DROP COLUMN k;":                          review.UnsupportedForm,
+		"ALTER TABLE parted DROP COLUMN IF EXISTS k;":                review.UnsupportedForm,
+		"ALTER TABLE t ADD CHECK (n);":                               review.UnsupportedForm,
+		"ALTER POLICY p ON t USING (n);":                             review.UnsupportedForm,
+		"CREATE TABLE x (CHECK (x));":                                review.UnsupportedForm,
+		"DROP TABLE t;":                                              review.UnsupportedForm,
+		"TRUNCATE t;":                                                review.UnsupportedForm,
+		"DROP FUNCTION tf();":                                        review.UnsupportedForm,
+		"ALTER TYPE pair ADD ATTRIBUTE x int;":                       review.DuplicateName,
+		"ALTER TYPE pair ALTER ATTRIBUTE x TYPE pair;":               review.UnsupportedForm,
+		"ALTER TABLE t_n_idx ALTER COLUMN 1 SET STATISTICS 10;":      review.UnsupportedForm,
+		"ALTER TABLE t_n_idx ALTER COLUMN bogus SET STATISTICS 10;":  review.ObjectNotFound,
+		"ALTER TABLE t_n_idx SET (bogus = 1);":                       review.UnsupportedForm,
+		"ALTER TABLE t_n_idx SET (ns.fillfactor = 70);":              review.UnsupportedForm,
+		"ALTER DOMAIN unsynced_dom SET DEFAULT a;":                   review.UnsupportedForm,
+		"ALTER DOMAIN unsynced_dom ADD CHECK (a);":                   review.ObjectNotFound,
+		"ALTER TABLE child ADD FOREIGN KEY (cid, tid) REFERENCES t;": review.UnsupportedForm,
+	} {
+		got := walkFindings(t, sql, target)
+		if len(got) != 1 || !slices.Equal(got[0].Codes, []review.FindingCode{wantCode}) {
+			t.Errorf("%q: findings = %+v, want one %s", sql, got, wantCode)
+		}
+	}
+
+	// 0-FP control cases.
+	for _, sql := range []string{
+		"ALTER TABLE t ALTER ident DROP IDENTITY;",
+		"ALTER TABLE t ALTER ident RESTART;",
+		"ALTER TABLE t ALTER gen DROP EXPRESSION;",
+		"ALTER TABLE t ALTER gen SET EXPRESSION AS (id + 2);",
+		"ALTER TABLE t ALTER id ADD GENERATED ALWAYS AS IDENTITY;",
+		"ALTER TABLE t ALTER n SET NOT NULL, ALTER n ADD GENERATED ALWAYS AS IDENTITY;",
+		"ALTER TABLE t ALTER n TYPE boolean, ADD CHECK (n);",
+		"ALTER TABLE t DROP CONSTRAINT t_pkey, ALTER id DROP NOT NULL;",
+		// INCLUDE column on PRIMARY KEY is not a primary key column.
+		"ALTER TABLE t ALTER flag DROP NOT NULL;",
+		"ALTER TABLE child ADD FOREIGN KEY (tid) REFERENCES t;",
+		// Sibling subcommands replacing primary key before self-referencing FK.
+		"ALTER TABLE t DROP CONSTRAINT t_pkey, ADD PRIMARY KEY (id, flag), ADD FOREIGN KEY (id, flag) REFERENCES t;",
+		// Function-style type coercion in index expression (e.g. unsynced domain).
+		"CREATE INDEX ix ON public.t (d(n));",
+		"CREATE INDEX ix ON public.t ((public.d(n)));",
+		"ALTER TABLE t ADD CHECK (flag);",
+		"ALTER POLICY p ON t USING (flag);",
+		"CREATE INDEX ON t (with_def(n));",
+		"ALTER TABLE t_n_idx SET (fillfactor = 70, deduplicate_items = off);",
+		"ALTER DOMAIN unsynced_dom SET DEFAULT 1;",
+		"ALTER DOMAIN unsynced_dom SET DEFAULT CURRENT_DATE;",
+		"ALTER DOMAIN unsynced_dom ADD CHECK (VALUE > 0);",
+		"ALTER DOMAIN unsynced_dom ADD CHECK (value);",
+		"DROP TABLE t CASCADE;",
+		"DROP TABLE t, child;",
+		"TRUNCATE t CASCADE;",
+		"TRUNCATE t, child;",
+		"TRUNCATE t, p_inh;",
+		"ALTER FUNCTION public.body_proc_text() IMMUTABLE;",
+		"ALTER TABLE child DROP CONSTRAINT child_tid_fkey;\nDROP TABLE t;",
+		"DROP FUNCTION tf() CASCADE;",
+		"DROP TRIGGER tr_t ON t;\nDROP FUNCTION tf();",
+		"CREATE OR REPLACE TRIGGER tr_t BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION public.tf2();\nDROP FUNCTION public.tf();",
+		"ALTER TABLE t RENAME TO old_t;\nALTER TABLE u RENAME TO t;\nALTER TABLE t ADD CHECK (n);",
+		"ALTER TABLE public.t RENAME COLUMN n TO old_n;\nALTER TABLE public.t RENAME COLUMN flag TO n;\nALTER TABLE public.t ADD CHECK (n);",
+		"ALTER TYPE public.pair RENAME ATTRIBUTE x TO y;\nALTER TYPE public.pair ADD ATTRIBUTE x integer;",
+		"DROP TYPE public.pair;\nCREATE TYPE public.pair AS (y integer);\nALTER TYPE public.pair ADD ATTRIBUTE x integer;",
+		"ALTER TYPE pair ADD ATTRIBUTE x text, DROP ATTRIBUTE x;",
+		"ALTER TYPE pair ALTER ATTRIBUTE x TYPE pair[];",
+		"ALTER TABLE t_n_idx ALTER COLUMN flag SET STATISTICS 10;",
+	} {
+		if got := walkFindings(t, sql, target); len(got) != 0 {
+			t.Errorf("%q: findings = %+v, want none", sql, got)
+		}
+	}
+
+	// OtherSpecs disables synced-detail checks.
+	other := target
+	other.OtherSpecs = true
+	if got := walkFindings(t, "ALTER TABLE t ALTER n DROP IDENTITY;", other); len(got) != 0 {
+		t.Errorf("OtherSpecs: findings = %+v, want none", got)
+	}
+
+	// TimescaleDB extension disables snapshot routine absence and signature
+	// completeness because pg/driver/sync.go omits routines whose definition
+	// contains "$libdir/timescaledb".
+	tsSchema := &metadata.DatabaseSchemaMetadata{
+		Name:       "mydb",
+		SearchPath: `"$user", public`,
+		Extensions: []*metadata.ExtensionMetadata{{Name: "timescaledb", Schema: "public"}},
+		Schemas: []*metadata.SchemaMetadata{{
+			Name: "public",
+			Functions: []*metadata.FunctionMetadata{
+				{Name: "plain_fn", Definition: "CREATE OR REPLACE FUNCTION public.plain_fn() RETURNS integer LANGUAGE sql AS 'SELECT 1'"},
+			},
+		}},
+	}
+	tsTarget := review.Target{Schema: tsSchema, SessionUser: "alice"}
+	for _, sql := range []string{
+		"ALTER FUNCTION public.create_hypertable(regclass, name) IMMUTABLE;",
+		"ALTER FUNCTION create_hypertable(regclass, name) IMMUTABLE;",
+		"ALTER PROCEDURE public.ts_proc() SET search_path = public;",
+		"ALTER FUNCTION public.plain_fn() ROWS 10;",
+	} {
+		if got := walkFindings(t, sql, tsTarget); len(got) != 0 {
+			t.Errorf("timescaledb %q: findings = %+v, want none", sql, got)
+		}
+	}
+	if got := walkFindings(t, "ALTER FUNCTION missing_schema.f() IMMUTABLE;", tsTarget); len(got) != 1 || !slices.Equal(got[0].Codes, []review.FindingCode{review.ObjectNotFound}) {
+		t.Errorf("timescaledb missing schema: findings = %+v, want one ObjectNotFound", got)
 	}
 }

@@ -19,13 +19,20 @@ import (
 // simulate.tsv offline: each fixture is built once in the in-memory catalog,
 // and every row is checked with no server started.
 func TestWalkSimulation(t *testing.T) {
-	walktest.CheckSimulation(t, walktest.Simulation{
+	res := walktest.CheckSimulation(t, walktest.Simulation{
 		Path:     filepath.Join("..", "catalog", "testdata", "simulate.tsv"),
 		Fixtures: filepath.Join("..", "catalog", "testdata", "fixtures"),
 		Setup:    pgSimFixture,
 		Codes:    func(msg, _ string) []string { return walkStates(msg) },
 		Same:     func(claimed, stored walk.Key) bool { return claimed == stored },
 	})
+	const minRecall = 0.90
+	if res.Refused > 0 {
+		got := float64(res.Found) / float64(res.Refused)
+		if got < minRecall {
+			t.Errorf("WALK_THROUGH recall = %.1f%% (%d/%d), want >= %.1f%%", 100*got, res.Found, res.Refused, 100*minRecall)
+		}
+	}
 }
 
 func pgSimFixture(t testing.TB, fx simulate.Fixture) walktest.SimFixture {
@@ -124,31 +131,116 @@ func pgCatalogToMetadata(c *pgcatalog.Catalog) *metadata.DatabaseSchemaMetadata 
 			if am == "" {
 				am = "btree"
 			}
+			var keyParts []string
+			exprIdx := 0
+			nkey := idx.NKeyColumns
+			if nkey <= 0 || nkey > len(idx.Columns) {
+				nkey = len(idx.Columns)
+			}
+			for _, attnum := range idx.Columns[:nkey] {
+				if attnum == 0 {
+					if exprIdx < len(idx.Exprs) && idx.Exprs[exprIdx] != "" {
+						keyParts = append(keyParts, "("+idx.Exprs[exprIdx]+")")
+					} else {
+						keyParts = append(keyParts, "(1)")
+					}
+					exprIdx++
+					continue
+				}
+				for _, col := range rel.Columns {
+					if col.AttNum == attnum {
+						keyParts = append(keyParts, ident(col.Name))
+						break
+					}
+				}
+			}
+			if len(keyParts) == 0 {
+				keyParts = []string{"a"}
+			}
 			out = append(out, &metadata.IndexMetadata{
 				Name:         idx.Name,
 				Unique:       idx.IsUnique,
 				Primary:      idx.IsPrimary,
 				IsConstraint: idx.ConstraintOID != 0,
-				Definition:   "CREATE " + unique + "INDEX " + ident(idx.Name) + " ON " + only + ident(schemaName) + "." + ident(rel.Name) + " USING " + ident(am) + " (a)",
+				Definition:   "CREATE " + unique + "INDEX " + ident(idx.Name) + " ON " + only + ident(schemaName) + "." + ident(rel.Name) + " USING " + ident(am) + " (" + strings.Join(keyParts, ", ") + ")",
 			})
 		}
 		return out
 	}
-	var buildPartitions func(parentOID uint32) []*metadata.TablePartitionMetadata
-	buildPartitions = func(parentOID uint32) []*metadata.TablePartitionMetadata {
-		children := partChildren[parentOID]
+	partKeyExpr := func(rel *pgcatalog.Relation) string {
+		if rel.PartitionInfo == nil {
+			return ""
+		}
+		var strat string
+		switch rel.PartitionInfo.Strategy {
+		case 'r':
+			strat = "RANGE"
+		case 'l':
+			strat = "LIST"
+		case 'h':
+			strat = "HASH"
+		default:
+			return ""
+		}
+		var cols []string
+		for _, attnum := range rel.PartitionInfo.KeyAttNums {
+			for _, col := range rel.Columns {
+				if col.AttNum == attnum {
+					cols = append(cols, ident(col.Name))
+					break
+				}
+			}
+		}
+		if len(cols) == 0 {
+			return ""
+		}
+		return strat + " (" + strings.Join(cols, ", ") + ")"
+	}
+	var buildPartitions func(parent *pgcatalog.Relation) []*metadata.TablePartitionMetadata
+	buildPartitions = func(parent *pgcatalog.Relation) []*metadata.TablePartitionMetadata {
+		children := partChildren[parent.OID]
 		if len(children) == 0 {
 			return nil
 		}
+		expr := partKeyExpr(parent)
 		out := make([]*metadata.TablePartitionMetadata, 0, len(children))
 		for _, child := range children {
 			out = append(out, &metadata.TablePartitionMetadata{
 				Name:          child.Name,
+				Expression:    expr,
 				Indexes:       indexMeta(child),
-				Subpartitions: buildPartitions(child.OID),
+				Subpartitions: buildPartitions(child),
 			})
 		}
 		return out
+	}
+	// Map proc OID -> (schema, name) for synced trigger definitions.
+	procByOID := make(map[uint32][2]string)
+	for _, s := range c.UserSchemas() {
+		for _, proc := range c.QueryPgProc(s.Name) {
+			procByOID[proc.OID] = [2]string{s.Name, proc.ProName}
+		}
+	}
+	colMeta := func(col *pgcatalog.Column, pos int32) *metadata.ColumnMetadata {
+		cm := &metadata.ColumnMetadata{
+			Name:     col.Name,
+			Position: pos,
+			Type:     c.FormatType(col.TypeOID, col.TypeMod),
+			Nullable: !col.NotNull,
+		}
+		switch col.Identity {
+		case 'a':
+			cm.IdentityGeneration = metadata.ColumnMetadata_ALWAYS
+		case 'd':
+			cm.IdentityGeneration = metadata.ColumnMetadata_BY_DEFAULT
+		}
+		switch col.Generated {
+		case 's':
+			cm.Generation = &metadata.GenerationMetadata{Type: metadata.GenerationMetadata_TYPE_STORED, Expression: col.GenerationExpr}
+		case 'v':
+			cm.Generation = &metadata.GenerationMetadata{Type: metadata.GenerationMetadata_TYPE_VIRTUAL, Expression: col.GenerationExpr}
+		}
+		return cm
 	}
 	for _, s := range c.UserSchemas() {
 		sm := &metadata.SchemaMetadata{Name: s.Name}
@@ -167,15 +259,22 @@ func pgCatalogToMetadata(c *pgcatalog.Catalog) *metadata.DatabaseSchemaMetadata 
 				tbl := &metadata.TableMetadata{
 					Name:       rel.Name,
 					Indexes:    indexMeta(rel),
-					Partitions: buildPartitions(rel.OID),
+					Partitions: buildPartitions(rel),
 				}
-				for _, col := range rel.Columns {
-					tbl.Columns = append(tbl.Columns, &metadata.ColumnMetadata{Name: col.Name})
+				for i, col := range rel.Columns {
+					tbl.Columns = append(tbl.Columns, colMeta(col, int32(i+1)))
 				}
 				for _, con := range c.ConstraintsOf(rel.OID) {
 					switch con.Type {
 					case pgcatalog.ConstraintFK:
-						tbl.ForeignKeys = append(tbl.ForeignKeys, &metadata.ForeignKeyMetadata{Name: con.Name})
+						fk := &metadata.ForeignKeyMetadata{Name: con.Name}
+						if ref := c.GetRelationByOID(con.FRelOID); ref != nil {
+							fk.ReferencedTable = ref.Name
+							if ref.Schema != nil {
+								fk.ReferencedSchema = ref.Schema.Name
+							}
+						}
+						tbl.ForeignKeys = append(tbl.ForeignKeys, fk)
 					case pgcatalog.ConstraintCheck:
 						tbl.CheckConstraints = append(tbl.CheckConstraints, &metadata.CheckConstraintMetadata{Name: con.Name})
 					case pgcatalog.ConstraintExclude:
@@ -183,29 +282,40 @@ func pgCatalogToMetadata(c *pgcatalog.Catalog) *metadata.DatabaseSchemaMetadata 
 					}
 				}
 				for _, tr := range c.TriggersOf(rel.OID) {
-					tbl.Triggers = append(tbl.Triggers, &metadata.TriggerMetadata{Name: tr.Name})
+					tm := &metadata.TriggerMetadata{Name: tr.Name}
+					if fn, ok := procByOID[tr.FuncOID]; ok {
+						tm.Body = "CREATE TRIGGER " + ident(tr.Name) + " BEFORE INSERT ON " + ident(s.Name) + "." + ident(rel.Name) + " FOR EACH ROW EXECUTE FUNCTION " + ident(fn[0]) + "." + ident(fn[1]) + "()"
+					}
+					tbl.Triggers = append(tbl.Triggers, tm)
 				}
 				sm.Tables = append(sm.Tables, tbl)
 			case 'v':
 				v := &metadata.ViewMetadata{Name: rel.Name}
-				for _, col := range rel.Columns {
-					v.Columns = append(v.Columns, &metadata.ColumnMetadata{Name: col.Name})
+				for i, col := range rel.Columns {
+					v.Columns = append(v.Columns, colMeta(col, int32(i+1)))
 				}
 				sm.Views = append(sm.Views, v)
 			case 'm':
-				mv := &metadata.MaterializedViewMetadata{Name: rel.Name}
-				for _, idx := range c.IndexesOf(rel.OID) {
-					mv.Indexes = append(mv.Indexes, &metadata.IndexMetadata{Name: idx.Name, Unique: idx.IsUnique})
+				mv := &metadata.MaterializedViewMetadata{
+					Name:    rel.Name,
+					Indexes: indexMeta(rel),
 				}
 				sm.MaterializedViews = append(sm.MaterializedViews, mv)
 			case 'f':
 				ft := &metadata.ExternalTableMetadata{Name: rel.Name}
-				for _, col := range rel.Columns {
-					ft.Columns = append(ft.Columns, &metadata.ColumnMetadata{Name: col.Name})
+				for i, col := range rel.Columns {
+					ft.Columns = append(ft.Columns, colMeta(col, int32(i+1)))
 				}
 				sm.ExternalTables = append(sm.ExternalTables, ft)
 			case 'c':
-				sm.CompositeTypes = append(sm.CompositeTypes, &metadata.CompositeTypeMetadata{Name: rel.Name})
+				ct := &metadata.CompositeTypeMetadata{Name: rel.Name}
+				for _, col := range rel.Columns {
+					ct.Attributes = append(ct.Attributes, &metadata.CompositeTypeAttribute{
+						Name: col.Name,
+						Type: c.FormatType(col.TypeOID, col.TypeMod),
+					})
+				}
+				sm.CompositeTypes = append(sm.CompositeTypes, ct)
 			}
 		}
 		seqNames := make([]string, 0, len(s.Sequences))
@@ -217,8 +327,11 @@ func pgCatalogToMetadata(c *pgcatalog.Catalog) *metadata.DatabaseSchemaMetadata 
 			sm.Sequences = append(sm.Sequences, &metadata.SequenceMetadata{Name: name})
 		}
 		for _, typ := range c.QueryPgType(s.Name) {
-			if typ.TypType == 'e' {
+			switch typ.TypType {
+			case 'e':
 				sm.EnumTypes = append(sm.EnumTypes, &metadata.EnumTypeMetadata{Name: typ.TypName})
+			case 'r':
+				sm.RangeTypes = append(sm.RangeTypes, &metadata.RangeTypeMetadata{Name: typ.TypName})
 			}
 		}
 		for _, proc := range c.QueryPgProc(s.Name) {
@@ -228,7 +341,21 @@ func pgCatalogToMetadata(c *pgcatalog.Catalog) *metadata.DatabaseSchemaMetadata 
 			if proc.ProKind == 'p' {
 				sm.Procedures = append(sm.Procedures, &metadata.ProcedureMetadata{Name: proc.ProName})
 			} else {
-				sm.Functions = append(sm.Functions, &metadata.FunctionMetadata{Name: proc.ProName})
+				var args []string
+				for _, oid := range proc.ProArgTypes {
+					args = append(args, c.FormatType(oid, -1))
+				}
+				ret := "void"
+				if proc.ProRetType != 0 {
+					ret = c.FormatType(proc.ProRetType, -1)
+				}
+				if proc.ProRetSet {
+					ret = "SETOF " + ret
+				}
+				sm.Functions = append(sm.Functions, &metadata.FunctionMetadata{
+					Name:       proc.ProName,
+					Definition: "CREATE OR REPLACE FUNCTION " + ident(s.Name) + "." + ident(proc.ProName) + "(" + strings.Join(args, ", ") + ") RETURNS " + ret + " LANGUAGE sql AS ''",
+				})
 			}
 		}
 		db.Schemas = append(db.Schemas, sm)
@@ -275,6 +402,13 @@ func pgCatalogInventory(c *pgcatalog.Catalog) []walktest.Object {
 		}
 		for _, seq := range s.Sequences {
 			objects = append(objects, walktest.Object{Key: relKey(s.Name, seq.Name), Kind: relSequence})
+		}
+		for _, proc := range c.QueryPgProc(s.Name) {
+			if proc.ProKind == 'p' {
+				objects = append(objects, walktest.Object{Key: procKey(s.Name, proc.ProName)})
+			} else {
+				objects = append(objects, walktest.Object{Key: funcKey(s.Name, proc.ProName)})
+			}
 		}
 	}
 	return objects
