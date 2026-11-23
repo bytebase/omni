@@ -5049,3 +5049,23 @@ ok:bccb9e5debea	ok:bccb9e5debea	engine	objects@event	sp_param_anchored/sp_param_
 ok:06a45b4f48a0	ok:06a45b4f48a0	engine	objects@event	sp_param_anchored/sp_param_name_and_mode_init_vars_ROW_SYM_TYPE_SYM_OF_SYM_ident_._ident!drop-1	CREATE PROCEDURE a(ROW TYPE OF a.a) COMMIT;
 ok:849a3d53ff62	ok:849a3d53ff62	engine	objects@event	sp_proc_stmt_in_returns_clause/sp_unlabeled_block	ALTER EVENT a DO BEGIN END;
 ok:83a89ac56425	ok:83a89ac56425	engine	objects@event	sp_proc_stmt_in_returns_clause/sp_proc_stmt_compound_ok	ALTER EVENT a DO BEGIN NOT ATOMIC END;
+ok:725bb9fc0ad9	ok:725bb9fc0ad9	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN starts, DROP COLUMN ends
+ok:725bb9fc0ad9	ok:725bb9fc0ad9	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN ends, DROP COLUMN starts
+1054	1054	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN starts
+1054	1054	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN ends
+ok:ff8ce216c0c9	ok:ff8ce216c0c9	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN guests
+ok:d42eb5a302dd	ok:d42eb5a302dd	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN note
+1054	1054	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN guests, DROP COLUMN starts
+ok:725bb9fc0ad9	ok:725bb9fc0ad9	engine	features@check	check:drop	ALTER TABLE bookings DROP CONSTRAINT chk_dates, DROP COLUMN starts, DROP COLUMN ends
+ok:725bb9fc0ad9	ok:725bb9fc0ad9	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN starts, DROP COLUMN ends, DROP CONSTRAINT chk_dates
+ok:725bb9fc0ad9	ok:725bb9fc0ad9	engine	features@check	check:drop	ALTER TABLE bookings DROP CONSTRAINT IF EXISTS chk_dates, DROP COLUMN starts, DROP COLUMN ends
+ok:a34595e0c007	ok:a34595e0c007	engine	features@check	check:drop	ALTER TABLE bookings DROP CONSTRAINT chk_dates, DROP COLUMN starts
+1064	1064	engine	features@check	check:drop	ALTER TABLE bookings DROP CHECK chk_dates, DROP COLUMN starts
+1054	1054	engine	features@check	check:drop	ALTER TABLE bookings RENAME COLUMN starts TO begins, DROP COLUMN ends
+1054	1054	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN starts, ADD COLUMN starts DATE
+ok:9cae975e0516	ok:9cae975e0516	engine	features@check	check:drop	ALTER TABLE bookings RENAME COLUMN guests TO people
+ok:e22f573569ad	ok:e22f573569ad	engine	features@check	check:drop	ALTER TABLE bookings RENAME COLUMN note TO memo
+ok:e73f08093c12	ok:e73f08093c12	engine	features@check	check:drop	ALTER TABLE bookings CHANGE COLUMN starts begins DATE
+ok:ebda42c9961b	ok:ebda42c9961b	engine	features@check	check:drop	ALTER TABLE bookings RENAME COLUMN starts TO begins, DROP COLUMN note
+ok:a5c40f112f70	ok:a5c40f112f70	engine	features@check	check:drop	ALTER TABLE rooms DROP COLUMN beds
+ok:5410703c689b	ok:5410703c689b	engine	features@check	check:drop	ALTER TABLE rooms ADD COLUMN floor INT
