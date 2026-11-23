@@ -33,8 +33,20 @@ func (c exprClause) allowsWindow() bool {
 
 // condition analyzes a condition.
 func (a *queryAnalyzer) condition(x ast.ExprNode, sc *qscope, clause exprClause) error {
-	_, _, err := a.expr(x, sc, clause)
-	return err
+	t, _, err := a.expr(x, sc, clause)
+	if err != nil {
+		return err
+	}
+	return requireCondition(t)
+}
+
+// requireCondition refuses a value of a known type that is no condition: a
+// number, string or date where WHERE, ON, HAVING or WHEN wants one.
+func requireCondition(t qtype) error {
+	if t.kind == "BOOLEAN" || typeFamily(t) == "" {
+		return nil
+	}
+	return oraError("00920", "invalid relational operator")
 }
 
 // expr types an expression: its data type and whether it is never NULL.
@@ -582,6 +594,11 @@ func (a *queryAnalyzer) caseExpr(n *ast.CaseExpr, sc *qscope, clause exprClause)
 		wt, _, err := a.expr(w.Condition, sc, clause)
 		if err != nil {
 			return qtype{}, false, err
+		}
+		if n.Arg == nil {
+			if err := requireCondition(wt); err != nil {
+				return qtype{}, false, err
+			}
 		}
 		if n.Arg != nil {
 			// A simple CASE compares its operand with each WHEN value.

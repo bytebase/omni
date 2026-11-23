@@ -75,8 +75,9 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 			if source.kind == "CHAR" {
 				source.kind = "VARCHAR2"
 			}
-			if source.isNumeric() {
-				source = varchar2Bytes(40)
+			if source.isNumeric() || source.isDatetime() || source.isInterval() {
+				// Trimmed after conversion to characters.
+				source = varchar2Bytes(concatLength(source))
 			}
 			return source, false, nil
 		case "XMLELEMENT":
@@ -195,8 +196,8 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		if t.kind == "CHAR" {
 			t.kind = "VARCHAR2"
 		}
-		if t.isNumeric() {
-			t = varchar2Bytes(40)
+		if t.isNumeric() || t.isDatetime() || t.isInterval() {
+			t = varchar2Bytes(concatLength(t))
 		}
 		return t, false, nil
 	case "SUBSTR", "SUBSTRB", "SUBSTRC", "SUBSTR2", "SUBSTR4":

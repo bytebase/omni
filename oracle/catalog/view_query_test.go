@@ -155,6 +155,9 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"range_offset_numeric_key", `CREATE VIEW v AS SELECT SUM(id) OVER (ORDER BY id RANGE 1 PRECEDING) s FROM t`, ""},
 		{"level_without_connect_by", `CREATE VIEW v AS SELECT LEVEL lvl FROM dual`, "01788"},
 		{"level_with_connect_by", `CREATE VIEW v AS SELECT LEVEL lvl FROM dual CONNECT BY LEVEL < 3`, ""},
+		{"where_date", `CREATE VIEW v AS SELECT 1 x FROM dual WHERE DATE '2020-01-01'`, "00920"},
+		{"group_by_subquery", `CREATE VIEW v AS SELECT COUNT(*) c FROM dual GROUP BY (SELECT 1 FROM dual)`, "22818"},
+		{"group_by_subquery_alias", `CREATE VIEW v AS SELECT (SELECT 1 FROM dual) s, COUNT(*) c FROM dual GROUP BY s`, "22818"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -494,6 +497,18 @@ CREATE VIEW v AS SELECT CASE WHEN 1=1 THEN a ELSE b END x, SIN(CAST(1 AS BINARY_
 	for i, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
 		if col.GetType() != want[i] {
 			t.Errorf("%s type = %q, want %q", col.GetName(), col.GetType(), want[i])
+		}
+	}
+}
+
+func TestViewQueryTrimDatetime(t *testing.T) {
+	c, err := LoadSQL(`CREATE VIEW v AS SELECT TRIM(DATE '2020-01-01') a, LTRIM(DATE '2020-01-01') b FROM dual;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
+		if col.GetType() != "VARCHAR2(75 BYTE)" {
+			t.Errorf("%s type = %q, want VARCHAR2(75 BYTE)", col.GetName(), col.GetType())
 		}
 	}
 }

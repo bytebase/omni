@@ -739,6 +739,9 @@ func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 						if containsAggregate(t.rt.Expr, false) {
 							return nil, oraError("00934", "group function is not allowed here")
 						}
+						if containsSubquery(t.rt.Expr) {
+							return nil, oraError("22818", "subquery expressions not allowed here")
+						}
 						if containsWindow(t.rt.Expr) {
 							return nil, oraError("30483", "window  functions are not allowed here")
 						}
@@ -1099,6 +1102,9 @@ func groupingExprs(item ast.Node) []ast.ExprNode {
 func (a *queryAnalyzer) groupByExpr(g ast.ExprNode, sc *qscope) error {
 	if containsAggregate(g, false) {
 		return oraError("00934", "group function is not allowed here")
+	}
+	if containsSubquery(g) {
+		return oraError("22818", "subquery expressions not allowed here")
 	}
 	if ref, ok := unparen(g).(*ast.ColumnRef); ok && ref.Table == "" && !a.resolvesInFrom(ref, sc) {
 		for _, c := range sc.aliases {
@@ -1761,3 +1767,16 @@ func groupingSubtotals(list *ast.List) bool {
 // inHierarchical reports whether the query block whose scope this is has a
 // CONNECT BY clause.
 func (s *qscope) inHierarchical() bool { return s != nil && s.hierarchical }
+
+// containsSubquery reports a subquery anywhere in x.
+func containsSubquery(x ast.Node) bool {
+	found := false
+	walkExpr(x, func(n ast.Node) bool {
+		switch n.(type) {
+		case *ast.SubqueryExpr, *ast.ExistsExpr:
+			found = true
+		}
+		return !found
+	})
+	return found
+}
