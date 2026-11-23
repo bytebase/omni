@@ -140,6 +140,9 @@ func analyzeDatabase(s *ast.DatabaseStatement) *StatementAnalysis {
 	default:
 		a.Operation = OpInfo
 	}
+	if a.Operation != OpAdmin && hasUnsafeStatementArgs(s, "") {
+		a.Operation = OpWrite
+	}
 	return a
 }
 
@@ -201,6 +204,9 @@ func analyzeRs(s *ast.RsStatement) *StatementAnalysis {
 	default:
 		a.Operation = OpWrite
 	}
+	if hasUnsafeStatementArgs(s, "") {
+		a.Operation = OpWrite
+	}
 	return a
 }
 
@@ -210,6 +216,9 @@ func analyzeSh(s *ast.ShStatement) *StatementAnalysis {
 	case "status", "getBalancerState", "isBalancerRunning":
 		a.Operation = OpInfo
 	default:
+		a.Operation = OpWrite
+	}
+	if hasUnsafeStatementArgs(s, "") {
 		a.Operation = OpWrite
 	}
 	return a
@@ -289,6 +298,10 @@ func analyzeCollection(s *ast.CollectionStatement) *StatementAnalysis {
 	}
 
 	if s.Explain || hasExplainCursor(s) {
+		if hasUnsafeStatementArgs(s, "") {
+			a.Operation = OpWrite
+			return a
+		}
 		a.Operation = OpExplain
 		return a
 	}
@@ -314,12 +327,53 @@ func analyzeCollection(s *ast.CollectionStatement) *StatementAnalysis {
 	case "createIndex", "createIndexes", "dropIndex", "dropIndexes", "drop",
 		"renameCollection", "reIndex":
 		a.Operation = OpAdmin
+	case "validate":
+		if validateMutates(s.Args) {
+			a.Operation = OpWrite
+		} else {
+			a.Operation = OpRead
+		}
 	case "getIndexes", "stats", "storageSize", "totalIndexSize", "totalSize",
-		"dataSize", "validate", "latencyStats", "getShardDistribution":
+		"dataSize", "latencyStats", "getShardDistribution":
 		a.Operation = OpRead
 	default:
 		a.Operation = OpUnknown
 	}
 
+	if a.Operation != OpAdmin && hasUnsafeStatementArgs(s, "") {
+		a.Operation = OpWrite
+		a.PredicateFields = nil
+		a.ShapePreserving = false
+	}
+
 	return a
+}
+
+// validateMutates reports whether db.coll.validate(args...) enables repair
+// (which can modify indexes and remove corrupt documents) or passes options
+// that cannot be verified as read-only.
+func validateMutates(args []ast.Node) bool {
+	if len(args) == 0 {
+		return false
+	}
+	if len(args) > 1 {
+		return true
+	}
+	switch arg := args[0].(type) {
+	case *ast.BoolLiteral:
+		// Legacy db.coll.validate(full) boolean shorthand does not enable repair.
+		return false
+	case *ast.Document:
+		for _, pair := range arg.Pairs {
+			if pair.Key == "repair" {
+				b, ok := pair.Value.(*ast.BoolLiteral)
+				if !ok || b.Value {
+					return true
+				}
+			}
+		}
+		return false
+	default:
+		return true
+	}
 }

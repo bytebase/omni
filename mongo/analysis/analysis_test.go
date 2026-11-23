@@ -693,6 +693,21 @@ func TestAnalyzeRunCommandAggregate(t *testing.T) {
 	}
 }
 
+func TestAnalyzeValidateRepairAndUnsafeArgCalls(t *testing.T) {
+	if sa := mustAnalyze(t, `db.logs.validate({repair: true})`); sa.Operation != analysis.OpWrite {
+		t.Errorf("validate({repair: true}) Operation = %v, want OpWrite", sa.Operation)
+	}
+	if sa := mustAnalyze(t, `db.logs.validate({full: true})`); sa.Operation != analysis.OpRead {
+		t.Errorf("validate({full: true}) Operation = %v, want OpRead", sa.Operation)
+	}
+	if sa := mustAnalyze(t, `db.users.find({deleted: db.getCollection("audit").deleteMany({})})`); sa.Operation != analysis.OpWrite {
+		t.Errorf("find with nested deleteMany Operation = %v, want OpWrite", sa.Operation)
+	}
+	if sa := mustAnalyze(t, `db.users.find({_id: ObjectId("507f1f77bcf86cd799439011")})`); sa.Operation != analysis.OpFind {
+		t.Errorf("find with ObjectId Operation = %v, want OpFind", sa.Operation)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Masking parity integration tests
 // ---------------------------------------------------------------------------
