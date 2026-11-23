@@ -99,7 +99,7 @@ func LoadSQL(sql string) (*Catalog, error) {
 // update the catalog state.
 func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 	for _, asgn := range stmt.Assignments {
-		varName := toLower(asgn.Column.Column)
+		varName, scope := systemVariable(asgn.Column.Column, asgn.Scope)
 		switch varName {
 		case "foreign_key_checks":
 			// Extract the value.
@@ -125,6 +125,10 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 				c.extendedStats = true
 			}
 		case "sql_mode":
+			// SET GLOBAL sql_mode leaves the session's as it is.
+			if scope == "global" {
+				continue
+			}
 			mode := strings.ToUpper(nodeToSQLValue(asgn.Value))
 			c.nonStrict = !(mode == "DEFAULT" || strings.Contains(mode, "STRICT_TRANS_TABLES") ||
 				strings.Contains(mode, "STRICT_ALL_TABLES") || strings.Contains(mode, "TRADITIONAL"))
@@ -136,6 +140,27 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 		}
 	}
 	return nil
+}
+
+// systemVariable reads the variable an assignment names and the scope it is
+// set in, whichever way it is spelled: sql_mode, @@sql_mode,
+// @@SESSION.sql_mode and SESSION sql_mode are the session's, @@GLOBAL.sql_mode
+// and GLOBAL sql_mode the server's. A user variable (@x) keeps its @.
+func systemVariable(name, scope string) (string, string) {
+	name = toLower(name)
+	scope = toLower(scope)
+	if rest, ok := strings.CutPrefix(name, "@@"); ok {
+		name = rest
+		for _, s := range []string{"global", "session", "local"} {
+			if rest, ok := strings.CutPrefix(name, s+"."); ok {
+				name, scope = rest, s
+			}
+		}
+	}
+	if scope == "local" {
+		scope = "session"
+	}
+	return name, scope
 }
 
 // nodeToSQLValue extracts a simple string value from an expression node.

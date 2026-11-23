@@ -515,7 +515,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	// it holds unique keys to the partitioning columns.
 	columnIndexes := len(tbl.Indexes)
 
-	if err := checkGeneratedColumnOrder(tbl); err != nil {
+	if err := checkGeneratedColumnOrder(tbl, stmt); err != nil {
 		return err
 	}
 

@@ -7,20 +7,21 @@ import (
 )
 
 func (c *Catalog) dropTable(stmt *nodes.DropTableStmt) error {
-	// A foreign key of a table the statement drops too does not hold a parent
-	// back (v8.5.5: DROP TABLE p, c1, c2 runs where DROP TABLE p, c1 is 3730
-	// for c2's key).
+	// The statement is judged whole before anything goes: v8.5.5 drops every
+	// table it names that exists and answers 1051 for the first that does not
+	// (DROP TABLE a, missing, b leaves neither a nor b), and a foreign key of
+	// a table the statement drops too holds no parent back (DROP TABLE p, c1,
+	// c2 runs where DROP TABLE p, c1 is 3730 for c2's key).
+	type target struct {
+		db  *Database
+		key string
+		ref string
+	}
+	var targets []target
+	var missing error
 	dropping := map[string]bool{}
 	for _, ref := range stmt.Tables {
-		if db, err := c.resolveDatabase(ref.Schema); err == nil {
-			dropping[toLower(db.Name)+"."+toLower(ref.Name)] = true
-		}
-	}
-	c.droppingTables = dropping
-	defer func() { c.droppingTables = nil }()
-	for _, ref := range stmt.Tables {
-		dbName := ref.Schema
-		db, err := c.resolveDatabase(dbName)
+		db, err := c.resolveDatabase(ref.Schema)
 		if err != nil {
 			if stmt.IfExists {
 				continue
@@ -30,26 +31,34 @@ func (c *Catalog) dropTable(stmt *nodes.DropTableStmt) error {
 		key := toLower(ref.Name)
 		tbl := db.Tables[key]
 		if tbl == nil {
-			if stmt.IfExists {
-				continue
+			if !stmt.IfExists && missing == nil {
+				missing = errUnknownTable(db.Name, ref.Name)
 			}
-			return errUnknownTable(db.Name, ref.Name)
+			continue
 		}
 		// A cached table cannot be dropped; NOCACHE it first (8242, read on
 		// v8.5.5).
 		if tbl.Cached {
 			return errCachedTable("Drop Table")
 		}
-		// Check if any other table in any database has a FK referencing this table
-		// (unless foreign_key_checks=0).
-		if c.foreignKeyChecks {
-			if err := c.checkFKReferences(db.Name, ref.Name); err != nil {
+		targets = append(targets, target{db, key, ref.Name})
+		dropping[toLower(db.Name)+"."+key] = true
+	}
+	// Check if any other table in any database has a FK referencing this table
+	// (unless foreign_key_checks=0).
+	if c.foreignKeyChecks {
+		c.droppingTables = dropping
+		defer func() { c.droppingTables = nil }()
+		for _, t := range targets {
+			if err := c.checkFKReferences(t.db.Name, t.ref); err != nil {
 				return err
 			}
 		}
-		delete(db.Tables, key)
 	}
-	return nil
+	for _, t := range targets {
+		delete(t.db.Tables, t.key)
+	}
+	return missing
 }
 
 // checkFKReferences returns an error if any table in any database has a

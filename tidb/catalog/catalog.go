@@ -21,6 +21,9 @@ type Catalog struct {
 	// droppingTables holds, while DROP TABLE runs, the "db.table" keys of the
 	// tables it drops, whose foreign keys hold no parent back.
 	droppingTables map[string]bool
+	// pendingRetargets holds the foreign key retargeting the renames of the
+	// running ALTER TABLE queued, applied once the statement holds.
+	pendingRetargets []func()
 	// extendedStats is tidb_enable_extended_stats, OFF by default in TiDB v8.5.5.
 	extendedStats bool
 	// tiflashServerCount models the cluster's available TiFlash store count for

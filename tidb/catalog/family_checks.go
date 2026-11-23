@@ -141,24 +141,41 @@ func checkFunctionalKeyColumns(tbl *Table, parts []*nodes.IndexColumn) error {
 
 // checkGeneratedColumnOrder refuses a CREATE TABLE's generated column that
 // reads a generated column defined after it (3107) or an AUTO_INCREMENT
-// column (3109), as v8.5.5 does (gc3, gc4).
-func checkGeneratedColumnOrder(tbl *Table) error {
-	for i, col := range tbl.Columns {
-		if col.Generated == nil {
+// column (3109), as v8.5.5 does (gc3, gc4). It reads the column references of
+// the statement's expressions, so a string literal naming a column reads none.
+func checkGeneratedColumnOrder(tbl *Table, stmt *nodes.CreateTableStmt) error {
+	position := map[string]int{}
+	for i, def := range stmt.Columns {
+		if def != nil {
+			position[toLower(def.Name)] = i
+		}
+	}
+	for i, def := range stmt.Columns {
+		if def == nil || def.Generated == nil || def.Generated.Expr == nil {
 			continue
 		}
-		for j, other := range tbl.Columns {
-			if j == i || !generatedExprReferencesColumn(col.Generated.Expr, other.Name) {
-				continue
+		var refused error
+		nodes.Inspect(def.Generated.Expr, func(n nodes.Node) bool {
+			ref, ok := n.(*nodes.ColumnRef)
+			if !ok || refused != nil || ref.Column == "" {
+				return refused == nil
 			}
-			if other.AutoIncrement {
-				return &Error{Code: 3109, SQLState: "HY000",
-					Message: fmt.Sprintf("Generated column '%s' cannot refer to auto-increment column.", col.Name)}
+			other := tbl.GetColumn(ref.Column)
+			if other == nil || strings.EqualFold(other.Name, def.Name) {
+				return true
 			}
-			if other.Generated != nil && j > i {
-				return &Error{Code: 3107, SQLState: "HY000",
+			switch j := position[toLower(other.Name)]; {
+			case other.AutoIncrement:
+				refused = &Error{Code: 3109, SQLState: "HY000",
+					Message: fmt.Sprintf("Generated column '%s' cannot refer to auto-increment column.", def.Name)}
+			case other.Generated != nil && j > i:
+				refused = &Error{Code: 3107, SQLState: "HY000",
 					Message: "Generated column can refer only to generated columns defined prior to it."}
 			}
+			return refused == nil
+		})
+		if refused != nil {
+			return refused
 		}
 	}
 	return nil

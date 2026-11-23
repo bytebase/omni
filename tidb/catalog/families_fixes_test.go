@@ -117,3 +117,50 @@ func TestFamilyFixes(t *testing.T) {
 }
 
 const rangeSetup = "CREATE TABLE r (a INT NOT NULL) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20))"
+
+// TestReviewRoundOne pins what the first review of the port asked for.
+func TestReviewRoundOne(t *testing.T) {
+	t.Run("refused ALTER leaves the references", func(t *testing.T) {
+		c := wtSetup(t)
+		wtExec(t, c, famFKSetup)
+		results, _ := c.Exec("ALTER TABLE p RENAME COLUMN id TO pid, DROP COLUMN nope", nil)
+		if results[0].Error == nil {
+			t.Fatal("the ALTER ran")
+		}
+		if text := c.ShowCreateTable("testdb", "c"); !strings.Contains(text, "REFERENCES `p` (`id`)") {
+			t.Errorf("c's key moved:\n%s", text)
+		}
+	})
+	t.Run("DROP TABLE drops what exists, then answers 1051", func(t *testing.T) {
+		c := wtSetup(t)
+		wtExec(t, c, famFKSetup)
+		results, _ := c.Exec("DROP TABLE p, missing, c", nil)
+		var catErr *Error
+		if !errors.As(results[0].Error, &catErr) || catErr.Code != 1051 {
+			t.Fatalf("got %v, want 1051", results[0].Error)
+		}
+		if db := c.GetDatabase("testdb"); db.GetTable("p") != nil || db.GetTable("c") != nil {
+			t.Error("p and c should be gone, as on v8.5.5")
+		}
+	})
+	t.Run("a literal reads no column", func(t *testing.T) {
+		c := wtSetup(t)
+		wtExec(t, c, "CREATE TABLE t (id INT AUTO_INCREMENT PRIMARY KEY, label VARCHAR(20) AS ('`id`'))")
+	})
+	for _, set := range []string{"SET @@sql_mode = ''", "SET @@SESSION.sql_mode = ''", "SET SESSION sql_mode = ''"} {
+		t.Run(set, func(t *testing.T) {
+			c := wtSetup(t)
+			wtExec(t, c, set)
+			wtExec(t, c, "CREATE TABLE t (v VARCHAR(20000)) CHARACTER SET utf8mb4")
+		})
+	}
+	t.Run("SET GLOBAL sql_mode keeps the session strict", func(t *testing.T) {
+		c := wtSetup(t)
+		wtExec(t, c, "SET @@GLOBAL.sql_mode = ''")
+		results, _ := c.Exec("CREATE TABLE t (v VARCHAR(20000)) CHARACTER SET utf8mb4", nil)
+		var catErr *Error
+		if !errors.As(results[0].Error, &catErr) || catErr.Code != 1074 {
+			t.Fatalf("got %v, want 1074", results[0].Error)
+		}
+	})
+}

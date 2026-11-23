@@ -74,12 +74,18 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	if tbl.Cached && !singleCacheCommand(stmt.Commands) {
 		return errCachedTable("Alter Table")
 	}
+	// The foreign keys that reference the table follow its renames once the
+	// whole statement holds (pendingRetargets), so a refused statement leaves
+	// them as they were.
+	c.pendingRetargets = nil
+	defer func() { c.pendingRetargets = nil }()
 	if len(stmt.Commands) == 1 && !addNeedsRollback(stmt.Commands[0]) {
 		// Single command carrying one table element: no rollback needed.
 		if err := c.execAlterCmd(db, tbl, stmt.Commands[0]); err != nil {
 			return err
 		}
 		dropChecksOfMissingColumns(tbl)
+		c.runPendingRetargets()
 		return nil
 	}
 
@@ -179,7 +185,17 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	dropChecksOfMissingColumns(tbl)
 	// Clear transient cleanup tracking after successful multi-command ALTER.
 	tbl.droppedByCleanup = nil
+	c.runPendingRetargets()
 	return nil
+}
+
+// runPendingRetargets applies the foreign key retargeting an ALTER TABLE's
+// renames queued, in the order they ran.
+func (c *Catalog) runPendingRetargets() {
+	for _, retarget := range c.pendingRetargets {
+		retarget()
+	}
+	c.pendingRetargets = nil
 }
 
 func isCharsetOptionName(name string) bool {
@@ -929,7 +945,10 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	// foreign keys that reference the column (fk_retarget.go).
 	if newKey != oldKey {
 		updateColumnRefsInIndexes(tbl, oldName, colDef.Name)
-		c.retargetReferences(tbl, tbl.Database, tbl.Name, map[string]string{oldKey: colDef.Name}, nil)
+		db, name, to := tbl.Database, tbl.Name, colDef.Name
+		c.pendingRetargets = append(c.pendingRetargets, func() {
+			c.retargetReferences(tbl, db, name, map[string]string{oldKey: to}, nil)
+		})
 	}
 
 	// Handle repositioning.
@@ -1399,7 +1418,10 @@ func (c *Catalog) alterRenameColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 	// COLUMN id TO cid over customers leaves orders' fk_customer referencing
 	// `cid`).
 	if newKey != oldKey {
-		c.retargetReferences(tbl, tbl.Database, tbl.Name, map[string]string{toLower(oldName): cmd.NewName}, nil)
+		db, name, from, to := tbl.Database, tbl.Name, toLower(oldName), cmd.NewName
+		c.pendingRetargets = append(c.pendingRetargets, func() {
+			c.retargetReferences(tbl, db, name, map[string]string{from: to}, nil)
+		})
 	}
 	return nil
 }
@@ -1474,7 +1496,9 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 	tbl.Database = newDB
 	newDB.Tables[newKey] = tbl
 	// The foreign keys that reference the table follow it (fk_retarget.go).
-	c.retargetReferences(tbl, oldDB, oldName, nil, nil)
+	c.pendingRetargets = append(c.pendingRetargets, func() {
+		c.retargetReferences(tbl, oldDB, oldName, nil, nil)
+	})
 	return nil
 }
 
@@ -2395,8 +2419,34 @@ func partitionTypeFromString(t string) nodes.PartitionType {
 // references a column by name. The expression uses backtick-quoted identifiers
 // (e.g., `col_name`), so we search for the backtick-quoted form.
 func generatedExprReferencesColumn(expr, colName string) bool {
-	target := "`" + strings.ToLower(colName) + "`"
-	return strings.Contains(strings.ToLower(expr), target)
+	// A backtick-quoted identifier outside any string literal: '`id`' is a
+	// string, not the column.
+	target := strings.ToLower(colName)
+	for i := 0; i < len(expr); i++ {
+		switch ch := expr[i]; ch {
+		case '\'', '"':
+			for i++; i < len(expr) && expr[i] != ch; i++ {
+				if expr[i] == '\\' {
+					i++
+				}
+			}
+		case '`':
+			start := i + 1
+			for i++; i < len(expr); i++ {
+				if expr[i] == '`' {
+					if i+1 < len(expr) && expr[i+1] == '`' {
+						i++
+						continue
+					}
+					break
+				}
+			}
+			if i <= len(expr) && strings.ToLower(strings.ReplaceAll(expr[start:min(i, len(expr))], "``", "`")) == target {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // addNeedsRollback reports whether an ADD action can fail after it has begun
