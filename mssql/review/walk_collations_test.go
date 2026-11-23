@@ -11,6 +11,8 @@ import (
 // first, or to a statement SQL Server does not bind.
 func TestWalkThroughCollations(t *testing.T) {
 	const missing = "Collation `nope` doesn't exist."
+	// An operand of another type fails before the collation (447).
+	const notChar = "SQL Server doesn't accept `COLLATE` on an expression of type `int`."
 	tests := []struct {
 		name      string
 		sql       string
@@ -41,8 +43,8 @@ func TestWalkThroughCollations(t *testing.T) {
 		// Expressions, bound once the names they read are found.
 		{"view column", "CREATE VIEW dbo.w AS SELECT n COLLATE nope AS n FROM dbo.ct;", 0, missing},
 		{"view order by", "CREATE VIEW dbo.w AS SELECT i FROM dbo.ct ORDER BY n COLLATE nope OFFSET 0 ROWS;", 0, missing},
-		{"view column of another type", "CREATE VIEW dbo.w AS SELECT i COLLATE nope AS n FROM dbo.ct;", -1, ""},
-		{"view of a number", "CREATE VIEW dbo.w AS SELECT 1 COLLATE nope AS n;", -1, ""},
+		{"view column of another type", "CREATE VIEW dbo.w AS SELECT i COLLATE nope AS n FROM dbo.ct;", 0, notChar},
+		{"view of a number", "CREATE VIEW dbo.w AS SELECT 1 COLLATE nope AS n;", 0, notChar},
 		{"view of a missing table", "CREATE VIEW dbo.w AS SELECT 'x' COLLATE nope AS c FROM dbo.nosuch;", 0, "`dbo.nosuch` doesn't exist."},
 		{"view of a valid collation", "CREATE VIEW dbo.w AS SELECT n COLLATE Latin1_General_BIN2 AS n FROM dbo.ct;", -1, ""},
 		{"procedure query", "CREATE PROCEDURE dbo.p AS SELECT n COLLATE nope FROM dbo.ct;", 0, missing},
@@ -52,7 +54,7 @@ func TestWalkThroughCollations(t *testing.T) {
 		{"scalar function", "CREATE FUNCTION dbo.f() RETURNS nvarchar(10) AS BEGIN RETURN N'x' COLLATE nope END;", 0, missing},
 		{"trigger", "CREATE TRIGGER dbo.tr ON dbo.ct AFTER INSERT AS SELECT n COLLATE nope FROM inserted;", 0, missing},
 		{"computed column", "CREATE TABLE dbo.x (c nvarchar(10), d AS (c COLLATE nope));", 0, missing},
-		{"computed column of another type", "CREATE TABLE dbo.x (c int, d AS (c COLLATE nope));", -1, ""},
+		{"computed column of another type", "CREATE TABLE dbo.x (c int, d AS (c COLLATE nope));", 0, notChar},
 		{"check of a missing schema", "CREATE TABLE nosuch.x (c nvarchar(10) DEFAULT (N'x' COLLATE nope));", 0, missing},
 		{"added default", "ALTER TABLE dbo.ct ADD c nvarchar(10) DEFAULT (N'x' COLLATE nope);", 0, missing},
 		{"added computed column of a missing table", "ALTER TABLE dbo.nosuch ADD c AS (N'x' COLLATE nope);", 0, "Table `dbo.nosuch` doesn't exist."},
