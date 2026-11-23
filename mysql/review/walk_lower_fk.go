@@ -229,10 +229,11 @@ func (b *builder) fkAddFails(r tableRef, c *ast.Constraint, childType func(strin
 
 // fkTypeChangeFails fails an ALTER TABLE, with foreign keys checked, that
 // changes the type of a column a foreign key the sync lists pairs, on
-// either side, to one that clashes with the other side's (3780). newType
+// either side, to one that clashes with the other side's (3780). A foreign
+// key of the table the statement drops (dropped) is left alone. newType
 // gives a column's type once the statement runs, "" when the statement
 // doesn't change it or the walk doesn't know.
-func (b *builder) fkTypeChangeFails(r tableRef, newType func(string) string) bool {
+func (b *builder) fkTypeChangeFails(r tableRef, dropped map[string]bool, newType func(string) string) bool {
 	if b.w.fkChecks != review.SwitchOn {
 		return false
 	}
@@ -254,7 +255,7 @@ func (b *builder) fkTypeChangeFails(r tableRef, newType func(string) string) boo
 	sort.Strings(names)
 	for _, n := range names {
 		fr := fks[n]
-		if fr.parent == rel || !present(rel, n) || !b.w.referencedByFK[fr.parent][fkRefKey{child: rel, fk: n}] {
+		if fr.parent == rel || dropped[n] || !present(rel, n) || !b.w.referencedByFK[fr.parent][fkRefKey{child: rel, fk: n}] {
 			continue
 		}
 		pnames := walk.Names(fr.parent.Parent)

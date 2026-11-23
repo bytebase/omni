@@ -55,6 +55,11 @@ func neverInstant(c *ast.AlterTableCmd) string {
 		return "add an index"
 	case ast.ATAddConstraint:
 		if c.Constraint != nil && c.Constraint.Type == ast.ConstrCheck {
+			// A CHECK that isn't enforced judges no row, and runs
+			// INSTANT (mysql:8.0.46).
+			if c.Constraint.NotEnforced {
+				return ""
+			}
 			return "add a " + review.Code("CHECK") + " constraint"
 		}
 		return "add a key"
@@ -183,7 +188,7 @@ func (b *builder) alterAlgorithmFails(v *ast.AlterTableStmt, r tableRef) bool {
 				b.fail(b.anchor(), nil, review.UnsupportedForm, unsupported("LOCK=NONE", "add a "+review.Code("FULLTEXT")+" index"))
 				return true
 			}
-			if c.Constraint.Type != ast.ConstrCheck {
+			if c.Constraint.Type != ast.ConstrCheck || c.Constraint.NotEnforced {
 				continue
 			}
 			switch {

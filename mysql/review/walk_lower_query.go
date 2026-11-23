@@ -38,8 +38,9 @@ func (b *builder) viewQueryFails(sel *ast.SelectStmt, columns []string, rng revi
 	if b.queryTablesFail(sel, rng) {
 		return true
 	}
+	ctes := cteNames(sel)
 	for _, s := range queryLeaves(sel) {
-		if b.blockFails(s, rng) {
+		if b.blockFails(s, ctes, rng) {
 			return true
 		}
 	}
@@ -156,13 +157,7 @@ func queryLeaves(sel *ast.SelectStmt) []*ast.SelectStmt {
 // resolves anything in it. A name some WITH clause of the query defines may
 // be that CTE, and is left alone.
 func (b *builder) queryTablesFail(sel *ast.SelectStmt, rng review.Range) bool {
-	ctes := make(map[string]bool)
-	ast.Inspect(sel, func(n ast.Node) bool {
-		if c, ok := n.(*ast.CommonTableExpr); ok {
-			ctes[strings.ToLower(c.Name)] = true
-		}
-		return true
-	})
+	ctes := cteNames(sel)
 	failed := false
 	ast.Inspect(sel, func(n ast.Node) bool {
 		if failed {
@@ -200,6 +195,18 @@ func (b *builder) queryTablesFail(sel *ast.SelectStmt, rng review.Range) bool {
 	return failed
 }
 
+// cteNames returns the names, folded, every WITH clause of a query defines.
+func cteNames(sel *ast.SelectStmt) map[string]bool {
+	ctes := make(map[string]bool)
+	ast.Inspect(sel, func(n ast.Node) bool {
+		if c, ok := n.(*ast.CommonTableExpr); ok {
+			ctes[strings.ToLower(c.Name)] = true
+		}
+		return true
+	})
+	return ctes
+}
+
 // isDual reports whether a table reference is the keyword DUAL, which reads
 // no table; a quoted `dual` names one.
 func (b *builder) isDual(tr *ast.TableRef) bool {
@@ -222,7 +229,7 @@ type blockScope struct {
 	named bool
 }
 
-func (b *builder) scopeOf(s *ast.SelectStmt) blockScope {
+func (b *builder) scopeOf(s *ast.SelectStmt, ctes map[string]bool) blockScope {
 	if s.TableSource != nil {
 		return blockScope{}
 	}
@@ -238,6 +245,10 @@ func (b *builder) scopeOf(s *ast.SelectStmt) blockScope {
 	}
 	if b.isDual(tr) {
 		return blockScope{known: true}
+	}
+	if tr.Schema == "" && ctes[strings.ToLower(tr.Name)] {
+		// A CTE of the name shadows the table.
+		return blockScope{}
 	}
 	r, st := b.ref(tr)
 	if st != refOK {
@@ -256,8 +267,8 @@ func (b *builder) scopeOf(s *ast.SelectStmt) blockScope {
 
 // blockFails checks one query block: each select item in order, its
 // columns and then its own faults, and then WHERE.
-func (b *builder) blockFails(s *ast.SelectStmt, rng review.Range) bool {
-	sc := b.scopeOf(s)
+func (b *builder) blockFails(s *ast.SelectStmt, ctes map[string]bool, rng review.Range) bool {
+	sc := b.scopeOf(s, ctes)
 	if s.ValuesSource != nil {
 		if msg := valuesFault(s.ValuesSource); msg != "" {
 			b.fail(rng, nil, review.UnsupportedForm, msg)

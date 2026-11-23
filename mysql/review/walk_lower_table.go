@@ -69,7 +69,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	}
 	b.forgetGenerated(r)
 	delta := b.buildAlterDelta(r, v, engine, sets)
-	if b.alterTextFails(v, r, delta) || b.alterAlgorithmFails(v, r) || b.uniqueKeyPartitionFails(r, v, delta) || b.checkUsesFails(r, v) || b.generatedChangeFails(r, v) || b.alterKeysFail(r, v) || b.droppedReferencedColumnFails(r, v) || b.exprColumnsFail(r, v, delta) || b.fkTypeChangeFails(r, b.changedType(r, delta)) {
+	if b.alterTextFails(v, r, delta) || b.alterAlgorithmFails(v, r) || b.uniqueKeyPartitionFails(r, v, delta) || b.checkUsesFails(r, v) || b.generatedChangeFails(r, v) || b.alterKeysFail(r, v) || b.droppedReferencedColumnFails(r, v) || b.exprColumnsFail(r, v, delta) || b.fkTypeChangeFails(r, delta.droppedFKs, b.changedType(r, delta)) {
 		return true
 	}
 	var rename *ast.AlterTableCmd

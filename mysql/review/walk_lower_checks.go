@@ -16,6 +16,7 @@ import (
 // constraints the sync lists, while the table and the constraint are
 // there; a statement that drops the constraint too is left alone.
 func (b *builder) checkUsesFails(r tableRef, v *ast.AlterTableStmt) bool {
+	b.forgetChecks(r, v)
 	checks := b.w.checkCols[relKey(r.db, r.name)]
 	if len(checks) == 0 {
 		return false
@@ -111,4 +112,50 @@ func checkColumns(expr string, foldTables bool) ([]string, bool) {
 		}
 	}
 	return out, true
+}
+
+// forgetChecks records that the CHECK constraints an ALTER TABLE drops or
+// adds by name no longer read what the sync said: a constraint of the name
+// may come back with another expression.
+func (b *builder) forgetChecks(r tableRef, v *ast.AlterTableStmt) {
+	var names []string
+	add := func(name string) {
+		if k, ok := b.key(spaceCheckConstraint, name); ok {
+			names = append(names, k)
+		}
+	}
+	for _, c := range v.Commands {
+		if c == nil {
+			continue
+		}
+		switch c.Type {
+		case ast.ATDropConstraint:
+			add(c.Name)
+		case ast.ATAddConstraint:
+			if c.Constraint != nil {
+				add(c.Constraint.Name)
+			}
+		case ast.ATAddColumn, ast.ATModifyColumn, ast.ATChangeColumn:
+			cols := c.Columns
+			if c.Column != nil {
+				cols = append([]*ast.ColumnDef{c.Column}, cols...)
+			}
+			for _, col := range cols {
+				for _, cc := range col.Constraints {
+					if cc != nil && cc.Type == ast.ColConstrCheck {
+						add(cc.Name)
+					}
+				}
+			}
+		}
+	}
+	if len(names) == 0 {
+		return
+	}
+	rel := relKey(r.db, r.name)
+	b.Session(func() {
+		for _, n := range names {
+			delete(b.w.checkCols[rel], n)
+		}
+	})
 }
