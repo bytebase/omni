@@ -99,6 +99,27 @@ func TestStatementWithResultLimit(t *testing.T) {
 			verifyParse: true,
 		},
 		{
+			name:        "union ending in FROM-first branch wraps so cap applies to entire union",
+			statement:   "SELECT * FROM t UNION ALL FROM u SELECT *",
+			limit:       10,
+			want:        "SELECT * FROM (SELECT * FROM t UNION ALL FROM u SELECT *) AS result LIMIT 10;",
+			verifyParse: true,
+		},
+		{
+			name:        "union ending in FROM-first branch with local limit gets outer cap",
+			statement:   "SELECT * FROM t UNION ALL FROM u SELECT * LIMIT 5",
+			limit:       10,
+			want:        "SELECT * FROM t UNION ALL FROM u SELECT * LIMIT 5 LIMIT 10",
+			verifyParse: true,
+		},
+		{
+			name:        "standalone FROM-first SELECT wraps cleanly",
+			statement:   "FROM t SELECT *",
+			limit:       10,
+			want:        "SELECT * FROM (FROM t SELECT *) AS result LIMIT 10;",
+			verifyParse: true,
+		},
+		{
 			name:        "from-first branch limit before pipe cross join gets outer pipe limit",
 			statement:   "FROM t SELECT * LIMIT 1 |> CROSS JOIN u",
 			limit:       10,
@@ -260,7 +281,7 @@ func TestStatementWithResultLimit(t *testing.T) {
 				t.Errorf("StatementWithResultLimit(%q, %d) =\n  %q\nwant:\n  %q", tc.statement, tc.limit, got, tc.want)
 			}
 			if tc.verifyParse {
-				if _, err := parser.Parse(got); err != nil {
+				if _, err := parser.ParseDatabricks(got); err != nil {
 					t.Errorf("rewritten query %q failed to parse: %v", got, err)
 				}
 			}

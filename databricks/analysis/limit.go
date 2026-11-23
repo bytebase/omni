@@ -64,9 +64,22 @@ func StatementWithResultLimit(statement string, limit int) string {
 		return statement
 	}
 	if ps.HasPipe {
-		return statement[:end] + fmt.Sprintf(" |> LIMIT %d", limit) + statement[end:]
+		candidate := statement[:end] + fmt.Sprintf(" |> LIMIT %d", limit) + statement[end:]
+		if res2, err := parser.ParseDatabricks(candidate); err == nil && res2 != nil && len(res2.Statements) == 1 {
+			return candidate
+		}
+		return WrapResultLimit(statement, limit)
 	}
-	return statement[:end] + fmt.Sprintf(" LIMIT %d", limit) + statement[end:]
+	candidate := statement[:end] + fmt.Sprintf(" LIMIT %d", limit) + statement[end:]
+	// Confirm the appended LIMIT binds to the outermost query organization rather
+	// than being absorbed by a trailing FROM-first branch (e.g. `SELECT * FROM t
+	// UNION ALL FROM u SELECT *`), falling back to a wrapper subquery otherwise.
+	if res2, err := parser.ParseDatabricks(candidate); err == nil && res2 != nil && len(res2.Statements) == 1 {
+		if ps2, ok := res2.Statements[0].(*parser.ParsedStmt); ok && ps2 != nil && ps2.LimitLoc.End > ps2.LimitLoc.Start {
+			return candidate
+		}
+	}
+	return WrapResultLimit(statement, limit)
 }
 
 // WrapResultLimit trims leading whitespace and trailing whitespace, semicolons,
