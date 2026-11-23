@@ -50,6 +50,10 @@ func (b *builder) viewQueryFails(sel *ast.SelectStmt, columns []string, rng revi
 			return false
 		}
 		switch x := n.(type) {
+		case *ast.CommonTableExpr:
+			// MySQL sets up the windows of a CTE only where the query
+			// reads it.
+			return false
 		case *ast.SelectStmt:
 			msg = windowClauseFault(x)
 		case *ast.WindowFrame:
