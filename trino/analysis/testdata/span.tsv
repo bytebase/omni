@@ -1,0 +1,293 @@
+# pin: default trinodb/trino:482 sha256:90b35b7c603eaa1f889bf03981a62b75f998ee6c0f851d9f4e341b49a57022b6 482
+# columns: omni, expected, source, fixture, session, aspect, statement
+id, amount	id, amount	engine	base	memory.sales	results	SELECT id, amount FROM orders
+memory.sales.orders.id | memory.sales.orders.amount	memory.sales.orders.id | memory.sales.orders.amount	engine	base	memory.sales	lineage	SELECT id, amount FROM orders
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT id, amount FROM orders
+order_id, amount	order_id, amount	engine	base	memory.sales	results	SELECT o.id AS order_id, o.amount FROM orders o
+memory.sales.orders.id | memory.sales.orders.amount	memory.sales.orders.id | memory.sales.orders.amount	engine	base	memory.sales	lineage	SELECT o.id AS order_id, o.amount FROM orders o
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT o.id AS order_id, o.amount FROM orders o
+_col0, _col1	_col0, _col1	engine	base	memory.sales	results	SELECT id + customer_id, upper(status) FROM orders
+memory.sales.orders.customer_id memory.sales.orders.id | memory.sales.orders.status	memory.sales.orders.customer_id memory.sales.orders.id | memory.sales.orders.status	engine	base	memory.sales	lineage	SELECT id + customer_id, upper(status) FROM orders
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT id + customer_id, upper(status) FROM orders
+a, _col1	a, _col1	engine	base	memory.sales	results	SELECT CAST(amount AS varchar) AS a, try_cast(status AS integer) FROM orders
+memory.sales.orders.amount | memory.sales.orders.status	memory.sales.orders.amount | memory.sales.orders.status	engine	base	memory.sales	lineage	SELECT CAST(amount AS varchar) AS a, try_cast(status AS integer) FROM orders
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT CAST(amount AS varchar) AS a, try_cast(status AS integer) FROM orders
+_col0, b	_col0, b	engine	base	memory.sales	results	SELECT 1, 'a' AS b
+- | -	- | -	engine	base	memory.sales	lineage	SELECT 1, 'a' AS b
+-	-	engine	base	memory.sales	tables	SELECT 1, 'a' AS b
+_col0	_col0	engine	base	memory.sales	results	SELECT count(*) FROM orders
+-	-	engine	base	memory.sales	lineage	SELECT count(*) FROM orders
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT count(*) FROM orders
+region	region	engine	base	memory.sales	results	SELECT DISTINCT region FROM customers
+memory.sales.customers.region	memory.sales.customers.region	engine	base	memory.sales	lineage	SELECT DISTINCT region FROM customers
+memory.sales.customers	memory.sales.customers	engine	base	memory.sales	tables	SELECT DISTINCT region FROM customers
+name	name	engine	base	memory.sales	results	SELECT name FROM customers ORDER BY region LIMIT 5
+memory.sales.customers.name	memory.sales.customers.name	engine	base	memory.sales	lineage	SELECT name FROM customers ORDER BY region LIMIT 5
+memory.sales.customers	memory.sales.customers	engine	base	memory.sales	tables	SELECT name FROM customers ORDER BY region LIMIT 5
+id	id	engine	base	memory.sales	results	SELECT id FROM orders OFFSET 1 ROWS FETCH FIRST 2 ROWS ONLY
+memory.sales.orders.id	memory.sales.orders.id	engine	base	memory.sales	lineage	SELECT id FROM orders OFFSET 1 ROWS FETCH FIRST 2 ROWS ONLY
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT id FROM orders OFFSET 1 ROWS FETCH FIRST 2 ROWS ONLY
+id, name, region, email	id, name, region, email	engine	base	memory.sales	results	TABLE customers
+memory.sales.customers.id | memory.sales.customers.name | memory.sales.customers.region | memory.sales.customers.email	memory.sales.customers.id | memory.sales.customers.name | memory.sales.customers.region | memory.sales.customers.email	engine	base	memory.sales	lineage	TABLE customers
+memory.sales.customers	memory.sales.customers	engine	base	memory.sales	tables	TABLE customers
+id, customer_id, amount, status, placed_at	id, customer_id, amount, status, placed_at	engine	base	memory.sales	results	SELECT * FROM orders
+memory.sales.orders.id | memory.sales.orders.customer_id | memory.sales.orders.amount | memory.sales.orders.status | memory.sales.orders.placed_at	memory.sales.orders.id | memory.sales.orders.customer_id | memory.sales.orders.amount | memory.sales.orders.status | memory.sales.orders.placed_at	engine	base	memory.sales	lineage	SELECT * FROM orders
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT * FROM orders
+id, customer_id, amount, status, placed_at	id, customer_id, amount, status, placed_at	engine	base	memory.sales	results	SELECT o.* FROM orders o
+memory.sales.orders.id | memory.sales.orders.customer_id | memory.sales.orders.amount | memory.sales.orders.status | memory.sales.orders.placed_at	memory.sales.orders.id | memory.sales.orders.customer_id | memory.sales.orders.amount | memory.sales.orders.status | memory.sales.orders.placed_at	engine	base	memory.sales	lineage	SELECT o.* FROM orders o
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT o.* FROM orders o
+id, customer_id, amount, status, placed_at, amount	id, customer_id, amount, status, placed_at, amount	engine	base	memory.sales	results	SELECT *, amount FROM orders
+memory.sales.orders.id | memory.sales.orders.customer_id | memory.sales.orders.amount | memory.sales.orders.status | memory.sales.orders.placed_at | memory.sales.orders.amount	memory.sales.orders.id | memory.sales.orders.customer_id | memory.sales.orders.amount | memory.sales.orders.status | memory.sales.orders.placed_at | memory.sales.orders.amount	engine	base	memory.sales	lineage	SELECT *, amount FROM orders
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT *, amount FROM orders
+id, name, region, email, amount	id, name, region, email, amount	engine	base	memory.sales	results	SELECT c.*, o.amount FROM customers c JOIN orders o ON o.customer_id = c.id
+memory.sales.customers.id | memory.sales.customers.name | memory.sales.customers.region | memory.sales.customers.email | memory.sales.orders.amount	memory.sales.customers.id | memory.sales.customers.name | memory.sales.customers.region | memory.sales.customers.email | memory.sales.orders.amount	engine	base	memory.sales	lineage	SELECT c.*, o.amount FROM customers c JOIN orders o ON o.customer_id = c.id
+memory.sales.customers, memory.sales.orders	memory.sales.customers, memory.sales.orders	engine	base	memory.sales	tables	SELECT c.*, o.amount FROM customers c JOIN orders o ON o.customer_id = c.id
+id, name, region, email	id, name, region, email	engine	base	memory.sales	results	SELECT * FROM (SELECT * FROM customers) c
+memory.sales.customers.id | memory.sales.customers.name | memory.sales.customers.region | memory.sales.customers.email	memory.sales.customers.id | memory.sales.customers.name | memory.sales.customers.region | memory.sales.customers.email	engine	base	memory.sales	lineage	SELECT * FROM (SELECT * FROM customers) c
+memory.sales.customers	memory.sales.customers	engine	base	memory.sales	tables	SELECT * FROM (SELECT * FROM customers) c
+id	id	engine	base	memory.sales	results	SELECT id FROM sales.orders
+memory.sales.orders.id	memory.sales.orders.id	engine	base	memory.sales	lineage	SELECT id FROM sales.orders
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT id FROM sales.orders
+id	id	engine	base	memory.sales	results	SELECT id FROM memory.sales.orders
+memory.sales.orders.id	memory.sales.orders.id	engine	base	memory.sales	lineage	SELECT id FROM memory.sales.orders
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT id FROM memory.sales.orders
+id, name	id, name	engine	base	memory.sales	results	SELECT orders.id, customers.name FROM sales.orders JOIN memory.sales.customers ON orders.customer_id = customers.id
+memory.sales.orders.id | memory.sales.customers.name	memory.sales.orders.id | memory.sales.customers.name	engine	base	memory.sales	lineage	SELECT orders.id, customers.name FROM sales.orders JOIN memory.sales.customers ON orders.customer_id = customers.id
+memory.sales.customers, memory.sales.orders	memory.sales.customers, memory.sales.orders	engine	base	memory.sales	tables	SELECT orders.id, customers.name FROM sales.orders JOIN memory.sales.customers ON orders.customer_id = customers.id
+ID, Amount	ID, Amount	engine	base	memory.sales	results	SELECT ID, Amount FROM ORDERS
+memory.sales.orders.id | memory.sales.orders.amount	memory.sales.orders.id | memory.sales.orders.amount	engine	base	memory.sales	lineage	SELECT ID, Amount FROM ORDERS
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT ID, Amount FROM ORDERS
+id, AMOUNT	id, AMOUNT	engine	base	memory.sales	results	SELECT "id", "AMOUNT" FROM "orders"
+memory.sales.orders.id | memory.sales.orders.amount	memory.sales.orders.id | memory.sales.orders.amount	engine	base	memory.sales	lineage	SELECT "id", "AMOUNT" FROM "orders"
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT "id", "AMOUNT" FROM "orders"
+ID	ID	engine	base	memory.sales	results	SELECT O.ID FROM Orders o
+memory.sales.orders.id	memory.sales.orders.id	engine	base	memory.sales	lineage	SELECT O.ID FROM Orders o
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT O.ID FROM Orders o
+camelcol, CamelCol, LOWER_COL	camelcol, CamelCol, LOWER_COL	engine	base	memory.sales	results	SELECT camelcol, "CamelCol", "LOWER_COL" FROM "MixedCase"
+memory.sales.mixedcase.camelcol | memory.sales.mixedcase.camelcol | memory.sales.mixedcase.lower_col	memory.sales.mixedcase.camelcol | memory.sales.mixedcase.camelcol | memory.sales.mixedcase.lower_col	engine	base	memory.sales	lineage	SELECT camelcol, "CamelCol", "LOWER_COL" FROM "MixedCase"
+memory.sales.mixedcase	memory.sales.mixedcase	engine	base	memory.sales	tables	SELECT camelcol, "CamelCol", "LOWER_COL" FROM "MixedCase"
+camelcol, lower_col	camelcol, lower_col	engine	base	memory.sales	results	SELECT * FROM "MixedCase"
+memory.sales.mixedcase.camelcol | memory.sales.mixedcase.lower_col	memory.sales.mixedcase.camelcol | memory.sales.mixedcase.lower_col	engine	base	memory.sales	lineage	SELECT * FROM "MixedCase"
+memory.sales.mixedcase	memory.sales.mixedcase	engine	base	memory.sales	tables	SELECT * FROM "MixedCase"
+camelcol, lower_col	camelcol, lower_col	engine	base	memory.sales	results	SELECT * FROM mixedcase
+memory.sales.mixedcase.camelcol | memory.sales.mixedcase.lower_col	memory.sales.mixedcase.camelcol | memory.sales.mixedcase.lower_col	engine	base	memory.sales	lineage	SELECT * FROM mixedcase
+memory.sales.mixedcase	memory.sales.mixedcase	engine	base	memory.sales	tables	SELECT * FROM mixedcase
+CAMELCOL	CAMELCOL	engine	base	memory.sales	results	SELECT m.CAMELCOL FROM MIXEDCASE m
+memory.sales.mixedcase.camelcol	memory.sales.mixedcase.camelcol	engine	base	memory.sales	lineage	SELECT m.CAMELCOL FROM MIXEDCASE m
+memory.sales.mixedcase	memory.sales.mixedcase	engine	base	memory.sales	tables	SELECT m.CAMELCOL FROM MIXEDCASE m
+Foo, Bar	Foo, Bar	engine	base	memory.sales	results	SELECT id AS Foo, "Foo"."AMOUNT" AS "Bar" FROM orders AS "Foo"
+memory.sales.orders.id | memory.sales.orders.amount	memory.sales.orders.id | memory.sales.orders.amount	engine	base	memory.sales	lineage	SELECT id AS Foo, "Foo"."AMOUNT" AS "Bar" FROM orders AS "Foo"
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT id AS Foo, "Foo"."AMOUNT" AS "Bar" FROM orders AS "Foo"
+id, name	id, name	engine	base	memory.sales	results	SELECT o.id, c.name FROM orders o JOIN customers c ON o.customer_id = c.id
+memory.sales.orders.id | memory.sales.customers.name	memory.sales.orders.id | memory.sales.customers.name	engine	base	memory.sales	lineage	SELECT o.id, c.name FROM orders o JOIN customers c ON o.customer_id = c.id
+memory.sales.customers, memory.sales.orders	memory.sales.customers, memory.sales.orders	engine	base	memory.sales	tables	SELECT o.id, c.name FROM orders o JOIN customers c ON o.customer_id = c.id
+id, name	id, name	engine	base	memory.sales	results	SELECT o.id, c.name FROM orders o LEFT JOIN customers c ON o.customer_id = c.id WHERE c.region = 'EU'
+memory.sales.orders.id | memory.sales.customers.name	memory.sales.orders.id | memory.sales.customers.name	engine	base	memory.sales	lineage	SELECT o.id, c.name FROM orders o LEFT JOIN customers c ON o.customer_id = c.id WHERE c.region = 'EU'
+memory.sales.customers, memory.sales.orders	memory.sales.customers, memory.sales.orders	engine	base	memory.sales	tables	SELECT o.id, c.name FROM orders o LEFT JOIN customers c ON o.customer_id = c.id WHERE c.region = 'EU'
+id, customer_id, amount, status, placed_at, order_id, sku, qty, tags	id, customer_id, amount, status, placed_at, order_id, sku, qty, tags	engine	base	memory.sales	results	SELECT * FROM orders JOIN items ON orders.id = items.order_id
+memory.sales.orders.id | memory.sales.orders.customer_id | memory.sales.orders.amount | memory.sales.orders.status | memory.sales.orders.placed_at | memory.sales.items.order_id | memory.sales.items.sku | memory.sales.items.qty | memory.sales.items.tags	memory.sales.orders.id | memory.sales.orders.customer_id | memory.sales.orders.amount | memory.sales.orders.status | memory.sales.orders.placed_at | memory.sales.items.order_id | memory.sales.items.sku | memory.sales.items.qty | memory.sales.items.tags	engine	base	memory.sales	lineage	SELECT * FROM orders JOIN items ON orders.id = items.order_id
+memory.sales.items, memory.sales.orders	memory.sales.items, memory.sales.orders	engine	base	memory.sales	tables	SELECT * FROM orders JOIN items ON orders.id = items.order_id
+id, name, region, email, name, vip	id, name, region, email, name, vip	engine	base	memory.sales	results	SELECT * FROM customers JOIN hr.customers USING (id)
+memory.hr.customers.id memory.sales.customers.id | memory.sales.customers.name | memory.sales.customers.region | memory.sales.customers.email | memory.hr.customers.name | memory.hr.customers.vip	- | memory.sales.customers.name | memory.sales.customers.region | memory.sales.customers.email | memory.hr.customers.name | memory.hr.customers.vip	engine	base	memory.sales	lineage	SELECT * FROM customers JOIN hr.customers USING (id)
+memory.hr.customers, memory.sales.customers	memory.hr.customers, memory.sales.customers	engine	base	memory.sales	tables	SELECT * FROM customers JOIN hr.customers USING (id)
+id, vip	id, vip	engine	base	memory.sales	results	SELECT id, h.vip FROM customers c JOIN hr.customers h USING (id)
+memory.hr.customers.id memory.sales.customers.id | memory.hr.customers.vip	- | memory.hr.customers.vip	engine	base	memory.sales	lineage	SELECT id, h.vip FROM customers c JOIN hr.customers h USING (id)
+memory.hr.customers, memory.sales.customers	memory.hr.customers, memory.sales.customers	engine	base	memory.sales	tables	SELECT id, h.vip FROM customers c JOIN hr.customers h USING (id)
+name, _col1	name, _col1	engine	base	memory.sales	results	SELECT c.name, count(*) FROM customers c CROSS JOIN orders o GROUP BY c.name
+memory.sales.customers.name | -	memory.sales.customers.name | -	engine	base	memory.sales	lineage	SELECT c.name, count(*) FROM customers c CROSS JOIN orders o GROUP BY c.name
+memory.sales.customers, memory.sales.orders	memory.sales.customers, memory.sales.orders	engine	base	memory.sales	tables	SELECT c.name, count(*) FROM customers c CROSS JOIN orders o GROUP BY c.name
+name, manager	name, manager	engine	base	memory.sales	results	SELECT e.name, m.name AS manager FROM hr.employees e LEFT JOIN hr.employees m ON e.manager_id = m.id
+memory.hr.employees.name | memory.hr.employees.name	memory.hr.employees.name | memory.hr.employees.name	engine	base	memory.sales	lineage	SELECT e.name, m.name AS manager FROM hr.employees e LEFT JOIN hr.employees m ON e.manager_id = m.id
+memory.hr.employees	memory.hr.employees	engine	base	memory.sales	tables	SELECT e.name, m.name AS manager FROM hr.employees e LEFT JOIN hr.employees m ON e.manager_id = m.id
+name, name	name, name	engine	base	memory.sales	results	SELECT c.name, h.name FROM customers c JOIN hr.customers h ON c.id = h.id
+memory.sales.customers.name | memory.hr.customers.name	memory.sales.customers.name | memory.hr.customers.name	engine	base	memory.sales	lineage	SELECT c.name, h.name FROM customers c JOIN hr.customers h ON c.id = h.id
+memory.hr.customers, memory.sales.customers	memory.hr.customers, memory.sales.customers	engine	base	memory.sales	tables	SELECT c.name, h.name FROM customers c JOIN hr.customers h ON c.id = h.id
+region, vip	region, vip	engine	base	memory.sales	results	SELECT region, vip FROM customers JOIN hr.customers h ON customers.id = h.id
+memory.sales.customers.region | memory.hr.customers.vip	memory.sales.customers.region | memory.hr.customers.vip	engine	base	memory.sales	lineage	SELECT region, vip FROM customers JOIN hr.customers h ON customers.id = h.id
+memory.hr.customers, memory.sales.customers	memory.hr.customers, memory.sales.customers	engine	base	memory.sales	tables	SELECT region, vip FROM customers JOIN hr.customers h ON customers.id = h.id
+id, total	id, total	engine	base	memory.sales	results	SELECT x.id, x.total FROM (SELECT id, amount * 2 AS total FROM orders) x
+memory.sales.orders.id | memory.sales.orders.amount	memory.sales.orders.id | memory.sales.orders.amount	engine	base	memory.sales	lineage	SELECT x.id, x.total FROM (SELECT id, amount * 2 AS total FROM orders) x
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT x.id, x.total FROM (SELECT id, amount * 2 AS total FROM orders) x
+a, b	a, b	engine	base	memory.sales	results	SELECT * FROM (SELECT id, amount FROM orders) AS x(a, b)
+memory.sales.orders.id | memory.sales.orders.amount	memory.sales.orders.id | memory.sales.orders.amount	engine	base	memory.sales	lineage	SELECT * FROM (SELECT id, amount FROM orders) AS x(a, b)
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT * FROM (SELECT id, amount FROM orders) AS x(a, b)
+name	name	engine	base	memory.sales	results	SELECT name FROM customers WHERE id IN (SELECT customer_id FROM orders WHERE amount > 10)
+memory.sales.customers.name	memory.sales.customers.name	engine	base	memory.sales	lineage	SELECT name FROM customers WHERE id IN (SELECT customer_id FROM orders WHERE amount > 10)
+memory.sales.customers, memory.sales.orders	memory.sales.customers, memory.sales.orders	engine	base	memory.sales	tables	SELECT name FROM customers WHERE id IN (SELECT customer_id FROM orders WHERE amount > 10)
+name, top	name, top	engine	base	memory.sales	results	SELECT name, (SELECT max(amount) FROM orders o WHERE o.customer_id = c.id) AS top FROM customers c
+memory.sales.customers.name | memory.sales.orders.amount	memory.sales.customers.name | memory.sales.orders.amount	engine	base	memory.sales	lineage	SELECT name, (SELECT max(amount) FROM orders o WHERE o.customer_id = c.id) AS top FROM customers c
+memory.sales.customers, memory.sales.orders	memory.sales.customers, memory.sales.orders	engine	base	memory.sales	tables	SELECT name, (SELECT max(amount) FROM orders o WHERE o.customer_id = c.id) AS top FROM customers c
+name	name	engine	base	memory.sales	results	SELECT name FROM customers c WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id)
+memory.sales.customers.name	memory.sales.customers.name	engine	base	memory.sales	lineage	SELECT name FROM customers c WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id)
+memory.sales.customers, memory.sales.orders	memory.sales.customers, memory.sales.orders	engine	base	memory.sales	tables	SELECT name FROM customers c WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id)
+id, _col1	id, _col1	engine	base	memory.sales	results	SELECT id, (SELECT name FROM customers c WHERE c.id = b.customer_id) FROM big_orders b
+memory.sales.big_orders.id memory.sales.orders.id | memory.sales.customers.name	memory.sales.big_orders.id memory.sales.orders.id | memory.sales.customers.name	engine	base	memory.sales	lineage	SELECT id, (SELECT name FROM customers c WHERE c.id = b.customer_id) FROM big_orders b
+memory.sales.big_orders, memory.sales.customers, memory.sales.orders	memory.sales.big_orders, memory.sales.customers, memory.sales.orders	engine	base	memory.sales	tables	SELECT id, (SELECT name FROM customers c WHERE c.id = b.customer_id) FROM big_orders b
+name	name	engine	base	memory.sales	results	SELECT name FROM customers WHERE region IN (SELECT region FROM hr.depts)
+memory.sales.customers.name	memory.sales.customers.name	engine	base	memory.sales	lineage	SELECT name FROM customers WHERE region IN (SELECT region FROM hr.depts)
+memory.hr.depts, memory.sales.customers	memory.hr.depts, memory.sales.customers	engine	base	memory.sales	tables	SELECT name FROM customers WHERE region IN (SELECT region FROM hr.depts)
+top, n	top, n	engine	base	memory.sales	results	SELECT (SELECT max(doubled) FROM big_orders) AS top, (SELECT count(*) FROM hr.employees) AS n
+memory.sales.big_orders.doubled memory.sales.orders.amount | -	memory.sales.big_orders.doubled memory.sales.orders.amount | -	engine	base	memory.sales	lineage	SELECT (SELECT max(doubled) FROM big_orders) AS top, (SELECT count(*) FROM hr.employees) AS n
+memory.hr.employees, memory.sales.big_orders, memory.sales.orders	memory.hr.employees, memory.sales.big_orders, memory.sales.orders	engine	base	memory.sales	tables	SELECT (SELECT max(doubled) FROM big_orders) AS top, (SELECT count(*) FROM hr.employees) AS n
+id, amount	id, amount	engine	base	memory.sales	results	WITH big AS (SELECT id, amount FROM orders WHERE amount > 10) SELECT id, amount FROM big
+memory.sales.orders.id | memory.sales.orders.amount	memory.sales.orders.id | memory.sales.orders.amount	engine	base	memory.sales	lineage	WITH big AS (SELECT id, amount FROM orders WHERE amount > 10) SELECT id, amount FROM big
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	WITH big AS (SELECT id, amount FROM orders WHERE amount > 10) SELECT id, amount FROM big
+name, amount	name, amount	engine	base	memory.sales	results	WITH a AS (SELECT id, name FROM customers), b AS (SELECT a.name, o.amount FROM a JOIN orders o ON o.customer_id = a.id) SELECT * FROM b
+memory.sales.customers.name | memory.sales.orders.amount	memory.sales.customers.name | memory.sales.orders.amount	engine	base	memory.sales	lineage	WITH a AS (SELECT id, name FROM customers), b AS (SELECT a.name, o.amount FROM a JOIN orders o ON o.customer_id = a.id) SELECT * FROM b
+memory.sales.customers, memory.sales.orders	memory.sales.customers, memory.sales.orders	engine	base	memory.sales	tables	WITH a AS (SELECT id, name FROM customers), b AS (SELECT a.name, o.amount FROM a JOIN orders o ON o.customer_id = a.id) SELECT * FROM b
+status	status	engine	base	memory.sales	results	WITH orders AS (SELECT id, name AS status FROM customers) SELECT status FROM orders
+memory.sales.customers.name	memory.sales.customers.name	engine	base	memory.sales	lineage	WITH orders AS (SELECT id, name AS status FROM customers) SELECT status FROM orders
+memory.sales.customers	memory.sales.customers	engine	base	memory.sales	tables	WITH orders AS (SELECT id, name AS status FROM customers) SELECT status FROM orders
+y	y	engine	base	memory.sales	results	WITH t(x, y) AS (SELECT id, name FROM customers) SELECT y FROM t
+memory.sales.customers.name	memory.sales.customers.name	engine	base	memory.sales	lineage	WITH t(x, y) AS (SELECT id, name FROM customers) SELECT y FROM t
+memory.sales.customers	memory.sales.customers	engine	base	memory.sales	tables	WITH t(x, y) AS (SELECT id, name FROM customers) SELECT y FROM t
+n	n	engine	base	memory.sales	results	WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r
+-	-	engine	base	memory.sales	lineage	WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r
+-	-	engine	base	memory.sales	tables	WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r
+id, name	id, name	engine	base	memory.sales	results	SELECT id, name FROM customers UNION SELECT id, name FROM hr.customers
+memory.hr.customers.id memory.sales.customers.id | memory.hr.customers.name memory.sales.customers.name	memory.hr.customers.id memory.sales.customers.id | memory.hr.customers.name memory.sales.customers.name	engine	base	memory.sales	lineage	SELECT id, name FROM customers UNION SELECT id, name FROM hr.customers
+memory.hr.customers, memory.sales.customers	memory.hr.customers, memory.sales.customers	engine	base	memory.sales	tables	SELECT id, name FROM customers UNION SELECT id, name FROM hr.customers
+id	id	engine	base	memory.sales	results	SELECT id FROM orders INTERSECT SELECT customer_id FROM orders
+memory.sales.orders.customer_id memory.sales.orders.id	memory.sales.orders.customer_id memory.sales.orders.id	engine	base	memory.sales	lineage	SELECT id FROM orders INTERSECT SELECT customer_id FROM orders
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT id FROM orders INTERSECT SELECT customer_id FROM orders
+name	name	engine	base	memory.sales	results	SELECT name FROM customers EXCEPT SELECT name FROM hr.employees
+memory.hr.employees.name memory.sales.customers.name	memory.hr.employees.name memory.sales.customers.name	engine	base	memory.sales	lineage	SELECT name FROM customers EXCEPT SELECT name FROM hr.employees
+memory.hr.employees, memory.sales.customers	memory.hr.employees, memory.sales.customers	engine	base	memory.sales	tables	SELECT name FROM customers EXCEPT SELECT name FROM hr.employees
+id	id	engine	base	memory.sales	results	SELECT id FROM orders UNION ALL SELECT id FROM customers UNION ALL SELECT order_id FROM items
+memory.sales.customers.id memory.sales.items.order_id memory.sales.orders.id	memory.sales.customers.id memory.sales.items.order_id memory.sales.orders.id	engine	base	memory.sales	lineage	SELECT id FROM orders UNION ALL SELECT id FROM customers UNION ALL SELECT order_id FROM items
+memory.sales.customers, memory.sales.items, memory.sales.orders	memory.sales.customers, memory.sales.items, memory.sales.orders	engine	base	memory.sales	tables	SELECT id FROM orders UNION ALL SELECT id FROM customers UNION ALL SELECT order_id FROM items
+k	k	engine	base	memory.sales	results	SELECT * FROM (SELECT id AS k FROM orders UNION SELECT id FROM customers) u
+memory.sales.customers.id memory.sales.orders.id	memory.sales.customers.id memory.sales.orders.id	engine	base	memory.sales	lineage	SELECT * FROM (SELECT id AS k FROM orders UNION SELECT id FROM customers) u
+memory.sales.customers, memory.sales.orders	memory.sales.customers, memory.sales.orders	engine	base	memory.sales	tables	SELECT * FROM (SELECT id AS k FROM orders UNION SELECT id FROM customers) u
+tag	tag	engine	base	memory.sales	results	SELECT tag FROM items CROSS JOIN UNNEST(tags) AS t(tag)
+memory.sales.items.tags	memory.sales.items.tags	engine	base	memory.sales	lineage	SELECT tag FROM items CROSS JOIN UNNEST(tags) AS t(tag)
+memory.sales.items	memory.sales.items	engine	base	memory.sales	tables	SELECT tag FROM items CROSS JOIN UNNEST(tags) AS t(tag)
+id, tag	id, tag	engine	base	memory.sales	results	SELECT o.id, t.tag FROM items i CROSS JOIN UNNEST(i.tags) AS t(tag) JOIN orders o ON o.id = i.order_id
+memory.sales.orders.id | memory.sales.items.tags	memory.sales.orders.id | memory.sales.items.tags	engine	base	memory.sales	lineage	SELECT o.id, t.tag FROM items i CROSS JOIN UNNEST(i.tags) AS t(tag) JOIN orders o ON o.id = i.order_id
+memory.sales.items, memory.sales.orders	memory.sales.items, memory.sales.orders	engine	base	memory.sales	tables	SELECT o.id, t.tag FROM items i CROSS JOIN UNNEST(i.tags) AS t(tag) JOIN orders o ON o.id = i.order_id
+tag, n	tag, n	engine	base	memory.sales	results	SELECT tag, n FROM items CROSS JOIN UNNEST(tags) WITH ORDINALITY AS t(tag, n)
+memory.sales.items.tags | -	memory.sales.items.tags | -	engine	base	memory.sales	lineage	SELECT tag, n FROM items CROSS JOIN UNNEST(tags) WITH ORDINALITY AS t(tag, n)
+memory.sales.items	memory.sales.items	engine	base	memory.sales	tables	SELECT tag, n FROM items CROSS JOIN UNNEST(tags) WITH ORDINALITY AS t(tag, n)
+x	x	engine	base	memory.sales	results	SELECT * FROM UNNEST(ARRAY[1, 2]) AS t(x)
+-	-	engine	base	memory.sales	lineage	SELECT * FROM UNNEST(ARRAY[1, 2]) AS t(x)
+-	-	engine	base	memory.sales	tables	SELECT * FROM UNNEST(ARRAY[1, 2]) AS t(x)
+x, y	x, y	engine	base	memory.sales	results	SELECT * FROM (VALUES (1, 'a'), (2, 'b')) AS v(x, y)
+- | -	- | -	engine	base	memory.sales	lineage	SELECT * FROM (VALUES (1, 'a'), (2, 'b')) AS v(x, y)
+-	-	engine	base	memory.sales	tables	SELECT * FROM (VALUES (1, 'a'), (2, 'b')) AS v(x, y)
+_col0	_col0	engine	base	memory.sales	results	SELECT transform(tags, x -> upper(x)) FROM items
+memory.sales.items.tags	memory.sales.items.tags	engine	base	memory.sales	lineage	SELECT transform(tags, x -> upper(x)) FROM items
+memory.sales.items	memory.sales.items	engine	base	memory.sales	tables	SELECT transform(tags, x -> upper(x)) FROM items
+name, amount	name, amount	engine	base	memory.sales	results	SELECT c.name, l.amount FROM customers c, LATERAL (SELECT amount FROM orders o WHERE o.customer_id = c.id) l
+memory.sales.customers.name | memory.sales.orders.amount	memory.sales.customers.name | memory.sales.orders.amount	engine	base	memory.sales	lineage	SELECT c.name, l.amount FROM customers c, LATERAL (SELECT amount FROM orders o WHERE o.customer_id = c.id) l
+memory.sales.customers, memory.sales.orders	memory.sales.customers, memory.sales.orders	engine	base	memory.sales	tables	SELECT c.name, l.amount FROM customers c, LATERAL (SELECT amount FROM orders o WHERE o.customer_id = c.id) l
+name, total	name, total	engine	base	memory.sales	results	SELECT c.name, l.total FROM customers c CROSS JOIN LATERAL (SELECT sum(amount) AS total FROM orders o WHERE o.customer_id = c.id) l
+memory.sales.customers.name | memory.sales.orders.amount	memory.sales.customers.name | memory.sales.orders.amount	engine	base	memory.sales	lineage	SELECT c.name, l.total FROM customers c CROSS JOIN LATERAL (SELECT sum(amount) AS total FROM orders o WHERE o.customer_id = c.id) l
+memory.sales.customers, memory.sales.orders	memory.sales.customers, memory.sales.orders	engine	base	memory.sales	tables	SELECT c.name, l.total FROM customers c CROSS JOIN LATERAL (SELECT sum(amount) AS total FROM orders o WHERE o.customer_id = c.id) l
+name, n	name, n	engine	base	memory.sales	results	SELECT c.name, l.n FROM customers c CROSS JOIN LATERAL (SELECT c.region AS n) l
+memory.sales.customers.name | memory.sales.customers.region	memory.sales.customers.name | memory.sales.customers.region	engine	base	memory.sales	lineage	SELECT c.name, l.n FROM customers c CROSS JOIN LATERAL (SELECT c.region AS n) l
+memory.sales.customers	memory.sales.customers	engine	base	memory.sales	tables	SELECT c.name, l.n FROM customers c CROSS JOIN LATERAL (SELECT c.region AS n) l
+id, name, region, email, a, s	id, name, region, email, a, s	engine	base	memory.sales	results	SELECT * FROM customers c, LATERAL (SELECT amount, status FROM orders o WHERE o.customer_id = c.id) AS l(a, s)
+memory.sales.customers.id | memory.sales.customers.name | memory.sales.customers.region | memory.sales.customers.email | memory.sales.orders.amount | memory.sales.orders.status	memory.sales.customers.id | memory.sales.customers.name | memory.sales.customers.region | memory.sales.customers.email | memory.sales.orders.amount | memory.sales.orders.status	engine	base	memory.sales	lineage	SELECT * FROM customers c, LATERAL (SELECT amount, status FROM orders o WHERE o.customer_id = c.id) AS l(a, s)
+memory.sales.customers, memory.sales.orders	memory.sales.customers, memory.sales.orders	engine	base	memory.sales	tables	SELECT * FROM customers c, LATERAL (SELECT amount, status FROM orders o WHERE o.customer_id = c.id) AS l(a, s)
+id, rn	id, rn	engine	base	memory.sales	results	SELECT id, row_number() OVER (PARTITION BY customer_id ORDER BY placed_at) AS rn FROM orders
+memory.sales.orders.id | memory.sales.orders.customer_id memory.sales.orders.placed_at	memory.sales.orders.id | memory.sales.orders.customer_id memory.sales.orders.placed_at	engine	base	memory.sales	lineage	SELECT id, row_number() OVER (PARTITION BY customer_id ORDER BY placed_at) AS rn FROM orders
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT id, row_number() OVER (PARTITION BY customer_id ORDER BY placed_at) AS rn FROM orders
+id, _col1	id, _col1	engine	base	memory.sales	results	SELECT id, sum(amount) OVER w FROM orders WINDOW w AS (PARTITION BY status)
+memory.sales.orders.id | memory.sales.orders.amount	memory.sales.orders.id | memory.sales.orders.amount	engine	base	memory.sales	lineage	SELECT id, sum(amount) OVER w FROM orders WINDOW w AS (PARTITION BY status)
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT id, sum(amount) OVER w FROM orders WINDOW w AS (PARTITION BY status)
+id, _col1	id, _col1	engine	base	memory.sales	results	SELECT id, rank() OVER (ORDER BY amount DESC) FROM orders
+memory.sales.orders.id | memory.sales.orders.amount	memory.sales.orders.id | memory.sales.orders.amount	engine	base	memory.sales	lineage	SELECT id, rank() OVER (ORDER BY amount DESC) FROM orders
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT id, rank() OVER (ORDER BY amount DESC) FROM orders
+status, n, _col2	status, n, _col2	engine	base	memory.sales	results	SELECT status, count(*) AS n, sum(amount) FROM orders GROUP BY status
+memory.sales.orders.status | - | memory.sales.orders.amount	memory.sales.orders.status | - | memory.sales.orders.amount	engine	base	memory.sales	lineage	SELECT status, count(*) AS n, sum(amount) FROM orders GROUP BY status
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT status, count(*) AS n, sum(amount) FROM orders GROUP BY status
+status, customer_id, _col2	status, customer_id, _col2	engine	base	memory.sales	results	SELECT status, customer_id, sum(amount) FROM orders GROUP BY ROLLUP (status, customer_id)
+memory.sales.orders.status | memory.sales.orders.customer_id | memory.sales.orders.amount	memory.sales.orders.status | memory.sales.orders.customer_id | memory.sales.orders.amount	engine	base	memory.sales	lineage	SELECT status, customer_id, sum(amount) FROM orders GROUP BY ROLLUP (status, customer_id)
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT status, customer_id, sum(amount) FROM orders GROUP BY ROLLUP (status, customer_id)
+region, _col1	region, _col1	engine	base	memory.sales	results	SELECT region, count(*) FROM customers GROUP BY CUBE (region)
+memory.sales.customers.region | -	memory.sales.customers.region | -	engine	base	memory.sales	lineage	SELECT region, count(*) FROM customers GROUP BY CUBE (region)
+memory.sales.customers	memory.sales.customers	engine	base	memory.sales	tables	SELECT region, count(*) FROM customers GROUP BY CUBE (region)
+status, _col1	status, _col1	engine	base	memory.sales	results	SELECT status, grouping(status) FROM orders GROUP BY GROUPING SETS ((status), ())
+memory.sales.orders.status | memory.sales.orders.status	memory.sales.orders.status | memory.sales.orders.status	engine	base	memory.sales	lineage	SELECT status, grouping(status) FROM orders GROUP BY GROUPING SETS ((status), ())
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT status, grouping(status) FROM orders GROUP BY GROUPING SETS ((status), ())
+status	status	engine	base	memory.sales	results	SELECT status FROM orders GROUP BY status HAVING sum(amount) > 100
+memory.sales.orders.status	memory.sales.orders.status	engine	base	memory.sales	lineage	SELECT status FROM orders GROUP BY status HAVING sum(amount) > 100
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT status FROM orders GROUP BY status HAVING sum(amount) > 100
+_col0	_col0	engine	base	memory.sales	results	SELECT count(*) FILTER (WHERE amount > 10) FROM orders
+memory.sales.orders.amount	memory.sales.orders.amount	engine	base	memory.sales	lineage	SELECT count(*) FILTER (WHERE amount > 10) FROM orders
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT count(*) FILTER (WHERE amount > 10) FROM orders
+_col0	_col0	engine	base	memory.sales	results	SELECT max_by(id, amount) FROM orders
+memory.sales.orders.amount memory.sales.orders.id	memory.sales.orders.amount memory.sales.orders.id	engine	base	memory.sales	lineage	SELECT max_by(id, amount) FROM orders
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT max_by(id, amount) FROM orders
+kind	kind	engine	base	memory.sales	results	SELECT CASE WHEN amount > 100 THEN 'big' ELSE status END AS kind FROM orders
+memory.sales.orders.amount memory.sales.orders.status	memory.sales.orders.amount memory.sales.orders.status	engine	base	memory.sales	lineage	SELECT CASE WHEN amount > 100 THEN 'big' ELSE status END AS kind FROM orders
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT CASE WHEN amount > 100 THEN 'big' ELSE status END AS kind FROM orders
+_col0	_col0	engine	base	memory.sales	results	SELECT CASE status WHEN 'x' THEN id END FROM orders
+memory.sales.orders.id memory.sales.orders.status	memory.sales.orders.id memory.sales.orders.status	engine	base	memory.sales	lineage	SELECT CASE status WHEN 'x' THEN id END FROM orders
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT CASE status WHEN 'x' THEN id END FROM orders
+contact, _col1	contact, _col1	engine	base	memory.sales	results	SELECT coalesce(c.email, c.name) AS contact, if(o.amount > 0, o.id) FROM orders o JOIN customers c ON o.customer_id = c.id
+memory.sales.customers.email memory.sales.customers.name | memory.sales.orders.amount memory.sales.orders.id	memory.sales.customers.email memory.sales.customers.name | memory.sales.orders.amount memory.sales.orders.id	engine	base	memory.sales	lineage	SELECT coalesce(c.email, c.name) AS contact, if(o.amount > 0, o.id) FROM orders o JOIN customers c ON o.customer_id = c.id
+memory.sales.customers, memory.sales.orders	memory.sales.customers, memory.sales.orders	engine	base	memory.sales	tables	SELECT coalesce(c.email, c.name) AS contact, if(o.amount > 0, o.id) FROM orders o JOIN customers c ON o.customer_id = c.id
+id, customer_id, doubled	id, customer_id, doubled	engine	base	memory.sales	results	SELECT * FROM big_orders
+memory.sales.big_orders.id memory.sales.orders.id | memory.sales.big_orders.customer_id memory.sales.orders.customer_id | memory.sales.big_orders.doubled memory.sales.orders.amount	memory.sales.big_orders.id memory.sales.orders.id | memory.sales.big_orders.customer_id memory.sales.orders.customer_id | memory.sales.big_orders.doubled memory.sales.orders.amount	engine	base	memory.sales	lineage	SELECT * FROM big_orders
+memory.sales.big_orders, memory.sales.orders	memory.sales.big_orders, memory.sales.orders	engine	base	memory.sales	tables	SELECT * FROM big_orders
+id, doubled	id, doubled	engine	base	memory.sales	results	SELECT id, doubled FROM big_orders WHERE customer_id > 0
+memory.sales.big_orders.id memory.sales.orders.id | memory.sales.big_orders.doubled memory.sales.orders.amount	memory.sales.big_orders.id memory.sales.orders.id | memory.sales.big_orders.doubled memory.sales.orders.amount	engine	base	memory.sales	lineage	SELECT id, doubled FROM big_orders WHERE customer_id > 0
+memory.sales.big_orders, memory.sales.orders	memory.sales.big_orders, memory.sales.orders	engine	base	memory.sales	tables	SELECT id, doubled FROM big_orders WHERE customer_id > 0
+id, name, doubled	id, name, doubled	engine	base	memory.sales	results	SELECT * FROM big_order_names
+memory.sales.big_order_names.id memory.sales.big_orders.id memory.sales.orders.id | memory.sales.big_order_names.name memory.sales.customers.name | memory.sales.big_order_names.doubled memory.sales.big_orders.doubled memory.sales.orders.amount	memory.sales.big_order_names.id memory.sales.big_orders.id memory.sales.orders.id | memory.sales.big_order_names.name memory.sales.customers.name | memory.sales.big_order_names.doubled memory.sales.big_orders.doubled memory.sales.orders.amount	engine	base	memory.sales	lineage	SELECT * FROM big_order_names
+memory.sales.big_order_names, memory.sales.big_orders, memory.sales.customers, memory.sales.orders	memory.sales.big_order_names, memory.sales.big_orders, memory.sales.customers, memory.sales.orders	engine	base	memory.sales	tables	SELECT * FROM big_order_names
+name	name	engine	base	memory.sales	results	SELECT b.name FROM big_order_names b JOIN orders o ON b.id = o.id
+memory.sales.big_order_names.name memory.sales.customers.name	memory.sales.big_order_names.name memory.sales.customers.name	engine	base	memory.sales	lineage	SELECT b.name FROM big_order_names b JOIN orders o ON b.id = o.id
+memory.sales.big_order_names, memory.sales.big_orders, memory.sales.customers, memory.sales.orders	memory.sales.big_order_names, memory.sales.big_orders, memory.sales.customers, memory.sales.orders	engine	base	memory.sales	tables	SELECT b.name FROM big_order_names b JOIN orders o ON b.id = o.id
+dept, total	dept, total	engine	base	memory.sales	results	SELECT * FROM hr.dept_pay
+memory.hr.dept_pay.dept memory.hr.depts.name | memory.hr.dept_pay.total memory.hr.employees.salary	memory.hr.dept_pay.dept memory.hr.depts.name | memory.hr.dept_pay.total memory.hr.employees.salary	engine	base	memory.sales	lineage	SELECT * FROM hr.dept_pay
+memory.hr.dept_pay, memory.hr.depts, memory.hr.employees	memory.hr.dept_pay, memory.hr.depts, memory.hr.employees	engine	base	memory.sales	tables	SELECT * FROM hr.dept_pay
+name, region	name, region	engine	base	memory.sales	results	SELECT * FROM hr.sales_customers
+memory.hr.sales_customers.name memory.sales.customers.name | memory.hr.sales_customers.region memory.sales.customers.region	memory.hr.sales_customers.name memory.sales.customers.name | memory.hr.sales_customers.region memory.sales.customers.region	engine	base	memory.sales	lineage	SELECT * FROM hr.sales_customers
+memory.hr.sales_customers, memory.sales.customers	memory.hr.sales_customers, memory.sales.customers	engine	base	memory.sales	tables	SELECT * FROM hr.sales_customers
+vipname	VipName	engine	base	memory.sales	results	SELECT * FROM hr."Vip_Names"
+memory.hr.customers.name memory.hr.vip_names.vipname	memory.hr.customers.name memory.hr.vip_names.vipname	engine	base	memory.sales	lineage	SELECT * FROM hr."Vip_Names"
+memory.hr.customers, memory.hr.vip_names	memory.hr.customers, memory.hr.vip_names	engine	base	memory.sales	tables	SELECT * FROM hr."Vip_Names"
+vipname	vipname	engine	base	memory.sales	results	SELECT vipname FROM hr.vip_names
+memory.hr.customers.name memory.hr.vip_names.vipname	memory.hr.customers.name memory.hr.vip_names.vipname	engine	base	memory.sales	lineage	SELECT vipname FROM hr.vip_names
+memory.hr.customers, memory.hr.vip_names	memory.hr.customers, memory.hr.vip_names	engine	base	memory.sales	tables	SELECT vipname FROM hr.vip_names
+id, name	id, name	engine	base	memory.hr	results	SELECT id, name FROM customers
+memory.hr.customers.id | memory.hr.customers.name	memory.hr.customers.id | memory.hr.customers.name	engine	base	memory.hr	lineage	SELECT id, name FROM customers
+memory.hr.customers	memory.hr.customers	engine	base	memory.hr	tables	SELECT id, name FROM customers
+id, name, vip	id, name, vip	engine	base	memory.hr	results	SELECT * FROM customers
+memory.hr.customers.id | memory.hr.customers.name | memory.hr.customers.vip	memory.hr.customers.id | memory.hr.customers.name | memory.hr.customers.vip	engine	base	memory.hr	lineage	SELECT * FROM customers
+memory.hr.customers	memory.hr.customers	engine	base	memory.hr	tables	SELECT * FROM customers
+name, name	name, name	engine	base	memory.hr	results	SELECT e.name, d.name FROM employees e JOIN depts d ON e.dept_id = d.id
+memory.hr.employees.name | memory.hr.depts.name	memory.hr.employees.name | memory.hr.depts.name	engine	base	memory.hr	lineage	SELECT e.name, d.name FROM employees e JOIN depts d ON e.dept_id = d.id
+memory.hr.depts, memory.hr.employees	memory.hr.depts, memory.hr.employees	engine	base	memory.hr	tables	SELECT e.name, d.name FROM employees e JOIN depts d ON e.dept_id = d.id
+dept, total	dept, total	engine	base	memory.hr	results	SELECT * FROM dept_pay
+memory.hr.dept_pay.dept memory.hr.depts.name | memory.hr.dept_pay.total memory.hr.employees.salary	memory.hr.dept_pay.dept memory.hr.depts.name | memory.hr.dept_pay.total memory.hr.employees.salary	engine	base	memory.hr	lineage	SELECT * FROM dept_pay
+memory.hr.dept_pay, memory.hr.depts, memory.hr.employees	memory.hr.dept_pay, memory.hr.depts, memory.hr.employees	engine	base	memory.hr	tables	SELECT * FROM dept_pay
+name	name	engine	base	memory.hr	results	SELECT name FROM sales.customers
+memory.sales.customers.name	memory.sales.customers.name	engine	base	memory.hr	lineage	SELECT name FROM sales.customers
+memory.sales.customers	memory.sales.customers	engine	base	memory.hr	tables	SELECT name FROM sales.customers
+name, vip	name, vip	engine	base	memory.hr	results	SELECT c.name, h.vip FROM sales.customers c JOIN customers h ON c.id = h.id
+memory.sales.customers.name | memory.hr.customers.vip	memory.sales.customers.name | memory.hr.customers.vip	engine	base	memory.hr	lineage	SELECT c.name, h.vip FROM sales.customers c JOIN customers h ON c.id = h.id
+memory.hr.customers, memory.sales.customers	memory.hr.customers, memory.sales.customers	engine	base	memory.hr	tables	SELECT c.name, h.vip FROM sales.customers c JOIN customers h ON c.id = h.id
+name, region	name, region	engine	base	memory.hr	results	SELECT * FROM sales_customers
+memory.hr.sales_customers.name memory.sales.customers.name | memory.hr.sales_customers.region memory.sales.customers.region	memory.hr.sales_customers.name memory.sales.customers.name | memory.hr.sales_customers.region memory.sales.customers.region	engine	base	memory.hr	lineage	SELECT * FROM sales_customers
+memory.hr.sales_customers, memory.sales.customers	memory.hr.sales_customers, memory.sales.customers	engine	base	memory.hr	tables	SELECT * FROM sales_customers
+id, customer_id, doubled	id, customer_id, doubled	engine	base	memory.hr	results	SELECT * FROM sales.big_orders
+memory.sales.big_orders.id memory.sales.orders.id | memory.sales.big_orders.customer_id memory.sales.orders.customer_id | memory.sales.big_orders.doubled memory.sales.orders.amount	memory.sales.big_orders.id memory.sales.orders.id | memory.sales.big_orders.customer_id memory.sales.orders.customer_id | memory.sales.big_orders.doubled memory.sales.orders.amount	engine	base	memory.hr	lineage	SELECT * FROM sales.big_orders
+memory.sales.big_orders, memory.sales.orders	memory.sales.big_orders, memory.sales.orders	engine	base	memory.hr	tables	SELECT * FROM sales.big_orders
+id	id	engine	base	memory.default	results	SELECT id FROM sales.orders
+memory.sales.orders.id	memory.sales.orders.id	engine	base	memory.default	lineage	SELECT id FROM sales.orders
+memory.sales.orders	memory.sales.orders	engine	base	memory.default	tables	SELECT id FROM sales.orders
+id, name, dept_id, salary, manager_id, id, name, region	id, name, dept_id, salary, manager_id, id, name, region	engine	base	memory.default	results	SELECT * FROM hr.employees e JOIN hr.depts d ON e.dept_id = d.id
+memory.hr.employees.id | memory.hr.employees.name | memory.hr.employees.dept_id | memory.hr.employees.salary | memory.hr.employees.manager_id | memory.hr.depts.id | memory.hr.depts.name | memory.hr.depts.region	memory.hr.employees.id | memory.hr.employees.name | memory.hr.employees.dept_id | memory.hr.employees.salary | memory.hr.employees.manager_id | memory.hr.depts.id | memory.hr.depts.name | memory.hr.depts.region	engine	base	memory.default	lineage	SELECT * FROM hr.employees e JOIN hr.depts d ON e.dept_id = d.id
+memory.hr.depts, memory.hr.employees	memory.hr.depts, memory.hr.employees	engine	base	memory.default	tables	SELECT * FROM hr.employees e JOIN hr.depts d ON e.dept_id = d.id
+name	name	engine	base	memory.default	results	SELECT name FROM memory.hr.customers
+memory.hr.customers.name	memory.hr.customers.name	engine	base	memory.default	lineage	SELECT name FROM memory.hr.customers
+memory.hr.customers	memory.hr.customers	engine	base	memory.default	tables	SELECT name FROM memory.hr.customers
+id, name, doubled	id, name, doubled	engine	base	memory.default	results	SELECT * FROM sales.big_order_names
+memory.sales.big_order_names.id memory.sales.big_orders.id memory.sales.orders.id | memory.sales.big_order_names.name memory.sales.customers.name | memory.sales.big_order_names.doubled memory.sales.big_orders.doubled memory.sales.orders.amount	memory.sales.big_order_names.id memory.sales.big_orders.id memory.sales.orders.id | memory.sales.big_order_names.name memory.sales.customers.name | memory.sales.big_order_names.doubled memory.sales.big_orders.doubled memory.sales.orders.amount	engine	base	memory.default	lineage	SELECT * FROM sales.big_order_names
+memory.sales.big_order_names, memory.sales.big_orders, memory.sales.customers, memory.sales.orders	memory.sales.big_order_names, memory.sales.big_orders, memory.sales.customers, memory.sales.orders	engine	base	memory.default	tables	SELECT * FROM sales.big_order_names
+name, name	name, name	engine	base	memory.default	results	WITH x AS (SELECT * FROM sales.customers) SELECT x.name, d.name FROM x JOIN hr.depts d ON x.region = d.region
+memory.sales.customers.name | memory.hr.depts.name	memory.sales.customers.name | memory.hr.depts.name	engine	base	memory.default	lineage	WITH x AS (SELECT * FROM sales.customers) SELECT x.name, d.name FROM x JOIN hr.depts d ON x.region = d.region
+memory.hr.depts, memory.sales.customers	memory.hr.depts, memory.sales.customers	engine	base	memory.default	tables	WITH x AS (SELECT * FROM sales.customers) SELECT x.name, d.name FROM x JOIN hr.depts d ON x.region = d.region

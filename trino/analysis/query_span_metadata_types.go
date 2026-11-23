@@ -8,8 +8,11 @@ import (
 // ResolveOptions carries the facts the caller resolves from its metadata store.
 // GetDatabaseMetadata returns nil for a database that is not synced.
 type ResolveOptions struct {
-	DefaultDatabase     string
-	DefaultSchema       string
+	DefaultDatabase string
+	DefaultSchema   string
+	// IgnoreCaseSensitive is read by no Trino resolution: Trino matches every
+	// catalog, schema, table and column name case-insensitively, quoted or
+	// not, and so does ResolveQuerySpan.
 	IgnoreCaseSensitive bool
 	ListDatabases       func() ([]string, error)
 	GetDatabaseMetadata func(database string) (*metadata.DatabaseSchemaMetadata, error)

@@ -124,7 +124,15 @@ func resolveDerivedLineageQuery(q *parser.Query, span *QuerySpan, vs *viewState)
 			// consumers detect; unioning anything in could break that detection).
 			newResults = append(newResults, r)
 		case len(g) == 1 && !g[0].fromStar:
-			r.SourceColumns = unionRefs(r.SourceColumns, g[0].sources)
+			if vs.resolving() && len(g[0].sources) > 0 && allQualified(g[0].sources) {
+				// Every ref resolved to a catalog-qualified column through a
+				// known scope (see resolveRef): the walk's written refs say
+				// nothing more, and would match same-named columns of
+				// relations they do not name.
+				r.SourceColumns = g[0].sources
+			} else {
+				r.SourceColumns = unionRefs(r.SourceColumns, g[0].sources)
+			}
 			newResults = append(newResults, r)
 		default:
 			// Resolved star: splice the expanded projection in place of the "*".
@@ -134,6 +142,16 @@ func resolveDerivedLineageQuery(q *parser.Query, span *QuerySpan, vs *viewState)
 		}
 	}
 	span.Results = newResults
+}
+
+// allQualified reports whether every ref names its catalog, schema and table.
+func allQualified(refs []ColumnRef) bool {
+	for _, r := range refs {
+		if r.Catalog == "" || r.Schema == "" || r.Table == "" {
+			return false
+		}
+	}
+	return true
 }
 
 // groupByItem buckets resolved columns by their select-item ordinal, preserving
@@ -178,8 +196,8 @@ type outCol struct {
 	// opaque marks an unresolved star placeholder; a projection containing one
 	// has unknown width and blocks star expansion through it.
 	opaque bool
-	// quoted marks a name that came from a quoted identifier, which is matched
-	// case-sensitively (unquoted names fold to lower case).
+	// quoted marks a name that came from a quoted identifier, which
+	// CORRESPONDING matches case-sensitively (see outColKey).
 	quoted bool
 }
 
@@ -593,10 +611,10 @@ func resolveSpecCols(spec *parser.QuerySpec, cte *cteDefs) []outCol {
 			out = append(out, cols...)
 			continue
 		}
-		name := identName(item.Alias)
+		name := outputName(item.Alias)
 		quoted := item.Alias != nil && item.Alias.Quoted
 		if name == "" {
-			name = renderExprName(item.Expr)
+			name = renderOutputName(item.Expr)
 			quoted = exprNameQuoted(item.Expr)
 		}
 		out = append(out, outCol{name: name, quoted: quoted, sources: scope.resolveExprRefs(item.Expr), item: idx})
@@ -710,6 +728,11 @@ type rscope struct {
 	// column with sources (see recovers).
 	recovering     bool
 	recoverChecked int
+
+	// unknown is set once a relation of rels[:knownChecked] has no known
+	// projection (see known).
+	unknown      bool
+	knownChecked int
 }
 
 // relIndex indexes a scope's relations and their columns by name, by
@@ -958,7 +981,7 @@ func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identi
 				if view != nil {
 					if proj := vs.projectionFor(key, view); proj != nil {
 						vs.collectTables(proj.tables)
-						cols := applyColumnAliases(proj.cols, colAliases)
+						cols := applyColumnAliases(viewColumns(key, proj.cols), colAliases)
 						s.rels = append(s.rels, rbind{name: name, derived: true, cols: cols})
 						return columnProjection(cols)
 					}
@@ -978,6 +1001,14 @@ func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identi
 		cols := applyColumnAliases(resolveQueryCols(n.Query, s.cte), colAliases)
 		s.rels = append(s.rels, rbind{name: alias, derived: true, cols: cols})
 		return columnProjection(cols)
+	case *parser.LateralRelation:
+		// LATERAL (query) projects its query's columns like a derived table;
+		// its references to earlier FROM items only correlate rows. A
+		// correlated reference in its select list resolves in the lateral
+		// query's own scope, where it stays the written ref.
+		cols := applyColumnAliases(resolveQueryCols(n.Query, s.cte), colAliases)
+		s.rels = append(s.rels, rbind{name: alias, derived: true, cols: cols})
+		return columnProjection(cols)
 	case *parser.UnnestRelation:
 		cols := s.unnestColumns(n, colAliases)
 		if len(cols) == 0 {
@@ -991,12 +1022,26 @@ func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identi
 		s.rels = append(s.rels, rbind{name: alias, derived: true, cols: cols})
 		return columnProjection(cols)
 	default:
-		// Lateral and table-function relations are not resolved here (tracked
+		// Table-function relations are not resolved here (tracked
 		// separately). Bind the alias as a non-derived (opaque) relation so
 		// references through it pass through unchanged.
 		s.rels = append(s.rels, rbind{name: alias, derived: false})
 		return nil
 	}
+}
+
+// viewColumns returns a view's resolved columns with each one's lineage led
+// by the view's own column: a value read through a view comes from the view's
+// column as well as from the columns its definition reads, as Trino's
+// analyzer records it (QueryInfo's referencedTables list the view's columns
+// beside the tables'), so a masking policy on the view column applies.
+func viewColumns(key viewKey, cols []outCol) []outCol {
+	out := make([]outCol, len(cols))
+	for i, c := range cols {
+		c.sources = append([]ColumnRef{{Catalog: key.catalog, Schema: key.schema, Table: key.view, Column: c.name}}, c.sources...)
+		out[i] = c
+	}
+	return out
 }
 
 // joinProjection returns a join's output projection: the left and right
@@ -1104,7 +1149,7 @@ func (s *rscope) unnestColumns(n *parser.UnnestRelation, colAliases []*ast.Ident
 	}
 	cols := make([]outCol, 0, len(colAliases))
 	for i, a := range colAliases {
-		name := identName(a)
+		name := outputName(a)
 		if n.WithOrdinality && i == len(colAliases)-1 {
 			cols = append(cols, outCol{name: name, quoted: a.Quoted})
 			continue
@@ -1142,7 +1187,7 @@ func (s *rscope) jsonTableColumns(n *parser.JSONTableRelation, colAliases []*ast
 			case parser.JSONTableNestedColumn:
 				walk(col.Columns)
 			case parser.JSONTableOrdinalityColumn:
-				cols = append(cols, outCol{name: identName(col.Name), quoted: col.Name != nil && col.Name.Quoted})
+				cols = append(cols, outCol{name: outputName(col.Name), quoted: col.Name != nil && col.Name.Quoted})
 			default:
 				sources := append([]ColumnRef(nil), input...)
 				if col.OnEmpty != nil {
@@ -1151,7 +1196,7 @@ func (s *rscope) jsonTableColumns(n *parser.JSONTableRelation, colAliases []*ast
 				if col.OnError != nil {
 					sources = append(sources, s.resolveExprRefs(col.OnError.Default)...)
 				}
-				cols = append(cols, outCol{name: identName(col.Name), quoted: col.Name != nil && col.Name.Quoted, sources: sources})
+				cols = append(cols, outCol{name: outputName(col.Name), quoted: col.Name != nil && col.Name.Quoted, sources: sources})
 			}
 		}
 	}
@@ -1233,10 +1278,13 @@ func (s *rscope) starExpansion(qualifier string) []outCol {
 }
 
 // resolveRef resolves a single column ref through the scope, ADDITIVELY: the
-// original ref is always kept, and any base refs recovered through a derived
+// original ref is kept, and any base refs recovered through a derived
 // relation are appended. This guarantees the resolved source set is a superset
 // of the original, so the pass can only ever deepen lineage (mask more), never
-// drop a previously-correct ref (which would under-mask and leak).
+// drop a previously-correct ref (which would under-mask and leak). The one
+// exception is ResolveQuerySpan's resolution (viewState.resolving): in a known
+// scope (see known) the catalog-qualified columns a ref recovers are its whole
+// lineage and replace it.
 //
 // Additivity is what makes the pass safe in the cases where a derived relation's
 // column has incomplete or unknown lineage but a same-named column is also valid
@@ -1252,6 +1300,21 @@ func (s *rscope) starExpansion(qualifier string) []outCol {
 // no derived relation (a base table or an unknown relation) is returned
 // unchanged.
 func (s *rscope) resolveRef(ref ColumnRef) []ColumnRef {
+	out := s.recoverRef(ref)
+	if len(out) > 1 && s.cte.viewState().resolving() && allQualified(out[1:]) && s.known() {
+		// Every relation in scope has a known projection, so the relation the
+		// ref names is among them and the qualified columns it recovered are
+		// its whole lineage. ResolveQuerySpan matches a written ref by name
+		// alone, which would also reach a same-named column of a relation it
+		// does not name.
+		return out[1:]
+	}
+	return out
+}
+
+// recoverRef returns ref followed by the sources recovered for it from the
+// relations in scope.
+func (s *rscope) recoverRef(ref ColumnRef) []ColumnRef {
 	out := []ColumnRef{ref}
 	if x := s.index(); x != nil {
 		// The loops below, through the index.
@@ -1275,8 +1338,8 @@ func (s *rscope) resolveRef(ref ColumnRef) []ColumnRef {
 		// yields several; unioning them over-includes, which is safe). A
 		// catalog-known base table's cols matter when relation column aliases
 		// rename its columns (FROM customer AS c(i, p, …): c.p must reach
-		// customer.phone); without aliases they only restate the written ref
-		// in qualified form, which is harmless.
+		// customer.phone); without aliases they restate the written ref in
+		// qualified form.
 		for _, rb := range s.rels {
 			if strings.EqualFold(rb.name, ref.Table) {
 				if src, ok := lookupOutCol(rb.cols, ref.Column); ok {
@@ -1287,14 +1350,28 @@ func (s *rscope) resolveRef(ref ColumnRef) []ColumnRef {
 		return out
 	}
 	// Bare reference: append the recovered sources of every in-scope relation
-	// exposing a column of this name. The original bare ref is retained so a
-	// base table providing the same column is still covered.
+	// exposing a column of this name.
 	for _, rb := range s.rels {
 		if src, ok := lookupOutCol(rb.cols, ref.Column); ok {
 			out = append(out, src...)
 		}
 	}
 	return out
+}
+
+// known reports whether every relation in scope has a known projection: a
+// catalog-known table or view, or a derived relation whose columns all
+// resolved. A scope that binds an unknown table, a table function or an
+// unaliased UNNEST is not known, and a ref resolved in it keeps its written
+// form, since it may name a column of the unknown relation.
+func (s *rscope) known() bool {
+	for ; !s.unknown && s.knownChecked < len(s.rels); s.knownChecked++ {
+		cols := s.rels[s.knownChecked].cols
+		if cols == nil || hasOpaque(cols) {
+			s.unknown = true
+		}
+	}
+	return !s.unknown
 }
 
 // resolveExprRefs collects a select-item expression's lineage: its direct column
@@ -1637,7 +1714,7 @@ func applyColumnAliases(cols []outCol, aliases []*ast.Identifier) []outCol {
 		if i >= len(aliases) {
 			break
 		}
-		if name := identName(aliases[i]); name != "" {
+		if name := outputName(aliases[i]); name != "" {
 			out[i].name = name
 			out[i].quoted = aliases[i].Quoted
 		}

@@ -38,6 +38,12 @@ type viewState struct {
 	// memo caches each view's resolved projection (nil entry = unresolvable).
 	memo map[viewKey]*viewProjection
 
+	// qualified is set by ResolveQuerySpan, which matches the lineage's
+	// refs to physical columns: a ref resolved to catalog-qualified columns
+	// through a known scope is replaced by them (see rscope.resolveRef).
+	// GetQuerySpanWithCatalog keeps every written ref beside them.
+	qualified bool
+
 	// tablesOut collects, for the statement currently being analyzed, the
 	// qualified base tables read through resolved views. Swapped per
 	// getQuerySpanWithViews invocation so nested view analyses collect into
@@ -75,6 +81,10 @@ func newViewState(cat *catalog.Catalog) *viewState {
 	}
 }
 
+// resolving reports whether the lineage is for ResolveQuerySpan (see
+// qualified).
+func (vs *viewState) resolving() bool { return vs != nil && vs.qualified }
+
 // resolveParts maps normalized dotted-name parts to a fully-qualified
 // (catalog, schema, object) triple using this state's resolution context —
 // catalog.ResolveRelation's session rules with the context injected.
@@ -104,7 +114,15 @@ func (vs *viewState) lookupRelation(parts []string) (key viewKey, view *catalog.
 	if vs == nil || vs.cat == nil {
 		return viewKey{}, nil, nil, false
 	}
-	catalogName, schemaName, objectName, ok := vs.resolveParts(parts)
+	// Trino folds every part of a relation name to lower case, quoted or
+	// not (io.trino.sql.tree.QualifiedName keeps its parts lower-cased), and
+	// its metadata stores names that way, so "Orders" and orders name one
+	// table.
+	folded := make([]string, len(parts))
+	for i, p := range parts {
+		folded[i] = strings.ToLower(p)
+	}
+	catalogName, schemaName, objectName, ok := vs.resolveParts(folded)
 	if !ok {
 		return viewKey{}, nil, nil, false
 	}
