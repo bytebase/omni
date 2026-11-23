@@ -11,7 +11,6 @@ package catalog
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -43,6 +42,8 @@ type Catalog struct {
 	databaseByName                    map[string]*Catalog
 	skipViewIndexes                   bool
 	omitUnnamedDefaultConstraintNames bool
+	lenientMetadataLoad               bool
+	systemTimeTables                  map[tableKey]bool
 }
 
 type tableKey struct {
@@ -53,11 +54,12 @@ type tableKey struct {
 // New returns an empty catalog.
 func New() *Catalog {
 	return &Catalog{
-		defaultSchema:  defaultSchema,
-		schemaByName:   make(map[string]*metadata.SchemaMetadata),
-		schemasByFold:  make(map[string][]*metadata.SchemaMetadata),
-		tableByName:    make(map[tableKey]*metadata.TableMetadata),
-		databaseByName: make(map[string]*Catalog),
+		defaultSchema:    defaultSchema,
+		schemaByName:     make(map[string]*metadata.SchemaMetadata),
+		schemasByFold:    make(map[string][]*metadata.SchemaMetadata),
+		tableByName:      make(map[tableKey]*metadata.TableMetadata),
+		databaseByName:   make(map[string]*Catalog),
+		systemTimeTables: make(map[tableKey]bool),
 	}
 }
 
@@ -382,6 +384,7 @@ func loadSQLWithOptions(sql string, skipViewIndexes, omitUnnamedDefaultConstrain
 	c := New()
 	c.skipViewIndexes = skipViewIndexes
 	c.omitUnnamedDefaultConstraintNames = omitUnnamedDefaultConstraintNames
+	c.lenientMetadataLoad = skipViewIndexes
 	results, err := c.Exec(sql, nil)
 	if err != nil {
 		return nil, err
@@ -426,96 +429,51 @@ func (c *Catalog) sortSchemas() {
 func (c *Catalog) execStatement(node ast.Node, source string) error {
 	switch n := node.(type) {
 	case *ast.CreateSchemaStmt:
-		c.execCreateSchema(n, source)
+		return c.execCreateSchema(n, source)
+	case *ast.AlterSchemaStmt:
+		return c.execAlterSchema(n)
 	case *ast.CreateTableStmt:
-		c.execCreateTable(n, source)
+		return c.execCreateTable(n, source)
+	case *ast.CreateTableAsSelectStmt:
+		return c.execCreateTableAsSelect(n)
 	case *ast.CreateIndexStmt:
-		if err := c.execCreateIndex(n, source); err != nil {
-			return err
-		}
+		return c.execCreateIndex(n, source)
 	case *ast.CreateSpatialIndexStmt:
-		c.execCreateSpatialIndex(n)
+		return c.execCreateSpatialIndex(n)
 	case *ast.CreateXmlIndexStmt:
-		c.execCreateXMLIndex(n)
+		return c.execCreateXMLIndex(n)
+	case *ast.CreateSelectiveXmlIndexStmt:
+		return c.execCreateSelectiveXMLIndex(n)
+	case *ast.AlterIndexStmt:
+		return c.execAlterIndex(n)
 	case *ast.CreateViewStmt:
-		c.execCreateRoutine("view", n.Name, n, source)
+		return c.execCreateOrAlterView(n, source)
 	case *ast.CreateProcedureStmt:
-		c.execCreateRoutine("procedure", n.Name, n, source)
+		return c.execCreateOrAlterProcedure(n, source)
 	case *ast.CreateFunctionStmt:
-		c.execCreateRoutine("function", n.Name, n, source)
+		return c.execCreateOrAlterFunction(n, source)
 	case *ast.CreateSequenceStmt:
-		c.execCreateSequence(n, source)
+		return c.execCreateSequence(n, source)
+	case *ast.AlterSequenceStmt:
+		return c.execAlterSequence(n, source)
 	case *ast.CreateTriggerStmt:
-		c.execCreateTrigger(n, source)
+		return c.execCreateOrAlterTrigger(n, source)
 	case *ast.CreateSynonymStmt:
-		c.execCreateSynonym(n)
+		return c.execCreateSynonym(n)
 	case *ast.AlterTableStmt:
-		c.execAlterTable(n, source)
+		return c.execAlterTable(n, source)
+	case *ast.DropStmt:
+		return c.execDrop(n)
+	case *ast.TruncateStmt:
+		return c.execTruncateTable(n)
 	case *ast.ExecStmt:
 		c.execExtendedProperty(n, source)
 	}
 	return nil
 }
 
-func (c *Catalog) execCreateSchema(n *ast.CreateSchemaStmt, source string) {
-	c.getOrCreateSchema(n.Name)
-	if n.Elements != nil {
-		previous := c.defaultSchema
-		if n.Name != "" {
-			c.defaultSchema = n.Name
-		}
-		for _, item := range n.Elements.Items {
-			_ = c.execStatement(item, source)
-		}
-		c.defaultSchema = previous
-	}
-}
-
-func (c *Catalog) execCreateTable(n *ast.CreateTableStmt, source string) {
-	schemaName, tableName := tableRefSchemaObject(n.Name, c.defaultSchema)
-	table := c.getOrCreateTable(schemaName, tableName)
-
-	if n.Columns != nil {
-		for _, item := range n.Columns.Items {
-			column, ok := item.(*ast.ColumnDef)
-			if !ok {
-				continue
-			}
-			c.extractColumn(column, table, schemaName, source)
-		}
-	}
-	if n.Constraints != nil {
-		for _, item := range n.Constraints.Items {
-			constraint, ok := item.(*ast.ConstraintDef)
-			if !ok {
-				continue
-			}
-			c.extractTableConstraint(constraint, table, schemaName, source)
-		}
-	}
-	if n.Indexes != nil {
-		for _, item := range n.Indexes.Items {
-			index, ok := item.(*ast.InlineIndexDef)
-			if !ok {
-				continue
-			}
-			table.Indexes = append(table.Indexes, inlineIndexMetadata(index, source))
-		}
-	}
-	// A primary key's columns allow no NULL, and a key written beside a column
-	// may name one the loop had not read yet: `CREATE TABLE t (x int PRIMARY
-	// KEY (y), y int NULL)` keys y. The columns all exist now.
-	for _, index := range table.Indexes {
-		if !index.Primary {
-			continue
-		}
-		for _, name := range index.Expressions {
-			if column := columnByName(table, name); column != nil {
-				column.Nullable = false
-			}
-		}
-	}
-}
+// extractColumn extracts a column definition and its inline constraints into
+// table.
 
 func (c *Catalog) extractColumn(n *ast.ColumnDef, table *metadata.TableMetadata, schemaName, source string) {
 	column := &metadata.ColumnMetadata{
@@ -533,6 +491,8 @@ func (c *Catalog) extractColumn(n *ast.ColumnDef, table *metadata.TableMetadata,
 			column.Type += " PERSISTED"
 		}
 		if n.Computed.NotNull {
+			column.Nullable = false
+		} else if n.Computed.Persisted && isNonNullLiteralExpr(n.Computed.Expr) {
 			column.Nullable = false
 		}
 	} else if n.DataType != nil {
@@ -633,207 +593,6 @@ func (c *Catalog) extractTableConstraint(n *ast.ConstraintDef, table *metadata.T
 		c.appendCheckConstraint(table, n, source)
 	case ast.ConstraintForeignKey:
 		c.appendForeignKey(table, n, stringNodeList(n.Columns), c.defaultSchema)
-	}
-}
-
-func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt, source string) error {
-	schemaName, tableName := tableRefSchemaObject(n.Table, c.defaultSchema)
-	table := c.GetTable(schemaName, tableName)
-	if table == nil {
-		if schema := c.GetSchema(schemaName); schema != nil {
-			for _, view := range schema.Views {
-				if strings.EqualFold(view.Name, tableName) {
-					if c.skipViewIndexes {
-						return nil
-					}
-					return fmt.Errorf("indexes on views are not supported: %s.%s", schemaName, tableName)
-				}
-			}
-		}
-		table = c.getOrCreateTable(schemaName, tableName)
-	}
-
-	index := &metadata.IndexMetadata{
-		Name:         n.Name,
-		Unique:       n.Unique,
-		Type:         indexType(n.Columnstore, n.Clustered),
-		Expressions:  []string{},
-		Descending:   []bool{},
-		IsConstraint: false,
-	}
-	appendIndexColumns(index, n.Columns)
-	index.Definition = indexDefinition(n.IncludeCols, n.WhereClause, source)
-	table.Indexes = append(table.Indexes, index)
-	return nil
-}
-
-func (c *Catalog) execCreateXMLIndex(n *ast.CreateXmlIndexStmt) {
-	schemaName, tableName := tableRefSchemaObject(n.Table, c.defaultSchema)
-	table := c.resolveOrCreateTable(schemaName, tableName)
-	index := &metadata.IndexMetadata{
-		Name:         n.Name,
-		Type:         "XML",
-		Expressions:  []string{n.XmlColumn},
-		Descending:   []bool{false},
-		IsConstraint: false,
-		Definition:   "PRIMARY",
-	}
-	if !n.Primary {
-		index.Definition = "USING XML INDEX " + n.UsingIndex
-		if n.SecondaryFor != "" {
-			index.Definition += " FOR " + n.SecondaryFor
-		}
-	}
-	table.Indexes = append(table.Indexes, index)
-}
-
-func (c *Catalog) execCreateSpatialIndex(n *ast.CreateSpatialIndexStmt) {
-	schemaName, tableName := tableRefSchemaObject(n.Table, c.defaultSchema)
-	table := c.resolveOrCreateTable(schemaName, tableName)
-
-	index := &metadata.IndexMetadata{
-		Name:         n.Name,
-		Type:         "SPATIAL",
-		Expressions:  []string{},
-		Descending:   []bool{},
-		IsConstraint: false,
-		SpatialConfig: &metadata.SpatialIndexConfig{
-			Method: "SPATIAL",
-			Tessellation: &metadata.TessellationConfig{
-				Scheme: strings.ToUpper(n.Using),
-			},
-			Dimensional: &metadata.DimensionalConfig{
-				Dimensions: 2,
-			},
-		},
-	}
-	if n.SpatialColumn != "" {
-		index.Expressions = append(index.Expressions, n.SpatialColumn)
-		index.Descending = append(index.Descending, false)
-	}
-	if strings.Contains(index.SpatialConfig.Tessellation.Scheme, "GEOGRAPHY") {
-		index.SpatialConfig.Dimensional.DataType = "GEOGRAPHY"
-	} else {
-		index.SpatialConfig.Dimensional.DataType = "GEOMETRY"
-	}
-	parseSpatialOptions(n.Options, index)
-	table.Indexes = append(table.Indexes, index)
-}
-
-func (c *Catalog) execCreateRoutine(kind string, ref *ast.TableRef, node ast.Node, source string) {
-	schemaName, name := tableRefSchemaObject(ref, c.defaultSchema)
-	schema := c.getOrCreateSchema(schemaName)
-	definition := definitionText(node, source)
-	switch kind {
-	case "view":
-		schema.Views = append(schema.Views, &metadata.ViewMetadata{Name: name, Definition: definition})
-	case "procedure":
-		schema.Procedures = append(schema.Procedures, &metadata.ProcedureMetadata{Name: name, Definition: definition})
-	case "function":
-		schema.Functions = append(schema.Functions, &metadata.FunctionMetadata{Name: name, Definition: definition})
-	}
-}
-
-func (c *Catalog) execCreateSequence(n *ast.CreateSequenceStmt, source string) {
-	schemaName, sequenceName := tableRefSchemaObject(n.Name, c.defaultSchema)
-	schema := c.getOrCreateSchema(schemaName)
-	sequence := &metadata.SequenceMetadata{Name: sequenceName}
-	if n.DataType != nil {
-		sequence.DataType = nodeText(n.DataType, source)
-	}
-	if n.Start != nil {
-		sequence.Start = strings.TrimSpace(nodeText(n.Start, source))
-	}
-	if n.Increment != nil {
-		sequence.Increment = strings.TrimSpace(nodeText(n.Increment, source))
-	}
-	if n.MinValue != nil {
-		sequence.MinValue = strings.TrimSpace(nodeText(n.MinValue, source))
-	}
-	if n.MaxValue != nil {
-		sequence.MaxValue = strings.TrimSpace(nodeText(n.MaxValue, source))
-	}
-	if n.Cycle != nil {
-		sequence.Cycle = *n.Cycle
-	}
-	if n.NoCache {
-		sequence.CacheSize = "NO CACHE"
-	} else if n.Cache != nil {
-		sequence.CacheSize = strings.TrimSpace(nodeText(n.Cache, source))
-	}
-	schema.Sequences = append(schema.Sequences, sequence)
-}
-
-// execAlterTable applies the ALTER TABLE form a generated definition uses for
-// deferred cyclic foreign keys. Other alterations stay outside the catalog's
-// desired-state boundary.
-func (c *Catalog) execAlterTable(n *ast.AlterTableStmt, source string) {
-	schemaName, tableName := tableRefSchemaObject(n.Name, c.defaultSchema)
-	table := c.GetTable(schemaName, tableName)
-	if table == nil || n.Actions == nil {
-		return
-	}
-	for _, item := range n.Actions.Items {
-		action, ok := item.(*ast.AlterTableAction)
-		if !ok || action.Type != ast.ATAddConstraint || action.Constraint == nil {
-			continue
-		}
-		c.extractTableConstraint(action.Constraint, table, schemaName, source)
-	}
-}
-
-func (c *Catalog) execCreateSynonym(n *ast.CreateSynonymStmt) {
-	if n.Name == nil || n.Target == nil {
-		return
-	}
-	schemaName, name := tableRefSchemaObject(n.Name, c.defaultSchema)
-	schema := c.getOrCreateSchema(schemaName)
-	schema.Synonyms = append(schema.Synonyms, &metadata.SynonymMetadata{
-		Name:           name,
-		TargetServer:   n.Target.Server,
-		TargetDatabase: n.Target.Database,
-		TargetSchema:   n.Target.Schema,
-		TargetName:     n.Target.Object,
-	})
-}
-
-func (c *Catalog) execCreateTrigger(n *ast.CreateTriggerStmt, source string) {
-	if n.Table == nil || n.Name == nil {
-		return
-	}
-	schemaName, parentName := tableRefSchemaObject(n.Table, c.defaultSchema)
-	var events []string
-	if n.Events != nil {
-		for _, item := range n.Events.Items {
-			switch event := item.(type) {
-			case *ast.String:
-				events = append(events, event.Str)
-			case *ast.TriggerEvent:
-				events = append(events, event.Name)
-			}
-		}
-	}
-	timing := n.TriggerType
-	if strings.EqualFold(timing, "FOR") {
-		timing = "AFTER"
-	}
-	trigger := &metadata.TriggerMetadata{
-		Name:   n.Name.Object,
-		Timing: timing,
-		Event:  strings.Join(events, ","),
-		Body:   definitionText(n, source),
-	}
-	if table := c.GetTable(schemaName, parentName); table != nil {
-		table.Triggers = append(table.Triggers, trigger)
-		return
-	}
-	if schema := c.GetSchema(schemaName); schema != nil {
-		for _, view := range schema.Views {
-			if strings.EqualFold(view.Name, parentName) {
-				view.Triggers = append(view.Triggers, trigger)
-				return
-			}
-		}
 	}
 }
 

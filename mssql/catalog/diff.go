@@ -1115,17 +1115,90 @@ func compareSequences(diff *SchemaDiff, schemaName string, oldSchema, newSchema 
 	}
 }
 
+type normalizedSequence struct {
+	dataType    string
+	start       string
+	minValue    string
+	maxValue    string
+	increment   string
+	cycle       bool
+	cacheSize   string
+	ownerTable  string
+	ownerColumn string
+	comment     string
+}
+
 func sequencesEqual(a, b *metadata.SequenceMetadata) bool {
-	return typesEqual(a.DataType, b.DataType) &&
-		a.Start == b.Start &&
-		a.MinValue == b.MinValue &&
-		a.MaxValue == b.MaxValue &&
-		a.Increment == b.Increment &&
-		a.Cycle == b.Cycle &&
-		a.CacheSize == b.CacheSize &&
-		a.OwnerTable == b.OwnerTable &&
-		a.OwnerColumn == b.OwnerColumn &&
-		a.Comment == b.Comment
+	na := normalizeSequenceMetadata(a)
+	nb := normalizeSequenceMetadata(b)
+	return typesEqual(na.dataType, nb.dataType) &&
+		na.start == nb.start &&
+		na.minValue == nb.minValue &&
+		na.maxValue == nb.maxValue &&
+		na.increment == nb.increment &&
+		na.cycle == nb.cycle &&
+		na.cacheSize == nb.cacheSize &&
+		na.ownerTable == nb.ownerTable &&
+		na.ownerColumn == nb.ownerColumn &&
+		na.comment == nb.comment
+}
+
+// normalizeSequenceMetadata fills SQL Server's implicit defaults for omitted
+// CREATE SEQUENCE options (AS bigint, INCREMENT BY 1, type min/max bounds,
+// and START WITH min/max) so an explicit SQL Server readout compares equal to
+// a terse CREATE SEQUENCE.
+func normalizeSequenceMetadata(s *metadata.SequenceMetadata) normalizedSequence {
+	if s == nil {
+		return normalizedSequence{}
+	}
+	out := normalizedSequence{
+		dataType:    s.DataType,
+		start:       s.Start,
+		minValue:    s.MinValue,
+		maxValue:    s.MaxValue,
+		increment:   s.Increment,
+		cycle:       s.Cycle,
+		cacheSize:   s.CacheSize,
+		ownerTable:  s.OwnerTable,
+		ownerColumn: s.OwnerColumn,
+		comment:     s.Comment,
+	}
+	if strings.TrimSpace(out.dataType) == "" {
+		out.dataType = "bigint"
+	}
+	if strings.TrimSpace(out.increment) == "" {
+		out.increment = "1"
+	}
+	defMin, defMax := sequenceTypeBounds(out.dataType)
+	if strings.TrimSpace(out.minValue) == "" {
+		out.minValue = defMin
+	}
+	if strings.TrimSpace(out.maxValue) == "" {
+		out.maxValue = defMax
+	}
+	if strings.TrimSpace(out.start) == "" {
+		if strings.HasPrefix(strings.TrimSpace(out.increment), "-") {
+			out.start = out.maxValue
+		} else {
+			out.start = out.minValue
+		}
+	}
+	return out
+}
+
+func sequenceTypeBounds(dataType string) (string, string) {
+	switch normalizeType(dataType) {
+	case "tinyint":
+		return "0", "255"
+	case "smallint":
+		return "-32768", "32767"
+	case "int":
+		return "-2147483648", "2147483647"
+	case "bigint":
+		return "-9223372036854775808", "9223372036854775807"
+	default:
+		return "", ""
+	}
 }
 
 // checkExpressionsEqual compares two CHECK expressions ignoring outer
@@ -1168,7 +1241,158 @@ func expressionsEqual(a, b string) bool {
 	if strings.TrimSpace(a) == "" || strings.TrimSpace(b) == "" {
 		return false
 	}
-	return normalizeExpression(stripOuterParens(a)) == normalizeExpression(stripOuterParens(b))
+	na := normalizeExpression(stripOuterParens(a))
+	nb := normalizeExpression(stripOuterParens(b))
+	if na == nb {
+		return true
+	}
+	return canonicalizeSQLExpr(na) == canonicalizeSQLExpr(nb)
+}
+
+// canonicalizeSQLExpr normalizes SQL Server's stored expression formatting
+// (such as "([d]>(0))" vs "[d] > 0" and "((1)=(1))" vs "1 = 1") by stripping
+// redundant spaces around operators/parentheses and redundant parentheses
+// around simple numeric literals or bracketed identifiers, while leaving
+// string literals byte-for-byte intact.
+func canonicalizeSQLExpr(expr string) string {
+	// Tokenize preserving string literals and bracketed identifiers verbatim.
+	var toks []string
+	for i := 0; i < len(expr); {
+		ch := expr[i]
+		if ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n' {
+			i++
+			continue
+		}
+		if ch == '\'' {
+			start := i
+			i++
+			for i < len(expr) {
+				if expr[i] == '\'' {
+					i++
+					if i < len(expr) && expr[i] == '\'' {
+						i++
+						continue
+					}
+					break
+				}
+				i++
+			}
+			toks = append(toks, expr[start:i])
+			continue
+		}
+		if ch == '[' {
+			start := i
+			i++
+			for i < len(expr) {
+				if expr[i] == ']' {
+					i++
+					if i < len(expr) && expr[i] == ']' {
+						i++
+						continue
+					}
+					break
+				}
+				i++
+			}
+			toks = append(toks, expr[start:i])
+			continue
+		}
+		if (ch == '<' || ch == '>' || ch == '!') && i+1 < len(expr) && (expr[i+1] == '=' || (ch == '<' && expr[i+1] == '>')) {
+			toks = append(toks, expr[i:i+2])
+			i += 2
+			continue
+		}
+		if strings.ContainsRune("(),=<>+-*/", rune(ch)) {
+			toks = append(toks, string(ch))
+			i++
+			continue
+		}
+		start := i
+		for i < len(expr) && !strings.ContainsRune(" \t\r\n'\"[(),=<>!+-*/", rune(expr[i])) {
+			i++
+		}
+		toks = append(toks, expr[start:i])
+	}
+	// Collapse "( atom )" where atom is a single number, literal, or bracketed
+	// identifier and is not immediately preceded by a function/keyword name.
+	isSimpleAtom := func(tok string) bool {
+		if tok == "" || tok == "(" || tok == ")" || tok == "," {
+			return false
+		}
+		if tok[0] == '\'' || tok[0] == '[' {
+			return true
+		}
+		for i := 0; i < len(tok); i++ {
+			c := tok[i]
+			if !((c >= '0' && c <= '9') || c == '.') {
+				return false
+			}
+		}
+		return true
+	}
+	isIdentStart := func(tok string) bool {
+		if tok == "" {
+			return false
+		}
+		c := tok[0]
+		return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_' || c == '['
+	}
+	changed := true
+	for changed {
+		changed = false
+		var out []string
+		for i := 0; i < len(toks); i++ {
+			if i+2 < len(toks) && toks[i] == "(" && isSimpleAtom(toks[i+1]) && toks[i+2] == ")" {
+				if len(out) == 0 || !isIdentStart(out[len(out)-1]) {
+					out = append(out, toks[i+1])
+					i += 2
+					changed = true
+					continue
+				}
+			}
+			out = append(out, toks[i])
+		}
+		toks = out
+	}
+	// Strip outer parens over the whole token slice.
+	for len(toks) >= 2 && toks[0] == "(" && toks[len(toks)-1] == ")" {
+		depth := 0
+		balanced := true
+		for i := 0; i < len(toks)-1; i++ {
+			if toks[i] == "(" {
+				depth++
+			} else if toks[i] == ")" {
+				depth--
+				if depth == 0 {
+					balanced = false
+					break
+				}
+			}
+		}
+		if !balanced {
+			break
+		}
+		toks = toks[1 : len(toks)-1]
+	}
+	var b strings.Builder
+	for i, tok := range toks {
+		if i > 0 && needsExprSpace(toks[i-1], tok) {
+			b.WriteByte(' ')
+		}
+		b.WriteString(tok)
+	}
+	return b.String()
+}
+
+func needsExprSpace(prev, cur string) bool {
+	if prev == "" || cur == "" {
+		return false
+	}
+	isWord := func(s string) bool {
+		c := s[0]
+		return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_'
+	}
+	return isWord(prev) && isWord(cur)
 }
 
 // normalizeExpression collapses whitespace and folds case outside string
