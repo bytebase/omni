@@ -1192,4 +1192,32 @@ CREATE TABLE [dbo].[t] ([a] INT DEFAULT ([dbo].[f]()), CHECK ([dbo].[f]() > 0));
 	execExpectOK(t, c, `CREATE OR ALTER FUNCTION [dbo].[f]() RETURNS INT AS BEGIN RETURN 3; END`)
 	require.Contains(t, c.GetSchema("dbo").Functions[0].Definition, "RETURN 3")
 	execExpectCode(t, c, `DROP FUNCTION [dbo].[f]`, ErrDropSchemaNotEmpty)
+
+	// 82. DROP CONSTRAINT rejects dropping the primary key while SYSTEM_VERSIONING is ON.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[t] (
+    [id] INT NOT NULL CONSTRAINT [PK_t] PRIMARY KEY,
+    [sys_start] DATETIME2 GENERATED ALWAYS AS ROW START NOT NULL,
+    [sys_end] DATETIME2 GENERATED ALWAYS AS ROW END NOT NULL,
+    PERIOD FOR SYSTEM_TIME ([sys_start], [sys_end])
+) WITH (SYSTEM_VERSIONING = ON);
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] DROP CONSTRAINT [PK_t]`, ErrDropPKSystemVersioned)
+	require.NotNil(t, indexByName(c.GetTable("dbo", "t"), "PK_t"))
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] SET (SYSTEM_VERSIONING = OFF)`)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] DROP CONSTRAINT [PK_t]`)
+	require.Nil(t, indexByName(c.GetTable("dbo", "t"), "PK_t"))
+
+	// 83. ALTER COLUMN checks schema-bound consumers for nullability-only changes.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[t] ([a] INT NOT NULL, [b] INT NOT NULL);
+GO
+CREATE VIEW [dbo].[v_sb] WITH SCHEMABINDING AS SELECT [a] FROM [dbo].[t];
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ALTER COLUMN [a] INT NULL`, ErrColumnDependentObject)
+	require.False(t, columnByName(c.GetTable("dbo", "t"), "a").Nullable)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] ALTER COLUMN [b] INT NULL`)
+	require.True(t, columnByName(c.GetTable("dbo", "t"), "b").Nullable)
 }

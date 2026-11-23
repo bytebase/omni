@@ -94,6 +94,7 @@ const (
 	ErrPeriodAlreadyDefined       = 13514
 	ErrTruncateSystemVersionedTable = 13545
 	ErrDropSystemVersionedTable   = 13552
+	ErrDropPKSystemVersioned      = 13553
 	ErrDropPeriodSystemVersioned  = 13554
 	ErrDropPeriodColumn           = 13561
 	ErrSystemVersioningNotEnabled = 13591

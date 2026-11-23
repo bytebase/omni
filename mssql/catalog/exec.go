@@ -2291,6 +2291,11 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 				return mssqlErr(ErrColumnDependentObject, "The object '%s' is dependent on column '%s'.", dep, col.Name)
 			}
 		}
+		if !c.lenientMetadataLoad && newNullable != col.Nullable {
+			if consumer, bound := schemaBoundColumnConsumer(c, schemaName, table.Name, col.Name); bound {
+				return mssqlErr(ErrColumnDependentObject, "The object '%s' is dependent on column '%s'.", consumer, col.Name)
+			}
+		}
 		if newNullable {
 			if pkName, inPK := columnInPrimaryKey(table, col.Name); inPK {
 				return mssqlErr(ErrColumnDependentObject, "The object '%s' is dependent on column '%s'.", pkName, col.Name)
@@ -2689,6 +2694,9 @@ func (c *Catalog) dropTableConstraint(schemaName string, table *metadata.TableMe
 		}
 		if idx.Primary && isClusteredPrimaryKey(idx) && tableHasXMLIndex(table) {
 			return false, mssqlErr(ErrDropPKWithXMLIndex, "Cannot drop the clustered primary key '%s' on table '%s' because the table has an XML index.", idx.Name, table.Name)
+		}
+		if idx.Primary && c.systemVersionedTables[c.temporalKey(schemaName, table.Name)] {
+			return false, mssqlErr(ErrDropPKSystemVersioned, "Cannot drop primary key constraint '%s' on system-versioned temporal table '%s.%s'.", idx.Name, schemaName, table.Name)
 		}
 		table.Indexes = append(table.Indexes[:i], table.Indexes[i+1:]...)
 		return true, nil
