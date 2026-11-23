@@ -62,9 +62,14 @@ func (p *Parser) parseConstant() (ast.ExprNode, error) {
 		return &ast.DurationLit{Val: tok.Str, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
 
 	case tokMINUS:
+		// A constant's '-' is written against it (Lexer.g:194, :196, :337,
+		// :347, :367): - 1 is no constant.
 		start := tok.Loc
+		next := p.peekNext()
+		if next.Loc != tok.End {
+			return nil, p.errorf("expected constant, got %s", p.tokenDesc())
+		}
 		p.advance()
-		next := p.cur
 		switch next.Type {
 		case tokINTEGER:
 			p.advance()

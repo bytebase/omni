@@ -279,6 +279,21 @@ func (p *Parser) isNot() bool {
 	return p.cur().Kind == kwNOT
 }
 
+// isErrorCapturingNot reports whether the current token is errorCapturingNot
+// (SqlBaseParser.g4:1127, NOT or !) at a site whose AstBuilder visitor does
+// not call blockBang, so Spark v4.0.5 takes `!` for NOT there: colType,
+// complexColType, ALTER COLUMN SET/DROP NOT NULL and MERGE's WHEN NOT
+// MATCHED. Column definitions, predicates and IF NOT EXISTS reject `!`
+// (SYNTAX_DISCONTINUED.BANG_EQUALS_NOT) and read NOT only.
+func (p *Parser) isErrorCapturingNot() bool {
+	return p.cur().Kind == kwNOT || p.cur().Kind == tokBang
+}
+
+// matchErrorCapturingNot consumes NOT or ! where isErrorCapturingNot allows it.
+func (p *Parser) matchErrorCapturingNot() bool {
+	return p.match(kwNOT, tokBang)
+}
+
 func (p *Parser) matchNamespace() bool {
 	return p.match(kwNAMESPACE, kwDATABASE, kwSCHEMA)
 }
@@ -457,7 +472,8 @@ func (p *Parser) parseDataTypeWithKind() (TokenKind, error) {
 			}
 			return kwINTERVAL, nil
 		}
-		// Plain INTERVAL primitive type (no parameters).
+		// Plain INTERVAL primitive type (no parameters): CalendarIntervalType.
+		p.sawCalendarInterval = true
 		return kwINTERVAL, p.parseOptionalTypeParams(kwINTERVAL, 0, false, "INTERVAL")
 	}
 
@@ -585,7 +601,7 @@ func (p *Parser) parseComplexColType() error {
 	if err := p.parseDataType(); err != nil {
 		return err
 	}
-	if p.isNot() && p.peek(1).Kind == kwNULL {
+	if p.isErrorCapturingNot() && p.peek(1).Kind == kwNULL {
 		p.advance()
 		p.advance()
 	}
@@ -616,7 +632,7 @@ func (p *Parser) parseColType() error {
 	if err := p.parseDataType(); err != nil {
 		return err
 	}
-	if p.isNot() && p.peek(1).Kind == kwNULL {
+	if p.isErrorCapturingNot() && p.peek(1).Kind == kwNULL {
 		p.advance()
 		p.advance()
 	}
@@ -823,11 +839,31 @@ func (p *Parser) parseQualifiedColTypeWithPositionList() error {
 	return nil
 }
 
+// parseTableSchemaDataType parses the type of a column ALTER TABLE ADD or
+// REPLACE COLUMNS adds. Spark v4.0.5 refuses a calendar INTERVAL anywhere in
+// it (_LEGACY_ERROR_TEMP_1183: Cannot use "INTERVAL" type in the table
+// schema); INTERVAL YEAR, INTERVAL DAY and the other ANSI intervals are
+// allowed.
+func (p *Parser) parseTableSchemaDataType() error {
+	prev := p.sawCalendarInterval
+	p.sawCalendarInterval = false
+	err := p.parseDataType()
+	saw := p.sawCalendarInterval
+	p.sawCalendarInterval = prev
+	if err != nil {
+		return err
+	}
+	if saw {
+		return p.errorf("cannot use INTERVAL type in the table schema")
+	}
+	return nil
+}
+
 func (p *Parser) parseQualifiedColTypeWithPosition() error {
 	if _, err := p.parseMultipartIdentifier(); err != nil {
 		return err
 	}
-	if err := p.parseDataType(); err != nil {
+	if err := p.parseTableSchemaDataType(); err != nil {
 		return err
 	}
 	var seenNotNull, seenDefault, seenComment, seenPosition bool
@@ -1143,7 +1179,7 @@ func (p *Parser) parsePartitionSpecDynamic(requireValues bool) (hasDynamic bool,
 			if p.cur().Kind == kwDEFAULT {
 				return false, p.errorf("DEFAULT is not allowed in PARTITION specification")
 			}
-			if err := p.parseConstant(); err != nil {
+			if err := p.parseLiteralConstant("partition spec"); err != nil {
 				return false, err
 			}
 		} else {
@@ -1528,7 +1564,7 @@ func (p *Parser) parseTransform() (builtinErr error, parseErr error) {
 			tok0 := p.cur().Kind
 			tok1 := p.peek(1).Kind
 			isIntLit := tok0 == tokInt || ((tok0 == tokMinus || tok0 == tokPlus) && tok1 == tokInt)
-			if err := p.parseConstant(); err == nil && (p.cur().Kind == tokComma || p.cur().Kind == tokRParen) {
+			if err := p.parseLiteralConstant("partition transform"); err == nil && (p.cur().Kind == tokComma || p.cur().Kind == tokRParen) {
 				if isIntLit {
 					argKinds = append(argKinds, transformArgInt)
 				} else {

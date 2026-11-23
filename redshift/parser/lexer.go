@@ -115,6 +115,10 @@ type Lexer struct {
 	// undecoded and looking no further for UESCAPE.
 	lookahead bool
 
+	// op caches what lexOperator learned about the operator run it last
+	// scanned.
+	op opRun
+
 	// Error handling
 	Err error
 }
@@ -879,45 +883,21 @@ func (l *Lexer) lexParam() Token {
 	return Token{Type: lex_PARAM, Ival: val, Loc: l.start}
 }
 
-// lexOperator handles operator tokens.
+// lexOperator handles operator tokens (scan.l, {operator}). The token is
+// the run of operator characters at pos, cut before any "/*" or "--" inside
+// it, with trailing + and - removed unless a character before the last is
+// one of ~!@#^&|`?%.
 func (l *Lexer) lexOperator() Token {
 	start := l.pos
-
-	for l.pos < l.end && isOpChar(l.input[l.pos]) {
-		l.pos++
+	end := l.opRunEnd(start)
+	if c := l.opCommentStart(start + 1); c < end {
+		end = c
 	}
-
-	op := l.input[start:l.pos]
-
-	// Check for embedded comment start
-	if idx := strings.Index(op, "/*"); idx > 0 {
-		l.pos = start + idx
-		op = op[:idx]
+	if end-start > 1 && isPlusMinus(l.input[end-1]) && l.opSpecialStart(start) >= end-1 {
+		end = max(l.opLastKept(end)+1, start+1)
 	}
-	if idx := strings.Index(op, "--"); idx > 0 && (idx < len(op)-1 || idx < strings.Index(op, "/*")) {
-		if strings.Index(op, "/*") < 0 || idx < strings.Index(op, "/*") {
-			l.pos = start + idx
-			op = op[:idx]
-		}
-	}
-
-	// For SQL compatibility, strip trailing + or - unless preceded by special chars
-	for len(op) > 1 && (op[len(op)-1] == '+' || op[len(op)-1] == '-') {
-		hasSpecial := false
-		for i := len(op) - 2; i >= 0; i-- {
-			c := op[i]
-			if c == '~' || c == '!' || c == '@' || c == '#' || c == '^' ||
-				c == '&' || c == '|' || c == '`' || c == '?' || c == '%' {
-				hasSpecial = true
-				break
-			}
-		}
-		if hasSpecial {
-			break
-		}
-		op = op[:len(op)-1]
-		l.pos--
-	}
+	l.pos = end
+	op := l.input[start:end]
 
 	// Single-char ops that should be returned as their char value
 	if len(op) == 1 && isSelf(op[0]) {
@@ -946,6 +926,94 @@ func (l *Lexer) lexOperator() Token {
 	}
 
 	return Token{Type: lex_Op, Str: op, Loc: l.start}
+}
+
+// opRun remembers what lexOperator found in a run of operator characters,
+// so a run that splits into many tokens is scanned once rather than once per
+// token. Before it, 3,000 '+' took 18 seconds to lex: each token rescanned
+// the run and searched it again for each trailing '+' it removed. Every
+// field is a position in input, which does not change, so a snapshot that
+// moves pos back leaves the cache valid.
+type opRun struct {
+	start, end int // input[start:end] is the run; end is 0 when none is cached
+
+	// comment is the first "/*" or "--" at or after commentFrom inside the
+	// run, or end.
+	commentFrom, comment int
+	// special is the first of ~!@#^&|`?% at or after specialFrom inside the
+	// run, or end.
+	specialFrom, special int
+	// kept is the last byte before keptBefore that is neither + nor -, or
+	// start-1.
+	keptBefore, kept int
+}
+
+// opRunEnd returns the end of the run of operator characters that holds
+// start, scanning it only when start lies outside the cached run.
+func (l *Lexer) opRunEnd(start int) int {
+	if r := &l.op; r.end > 0 && r.start <= start && start < r.end {
+		return r.end
+	}
+	end := start
+	for end < l.end && isOpChar(l.input[end]) {
+		end++
+	}
+	l.op = opRun{start: start, end: end, commentFrom: -1, specialFrom: -1, keptBefore: -1}
+	return end
+}
+
+// opCommentStart returns the first "/*" or "--" at or after from in the
+// cached run, or the run's end.
+func (l *Lexer) opCommentStart(from int) int {
+	r := &l.op
+	if r.commentFrom < 0 || from < r.commentFrom || from > r.comment {
+		i := from
+		for i+1 < r.end && !(l.input[i] == '/' && l.input[i+1] == '*') && !(l.input[i] == '-' && l.input[i+1] == '-') {
+			i++
+		}
+		if i+1 >= r.end {
+			i = r.end
+		}
+		r.commentFrom, r.comment = from, i
+	}
+	return r.comment
+}
+
+// opSpecialStart returns the first of ~!@#^&|`?% at or after from in the
+// cached run, or the run's end.
+func (l *Lexer) opSpecialStart(from int) int {
+	r := &l.op
+	if r.specialFrom < 0 || from < r.specialFrom || from > r.special {
+		i := from
+		for i < r.end && !keepsTrailingPlusMinus(l.input[i]) {
+			i++
+		}
+		r.specialFrom, r.special = from, i
+	}
+	return r.special
+}
+
+// opLastKept returns the last byte before end in the cached run that is
+// neither + nor -, or the run's start minus one.
+func (l *Lexer) opLastKept(end int) int {
+	r := &l.op
+	if r.keptBefore != end {
+		i := end - 1
+		for i >= r.start && isPlusMinus(l.input[i]) {
+			i--
+		}
+		r.keptBefore, r.kept = end, i
+	}
+	return r.kept
+}
+
+func isPlusMinus(c byte) bool { return c == '+' || c == '-' }
+
+// keepsTrailingPlusMinus reports whether an operator holding c before its
+// last character keeps a trailing + or - (scan.l, {operator}).
+func keepsTrailingPlusMinus(c byte) bool {
+	return c == '~' || c == '!' || c == '@' || c == '#' || c == '^' ||
+		c == '&' || c == '|' || c == '`' || c == '?' || c == '%'
 }
 
 // lexNumber handles integer and floating-point literals.

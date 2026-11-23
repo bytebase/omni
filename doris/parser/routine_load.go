@@ -548,7 +548,10 @@ func (p *Parser) parseShowRoutineLoad(startLoc ast.Loc) (ast.Node, error) {
 
 	stmt := &ast.ShowRoutineLoadStmt{All: all}
 
-	// Optional qualifiers: FOR [db.]name | LIKE 'pattern' | FROM db
+	// Optional qualifiers: FOR [db.]name | wildWhere | FROM db.
+	// DorisParser.g4:391 showRoutineLoad and DorisLegacyParser.g4:859
+	// show_routine_load_stmt both take wildWhere: LIKE 'pattern' or
+	// WHERE expression.
 	switch p.cur.Kind {
 	case kwFOR:
 		p.advance() // consume FOR
@@ -565,6 +568,14 @@ func (p *Parser) parseShowRoutineLoad(startLoc ast.Loc) (ast.Node, error) {
 		}
 		stmt.Like = p.cur.Str
 		p.advance()
+
+	case kwWHERE:
+		p.advance() // consume WHERE
+		where, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Where = where
 
 	case kwFROM:
 		p.advance() // consume FROM

@@ -78,6 +78,22 @@ func (p *Parser) matchIfNotExists() bool {
 	return false
 }
 
+// matchIfErrorCapturingNotExists matches IF NOT EXISTS, or IF ! EXISTS
+// (errorCapturingNot, SqlBaseParser.g4:1127), where Spark v4.0.5's visitor
+// does not call blockBang: CREATE TABLE LIKE, CREATE VIEW and CREATE
+// FUNCTION. CREATE NAMESPACE, CREATE TABLE, CREATE INDEX, ALTER TABLE ADD
+// PARTITION and INSERT refuse `!` (SYNTAX_DISCONTINUED.BANG_EQUALS_NOT) and
+// use matchIfNotExists.
+func (p *Parser) matchIfErrorCapturingNotExists() bool {
+	if p.cur().Kind == kwIF && (p.peek(1).Kind == kwNOT || p.peek(1).Kind == tokBang) && p.peek(2).Kind == kwEXISTS {
+		p.advance()
+		p.advance()
+		p.advance()
+		return true
+	}
+	return false
+}
+
 func (p *Parser) matchIfExists() bool {
 	if p.cur().Kind == kwIF && p.peek(1).Kind == kwEXISTS {
 		p.advance()
@@ -403,7 +419,7 @@ func (p *Parser) parseCreateTableLike() (Statement, error) {
 	if _, err := p.expect(kwTABLE); err != nil {
 		return nil, err
 	}
-	p.matchIfNotExists()
+	p.matchIfErrorCapturingNotExists()
 	target, err := p.parseTableIdentifier()
 	if err != nil {
 		return nil, err
@@ -471,6 +487,12 @@ func (p *Parser) parseCreateTableLike() (Statement, error) {
 			if msg := validateRowAndFileFormat(rowFmt, storedAsFormat); msg != "" {
 				return nil, p.errorf("%s", msg)
 			}
+			// SparkSqlAstBuilder.visitCreateTableLike requires a file format
+			// beside ROW FORMAT SERDE (_LEGACY_ERROR_TEMP_0047: 'ROW FORMAT'
+			// must be used with 'STORED AS').
+			if rowFmt == rowFormatSerde && !hasStoredAs {
+				return nil, p.errorf("CREATE TABLE LIKE: ROW FORMAT SERDE must be used with STORED AS")
+			}
 			return &ParsedStmt{Kind: StmtCreateTableLike, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 		}
 	}
@@ -500,7 +522,7 @@ func (p *Parser) parseCreateView() (Statement, error) {
 	if _, err := p.expect(kwVIEW); err != nil {
 		return nil, err
 	}
-	ifNotExists := p.matchIfNotExists()
+	ifNotExists := p.matchIfErrorCapturingNotExists()
 	if isReplace && ifNotExists {
 		return nil, p.errorf("CREATE OR REPLACE VIEW cannot specify IF NOT EXISTS")
 	}
@@ -733,7 +755,7 @@ func (p *Parser) parseCreateFunction() (Statement, error) {
 	if _, err := p.expect(kwFUNCTION); err != nil {
 		return nil, err
 	}
-	ifNotExists := p.matchIfNotExists()
+	ifNotExists := p.matchIfErrorCapturingNotExists()
 	if isReplace && ifNotExists {
 		return nil, p.errorf("CREATE OR REPLACE FUNCTION cannot specify IF NOT EXISTS")
 	}
@@ -1340,7 +1362,7 @@ func (p *Parser) parseAlterColumnSpec() error {
 		if p.cur().Kind == kwDEFAULT {
 			return p.parseDefaultExpression()
 		}
-		if !p.matchNot() {
+		if !p.matchErrorCapturingNot() {
 			return p.errorf("expected NOT NULL or DEFAULT after SET")
 		}
 		_, err := p.expect(kwNULL)
@@ -1350,7 +1372,7 @@ func (p *Parser) parseAlterColumnSpec() error {
 		if p.match(kwDEFAULT) {
 			return nil
 		}
-		if !p.matchNot() {
+		if !p.matchErrorCapturingNot() {
 			return p.errorf("expected NOT NULL or DEFAULT after DROP")
 		}
 		_, err := p.expect(kwNULL)
@@ -1428,7 +1450,7 @@ func (p *Parser) parseHiveReplaceColumnsTail() error {
 		if p.cur().Kind == tokDot {
 			return p.errorf("nested column names are not supported in REPLACE COLUMNS")
 		}
-		if err := p.parseDataType(); err != nil {
+		if err := p.parseTableSchemaDataType(); err != nil {
 			return err
 		}
 		if p.cur().Kind == kwCOMMENT {

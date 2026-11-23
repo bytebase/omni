@@ -23,7 +23,7 @@ func (p *Parser) parseUpdate() (*ast.UpdateStmt, error) {
 	stmt := &ast.UpdateStmt{Table: table}
 
 	// Optional USING clause (before SET)
-	using, err := p.parseUsingClause()
+	using, err := p.parseUsingClause(false)
 	if err != nil {
 		return nil, err
 	}

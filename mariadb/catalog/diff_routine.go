@@ -155,6 +155,7 @@ func canonicalRoutine(r *Routine, n *Normalizer) string {
 	}
 	return encodeKeyFields(
 		"isproc", boolKey(r.IsProcedure),
+		"aggregate", boolKey(r.IsAggregate),
 		"params", strings.Join(params, ","),
 		"returns", canonicalRoutineReturns(r, n),
 		"chars", canonicalRoutineCharacteristics(r, n),
@@ -163,8 +164,8 @@ func canonicalRoutine(r *Routine, n *Normalizer) string {
 }
 
 // canonicalRoutineParam encodes one parameter: its direction, with an omitted
-// direction read as IN; its lower-cased name; and its type through
-// canonicalRoutineType.
+// direction read as IN; its lower-cased name; its type through
+// canonicalRoutineType; and its DEFAULT as the catalog prints it.
 func canonicalRoutineParam(p *RoutineParam, n *Normalizer) string {
 	if p == nil {
 		return ""
@@ -177,6 +178,7 @@ func canonicalRoutineParam(p *RoutineParam, n *Normalizer) string {
 		"dir", dir,
 		"name", toLower(p.Name),
 		"type", canonicalRoutineType(p.TypeName, n),
+		"default", p.Default,
 	)
 }
 
@@ -291,6 +293,7 @@ func canonicalRoutineExceptAlterable(r *Routine, n *Normalizer) string {
 	}
 	return encodeKeyFields(
 		"isproc", boolKey(r.IsProcedure),
+		"aggregate", boolKey(r.IsAggregate),
 		"params", strings.Join(params, ","),
 		"returns", canonicalRoutineReturns(r, n),
 		"det", strings.ToUpper(det),

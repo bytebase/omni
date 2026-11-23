@@ -1392,8 +1392,6 @@ func TestParseErrors(t *testing.T) {
 		{"interval typed string literal overflow", `SELECT INTERVAL '2147483648 months'`},
 		{"discontinued bang-as-NOT in alter table add partition", `ALTER TABLE t ADD IF ! EXISTS PARTITION (p=1)`},
 		{"discontinued bang-as-NOT in alter table add column", `ALTER TABLE t ADD COLUMN a INT ! NULL`},
-		{"discontinued bang-as-NOT in alter column set not null", `ALTER TABLE t ALTER COLUMN a SET ! NULL`},
-		{"discontinued bang-as-NOT in merge when not matched", `MERGE INTO t USING s ON t.id=s.id WHEN ! MATCHED THEN INSERT *`},
 		{"set backtick-quoted key followed by stray token before equals", "SET `a=b` c = 1"},
 		{"string-form interval mixing year and day", `SELECT INTERVAL '1 year 1 day'`},
 		{"string-form interval mixing month and second", `SELECT INTERVAL '1 month 1 second'`},
@@ -1856,5 +1854,60 @@ func TestStatementSpansAndMultiStatement(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestParseEveryAlternativeChecks pins the AstBuilder checks the
+// (every alternative) rows found, each verdict Apache Spark 4.0.5's
+// parsePlan answer: `!` for NOT where no blockBang runs, parameter markers
+// where a Literal is required, ROW FORMAT SERDE without STORED AS in CREATE
+// TABLE LIKE or in TRANSFORM, and a calendar INTERVAL in ADD or REPLACE
+// COLUMNS.
+func TestParseEveryAlternativeChecks(t *testing.T) {
+	accept := []string{
+		"MERGE INTO a USING a ON a WHEN ! MATCHED THEN INSERT *",
+		"MERGE INTO a USING a ON a WHEN ! MATCHED BY SOURCE THEN DELETE",
+		"SELECT TRANSFORM(a) USING 's' AS (a INT ! NULL) FROM t",
+		"DECLARE a STRUCT < a BOOLEAN ! NULL >",
+		"ALTER TABLE a ALTER a SET ! NULL",
+		"ALTER TABLE a ALTER a DROP ! NULL",
+		"CREATE TABLE IF ! EXISTS a LIKE b",
+		"CREATE VIEW IF ! EXISTS a AS SELECT 1",
+		"CREATE FUNCTION IF ! EXISTS f AS 'x'",
+		"DESC a PARTITION(a = 1)",
+		"CREATE TABLE a PARTITIONED BY(a(1))",
+		"SELECT a FROM t WHERE a = ?",
+		"CREATE TABLE a LIKE a ROW FORMAT SERDE 's' STORED AS TEXTFILE",
+		"CREATE TABLE a LIKE a ROW FORMAT DELIMITED",
+		"MAP a ROW FORMAT DELIMITED USING 's'",
+		"ALTER TABLE a ADD COLUMN a INTERVAL DAY",
+		"CREATE TABLE a (a INTERVAL)",
+		"ALTER TABLE a ALTER COLUMN a TYPE INTERVAL",
+	}
+	reject := []string{
+		"CREATE TABLE a (a INT ! NULL)",
+		"ALTER TABLE a ADD COLUMN a INT ! NULL",
+		"CREATE TABLE IF ! EXISTS a (a INT)",
+		"ALTER TABLE a ADD IF ! EXISTS PARTITION (a = 1)",
+		"DESC a PARTITION(a = ?)",
+		"INSERT INTO a PARTITION(a = :b) SELECT 1",
+		"CREATE TABLE a PARTITIONED BY(bucket(?, a))",
+		"CREATE TABLE a LIKE a ROW FORMAT SERDE 's'",
+		"CREATE TABLE a LIKE a ROW FORMAT SERDE 's' LOCATION 'x'",
+		"MAP a ROW FORMAT SERDE 's' USING 's'",
+		"SELECT TRANSFORM(a) USING 's' ROW FORMAT SERDE 's' FROM t",
+		"ALTER TABLE a ADD COLUMN a INTERVAL",
+		"ALTER TABLE a ADD COLUMN a ARRAY<INTERVAL>",
+		"ALTER TABLE a REPLACE COLUMNS (a STRUCT<x: INTERVAL>)",
+	}
+	for _, sql := range accept {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v, want accept", sql, err)
+		}
+	}
+	for _, sql := range reject {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) accepted, want an error", sql)
+		}
 	}
 }

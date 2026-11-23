@@ -6,40 +6,6 @@ import (
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
-// parseCreateLoadableFunction parses a CREATE [AGGREGATE] FUNCTION for loadable UDFs.
-// The caller has already consumed CREATE [OR REPLACE] (and AGGREGATE if present).
-// The current token is FUNCTION.
-//
-// Ref: https://mariadb.com/kb/en/create-function-udf/
-//
-//	CREATE [OR REPLACE] [AGGREGATE] FUNCTION [IF NOT EXISTS] function_name
-//	    RETURNS {STRING|INTEGER|REAL|DECIMAL}
-//	    SONAME shared_library_name
-func (p *Parser) parseCreateLoadableFunction(start int, orReplace, isAggregate bool) (*nodes.CreateFunctionStmt, error) {
-	p.advance() // consume FUNCTION
-
-	stmt := &nodes.CreateFunctionStmt{
-		Loc:         nodes.Loc{Start: start},
-		OrReplace:   orReplace,
-		IsAggregate: isAggregate,
-	}
-
-	ifNotExists, err := p.parseCreateIfNotExists(orReplace)
-	if err != nil {
-		return nil, err
-	}
-	stmt.IfNotExists = ifNotExists
-
-	// Function name
-	ref, err := p.parseTableRef()
-	if err != nil {
-		return nil, err
-	}
-	stmt.Name = ref
-
-	return p.finishLoadableFunction(stmt)
-}
-
 // finishLoadableFunction completes parsing a loadable UDF after the function name
 // has been consumed. Parses: RETURNS {STRING|INTEGER|REAL|DECIMAL} SONAME 'lib'
 func (p *Parser) finishLoadableFunction(stmt *nodes.CreateFunctionStmt) (*nodes.CreateFunctionStmt, error) {
@@ -80,17 +46,19 @@ func (p *Parser) finishLoadableFunction(stmt *nodes.CreateFunctionStmt) (*nodes.
 }
 
 // parseCreateFunctionStmt parses a CREATE FUNCTION or CREATE PROCEDURE statement.
-// The caller has already consumed CREATE [OR REPLACE] [DEFINER = user] and set
-// isProcedure.
+// The caller has already consumed CREATE [OR REPLACE] [DEFINER = user] [AGGREGATE] and set
+// isProcedure and aggregate. A function with no parameter list is a loadable UDF.
 //
 // Ref: https://mariadb.com/kb/en/create-procedure/
 // Ref: https://mariadb.com/kb/en/create-function/
 //
 //	CREATE [OR REPLACE] [DEFINER = user] PROCEDURE [IF NOT EXISTS] sp_name
 //	    ([proc_parameter[,...]]) [characteristic ...] routine_body
-//	CREATE [OR REPLACE] [DEFINER = user] FUNCTION [IF NOT EXISTS] sp_name
+//	CREATE [OR REPLACE] [DEFINER = user] [AGGREGATE] FUNCTION [IF NOT EXISTS] sp_name
 //	    ([func_parameter[,...]]) RETURNS type_name [characteristic ...] routine_body
-func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool) (*nodes.CreateFunctionStmt, error) {
+//	CREATE [OR REPLACE] [AGGREGATE] FUNCTION [IF NOT EXISTS] function_name
+//	    RETURNS {STRING|INTEGER|REAL|DECIMAL} SONAME shared_library_name
+func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure, aggregate bool) (*nodes.CreateFunctionStmt, error) {
 	p.routineDepth++
 	defer func() { p.routineDepth-- }()
 	p.advance() // consume FUNCTION or PROCEDURE
@@ -106,6 +74,7 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 		Loc:         nodes.Loc{Start: start},
 		OrReplace:   orReplace,
 		IsProcedure: isProcedure,
+		IsAggregate: aggregate,
 	}
 
 	ifNotExists, err := p.parseCreateIfNotExists(orReplace)
@@ -145,7 +114,7 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 	var paramNames []string
 	if p.cur.Type != ')' {
 		for {
-			param, err := p.parseSpParam(isProcedure, paramNames)
+			param, err := p.parseSpParam(true, paramNames)
 			if err != nil {
 				return nil, err
 			}
@@ -172,11 +141,12 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 			return nil, &ParseError{Message: "collecting"}
 		}
 
-		dt, err := p.parseDataType()
+		// sf_return_type: a data type, ROW(...), TYPE OF a column or ROW TYPE OF a table.
+		dt, row, anchor, err := p.parseSpVarType(false)
 		if err != nil {
 			return nil, err
 		}
-		stmt.Returns = dt
+		stmt.Returns, stmt.ReturnsRow, stmt.ReturnsAnchor = dt, row, anchor
 	}
 
 	// Completion: after parameter list (and optional RETURNS), offer characteristics keywords.
@@ -207,18 +177,37 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 	// same way MySQL's yacc does (statement vs expression context, nested
 	// compound statements, labels, DECLAREs, etc.). See
 	// docs/plans/2026-04-20-mysql-routine-body-grammar.md.
+	// A function's body, standing without BEGIN, is a RETURN, a block, IF, CASE or a loop,
+	// labeled or not. Any other statement there is a syntax error, whatever it would answer
+	// inside a block: mariadb:11.8.8 answers RETURNS INT SELECT 1 with 1064, not 1415.
+	//
+	// Ref: sp_proc_stmt_in_returns_clause in MariaDB 11.8 sql/sql_yacc.yy.
+	if !isProcedure && !p.completing && !p.startsFunctionBody() {
+		return nil, p.syntaxErrorAtCur()
+	}
 	bodyStart := p.pos()
 	defer p.enterStoredProgram(routineScope{noResultSet: !isProcedure, function: !isProcedure}, paramNames...)()
 	body, err := p.parseCompoundStmtOrStmt()
 	if err != nil {
 		return nil, err
 	}
-	// A function's body must hold a RETURN somewhere: 1320, ER_SP_NORETURN, when none was
-	// read.
+	// An aggregate function reads its group's rows with FETCH GROUP NEXT ROW, and only an
+	// aggregate function does: 4106, ER_INVALID_AGGREGATE_FUNCTION, for one that holds none,
+	// and 4105, ER_NOT_AGGREGATE_FUNCTION, for another that holds one. Then a function's body
+	// must hold a RETURN somewhere: 1320, ER_SP_NORETURN, when none was read.
 	//
-	// Ref: LEX::sp_body_finalize_function in MariaDB 11.8 sql/sql_lex.cc.
+	// Ref: LEX::sp_body_finalize_function in MariaDB 11.8 sql/sql_lex.cc, and
+	// sp_head::check_group_aggregate_instructions_function in sql/sp_head.cc.
+	if !isProcedure && !p.completing {
+		switch {
+		case aggregate && !p.routine.hasGroupFetch:
+			return nil, &ParseError{Message: "Aggregate specific instruction(FETCH GROUP NEXT ROW) missing from the aggregate function", Position: bodyStart, Code: 4106}
+		case !aggregate && p.routine.hasGroupFetch:
+			return nil, &ParseError{Message: "Aggregate specific instruction (FETCH GROUP NEXT ROW) used in a wrong context", Position: bodyStart, Code: 4105}
+		}
+	}
 	if !isProcedure && !p.routine.hasReturn && !p.completing {
-		return nil, &ParseError{Message: "No RETURN found in FUNCTION " + stmt.Name.Name, Position: bodyStart}
+		return nil, &ParseError{Message: "No RETURN found in FUNCTION " + stmt.Name.Name, Position: bodyStart, Code: 1320}
 	}
 	bodyEnd := p.pos()
 	stmt.Body = body
@@ -226,6 +215,15 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// startsFunctionBody reports whether the current token starts what a function's body may be.
+func (p *Parser) startsFunctionBody() bool {
+	switch p.cur.Type {
+	case kwRETURN, kwBEGIN, kwIF, kwCASE, kwLOOP, kwWHILE, kwREPEAT, kwFOR:
+		return true
+	}
+	return p.isLabelIdentToken() && p.cur.Type != kwEND && p.peekNext().Type == ':'
 }
 
 // parseRoutineCharacteristic parses a routine characteristic, every word of it required.

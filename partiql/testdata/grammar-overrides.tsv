@@ -13,6 +13,13 @@
 reject	grammar	PartiQLParserDefault.kt:524 "Unknown EXPLAIN parameter.": TYPE and FORMAT are the two	EXPLAIN(a a) a
 reject	grammar	PartiQLParserDefault.kt:2298 "Cannot set EXPLAIN parameter TYPE multiple times."	EXPLAIN(TYPE a, TYPE a) a
 reject	grammar	PartiQLParserDefault.kt:874 "Expected an integer or string literal": a path step in brackets is no other literal	REMOVE a [ NULL ]
+reject	grammar	PartiQLParserDefault.kt:874 "Expected an integer or string literal": a path step in brackets is no other literal	REMOVE a [ MISSING ]
+reject	grammar	PartiQLParserDefault.kt:874 "Expected an integer or string literal": a path step in brackets is no other literal	REMOVE a [ TRUE ]
+reject	grammar	PartiQLParserDefault.kt:874 "Expected an integer or string literal": a path step in brackets is no other literal	REMOVE a [ FALSE ]
+reject	grammar	PartiQLParserDefault.kt:874 "Expected an integer or string literal": a path step in brackets is no other literal	REMOVE a [ `1` ]
+reject	grammar	PartiQLParserDefault.kt:874 "Expected an integer or string literal": a path step in brackets is no other literal	REMOVE a [ DATE 's' ]
+reject	grammar	PartiQLParserDefault.kt:874 "Expected an integer or string literal": a path step in brackets is no other literal	REMOVE a [ TIME 's' ]
+reject	grammar	PartiQLParserDefault.kt:874 "Expected an integer or string literal": a path step in brackets is no other literal	REMOVE a [ TIMESTAMP 's' ]
 reject	grammar	PartiQLParserDefault.kt:1191 "Unrecognized pattern restrictor": TRAIL, ACYCLIC and SIMPLE are the three	(a MATCH a)
 reject	grammar	PartiQLParserDefault.kt:1191 "Unrecognized pattern restrictor": TRAIL, ACYCLIC and SIMPLE are the three	(a MATCH zzz)
 reject	grammar	PartiQLParserDefault.kt:1191 "Unrecognized pattern restrictor": TRAIL, ACYCLIC and SIMPLE are the three	(a MATCH zzz -)

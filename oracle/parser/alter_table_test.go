@@ -607,3 +607,38 @@ func TestParseAlterTableAddBareColumn(t *testing.T) {
 		t.Errorf("expected datatype DEFERRED, got %v", cmd.ColumnDef.TypeName)
 	}
 }
+
+// TestKeywordChoiceSites pins what the pinned Oracle answered for keyword
+// choices written at each site that names them (compat.tsv's
+// (every alternative) rows).
+func TestKeywordChoiceSites(t *testing.T) {
+	for _, sql := range []string{
+		// INVALIDATE INDEXES, GLOBAL left out, parses wherever
+		// update_index_clauses stands.
+		"ALTER TABLE a MOVE PARTITION a INVALIDATE INDEXES",
+		"ALTER TABLE a MOVE PARTITION a INVALIDATE INDEXES PARALLEL",
+		"ALTER TABLE a ADD PARTITION VALUES LESS THAN (1) INVALIDATE INDEXES",
+		"ALTER TABLE a MERGE PARTITIONS a, b INVALIDATE INDEXES",
+		"ALTER MATERIALIZED VIEW a COALESCE PARTITION INVALIDATE INDEXES",
+		// STORE before VALUES is the partition's name.
+		"ALTER TABLE a ADD PARTITION STORE VALUES LESS THAN (1)",
+		"ALTER TABLE a ADD PARTITION VALUES LESS THAN (1) ROW STORE COMPRESS",
+		"ALTER TABLE a ILM ADD POLICY COMPRESS SEGMENT AFTER 1 DAY OF CREATION",
+	} {
+		ParseAndCheck(t, sql)
+	}
+	for _, sql := range []string{
+		// No index list after INVALIDATE (ORA-14020 at the parenthesis).
+		"ALTER TABLE a MOVE PARTITION a INVALIDATE INDEXES (i (PARTITION x))",
+		// ROW and COLUMN straight after PARTITION (ORA-00902).
+		"ALTER TABLE a ADD PARTITION ROW STORE COMPRESS",
+		"ALTER TABLE a ADD PARTITION COLUMN STORE",
+		// STORE there wants IN (ORA-01738).
+		"ALTER TABLE a ADD PARTITION STORE COMPRESS",
+		"ALTER TABLE a ADD PARTITION STORE",
+		// NOCOMPRESS is no compression policy's action (ORA-38339).
+		"ALTER TABLE a ILM ADD POLICY NOCOMPRESS SEGMENT AFTER 1 DAY OF CREATION",
+	} {
+		ParseShouldFail(t, sql)
+	}
+}

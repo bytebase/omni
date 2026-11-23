@@ -332,10 +332,10 @@ func TestResolveQuerySpanFailsClosedOnLexError(t *testing.T) {
 }
 
 func TestResolveQuerySpanResultsLineage(t *testing.T) {
-	// The span carries per-column lineage: each output column lists the
-	// column references that feed it. Masking reads it from here; Bytebase's
-	// adapter keeps Results empty so its masking sees what it saw before this
-	// package moved, and surfacing the lineage is that side's change.
+	// Without a catalog the span carries per-column lineage as written: each
+	// output column lists the column references that feed it, unresolved.
+	// Bytebase's adapter keeps Results empty so its masking sees what it saw
+	// before this package moved; span_test.go holds the catalog's lineage.
 	span, err := ResolveQuerySpan("SELECT a, b + 1 AS c FROM t", ResolveOptions{DefaultDatabase: "testdb"})
 	if err != nil {
 		t.Fatalf("ResolveQuerySpan: %v", err)
@@ -353,7 +353,7 @@ func TestResolveQuerySpanResultsLineage(t *testing.T) {
 		if span.Results[i].Name != tc.name {
 			t.Errorf("Results[%d].Name = %q, want %q", i, span.Results[i].Name, tc.name)
 		}
-		if len(span.Results[i].SourceColumns) != 1 || span.Results[i].SourceColumns[0].Column != tc.source {
+		if len(span.Results[i].SourceColumns) != 1 || !span.Results[i].SourceColumns[ColumnResource{Column: tc.source}] {
 			t.Errorf("Results[%d].SourceColumns = %+v, want column %q", i, span.Results[i].SourceColumns, tc.source)
 		}
 	}

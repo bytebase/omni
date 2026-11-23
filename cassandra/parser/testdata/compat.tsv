@@ -373,6 +373,10 @@ reject	reject	engine	selectStatement(K_PER_K_PARTITION_K_LIMIT_intValue)?/K_PER_
 reject	reject	engine	selectStatement(K_PER_K_PARTITION_K_LIMIT_intValue)?/K_PER_K_PARTITION_K_LIMIT_intValue!drop-4	SELECT a FROM a PER PARTITION LIMIT
 reject	reject	engine	selectStatement(K_PER_K_PARTITION_K_LIMIT_intValue)?/K_PER_K_PARTITION_K_LIMIT_intValue!insert	SELECT a FROM a PER PARTITION LIMIT 1 zzz
 reject	reject	engine	selectStatement(K_PER_K_PARTITION_K_LIMIT_intValue)?/K_PER_K_PARTITION_K_LIMIT_intValue!swap	SELECT a FROM a PERMISSION PARTITION LIMIT 1
+accept	accept	engine	selectStatement(K_PER_K_PARTITION_K_LIMIT_intValue)?/K_PER_K_PARTITION_K_LIMIT_intValue+intValue/COLON_noncol_ident	SELECT a FROM a PER PARTITION LIMIT : a
+reject	reject	engine	selectStatement(K_PER_K_PARTITION_K_LIMIT_intValue)?/K_PER_K_PARTITION_K_LIMIT_intValue+intValue/COLON_noncol_ident!drop-4	SELECT a FROM a PER PARTITION LIMIT a
+reject	reject	engine	selectStatement(K_PER_K_PARTITION_K_LIMIT_intValue)?/K_PER_K_PARTITION_K_LIMIT_intValue+intValue/COLON_noncol_ident!drop-5	SELECT a FROM a PER PARTITION LIMIT :
+accept	accept	engine	selectStatement(K_PER_K_PARTITION_K_LIMIT_intValue)?/K_PER_K_PARTITION_K_LIMIT_intValue+intValue/QMARK	SELECT a FROM a PER PARTITION LIMIT ?
 accept	accept	engine	selectStatement(K_LIMIT_intValue)?/%empty	SELECT a FROM a
 accept	accept	engine	selectStatement(K_LIMIT_intValue)?/K_LIMIT_intValue	SELECT a FROM a LIMIT 1
 reject	reject	engine	selectStatement(K_LIMIT_intValue)?/K_LIMIT_intValue!drop-1	SELECT a FROM a 1
@@ -603,6 +607,26 @@ reject	reject	engine	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_ty
 reject	reject	engine	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)!truncate	SELECT CAST(a AS ASCII
 reject	reject	engine	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)!insert	SELECT CAST(a AS ASCII) zzz FROM a
 reject	reject	engine	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)!swap	SELECT CIDRS(a AS ASCII) FROM a
+accept	accept	engine	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)+native_type/K_BIGINT	SELECT CAST(a AS BIGINT) FROM a
+accept	accept	engine	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)+native_type/K_BLOB	SELECT CAST(a AS BLOB) FROM a
+accept	accept	engine	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)+native_type/K_BOOLEAN	SELECT CAST(a AS BOOLEAN) FROM a
+accept	accept	engine	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)+native_type/K_COUNTER	SELECT CAST(a AS COUNTER) FROM a
+accept	accept	engine	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)+native_type/K_DECIMAL	SELECT CAST(a AS DECIMAL) FROM a
+accept	accept	engine	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)+native_type/K_DOUBLE	SELECT CAST(a AS DOUBLE) FROM a
+accept	accept	engine	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)+native_type/K_DURATION	SELECT CAST(a AS DURATION) FROM a
+accept	accept	engine	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)+native_type/K_FLOAT	SELECT CAST(a AS FLOAT) FROM a
+accept	accept	engine	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)+native_type/K_INET	SELECT CAST(a AS INET) FROM a
+accept	accept	engine	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)+native_type/K_INT	SELECT CAST(a AS INT) FROM a
+accept	accept	engine	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)+native_type/K_SMALLINT	SELECT CAST(a AS SMALLINT) FROM a
+accept	accept	engine	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)+native_type/K_TEXT	SELECT CAST(a AS TEXT) FROM a
+accept	accept	engine	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)+native_type/K_TIMESTAMP	SELECT CAST(a AS TIMESTAMP) FROM a
+accept	accept	engine	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)+native_type/K_TINYINT	SELECT CAST(a AS TINYINT) FROM a
+accept	accept	engine	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)+native_type/K_UUID	SELECT CAST(a AS UUID) FROM a
+accept	accept	engine	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)+native_type/K_VARCHAR	SELECT CAST(a AS VARCHAR) FROM a
+accept	accept	engine	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)+native_type/K_VARINT	SELECT CAST(a AS VARINT) FROM a
+accept	accept	engine	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)+native_type/K_TIMEUUID	SELECT CAST(a AS TIMEUUID) FROM a
+accept	accept	engine	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)+native_type/K_DATE	SELECT CAST(a AS DATE) FROM a
+accept	accept	engine	selectionFunction/K_CAST_(_unaliasedSelector_K_AS_native_type_)+native_type/K_TIME	SELECT CAST(a AS TIME) FROM a
 accept	accept	engine	selectionFunction/functionName_selectionFunctionArgs	SELECT a() FROM a
 accept	accept	engine	selectionLiteral/constant	SELECT 'a' FROM a
 accept	accept	engine	selectionLiteral/K_NULL	SELECT NULL FROM a
@@ -757,11 +781,19 @@ reject	reject	engine	usingClause(K_AND_usingClauseObjective)*/K_AND_usingClauseO
 reject	reject	engine	usingClause(K_AND_usingClauseObjective)*/K_AND_usingClauseObjective_(K_AND_usingClauseObjective)*!swap	BEGIN BATCH USING TIMESTAMP 1 ANN TIMESTAMP 1 APPLY BATCH
 accept	accept	engine	usingClauseObjective/K_TIMESTAMP_intValue	BEGIN BATCH USING TIMESTAMP 1 APPLY BATCH
 reject	reject	engine	usingClauseObjective/K_TIMESTAMP_intValue!swap	BEGIN BATCH USING TIMEUUID 1 APPLY BATCH
+accept	accept	engine	usingClauseObjective/K_TIMESTAMP_intValue+intValue/COLON_noncol_ident	BEGIN BATCH USING TIMESTAMP : a APPLY BATCH
+reject	reject	engine	usingClauseObjective/K_TIMESTAMP_intValue+intValue/COLON_noncol_ident!drop-2	BEGIN BATCH USING TIMESTAMP a APPLY BATCH
+reject	reject	engine	usingClauseObjective/K_TIMESTAMP_intValue+intValue/COLON_noncol_ident!drop-3	BEGIN BATCH USING TIMESTAMP : APPLY BATCH
+accept	accept	engine	usingClauseObjective/K_TIMESTAMP_intValue+intValue/QMARK	BEGIN BATCH USING TIMESTAMP ? APPLY BATCH
 accept	accept	engine	usingClauseObjective/K_TTL_intValue	BEGIN BATCH USING TTL 1 APPLY BATCH
 reject	reject	engine	usingClauseObjective/K_TTL_intValue!drop-2	BEGIN BATCH USING TTL APPLY BATCH
 reject	reject	engine	usingClauseObjective/K_TTL_intValue!truncate	BEGIN BATCH USING TTL
 reject	reject	engine	usingClauseObjective/K_TTL_intValue!insert	BEGIN BATCH USING TTL 1 zzz APPLY BATCH
 reject	reject	engine	usingClauseObjective/K_TTL_intValue!swap	BEGIN BATCH USING TUPLE 1 APPLY BATCH
+accept	accept	engine	usingClauseObjective/K_TTL_intValue+intValue/COLON_noncol_ident	BEGIN BATCH USING TTL : a APPLY BATCH
+reject	reject	engine	usingClauseObjective/K_TTL_intValue+intValue/COLON_noncol_ident!drop-2	BEGIN BATCH USING TTL a APPLY BATCH
+reject	reject	engine	usingClauseObjective/K_TTL_intValue+intValue/COLON_noncol_ident!drop-3	BEGIN BATCH USING TTL : APPLY BATCH
+accept	accept	engine	usingClauseObjective/K_TTL_intValue+intValue/QMARK	BEGIN BATCH USING TTL ? APPLY BATCH
 accept	accept	engine	updateStatement/K_UPDATE_columnFamilyName_(usingClause)?_K_SET_columnOp~ebbb70bb	UPDATE a SET a = 'a' WHERE a = 'a'
 accept	accept	engine	updateStatement(usingClause)?/%empty	UPDATE a SET a = 'a' WHERE a = 'a'
 reject	reject	engine	updateStatement(usingClause)?/%empty!insert	UPDATE a zzz SET a = 'a' WHERE a = 'a'
@@ -852,6 +884,10 @@ reject	reject	engine	deleteOp/cident_._fident!drop-3	DELETE a.FROM a WHERE a = '
 reject	reject	engine	deleteOp/cident_._fident!truncate	DELETE a.
 reject	reject	engine	deleteOp/cident_._fident!insert	DELETE a.a zzz FROM a WHERE a = 'a'
 accept	accept	engine	usingClauseDelete/K_USING_K_TIMESTAMP_intValue	DELETE FROM a USING TIMESTAMP 1 WHERE a = 'a'
+accept	accept	engine	usingClauseDelete/K_USING_K_TIMESTAMP_intValue+intValue/COLON_noncol_ident	DELETE FROM a USING TIMESTAMP : a WHERE a = 'a'
+reject	reject	engine	usingClauseDelete/K_USING_K_TIMESTAMP_intValue+intValue/COLON_noncol_ident!drop-3	DELETE FROM a USING TIMESTAMP a WHERE a = 'a'
+reject	reject	engine	usingClauseDelete/K_USING_K_TIMESTAMP_intValue+intValue/COLON_noncol_ident!drop-4	DELETE FROM a USING TIMESTAMP : WHERE a = 'a'
+accept	accept	engine	usingClauseDelete/K_USING_K_TIMESTAMP_intValue+intValue/QMARK	DELETE FROM a USING TIMESTAMP ? WHERE a = 'a'
 accept	accept	engine	batchStatement/K_BEGIN_(K_UNLOGGED|K_COUNTER)?_K_BATCH_(usingClause)?_~39afb54e	BEGIN BATCH APPLY BATCH
 accept	accept	engine	batchStatement(K_UNLOGGED|K_COUNTER)?/%empty	BEGIN BATCH APPLY BATCH
 reject	reject	engine	batchStatement(K_UNLOGGED|K_COUNTER)?/%empty!insert	BEGIN zzz BATCH APPLY BATCH
@@ -1113,6 +1149,12 @@ reject	reject	engine	tableColumns(columnMask)?/columnMask!drop-3	CREATE TABLE a(
 reject	reject	engine	tableColumns(columnMask)?/columnMask!truncate	CREATE TABLE a(a ASCII MASKED WITH
 reject	reject	engine	tableColumns(columnMask)?/columnMask!insert	CREATE TABLE a(a ASCII MASKED WITH DEFAULT zzz)
 reject	reject	engine	tableColumns(columnMask)?/columnMask!swap	CREATE TABLE a(a ASCII MATERIALIZED WITH DEFAULT)
+accept	accept	engine	tableColumns(columnMask)?/columnMask+columnMask/K_MASKED_K_WITH_functionName_columnMaskArguments	CREATE TABLE a(a ASCII MASKED WITH a())
+reject	reject	engine	tableColumns(columnMask)?/columnMask+columnMask/K_MASKED_K_WITH_functionName_columnMaskArguments!drop-1	CREATE TABLE a(a ASCII WITH a())
+reject	reject	engine	tableColumns(columnMask)?/columnMask+columnMask/K_MASKED_K_WITH_functionName_columnMaskArguments!drop-2	CREATE TABLE a(a ASCII MASKED a())
+reject	reject	engine	tableColumns(columnMask)?/columnMask+columnMask/K_MASKED_K_WITH_functionName_columnMaskArguments!drop-3	CREATE TABLE a(a ASCII MASKED WITH())
+reject	reject	engine	tableColumns(columnMask)?/columnMask+columnMask/K_MASKED_K_WITH_functionName_columnMaskArguments!drop-4	CREATE TABLE a(a ASCII MASKED WITH a))
+reject	reject	engine	tableColumns(columnMask)?/columnMask+columnMask/K_MASKED_K_WITH_functionName_columnMaskArguments!drop-5	CREATE TABLE a(a ASCII MASKED WITH a()
 accept	accept	engine	tableColumns(K_PRIMARY_K_KEY)?/%empty	CREATE TABLE a(a ASCII)
 accept	accept	engine	tableColumns(K_PRIMARY_K_KEY)?/K_PRIMARY_K_KEY	CREATE TABLE a(a ASCII PRIMARY KEY)
 reject	reject	engine	tableColumns(K_PRIMARY_K_KEY)?/K_PRIMARY_K_KEY!drop-1	CREATE TABLE a(a ASCII KEY)
@@ -1507,6 +1549,12 @@ reject	reject	engine	alterTableStatement(columnMask)?/columnMask!drop-2	ALTER TA
 reject	reject	engine	alterTableStatement(columnMask)?/columnMask!drop-3	ALTER TABLE a ADD a ASCII MASKED WITH
 reject	reject	engine	alterTableStatement(columnMask)?/columnMask!insert	ALTER TABLE a ADD a ASCII MASKED WITH DEFAULT zzz
 reject	reject	engine	alterTableStatement(columnMask)?/columnMask!swap	ALTER TABLE a ADD a ASCII MATERIALIZED WITH DEFAULT
+accept	accept	engine	alterTableStatement(columnMask)?/columnMask+columnMask/K_MASKED_K_WITH_functionName_columnMaskArguments	ALTER TABLE a ADD a ASCII MASKED WITH a()
+reject	reject	engine	alterTableStatement(columnMask)?/columnMask+columnMask/K_MASKED_K_WITH_functionName_columnMaskArguments!drop-1	ALTER TABLE a ADD a ASCII WITH a()
+reject	reject	engine	alterTableStatement(columnMask)?/columnMask+columnMask/K_MASKED_K_WITH_functionName_columnMaskArguments!drop-2	ALTER TABLE a ADD a ASCII MASKED a()
+reject	reject	engine	alterTableStatement(columnMask)?/columnMask+columnMask/K_MASKED_K_WITH_functionName_columnMaskArguments!drop-3	ALTER TABLE a ADD a ASCII MASKED WITH()
+reject	reject	engine	alterTableStatement(columnMask)?/columnMask+columnMask/K_MASKED_K_WITH_functionName_columnMaskArguments!drop-4	ALTER TABLE a ADD a ASCII MASKED WITH a)
+reject	reject	engine	alterTableStatement(columnMask)?/columnMask+columnMask/K_MASKED_K_WITH_functionName_columnMaskArguments!drop-5	ALTER TABLE a ADD a ASCII MASKED WITH a(
 accept	accept	engine	alterTableStatement(,_ident_comparatorType_isStaticColum~3069d2ef)*/%empty	ALTER TABLE a ADD(a ASCII)
 reject	reject	engine	alterTableStatement(,_ident_comparatorType_isStaticColum~3069d2ef)*/%empty!insert	ALTER TABLE a ADD(a ASCII zzz)
 accept	accept	engine	alterTableStatement(,_ident_comparatorType_isStaticColum~3069d2ef)*/,_ident_comparatorType_isStaticColumn_(columnMask)?_(,_~5dbab348	ALTER TABLE a ADD(a ASCII, a ASCII)
@@ -1660,7 +1708,75 @@ accept	accept	engine	truncateStatement(K_COLUMNFAMILY)?/K_COLUMNFAMILY	TRUNCATE 
 reject	reject	engine	truncateStatement(K_COLUMNFAMILY)?/K_COLUMNFAMILY!insert	TRUNCATE TABLE zzz a
 reject	reject	engine	truncateStatement(K_COLUMNFAMILY)?/K_COLUMNFAMILY!swap	TRUNCATE TABLES a
 accept	accept	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName	GRANT ALL ON a TO a
+reject	reject	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+permissionOrAll/permission_(K_PERMISSION)?_(,_permission_(K_PERMISSION)?)*	GRANT CREATE ON a TO a
+accept	accept	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+dataResource/K_ALL_K_KEYSPACES	GRANT ALL ON ALL KEYSPACES TO a
+accept	accept	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+dataResource/K_ALL_K_KEYSPACES!drop-4	GRANT ALL ON KEYSPACES TO a
+accept	accept	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+dataResource/K_ALL_K_KEYSPACES!drop-5	GRANT ALL ON ALL TO a
+accept	accept	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+dataResource/K_KEYSPACE_keyspaceName	GRANT ALL ON KEYSPACE a TO a
+reject	reject	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+dataResource/K_KEYSPACE_keyspaceName!drop-5	GRANT ALL ON KEYSPACE TO a
+accept	accept	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+dataResource/K_ALL_K_TABLES_K_IN_K_KEYSPACE_keyspaceName	GRANT ALL ON ALL TABLES IN KEYSPACE a TO a
+reject	reject	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+dataResource/K_ALL_K_TABLES_K_IN_K_KEYSPACE_keyspaceName!drop-4	GRANT ALL ON TABLES IN KEYSPACE a TO a
+reject	reject	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+dataResource/K_ALL_K_TABLES_K_IN_K_KEYSPACE_keyspaceName!drop-5	GRANT ALL ON ALL IN KEYSPACE a TO a
+reject	reject	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+dataResource/K_ALL_K_TABLES_K_IN_K_KEYSPACE_keyspaceName!drop-6	GRANT ALL ON ALL TABLES KEYSPACE a TO a
+reject	reject	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+dataResource/K_ALL_K_TABLES_K_IN_K_KEYSPACE_keyspaceName!drop-7	GRANT ALL ON ALL TABLES IN a TO a
+reject	reject	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+dataResource/K_ALL_K_TABLES_K_IN_K_KEYSPACE_keyspaceName!drop-8	GRANT ALL ON ALL TABLES IN KEYSPACE TO a
+accept	accept	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+resource/roleResource	GRANT ALL ON ALL ROLES TO a
+accept	accept	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+resource/roleResource!drop-4	GRANT ALL ON ROLES TO a
+accept	accept	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+roleResource/K_ROLE_userOrRoleName	GRANT ALL ON ROLE a TO a
+accept	accept	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+roleResource/K_ROLE_userOrRoleName!drop-5	GRANT ALL ON ROLE TO a
+accept	accept	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+resource/functionResource	GRANT ALL ON ALL FUNCTIONS TO a
+accept	accept	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+resource/functionResource!drop-4	GRANT ALL ON FUNCTIONS TO a
+accept	accept	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+functionResource/K_ALL_K_FUNCTIONS_K_IN_K_KEYSPACE_keyspaceName	GRANT ALL ON ALL FUNCTIONS IN KEYSPACE a TO a
+reject	reject	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+functionResource/K_ALL_K_FUNCTIONS_K_IN_K_KEYSPACE_keyspaceName!drop-4	GRANT ALL ON FUNCTIONS IN KEYSPACE a TO a
+reject	reject	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+functionResource/K_ALL_K_FUNCTIONS_K_IN_K_KEYSPACE_keyspaceName!drop-6	GRANT ALL ON ALL FUNCTIONS KEYSPACE a TO a
+reject	reject	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+functionResource/K_ALL_K_FUNCTIONS_K_IN_K_KEYSPACE_keyspaceName!drop-7	GRANT ALL ON ALL FUNCTIONS IN a TO a
+reject	reject	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+functionResource/K_ALL_K_FUNCTIONS_K_IN_K_KEYSPACE_keyspaceName!drop-8	GRANT ALL ON ALL FUNCTIONS IN KEYSPACE TO a
+reject	reject	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+functionResource/K_FUNCTION_functionName_(_(comparatorType_(,_comparator~04a9510e	GRANT ALL ON FUNCTION a() TO a
+reject	reject	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+functionResource/K_FUNCTION_functionName_(_(comparatorType_(,_comparator~04a9510e!drop-4	GRANT ALL ON a() TO a
+reject	reject	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+functionResource/K_FUNCTION_functionName_(_(comparatorType_(,_comparator~04a9510e!drop-5	GRANT ALL ON FUNCTION() TO a
+reject	reject	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+functionResource/K_FUNCTION_functionName_(_(comparatorType_(,_comparator~04a9510e!drop-6	GRANT ALL ON FUNCTION a) TO a
+reject	reject	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+functionResource/K_FUNCTION_functionName_(_(comparatorType_(,_comparator~04a9510e!drop-7	GRANT ALL ON FUNCTION a(TO a
+accept	accept	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+resource/jmxResource	GRANT ALL ON ALL MBEANS TO a
+accept	accept	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+resource/jmxResource!drop-4	GRANT ALL ON MBEANS TO a
+reject	reject	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+jmxResource/K_MBEAN_mbean	GRANT ALL ON MBEAN 'a' TO a
+reject	reject	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+jmxResource/K_MBEAN_mbean!drop-4	GRANT ALL ON 'a' TO a
+accept	accept	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+jmxResource/K_MBEAN_mbean!drop-5	GRANT ALL ON MBEAN TO a
+reject	reject	engine	grantPermissionsStatement/K_GRANT_permissionOrAll_K_ON_resource_K_TO_userOrRoleName+jmxResource/K_MBEANS_mbean	GRANT ALL ON MBEANS 'a' TO a
 accept	accept	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName	REVOKE ALL ON a FROM a
+reject	reject	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+permissionOrAll/permission_(K_PERMISSION)?_(,_permission_(K_PERMISSION)?)*	REVOKE CREATE ON a FROM a
+accept	accept	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+dataResource/K_ALL_K_KEYSPACES	REVOKE ALL ON ALL KEYSPACES FROM a
+accept	accept	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+dataResource/K_ALL_K_KEYSPACES!drop-4	REVOKE ALL ON KEYSPACES FROM a
+accept	accept	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+dataResource/K_ALL_K_KEYSPACES!drop-5	REVOKE ALL ON ALL FROM a
+accept	accept	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+dataResource/K_KEYSPACE_keyspaceName	REVOKE ALL ON KEYSPACE a FROM a
+reject	reject	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+dataResource/K_KEYSPACE_keyspaceName!drop-5	REVOKE ALL ON KEYSPACE FROM a
+accept	accept	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+dataResource/K_ALL_K_TABLES_K_IN_K_KEYSPACE_keyspaceName	REVOKE ALL ON ALL TABLES IN KEYSPACE a FROM a
+reject	reject	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+dataResource/K_ALL_K_TABLES_K_IN_K_KEYSPACE_keyspaceName!drop-4	REVOKE ALL ON TABLES IN KEYSPACE a FROM a
+reject	reject	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+dataResource/K_ALL_K_TABLES_K_IN_K_KEYSPACE_keyspaceName!drop-5	REVOKE ALL ON ALL IN KEYSPACE a FROM a
+reject	reject	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+dataResource/K_ALL_K_TABLES_K_IN_K_KEYSPACE_keyspaceName!drop-6	REVOKE ALL ON ALL TABLES KEYSPACE a FROM a
+reject	reject	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+dataResource/K_ALL_K_TABLES_K_IN_K_KEYSPACE_keyspaceName!drop-7	REVOKE ALL ON ALL TABLES IN a FROM a
+reject	reject	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+dataResource/K_ALL_K_TABLES_K_IN_K_KEYSPACE_keyspaceName!drop-8	REVOKE ALL ON ALL TABLES IN KEYSPACE FROM a
+accept	accept	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+resource/roleResource	REVOKE ALL ON ALL ROLES FROM a
+accept	accept	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+resource/roleResource!drop-4	REVOKE ALL ON ROLES FROM a
+accept	accept	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+roleResource/K_ROLE_userOrRoleName	REVOKE ALL ON ROLE a FROM a
+accept	accept	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+roleResource/K_ROLE_userOrRoleName!drop-5	REVOKE ALL ON ROLE FROM a
+accept	accept	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+resource/functionResource	REVOKE ALL ON ALL FUNCTIONS FROM a
+accept	accept	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+resource/functionResource!drop-4	REVOKE ALL ON FUNCTIONS FROM a
+accept	accept	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+functionResource/K_ALL_K_FUNCTIONS_K_IN_K_KEYSPACE_keyspaceName	REVOKE ALL ON ALL FUNCTIONS IN KEYSPACE a FROM a
+reject	reject	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+functionResource/K_ALL_K_FUNCTIONS_K_IN_K_KEYSPACE_keyspaceName!drop-4	REVOKE ALL ON FUNCTIONS IN KEYSPACE a FROM a
+reject	reject	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+functionResource/K_ALL_K_FUNCTIONS_K_IN_K_KEYSPACE_keyspaceName!drop-6	REVOKE ALL ON ALL FUNCTIONS KEYSPACE a FROM a
+reject	reject	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+functionResource/K_ALL_K_FUNCTIONS_K_IN_K_KEYSPACE_keyspaceName!drop-7	REVOKE ALL ON ALL FUNCTIONS IN a FROM a
+reject	reject	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+functionResource/K_ALL_K_FUNCTIONS_K_IN_K_KEYSPACE_keyspaceName!drop-8	REVOKE ALL ON ALL FUNCTIONS IN KEYSPACE FROM a
+reject	reject	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+functionResource/K_FUNCTION_functionName_(_(comparatorType_(,_comparator~04a9510e	REVOKE ALL ON FUNCTION a() FROM a
+reject	reject	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+functionResource/K_FUNCTION_functionName_(_(comparatorType_(,_comparator~04a9510e!drop-4	REVOKE ALL ON a() FROM a
+reject	reject	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+functionResource/K_FUNCTION_functionName_(_(comparatorType_(,_comparator~04a9510e!drop-5	REVOKE ALL ON FUNCTION() FROM a
+reject	reject	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+functionResource/K_FUNCTION_functionName_(_(comparatorType_(,_comparator~04a9510e!drop-6	REVOKE ALL ON FUNCTION a) FROM a
+reject	reject	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+functionResource/K_FUNCTION_functionName_(_(comparatorType_(,_comparator~04a9510e!drop-7	REVOKE ALL ON FUNCTION a(FROM a
+accept	accept	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+resource/jmxResource	REVOKE ALL ON ALL MBEANS FROM a
+accept	accept	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+resource/jmxResource!drop-4	REVOKE ALL ON MBEANS FROM a
+reject	reject	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+jmxResource/K_MBEAN_mbean	REVOKE ALL ON MBEAN 'a' FROM a
+reject	reject	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+jmxResource/K_MBEAN_mbean!drop-4	REVOKE ALL ON 'a' FROM a
+accept	accept	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+jmxResource/K_MBEAN_mbean!drop-5	REVOKE ALL ON MBEAN FROM a
+reject	reject	engine	revokePermissionsStatement/K_REVOKE_permissionOrAll_K_ON_resource_K_FROM_userOrRoleName+jmxResource/K_MBEANS_mbean	REVOKE ALL ON MBEANS 'a' FROM a
 accept	accept	engine	grantRoleStatement/K_GRANT_userOrRoleName_K_TO_userOrRoleName	GRANT a TO a
 accept	accept	engine	revokeRoleStatement/K_REVOKE_userOrRoleName_K_FROM_userOrRoleName	REVOKE a FROM a
 accept	accept	engine	listPermissionsStatement/K_LIST_permissionOrAll_(K_ON_resource)?_(K_OF_roleName)~f3e08c9e	LIST ALL
@@ -1842,6 +1958,9 @@ reject	reject	engine	alterUserStatement(K_WITH_userPassword)?/K_WITH_userPasswor
 reject	reject	engine	alterUserStatement(K_WITH_userPassword)?/K_WITH_userPassword!drop-3	ALTER USER a WITH PASSWORD
 reject	reject	engine	alterUserStatement(K_WITH_userPassword)?/K_WITH_userPassword!insert	ALTER USER a WITH PASSWORD 'a' zzz
 reject	reject	engine	alterUserStatement(K_WITH_userPassword)?/K_WITH_userPassword!swap	ALTER USER a WRITETIME PASSWORD 'a'
+accept	accept	engine	alterUserStatement(K_WITH_userPassword)?/K_WITH_userPassword+userPassword/K_HASHED_K_PASSWORD_STRING_LITERAL	ALTER USER a WITH HASHED PASSWORD 'a'
+reject	reject	engine	alterUserStatement(K_WITH_userPassword)?/K_WITH_userPassword+userPassword/K_HASHED_K_PASSWORD_STRING_LITERAL!drop-3	ALTER USER a WITH HASHED 'a'
+reject	reject	engine	alterUserStatement(K_WITH_userPassword)?/K_WITH_userPassword+userPassword/K_HASHED_K_PASSWORD_STRING_LITERAL!drop-4	ALTER USER a WITH HASHED PASSWORD
 accept	accept	engine	alterUserStatement(K_SUPERUSER|K_NOSUPERUSER)?/%empty	ALTER USER a
 accept	accept	engine	alterUserStatement(K_SUPERUSER|K_NOSUPERUSER)?/K_SUPERUSER	ALTER USER a SUPERUSER
 reject	reject	engine	alterUserStatement(K_SUPERUSER|K_NOSUPERUSER)?/K_SUPERUSER!insert	ALTER USER a SUPERUSER zzz
@@ -2302,6 +2421,13 @@ reject	reject	engine	tupleLiteral(,_term)*/,_term_(,_term)*!drop-2	SELECT a [('a
 reject	reject	engine	tupleLiteral(,_term)*/,_term_(,_term)*!truncate	SELECT a [('a',
 reject	reject	engine	tupleLiteral(,_term)*/,_term_(,_term)*!insert	SELECT a [('a', 'a' zzz) ] FROM a
 accept	accept	engine	value/constant	SELECT a [ 'a' ] FROM a
+accept	accept	engine	value/constant+constant/INTEGER	SELECT a [ 1 ] FROM a
+accept	accept	engine	value/constant+constant/FLOAT	SELECT a [ 1.5 ] FROM a
+accept	accept	engine	value/constant+constant/BOOLEAN	SELECT a [ TRUE ] FROM a
+accept	accept	engine	value/constant+constant/DURATION	SELECT a [ 1d ] FROM a
+accept	accept	engine	value/constant+constant/UUID	SELECT a [ 01234567-0123-0123-0123-0123456789ab ] FROM a
+accept	accept	engine	value/constant+constant/HEXNUMBER	SELECT a [ 0x1 ] FROM a
+accept	accept	engine	value/constant+constant/((K_POSITIVE_NAN|K_NEGATIVE_NAN)|K_PO~272febfb)	SELECT a [ NAN ] FROM a
 accept	accept	engine	value/collectionLiteral	SELECT a [ [ ] ] FROM a
 accept	accept	engine	value/usertypeLiteral	SELECT a [ { a : 'a' } ] FROM a
 accept	accept	engine	value/tupleLiteral	SELECT a [('a') ] FROM a
@@ -2411,6 +2537,26 @@ reject	reject	engine	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)!drop-6	SE
 reject	reject	engine	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)!truncate	SELECT a [ CAST('a' AS ASCII
 reject	reject	engine	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)!insert	SELECT a [ CAST('a' AS ASCII) zzz ] FROM a
 reject	reject	engine	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)!swap	SELECT a [ CIDRS('a' AS ASCII) ] FROM a
+accept	accept	engine	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)+native_type/K_BIGINT	SELECT a [ CAST('a' AS BIGINT) ] FROM a
+accept	accept	engine	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)+native_type/K_BLOB	SELECT a [ CAST('a' AS BLOB) ] FROM a
+accept	accept	engine	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)+native_type/K_BOOLEAN	SELECT a [ CAST('a' AS BOOLEAN) ] FROM a
+accept	accept	engine	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)+native_type/K_COUNTER	SELECT a [ CAST('a' AS COUNTER) ] FROM a
+accept	accept	engine	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)+native_type/K_DECIMAL	SELECT a [ CAST('a' AS DECIMAL) ] FROM a
+accept	accept	engine	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)+native_type/K_DOUBLE	SELECT a [ CAST('a' AS DOUBLE) ] FROM a
+accept	accept	engine	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)+native_type/K_DURATION	SELECT a [ CAST('a' AS DURATION) ] FROM a
+accept	accept	engine	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)+native_type/K_FLOAT	SELECT a [ CAST('a' AS FLOAT) ] FROM a
+accept	accept	engine	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)+native_type/K_INET	SELECT a [ CAST('a' AS INET) ] FROM a
+accept	accept	engine	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)+native_type/K_INT	SELECT a [ CAST('a' AS INT) ] FROM a
+accept	accept	engine	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)+native_type/K_SMALLINT	SELECT a [ CAST('a' AS SMALLINT) ] FROM a
+accept	accept	engine	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)+native_type/K_TEXT	SELECT a [ CAST('a' AS TEXT) ] FROM a
+accept	accept	engine	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)+native_type/K_TIMESTAMP	SELECT a [ CAST('a' AS TIMESTAMP) ] FROM a
+accept	accept	engine	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)+native_type/K_TINYINT	SELECT a [ CAST('a' AS TINYINT) ] FROM a
+accept	accept	engine	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)+native_type/K_UUID	SELECT a [ CAST('a' AS UUID) ] FROM a
+accept	accept	engine	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)+native_type/K_VARCHAR	SELECT a [ CAST('a' AS VARCHAR) ] FROM a
+accept	accept	engine	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)+native_type/K_VARINT	SELECT a [ CAST('a' AS VARINT) ] FROM a
+accept	accept	engine	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)+native_type/K_TIMEUUID	SELECT a [ CAST('a' AS TIMEUUID) ] FROM a
+accept	accept	engine	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)+native_type/K_DATE	SELECT a [ CAST('a' AS DATE) ] FROM a
+accept	accept	engine	simpleTerm/K_CAST_(_simpleTerm_K_AS_native_type_)+native_type/K_TIME	SELECT a [ CAST('a' AS TIME) ] FROM a
 accept	accept	engine	columnOperation/cident_columnOperationDifferentiator	UPDATE a SET a = 'a' WHERE a = 'a'
 reject	reject	engine	columnOperation/cident_columnOperationDifferentiator!truncate	UPDATE a SET a =
 accept	accept	engine	columnOperationDifferentiator/=_normalColumnOperation	UPDATE a SET a = 'a' WHERE a = 'a'
@@ -2465,6 +2611,11 @@ accept	accept	engine	collectionColumnOperation/=_term	UPDATE a SET a [ 'a' ] = '
 accept	accept	engine	udtColumnOperation/=_term	UPDATE a SET a.a = 'a' WHERE a = 'a'
 accept	accept	engine	columnCondition/cident_(relationType_term|containsOperator_t~c5ff737a)	DELETE FROM a WHERE a = 'a' IF a = 'a'
 accept	accept	engine	columnCondition(relationType_term|containsOperator_t~c5ff737a)/relationType_term	DELETE FROM a WHERE a = 'a' IF a = 'a'
+accept	accept	engine	columnCondition(relationType_term|containsOperator_t~c5ff737a)/relationType_term+relationType/<	DELETE FROM a WHERE a = 'a' IF a < 'a'
+accept	accept	engine	columnCondition(relationType_term|containsOperator_t~c5ff737a)/relationType_term+relationType/<=	DELETE FROM a WHERE a = 'a' IF a <= 'a'
+accept	accept	engine	columnCondition(relationType_term|containsOperator_t~c5ff737a)/relationType_term+relationType/>	DELETE FROM a WHERE a = 'a' IF a > 'a'
+accept	accept	engine	columnCondition(relationType_term|containsOperator_t~c5ff737a)/relationType_term+relationType/>=	DELETE FROM a WHERE a = 'a' IF a >= 'a'
+accept	accept	engine	columnCondition(relationType_term|containsOperator_t~c5ff737a)/relationType_term+relationType/!=	DELETE FROM a WHERE a = 'a' IF a != 'a'
 accept	accept	engine	columnCondition(relationType_term|containsOperator_t~c5ff737a)/containsOperator_term	DELETE FROM a WHERE a = 'a' IF a CONTAINS 'a'
 reject	reject	engine	columnCondition(relationType_term|containsOperator_t~c5ff737a)/containsOperator_term!drop-2	DELETE FROM a WHERE a = 'a' IF a CONTAINS
 reject	reject	engine	columnCondition(relationType_term|containsOperator_t~c5ff737a)/containsOperator_term!insert	DELETE FROM a WHERE a = 'a' IF a CONTAINS 'a' zzz
@@ -2492,7 +2643,15 @@ reject	reject	engine	columnCondition(singleColumnInValues|inMarker)/singleColumn
 reject	reject	engine	columnCondition(singleColumnInValues|inMarker)/singleColumnInValues!drop-2	DELETE FROM a WHERE a = 'a' IF a IN(
 reject	reject	engine	columnCondition(singleColumnInValues|inMarker)/singleColumnInValues!insert	DELETE FROM a WHERE a = 'a' IF a IN() zzz
 accept	accept	engine	columnCondition(singleColumnInValues|inMarker)/inMarker	DELETE FROM a WHERE a = 'a' IF a IN ?
+accept	accept	engine	columnCondition(singleColumnInValues|inMarker)/inMarker+inMarker/COLON_noncol_ident	DELETE FROM a WHERE a = 'a' IF a IN : a
+reject	reject	engine	columnCondition(singleColumnInValues|inMarker)/inMarker+inMarker/COLON_noncol_ident!drop-1	DELETE FROM a WHERE a = 'a' IF a IN a
+reject	reject	engine	columnCondition(singleColumnInValues|inMarker)/inMarker+inMarker/COLON_noncol_ident!drop-2	DELETE FROM a WHERE a = 'a' IF a IN :
 accept	accept	engine	columnCondition(relationType_term|K_IN_(singleColumn~c69ba947)/relationType_term	DELETE FROM a WHERE a = 'a' IF a.a = 'a'
+accept	accept	engine	columnCondition(relationType_term|K_IN_(singleColumn~c69ba947)/relationType_term+relationType/<	DELETE FROM a WHERE a = 'a' IF a.a < 'a'
+accept	accept	engine	columnCondition(relationType_term|K_IN_(singleColumn~c69ba947)/relationType_term+relationType/<=	DELETE FROM a WHERE a = 'a' IF a.a <= 'a'
+accept	accept	engine	columnCondition(relationType_term|K_IN_(singleColumn~c69ba947)/relationType_term+relationType/>	DELETE FROM a WHERE a = 'a' IF a.a > 'a'
+accept	accept	engine	columnCondition(relationType_term|K_IN_(singleColumn~c69ba947)/relationType_term+relationType/>=	DELETE FROM a WHERE a = 'a' IF a.a >= 'a'
+accept	accept	engine	columnCondition(relationType_term|K_IN_(singleColumn~c69ba947)/relationType_term+relationType/!=	DELETE FROM a WHERE a = 'a' IF a.a != 'a'
 accept	accept	engine	columnCondition(relationType_term|K_IN_(singleColumn~c69ba947)/K_IN_(singleColumnInValues|inMarker)	DELETE FROM a WHERE a = 'a' IF a.a IN ?
 reject	reject	engine	columnCondition(relationType_term|K_IN_(singleColumn~c69ba947)/K_IN_(singleColumnInValues|inMarker)!drop-1	DELETE FROM a WHERE a = 'a' IF a.a ?
 reject	reject	engine	columnCondition(relationType_term|K_IN_(singleColumn~c69ba947)/K_IN_(singleColumnInValues|inMarker)!drop-2	DELETE FROM a WHERE a = 'a' IF a.a IN
@@ -2512,6 +2671,13 @@ accept	accept	engine	property/noncol_ident_=_fullMapLiteral	CREATE KEYSPACE a WI
 reject	reject	engine	property/noncol_ident_=_fullMapLiteral!drop-1	CREATE KEYSPACE a WITH = { }
 reject	reject	engine	property/noncol_ident_=_fullMapLiteral!drop-2	CREATE KEYSPACE a WITH a { }
 accept	accept	engine	propertyValue/constant	CREATE KEYSPACE a WITH a = 'a'
+accept	accept	engine	propertyValue/constant+constant/INTEGER	CREATE KEYSPACE a WITH a = 1
+accept	accept	engine	propertyValue/constant+constant/FLOAT	CREATE KEYSPACE a WITH a = 1.5
+accept	accept	engine	propertyValue/constant+constant/BOOLEAN	CREATE KEYSPACE a WITH a = TRUE
+accept	accept	engine	propertyValue/constant+constant/DURATION	CREATE KEYSPACE a WITH a = 1d
+accept	accept	engine	propertyValue/constant+constant/UUID	CREATE KEYSPACE a WITH a = 01234567-0123-0123-0123-0123456789ab
+accept	accept	engine	propertyValue/constant+constant/HEXNUMBER	CREATE KEYSPACE a WITH a = 0x1
+accept	accept	engine	propertyValue/constant+constant/((K_POSITIVE_NAN|K_NEGATIVE_NAN)|K_PO~272febfb)	CREATE KEYSPACE a WITH a = NAN
 accept	accept	engine	propertyValue/unreserved_keyword	CREATE KEYSPACE a WITH a = KEYS
 reject	reject	engine	propertyValue/unreserved_keyword!insert	CREATE KEYSPACE a WITH a = KEYS zzz
 reject	reject	engine	propertyValue/unreserved_keyword!swap	CREATE KEYSPACE a WITH a = KEYSPACE
@@ -2550,6 +2716,11 @@ reject	reject	engine	relation/K_TOKEN_tupleOfIdentifiers_relationType_term!drop-
 reject	reject	engine	relation/K_TOKEN_tupleOfIdentifiers_relationType_term!drop-6	DELETE FROM a WHERE TOKEN(a) =
 reject	reject	engine	relation/K_TOKEN_tupleOfIdentifiers_relationType_term!insert	DELETE FROM a WHERE TOKEN(a) = 'a' zzz
 reject	reject	engine	relation/K_TOKEN_tupleOfIdentifiers_relationType_term!swap	DELETE FROM a WHERE TRIGGER(a) = 'a'
+accept	accept	engine	relation/K_TOKEN_tupleOfIdentifiers_relationType_term+relationType/<	DELETE FROM a WHERE TOKEN(a) < 'a'
+accept	accept	engine	relation/K_TOKEN_tupleOfIdentifiers_relationType_term+relationType/<=	DELETE FROM a WHERE TOKEN(a) <= 'a'
+accept	accept	engine	relation/K_TOKEN_tupleOfIdentifiers_relationType_term+relationType/>	DELETE FROM a WHERE TOKEN(a) > 'a'
+accept	accept	engine	relation/K_TOKEN_tupleOfIdentifiers_relationType_term+relationType/>=	DELETE FROM a WHERE TOKEN(a) >= 'a'
+accept	accept	engine	relation/K_TOKEN_tupleOfIdentifiers_relationType_term+relationType/!=	DELETE FROM a WHERE TOKEN(a) != 'a'
 accept	accept	engine	relation/cident_K_IN_inMarker	DELETE FROM a WHERE a IN ?
 reject	reject	engine	relation/cident_K_IN_inMarker!drop-1	DELETE FROM a WHERE IN ?
 reject	reject	engine	relation/cident_K_IN_inMarker!drop-2	DELETE FROM a WHERE a ?
@@ -2576,6 +2747,11 @@ reject	reject	engine	relation/cident_[_term_]_relationType_term!drop-4	DELETE FR
 reject	reject	engine	relation/cident_[_term_]_relationType_term!drop-5	DELETE FROM a WHERE a [ 'a' ] 'a'
 reject	reject	engine	relation/cident_[_term_]_relationType_term!drop-6	DELETE FROM a WHERE a [ 'a' ] =
 reject	reject	engine	relation/cident_[_term_]_relationType_term!insert	DELETE FROM a WHERE a [ 'a' ] = 'a' zzz
+accept	accept	engine	relation/cident_[_term_]_relationType_term+relationType/<	DELETE FROM a WHERE a [ 'a' ] < 'a'
+accept	accept	engine	relation/cident_[_term_]_relationType_term+relationType/<=	DELETE FROM a WHERE a [ 'a' ] <= 'a'
+accept	accept	engine	relation/cident_[_term_]_relationType_term+relationType/>	DELETE FROM a WHERE a [ 'a' ] > 'a'
+accept	accept	engine	relation/cident_[_term_]_relationType_term+relationType/>=	DELETE FROM a WHERE a [ 'a' ] >= 'a'
+accept	accept	engine	relation/cident_[_term_]_relationType_term+relationType/!=	DELETE FROM a WHERE a [ 'a' ] != 'a'
 accept	accept	engine	relation/tupleOfIdentifiers_(K_IN_((_)|inMarkerForTuple|tupleOfT~2655f96d	DELETE FROM a WHERE(a) IN ?
 reject	reject	engine	relation/tupleOfIdentifiers_(K_IN_((_)|inMarkerForTuple|tupleOfT~2655f96d!drop-1	DELETE FROM a WHERE a) IN ?
 reject	reject	engine	relation/tupleOfIdentifiers_(K_IN_((_)|inMarkerForTuple|tupleOfT~2655f96d!drop-2	DELETE FROM a WHERE() IN ?
@@ -2598,9 +2774,19 @@ reject	reject	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/rel
 reject	reject	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_tupleLiteral!drop-3	DELETE FROM a WHERE(a) =()
 reject	reject	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_tupleLiteral!drop-4	DELETE FROM a WHERE(a) =('a'
 reject	reject	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_tupleLiteral!insert	DELETE FROM a WHERE(a) =('a') zzz
+accept	accept	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_tupleLiteral+relationType/<	DELETE FROM a WHERE(a) <('a')
+accept	accept	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_tupleLiteral+relationType/<=	DELETE FROM a WHERE(a) <=('a')
+accept	accept	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_tupleLiteral+relationType/>	DELETE FROM a WHERE(a) >('a')
+accept	accept	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_tupleLiteral+relationType/>=	DELETE FROM a WHERE(a) >=('a')
+accept	accept	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_tupleLiteral+relationType/!=	DELETE FROM a WHERE(a) !=('a')
 accept	accept	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_markerForTuple	DELETE FROM a WHERE(a) = ?
 reject	reject	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_markerForTuple!drop-2	DELETE FROM a WHERE(a) =
 reject	reject	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_markerForTuple!insert	DELETE FROM a WHERE(a) = ? zzz
+accept	accept	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_markerForTuple+relationType/<	DELETE FROM a WHERE(a) < ?
+accept	accept	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_markerForTuple+relationType/<=	DELETE FROM a WHERE(a) <= ?
+accept	accept	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_markerForTuple+relationType/>	DELETE FROM a WHERE(a) > ?
+accept	accept	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_markerForTuple+relationType/>=	DELETE FROM a WHERE(a) >= ?
+accept	accept	engine	relation(K_IN_((_)|inMarkerForTuple|tupleOfTu~5f1246c4)/relationType_markerForTuple+relationType/!=	DELETE FROM a WHERE(a) != ?
 accept	accept	engine	relation((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)/(_)	DELETE FROM a WHERE(a) IN()
 reject	reject	engine	relation((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)/(_)!drop-1	DELETE FROM a WHERE(a) IN)
 reject	reject	engine	relation((_)|inMarkerForTuple|tupleOfTupleLit~80747aa2)/(_)!drop-2	DELETE FROM a WHERE(a) IN(
@@ -2676,6 +2862,26 @@ reject	reject	engine	inMarkerForTuple/COLON_noncol_ident!drop-1	DELETE FROM a WH
 reject	reject	engine	inMarkerForTuple/COLON_noncol_ident!drop-2	DELETE FROM a WHERE(a) IN :
 reject	reject	engine	inMarkerForTuple/COLON_noncol_ident!insert	DELETE FROM a WHERE(a) IN : a zzz
 accept	accept	engine	comparatorType/native_type	ALTER TABLE a ADD a ASCII
+accept	accept	engine	comparatorType/native_type+native_type/K_BIGINT	ALTER TABLE a ADD a BIGINT
+accept	accept	engine	comparatorType/native_type+native_type/K_BLOB	ALTER TABLE a ADD a BLOB
+accept	accept	engine	comparatorType/native_type+native_type/K_BOOLEAN	ALTER TABLE a ADD a BOOLEAN
+accept	accept	engine	comparatorType/native_type+native_type/K_COUNTER	ALTER TABLE a ADD a COUNTER
+accept	accept	engine	comparatorType/native_type+native_type/K_DECIMAL	ALTER TABLE a ADD a DECIMAL
+accept	accept	engine	comparatorType/native_type+native_type/K_DOUBLE	ALTER TABLE a ADD a DOUBLE
+accept	accept	engine	comparatorType/native_type+native_type/K_DURATION	ALTER TABLE a ADD a DURATION
+accept	accept	engine	comparatorType/native_type+native_type/K_FLOAT	ALTER TABLE a ADD a FLOAT
+accept	accept	engine	comparatorType/native_type+native_type/K_INET	ALTER TABLE a ADD a INET
+accept	accept	engine	comparatorType/native_type+native_type/K_INT	ALTER TABLE a ADD a INT
+accept	accept	engine	comparatorType/native_type+native_type/K_SMALLINT	ALTER TABLE a ADD a SMALLINT
+accept	accept	engine	comparatorType/native_type+native_type/K_TEXT	ALTER TABLE a ADD a TEXT
+accept	accept	engine	comparatorType/native_type+native_type/K_TIMESTAMP	ALTER TABLE a ADD a TIMESTAMP
+accept	accept	engine	comparatorType/native_type+native_type/K_TINYINT	ALTER TABLE a ADD a TINYINT
+accept	accept	engine	comparatorType/native_type+native_type/K_UUID	ALTER TABLE a ADD a UUID
+accept	accept	engine	comparatorType/native_type+native_type/K_VARCHAR	ALTER TABLE a ADD a VARCHAR
+accept	accept	engine	comparatorType/native_type+native_type/K_VARINT	ALTER TABLE a ADD a VARINT
+accept	accept	engine	comparatorType/native_type+native_type/K_TIMEUUID	ALTER TABLE a ADD a TIMEUUID
+accept	accept	engine	comparatorType/native_type+native_type/K_DATE	ALTER TABLE a ADD a DATE
+accept	accept	engine	comparatorType/native_type+native_type/K_TIME	ALTER TABLE a ADD a TIME
 accept	accept	engine	comparatorType/collection_type	ALTER TABLE a ADD a LIST < ASCII >
 reject	reject	engine	comparatorType/collection_type!drop-1	ALTER TABLE a ADD a < ASCII >
 reject	reject	engine	comparatorType/collection_type!drop-2	ALTER TABLE a ADD a LIST ASCII >

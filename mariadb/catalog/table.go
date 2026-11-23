@@ -226,6 +226,7 @@ type Routine struct {
 	Name            string
 	Database        *Database
 	IsProcedure     bool
+	IsAggregate     bool // CREATE AGGREGATE FUNCTION, which reads its group's rows with FETCH GROUP NEXT ROW
 	Definer         string
 	Params          []*RoutineParam
 	Returns         string // return type string for functions (empty for procedures)
@@ -245,9 +246,10 @@ type Routine struct {
 
 // RoutineParam represents a parameter of a stored routine.
 type RoutineParam struct {
-	Direction string // IN, OUT, INOUT (empty for functions)
+	Direction string // IN, OUT, INOUT, or empty where none is written
 	Name      string
 	TypeName  string // full type string
+	Default   string // the DEFAULT expression as written, empty for none
 }
 
 // Trigger represents a trigger in the catalog.
@@ -275,6 +277,9 @@ type Trigger struct {
 	// created orders a table's triggers of one timing and event that name no
 	// FOLLOWS or PRECEDES: they run in the order they were created.
 	created int
+	// tableSpan is where the table's name stands in SourceText, start and end,
+	// which a rename of the table rewrites; zero where it is not known.
+	tableSpan [2]int
 }
 
 // TriggerOrderInfo represents FOLLOWS/PRECEDES ordering.

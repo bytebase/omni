@@ -290,6 +290,14 @@ func walkChildren(v Visitor, node Node) {
 		if n.Returns != nil {
 			Walk(v, n.Returns)
 		}
+		for _, item := range n.ReturnsRow {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		if n.ReturnsAnchor != nil {
+			Walk(v, n.ReturnsAnchor)
+		}
 		Walk(v, n.Body)
 		for _, item := range n.Characteristics {
 			if item != nil {
@@ -519,6 +527,11 @@ func walkChildren(v Visitor, node Node) {
 		if n.Select != nil {
 			Walk(v, n.Select)
 		}
+		for _, item := range n.CursorArgs {
+			Walk(v, item)
+		}
+		Walk(v, n.Lower)
+		Walk(v, n.Upper)
 		for _, item := range n.Stmts {
 			Walk(v, item)
 		}
@@ -558,6 +571,7 @@ func walkChildren(v Visitor, node Node) {
 		if n.Anchor != nil {
 			Walk(v, n.Anchor)
 		}
+		Walk(v, n.Default)
 	case *GeneratedColumn:
 		Walk(v, n.Expr)
 	case *GetDiagnosticsStmt:

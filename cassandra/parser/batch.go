@@ -35,7 +35,7 @@ func (p *Parser) parseBatch() (*ast.BatchStmt, error) {
 	}
 
 	// Optional USING clause (typically just TIMESTAMP for batches)
-	using, err := p.parseUsingClause()
+	using, err := p.parseUsingClause(false)
 	if err != nil {
 		return nil, err
 	}

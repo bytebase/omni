@@ -101,14 +101,23 @@ func TestWalkSimulation(t *testing.T) {
 // refusals the walk cannot see from a database's schema, such as DROP
 // TRIGGER ON ALL SERVER (3701) and OPENQUERY on a missing linked server
 // (7202): the percentages moved and the counts rose to what it finds.
+// The query forms SQL Server refuses whatever the schema holds (window,
+// aggregate, ORDER BY, derived table and PIVOT rules) raised queries from
+// 64.7% to 80.5%; what is left needs full-text, temporal, and user type
+// facts the sync does not give, or is omni's syntax error. Facts of the
+// synced schema beyond names (a view's schema binding, the clustered
+// index, period-capable columns, foreign keys, identity columns, a
+// trigger's table) and CTAS raised ddl from 91.1% to 95.2% and programs
+// from 80.8% to 83.5%; what is left needs user types, database and server
+// triggers, principals, filegroups, partitions, and function signatures.
 var walkSimSuites = []struct {
 	name, path, database string
 	minPct               float64
 	minFound             int
 }{
-	{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), "omni_TestSimulation", 91.0, 2797},
-	{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), "omni_TestQuerySimulation", 64.7, 296},
-	{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), "omni_TestProgramSimulation", 80.8, 59},
+	{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), "omni_TestSimulation", 95.2, 2925},
+	{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), "omni_TestQuerySimulation", 80.5, 368},
+	{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), "omni_TestProgramSimulation", 83.5, 61},
 }
 
 // walkCompatSimulation holds MSSQL's WALK_THROUGH to every unique
@@ -214,8 +223,8 @@ func walkCompatSimulation(t *testing.T, db *sql.DB) {
 	// which moved the floor from 88.5% to 88.0%. The (every alternative)
 	// rows added server-scoped refusals the walk cannot see (DROP TRIGGER ON
 	// ALL SERVER, OPENQUERY on a missing linked server), which moved it to
-	// 87.9%.
-	const minWalkSimRecall = 87.9
+	// 87.9%. Facts of the synced schema beyond names raised it to 89.6%.
+	const minWalkSimRecall = 89.6
 	pct := 0.0
 	if refusedCount > 0 {
 		pct = 100 * float64(foundCount) / float64(refusedCount)

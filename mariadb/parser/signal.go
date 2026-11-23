@@ -419,7 +419,7 @@ func (p *Parser) parseSQLStateValue() (string, error) {
 	}
 	val := p.cur.Str
 	if !isSQLStateValid(val) || strings.HasPrefix(val, "00") {
-		return "", &ParseError{Message: "Bad SQLSTATE: '" + val + "'", Position: p.cur.Loc}
+		return "", &ParseError{Message: "Bad SQLSTATE: '" + val + "'", Position: p.cur.Loc, Code: 1407}
 	}
 	p.advance()
 	return val, nil
