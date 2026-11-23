@@ -103,6 +103,28 @@ func (c *Catalog) lookupSchemaObject(schema *metadata.SchemaMetadata, name strin
 			}
 		}
 	}
+	for _, t := range schema.Tables {
+		for _, idx := range t.Indexes {
+			if idx.IsConstraint && idx.Name != "" && strings.EqualFold(idx.Name, name) {
+				return kindConstraint
+			}
+		}
+		for _, fk := range t.ForeignKeys {
+			if fk.Name != "" && strings.EqualFold(fk.Name, name) {
+				return kindConstraint
+			}
+		}
+		for _, ck := range t.CheckConstraints {
+			if ck.Name != "" && strings.EqualFold(ck.Name, name) {
+				return kindConstraint
+			}
+		}
+		for _, col := range t.Columns {
+			if col.DefaultConstraintName != "" && strings.EqualFold(col.DefaultConstraintName, name) {
+				return kindConstraint
+			}
+		}
+	}
 	return kindNone
 }
 
@@ -143,17 +165,20 @@ func isValidFilegroup(name string) bool {
 	return u == "PRIMARY" || u == "DEFAULT"
 }
 
-func hasInboundFK(c *Catalog, targetSchema, targetTable string) (string, bool) {
-	return hasInboundFKExcluding(c, targetSchema, targetTable, nil)
+func hasInboundFK(c *Catalog, targetSchema string, targetTable *metadata.TableMetadata) (string, bool) {
+	return hasInboundFKExcludingTables(c, targetSchema, targetTable, nil)
 }
 
-func hasInboundFKExcluding(c *Catalog, targetSchema, targetTable string, exclude map[tableKey]bool) (string, bool) {
+func hasInboundFKExcludingTables(c *Catalog, targetSchema string, targetTable *metadata.TableMetadata, exclude map[*metadata.TableMetadata]bool) (string, bool) {
+	if targetTable == nil {
+		return "", false
+	}
 	for _, s := range c.schemas {
 		for _, t := range s.Tables {
-			if strings.EqualFold(s.Name, targetSchema) && strings.EqualFold(t.Name, targetTable) {
+			if t == targetTable {
 				continue
 			}
-			if exclude != nil && exclude[tableKey{schema: normalize(s.Name), table: normalize(t.Name)}] {
+			if exclude != nil && exclude[t] {
 				continue
 			}
 			for _, fk := range t.ForeignKeys {
@@ -161,13 +186,77 @@ func hasInboundFKExcluding(c *Catalog, targetSchema, targetTable string, exclude
 				if refSchema == "" {
 					refSchema = c.defaultSchema
 				}
-				if strings.EqualFold(refSchema, targetSchema) && strings.EqualFold(fk.ReferencedTable, targetTable) {
+				if strings.EqualFold(refSchema, targetSchema) && strings.EqualFold(fk.ReferencedTable, targetTable.Name) {
 					return fk.Name, true
 				}
 			}
 		}
 	}
 	return "", false
+}
+
+// indexReferencedByFK reports whether dropping idx on targetSchema.targetTable
+// would leave any foreign key (including self-referencing FKs) without a
+// matching primary-key or unique index on the target table.
+func indexReferencedByFK(c *Catalog, targetSchema string, targetTable *metadata.TableMetadata, idx *metadata.IndexMetadata) (string, string, bool) {
+	if idx == nil || (!idx.Primary && !idx.Unique) {
+		return "", "", false
+	}
+	for _, s := range c.schemas {
+		for _, t := range s.Tables {
+			for _, fk := range t.ForeignKeys {
+				refSchema := fk.ReferencedSchema
+				if refSchema == "" {
+					refSchema = c.defaultSchema
+				}
+				if !strings.EqualFold(refSchema, targetSchema) || !strings.EqualFold(fk.ReferencedTable, targetTable.Name) {
+					continue
+				}
+				if !fkMatchesIndex(fk, idx) {
+					continue
+				}
+				if hasOtherMatchingUniqueIndex(targetTable, idx, fk) {
+					continue
+				}
+				return t.Name, fk.Name, true
+			}
+		}
+	}
+	return "", "", false
+}
+
+func fkMatchesIndex(fk *metadata.ForeignKeyMetadata, idx *metadata.IndexMetadata) bool {
+	if len(fk.ReferencedColumns) == 0 {
+		return idx.Primary
+	}
+	if len(fk.ReferencedColumns) != len(idx.Expressions) {
+		return false
+	}
+	for _, rc := range fk.ReferencedColumns {
+		found := false
+		for _, ic := range idx.Expressions {
+			if strings.EqualFold(rc, ic) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}
+
+func hasOtherMatchingUniqueIndex(table *metadata.TableMetadata, exclude *metadata.IndexMetadata, fk *metadata.ForeignKeyMetadata) bool {
+	for _, other := range table.Indexes {
+		if other == exclude || (!other.Primary && !other.Unique) {
+			continue
+		}
+		if fkMatchesIndex(fk, other) {
+			return true
+		}
+	}
+	return false
 }
 
 func tableHasClusteredIndex(table *metadata.TableMetadata) bool {
@@ -331,7 +420,7 @@ func (c *Catalog) execAlterSchema(n *ast.AlterSchemaStmt) error {
 		return mssqlErr(ErrSecurableNotFound, "Cannot find the object '%s', because it does not exist or you do not have permission.", n.TransferEntity)
 	}
 	kind := c.lookupSchemaObject(srcSchema, objName, false)
-	if kind == kindNone || kind == kindTrigger {
+	if kind == kindNone || kind == kindTrigger || kind == kindConstraint {
 		return mssqlErr(ErrSecurableNotFound, "Cannot find the object '%s', because it does not exist or you do not have permission.", n.TransferEntity)
 	}
 	if !strings.EqualFold(srcSchema.Name, targetSchema.Name) {
@@ -1385,7 +1474,11 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 				return mssqlErr(ErrOnlineDropNonClustered, "Only a clustered index can be dropped online.")
 			}
 		}
-		if c.dropTableConstraint(table, name) {
+		dropped, err := c.dropTableConstraint(schemaName, table, name)
+		if err != nil {
+			return err
+		}
+		if dropped {
 			return nil
 		}
 		if action.IfExists {
@@ -1549,6 +1642,9 @@ func (c *Catalog) execAlterTableAddConstraint(table *metadata.TableMetadata, sch
 		if col == nil {
 			return mssqlErr(ErrAddDefaultColumnNotFound, "Cannot create default on column '%s' because it does not exist in table '%s'.", cols[0], table.Name)
 		}
+		if col.Default != "" {
+			return mssqlErr(ErrColumnAlreadyHasDefault, "Column already has a DEFAULT bound to it.")
+		}
 		if n.Name != "" {
 			if schema := c.GetSchema(schemaName); schema != nil && c.lookupSchemaObject(schema, n.Name, false) != kindNone {
 				return mssqlErr(ErrDupObject, "There is already an object named '%s' in the database.", n.Name)
@@ -1596,33 +1692,36 @@ func (c *Catalog) execAlterTableAddConstraint(table *metadata.TableMetadata, sch
 	return nil
 }
 
-func (c *Catalog) dropTableConstraint(table *metadata.TableMetadata, name string) bool {
+func (c *Catalog) dropTableConstraint(schemaName string, table *metadata.TableMetadata, name string) (bool, error) {
 	for i, idx := range table.Indexes {
 		if idx.IsConstraint && strings.EqualFold(idx.Name, name) {
+			if refTable, fkName, referenced := indexReferencedByFK(c, schemaName, table, idx); referenced {
+				return false, mssqlErr(ErrDropConstraintReferencedByFK, "The constraint '%s' is being referenced by table '%s', foreign key constraint '%s'.", idx.Name, refTable, fkName)
+			}
 			table.Indexes = append(table.Indexes[:i], table.Indexes[i+1:]...)
-			return true
+			return true, nil
 		}
 	}
 	for i, fk := range table.ForeignKeys {
 		if strings.EqualFold(fk.Name, name) {
 			table.ForeignKeys = append(table.ForeignKeys[:i], table.ForeignKeys[i+1:]...)
-			return true
+			return true, nil
 		}
 	}
 	for i, ck := range table.CheckConstraints {
 		if strings.EqualFold(ck.Name, name) {
 			table.CheckConstraints = append(table.CheckConstraints[:i], table.CheckConstraints[i+1:]...)
-			return true
+			return true, nil
 		}
 	}
 	for _, col := range table.Columns {
 		if col.DefaultConstraintName != "" && strings.EqualFold(col.DefaultConstraintName, name) {
 			col.Default = ""
 			col.DefaultConstraintName = ""
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 func hasCheckOrFKConstraint(table *metadata.TableMetadata, name string) bool {
@@ -1657,6 +1756,9 @@ func columnDependency(c *Catalog, schemaName string, table *metadata.TableMetada
 			if strings.EqualFold(inc, col.Name) {
 				return idx.Name, true
 			}
+		}
+		if where := indexWhereClause(idx.Definition); where != "" && checkExprReferencesColumn(where, table.Name, col.Name) {
+			return idx.Name, true
 		}
 	}
 	for _, fk := range table.ForeignKeys {
@@ -1991,6 +2093,9 @@ func (c *Catalog) execDropIndex(n *ast.DropStmt) error {
 		if err := checkDropIndexOptions(n.Options, tableName, indexName, isClustered); err != nil {
 			return err
 		}
+		if _, fkName, referenced := indexReferencedByFK(c, schemaName, table, foundIdx); referenced {
+			return mssqlErr(ErrDropIndexReferencedByFK, "An explicit DROP INDEX is not allowed on index '%s.%s'. It is being used for FOREIGN KEY constraint enforcement (%s).", tableName, indexName, fkName)
+		}
 
 		seen[foundIdx] = true
 		targets = append(targets, dropIndexTarget{table: table, idx: foundIdx})
@@ -2035,8 +2140,10 @@ func (c *Catalog) execDropObjects(n *ast.DropStmt, wantKind objectKind, sqlKind 
 	type dropTarget struct {
 		schema *metadata.SchemaMetadata
 		name   string
+		table  *metadata.TableMetadata
 	}
-	seen := make(map[tableKey]bool)
+	seenTables := make(map[*metadata.TableMetadata]bool)
+	seenOther := make(map[tableKey]bool)
 	var targets []dropTarget
 	for _, item := range n.Names.Items {
 		ref, ok := item.(*ast.TableRef)
@@ -2045,9 +2152,22 @@ func (c *Catalog) execDropObjects(n *ast.DropStmt, wantKind objectKind, sqlKind 
 		}
 		schemaName, objName := tableRefSchemaObject(ref, c.defaultSchema)
 		schema := c.GetSchema(schemaName)
-		key := tableKey{schema: normalize(schemaName), table: normalize(objName)}
 		kind := c.lookupSchemaObject(schema, objName, false)
-		if kind == kindNone || seen[key] {
+		var resolvedTable *metadata.TableMetadata
+		isDup := false
+		if kind == kindTable {
+			resolvedTable = c.resolveTableInSchema(schema, objName)
+			if resolvedTable == nil {
+				kind = kindNone
+			} else if seenTables[resolvedTable] {
+				isDup = true
+			}
+		} else if kind != kindNone {
+			if seenOther[tableKey{schema: normalize(schema.Name), table: normalize(objName)}] {
+				isDup = true
+			}
+		}
+		if kind == kindNone || isDup {
 			if n.IfExists {
 				continue
 			}
@@ -2057,17 +2177,35 @@ func (c *Catalog) execDropObjects(n *ast.DropStmt, wantKind objectKind, sqlKind 
 			return mssqlErr(ErrCannotDropWrongKind, "Cannot use DROP %s with '%s' because '%s' is a %s.", sqlKind, objName, objName, string(kind))
 		}
 		if wantKind == kindTable {
-			if fkName, referenced := hasInboundFKExcluding(c, schema.Name, objName, seen); referenced {
+			if fkName, referenced := hasInboundFKExcludingTables(c, schema.Name, resolvedTable, seenTables); referenced {
 				return mssqlErr(ErrDropTableReferencedByFK, "Could not drop object '%s' because it is referenced by a FOREIGN KEY constraint '%s'.", objName, fkName)
 			}
+			seenTables[resolvedTable] = true
+			targets = append(targets, dropTarget{schema: schema, name: resolvedTable.Name, table: resolvedTable})
+		} else {
+			seenOther[tableKey{schema: normalize(schema.Name), table: normalize(objName)}] = true
+			targets = append(targets, dropTarget{schema: schema, name: objName})
 		}
-		seen[key] = true
-		targets = append(targets, dropTarget{schema: schema, name: objName})
 	}
 	for _, target := range targets {
-		c.removeObject(target.schema, wantKind, target.name)
+		if target.table != nil {
+			c.removeTable(target.schema, target.table)
+		} else {
+			c.removeObject(target.schema, wantKind, target.name)
+		}
 	}
 	return nil
+}
+
+func (c *Catalog) removeTable(schema *metadata.SchemaMetadata, target *metadata.TableMetadata) {
+	for i, t := range schema.Tables {
+		if t == target {
+			delete(c.tableByName, tableKey{schema: schema.Name, table: t.Name})
+			delete(c.systemTimeTables, tableKey{schema: normalize(schema.Name), table: t.Name})
+			schema.Tables = append(schema.Tables[:i], schema.Tables[i+1:]...)
+			return
+		}
+	}
 }
 
 func (c *Catalog) removeObject(schema *metadata.SchemaMetadata, kind objectKind, name string) {
@@ -2133,7 +2271,7 @@ func (c *Catalog) execTruncateTable(n *ast.TruncateStmt) error {
 	if table == nil {
 		return mssqlErr(ErrTruncateNotFound, "Cannot find the object \"%s\" because it does not exist or you do not have permissions.", tableName)
 	}
-	if fkName, referenced := hasInboundFK(c, schema.Name, table.Name); referenced {
+	if fkName, referenced := hasInboundFK(c, schema.Name, table); referenced {
 		return mssqlErr(ErrTruncateReferencedByFK, "Cannot truncate table '%s' because it is being referenced by a FOREIGN KEY constraint '%s'.", tableName, fkName)
 	}
 	return nil

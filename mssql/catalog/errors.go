@@ -25,6 +25,7 @@ const (
 	ErrAddDefaultColumnNotFound   = 1752
 	ErrFKColumnNotFound           = 1769
 	ErrFKColumnCountMismatch      = 1774
+	ErrColumnAlreadyHasDefault    = 1781
 	ErrMultipleClusteredIndex     = 1902
 	ErrDupIndexColumn             = 1909
 	ErrIndexColumnNotFound        = 1911
@@ -42,6 +43,8 @@ const (
 	ErrRowguidcolType             = 2761
 	ErrCannotDropNotFound         = 3701
 	ErrCannotDropWrongKind        = 3705
+	ErrDropIndexReferencedByFK    = 3723
+	ErrDropConstraintReferencedByFK = 3725
 	ErrDropTableReferencedByFK    = 3726
 	ErrConstraintNotFound         = 3728
 	ErrDropSchemaNotEmpty         = 3729

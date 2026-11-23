@@ -327,4 +327,49 @@ CREATE INDEX [ix] ON [dbo].[t]([a]);
 	require.NoError(t, err)
 	execExpectCode(t, c, `DROP INDEX [ix] ON [dbo].[t], [missing] ON [dbo].[t]`, ErrCannotDropNotFound)
 	require.NotNil(t, indexByName(c.GetTable("dbo", "t"), "ix"), "failed multi-target DROP INDEX must not remove earlier indexes")
+
+	// 16. DROP CONSTRAINT rejects dropping a PK/UNIQUE constraint referenced by an inbound FK.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[p] ([id] INT NOT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([id]));
+CREATE TABLE [dbo].[c] ([pid] INT NULL, CONSTRAINT [FK_c_p] FOREIGN KEY ([pid]) REFERENCES [dbo].[p]([id]));
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[p] DROP CONSTRAINT [PK_p]`, ErrDropConstraintReferencedByFK)
+	require.NotNil(t, indexByName(c.GetTable("dbo", "p"), "PK_p"))
+	execExpectOK(t, c, `ALTER TABLE [dbo].[c] DROP CONSTRAINT [FK_c_p]`)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[p] DROP CONSTRAINT [PK_p]`)
+
+	// 17. DROP COLUMN rejects columns referenced by a filtered index WHERE predicate.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[t] ([a] INT, [b] INT);
+CREATE INDEX [ix] ON [dbo].[t]([a]) WHERE [b] > 0;
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] DROP COLUMN [b]`, ErrColumnDependentObject)
+	require.NotNil(t, columnByName(c.GetTable("dbo", "t"), "b"))
+	execExpectOK(t, c, `DROP INDEX [ix] ON [dbo].[t]`)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] DROP COLUMN [b]`)
+
+	// 18. ADD CONSTRAINT DEFAULT rejects adding a second default to a column that already has one.
+	c, err = LoadSQL(`CREATE TABLE [dbo].[t] ([a] INT CONSTRAINT [df_old] DEFAULT (0));`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ADD CONSTRAINT [df_new] DEFAULT (1) FOR [a]`, ErrColumnAlreadyHasDefault)
+	require.Equal(t, "(0)", columnByName(c.GetTable("dbo", "t"), "a").Default)
+	require.Equal(t, "df_old", columnByName(c.GetTable("dbo", "t"), "a").DefaultConstraintName)
+
+	// 19. Named constraints occupy the schema object namespace.
+	c, err = LoadSQL(`CREATE TABLE [dbo].[t] ([a] INT, CONSTRAINT [ck] CHECK ([a] > 0));`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ADD CONSTRAINT [ck] CHECK ([a] < 10)`, ErrDupObject)
+	require.Len(t, c.GetTable("dbo", "t").CheckConstraints, 1)
+
+	// 20. DROP TABLE deduplicates by resolved table identity for case-distinct tables.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[Foo] ([a] INT);
+CREATE TABLE [dbo].[foo] ([a] INT);
+`)
+	require.NoError(t, err)
+	execExpectOK(t, c, `DROP TABLE [dbo].[Foo], [dbo].[foo]`)
+	require.Nil(t, c.GetTable("dbo", "Foo"))
+	require.Nil(t, c.GetTable("dbo", "foo"))
 }
