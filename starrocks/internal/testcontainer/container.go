@@ -80,6 +80,8 @@ var shared struct {
 	pin       enginetest.Pin
 	container testcontainers.Container
 	config    *mysql.Config
+	// httpAddr is the front end's HTTP address.
+	httpAddr string
 	// databases, users and roles are what the image started with, which
 	// ResetToInitial leaves. It starts with no global function.
 	databases map[string]bool
@@ -94,8 +96,10 @@ func start(ctx context.Context, pin enginetest.Pin) error {
 			Image: pin.ImageRef(),
 			// The image is built for amd64 only; elsewhere it runs emulated.
 			ImagePlatform: "linux/amd64",
-			ExposedPorts:  []string{"9030/tcp"},
-			WaitingFor:    wait.ForListeningPort("9030/tcp").WithStartupTimeout(5 * time.Minute),
+			// 8030 is the front end's HTTP port, which the span suite's
+			// query dumps go to.
+			ExposedPorts: []string{"9030/tcp", "8030/tcp"},
+			WaitingFor:   wait.ForListeningPort("9030/tcp").WithStartupTimeout(5 * time.Minute),
 		},
 		Started: true,
 	})
@@ -114,6 +118,11 @@ func start(ctx context.Context, pin enginetest.Pin) error {
 	if err != nil {
 		return err
 	}
+	httpPort, err := c.MappedPort(ctx, "8030")
+	if err != nil {
+		return err
+	}
+	shared.httpAddr = host + ":" + httpPort.Port()
 	cfg := mysql.NewConfig()
 	cfg.User = "root"
 	cfg.Net = "tcp"
