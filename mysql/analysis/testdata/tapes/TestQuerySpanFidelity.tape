@@ -376,6 +376,11 @@
 | {"columns":[{"name":"id","schema":"shop","table":"c","orgTable":"orders","orgName":"id"}],"resolved":"/* select#1 */ select `shop`.`orders`.`id` AS `id` from `shop`.`orders` where (`shop`.`orders`.`amount` \u003e (/* select#3 */ select avg(`shop`.`orders`.`amount`) from `shop`.`orders`))","tables":["shop.orders"]}
 > raw
 | span shop
+| WITH RECURSIVE c AS (SELECT id FROM orders), orders AS (SELECT 1 AS id) SELECT id FROM c
+< raw
+| {"columns":[{"name":"id","schema":"shop","table":"c","orgTable":"orders","orgName":"id"}],"resolved":"/* select#1 */ select `shop`.`orders`.`id` AS `id` from `shop`.`orders`","tables":["shop.orders"]}
+> raw
+| span shop
 | SELECT id FROM orders UNION SELECT id FROM customers
 < raw
 | {"columns":[{"name":"id"}],"resolved":"/* select#1 */ select `shop`.`orders`.`id` AS `id` from `shop`.`orders` union /* select#2 */ select `shop`.`customers`.`id` AS `id` from `shop`.`customers`","tables":["shop.customers","shop.orders"]}

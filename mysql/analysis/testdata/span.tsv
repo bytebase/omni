@@ -207,6 +207,9 @@ shop.customers	shop.customers	engine	base	shop	tables	WITH orders AS (SELECT id,
 id	id	engine	base	shop	results	WITH c AS (SELECT id, amount FROM orders) SELECT id FROM c WHERE amount > (SELECT avg(amount) FROM c)
 shop.orders.id	shop.orders.id	engine	base	shop	lineage	WITH c AS (SELECT id, amount FROM orders) SELECT id FROM c WHERE amount > (SELECT avg(amount) FROM c)
 shop.orders	shop.orders	engine	base	shop	tables	WITH c AS (SELECT id, amount FROM orders) SELECT id FROM c WHERE amount > (SELECT avg(amount) FROM c)
+id	id	engine	base	shop	results	WITH RECURSIVE c AS (SELECT id FROM orders), orders AS (SELECT 1 AS id) SELECT id FROM c
+shop.orders.id	shop.orders.id	engine	base	shop	lineage	WITH RECURSIVE c AS (SELECT id FROM orders), orders AS (SELECT 1 AS id) SELECT id FROM c
+shop.orders	shop.orders	engine	base	shop	tables	WITH RECURSIVE c AS (SELECT id FROM orders), orders AS (SELECT 1 AS id) SELECT id FROM c
 id	id	engine	base	shop	results	SELECT id FROM orders UNION SELECT id FROM customers
 shop.customers.id shop.orders.id	shop.customers.id shop.orders.id	engine	base	shop	lineage	SELECT id FROM orders UNION SELECT id FROM customers
 shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT id FROM orders UNION SELECT id FROM customers

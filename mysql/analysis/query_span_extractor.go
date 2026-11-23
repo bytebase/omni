@@ -1744,8 +1744,8 @@ func collectAccessTablesFromNode(result ColumnSet, node ast.Node, scope *accessS
 		if n == nil {
 			return
 		}
-		// A CTE's body sees the CTEs before it, and itself and every other
-		// CTE of a WITH RECURSIVE; the query after the WITH sees them all.
+		// A CTE's body sees the CTEs before it, and in a WITH RECURSIVE
+		// itself too; the query after the WITH sees them all.
 		var names []string
 		recursive := false
 		for _, cte := range n.CTEs {
@@ -1760,7 +1760,7 @@ func collectAccessTablesFromNode(result ColumnSet, node ast.Node, scope *accessS
 			}
 			visible := names[:i]
 			if recursive {
-				visible = names
+				visible = names[:i+1]
 			}
 			collectAccessTablesFromNode(result, cte.Select, scope.with(visible))
 		}
