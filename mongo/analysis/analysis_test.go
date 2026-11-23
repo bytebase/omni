@@ -727,6 +727,15 @@ func TestAnalyzeValidateRepairAndUnsafeArgCalls(t *testing.T) {
 	if sa := mustAnalyze(t, `db.users.find({x: EJSON.stringify({a: 1}, mutatingCallback)})`); sa.Operation != analysis.OpWrite || sa.QueryType() != analysis.DML {
 		t.Errorf("find with EJSON.stringify replacer callback = (%v, %v), want (OpWrite, DML)", sa.Operation, sa.QueryType())
 	}
+	if sa := mustAnalyze(t, `db.users.find({x: Date.parse({toString: mutatingCallback})})`); sa.Operation != analysis.OpWrite || sa.QueryType() != analysis.DML {
+		t.Errorf("find with Date.parse toString callback = (%v, %v), want (OpWrite, DML)", sa.Operation, sa.QueryType())
+	}
+	if sa := mustAnalyze(t, `db.users.aggregate([{"$\out": "output"}])`); sa.QueryType() != analysis.DML {
+		t.Errorf("aggregate with escaped $out QueryType = %v, want DML", sa.QueryType())
+	}
+	if sa := mustAnalyze(t, `db.logs.validate({"rep\air": true})`); sa.Operation != analysis.OpWrite || sa.QueryType() != analysis.DML {
+		t.Errorf("validate with escaped repair = (%v, %v), want (OpWrite, DML)", sa.Operation, sa.QueryType())
+	}
 }
 
 // ---------------------------------------------------------------------------

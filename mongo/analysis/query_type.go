@@ -200,6 +200,14 @@ func hasUnsafeStatementArgs(node ast.Node) bool {
 	}
 }
 
+// safeIdentifiers lists global non-writable JavaScript primitive constants that
+// cannot refer to a callable function, getter, or proxy object.
+var safeIdentifiers = map[string]bool{
+	"undefined": true,
+	"NaN":       true,
+	"Infinity":  true,
+}
+
 func hasUnsafeNodes(nodes []ast.Node) bool {
 	stack := make([]ast.Node, 0, len(nodes))
 	stack = append(stack, nodes...)
@@ -211,8 +219,12 @@ func hasUnsafeNodes(nodes []ast.Node) bool {
 		}
 		switch v := n.(type) {
 		case *ast.StringLiteral, *ast.NumberLiteral, *ast.BoolLiteral,
-			*ast.NullLiteral, *ast.RegexLiteral, *ast.Identifier:
+			*ast.NullLiteral, *ast.RegexLiteral:
 			continue
+		case *ast.Identifier:
+			if !safeIdentifiers[v.Name] {
+				return true
+			}
 		case *ast.Document:
 			for _, pair := range v.Pairs {
 				stack = append(stack, pair.Value)

@@ -210,6 +210,7 @@ func (l *Lexer) scanString(quote byte) Token {
 		}
 		if ch == '\\' && l.pos+1 < len(l.input) {
 			l.pos++ // skip backslash
+			escStart := l.pos
 			esc := l.input[l.pos]
 			l.pos++
 			switch esc {
@@ -225,21 +226,45 @@ func (l *Lexer) scanString(quote byte) Token {
 				buf = append(buf, '\'')
 			case '"':
 				buf = append(buf, '"')
-			case '0':
-				buf = append(buf, 0)
 			case 'b':
 				buf = append(buf, '\b')
 			case 'f':
 				buf = append(buf, '\f')
 			case 'v':
 				buf = append(buf, '\v')
+			case '\n':
+				// JS LineContinuation: backslash followed by LF produces no characters.
+			case '\r':
+				// JS LineContinuation: backslash followed by CR or CRLF.
+				if l.pos < len(l.input) && l.input[l.pos] == '\n' {
+					l.pos++
+				}
+			case '0', '1', '2', '3', '4', '5', '6', '7':
+				// ECMA-262 Annex B LegacyOctalEscapeSequence (mongosh runs non-strict).
+				val := int(esc - '0')
+				maxExtra := 1
+				if val <= 3 {
+					maxExtra = 2
+				}
+				for i := 0; i < maxExtra && l.pos < len(l.input); i++ {
+					next := l.input[l.pos]
+					if next < '0' || next > '7' {
+						break
+					}
+					val = val*8 + int(next-'0')
+					l.pos++
+				}
+				buf = utf8.AppendRune(buf, rune(val))
 			case 'u':
-				// \uXXXX
-				r := l.parseHex4()
-				if r >= 0 {
-					var ubuf [4]byte
-					n := utf8.EncodeRune(ubuf[:], rune(r))
-					buf = append(buf, ubuf[:n]...)
+				// \u{H...} or \uXXXX
+				if l.pos < len(l.input) && l.input[l.pos] == '{' {
+					if r := l.parseBracedUnicode(); r >= 0 {
+						buf = utf8.AppendRune(buf, rune(r))
+					} else {
+						buf = append(buf, '\\', 'u')
+					}
+				} else if r := l.parseHex4(); r >= 0 {
+					buf = utf8.AppendRune(buf, rune(r))
 				} else {
 					buf = append(buf, '\\', 'u')
 				}
@@ -249,7 +274,7 @@ func (l *Lexer) scanString(quote byte) Token {
 					h1 := hexVal(l.input[l.pos])
 					h2 := hexVal(l.input[l.pos+1])
 					if h1 >= 0 && h2 >= 0 {
-						buf = append(buf, byte(h1<<4|h2))
+						buf = utf8.AppendRune(buf, rune(h1<<4|h2))
 						l.pos += 2
 					} else {
 						buf = append(buf, '\\', 'x')
@@ -258,8 +283,19 @@ func (l *Lexer) scanString(quote byte) Token {
 					buf = append(buf, '\\', 'x')
 				}
 			default:
-				// Unknown escape — include as-is
-				buf = append(buf, '\\', esc)
+				// JS identity escape (\o -> o, \a -> a, etc.) and Unicode line
+				// terminators U+2028 / U+2029 as line continuations.
+				if esc < utf8.RuneSelf {
+					buf = append(buf, esc)
+				} else {
+					r, size := utf8.DecodeRuneInString(l.input[escStart:])
+					if size > 1 {
+						l.pos = escStart + size
+					}
+					if r != '\u2028' && r != '\u2029' {
+						buf = append(buf, l.input[escStart:l.pos]...)
+					}
+				}
 			}
 			continue
 		}
@@ -268,6 +304,33 @@ func (l *Lexer) scanString(quote byte) Token {
 	}
 	// Unterminated string — return what we have
 	return Token{Type: tokString, Str: string(buf), Loc: l.start, End: l.pos}
+}
+
+// parseBracedUnicode parses a \u{H...} escape when l.pos points at '{'.
+// Returns the decoded Unicode code point (0..0x10FFFF) or -1 on failure.
+func (l *Lexer) parseBracedUnicode() int {
+	if l.pos >= len(l.input) || l.input[l.pos] != '{' {
+		return -1
+	}
+	i := l.pos + 1
+	val := 0
+	digits := 0
+	for i < len(l.input) && l.input[i] != '}' {
+		h := hexVal(l.input[i])
+		if h < 0 {
+			return -1
+		}
+		digits++
+		if val <= 0x10FFFF {
+			val = val<<4 | h
+		}
+		i++
+	}
+	if digits == 0 || i >= len(l.input) || l.input[i] != '}' || val > 0x10FFFF {
+		return -1
+	}
+	l.pos = i + 1
+	return val
 }
 
 // parseHex4 parses 4 hex digits for \uXXXX escape. Returns -1 on failure.
