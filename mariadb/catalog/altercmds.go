@@ -2932,6 +2932,19 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 		tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
 		return nil
 	}
+	// ADD PARTITION IF NOT EXISTS naming a partition the table has adds none
+	// of its partitions: mariadb:11.8.8 runs `ADD PARTITION IF NOT EXISTS
+	// (PARTITION p3 ..., PARTITION a ...)` over a table with a partition a and
+	// changes nothing, whatever the bounds.
+	if cmd.IfNotExists {
+		for _, pd := range cmd.PartitionDefs {
+			for _, have := range tbl.Partitioning.Partitions {
+				if toLower(have.Name) == toLower(pd.Name) {
+					return nil
+				}
+			}
+		}
+	}
 	if err := checkAddedPartitionKinds(tbl.Partitioning, cmd.PartitionDefs); err != nil {
 		return err
 	}
@@ -2972,19 +2985,34 @@ func (c *Catalog) alterDropPartition(tbl *Table, cmd *nodes.AlterTableCmd) error
 	if !strings.HasPrefix(tbl.Partitioning.Type, "RANGE") && !strings.HasPrefix(tbl.Partitioning.Type, "LIST") && tbl.Partitioning.Type != "SYSTEM_TIME" {
 		return errOnlyOnRangeListPartitioning("DROP PARTITION")
 	}
-	// MariaDB checks whether the requested drop count would remove all
-	// partitions before checking for duplicate or missing names (measured on
-	// mariadb:11.8.8: DROP PARTITION a, a on a 2-partition table answers 1508,
-	// and on a 3-partition table answers 1507).
-	if len(cmd.PartitionNames) >= len(tbl.Partitioning.Partitions) {
-		return errDropLastPartition()
-	}
 	existing := make(map[string]bool, len(tbl.Partitioning.Partitions))
 	for _, pd := range tbl.Partitioning.Partitions {
 		existing[toLower(pd.Name)] = true
 	}
-	dropSet := make(map[string]bool, len(cmd.PartitionNames))
-	for _, name := range cmd.PartitionNames {
+	names := cmd.PartitionNames
+	if cmd.IfExists {
+		// IF EXISTS leaves out the partitions the table lacks, as notes:
+		// mariadb:11.8.8 runs `DROP PARTITION IF EXISTS zzz` and drops p0 alone
+		// for `DROP PARTITION IF EXISTS zzz, p0`.
+		names = nil
+		for _, name := range cmd.PartitionNames {
+			if existing[toLower(name)] {
+				names = append(names, name)
+			}
+		}
+		if len(names) == 0 {
+			return nil
+		}
+	}
+	// MariaDB checks whether the requested drop count would remove all
+	// partitions before checking for duplicate or missing names (measured on
+	// mariadb:11.8.8: DROP PARTITION a, a on a 2-partition table answers 1508,
+	// and on a 3-partition table answers 1507).
+	if len(names) >= len(tbl.Partitioning.Partitions) {
+		return errDropLastPartition()
+	}
+	dropSet := make(map[string]bool, len(names))
+	for _, name := range names {
 		k := toLower(name)
 		if !existing[k] || dropSet[k] {
 			return errDropPartitionNonExistent()

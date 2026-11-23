@@ -5498,3 +5498,20 @@ ok:e73f08093c12	ok:e73f08093c12	engine	features@check	check:drop	ALTER TABLE boo
 ok:ebda42c9961b	ok:ebda42c9961b	engine	features@check	check:drop	ALTER TABLE bookings RENAME COLUMN starts TO begins, DROP COLUMN note
 ok:a5c40f112f70	ok:a5c40f112f70	engine	features@check	check:drop	ALTER TABLE rooms DROP COLUMN beds
 ok:5410703c689b	ok:5410703c689b	engine	features@check	check:drop	ALTER TABLE rooms ADD COLUMN floor INT
+ok:d643a6ee6704	ok:d643a6ee6704	engine	objects@partitioned	exists:partition	ALTER TABLE a ADD PARTITION IF NOT EXISTS (PARTITION p2 VALUES LESS THAN (300))
+ok:71b367f0c86d	ok:71b367f0c86d	engine	objects@partitioned	exists:partition	ALTER TABLE a ADD PARTITION IF NOT EXISTS (PARTITION a VALUES LESS THAN (300))
+ok:71b367f0c86d	ok:71b367f0c86d	engine	objects@partitioned	exists:partition	ALTER TABLE a ADD PARTITION IF NOT EXISTS (PARTITION a VALUES LESS THAN (200))
+ok:71b367f0c86d	ok:71b367f0c86d	engine	objects@partitioned	exists:partition	ALTER TABLE a ADD PARTITION IF NOT EXISTS (PARTITION p0 VALUES LESS THAN (150))
+ok:71b367f0c86d	ok:71b367f0c86d	engine	objects@partitioned	exists:partition	ALTER TABLE a ADD PARTITION IF NOT EXISTS (PARTITION a VALUES LESS THAN (300), PARTITION p3 VALUES LESS THAN (400))
+ok:71b367f0c86d	ok:71b367f0c86d	engine	objects@partitioned	exists:partition	ALTER TABLE a ADD PARTITION IF NOT EXISTS (PARTITION p3 VALUES LESS THAN (300), PARTITION a VALUES LESS THAN (400))
+ok:71b367f0c86d	ok:71b367f0c86d	engine	objects@partitioned	exists:partition	ALTER TABLE a DROP PARTITION IF EXISTS zzz
+ok:4ef1faa5c4d3	ok:4ef1faa5c4d3	engine	objects@partitioned	exists:partition	ALTER TABLE a DROP PARTITION IF EXISTS zzz, p0
+ok:1e603ae23cd4	ok:1e603ae23cd4	engine	objects@view	exists:view	CREATE VIEW IF NOT EXISTS a AS SELECT 1
+ok:1e603ae23cd4	ok:1e603ae23cd4	engine	objects@view	exists:view	CREATE VIEW IF NOT EXISTS t AS SELECT 1
+ok:d52b5e79f075	ok:d52b5e79f075	engine	objects@view	exists:view	CREATE VIEW IF NOT EXISTS v AS SELECT 1
+1054	1054	engine	objects@view	exists:view	CREATE VIEW IF NOT EXISTS a AS SELECT zzz FROM t
+ok:fa92d0134015	ok:fa92d0134015	engine	objects@view	exists:rename	RENAME TABLE IF EXISTS a TO v2, m TO m2
+1050	1050	engine	objects@view	exists:rename	RENAME TABLE IF EXISTS m TO m2, a TO t
+ok:2b6d3007504a	ok:2b6d3007504a	engine	objects@view	exists:column	ALTER TABLE t CHANGE IF EXISTS x y INT, MODIFY IF EXISTS a BIGINT
+ok:e184fc087533	ok:e184fc087533	engine	objects@view	exists:column	ALTER TABLE t RENAME COLUMN IF EXISTS x TO y, ALTER COLUMN IF EXISTS d SET DEFAULT 1
+ok:39a17cd763f3	ok:39a17cd763f3	engine	objects@view	exists:column	ALTER TABLE t RENAME KEY IF EXISTS x TO y, RENAME KEY IF EXISTS idx_d TO idx_e

@@ -39,6 +39,12 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 		}
 	}
 	key := toLower(stmt.Name.Name)
+	// IF NOT EXISTS makes a name already taken a note, after the body is
+	// judged: mariadb:11.8.8 runs `CREATE VIEW IF NOT EXISTS a AS SELECT 1`
+	// over a view or a table a and changes nothing.
+	if stmt.IfNotExists && (db.Tables[key] != nil || db.Sequences[key] != nil || db.Views[key] != nil) {
+		return nil
+	}
 	// Tables and views share the same namespace in MySQL.
 	if _, exists := db.Tables[key]; exists || db.Sequences[key] != nil {
 		return errDupTable(stmt.Name.Name)

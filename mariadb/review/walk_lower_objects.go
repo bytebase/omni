@@ -119,6 +119,22 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 		b.databaseNeeds(r.db, v.Name.Schema, r.rng) // 1049
 	}
 	k := relKey(r.db, r.name)
+	if v.IfNotExists {
+		// IF NOT EXISTS makes a name already taken a note, after the body is
+		// judged: mariadb:11.8.8 runs `CREATE VIEW IF NOT EXISTS a AS SELECT 1`
+		// over a view or a table a and changes nothing.
+		switch f, _ := b.l.Lookup(k); f {
+		case walk.Unknown:
+			return false
+		case walk.Present:
+			if ref := selectBareColumnNoFrom(v.Select); ref != nil {
+				b.fail(rangeOf(ref.Loc), nil, review.ObjectNotFound, notFound("column", ident(ref.Column), "")) // 1054
+				return true
+			}
+			b.viewQueryFails(v.Select, len(v.Columns) > 0)
+			return true
+		}
+	}
 	if v.OrReplace {
 		if f, _ := b.l.Lookup(k); f == walk.Present {
 			b.needKind(k, []string{relView}, r.rng, "", r.written, "view") // 1347

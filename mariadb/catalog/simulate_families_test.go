@@ -38,6 +38,29 @@ var familyRows = families(map[string][]familyRow{
 		{"check:drop", "ALTER TABLE rooms DROP COLUMN beds"},
 		{"check:drop", "ALTER TABLE rooms ADD COLUMN floor INT"},
 	},
+	// IF [NOT] EXISTS over names the fixture holds, which the generated rows,
+	// whose statements fail first (SELECT a with no table), do not reach.
+	"objects@view": {
+		{"exists:view", "CREATE VIEW IF NOT EXISTS a AS SELECT 1"},
+		{"exists:view", "CREATE VIEW IF NOT EXISTS t AS SELECT 1"},
+		{"exists:view", "CREATE VIEW IF NOT EXISTS v AS SELECT 1"},
+		{"exists:view", "CREATE VIEW IF NOT EXISTS a AS SELECT zzz FROM t"},
+		{"exists:rename", "RENAME TABLE IF EXISTS a TO v2, m TO m2"},
+		{"exists:rename", "RENAME TABLE IF EXISTS m TO m2, a TO t"},
+		{"exists:column", "ALTER TABLE t CHANGE IF EXISTS x y INT, MODIFY IF EXISTS a BIGINT"},
+		{"exists:column", "ALTER TABLE t RENAME COLUMN IF EXISTS x TO y, ALTER COLUMN IF EXISTS d SET DEFAULT 1"},
+		{"exists:column", "ALTER TABLE t RENAME KEY IF EXISTS x TO y, RENAME KEY IF EXISTS idx_d TO idx_e"},
+	},
+	"objects@partitioned": {
+		{"exists:partition", "ALTER TABLE a ADD PARTITION IF NOT EXISTS (PARTITION p2 VALUES LESS THAN (300))"},
+		{"exists:partition", "ALTER TABLE a ADD PARTITION IF NOT EXISTS (PARTITION a VALUES LESS THAN (300))"},
+		{"exists:partition", "ALTER TABLE a ADD PARTITION IF NOT EXISTS (PARTITION a VALUES LESS THAN (200))"},
+		{"exists:partition", "ALTER TABLE a ADD PARTITION IF NOT EXISTS (PARTITION p0 VALUES LESS THAN (150))"},
+		{"exists:partition", "ALTER TABLE a ADD PARTITION IF NOT EXISTS (PARTITION a VALUES LESS THAN (300), PARTITION p3 VALUES LESS THAN (400))"},
+		{"exists:partition", "ALTER TABLE a ADD PARTITION IF NOT EXISTS (PARTITION p3 VALUES LESS THAN (300), PARTITION a VALUES LESS THAN (400))"},
+		{"exists:partition", "ALTER TABLE a DROP PARTITION IF EXISTS zzz"},
+		{"exists:partition", "ALTER TABLE a DROP PARTITION IF EXISTS zzz, p0"},
+	},
 })
 
 type familyRow struct{ label, statement string }
