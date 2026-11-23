@@ -326,6 +326,57 @@ Tail:
 	}
 }
 
+// TestEverySiteRulesGetARowAtEachSite pins a tokens.tsv row of the form
+// (every site): each alternative that names the rule gets a row with its
+// clause written out, whose near-misses drop the clause's tokens only, and
+// none where another row already holds the statement: CREATE VIEW is the
+// site IfNotExists/IF_NOT_EXISTS reaches.
+func TestEverySiteRulesGetARowAtEachSite(t *testing.T) {
+	const src = `
+%%
+Stmt:
+	"CREATE" "VIEW" IfNotExists identifier
+|	"CREATE" "TABLE" IfNotExists identifier IfNotExists
+IfNotExists:
+	/* empty */
+|	"IF" "NOT" "EXISTS"
+`
+	got, _ := rows(t, src, map[string]string{"identifier": "a", "IfNotExists": EverySite})
+	want := strings.Join([]string{
+		"Stmt/CREATE_VIEW_IfNotExists_identifier\tCREATE VIEW a",
+		"Stmt/CREATE_VIEW_IfNotExists_identifier!drop-1\tVIEW a",
+		"Stmt/CREATE_VIEW_IfNotExists_identifier!drop-2\tCREATE a",
+		"Stmt/CREATE_VIEW_IfNotExists_identifier!drop-3\tCREATE VIEW",
+		"Stmt/CREATE_VIEW_IfNotExists_identifier!insert\tCREATE VIEW a zzz",
+		"Stmt/CREATE_TABLE_IfNotExists_identifier_IfNotExists\tCREATE TABLE a",
+		"Stmt/CREATE_TABLE_IfNotExists_identifier_IfNotExists!drop-1\tTABLE a",
+		"Stmt/CREATE_TABLE_IfNotExists_identifier_IfNotExists!drop-3\tCREATE TABLE",
+		"Stmt/CREATE_TABLE_IfNotExists_identifier_IfNotExists!insert\tCREATE TABLE a zzz",
+		"Stmt/CREATE_TABLE_IfNotExists_identifier_IfNotExists+IfNotExists\tCREATE TABLE IF NOT EXISTS a",
+		"Stmt/CREATE_TABLE_IfNotExists_identifier_IfNotExists+IfNotExists!drop-3\tCREATE TABLE NOT EXISTS a",
+		"Stmt/CREATE_TABLE_IfNotExists_identifier_IfNotExists+IfNotExists!drop-4\tCREATE TABLE IF EXISTS a",
+		"Stmt/CREATE_TABLE_IfNotExists_identifier_IfNotExists+IfNotExists!drop-5\tCREATE TABLE IF NOT a",
+		"Stmt/CREATE_TABLE_IfNotExists_identifier_IfNotExists+IfNotExists#2\tCREATE TABLE a IF NOT EXISTS",
+		"Stmt/CREATE_TABLE_IfNotExists_identifier_IfNotExists+IfNotExists#2!drop-4\tCREATE TABLE a NOT EXISTS",
+		"Stmt/CREATE_TABLE_IfNotExists_identifier_IfNotExists+IfNotExists#2!drop-5\tCREATE TABLE a IF EXISTS",
+		"Stmt/CREATE_TABLE_IfNotExists_identifier_IfNotExists+IfNotExists#2!drop-6\tCREATE TABLE a IF NOT",
+		"IfNotExists/%empty\tCREATE VIEW a",
+		"IfNotExists/%empty!insert\tCREATE VIEW zzz a",
+		"IfNotExists/IF_NOT_EXISTS\tCREATE VIEW IF NOT EXISTS a",
+		"IfNotExists/IF_NOT_EXISTS!drop-1\tCREATE VIEW NOT EXISTS a",
+		"IfNotExists/IF_NOT_EXISTS!drop-2\tCREATE VIEW IF EXISTS a",
+		"IfNotExists/IF_NOT_EXISTS!drop-3\tCREATE VIEW IF NOT a",
+		"IfNotExists/IF_NOT_EXISTS!truncate\tCREATE VIEW IF NOT",
+		"IfNotExists/IF_NOT_EXISTS!insert\tCREATE VIEW IF NOT EXISTS zzz a",
+	}, "\n") + "\n"
+	if render(got) != want {
+		t.Errorf("rows:\n%s\nwant:\n%s", render(got), want)
+	}
+	if _, err := ReadBison(src, tokens(map[string]string{"identifier": "a", "IF": EverySite})); err == nil {
+		t.Errorf("a token given %s: no error", EverySite)
+	}
+}
+
 // TestConditional pins the %ifdef lines of MariaDB's sql_yacc.yy: one file
 // holds the default grammar and the Oracle-mode one, and has no second %%.
 func TestConditional(t *testing.T) {

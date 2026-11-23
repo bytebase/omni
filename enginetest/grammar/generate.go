@@ -45,6 +45,11 @@ type builtAlt struct {
 	prefix []string
 	body   []string
 	suffix []string
+	// site is set for the row an EverySite rule adds to an alternative that
+	// names it: the body tokens the rule's clause spans, [start, end).
+	// Its near-misses drop only those, since the alternative's own row
+	// breaks the rest.
+	site *[2]int
 }
 
 // full returns the whole statement's tokens.
@@ -54,7 +59,8 @@ func (a builtAlt) full() []string {
 
 // Rows returns the generated rows: for each alternative of each rule, in
 // source order, the shortest statement that exercises it, followed by its
-// near-misses (see nearMisses). uncovered lists the alternatives no
+// near-misses (see nearMisses), and after it a row for each EverySite rule
+// the alternative names, with that rule's clause written out. uncovered lists the alternatives no
 // statement could be generated for: unreachable from the start symbol,
 // never terminating, or needing an unreachable token. Each needs a
 // hand-added row.
@@ -64,10 +70,25 @@ func (g *Grammar) Rows() (rows []Row, uncovered []string) {
 
 	positive := map[string]bool{}
 	for _, a := range alts {
-		positive[g.render(a.full())] = true
+		if a.site == nil {
+			positive[g.render(a.full())] = true
+		}
+	}
+	// A clause's row at a site whose statement another row already holds,
+	// as the row of the rule's own alternative does, adds nothing.
+	kept := alts[:0]
+	for _, a := range alts {
+		if a.site != nil {
+			stmt := g.render(a.full())
+			if positive[stmt] {
+				continue
+			}
+			positive[stmt] = true
+		}
+		kept = append(kept, a)
 	}
 	seen := map[string]bool{}
-	for _, a := range alts {
+	for _, a := range kept {
 		rows = append(rows, Row{Rule: a.label, Statement: g.render(a.full())})
 		for _, nm := range nearMisses(a, kw, g.render) {
 			// A mutation that lands on a valid sentence, or on another
@@ -104,9 +125,63 @@ func (g *Grammar) buildAlts() (alts []builtAlt, uncovered []string) {
 				continue
 			}
 			alts = append(alts, builtAlt{label: label, prefix: cxN.prefix, body: body, suffix: cxN.suffix})
+			alts = append(alts, g.siteAlts(label, alt, sd, cxN)...)
 		}
 	}
 	return alts, uncovered
+}
+
+// siteAlts returns one builtAlt for each symbol of alt that names an
+// EverySite rule, labelled <label>+<rule> (and #2, #3 for a rule the
+// alternative names again): the alternative's shortest statement with that
+// rule written as its shortest form that is not nothing.
+func (g *Grammar) siteAlts(label string, alt []symbol, sd map[string]deriv, cx ctxt) []builtAlt {
+	var out []builtAlt
+	named := map[string]int{}
+	for k, sym := range alt {
+		if !sym.nonterm || !g.everySite[sym.text] {
+			continue
+		}
+		clause, ok := g.shortestNonEmpty(sym.text, sd)
+		if !ok {
+			continue
+		}
+		siteLabel := label + "+" + sym.text
+		if named[sym.text]++; named[sym.text] > 1 {
+			siteLabel = fmt.Sprintf("%s#%d", siteLabel, named[sym.text])
+		}
+		before, ok := g.altTokens(alt[:k], sd)
+		if !ok {
+			continue
+		}
+		after, ok := g.altTokens(alt[k+1:], sd)
+		if !ok {
+			continue
+		}
+		out = append(out, builtAlt{
+			label:  siteLabel,
+			prefix: cx.prefix,
+			body:   join(before, clause, after),
+			suffix: cx.suffix,
+			site:   &[2]int{len(before), len(before) + len(clause)},
+		})
+	}
+	return out
+}
+
+// shortestNonEmpty returns the fewest tokens, other than none, that rule
+// derives through one alternative with the shortest derivation of each of
+// its symbols; among equally short ones, the alternative the grammar lists
+// first.
+func (g *Grammar) shortestNonEmpty(rule string, sd map[string]deriv) ([]string, bool) {
+	var best []string
+	for _, alt := range g.byName[rule].alts {
+		toks, ok := g.altTokens(alt, sd)
+		if ok && len(toks) > 0 && (best == nil || len(toks) < len(best)) {
+			best = toks
+		}
+	}
+	return best, best != nil
 }
 
 // altLabel names an alternative by its rule and its symbols as the grammar
