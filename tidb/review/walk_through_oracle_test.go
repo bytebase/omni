@@ -105,6 +105,9 @@ var walkCases = []walkCase{
 	{name: "generated foreign key names", change: "CREATE TABLE g (id int PRIMARY KEY, b int, FOREIGN KEY (b) REFERENCES r (id));\nRENAME TABLE g TO h;\nALTER TABLE h DROP FOREIGN KEY fk_1;\nALTER TABLE h DROP FOREIGN KEY fk_1;\nALTER TABLE nokey ADD CONSTRAINT fk_1 FOREIGN KEY (a) REFERENCES r (id);\nRENAME TABLE child TO kid;\nALTER TABLE kid DROP FOREIGN KEY fk_1;\nALTER TABLE kid DROP FOREIGN KEY fk_1;\nALTER TABLE kid RENAME TO c2;\nALTER TABLE c2 ADD CONSTRAINT fk_1 FOREIGN KEY (b) REFERENCES r (id);\nALTER TABLE c2 ADD CONSTRAINT fk_1 FOREIGN KEY (b) REFERENCES r (id);", complete: true},
 	// TiDB has no invisible primary key.
 	{name: "a table without a primary key has none", change: "ALTER TABLE nokey DROP PRIMARY KEY;\nCREATE TABLE g (a int);\nALTER TABLE g DROP PRIMARY KEY;\nALTER TABLE g DROP INDEX `PRIMARY`;\nALTER TABLE g ADD PRIMARY KEY (a);\nALTER TABLE g ADD PRIMARY KEY (a);", complete: true},
+	// r and child are clustered by their primary keys, t is not; the sync
+	// says which (TIDB_PK_TYPE).
+	{name: "a clustered primary key stays", change: "ALTER TABLE r DROP PRIMARY KEY;\nALTER TABLE child DROP INDEX `PRIMARY`;\nDROP INDEX `PRIMARY` ON r;\nALTER TABLE child SHARD_ROW_ID_BITS = 4;\nALTER TABLE r SHARD_ROW_ID_BITS 1, COMMENT 'c';\nALTER TABLE r SHARD_ROW_ID_BITS = 0;\nALTER TABLE t SHARD_ROW_ID_BITS = 4;\nRENAME TABLE child TO kid;\nALTER TABLE kid DROP PRIMARY KEY;\nALTER TABLE t DROP PRIMARY KEY;", complete: true},
 	{name: "a view stays in its database", change: "CREATE DATABASE q;\nRENAME TABLE v TO q.v;\nDROP VIEW v;", complete: true},
 	{name: "RENAME", change: "RENAME TABLE nosuch TO x;\nRENAME TABLE t TO r;\nRENAME TABLE t TO tmp, r TO t, tmp TO r;\nALTER TABLE r ADD COLUMN a int;\nALTER TABLE t RENAME TO r;\nALTER TABLE t RENAME TO t2;\nALTER TABLE t ADD COLUMN zz int;\nCREATE DATABASE q;\nRENAME TABLE nokey TO q.nokey;\nCREATE TABLE q.nokey (a int);\nRENAME TABLE sq TO q.sq;\nCREATE SEQUENCE q.sq;\nRENAME TABLE t2 TO t3, nosuch TO t4;\nALTER TABLE t2 RENAME TO `q.t2`;\nCREATE TABLE `q.t2` (a int);\nRENAME TABLE r TO R;\nALTER TABLE r ADD COLUMN zz int, RENAME TO R;", complete: true},
 	// DROP and TRUNCATE.
@@ -169,7 +172,7 @@ var walkCases = []walkCase{
 	// LOGS and the rest answer 1105 for want of TiKV here, which says nothing about
 	// the walk, so tidb_admin_test.go pins those.
 	{name: "standalone admin statements", change: "RECOMMEND INDEX SHOW;\nRECOMMEND INDEX RUN FOR 'select * from t where a = 1';\nSET CONFIG tikv nosuch.item = 1;\nALTER RANGE global PLACEMENT POLICY DEFAULT;\nALTER RANGE meta PLACEMENT POLICY SET DEFAULT;\nKILL 999999;\nKILL QUERY 999999;\nKILL TIDB 999999;\nKILL TIDB CONNECTION 999999;\nCANCEL BR JOB 1;\nSHOW BR JOB QUERY 1;\nSHOW BACKUP METADATA FROM 'noop://';\nFLUSH PRIVILEGES;\nDROP TABLE nosuch;", complete: true},
-	{name: "unknown by design", change: "DROP DATABASE nosuch;\nRENAME TABLE t TO nodb.t;\nCREATE VIEW nodb.w AS SELECT 1 AS a;\nCREATE TABLE x AS SELECT 1 AS a;\nCREATE TABLE x (a int, b int UNIQUE);\nALTER TABLE x DROP INDEX zz;\nALTER TABLE nokey ADD COLUMN _tidb_rowid int;\nALTER TABLE nokey ADD COLUMN y int AFTER _tidb_rowid;\nALTER TABLE nokey DROP COLUMN _tidb_rowid;\nALTER TABLE t ADD COLUMN q int, ADD INDEX kq (q);\nALTER TABLE t DROP COLUMN IF EXISTS a, DROP COLUMN a;\nALTER TABLE t ALTER COLUMN a SET DEFAULT 1, MODIFY a int;\nALTER TABLE r DROP PRIMARY KEY;\nALTER TABLE t DROP CONSTRAINT nosuch;\nINSERT INTO v VALUES (1);\nCREATE TABLE c3 (id int, a int, FOREIGN KEY (id) REFERENCES r (id), CONSTRAINT fk_1 FOREIGN KEY (a) REFERENCES r (id));\nCREATE PROCEDURE p() SELECT 1;\nCREATE TABLE t (a int);"},
+	{name: "unknown by design", change: "DROP DATABASE nosuch;\nRENAME TABLE t TO nodb.t;\nCREATE VIEW nodb.w AS SELECT 1 AS a;\nCREATE TABLE x AS SELECT 1 AS a;\nCREATE TABLE x (a int, b int UNIQUE);\nALTER TABLE x DROP INDEX zz;\nALTER TABLE nokey ADD COLUMN _tidb_rowid int;\nALTER TABLE nokey ADD COLUMN y int AFTER _tidb_rowid;\nALTER TABLE nokey DROP COLUMN _tidb_rowid;\nALTER TABLE t ADD COLUMN q int, ADD INDEX kq (q);\nALTER TABLE t DROP COLUMN IF EXISTS a, DROP COLUMN a;\nALTER TABLE t ALTER COLUMN a SET DEFAULT 1, MODIFY a int;\nALTER TABLE t DROP CONSTRAINT nosuch;\nINSERT INTO v VALUES (1);\nCREATE TABLE c3 (id int, a int, FOREIGN KEY (id) REFERENCES r (id), CONSTRAINT fk_1 FOREIGN KEY (a) REFERENCES r (id));\nCREATE PROCEDURE p() SELECT 1;\nCREATE TABLE t (a int);"},
 }
 
 // The walk's tests replay their tapes (testdata/tapes) and start no server.
@@ -440,6 +443,9 @@ var walkCodes = []struct {
 			strings.HasPrefix(m, "TiDB can't change column ") && strings.Contains(m, ", which rewrites its data, in partitioned table ")
 	}, []string{"8200"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "TiDB can't move `AUTO_ID_CACHE` ") }, []string{"1105"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "TiDB can't drop the primary key of ") || strings.HasPrefix(m, "TiDB can't set `SHARD_ROW_ID_BITS` on ")
+	}, []string{"8200"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "TTL column ") }, []string{"8148"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "Every unique key of ") }, []string{"1503", "8264"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "TiDB can't add an index or a constraint with ") }, []string{"1846"}},
@@ -930,14 +936,14 @@ func walkSync(t *testing.T, db *sql.DB) *metadata.DatabaseSchemaMetadata {
 		s.Sequences = append(s.Sequences, &metadata.SequenceMetadata{Name: name})
 		return nil
 	})
-	query("SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME", func(r *sql.Rows) error {
-		var name, kind, engine string
-		if err := r.Scan(&name, &kind, &engine); err != nil {
+	query("SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME", func(r *sql.Rows) error {
+		var name, kind, engine, pkType string
+		if err := r.Scan(&name, &kind, &engine, &pkType); err != nil {
 			return err
 		}
 		switch kind {
 		case "BASE TABLE":
-			table := &metadata.TableMetadata{Name: name, Columns: columns[name], ForeignKeys: foreignKeys[name], CheckConstraints: checks[name], Engine: engine}
+			table := &metadata.TableMetadata{Name: name, Columns: columns[name], ForeignKeys: foreignKeys[name], CheckConstraints: checks[name], Engine: engine, PrimaryKeyType: pkType}
 			for _, key := range slices.Sorted(maps.Keys(indexes[name])) {
 				table.Indexes = append(table.Indexes, indexes[name][key])
 			}
