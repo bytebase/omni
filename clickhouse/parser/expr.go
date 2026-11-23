@@ -1402,31 +1402,18 @@ func (p *parser) parseDataType() (*DataType, error) {
 		return dt, nil
 	}
 
-	// Enum values: stringLiteral '=' numberLiteral (',' ...)*
+	// Enum values: stringLiteral '=' numberLiteral (',' ...)*. A list that is
+	// not only such pairs ('a' = 1, 2 or 'a' = 1 = 2) falls back to the
+	// general arguments below, as ParserDataType's enum fast path does.
 	if isStringTok(p.cur().Type) && p.peek(1).Type == TokEq {
-		for {
-			lit, err := p.parseStringLiteral()
-			if err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(TokEq); err != nil {
-				return nil, err
-			}
-			num, err := p.parseNumberLiteral()
-			if err != nil {
-				return nil, err
-			}
-			dt.EnumValues = append(dt.EnumValues, EnumValue{Name: lit.Val, Value: num.Raw})
-			if !p.match(TokComma) {
-				break
-			}
+		save := p.pos
+		if vals, ok := p.tryParseEnumValues(); ok {
+			rp := p.advance()
+			dt.EnumValues = vals
+			dt.End = rp.End
+			return dt, nil
 		}
-		rp, err := p.expect(TokRParen)
-		if err != nil {
-			return nil, err
-		}
-		dt.End = rp.End
-		return dt, nil
+		p.pos = save
 	}
 
 	// Named elements (Nested / named Tuple): ident dataType (',' ident dataType)*
@@ -1463,7 +1450,7 @@ func (p *parser) parseDataType() (*DataType, error) {
 
 	// General arguments: mix of data types and literal/expr params (no bare `*`, optional trailing comma)
 	for {
-		arg, typeArg, err := p.parseTypeArg()
+		arg, typeArg, err := p.parseTypeArg(name)
 		if err != nil {
 			return nil, err
 		}
@@ -1486,7 +1473,91 @@ func (p *parser) parseDataType() (*DataType, error) {
 	return dt, nil
 }
 
-func (p *parser) parseTypeArg() (Expr, *DataType, error) {
+// tryParseEnumValues parses 'name' = number (, 'name' = number)* up to the
+// closing parenthesis, which it leaves unread. It reports false when the
+// arguments are anything else.
+func (p *parser) tryParseEnumValues() ([]EnumValue, bool) {
+	var vals []EnumValue
+	for {
+		if !isStringTok(p.cur().Type) || p.peek(1).Type != TokEq {
+			return nil, false
+		}
+		lit, err := p.parseStringLiteral()
+		if err != nil {
+			return nil, false
+		}
+		p.advance()
+		num, err := p.parseNumberLiteral()
+		if err != nil {
+			return nil, false
+		}
+		vals = append(vals, EnumValue{Name: lit.Val, Value: num.Raw})
+		if !p.match(TokComma) {
+			break
+		}
+	}
+	return vals, p.cur().Type == TokRParen
+}
+
+// typeHasOwnArgs reports whether ClickHouse's ParserDataType reads the
+// arguments of the type named name with a parser of their own rather than
+// its general one (ParserDataType.cpp at v26.8.38.9-lts: Dynamic, JSON,
+// Nested, Tuple, AggregateFunction and SimpleAggregateFunction).
+func typeHasOwnArgs(name string) bool {
+	switch name {
+	case "Dynamic", "Nested", "Tuple", "AggregateFunction", "SimpleAggregateFunction":
+		return true
+	}
+	return strings.EqualFold(name, "json")
+}
+
+// isTypeArgLiteralStart reports whether tok starts a ParserLiteral: a
+// signed number, inf or nan, a string, a boolean or NULL.
+func isTypeArgLiteralStart(tok Token) bool {
+	switch tok.Type {
+	case TokInt, TokFloat, KwInf, KwNan, TokPlus, TokMinus, KwTrue, KwFalse, KwNull:
+		return true
+	}
+	return isStringTok(tok.Type)
+}
+
+// parseTypeArg parses one argument of the type named typeName. For a type
+// without arguments of its own, ParserDataType's general rule
+// (ParserDataType.cpp at v26.8.38.9-lts) takes an enum element
+// chain (literal = literal ...), a literal, or a data type, and never an
+// expression: `a((1))`, `a([1])` and `a(1 + 1)` are syntax errors.
+func (p *parser) parseTypeArg(typeName string) (Expr, *DataType, error) {
+	if typeHasOwnArgs(typeName) {
+		return p.parseOwnTypeArg()
+	}
+	if isTypeArgLiteralStart(p.cur()) {
+		lit, err := p.parseLiteral()
+		if err != nil {
+			return nil, nil, err
+		}
+		var arg Expr = lit
+		for p.cur().Type == TokEq {
+			op := p.advance().Raw
+			right, err := p.parseLiteral()
+			if err != nil {
+				return nil, nil, err
+			}
+			arg = &BinaryExpr{span: span{Pos: arg.StartPos(), End: right.EndPos()}, Op: op, Left: arg, Right: right}
+		}
+		return arg, nil, nil
+	}
+	dt, err := p.parseDataType()
+	if err != nil {
+		return nil, nil, err
+	}
+	return &TypeExpr{span: dt.span, Type: dt}, dt, nil
+}
+
+// parseOwnTypeArg parses an argument of a type that ParserDataType reads
+// with a parser of its own (Dynamic(max_types = N), JSON(a.b UInt8, SKIP
+// c), AggregateFunction(quantiles(0.5), UInt8)). omni does not model those
+// parsers yet and takes a data type or an expression.
+func (p *parser) parseOwnTypeArg() (Expr, *DataType, error) {
 	// Nested data type (e.g. Nullable(UInt64) or bare UInt64 inside Array(UInt64))
 	if isIdentifier(p.cur()) && p.peek(1).Type == TokLParen && !p.noTypeArgAt[p.pos] {
 		save := p.pos
