@@ -1096,67 +1096,78 @@ func (e *querySpanExtractor) extractFallbackColumns(selStmt *ast.SelectStmt) []Q
 	e.fallbackCTEMap = cteMap
 	e.fallbackCTEAliases = collectCTEAliases(selStmt)
 
-	// Check if SELECT has explicit target list (not *).
+	// Each target, a star among them, gives its columns in place, so the
+	// results line up with the query's output by position.
 	if selStmt.TargetList != nil {
-		var results, stars []QuerySpanResult
-		allStar, starsFound := true, true
+		var results []QuerySpanResult
+		hasExpr := false
 		for _, item := range selStmt.TargetList.Items {
 			rt, ok := item.(*ast.ResTarget)
 			if !ok {
 				continue
 			}
 			if isStarTarget(rt) {
-				columns, found := e.starColumns(selStmt, rt, analyzer, fromTables)
-				stars, starsFound = append(stars, columns...), starsFound && found
-			} else {
-				allStar = false
-				name := rt.Name
-				if name == "" {
-					name = figureResTargetName(rt)
-				}
-				// PostgreSQL uses "?column?" for unnamed result columns.
-				if name == "" {
-					name = "?column?"
-				}
-				// Extract column references from the expression for lineage.
-				colSet := make(ColumnSet)
-				analyzer.extractColumnRefsFromExpr(rt.Val, fromTables, colSet)
-				results = append(results, QuerySpanResult{
-					Name:          name,
-					SourceColumns: colSet,
-				})
+				results = append(results, e.expandStar(selStmt, rt, analyzer, fromTables)...)
+				continue
+			}
+			hasExpr = true
+			name := rt.Name
+			if name == "" {
+				name = figureResTargetName(rt)
+			}
+			// PostgreSQL uses "?column?" for unnamed result columns.
+			if name == "" {
+				name = "?column?"
+			}
+			// Extract column references from the expression for lineage.
+			colSet := make(ColumnSet)
+			analyzer.extractColumnRefsFromExpr(rt.Val, fromTables, colSet)
+			results = append(results, QuerySpanResult{
+				Name:          name,
+				SourceColumns: colSet,
+			})
+		}
+		// Also extract WHERE clause columns for predicate tracking.
+		if hasExpr && selStmt.WhereClause != nil {
+			whereColSet := make(ColumnSet)
+			analyzer.extractColumnRefsFromExpr(selStmt.WhereClause, fromTables, whereColSet)
+			for k, v := range whereColSet {
+				e.predicateColumns[k] = v
 			}
 		}
-		if !allStar && len(results) > 0 {
-			// Also extract WHERE clause columns for predicate tracking.
-			if selStmt.WhereClause != nil {
-				whereColSet := make(ColumnSet)
-				analyzer.extractColumnRefsFromExpr(selStmt.WhereClause, fromTables, whereColSet)
-				for k, v := range whereColSet {
-					e.predicateColumns[k] = v
-				}
-			}
+		if len(results) > 0 {
 			return results
-		}
-		// A star whose FROM item was not found leaves the columns of every
-		// FROM item below, rather than a shorter list that shifts the rest.
-		if allStar && starsFound && len(stars) > 0 {
-			return stars
 		}
 	}
 
 	// For SELECT *, combine columns from ALL FROM clause items.
-	if selStmt.FromClause != nil {
-		var allCols []QuerySpanResult
-		for _, item := range selStmt.FromClause.Items {
-			allCols = append(allCols, e.extractColumnsFromFromItem(item, analyzer, fromTables)...)
-		}
-		if len(allCols) > 0 {
-			return allCols
-		}
+	if cols := e.fromClauseColumns(selStmt, analyzer, fromTables); len(cols) > 0 {
+		return cols
 	}
 
 	return nil
+}
+
+// expandStar returns the columns the star target rt of sel expands to. A
+// star whose FROM item was not found takes the columns of every FROM item,
+// rather than none, which would shift the columns after it.
+func (e *querySpanExtractor) expandStar(sel *ast.SelectStmt, rt *ast.ResTarget, analyzer *plpgsqlAnalyzer, fromTables map[string]ColumnResource) []QuerySpanResult {
+	if columns, found := e.starColumns(sel, rt, analyzer, fromTables); found {
+		return columns
+	}
+	return e.fromClauseColumns(sel, analyzer, fromTables)
+}
+
+// fromClauseColumns returns the columns of every FROM item of sel, in order.
+func (e *querySpanExtractor) fromClauseColumns(sel *ast.SelectStmt, analyzer *plpgsqlAnalyzer, fromTables map[string]ColumnResource) []QuerySpanResult {
+	if sel.FromClause == nil {
+		return nil
+	}
+	var columns []QuerySpanResult
+	for _, item := range sel.FromClause.Items {
+		columns = append(columns, e.extractColumnsFromFromItem(item, analyzer, fromTables)...)
+	}
+	return columns
 }
 
 // starColumns returns the columns a star target of sel expands to: those of
@@ -1422,13 +1433,37 @@ func (e *querySpanExtractor) extractColumnsFromFromItem(item ast.Node, analyzer 
 		if analyzer == nil {
 			analyzer = &plpgsqlAnalyzer{extractor: e, scope: newVariableScope(nil)}
 		}
-		return analyzer.fromItemColumns(item, fromTables)
+		columns := analyzer.fromItemColumns(item, fromTables)
+		// A subquery's column also reads its tables' columns of that name,
+		// the failsafe fromItemColumn applies to a column named outright, so
+		// a star never reads less than naming the column would.
+		if rs, ok := v.(*ast.RangeSubselect); ok {
+			if sel, ok := rs.Subquery.(*ast.SelectStmt); ok {
+				for i := range columns {
+					if columns[i].SourceColumns == nil {
+						columns[i].SourceColumns = make(ColumnSet)
+					}
+					analyzer.innerColumnsNamed(sel, columns[i].Name, columns[i].SourceColumns)
+				}
+			}
+		}
+		return columns
 	case *ast.RangeFunction:
 		return e.extractColumnsFromRangeFunction(v, analyzer, fromTables)
 	case *ast.JsonTable:
 		return jsonTableColumns(v, analyzer, fromTables)
 	case *ast.JoinExpr:
-		return joinColumns(v, e.extractColumnsFromFromItem(v.Larg, analyzer, fromTables), e.extractColumnsFromFromItem(v.Rarg, analyzer, fromTables))
+		columns := joinColumns(v, e.extractColumnsFromFromItem(v.Larg, analyzer, fromTables), e.extractColumnsFromFromItem(v.Rarg, analyzer, fromTables))
+		// An alias column list renames the join's first columns.
+		// pg: src/backend/parser/parse_clause.c — transformFromClauseItem (JoinExpr)
+		if v.Alias != nil {
+			for i, name := range astStrings(v.Alias.Colnames) {
+				if i < len(columns) {
+					columns[i].Name = name
+				}
+			}
+		}
+		return columns
 	default:
 		return nil
 	}
@@ -1799,7 +1834,7 @@ func (e *querySpanExtractor) extractColumnsFromRangeFunction(rf *ast.RangeFuncti
 		e.enrichFuncResultsWithArgLineage(rf, analyzer, fromTables, results)
 		return results
 	}
-	results := extractFuncColumnNames(rf, rf.Alias)
+	results := extractFuncColumnNames(rf)
 	e.enrichFuncResultsWithArgLineage(rf, analyzer, fromTables, results)
 	return results
 }
@@ -1856,14 +1891,22 @@ func extractColnamesFromAlias(alias *ast.Alias) []QuerySpanResult {
 	return results
 }
 
-// extractFuncColumnNames extracts column names from a RangeFunction.
-// For functions like unnest(ARRAY, ARRAY), each argument produces a column
-// named after the function.
-func extractFuncColumnNames(rf *ast.RangeFunction, _ *ast.Alias) []QuerySpanResult {
+// extractFuncColumnNames names the columns of a RangeFunction whose
+// functions are not user functions omni resolved: those of a function's
+// column definition list, or else one column named for the function, or one
+// per argument of unnest. WITH ORDINALITY adds a last column. A star expands
+// to these in place, so their number keeps the columns after it in line.
+//
+// pg: src/backend/parser/parse_clause.c — transformRangeFunction
+// pg: src/backend/parser/parse_relation.c — addRangeTableEntryForFunction
+func extractFuncColumnNames(rf *ast.RangeFunction) []QuerySpanResult {
 	if rf.Functions == nil {
 		return nil
 	}
 
+	column := func(name string) QuerySpanResult {
+		return QuerySpanResult{Name: name, SourceColumns: ColumnSet{}}
+	}
 	var results []QuerySpanResult
 	for _, funcItem := range rf.Functions.Items {
 		funcList, ok := funcItem.(*ast.List)
@@ -1872,6 +1915,20 @@ func extractFuncColumnNames(rf *ast.RangeFunction, _ *ast.Alias) []QuerySpanResu
 		}
 		fc, ok := funcList.Items[0].(*ast.FuncCall)
 		if !ok || fc.Funcname == nil {
+			continue
+		}
+		// A column definition list: on the function inside ROWS FROM, or
+		// on the RangeFunction otherwise.
+		coldefs := rf.Coldeflist
+		if len(funcList.Items) > 1 {
+			coldefs, _ = funcList.Items[1].(*ast.List)
+		}
+		if coldefs != nil && len(coldefs.Items) > 0 {
+			for _, item := range coldefs.Items {
+				if def, ok := item.(*ast.ColumnDef); ok {
+					results = append(results, column(def.Colname))
+				}
+			}
 			continue
 		}
 		// Get function name.
@@ -1884,18 +1941,17 @@ func extractFuncColumnNames(rf *ast.RangeFunction, _ *ast.Alias) []QuerySpanResu
 		if funcName == "" {
 			continue
 		}
-		// Determine number of columns: for set-returning functions like unnest,
-		// each argument produces a column.
+		// unnest with several arguments is a function per argument.
 		nCols := 1
-		if fc.Args != nil && len(fc.Args.Items) > 1 {
+		if funcName == "unnest" && fc.Args != nil && len(fc.Args.Items) > 1 {
 			nCols = len(fc.Args.Items)
 		}
 		for range nCols {
-			results = append(results, QuerySpanResult{
-				Name:          funcName,
-				SourceColumns: ColumnSet{},
-			})
+			results = append(results, column(funcName))
 		}
+	}
+	if rf.Ordinality {
+		results = append(results, column("ordinality"))
 	}
 	return results
 }

@@ -1069,6 +1069,14 @@ func (a *plpgsqlAnalyzer) fallbackExtractLineage(origSQL string, selStmt *ast.Se
 			results = append(results, make(ColumnSet))
 			continue
 		}
+		// A star gives its columns in place, so the outputs after it keep
+		// their positions.
+		if isStarTarget(rt) {
+			for _, column := range a.extractor.expandStar(selStmt, rt, a, fromTables) {
+				results = append(results, column.SourceColumns)
+			}
+			continue
+		}
 
 		colSet := make(ColumnSet)
 
