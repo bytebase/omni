@@ -902,9 +902,13 @@ func (b *binder) star(star *ast.StarExpr, sc *qscope) ([]qcol, bool, error) {
 	}
 	// The qualifier is one identifier, the table's or its alias, and a
 	// delimited one may hold dots: [a.b].*.
-	for _, r := range sc.rels {
-		if relMatches(r, "", star.Qualifier) {
-			return visible(r.cols), r.opaque || r.starOpaque, nil
+	// The nearest query that has the relation wins: a subquery's t.* may
+	// name an enclosing query's t.
+	for s := sc; s != nil; s = s.parent {
+		for _, r := range s.rels {
+			if relMatches(r, "", star.Qualifier) {
+				return visible(r.cols), r.opaque || r.starOpaque, nil
+			}
 		}
 	}
 	return nil, false, mssqlErr(107, "The column prefix '%s' does not match with a table name or alias name used in the query.", star.Qualifier)

@@ -484,6 +484,8 @@ func TestViewBinding(t *testing.T) {
 		{"STRING_SPLIT with its ordinal", nil, "CREATE VIEW v (value) AS SELECT * FROM STRING_SPLIT('a,b', ',', 1)", 8158},
 		{"outer aggregate in a HAVING subquery", nil, "CREATE VIEW v AS SELECT SUM(id) AS s FROM t HAVING EXISTS (SELECT 1 WHERE SUM(t.id) > 0)", 0},
 		{"local aggregate in a subquery's WHERE", nil, "CREATE VIEW v AS SELECT SUM(id) AS s FROM t HAVING EXISTS (SELECT 1 FROM u WHERE SUM(u.id) > 0)", 147},
+		{"qualified star of an enclosing query", nil, "CREATE VIEW v AS SELECT (SELECT t.* FOR JSON PATH, WITHOUT_ARRAY_WRAPPER) AS j FROM t", 0},
+		{"qualified star of no query", nil, "CREATE VIEW v AS SELECT (SELECT z.* FOR JSON PATH) AS j FROM t", 107},
 		{"grouped star in EXISTS", nil, "CREATE VIEW v AS SELECT 1 AS n WHERE EXISTS (SELECT * FROM x GROUP BY id)", 0},
 		{"xml nodes as a table source", []string{"CREATE TABLE xd (id INT NOT NULL, doc XML NULL)"}, "CREATE VIEW v AS SELECT xd.id, n.x.value('.', 'int') AS v FROM xd CROSS APPLY doc.nodes('/r') AS n(x)", 0},
 	}
