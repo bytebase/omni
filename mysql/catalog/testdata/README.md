@@ -7,13 +7,13 @@ hash of the stored `SHOW CREATE` texts. `TestSimulation`
 (`../simulate_test.go`) replays it from `tapes/TestSimulation.tape` without a
 server; `mysql/review`'s `TestWalkSimulation` holds WALK_THROUGH to the same rows.
 
-**3,207 rows: 3,207 agree, 0 disagree (100.00%).**
+**3,218 rows: 3,218 agree, 0 disagree (100.00%).**
 
 - **2,877 generated rows:** the 411 statements MySQL accepts in
   `../../parser/testdata/compat.tsv`, on seven fixtures that name their objects
   `utf8mb4` as compat.tsv does (`one_table@{missing,table,column,index}`,
   `objects@{view,partitioned,fk}`).
-- **330 family rows** (`../simulate_families_test.go`), labeled `<family>:<case>`,
+- **341 family rows** (`../simulate_families_test.go`), labeled `<family>:<case>`,
   on fixtures named as an application names its objects:
 
 | fixture | rows | covers |
@@ -22,6 +22,7 @@ server; `mysql/review`'s `TestWalkSimulation` holds WALK_THROUGH to the same row
 | `partitioned@list` | 24 | LIST and LIST COLUMNS: values, duplicates, reorganizing |
 | `partitioned@hash` | 35 | HASH, LINEAR HASH and KEY: ADD/COALESCE PARTITION, column types |
 | `features@generated` | 67 | generated columns, functional and invisible indexes, invisible columns, CHECK constraints |
+| `features@check` | 11 | dropping a column a CHECK constraint reads, alone or with the other columns it reads |
 | `features@charset` | 29 | CONVERT TO, table and column character sets, VARCHAR length and row size |
 | `features@fk` | 45 | foreign keys: add, drop, renames, type changes, TRUNCATE, engines |
 | `features@spatial` | 27 | SPATIAL keys and SRIDs, FULLTEXT keys |

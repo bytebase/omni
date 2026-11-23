@@ -39461,6 +39461,210 @@
 |   PRIMARY KEY (`id`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 > exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN starts, DROP COLUMN ends
+< error
+| 3959 HY000 Check constraint 'chk_dates' uses column 'starts', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN ends, DROP COLUMN starts
+< error
+| 3959 HY000 Check constraint 'chk_dates' uses column 'ends', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN starts
+< error
+| 3959 HY000 Check constraint 'chk_dates' uses column 'starts', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN ends
+< error
+| 3959 HY000 Check constraint 'chk_dates' uses column 'ends', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN guests
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int NOT NULL,
+|   `starts` date DEFAULT NULL,
+|   `ends` date DEFAULT NULL,
+|   `note` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `chk_dates` CHECK ((`starts` <= `ends`))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN guests, DROP COLUMN starts
+< error
+| 3959 HY000 Check constraint 'chk_dates' uses column 'starts', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP CHECK chk_dates, DROP COLUMN starts, DROP COLUMN ends
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int NOT NULL,
+|   `guests` int DEFAULT NULL,
+|   `note` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `bookings_chk_1` CHECK ((`guests` > 0))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN starts, DROP COLUMN ends, DROP CHECK chk_dates
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int NOT NULL,
+|   `guests` int DEFAULT NULL,
+|   `note` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `bookings_chk_1` CHECK ((`guests` > 0))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP CONSTRAINT chk_dates, DROP COLUMN starts, DROP COLUMN ends
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int NOT NULL,
+|   `guests` int DEFAULT NULL,
+|   `note` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `bookings_chk_1` CHECK ((`guests` > 0))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP CHECK chk_dates, DROP COLUMN starts
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int NOT NULL,
+|   `ends` date DEFAULT NULL,
+|   `guests` int DEFAULT NULL,
+|   `note` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `bookings_chk_1` CHECK ((`guests` > 0))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends))
+< ok 0 0
+> exec
+| ALTER TABLE bookings RENAME COLUMN starts TO begins, DROP COLUMN ends
+< error
+| 3959 HY000 Check constraint 'chk_dates' uses column 'ends', hence column cannot be dropped or renamed.
+> exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE customers (id INT PRIMARY KEY, email VARCHAR(100) NOT NULL, UNIQUE KEY uk_email (email));
 | CREATE TABLE orders (id INT PRIMARY KEY, customer_id INT, email VARCHAR(100), parent_id INT, KEY idx_customer (customer_id), CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE SET NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES orders (id));
 | CREATE TABLE items (order_id INT NOT NULL, line INT NOT NULL, PRIMARY KEY (order_id, line), CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders (id))
