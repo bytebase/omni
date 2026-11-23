@@ -37,23 +37,24 @@ func (p *Parser) refuseSPStatement(stmt nodes.Node, pos int) error {
 		}
 		return p.refuseSPStatement(s.Stmt, pos)
 	}
-	if msg := spBadStatement(stmt); msg != "" {
-		return &ParseError{Message: msg, Position: pos}
+	if msg, code := spBadStatement(stmt); msg != "" {
+		return &ParseError{Message: msg, Position: pos, Code: code}
 	}
 	if !p.routine.noResultSet {
 		return nil
 	}
 	if set, ok := stmt.(*nodes.SetStmt); ok && p.setsAutocommit(set) {
-		return &ParseError{Message: "Not allowed to set autocommit from a stored function or trigger", Position: pos}
+		return &ParseError{Message: "Not allowed to set autocommit from a stored function or trigger", Position: pos, Code: 1445}
 	}
-	if msg := spNotInFunction(stmt); msg != "" {
-		return &ParseError{Message: msg, Position: pos}
+	if msg, code := spNotInFunction(stmt); msg != "" {
+		return &ParseError{Message: msg, Position: pos, Code: code}
 	}
 	return nil
 }
 
-// spBadStatement is what any stored program refuses, "" for what it takes.
-func spBadStatement(stmt nodes.Node) string {
+// spBadStatement is what any stored program refuses, with the code MariaDB answers, "" for
+// what it takes.
+func spBadStatement(stmt nodes.Node) (string, int) {
 	bad := ""
 	switch s := stmt.(type) {
 	case *nodes.UseStmt:
@@ -77,40 +78,40 @@ func spBadStatement(stmt nodes.Node) string {
 		bad = "HANDLER"
 	case *nodes.CreateFunctionStmt:
 		if s.Body == nil {
-			return "" // a loadable function
+			return "", 0 // a loadable function
 		}
 		kind := "FUNCTION"
 		if s.IsProcedure {
 			kind = "PROCEDURE"
 		}
-		return "Can't create a " + kind + " from within another stored routine"
+		return "Can't create a " + kind + " from within another stored routine", 1303
 	case *nodes.CreateTriggerStmt:
-		return "Can't create a TRIGGER from within another stored routine"
+		return "Can't create a TRIGGER from within another stored routine", 1303
 	case *nodes.DropRoutineStmt:
-		return spNoDropSP(s.IsProcedure)
+		return spNoDropSP(s.IsProcedure), 1357
 	case *nodes.CreatePackageStmt:
 		// 1303, as for a routine.
-		return "Can't create a PACKAGE from within another stored routine"
+		return "Can't create a PACKAGE from within another stored routine", 1303
 	case *nodes.DropPackageStmt:
 		// 1357: LEX::stmt_drop_routine holds packages and package bodies to it as routines.
 		kind := "PACKAGE"
 		if s.Body {
 			kind = "PACKAGE BODY"
 		}
-		return "Can't drop or alter a " + kind + " from within another stored routine"
+		return "Can't drop or alter a " + kind + " from within another stored routine", 1357
 	case *nodes.AlterRoutineStmt:
-		return spNoDropSP(s.IsProcedure)
+		return spNoDropSP(s.IsProcedure), 1357
 	case *nodes.CreateEventStmt:
-		return "Recursion of EVENT DDL statements is forbidden when body is present"
+		return "Recursion of EVENT DDL statements is forbidden when body is present", 1576
 	case *nodes.AlterEventStmt:
 		if s.Body != nil {
-			return "Recursion of EVENT DDL statements is forbidden when body is present"
+			return "Recursion of EVENT DDL statements is forbidden when body is present", 1576
 		}
 	}
 	if bad == "" {
-		return ""
+		return "", 0
 	}
-	return bad + " is not allowed in stored procedures"
+	return bad + " is not allowed in stored procedures", 1314
 }
 
 func spNoDropSP(procedure bool) string {
@@ -120,37 +121,37 @@ func spNoDropSP(procedure bool) string {
 	return "Can't drop or alter a FUNCTION from within another stored routine"
 }
 
-// spNotInFunction is what a function or a trigger refuses beyond result sets, "" for what
-// it takes.
-func spNotInFunction(stmt nodes.Node) string {
+// spNotInFunction is what a function or a trigger refuses beyond result sets, with the code
+// MariaDB answers, "" for what it takes.
+func spNotInFunction(stmt nodes.Node) (string, int) {
 	switch s := stmt.(type) {
 	case *nodes.PrepareStmt, *nodes.ExecuteStmt, *nodes.DeallocateStmt:
-		return "Dynamic SQL is not allowed in stored function or trigger"
+		return "Dynamic SQL is not allowed in stored function or trigger", 1336
 	case *nodes.ResetMasterStmt, *nodes.ResetReplicaStmt:
-		return "RESET is not allowed in stored function or trigger"
+		return "RESET is not allowed in stored function or trigger", 1336
 	case *nodes.FlushStmt:
-		return "FLUSH is not allowed in stored function or trigger"
+		return "FLUSH is not allowed in stored function or trigger", 1336
 	case *nodes.SetPasswordStmt:
-		return "Not allowed to set autocommit from a stored function or trigger"
+		return "Not allowed to set autocommit from a stored function or trigger", 1445
 	case *nodes.CreateTableStmt:
 		if s.Temporary {
-			return ""
+			return "", 0
 		}
 	case *nodes.DropTableStmt:
 		if s.Temporary {
-			return ""
+			return "", 0
 		}
 	case *nodes.CreateSequenceStmt:
 		if s.Temporary {
-			return ""
+			return "", 0
 		}
 	case *nodes.DropSequenceStmt:
 		if s.Temporary {
-			return ""
+			return "", 0
 		}
 	case *nodes.RollbackStmt:
 		if s.Savepoint != "" {
-			return "" // ROLLBACK TO SAVEPOINT is SQLCOM_ROLLBACK_TO_SAVEPOINT
+			return "", 0 // ROLLBACK TO SAVEPOINT is SQLCOM_ROLLBACK_TO_SAVEPOINT
 		}
 	case *nodes.AlterEventStmt:
 		// One with DO is refused in any stored program; one without commits.
@@ -163,9 +164,9 @@ func spNotInFunction(stmt nodes.Node) string {
 		*nodes.CreateRoleStmt, *nodes.DropRoleStmt,
 		*nodes.InstallPluginStmt, *nodes.UninstallPluginStmt:
 	default:
-		return ""
+		return "", 0
 	}
-	return "Explicit or implicit commit is not allowed in stored function or trigger."
+	return "Explicit or implicit commit is not allowed in stored function or trigger.", 1422
 }
 
 // setsAutocommit reports a SET of the autocommit system variable, in any scope and however

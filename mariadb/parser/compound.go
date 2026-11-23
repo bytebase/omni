@@ -108,7 +108,8 @@ func (p *Parser) parseBeginEndBlock(labelName string, labelStart int) (*nodes.Be
 
 // checkDeclarePhase enforces MySQL's DECLARE ordering rule inside a
 // BEGIN...END block. See parseBeginEndBlock for the phase state machine.
-// MySQL surfaces ERR 1337 / 1338; omni uses its own wording.
+// MariaDB answers 1337 / 1338 for a declaration after a cursor or handler, and a
+// syntax error for one after a statement; omni uses its own wording.
 func checkDeclarePhase(phase *int, s nodes.Node, sPos int) error {
 	const (
 		phaseInit = iota
@@ -129,6 +130,7 @@ func checkDeclarePhase(phase *int, s nodes.Node, sPos int) error {
 			return &ParseError{
 				Message:  "variable or condition declaration after cursor or handler declaration",
 				Position: sPos,
+				Code:     1337,
 			}
 		}
 		*phase = phaseSawVar
@@ -143,6 +145,7 @@ func checkDeclarePhase(phase *int, s nodes.Node, sPos int) error {
 			return &ParseError{
 				Message:  "cursor declaration after handler declaration",
 				Position: sPos,
+				Code:     1338,
 			}
 		}
 		*phase = phaseSawCursor
@@ -162,8 +165,9 @@ func checkDeclarePhase(phase *int, s nodes.Node, sPos int) error {
 
 // checkLabelMatch enforces MySQL's end-label matching rule: when an end label
 // is present, a matching begin label must also be present and the two names
-// must be equal case-insensitively. MySQL surfaces ERR 1310 ("End-label X
-// without match"); omni uses its own wording.
+// must be equal case-insensitively. An end label with no begin label is a
+// syntax error, and one that differs is 1310 ("End-label X without match");
+// omni uses its own wording.
 func checkLabelMatch(beginLabel, endLabel string, endLabelPos int) error {
 	if endLabel == "" {
 		// No end label: always fine.
@@ -179,6 +183,7 @@ func checkLabelMatch(beginLabel, endLabel string, endLabelPos int) error {
 		return &ParseError{
 			Message:  fmt.Sprintf("end label %q does not match begin label %q", endLabel, beginLabel),
 			Position: endLabelPos,
+			Code:     1310,
 		}
 	}
 	return nil
@@ -283,7 +288,7 @@ func (p *Parser) parseCompoundStmtOrStmt() (nodes.Node, error) {
 	if p.cur.Type == kwRETURN {
 		// Only a function returns: a procedure, a trigger and an event answer 1313 while parsing.
 		if !p.routine.function {
-			return nil, &ParseError{Message: "RETURN is only allowed in a FUNCTION", Position: p.cur.Loc}
+			return nil, &ParseError{Message: "RETURN is only allowed in a FUNCTION", Position: p.cur.Loc, Code: 1313}
 		}
 		p.routine.hasReturn = true
 		return p.parseReturnStmt()
@@ -498,7 +503,7 @@ func (p *Parser) parseRowTypeBody() ([]*nodes.RowField, error) {
 		}
 		key := strings.ToLower(name)
 		if seen[key] {
-			return nil, &ParseError{Message: "Duplicate column name '" + name + "'", Position: start}
+			return nil, &ParseError{Message: "Duplicate column name '" + name + "'", Position: start, Code: 1060}
 		}
 		seen[key] = true
 		fields = append(fields, &nodes.RowField{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: name, TypeName: dt})
@@ -648,12 +653,12 @@ func (p *Parser) parseCursorParamsAndQuery() ([]*nodes.FuncParam, *nodes.SelectS
 	var names []string
 	if _, ok := p.match('('); ok {
 		for {
-			param, err := p.parseSpParam(true, names)
+			param, err := p.parseSpParam(false, names)
 			if err != nil {
 				return nil, nil, err
 			}
 			if param.Direction == "OUT" || param.Direction == "INOUT" {
-				return nil, nil, &ParseError{Message: "This version of MariaDB doesn't yet support 'OUT/INOUT cursor parameter'", Position: param.Loc.Start}
+				return nil, nil, &ParseError{Message: "This version of MariaDB doesn't yet support 'OUT/INOUT cursor parameter'", Position: param.Loc.Start, Code: 1235}
 			}
 			params = append(params, param)
 			names = append(names, param.Name)
@@ -680,33 +685,35 @@ func (p *Parser) parseCursorParamsAndQuery() ([]*nodes.FuncParam, *nodes.SelectS
 		return nil, nil, err
 	}
 	if !p.completing && selectHasInto(sel) {
-		return nil, nil, &ParseError{Message: "Cursor SELECT must not have INTO", Position: selStart}
+		return nil, nil, &ParseError{Message: "Cursor SELECT must not have INTO", Position: selStart, Code: 1323}
 	}
 	return params, sel, nil
 }
 
 // parseSpParam reads one parameter of a routine or a cursor, [IN | OUT | INOUT] name type,
 // refusing a name one before it has (1330). MariaDB's type may be ROW(...), TYPE OF a column
-// or ROW TYPE OF a table.
+// or ROW TYPE OF a table. A procedure's and a function's parameter, withDefault, may take
+// DEFAULT expr, an IN parameter's alone (4032), whose bare names are parameters before it
+// (1327; measured on mariadb:11.8.8, a(x INT, y INT DEFAULT x) is taken and a(a INT DEFAULT
+// a) is not).
 //
-// Ref: sp_param_name_and_mode, sp_param_init_vars and sp_param_anchored in MariaDB 11.8
-// sql/sql_yacc.yy.
-func (p *Parser) parseSpParam(withDirection bool, before []string) (*nodes.FuncParam, error) {
+// Ref: sp_param_name_and_mode, sp_param_init_vars, sp_param_anchored, sp_param_default and
+// sp_opt_default in MariaDB 11.8 sql/sql_yacc.yy, and LEX::sp_param_set_default_and_finalize
+// in sql/sql_lex.cc.
+func (p *Parser) parseSpParam(withDefault bool, before []string) (*nodes.FuncParam, error) {
 	start := p.pos()
 	param := &nodes.FuncParam{Loc: nodes.Loc{Start: start}}
 
-	if withDirection {
-		switch p.cur.Type {
-		case kwIN:
-			param.Direction = "IN"
-			p.advance()
-		case kwOUT:
-			param.Direction = "OUT"
-			p.advance()
-		case kwINOUT:
-			param.Direction = "INOUT"
-			p.advance()
-		}
+	switch p.cur.Type {
+	case kwIN:
+		param.Direction = "IN"
+		p.advance()
+	case kwOUT:
+		param.Direction = "OUT"
+		p.advance()
+	case kwINOUT:
+		param.Direction = "INOUT"
+		p.advance()
 	}
 
 	name, namePos, err := p.parseIdentifier()
@@ -723,9 +730,50 @@ func (p *Parser) parseSpParam(withDirection bool, before []string) (*nodes.FuncP
 	if err := p.checkSPParam(before, name, namePos); err != nil {
 		return nil, err
 	}
+	if withDefault && p.cur.Type == kwDEFAULT {
+		defaultPos := p.pos()
+		p.advance()
+		exprStart := p.pos()
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if param.Direction == "OUT" || param.Direction == "INOUT" {
+			return nil, &ParseError{Message: "Default/ignore value is not supported for such parameter usage", Position: defaultPos, Code: 4032}
+		}
+		if err := p.refuseUndeclaredDefaultNames(expr, before); err != nil {
+			return nil, err
+		}
+		param.Default, param.DefaultText = expr, p.inputText(exprStart, p.prev.End)
+	}
 
 	param.Loc.End = p.prev.End
 	return param, nil
+}
+
+// refuseUndeclaredDefaultNames holds the bare names a parameter's DEFAULT reads to the
+// parameters before it: 1327, ER_SP_UNDECLARED_VAR. A subquery has a query of its own, so
+// the walk stops there, and keeps its own stack.
+func (p *Parser) refuseUndeclaredDefaultNames(expr nodes.ExprNode, before []string) error {
+	if p.completing {
+		return nil
+	}
+	stack := []nodes.Node{expr}
+	for len(stack) > 0 {
+		n := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		switch e := n.(type) {
+		case *nodes.SubqueryExpr, *nodes.ExistsExpr, *nodes.SelectStmt:
+			continue
+		case *nodes.ColumnRef:
+			if e.Table == "" && !e.Star && !spHasName(before, e.Column) {
+				return &ParseError{Message: "Undeclared variable: " + e.Column, Position: e.Loc.Start, Code: 1327}
+			}
+			continue
+		}
+		nodes.Walk(&childCollector{root: n, out: &stack}, n)
+	}
+	return nil
 }
 
 // parseHandlerConditionValue parses a handler condition value, returning
@@ -777,7 +825,7 @@ func (p *Parser) parseHandlerConditionValue() (nodes.HandlerCondValue, error) {
 	// Ref: sp_cond in MariaDB 11.8 sql/sql_yacc.yy.
 	if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
 		if p.cur.Ival == 0 {
-			return nodes.HandlerCondValue{}, &ParseError{Message: "Incorrect CONDITION value: '0'", Position: p.cur.Loc}
+			return nodes.HandlerCondValue{}, &ParseError{Message: "Incorrect CONDITION value: '0'", Position: p.cur.Loc, Code: 1525}
 		}
 		val := leadingDigits(p.cur.Str)
 		p.advance()
@@ -1199,18 +1247,20 @@ func (p *Parser) parseLoopStmt(labelName string, labelStart int) (*nodes.LoopStm
 	return stmt, nil
 }
 
-// parseForStmt parses MariaDB's FOR loop over the rows of a query.
+// parseForStmt parses MariaDB's FOR loop over the rows of a query or a cursor, or over an
+// integer range.
 //
-//	[begin_label:] FOR record IN [REVERSE] (query) DO
+//	[begin_label:] FOR var IN [REVERSE] {(query) | cursor[(args)] | low..high} DO
 //	  statement_list
 //	END FOR [end_label]
 //
-// The record is a variable of the loop's body. The query takes no INTO (1323). The loop
-// body holds one statement at least.
+// The variable is the loop body's. The query takes no INTO (1323). A bound with no `..`
+// after it names a cursor a block around declares (1324), as a name or a call; any other
+// expression there is a syntax error; a bare name that is no variable either is 1327. The
+// loop body holds one statement at least.
 //
-// omni reads no integer range (IN low..high) and no cursor (IN cursor_name): a name in
-// their bounds is a variable or a cursor the blocks around must declare, and omni does not
-// check a name an expression reads.
+// Ref: sp_for_loop_bounds, for_loop_bound_expr and LEX::sp_for_loop_cursor_declarations
+// in MariaDB 11.8 sql/sql_yacc.yy and sql/sql_lex.cc.
 //
 // Ref: sp_unlabeled_control, sp_labeled_control, sp_for_loop_bounds and
 // for_loop_statements in MariaDB 11.8 sql/sql_yacc.yy.
@@ -1238,20 +1288,7 @@ func (p *Parser) parseForStmt(labelName string, labelStart int) (*nodes.ForStmt,
 	if _, ok := p.match(kwREVERSE); ok {
 		stmt.Reverse = true
 	}
-	if p.cur.Type != '(' {
-		return nil, p.syntaxErrorAtCur()
-	}
-	p.advance()
-	queryStart := p.pos()
-	sel, err := p.parseSelectStmt()
-	if err != nil {
-		return nil, err
-	}
-	if selectHasInto(sel) {
-		return nil, &ParseError{Message: "Cursor SELECT must not have INTO", Position: queryStart}
-	}
-	stmt.Select = sel
-	if _, err := p.expect(')'); err != nil {
+	if err := p.parseForBounds(stmt); err != nil {
 		return nil, err
 	}
 	if _, err := p.expect(kwDO); err != nil {
@@ -1289,6 +1326,64 @@ func (p *Parser) parseForStmt(labelName string, labelStart int) (*nodes.ForStmt,
 	stmt.Stmts = stmts
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseForBounds reads what a FOR loop runs over, after IN [REVERSE].
+func (p *Parser) parseForBounds(stmt *nodes.ForStmt) error {
+	// A '(' opens the loop's query only where a query begins inside it: ((1))..3 is a range.
+	if p.parenOpensQuery() {
+		p.advance()
+		queryStart := p.pos()
+		sel, err := p.parseSelectStmt()
+		if err != nil {
+			return err
+		}
+		if selectHasInto(sel) {
+			return &ParseError{Message: "Cursor SELECT must not have INTO", Position: queryStart, Code: 1323}
+		}
+		stmt.Select = sel
+		_, err = p.expect(')')
+		return err
+	}
+	boundTok := p.cur
+	lower, err := p.parseExpr()
+	if err != nil {
+		return err
+	}
+	if _, ok := p.match(tokDotDot); ok {
+		upper, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		stmt.Lower, stmt.Upper = lower, upper
+		return nil
+	}
+	bareName := false
+	switch e := lower.(type) {
+	case *nodes.ColumnRef:
+		if e.Table == "" && !e.Star {
+			stmt.Cursor, bareName = e.Column, true
+		}
+	case *nodes.FuncCallExpr:
+		if e.Schema == "" && e.Package == "" {
+			stmt.Cursor, stmt.CursorArgs = e.RawName, e.Args
+			if stmt.Cursor == "" {
+				stmt.Cursor = e.Name
+			}
+		}
+	}
+	if stmt.Cursor == "" {
+		return p.syntaxErrorAtTok(boundTok)
+	}
+	if p.completing || (p.routine.sp != nil && p.routine.sp.findCursor(stmt.Cursor)) {
+		return nil
+	}
+	// A bare name the blocks around declare no variable of is 1327 first:
+	// mariadb:11.8.8 answers FOR r IN nope with it.
+	if bareName && (p.routine.sp == nil || !p.routine.sp.findVar(stmt.Cursor)) {
+		return &ParseError{Message: "Undeclared variable: " + stmt.Cursor, Position: boundTok.Loc, Code: 1327}
+	}
+	return &ParseError{Message: "Undefined CURSOR: " + stmt.Cursor, Position: boundTok.Loc, Code: 1324}
 }
 
 // parseCompoundStatement parses compound_statement, a compound statement standing as a
@@ -1417,6 +1512,26 @@ func (p *Parser) parseOpenCursorStmt() (*nodes.OpenCursorStmt, error) {
 func (p *Parser) parseFetchCursorStmt() (*nodes.FetchCursorStmt, error) {
 	start := p.pos()
 	p.advance() // consume FETCH
+
+	// FETCH GROUP NEXT ROW reads an aggregate function's next row. Only a function's body
+	// takes one, which sp_body_finalize_function holds to the function being aggregate;
+	// any other stored program answers 4105, ER_NOT_AGGREGATE_FUNCTION.
+	//
+	// Ref: sp_proc_stmt_fetch in MariaDB 11.8 sql/sql_yacc.yy.
+	if p.cur.Type == kwGROUP {
+		p.advance()
+		if _, err := p.expect(kwNEXT); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwROW); err != nil {
+			return nil, err
+		}
+		if !p.routine.function && !p.completing {
+			return nil, &ParseError{Message: "Aggregate specific instruction (FETCH GROUP NEXT ROW) used in a wrong context", Position: start, Code: 4105}
+		}
+		p.routine.hasGroupFetch = true
+		return &nodes.FetchCursorStmt{Loc: nodes.Loc{Start: start, End: p.prev.End}, Group: true}, nil
+	}
 
 	// sp_proc_stmt_fetch_head: FETCH, FETCH FROM or FETCH NEXT FROM, then the cursor.
 	// NEXT before INTO is the cursor's name; NEXT before anything else but FROM is a 1064.

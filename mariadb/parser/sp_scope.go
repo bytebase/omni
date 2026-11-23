@@ -188,7 +188,7 @@ func (p *Parser) pushSPLabel(name string, pos int, loop bool) (func(), error) {
 		return func() {}, nil
 	}
 	if name != "" && p.spChecks() && s.findLabel(name) != nil {
-		return nil, &ParseError{Message: "Redefining label " + name, Position: pos}
+		return nil, &ParseError{Message: "Redefining label " + name, Position: pos, Code: 1309}
 	}
 	n := len(s.labels)
 	s.labels = append(s.labels, spLabel{name: name, loop: loop})
@@ -208,7 +208,7 @@ func (p *Parser) checkSPLabelRef(verb, name string, pos int, iterate bool) error
 		return nil
 	}
 	if lab == nil || (iterate && !lab.loop) {
-		return &ParseError{Message: verb + " with no matching label: " + name, Position: pos}
+		return &ParseError{Message: verb + " with no matching label: " + name, Position: pos, Code: 1308}
 	}
 	return nil
 }
@@ -218,7 +218,7 @@ func (p *Parser) checkSPLabelRef(verb, name string, pos int, iterate bool) error
 // Ref: LEX::sp_param_init in MariaDB 11.8 sql/sql_lex.cc.
 func (p *Parser) checkSPParam(before []string, name string, pos int) error {
 	if !p.completing && spHasName(before, name) {
-		return &ParseError{Message: "Duplicate parameter: " + name, Position: pos}
+		return &ParseError{Message: "Duplicate parameter: " + name, Position: pos, Code: 1330}
 	}
 	return nil
 }
@@ -233,7 +233,7 @@ func (p *Parser) declareSPVar(name string, pos int) error {
 		return nil
 	}
 	if p.spChecks() && spHasName(s.vars, name) {
-		return &ParseError{Message: "Duplicate variable: " + name, Position: pos}
+		return &ParseError{Message: "Duplicate variable: " + name, Position: pos, Code: 1331}
 	}
 	s.vars = append(s.vars, name)
 	return nil
@@ -249,7 +249,7 @@ func (p *Parser) declareSPCursor(name string, pos int) error {
 		return nil
 	}
 	if p.spChecks() && spHasName(s.cursors, name) {
-		return &ParseError{Message: "Duplicate cursor: " + name, Position: pos}
+		return &ParseError{Message: "Duplicate cursor: " + name, Position: pos, Code: 1333}
 	}
 	s.cursors = append(s.cursors, name)
 	return nil
@@ -262,7 +262,7 @@ func (p *Parser) declareSPCursor(name string, pos int) error {
 // LEX::sp_add_instr_cfetch in sql/sql_lex.cc.
 func (p *Parser) checkSPCursorRef(name string, pos int) error {
 	if p.spChecks() && !p.routine.sp.findCursor(name) {
-		return &ParseError{Message: "Undefined CURSOR: " + name, Position: pos}
+		return &ParseError{Message: "Undefined CURSOR: " + name, Position: pos, Code: 1324}
 	}
 	return nil
 }
@@ -285,7 +285,7 @@ func (p *Parser) checkSPVarRef(name string, pos int, outside bool) error {
 	} else if !outside {
 		return nil
 	}
-	return &ParseError{Message: "Undeclared variable: " + name, Position: pos}
+	return &ParseError{Message: "Undeclared variable: " + name, Position: pos, Code: 1327}
 }
 
 // declareSPCondition declares a block's condition: one of the same name in the block is
@@ -300,7 +300,7 @@ func (p *Parser) declareSPCondition(name string, pos int, value nodes.HandlerCon
 	if p.spChecks() {
 		for _, c := range s.conds {
 			if spNameMatch(name, c.name) {
-				return &ParseError{Message: "Duplicate condition: " + name, Position: pos}
+				return &ParseError{Message: "Duplicate condition: " + name, Position: pos, Code: 1332}
 			}
 		}
 	}
@@ -321,7 +321,7 @@ func (p *Parser) declareSPHandlerCond(c nodes.HandlerCondValue, pos int) error {
 	if c.Kind == nodes.HandlerCondName {
 		value, found, known := s.findCondition(c.Value)
 		if !found {
-			return &ParseError{Message: "Undefined CONDITION: " + c.Value, Position: pos}
+			return &ParseError{Message: "Undefined CONDITION: " + c.Value, Position: pos, Code: 1319}
 		}
 		if !known {
 			return nil
@@ -330,7 +330,7 @@ func (p *Parser) declareSPHandlerCond(c nodes.HandlerCondValue, pos int) error {
 	}
 	for _, h := range s.handlerConds {
 		if spSameCondition(c, h) {
-			return &ParseError{Message: "Duplicate handler declared in the same block", Position: pos}
+			return &ParseError{Message: "Duplicate handler declared in the same block", Position: pos, Code: 1413}
 		}
 	}
 	s.handlerConds = append(s.handlerConds, c)
@@ -352,10 +352,10 @@ func (p *Parser) checkSPSignalCond(name string, pos int) error {
 		value, found, known = s.findCondition(name)
 	}
 	if !found {
-		return &ParseError{Message: "Undefined CONDITION: " + name, Position: pos}
+		return &ParseError{Message: "Undefined CONDITION: " + name, Position: pos, Code: 1319}
 	}
 	if known && value.Kind != nodes.HandlerCondSQLState {
-		return &ParseError{Message: "SIGNAL/RESIGNAL can only use a CONDITION defined with SQLSTATE", Position: pos}
+		return &ParseError{Message: "SIGNAL/RESIGNAL can only use a CONDITION defined with SQLSTATE", Position: pos, Code: 1646}
 	}
 	return nil
 }

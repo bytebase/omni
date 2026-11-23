@@ -48,11 +48,7 @@ func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt, authored bool) error 
 		}
 	}
 
-	// MySQL always sets a definer. Default to `root`@`%` when not specified.
-	definer := stmt.Definer
-	if definer == "" {
-		definer = "`root`@`%`"
-	}
+	definer := programDefiner(stmt.Definer)
 
 	schedule, at, timed := eventScheduleText(stmt.Schedule)
 	enable := stmt.Enable
@@ -115,13 +111,9 @@ func (c *Catalog) alterEvent(stmt *nodes.AlterEventStmt) error {
 		}
 	}
 
-	event, exists := db.Events[key]
-	if !exists {
-		return errNoSuchEvent(db.Name, name)
-	}
-
-	// The new name is checked before anything changes, so a statement that fails leaves the
-	// event as it was.
+	// The new name's database is looked up before the event (1049 before 1539, measured on
+	// mariadb:11.8.8), and the name in it after, before anything changes, so a statement that
+	// fails leaves the event as it was.
 	var target *Database
 	if stmt.RenameTo != "" {
 		// A new name with no database goes to the current one, whichever database the event was
@@ -129,6 +121,12 @@ func (c *Catalog) alterEvent(stmt *nodes.AlterEventStmt) error {
 		if target, err = c.resolveDatabase(stmt.RenameSchema); err != nil {
 			return err
 		}
+	}
+	event, exists := db.Events[key]
+	if !exists {
+		return errNoSuchEvent(db.Name, name)
+	}
+	if target != nil {
 		if _, taken := target.Events[toLower(stmt.RenameTo)]; taken {
 			return errDupEvent(stmt.RenameTo)
 		}
@@ -136,15 +134,23 @@ func (c *Catalog) alterEvent(stmt *nodes.AlterEventStmt) error {
 
 	// A schedule time that has passed is refused while the event is not kept
 	// after it runs (mariadb:11.8.8: ALTER EVENT e ON SCHEDULE AT
-	// '2000-01-01 00:00:00' is 1589), before anything changes.
+	// '2000-01-01 00:00:00' is 1589), before anything changes, and turns a kept
+	// event off unless the statement says DISABLE ON SLAVE, as CREATE EVENT
+	// does (Event_parse_data::check_if_in_the_past).
 	schedule, at, timed := eventScheduleText(stmt.Schedule)
+	enable := stmt.Enable
 	if stmt.Schedule != nil {
 		onCompletion := event.OnCompletion
 		if stmt.OnCompletion != "" {
 			onCompletion = stmt.OnCompletion
 		}
-		if timed && at.Before(time.Now().Add(-eventZoneMargin)) && !strings.EqualFold(onCompletion, "PRESERVE") {
-			return &Error{Code: 1589, SQLState: "HY000", Message: "Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was not changed. Specify a time in the future"}
+		if timed && at.Before(time.Now().Add(-eventZoneMargin)) {
+			if !strings.EqualFold(onCompletion, "PRESERVE") {
+				return &Error{Code: 1589, SQLState: "HY000", Message: "Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was not changed. Specify a time in the future"}
+			}
+			if enable == "" || strings.EqualFold(enable, "ENABLE") {
+				enable = "DISABLE"
+			}
 		}
 	}
 
@@ -164,8 +170,8 @@ func (c *Catalog) alterEvent(stmt *nodes.AlterEventStmt) error {
 	}
 
 	// Update enable/disable if specified.
-	if stmt.Enable != "" {
-		event.Enable = stmt.Enable
+	if enable != "" {
+		event.Enable = enable
 	}
 
 	// Update comment if specified.
@@ -195,6 +201,11 @@ func (c *Catalog) dropEvent(stmt *nodes.DropEventStmt) error {
 	if err != nil {
 		if stmt.IfExists {
 			return nil
+		}
+		// MariaDB looks the event up in mysql.event without checking that its
+		// database exists: DROP EVENT nosuch.e is 1539 (mariadb:11.8.8).
+		if stmt.Schema != "" {
+			return errNoSuchEvent(stmt.Schema, stmt.Name)
 		}
 		return err
 	}

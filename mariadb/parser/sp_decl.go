@@ -15,7 +15,7 @@ func (p *Parser) checkSPVarFree(before []string, name string, pos int) error {
 		return nil
 	}
 	if spHasName(p.routine.sp.vars, name) || spHasName(before, name) {
-		return &ParseError{Message: "Duplicate variable: " + name, Position: pos}
+		return &ParseError{Message: "Duplicate variable: " + name, Position: pos, Code: 1331}
 	}
 	return nil
 }
@@ -31,7 +31,7 @@ func (p *Parser) declareSPVars(names []string) {
 // ER_SP_UNDECLARED_VAR.
 func (p *Parser) checkSPVarDeclared(name string, pos int) error {
 	if p.spChecks() && !p.routine.sp.findVar(name) {
-		return &ParseError{Message: "Undeclared variable: " + name, Position: pos}
+		return &ParseError{Message: "Undeclared variable: " + name, Position: pos, Code: 1327}
 	}
 	return nil
 }
