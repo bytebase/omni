@@ -56,10 +56,13 @@ type Answer struct {
 	// Results is the output column names, in order.
 	Results []string
 	// Lineage is, for each output column, its source columns as
-	// catalog.schema.table.column, in any order.
+	// catalog.schema.table.column, in any order. An engine's answer may
+	// hold Unstated among a column's sources, where it does not say them
+	// all.
 	Lineage [][]string
 	// Tables is the tables and views read, as catalog.schema.table, in any
-	// order.
+	// order. An engine's answer may hold Unstated, where it does not name
+	// them all.
 	Tables []string
 }
 
@@ -135,7 +138,7 @@ type Suite struct {
 
 // Check holds omni to the suite's span.tsv, as simulate.Check holds a
 // catalog to its simulate.tsv. A row passes when omni still gives the answer
-// its omni cell records: an agreement, or a known difference. It fails when
+// its omni cell records: an agreement (Agrees), or a known difference. It fails when
 // omni's answer moved: a row that agreed and no longer does is a regression,
 // and any other move is committed with -update-compat. The test also fails
 // when the engine's answer is not the one the row records.
@@ -222,7 +225,7 @@ func check(t testing.TB, s Suite) {
 
 	ask := s.Engine(t)
 	tally := map[string]*counts{}
-	var moved, closed, shifted, regressed []string
+	var moved, closed, shifted, unsaid, regressed []string
 	for i := 0; i < len(f.Rows); {
 		// The rows of one query are consecutive, one per aspect.
 		first := f.Rows[i]
@@ -255,13 +258,17 @@ func check(t testing.TB, s Suite) {
 				r.Omni, changed = now, true
 			}
 			was := fmt.Sprintf("    the row records omni %s\n", r.Omni)
+			agrees := Agrees(r.Aspect, now, r.Expected)
 			switch {
 			case now == r.Omni:
-			case r.Omni == r.Expected:
+			case Agrees(r.Aspect, r.Omni, r.Expected) && !agrees:
 				regressed = append(regressed, r.describe(s.Path, now)+was)
 			case compat.Updating():
 				r.Omni, changed = now, true
-			case now == r.Expected:
+			case Agrees(r.Aspect, r.Omni, r.Expected):
+				// Both answers agree: omni moved where the engine states nothing.
+				unsaid = append(unsaid, r.describe(s.Path, now)+was)
+			case agrees:
 				closed = append(closed, r.describe(s.Path, now))
 			default:
 				shifted = append(shifted, r.describe(s.Path, now)+was)
@@ -272,8 +279,11 @@ func check(t testing.TB, s Suite) {
 				tally[r.Aspect] = n
 			}
 			n.rows++
-			if now == r.Expected {
+			if agrees {
 				n.agree++
+			}
+			if unstated(r.Expected) {
+				n.unstated++
 			}
 		}
 	}
@@ -287,6 +297,7 @@ func check(t testing.TB, s Suite) {
 	}
 	report(t, "a gap closed: omni now answers what the engine does. Commit it:\n  "+run+" -update-compat", closed)
 	report(t, "a known difference is now another one. Commit it:\n  "+run+" -update-compat", shifted)
+	report(t, "omni's answer moved where the engine states nothing, and still agrees. Commit it:\n  "+run+" -update-compat", unsaid)
 	report(t, "a regression: omni agreed with the engine and no longer does", regressed)
 	logTally(t, s.Path, f.Pin, tally)
 
@@ -361,24 +372,27 @@ func report(t testing.TB, what string, rows []string) {
 	}
 }
 
-type counts struct{ rows, agree int }
+// unstated counts the rows whose engine answer leaves something unstated
+// (Unstated); they agree on what the engine does state.
+type counts struct{ rows, agree, unstated int }
 
 // logTally prints how many rows of each aspect agree, in one block.
 func logTally(t testing.TB, path, pin string, tally map[string]*counts) {
 	t.Helper()
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s at pin %s\n", path, pin)
-	fmt.Fprintf(&b, "  %-8s %6s %6s %6s\n", "aspect", "rows", "agree", "differ")
+	fmt.Fprintf(&b, "  %-8s %6s %6s %6s %8s\n", "aspect", "rows", "agree", "differ", "unstated")
 	var sum counts
 	for _, aspect := range Aspects {
 		n := tally[aspect]
 		if n == nil {
 			continue
 		}
-		fmt.Fprintf(&b, "  %-8s %6d %6d %6d\n", aspect, n.rows, n.agree, n.rows-n.agree)
+		fmt.Fprintf(&b, "  %-8s %6d %6d %6d %8d\n", aspect, n.rows, n.agree, n.rows-n.agree, n.unstated)
 		sum.rows += n.rows
 		sum.agree += n.agree
+		sum.unstated += n.unstated
 	}
-	fmt.Fprintf(&b, "  %-8s %6d %6d %6d", "all", sum.rows, sum.agree, sum.rows-sum.agree)
+	fmt.Fprintf(&b, "  %-8s %6d %6d %6d %8d", "all", sum.rows, sum.agree, sum.rows-sum.agree, sum.unstated)
 	t.Logf("%s", b.String())
 }

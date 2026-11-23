@@ -346,11 +346,16 @@ ok:1fb9d7200acc	ok:1fb9d7200acc	engine	one_table@missing	opt_enum_val_list/enum_
 42704	42704	engine	one_table@missing	opt_if_not_exists/IF_P_NOT_EXISTS	ALTER TYPE a ADD VALUE IF NOT EXISTS 's'
 ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP TABLE IF EXISTS a
 ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP TABLE IF EXISTS a CASCADE
+ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/SEQUENCE	DROP SEQUENCE IF EXISTS a
+ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/VIEW	DROP VIEW IF EXISTS a
+ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/MATERIALIZED_VIEW	DROP MATERIALIZED VIEW IF EXISTS a
+ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/INDEX	DROP INDEX IF EXISTS a
 42P01	42P01	engine	one_table@missing	DropStmt/DROP_object_type_any_name_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP TABLE a CASCADE
 42P01	42P01	engine	one_table@missing	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior	DROP POLICY a ON a
 42P01	42P01	engine	one_table@missing	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior+opt_drop_behavior	DROP POLICY a ON a CASCADE
 ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior	DROP POLICY IF EXISTS a ON a
 ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior+opt_drop_behavior	DROP POLICY IF EXISTS a ON a CASCADE
+ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior+object_type_name_on_any_name/TRIGGER	DROP TRIGGER IF EXISTS a ON a
 42704	42704	engine	one_table@missing	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior	DROP TYPE a
 42704	42704	engine	one_table@missing	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior+opt_drop_behavior	DROP TYPE a CASCADE
 ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	DropStmt/DROP_TYPE_P_IF_P_EXISTS_type_name_list_opt_drop_behavior	DROP TYPE IF EXISTS a
@@ -362,7 +367,6 @@ ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	DropStmt/DROP_DOMAIN_P_
 42704	42704	engine	one_table@missing	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY a
 0A000	0A000	engine	one_table@missing	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP INDEX CONCURRENTLY a CASCADE
 ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a
-ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior!drop-3	DROP INDEX IF EXISTS a
 0A000	0A000	engine	one_table@missing	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a CASCADE
 42P01	42P01	engine	one_table@missing	object_type_any_name/SEQUENCE	DROP SEQUENCE a
 42P01	42P01	engine	one_table@missing	object_type_any_name/VIEW	DROP VIEW a
@@ -376,6 +380,10 @@ ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	DropStmt/DROP_INDEX_CON
 42P01	42P01	engine	one_table@missing	TruncateStmt/TRUNCATE_opt_table_relation_expr_list_opt_restart_seqs_opt_drop_behavior+opt_table	TRUNCATE TABLE a
 42P01	42P01	engine	one_table@missing	opt_restart_seqs/CONTINUE_P_IDENTITY_P	TRUNCATE a CONTINUE IDENTITY
 42P01	42P01	engine	one_table@missing	opt_restart_seqs/RESTART_IDENTITY_P	TRUNCATE a RESTART IDENTITY
+42P01	42P01	engine	one_table@missing	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/SEQUENCE	COMMENT ON SEQUENCE a IS 's'
+42P01	42P01	engine	one_table@missing	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/VIEW	COMMENT ON VIEW a IS 's'
+42P01	42P01	engine	one_table@missing	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/MATERIALIZED_VIEW	COMMENT ON MATERIALIZED VIEW a IS 's'
+42P01	42P01	engine	one_table@missing	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/INDEX	COMMENT ON INDEX a IS 's'
 42601	42601	engine	one_table@missing	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text	COMMENT ON COLUMN a IS 's'
 42704	42704	engine	one_table@missing	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text	COMMENT ON TYPE a IS 's'
 42704	42704	engine	one_table@missing	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text	COMMENT ON DOMAIN a IS 's'
@@ -384,6 +392,7 @@ ok:4c5642ff08a4	ok:4c5642ff08a4	engine	one_table@missing	DropStmt/DROP_INDEX_CON
 42704	42704	engine	one_table@missing	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text	COMMENT ON CONSTRAINT a ON DOMAIN a IS 's'
 42P01	42P01	engine	one_table@missing	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text!drop-7	COMMENT ON CONSTRAINT a ON DOMAIN IS 's'
 42P01	42P01	engine	one_table@missing	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text	COMMENT ON POLICY a ON a IS 's'
+42P01	42P01	engine	one_table@missing	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text+object_type_name_on_any_name/TRIGGER	COMMENT ON TRIGGER a ON a IS 's'
 42883	42883	engine	one_table@missing	CommentStmt/COMMENT_ON_PROCEDURE_function_with_argtypes_IS_comment_text	COMMENT ON PROCEDURE AUTHORIZATION IS 's'
 42883	42883	engine	one_table@missing	CommentStmt/COMMENT_ON_ROUTINE_function_with_argtypes_IS_comment_text	COMMENT ON ROUTINE AUTHORIZATION IS 's'
 42P01	42P01	engine	one_table@missing	comment_text/NULL_P	COMMENT ON TABLE a IS NULL
@@ -1038,11 +1047,16 @@ ok:168e5283e767	ok:168e5283e767	engine	one_table@table	row_security_cmd/DELETE_P
 42809	42809	engine	one_table@table	opt_if_not_exists/IF_P_NOT_EXISTS	ALTER TYPE a ADD VALUE IF NOT EXISTS 's'
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP TABLE IF EXISTS a
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP TABLE IF EXISTS a CASCADE
+42809	42809	engine	one_table@table	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/SEQUENCE	DROP SEQUENCE IF EXISTS a
+42809	42809	engine	one_table@table	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/VIEW	DROP VIEW IF EXISTS a
+42809	42809	engine	one_table@table	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/MATERIALIZED_VIEW	DROP MATERIALIZED VIEW IF EXISTS a
+42809	42809	engine	one_table@table	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/INDEX	DROP INDEX IF EXISTS a
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	DropStmt/DROP_object_type_any_name_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP TABLE a CASCADE
 42704	42704	engine	one_table@table	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior	DROP POLICY a ON a
 42704	42704	engine	one_table@table	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior+opt_drop_behavior	DROP POLICY a ON a CASCADE
 ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior	DROP POLICY IF EXISTS a ON a
 ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior+opt_drop_behavior	DROP POLICY IF EXISTS a ON a CASCADE
+ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior+object_type_name_on_any_name/TRIGGER	DROP TRIGGER IF EXISTS a ON a
 2BP01	2BP01	engine	one_table@table	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior	DROP TYPE a
 2BP01	2BP01	engine	one_table@table	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior+opt_drop_behavior	DROP TYPE a CASCADE
 2BP01	2BP01	engine	one_table@table	DropStmt/DROP_TYPE_P_IF_P_EXISTS_type_name_list_opt_drop_behavior	DROP TYPE IF EXISTS a
@@ -1054,7 +1068,6 @@ ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	DropStmt/DROP_object_type
 42809	42809	engine	one_table@table	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY a
 0A000	0A000	engine	one_table@table	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP INDEX CONCURRENTLY a CASCADE
 42809	42809	engine	one_table@table	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a
-42809	42809	engine	one_table@table	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior!drop-3	DROP INDEX IF EXISTS a
 0A000	0A000	engine	one_table@table	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a CASCADE
 42809	42809	engine	one_table@table	object_type_any_name/SEQUENCE	DROP SEQUENCE a
 42809	42809	engine	one_table@table	object_type_any_name/VIEW	DROP VIEW a
@@ -1068,6 +1081,10 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	any_name_list/any_name_li
 ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	TruncateStmt/TRUNCATE_opt_table_relation_expr_list_opt_restart_seqs_opt_drop_behavior+opt_table	TRUNCATE TABLE a
 ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	opt_restart_seqs/CONTINUE_P_IDENTITY_P	TRUNCATE a CONTINUE IDENTITY
 ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	opt_restart_seqs/RESTART_IDENTITY_P	TRUNCATE a RESTART IDENTITY
+42809	42809	engine	one_table@table	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/SEQUENCE	COMMENT ON SEQUENCE a IS 's'
+42809	42809	engine	one_table@table	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/VIEW	COMMENT ON VIEW a IS 's'
+42809	42809	engine	one_table@table	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/MATERIALIZED_VIEW	COMMENT ON MATERIALIZED VIEW a IS 's'
+42809	42809	engine	one_table@table	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/INDEX	COMMENT ON INDEX a IS 's'
 42601	42601	engine	one_table@table	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text	COMMENT ON COLUMN a IS 's'
 ok:fc7e8eab8ccc	ok:fc7e8eab8ccc	engine	one_table@table	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text	COMMENT ON TYPE a IS 's'
 42809	42809	engine	one_table@table	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text	COMMENT ON DOMAIN a IS 's'
@@ -1076,6 +1093,7 @@ ok:fc7e8eab8ccc	ok:fc7e8eab8ccc	engine	one_table@table	CommentStmt/COMMENT_ON_TY
 42809	42809	engine	one_table@table	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text	COMMENT ON CONSTRAINT a ON DOMAIN a IS 's'
 42P01	42P01	engine	one_table@table	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text!drop-7	COMMENT ON CONSTRAINT a ON DOMAIN IS 's'
 42704	42704	engine	one_table@table	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text	COMMENT ON POLICY a ON a IS 's'
+42704	42704	engine	one_table@table	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text+object_type_name_on_any_name/TRIGGER	COMMENT ON TRIGGER a ON a IS 's'
 42883	42883	engine	one_table@table	CommentStmt/COMMENT_ON_PROCEDURE_function_with_argtypes_IS_comment_text	COMMENT ON PROCEDURE AUTHORIZATION IS 's'
 42883	42883	engine	one_table@table	CommentStmt/COMMENT_ON_ROUTINE_function_with_argtypes_IS_comment_text	COMMENT ON ROUTINE AUTHORIZATION IS 's'
 ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	comment_text/NULL_P	COMMENT ON TABLE a IS NULL
@@ -1730,11 +1748,16 @@ ok:1b68a7f6bda9	ok:1b68a7f6bda9	engine	one_table@column	row_security_cmd/DELETE_
 42809	42809	engine	one_table@column	opt_if_not_exists/IF_P_NOT_EXISTS	ALTER TYPE a ADD VALUE IF NOT EXISTS 's'
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP TABLE IF EXISTS a
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP TABLE IF EXISTS a CASCADE
+42809	42809	engine	one_table@column	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/SEQUENCE	DROP SEQUENCE IF EXISTS a
+42809	42809	engine	one_table@column	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/VIEW	DROP VIEW IF EXISTS a
+42809	42809	engine	one_table@column	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/MATERIALIZED_VIEW	DROP MATERIALIZED VIEW IF EXISTS a
+42809	42809	engine	one_table@column	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/INDEX	DROP INDEX IF EXISTS a
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	DropStmt/DROP_object_type_any_name_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP TABLE a CASCADE
 42704	42704	engine	one_table@column	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior	DROP POLICY a ON a
 42704	42704	engine	one_table@column	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior+opt_drop_behavior	DROP POLICY a ON a CASCADE
 ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior	DROP POLICY IF EXISTS a ON a
 ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior+opt_drop_behavior	DROP POLICY IF EXISTS a ON a CASCADE
+ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior+object_type_name_on_any_name/TRIGGER	DROP TRIGGER IF EXISTS a ON a
 2BP01	2BP01	engine	one_table@column	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior	DROP TYPE a
 2BP01	2BP01	engine	one_table@column	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior+opt_drop_behavior	DROP TYPE a CASCADE
 2BP01	2BP01	engine	one_table@column	DropStmt/DROP_TYPE_P_IF_P_EXISTS_type_name_list_opt_drop_behavior	DROP TYPE IF EXISTS a
@@ -1746,7 +1769,6 @@ ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	DropStmt/DROP_object_typ
 42809	42809	engine	one_table@column	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY a
 0A000	0A000	engine	one_table@column	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP INDEX CONCURRENTLY a CASCADE
 42809	42809	engine	one_table@column	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a
-42809	42809	engine	one_table@column	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior!drop-3	DROP INDEX IF EXISTS a
 0A000	0A000	engine	one_table@column	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a CASCADE
 42809	42809	engine	one_table@column	object_type_any_name/SEQUENCE	DROP SEQUENCE a
 42809	42809	engine	one_table@column	object_type_any_name/VIEW	DROP VIEW a
@@ -1760,6 +1782,10 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	any_name_list/any_name_l
 ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	TruncateStmt/TRUNCATE_opt_table_relation_expr_list_opt_restart_seqs_opt_drop_behavior+opt_table	TRUNCATE TABLE a
 ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	opt_restart_seqs/CONTINUE_P_IDENTITY_P	TRUNCATE a CONTINUE IDENTITY
 ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	opt_restart_seqs/RESTART_IDENTITY_P	TRUNCATE a RESTART IDENTITY
+42809	42809	engine	one_table@column	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/SEQUENCE	COMMENT ON SEQUENCE a IS 's'
+42809	42809	engine	one_table@column	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/VIEW	COMMENT ON VIEW a IS 's'
+42809	42809	engine	one_table@column	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/MATERIALIZED_VIEW	COMMENT ON MATERIALIZED VIEW a IS 's'
+42809	42809	engine	one_table@column	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/INDEX	COMMENT ON INDEX a IS 's'
 42601	42601	engine	one_table@column	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text	COMMENT ON COLUMN a IS 's'
 ok:17cd01dedec6	ok:17cd01dedec6	engine	one_table@column	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text	COMMENT ON TYPE a IS 's'
 42809	42809	engine	one_table@column	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text	COMMENT ON DOMAIN a IS 's'
@@ -1768,6 +1794,7 @@ ok:17cd01dedec6	ok:17cd01dedec6	engine	one_table@column	CommentStmt/COMMENT_ON_T
 42809	42809	engine	one_table@column	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text	COMMENT ON CONSTRAINT a ON DOMAIN a IS 's'
 42P01	42P01	engine	one_table@column	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text!drop-7	COMMENT ON CONSTRAINT a ON DOMAIN IS 's'
 42704	42704	engine	one_table@column	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text	COMMENT ON POLICY a ON a IS 's'
+42704	42704	engine	one_table@column	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text+object_type_name_on_any_name/TRIGGER	COMMENT ON TRIGGER a ON a IS 's'
 42883	42883	engine	one_table@column	CommentStmt/COMMENT_ON_PROCEDURE_function_with_argtypes_IS_comment_text	COMMENT ON PROCEDURE AUTHORIZATION IS 's'
 42883	42883	engine	one_table@column	CommentStmt/COMMENT_ON_ROUTINE_function_with_argtypes_IS_comment_text	COMMENT ON ROUTINE AUTHORIZATION IS 's'
 ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	comment_text/NULL_P	COMMENT ON TABLE a IS NULL
@@ -2422,11 +2449,16 @@ ok:72efe5c155eb	ok:72efe5c155eb	engine	objects@view	CreateSeqStmt/CREATE_OptTemp
 42809	42809	engine	objects@view	opt_if_not_exists/IF_P_NOT_EXISTS	ALTER TYPE a ADD VALUE IF NOT EXISTS 's'
 42809	42809	engine	objects@view	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP TABLE IF EXISTS a
 42809	42809	engine	objects@view	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP TABLE IF EXISTS a CASCADE
+42809	42809	engine	objects@view	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/SEQUENCE	DROP SEQUENCE IF EXISTS a
+ok:d8f1625d47fc	ok:d8f1625d47fc	engine	objects@view	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/VIEW	DROP VIEW IF EXISTS a
+42809	42809	engine	objects@view	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/MATERIALIZED_VIEW	DROP MATERIALIZED VIEW IF EXISTS a
+42809	42809	engine	objects@view	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/INDEX	DROP INDEX IF EXISTS a
 42809	42809	engine	objects@view	DropStmt/DROP_object_type_any_name_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP TABLE a CASCADE
 42704	42704	engine	objects@view	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior	DROP POLICY a ON a
 42704	42704	engine	objects@view	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior+opt_drop_behavior	DROP POLICY a ON a CASCADE
 ok:72efe5c155eb	ok:72efe5c155eb	engine	objects@view	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior	DROP POLICY IF EXISTS a ON a
 ok:72efe5c155eb	ok:72efe5c155eb	engine	objects@view	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior+opt_drop_behavior	DROP POLICY IF EXISTS a ON a CASCADE
+ok:72efe5c155eb	ok:72efe5c155eb	engine	objects@view	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior+object_type_name_on_any_name/TRIGGER	DROP TRIGGER IF EXISTS a ON a
 2BP01	2BP01	engine	objects@view	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior	DROP TYPE a
 2BP01	2BP01	engine	objects@view	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior+opt_drop_behavior	DROP TYPE a CASCADE
 2BP01	2BP01	engine	objects@view	DropStmt/DROP_TYPE_P_IF_P_EXISTS_type_name_list_opt_drop_behavior	DROP TYPE IF EXISTS a
@@ -2438,7 +2470,6 @@ ok:72efe5c155eb	ok:72efe5c155eb	engine	objects@view	DropStmt/DROP_object_type_na
 42809	42809	engine	objects@view	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY a
 0A000	0A000	engine	objects@view	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP INDEX CONCURRENTLY a CASCADE
 42809	42809	engine	objects@view	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a
-42809	42809	engine	objects@view	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior!drop-3	DROP INDEX IF EXISTS a
 0A000	0A000	engine	objects@view	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a CASCADE
 42809	42809	engine	objects@view	object_type_any_name/SEQUENCE	DROP SEQUENCE a
 ok:d8f1625d47fc	ok:d8f1625d47fc	engine	objects@view	object_type_any_name/VIEW	DROP VIEW a
@@ -2452,6 +2483,10 @@ ok:d8f1625d47fc	ok:d8f1625d47fc	engine	objects@view	object_type_any_name/VIEW	DR
 42809	42809	engine	objects@view	TruncateStmt/TRUNCATE_opt_table_relation_expr_list_opt_restart_seqs_opt_drop_behavior+opt_table	TRUNCATE TABLE a
 42809	42809	engine	objects@view	opt_restart_seqs/CONTINUE_P_IDENTITY_P	TRUNCATE a CONTINUE IDENTITY
 42809	42809	engine	objects@view	opt_restart_seqs/RESTART_IDENTITY_P	TRUNCATE a RESTART IDENTITY
+42809	42809	engine	objects@view	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/SEQUENCE	COMMENT ON SEQUENCE a IS 's'
+ok:a9830e5ee40a	ok:a9830e5ee40a	engine	objects@view	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/VIEW	COMMENT ON VIEW a IS 's'
+42809	42809	engine	objects@view	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/MATERIALIZED_VIEW	COMMENT ON MATERIALIZED VIEW a IS 's'
+42809	42809	engine	objects@view	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/INDEX	COMMENT ON INDEX a IS 's'
 42601	42601	engine	objects@view	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text	COMMENT ON COLUMN a IS 's'
 ok:a6167a94d9fe	ok:a6167a94d9fe	engine	objects@view	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text	COMMENT ON TYPE a IS 's'
 42809	42809	engine	objects@view	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text	COMMENT ON DOMAIN a IS 's'
@@ -2460,6 +2495,7 @@ ok:a6167a94d9fe	ok:a6167a94d9fe	engine	objects@view	CommentStmt/COMMENT_ON_TYPE_
 42809	42809	engine	objects@view	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text	COMMENT ON CONSTRAINT a ON DOMAIN a IS 's'
 42P01	42P01	engine	objects@view	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text!drop-7	COMMENT ON CONSTRAINT a ON DOMAIN IS 's'
 42704	42704	engine	objects@view	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text	COMMENT ON POLICY a ON a IS 's'
+42704	42704	engine	objects@view	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text+object_type_name_on_any_name/TRIGGER	COMMENT ON TRIGGER a ON a IS 's'
 42883	42883	engine	objects@view	CommentStmt/COMMENT_ON_PROCEDURE_function_with_argtypes_IS_comment_text	COMMENT ON PROCEDURE AUTHORIZATION IS 's'
 42883	42883	engine	objects@view	CommentStmt/COMMENT_ON_ROUTINE_function_with_argtypes_IS_comment_text	COMMENT ON ROUTINE AUTHORIZATION IS 's'
 42809	42809	engine	objects@view	comment_text/NULL_P	COMMENT ON TABLE a IS NULL
@@ -3114,11 +3150,16 @@ ok:f3ae96d7e3cd	ok:f3ae96d7e3cd	engine	objects@matview	CreateSeqStmt/CREATE_OptT
 42809	42809	engine	objects@matview	opt_if_not_exists/IF_P_NOT_EXISTS	ALTER TYPE a ADD VALUE IF NOT EXISTS 's'
 42809	42809	engine	objects@matview	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP TABLE IF EXISTS a
 42809	42809	engine	objects@matview	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP TABLE IF EXISTS a CASCADE
+42809	42809	engine	objects@matview	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/SEQUENCE	DROP SEQUENCE IF EXISTS a
+42809	42809	engine	objects@matview	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/VIEW	DROP VIEW IF EXISTS a
+ok:d8f1625d47fc	ok:d8f1625d47fc	engine	objects@matview	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/MATERIALIZED_VIEW	DROP MATERIALIZED VIEW IF EXISTS a
+42809	42809	engine	objects@matview	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/INDEX	DROP INDEX IF EXISTS a
 42809	42809	engine	objects@matview	DropStmt/DROP_object_type_any_name_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP TABLE a CASCADE
 42704	42704	engine	objects@matview	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior	DROP POLICY a ON a
 42704	42704	engine	objects@matview	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior+opt_drop_behavior	DROP POLICY a ON a CASCADE
 ok:f3ae96d7e3cd	ok:f3ae96d7e3cd	engine	objects@matview	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior	DROP POLICY IF EXISTS a ON a
 ok:f3ae96d7e3cd	ok:f3ae96d7e3cd	engine	objects@matview	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior+opt_drop_behavior	DROP POLICY IF EXISTS a ON a CASCADE
+ok:f3ae96d7e3cd	ok:f3ae96d7e3cd	engine	objects@matview	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior+object_type_name_on_any_name/TRIGGER	DROP TRIGGER IF EXISTS a ON a
 2BP01	2BP01	engine	objects@matview	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior	DROP TYPE a
 2BP01	2BP01	engine	objects@matview	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior+opt_drop_behavior	DROP TYPE a CASCADE
 2BP01	2BP01	engine	objects@matview	DropStmt/DROP_TYPE_P_IF_P_EXISTS_type_name_list_opt_drop_behavior	DROP TYPE IF EXISTS a
@@ -3130,7 +3171,6 @@ ok:f3ae96d7e3cd	ok:f3ae96d7e3cd	engine	objects@matview	DropStmt/DROP_object_type
 42809	42809	engine	objects@matview	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY a
 0A000	0A000	engine	objects@matview	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP INDEX CONCURRENTLY a CASCADE
 42809	42809	engine	objects@matview	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a
-42809	42809	engine	objects@matview	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior!drop-3	DROP INDEX IF EXISTS a
 0A000	0A000	engine	objects@matview	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a CASCADE
 42809	42809	engine	objects@matview	object_type_any_name/SEQUENCE	DROP SEQUENCE a
 42809	42809	engine	objects@matview	object_type_any_name/VIEW	DROP VIEW a
@@ -3144,6 +3184,10 @@ ok:d8f1625d47fc	ok:d8f1625d47fc	engine	objects@matview	object_type_any_name/MATE
 42809	42809	engine	objects@matview	TruncateStmt/TRUNCATE_opt_table_relation_expr_list_opt_restart_seqs_opt_drop_behavior+opt_table	TRUNCATE TABLE a
 42809	42809	engine	objects@matview	opt_restart_seqs/CONTINUE_P_IDENTITY_P	TRUNCATE a CONTINUE IDENTITY
 42809	42809	engine	objects@matview	opt_restart_seqs/RESTART_IDENTITY_P	TRUNCATE a RESTART IDENTITY
+42809	42809	engine	objects@matview	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/SEQUENCE	COMMENT ON SEQUENCE a IS 's'
+42809	42809	engine	objects@matview	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/VIEW	COMMENT ON VIEW a IS 's'
+ok:9833354355d2	ok:9833354355d2	engine	objects@matview	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/MATERIALIZED_VIEW	COMMENT ON MATERIALIZED VIEW a IS 's'
+42809	42809	engine	objects@matview	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/INDEX	COMMENT ON INDEX a IS 's'
 42601	42601	engine	objects@matview	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text	COMMENT ON COLUMN a IS 's'
 ok:09e35aabe3ce	ok:09e35aabe3ce	engine	objects@matview	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text	COMMENT ON TYPE a IS 's'
 42809	42809	engine	objects@matview	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text	COMMENT ON DOMAIN a IS 's'
@@ -3152,6 +3196,7 @@ ok:09e35aabe3ce	ok:09e35aabe3ce	engine	objects@matview	CommentStmt/COMMENT_ON_TY
 42809	42809	engine	objects@matview	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text	COMMENT ON CONSTRAINT a ON DOMAIN a IS 's'
 42P01	42P01	engine	objects@matview	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text!drop-7	COMMENT ON CONSTRAINT a ON DOMAIN IS 's'
 42704	42704	engine	objects@matview	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text	COMMENT ON POLICY a ON a IS 's'
+42704	42704	engine	objects@matview	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text+object_type_name_on_any_name/TRIGGER	COMMENT ON TRIGGER a ON a IS 's'
 42883	42883	engine	objects@matview	CommentStmt/COMMENT_ON_PROCEDURE_function_with_argtypes_IS_comment_text	COMMENT ON PROCEDURE AUTHORIZATION IS 's'
 42883	42883	engine	objects@matview	CommentStmt/COMMENT_ON_ROUTINE_function_with_argtypes_IS_comment_text	COMMENT ON ROUTINE AUTHORIZATION IS 's'
 42809	42809	engine	objects@matview	comment_text/NULL_P	COMMENT ON TABLE a IS NULL
@@ -3806,11 +3851,16 @@ ok:6537794cbca0	ok:6537794cbca0	engine	objects@sequence	opt_enum_val_list/enum_v
 42704	42704	engine	objects@sequence	opt_if_not_exists/IF_P_NOT_EXISTS	ALTER TYPE a ADD VALUE IF NOT EXISTS 's'
 42809	42809	engine	objects@sequence	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP TABLE IF EXISTS a
 42809	42809	engine	objects@sequence	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP TABLE IF EXISTS a CASCADE
+ok:8f7606b84e1b	ok:8f7606b84e1b	engine	objects@sequence	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/SEQUENCE	DROP SEQUENCE IF EXISTS a
+42809	42809	engine	objects@sequence	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/VIEW	DROP VIEW IF EXISTS a
+42809	42809	engine	objects@sequence	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/MATERIALIZED_VIEW	DROP MATERIALIZED VIEW IF EXISTS a
+42809	42809	engine	objects@sequence	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/INDEX	DROP INDEX IF EXISTS a
 42809	42809	engine	objects@sequence	DropStmt/DROP_object_type_any_name_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP TABLE a CASCADE
 42704	42704	engine	objects@sequence	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior	DROP POLICY a ON a
 42704	42704	engine	objects@sequence	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior+opt_drop_behavior	DROP POLICY a ON a CASCADE
 ok:f304186794cc	ok:f304186794cc	engine	objects@sequence	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior	DROP POLICY IF EXISTS a ON a
 ok:f304186794cc	ok:f304186794cc	engine	objects@sequence	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior+opt_drop_behavior	DROP POLICY IF EXISTS a ON a CASCADE
+ok:f304186794cc	ok:f304186794cc	engine	objects@sequence	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior+object_type_name_on_any_name/TRIGGER	DROP TRIGGER IF EXISTS a ON a
 42704	42704	engine	objects@sequence	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior	DROP TYPE a
 42704	42704	engine	objects@sequence	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior+opt_drop_behavior	DROP TYPE a CASCADE
 ok:f304186794cc	ok:f304186794cc	engine	objects@sequence	DropStmt/DROP_TYPE_P_IF_P_EXISTS_type_name_list_opt_drop_behavior	DROP TYPE IF EXISTS a
@@ -3822,7 +3872,6 @@ ok:f304186794cc	ok:f304186794cc	engine	objects@sequence	DropStmt/DROP_DOMAIN_P_I
 42809	42809	engine	objects@sequence	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY a
 0A000	0A000	engine	objects@sequence	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP INDEX CONCURRENTLY a CASCADE
 42809	42809	engine	objects@sequence	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a
-42809	42809	engine	objects@sequence	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior!drop-3	DROP INDEX IF EXISTS a
 0A000	0A000	engine	objects@sequence	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a CASCADE
 ok:8f7606b84e1b	ok:8f7606b84e1b	engine	objects@sequence	object_type_any_name/SEQUENCE	DROP SEQUENCE a
 42809	42809	engine	objects@sequence	object_type_any_name/VIEW	DROP VIEW a
@@ -3836,6 +3885,10 @@ ok:8f7606b84e1b	ok:8f7606b84e1b	engine	objects@sequence	object_type_any_name/SEQ
 42809	42809	engine	objects@sequence	TruncateStmt/TRUNCATE_opt_table_relation_expr_list_opt_restart_seqs_opt_drop_behavior+opt_table	TRUNCATE TABLE a
 42809	42809	engine	objects@sequence	opt_restart_seqs/CONTINUE_P_IDENTITY_P	TRUNCATE a CONTINUE IDENTITY
 42809	42809	engine	objects@sequence	opt_restart_seqs/RESTART_IDENTITY_P	TRUNCATE a RESTART IDENTITY
+ok:97ac827fd431	ok:97ac827fd431	engine	objects@sequence	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/SEQUENCE	COMMENT ON SEQUENCE a IS 's'
+42809	42809	engine	objects@sequence	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/VIEW	COMMENT ON VIEW a IS 's'
+42809	42809	engine	objects@sequence	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/MATERIALIZED_VIEW	COMMENT ON MATERIALIZED VIEW a IS 's'
+42809	42809	engine	objects@sequence	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/INDEX	COMMENT ON INDEX a IS 's'
 42601	42601	engine	objects@sequence	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text	COMMENT ON COLUMN a IS 's'
 42704	42704	engine	objects@sequence	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text	COMMENT ON TYPE a IS 's'
 42704	42704	engine	objects@sequence	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text	COMMENT ON DOMAIN a IS 's'
@@ -3844,6 +3897,7 @@ ok:8f7606b84e1b	ok:8f7606b84e1b	engine	objects@sequence	object_type_any_name/SEQ
 42704	42704	engine	objects@sequence	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text	COMMENT ON CONSTRAINT a ON DOMAIN a IS 's'
 42P01	42P01	engine	objects@sequence	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text!drop-7	COMMENT ON CONSTRAINT a ON DOMAIN IS 's'
 42704	42704	engine	objects@sequence	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text	COMMENT ON POLICY a ON a IS 's'
+42704	42704	engine	objects@sequence	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text+object_type_name_on_any_name/TRIGGER	COMMENT ON TRIGGER a ON a IS 's'
 42883	42883	engine	objects@sequence	CommentStmt/COMMENT_ON_PROCEDURE_function_with_argtypes_IS_comment_text	COMMENT ON PROCEDURE AUTHORIZATION IS 's'
 42883	42883	engine	objects@sequence	CommentStmt/COMMENT_ON_ROUTINE_function_with_argtypes_IS_comment_text	COMMENT ON ROUTINE AUTHORIZATION IS 's'
 42809	42809	engine	objects@sequence	comment_text/NULL_P	COMMENT ON TABLE a IS NULL
@@ -4498,11 +4552,16 @@ ok:07beb3bd539d	ok:07beb3bd539d	engine	objects@partitioned	row_security_cmd/DELE
 42809	42809	engine	objects@partitioned	opt_if_not_exists/IF_P_NOT_EXISTS	ALTER TYPE a ADD VALUE IF NOT EXISTS 's'
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@partitioned	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP TABLE IF EXISTS a
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@partitioned	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP TABLE IF EXISTS a CASCADE
+42809	42809	engine	objects@partitioned	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/SEQUENCE	DROP SEQUENCE IF EXISTS a
+42809	42809	engine	objects@partitioned	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/VIEW	DROP VIEW IF EXISTS a
+42809	42809	engine	objects@partitioned	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/MATERIALIZED_VIEW	DROP MATERIALIZED VIEW IF EXISTS a
+42809	42809	engine	objects@partitioned	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/INDEX	DROP INDEX IF EXISTS a
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@partitioned	DropStmt/DROP_object_type_any_name_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP TABLE a CASCADE
 42704	42704	engine	objects@partitioned	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior	DROP POLICY a ON a
 42704	42704	engine	objects@partitioned	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior+opt_drop_behavior	DROP POLICY a ON a CASCADE
 ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior	DROP POLICY IF EXISTS a ON a
 ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior+opt_drop_behavior	DROP POLICY IF EXISTS a ON a CASCADE
+ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior+object_type_name_on_any_name/TRIGGER	DROP TRIGGER IF EXISTS a ON a
 2BP01	2BP01	engine	objects@partitioned	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior	DROP TYPE a
 2BP01	2BP01	engine	objects@partitioned	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior+opt_drop_behavior	DROP TYPE a CASCADE
 2BP01	2BP01	engine	objects@partitioned	DropStmt/DROP_TYPE_P_IF_P_EXISTS_type_name_list_opt_drop_behavior	DROP TYPE IF EXISTS a
@@ -4514,7 +4573,6 @@ ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	DropStmt/DROP_object_
 42809	42809	engine	objects@partitioned	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY a
 0A000	0A000	engine	objects@partitioned	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP INDEX CONCURRENTLY a CASCADE
 42809	42809	engine	objects@partitioned	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a
-42809	42809	engine	objects@partitioned	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior!drop-3	DROP INDEX IF EXISTS a
 0A000	0A000	engine	objects@partitioned	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a CASCADE
 42809	42809	engine	objects@partitioned	object_type_any_name/SEQUENCE	DROP SEQUENCE a
 42809	42809	engine	objects@partitioned	object_type_any_name/VIEW	DROP VIEW a
@@ -4528,6 +4586,10 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@partitioned	any_name_list/any_nam
 ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	TruncateStmt/TRUNCATE_opt_table_relation_expr_list_opt_restart_seqs_opt_drop_behavior+opt_table	TRUNCATE TABLE a
 ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	opt_restart_seqs/CONTINUE_P_IDENTITY_P	TRUNCATE a CONTINUE IDENTITY
 ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	opt_restart_seqs/RESTART_IDENTITY_P	TRUNCATE a RESTART IDENTITY
+42809	42809	engine	objects@partitioned	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/SEQUENCE	COMMENT ON SEQUENCE a IS 's'
+42809	42809	engine	objects@partitioned	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/VIEW	COMMENT ON VIEW a IS 's'
+42809	42809	engine	objects@partitioned	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/MATERIALIZED_VIEW	COMMENT ON MATERIALIZED VIEW a IS 's'
+42809	42809	engine	objects@partitioned	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/INDEX	COMMENT ON INDEX a IS 's'
 42601	42601	engine	objects@partitioned	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text	COMMENT ON COLUMN a IS 's'
 ok:0a0b1069f634	ok:0a0b1069f634	engine	objects@partitioned	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text	COMMENT ON TYPE a IS 's'
 42809	42809	engine	objects@partitioned	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text	COMMENT ON DOMAIN a IS 's'
@@ -4536,6 +4598,7 @@ ok:0a0b1069f634	ok:0a0b1069f634	engine	objects@partitioned	CommentStmt/COMMENT_O
 42809	42809	engine	objects@partitioned	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text	COMMENT ON CONSTRAINT a ON DOMAIN a IS 's'
 42P01	42P01	engine	objects@partitioned	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text!drop-7	COMMENT ON CONSTRAINT a ON DOMAIN IS 's'
 42704	42704	engine	objects@partitioned	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text	COMMENT ON POLICY a ON a IS 's'
+42704	42704	engine	objects@partitioned	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text+object_type_name_on_any_name/TRIGGER	COMMENT ON TRIGGER a ON a IS 's'
 42883	42883	engine	objects@partitioned	CommentStmt/COMMENT_ON_PROCEDURE_function_with_argtypes_IS_comment_text	COMMENT ON PROCEDURE AUTHORIZATION IS 's'
 42883	42883	engine	objects@partitioned	CommentStmt/COMMENT_ON_ROUTINE_function_with_argtypes_IS_comment_text	COMMENT ON ROUTINE AUTHORIZATION IS 's'
 ok:b5576c1316c3	ok:b5576c1316c3	engine	objects@partitioned	comment_text/NULL_P	COMMENT ON TABLE a IS NULL
@@ -5190,11 +5253,16 @@ ok:a40d9b7c15e9	ok:a40d9b7c15e9	engine	objects@fk	row_security_cmd/DELETE_P	CREA
 42809	42809	engine	objects@fk	opt_if_not_exists/IF_P_NOT_EXISTS	ALTER TYPE a ADD VALUE IF NOT EXISTS 's'
 2BP01	2BP01	engine	objects@fk	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP TABLE IF EXISTS a
 ok:335f9ad2866e	ok:335f9ad2866e	engine	objects@fk	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP TABLE IF EXISTS a CASCADE
+42809	42809	engine	objects@fk	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/SEQUENCE	DROP SEQUENCE IF EXISTS a
+42809	42809	engine	objects@fk	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/VIEW	DROP VIEW IF EXISTS a
+42809	42809	engine	objects@fk	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/MATERIALIZED_VIEW	DROP MATERIALIZED VIEW IF EXISTS a
+42809	42809	engine	objects@fk	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/INDEX	DROP INDEX IF EXISTS a
 ok:335f9ad2866e	ok:335f9ad2866e	engine	objects@fk	DropStmt/DROP_object_type_any_name_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP TABLE a CASCADE
 42704	42704	engine	objects@fk	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior	DROP POLICY a ON a
 42704	42704	engine	objects@fk	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior+opt_drop_behavior	DROP POLICY a ON a CASCADE
 ok:c15b6fa102e9	ok:c15b6fa102e9	engine	objects@fk	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior	DROP POLICY IF EXISTS a ON a
 ok:c15b6fa102e9	ok:c15b6fa102e9	engine	objects@fk	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior+opt_drop_behavior	DROP POLICY IF EXISTS a ON a CASCADE
+ok:c15b6fa102e9	ok:c15b6fa102e9	engine	objects@fk	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior+object_type_name_on_any_name/TRIGGER	DROP TRIGGER IF EXISTS a ON a
 2BP01	2BP01	engine	objects@fk	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior	DROP TYPE a
 2BP01	2BP01	engine	objects@fk	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior+opt_drop_behavior	DROP TYPE a CASCADE
 2BP01	2BP01	engine	objects@fk	DropStmt/DROP_TYPE_P_IF_P_EXISTS_type_name_list_opt_drop_behavior	DROP TYPE IF EXISTS a
@@ -5206,7 +5274,6 @@ ok:c15b6fa102e9	ok:c15b6fa102e9	engine	objects@fk	DropStmt/DROP_object_type_name
 42809	42809	engine	objects@fk	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY a
 0A000	0A000	engine	objects@fk	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP INDEX CONCURRENTLY a CASCADE
 42809	42809	engine	objects@fk	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a
-42809	42809	engine	objects@fk	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior!drop-3	DROP INDEX IF EXISTS a
 0A000	0A000	engine	objects@fk	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a CASCADE
 42809	42809	engine	objects@fk	object_type_any_name/SEQUENCE	DROP SEQUENCE a
 42809	42809	engine	objects@fk	object_type_any_name/VIEW	DROP VIEW a
@@ -5220,6 +5287,10 @@ ok:c15b6fa102e9	ok:c15b6fa102e9	engine	objects@fk	DropStmt/DROP_object_type_name
 0A000	0A000	engine	objects@fk	TruncateStmt/TRUNCATE_opt_table_relation_expr_list_opt_restart_seqs_opt_drop_behavior+opt_table	TRUNCATE TABLE a
 0A000	0A000	engine	objects@fk	opt_restart_seqs/CONTINUE_P_IDENTITY_P	TRUNCATE a CONTINUE IDENTITY
 0A000	0A000	engine	objects@fk	opt_restart_seqs/RESTART_IDENTITY_P	TRUNCATE a RESTART IDENTITY
+42809	42809	engine	objects@fk	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/SEQUENCE	COMMENT ON SEQUENCE a IS 's'
+42809	42809	engine	objects@fk	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/VIEW	COMMENT ON VIEW a IS 's'
+42809	42809	engine	objects@fk	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/MATERIALIZED_VIEW	COMMENT ON MATERIALIZED VIEW a IS 's'
+42809	42809	engine	objects@fk	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/INDEX	COMMENT ON INDEX a IS 's'
 42601	42601	engine	objects@fk	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text	COMMENT ON COLUMN a IS 's'
 ok:e3563d8d1db6	ok:e3563d8d1db6	engine	objects@fk	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text	COMMENT ON TYPE a IS 's'
 42809	42809	engine	objects@fk	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text	COMMENT ON DOMAIN a IS 's'
@@ -5228,6 +5299,7 @@ ok:4c46d66679ae	ok:4c46d66679ae	engine	objects@fk	CommentStmt/COMMENT_ON_CONSTRA
 42809	42809	engine	objects@fk	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text	COMMENT ON CONSTRAINT a ON DOMAIN a IS 's'
 42P01	42P01	engine	objects@fk	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text!drop-7	COMMENT ON CONSTRAINT a ON DOMAIN IS 's'
 42704	42704	engine	objects@fk	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text	COMMENT ON POLICY a ON a IS 's'
+42704	42704	engine	objects@fk	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text+object_type_name_on_any_name/TRIGGER	COMMENT ON TRIGGER a ON a IS 's'
 42883	42883	engine	objects@fk	CommentStmt/COMMENT_ON_PROCEDURE_function_with_argtypes_IS_comment_text	COMMENT ON PROCEDURE AUTHORIZATION IS 's'
 42883	42883	engine	objects@fk	CommentStmt/COMMENT_ON_ROUTINE_function_with_argtypes_IS_comment_text	COMMENT ON ROUTINE AUTHORIZATION IS 's'
 ok:c15b6fa102e9	ok:c15b6fa102e9	engine	objects@fk	comment_text/NULL_P	COMMENT ON TABLE a IS NULL
@@ -5882,11 +5954,16 @@ ok:514cd1736e33	ok:514cd1736e33	engine	objects@domain	ConstraintAttributeElem/IN
 42809	42809	engine	objects@domain	opt_if_not_exists/IF_P_NOT_EXISTS	ALTER TYPE a ADD VALUE IF NOT EXISTS 's'
 ok:514cd1736e33	ok:514cd1736e33	engine	objects@domain	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP TABLE IF EXISTS a
 ok:514cd1736e33	ok:514cd1736e33	engine	objects@domain	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP TABLE IF EXISTS a CASCADE
+ok:514cd1736e33	ok:514cd1736e33	engine	objects@domain	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/SEQUENCE	DROP SEQUENCE IF EXISTS a
+ok:514cd1736e33	ok:514cd1736e33	engine	objects@domain	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/VIEW	DROP VIEW IF EXISTS a
+ok:514cd1736e33	ok:514cd1736e33	engine	objects@domain	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/MATERIALIZED_VIEW	DROP MATERIALIZED VIEW IF EXISTS a
+ok:514cd1736e33	ok:514cd1736e33	engine	objects@domain	DropStmt/DROP_object_type_any_name_IF_P_EXISTS_any_name_list_opt_drop_behavior+object_type_any_name/INDEX	DROP INDEX IF EXISTS a
 42P01	42P01	engine	objects@domain	DropStmt/DROP_object_type_any_name_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP TABLE a CASCADE
 42P01	42P01	engine	objects@domain	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior	DROP POLICY a ON a
 42P01	42P01	engine	objects@domain	DropStmt/DROP_object_type_name_on_any_name_name_ON_any_name_opt_drop_behavior+opt_drop_behavior	DROP POLICY a ON a CASCADE
 ok:514cd1736e33	ok:514cd1736e33	engine	objects@domain	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior	DROP POLICY IF EXISTS a ON a
 ok:514cd1736e33	ok:514cd1736e33	engine	objects@domain	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior+opt_drop_behavior	DROP POLICY IF EXISTS a ON a CASCADE
+ok:514cd1736e33	ok:514cd1736e33	engine	objects@domain	DropStmt/DROP_object_type_name_on_any_name_IF_P_EXISTS_name_ON_any_name_opt_drop_behavior+object_type_name_on_any_name/TRIGGER	DROP TRIGGER IF EXISTS a ON a
 ok:8f7606b84e1b	ok:8f7606b84e1b	engine	objects@domain	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior	DROP TYPE a
 ok:8f7606b84e1b	ok:8f7606b84e1b	engine	objects@domain	DropStmt/DROP_TYPE_P_type_name_list_opt_drop_behavior+opt_drop_behavior	DROP TYPE a CASCADE
 ok:8f7606b84e1b	ok:8f7606b84e1b	engine	objects@domain	DropStmt/DROP_TYPE_P_IF_P_EXISTS_type_name_list_opt_drop_behavior	DROP TYPE IF EXISTS a
@@ -5898,7 +5975,6 @@ ok:8f7606b84e1b	ok:8f7606b84e1b	engine	objects@domain	DropStmt/DROP_DOMAIN_P_IF_
 42704	42704	engine	objects@domain	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY a
 0A000	0A000	engine	objects@domain	DropStmt/DROP_INDEX_CONCURRENTLY_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP INDEX CONCURRENTLY a CASCADE
 ok:514cd1736e33	ok:514cd1736e33	engine	objects@domain	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a
-ok:514cd1736e33	ok:514cd1736e33	engine	objects@domain	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior!drop-3	DROP INDEX IF EXISTS a
 0A000	0A000	engine	objects@domain	DropStmt/DROP_INDEX_CONCURRENTLY_IF_P_EXISTS_any_name_list_opt_drop_behavior+opt_drop_behavior	DROP INDEX CONCURRENTLY IF EXISTS a CASCADE
 42P01	42P01	engine	objects@domain	object_type_any_name/SEQUENCE	DROP SEQUENCE a
 42P01	42P01	engine	objects@domain	object_type_any_name/VIEW	DROP VIEW a
@@ -5912,6 +5988,10 @@ ok:8f7606b84e1b	ok:8f7606b84e1b	engine	objects@domain	type_name_list/type_name_l
 42P01	42P01	engine	objects@domain	TruncateStmt/TRUNCATE_opt_table_relation_expr_list_opt_restart_seqs_opt_drop_behavior+opt_table	TRUNCATE TABLE a
 42P01	42P01	engine	objects@domain	opt_restart_seqs/CONTINUE_P_IDENTITY_P	TRUNCATE a CONTINUE IDENTITY
 42P01	42P01	engine	objects@domain	opt_restart_seqs/RESTART_IDENTITY_P	TRUNCATE a RESTART IDENTITY
+42P01	42P01	engine	objects@domain	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/SEQUENCE	COMMENT ON SEQUENCE a IS 's'
+42P01	42P01	engine	objects@domain	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/VIEW	COMMENT ON VIEW a IS 's'
+42P01	42P01	engine	objects@domain	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/MATERIALIZED_VIEW	COMMENT ON MATERIALIZED VIEW a IS 's'
+42P01	42P01	engine	objects@domain	CommentStmt/COMMENT_ON_object_type_any_name_any_name_IS_comment_text+object_type_any_name/INDEX	COMMENT ON INDEX a IS 's'
 42601	42601	engine	objects@domain	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text	COMMENT ON COLUMN a IS 's'
 ok:a6d5f20ac50c	ok:a6d5f20ac50c	engine	objects@domain	CommentStmt/COMMENT_ON_TYPE_P_Typename_IS_comment_text	COMMENT ON TYPE a IS 's'
 ok:a6d5f20ac50c	ok:a6d5f20ac50c	engine	objects@domain	CommentStmt/COMMENT_ON_DOMAIN_P_Typename_IS_comment_text	COMMENT ON DOMAIN a IS 's'
@@ -5920,6 +6000,7 @@ ok:a6d5f20ac50c	ok:a6d5f20ac50c	engine	objects@domain	CommentStmt/COMMENT_ON_DOM
 ok:1719184d2917	ok:1719184d2917	engine	objects@domain	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text	COMMENT ON CONSTRAINT a ON DOMAIN a IS 's'
 42P01	42P01	engine	objects@domain	CommentStmt/COMMENT_ON_CONSTRAINT_name_ON_DOMAIN_P_any_name_IS_comment_text!drop-7	COMMENT ON CONSTRAINT a ON DOMAIN IS 's'
 42P01	42P01	engine	objects@domain	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text	COMMENT ON POLICY a ON a IS 's'
+42P01	42P01	engine	objects@domain	CommentStmt/COMMENT_ON_object_type_name_on_any_name_name_ON_any_name_IS_comment_text+object_type_name_on_any_name/TRIGGER	COMMENT ON TRIGGER a ON a IS 's'
 42883	42883	engine	objects@domain	CommentStmt/COMMENT_ON_PROCEDURE_function_with_argtypes_IS_comment_text	COMMENT ON PROCEDURE AUTHORIZATION IS 's'
 42883	42883	engine	objects@domain	CommentStmt/COMMENT_ON_ROUTINE_function_with_argtypes_IS_comment_text	COMMENT ON ROUTINE AUTHORIZATION IS 's'
 42P01	42P01	engine	objects@domain	comment_text/NULL_P	COMMENT ON TABLE a IS NULL
