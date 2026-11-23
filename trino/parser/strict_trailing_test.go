@@ -153,7 +153,7 @@ func TestStrictParseDropsNodeOnLexError(t *testing.T) {
 }
 
 func TestStrictParseReportsLexErrorInDroppedSegment(t *testing.T) {
-	// Split drops a segment that lexes to nothing, and with it the lex error
+	// parseAll skips a segment that lexes to nothing, and with it the lex error
 	// that made it empty; strict Parse promotes it from a whole-input pass.
 	_, errs := parseForTest("/* unterminated")
 	if len(errs) == 0 {

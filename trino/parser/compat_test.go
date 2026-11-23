@@ -113,7 +113,12 @@ func TestCompatibilitySuitesAreTheCorpora(t *testing.T) {
 // refused where Trino finds none. Exact ParseError.Position byte offsets are
 // pinned separately in TestErrorPositions.
 func omniVerdict(sql string) string {
-	segs := Split(sql)
+	var segs []Segment
+	for _, seg := range Split(sql) {
+		if !seg.Empty() {
+			segs = append(segs, seg)
+		}
+	}
 	if _, err := Parse(sql); err != nil {
 		return compat.Reject
 	}

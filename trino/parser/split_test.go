@@ -40,13 +40,75 @@ func TestSplit_TwoStatements(t *testing.T) {
 	}
 }
 
-// TestSplit_EmptySegmentsFiltered verifies lone semicolons and comment-only
-// chunks produce no segments.
-func TestSplit_EmptySegmentsFiltered(t *testing.T) {
-	for _, in := range []string{";", ";;;", "  ;  ", "-- c\n;", "/* c */", ""} {
-		segs := Split(in)
-		if len(segs) != 0 {
-			t.Errorf("Split(%q): got %d segments, want 0: %+v", in, len(segs), segs)
+// TestSplit_EmptySegments verifies lone semicolons, whitespace and
+// comment-only chunks come back as segments marked Empty, with byte ranges
+// that address their text, so a caller can account for every ';'.
+func TestSplit_EmptySegments(t *testing.T) {
+	type seg struct {
+		text       string
+		start, end int
+		empty      bool
+	}
+	cases := []struct {
+		in   string
+		want []seg
+	}{
+		{"", nil},
+		{";", []seg{{"", 0, 0, true}}},
+		{";;", []seg{{"", 0, 0, true}, {"", 1, 1, true}}},
+		{";;;", []seg{{"", 0, 0, true}, {"", 1, 1, true}, {"", 2, 2, true}}},
+		{"  ;  ", []seg{{"  ", 0, 2, true}, {"  ", 3, 5, true}}},
+		{"-- c\n;", []seg{{"-- c\n", 0, 5, true}}},
+		{"/* c */", []seg{{"/* c */", 0, 7, true}}},
+		{";SELECT 1;", []seg{{"", 0, 0, true}, {"SELECT 1", 1, 9, false}}},
+		{"SELECT 1;", []seg{{"SELECT 1", 0, 8, false}}},
+		{"SELECT 1;;", []seg{{"SELECT 1", 0, 8, false}, {"", 9, 9, true}}},
+		{"SELECT 1;  ", []seg{{"SELECT 1", 0, 8, false}, {"  ", 9, 11, true}}},
+		{"SELECT 1;;SELECT 2", []seg{{"SELECT 1", 0, 8, false}, {"", 9, 9, true}, {"SELECT 2", 10, 18, false}}},
+		{"SELECT 1; /* c */; SELECT 2", []seg{{"SELECT 1", 0, 8, false}, {" /* c */", 9, 17, true}, {" SELECT 2", 18, 27, false}}},
+		{"SELECT 1; -- done", []seg{{"SELECT 1", 0, 8, false}, {" -- done", 9, 17, true}}},
+		{"/* c */;SELECT 1", []seg{{"/* c */", 0, 7, true}, {"SELECT 1", 8, 16, false}}},
+	}
+	for _, c := range cases {
+		segs := Split(c.in)
+		got := make([]seg, len(segs))
+		for i, s := range segs {
+			got[i] = seg{s.Text, s.ByteStart, s.ByteEnd, s.Empty()}
+			if s.Text != c.in[s.ByteStart:s.ByteEnd] {
+				t.Errorf("Split(%q)[%d].Text = %q, want input[%d:%d]", c.in, i, s.Text, s.ByteStart, s.ByteEnd)
+			}
+		}
+		if len(got) != len(c.want) {
+			t.Errorf("Split(%q) = %+v, want %+v", c.in, got, c.want)
+			continue
+		}
+		for i := range got {
+			if got[i] != c.want[i] {
+				t.Errorf("Split(%q)[%d] = %+v, want %+v", c.in, i, got[i], c.want[i])
+			}
+		}
+	}
+}
+
+// TestParse_SkipsEmptySegments verifies Parse reads no statement from a
+// segment Split marks Empty.
+func TestParse_SkipsEmptySegments(t *testing.T) {
+	for _, c := range []struct {
+		in    string
+		stmts int
+	}{
+		{";", 0},
+		{";;", 0},
+		{"-- c\n;", 0},
+		{";SELECT 1;;SELECT 2; -- done", 2},
+	} {
+		file, err := Parse(c.in)
+		if err != nil {
+			t.Errorf("Parse(%q): %v", c.in, err)
+			continue
+		}
+		if len(file.Stmts) != c.stmts {
+			t.Errorf("Parse(%q) = %d statements, want %d", c.in, len(file.Stmts), c.stmts)
 		}
 	}
 }
@@ -93,7 +155,7 @@ func TestSplit_SemicolonInComment(t *testing.T) {
 }
 
 // TestSplit_TrailingSemicolon verifies a single statement with a trailing ';'
-// yields exactly one segment (the empty trailing chunk is filtered).
+// yields exactly one segment: nothing follows the ';', so no empty chunk does.
 func TestSplit_TrailingSemicolon(t *testing.T) {
 	segs := Split("SELECT 1;")
 	if len(segs) != 1 {

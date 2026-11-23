@@ -198,13 +198,26 @@ func fillEmptySelectLists(stmt string) string {
 	return stmt
 }
 
+// statementSegments returns the segments of sql that hold a statement. A lone
+// ';' or a comment gives completion no context, so the caret attaches to a
+// statement around it instead.
+func statementSegments(sql string) []parser.Segment {
+	var segs []parser.Segment
+	for _, s := range parser.Split(sql) {
+		if !s.Empty() {
+			segs = append(segs, s)
+		}
+	}
+	return segs
+}
+
 // containingStatement returns the [start, end) byte range of the top-level
 // statement that contains the caret at offset limit. A caret sitting on a ';'
 // boundary, or past the last statement, attaches to the nearest statement so
 // completion still has context. Falls back to the whole input when Split finds
 // nothing.
 func containingStatement(sql string, limit int) (start, end int) {
-	segs := parser.Split(sql)
+	segs := statementSegments(sql)
 	if len(segs) == 0 {
 		return 0, len(sql)
 	}

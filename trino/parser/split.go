@@ -16,7 +16,8 @@ type Segment struct {
 
 // Empty reports whether the segment contains no meaningful SQL content — only
 // whitespace and comments. It re-lexes Text and checks whether the first token
-// is tokEOF. Empty segments are filtered out by Split.
+// is tokEOF. Split returns empty segments; a caller that parses or executes
+// statements skips them.
 func (s Segment) Empty() bool {
 	return NewLexer(s.Text).NextToken().Kind == tokEOF
 }
@@ -31,9 +32,13 @@ const (
 
 // Split extracts top-level SQL statements from input.
 //
-// The returned slice contains one Segment per non-empty statement. Empty
-// statements (lone semicolons, comment-only chunks) are filtered out. Split is
-// infallible — it always returns a result even for malformed input; lexing
+// The returned slice contains one Segment per delimiter-separated chunk,
+// including the chunks that hold no statement — a lone semicolon, whitespace,
+// a comment, or comment-only text after the last ';' — which Segment.Empty
+// reports. A caller that accounts for every delimiter (Bytebase's execution
+// log) needs them; a caller that parses or executes statements skips them.
+// Whitespace or comments after the last ';' form a final empty segment; a
+// script that ends at its ';' has none. Split is infallible — it always returns a result even for malformed input; lexing
 // errors are suppressed here (callers who need them use NewLexer(input).Errors()
 // or Parse, which promotes lex errors to diagnostics).
 //
@@ -87,14 +92,11 @@ func Split(input string) []Segment {
 	prevWasEnd := false
 
 	emit := func(end int) {
-		seg := Segment{
+		segments = append(segments, Segment{
 			Text:      input[stmtStart:end],
 			ByteStart: stmtStart,
 			ByteEnd:   end,
-		}
-		if !seg.Empty() {
-			segments = append(segments, seg)
-		}
+		})
 	}
 
 	// markRoutineIfPrefix sets isFunctionDef when tok at position idx completes
