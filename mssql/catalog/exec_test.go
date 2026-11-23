@@ -1125,4 +1125,34 @@ CREATE TABLE [dbo].[c] ([a] INT REFERENCES [dbo].[p]([a]));
 	require.NotNil(t, indexByName(c.GetTable("dbo", "p"), "u1"))
 	execExpectOK(t, c, `DROP INDEX [u2] ON [dbo].[p]`)
 	require.Nil(t, indexByName(c.GetTable("dbo", "p"), "u2"))
+
+	// 77. Dropping a temporal table in a mixed-case schema clears its SYSTEM_TIME state.
+	c, err = LoadSQL(`
+CREATE SCHEMA [App];
+GO
+CREATE TABLE [App].[t] (
+    [id] INT NOT NULL PRIMARY KEY,
+    [sys_start] DATETIME2 GENERATED ALWAYS AS ROW START NOT NULL,
+    [sys_end] DATETIME2 GENERATED ALWAYS AS ROW END NOT NULL,
+    PERIOD FOR SYSTEM_TIME ([sys_start], [sys_end])
+);
+`)
+	require.NoError(t, err)
+	execExpectOK(t, c, `DROP TABLE [App].[t]`)
+	execExpectOK(t, c, `CREATE TABLE [App].[t] ([id] INT NOT NULL PRIMARY KEY)`)
+	execExpectCode(t, c, `ALTER TABLE [App].[t] SET (SYSTEM_VERSIONING = ON)`, ErrSystemVersioningNoPeriod)
+
+	// 78. ALTER SEQUENCE honors database qualifiers instead of mutating local sequences.
+	primaryMeta, err = LoadSQL(`CREATE SEQUENCE [dbo].[s] START WITH 1 INCREMENT BY 1;`)
+	require.NoError(t, err)
+	otherMeta, err = LoadSQL(`CREATE SEQUENCE [dbo].[s] START WITH 1 INCREMENT BY 1;`)
+	require.NoError(t, err)
+	c = New()
+	require.NoError(t, c.LoadMetadataInto(t.Context(), primaryMeta.Metadata(), "appdb"))
+	require.NoError(t, c.LoadMetadataInto(t.Context(), otherMeta.Metadata(), "otherdb"))
+	execExpectCode(t, c, `ALTER SEQUENCE [missingdb].[dbo].[s] INCREMENT BY 5`, ErrSecurableNotFound)
+	require.Equal(t, "1", c.GetSchema("dbo").Sequences[0].Increment)
+	execExpectOK(t, c, `ALTER SEQUENCE [otherdb].[dbo].[s] INCREMENT BY 5`)
+	require.Equal(t, "1", c.GetSchema("dbo").Sequences[0].Increment)
+	require.Equal(t, "5", c.GetDatabaseSchema("otherdb", "dbo").Sequences[0].Increment)
 }

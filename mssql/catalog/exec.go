@@ -822,8 +822,9 @@ func (c *Catalog) removeSchema(target *metadata.SchemaMetadata) {
 			fold := normalize(s.Name)
 			for _, t := range s.Tables {
 				delete(c.tableByName, tableKey{schema: s.Name, table: t.Name})
-				delete(c.systemTimeTables, tableKey{schema: fold, table: t.Name})
-				delete(c.systemVersionedTables, tableKey{schema: fold, table: t.Name})
+				periodKey := tableKey{schema: normalizeOrDefault(s.Name, c.defaultSchema), table: t.Name}
+				delete(c.systemTimeTables, periodKey)
+				delete(c.systemVersionedTables, periodKey)
 			}
 			delete(c.schemaByName, s.Name)
 			var kept []*metadata.SchemaMetadata
@@ -1053,7 +1054,7 @@ func (c *Catalog) execCreateTable(n *ast.CreateTableStmt, source string) error {
 		if c.systemTimeTables == nil {
 			c.systemTimeTables = make(map[tableKey][2]string)
 		}
-		periodKey := tableKey{schema: normalizeOrDefault(schemaName, c.defaultSchema), table: table.Name}
+		periodKey := c.temporalKey(schemaName, table.Name)
 		c.systemTimeTables[periodKey] = [2]string{n.PeriodStartCol, n.PeriodEndCol}
 		if n.TableOptions != nil {
 			for _, item := range n.TableOptions.Items {
@@ -1494,9 +1495,16 @@ func (c *Catalog) execCreateSpatialIndex(n *ast.CreateSpatialIndexStmt) error {
 }
 
 func (c *Catalog) execAlterIndex(n *ast.AlterIndexStmt) error {
-	schemaName, tableName := tableRefSchemaObject(n.Table, c.defaultSchema)
-	schema := c.GetSchema(schemaName)
-	kind := c.lookupSchemaObject(schema, tableName, false)
+	targetCat := c
+	if n.Table != nil && n.Table.Database != "" {
+		targetCat = c.DatabaseCatalog(n.Table.Database)
+		if targetCat == nil {
+			return mssqlErr(ErrObjectNotFound, "Cannot find the object \"%s\" because it does not exist or you do not have permissions.", n.Table.Object)
+		}
+	}
+	schemaName, tableName := tableRefSchemaObject(n.Table, targetCat.defaultSchema)
+	schema := targetCat.GetSchema(schemaName)
+	kind := targetCat.lookupSchemaObject(schema, tableName, false)
 	switch kind {
 	case kindNone:
 		return mssqlErr(ErrObjectNotFound, "Cannot find the object \"%s\" because it does not exist or you do not have permissions.", tableName)
@@ -1506,7 +1514,7 @@ func (c *Catalog) execAlterIndex(n *ast.AlterIndexStmt) error {
 	}
 	var table *metadata.TableMetadata
 	if kind == kindTable {
-		table = c.resolveTableInSchema(schema, tableName)
+		table = targetCat.resolveTableInSchema(schema, tableName)
 		if table == nil {
 			return mssqlErr(ErrObjectNotFound, "Cannot find the object \"%s\" because it does not exist or you do not have permissions.", tableName)
 		}
@@ -1873,8 +1881,15 @@ func (c *Catalog) execCreateSequence(n *ast.CreateSequenceStmt, source string) e
 }
 
 func (c *Catalog) execAlterSequence(n *ast.AlterSequenceStmt, source string) error {
-	schemaName, sequenceName := tableRefSchemaObject(n.Name, c.defaultSchema)
-	schema := c.GetSchema(schemaName)
+	targetCat := c
+	if n.Name != nil && n.Name.Database != "" {
+		targetCat = c.DatabaseCatalog(n.Name.Database)
+		if targetCat == nil {
+			return mssqlErr(ErrSecurableNotFound, "Cannot find the object '%s', because it does not exist or you do not have permission.", n.Name.Object)
+		}
+	}
+	schemaName, sequenceName := tableRefSchemaObject(n.Name, targetCat.defaultSchema)
+	schema := targetCat.GetSchema(schemaName)
 	var seq *metadata.SequenceMetadata
 	if schema != nil {
 		if idx, ok := resolveExactOrFoldIndex(schema.Sequences, func(sq *metadata.SequenceMetadata) string { return sq.Name }, sequenceName); ok {
@@ -2769,8 +2784,15 @@ func isValidIdentityDataType(dt *ast.DataType) bool {
 	return false
 }
 
+func (c *Catalog) temporalKey(schemaName, tableName string) tableKey {
+	if s := c.GetSchema(schemaName); s != nil {
+		schemaName = s.Name
+	}
+	return tableKey{schema: normalizeOrDefault(schemaName, c.defaultSchema), table: tableName}
+}
+
 func (c *Catalog) isPeriodColumn(schemaName, tableName, colName string) bool {
-	periodKey := tableKey{schema: normalizeOrDefault(schemaName, c.defaultSchema), table: tableName}
+	periodKey := c.temporalKey(schemaName, tableName)
 	cols, ok := c.systemTimeTables[periodKey]
 	if !ok {
 		return false
@@ -3761,8 +3783,9 @@ func (c *Catalog) removeTable(schema *metadata.SchemaMetadata, target *metadata.
 	for i, t := range schema.Tables {
 		if t == target {
 			delete(c.tableByName, tableKey{schema: schema.Name, table: t.Name})
-			delete(c.systemTimeTables, tableKey{schema: normalize(schema.Name), table: t.Name})
-			delete(c.systemVersionedTables, tableKey{schema: normalize(schema.Name), table: t.Name})
+			periodKey := tableKey{schema: normalizeOrDefault(schema.Name, c.defaultSchema), table: t.Name}
+			delete(c.systemTimeTables, periodKey)
+			delete(c.systemVersionedTables, periodKey)
 			schema.Tables = append(schema.Tables[:i], schema.Tables[i+1:]...)
 			return
 		}
@@ -3776,8 +3799,9 @@ func (c *Catalog) removeObject(schema *metadata.SchemaMetadata, kind objectKind,
 		for i, t := range schema.Tables {
 			if t == target || (target == nil && strings.EqualFold(t.Name, name)) {
 				delete(c.tableByName, tableKey{schema: schema.Name, table: t.Name})
-				delete(c.systemTimeTables, tableKey{schema: normalize(schema.Name), table: t.Name})
-				delete(c.systemVersionedTables, tableKey{schema: normalize(schema.Name), table: t.Name})
+				periodKey := tableKey{schema: normalizeOrDefault(schema.Name, c.defaultSchema), table: t.Name}
+				delete(c.systemTimeTables, periodKey)
+				delete(c.systemVersionedTables, periodKey)
 				schema.Tables = append(schema.Tables[:i], schema.Tables[i+1:]...)
 				return
 			}
