@@ -211,14 +211,16 @@ const (
 )
 
 // CreateViewStmt is `CREATE [OR REPLACE] VIEW name [COMMENT str]
-// [SECURITY {DEFINER | INVOKER}] AS query`.
+// [SECURITY {DEFINER | INVOKER}] [WITH (props)] AS query`.
 type CreateViewStmt struct {
 	OrReplace bool
 	Name      *ast.QualifiedName
 	Comment   *string
 	Security  ViewSecurity
-	Query     *Query
-	Loc       ast.Loc
+	// Properties is the WITH (props) clause; nil when absent.
+	Properties []*Property
+	Query      *Query
+	Loc        ast.Loc
 }
 
 func (n *CreateViewStmt) Tag() ast.NodeTag { return ast.T_Invalid }
@@ -258,6 +260,13 @@ func (p *Parser) parseCreateViewStmt(startOffset int) (ast.Node, error) {
 			stmt.Security = ViewSecurityInvoker
 		}
 	}
+
+	// SqlBase.g4:122 #createView: (WITH properties)? before AS rootQuery.
+	props, err := p.parseOptionalWithProperties()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Properties = props
 
 	if _, err := p.expect(kwAS); err != nil {
 		return nil, err

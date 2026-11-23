@@ -269,7 +269,7 @@ func TestDDLStructure_AlterSchema(t *testing.T) {
 }
 
 func TestDDLStructure_CreateView(t *testing.T) {
-	file, _ := parseForTest("CREATE OR REPLACE VIEW v COMMENT 'c' SECURITY INVOKER AS SELECT 1")
+	file, _ := parseForTest("CREATE OR REPLACE VIEW v COMMENT 'c' SECURITY INVOKER WITH (x = 1) AS SELECT 1")
 	stmt, ok := file.Stmts[0].(*CreateViewStmt)
 	if !ok {
 		t.Fatalf("got %T, want *CreateViewStmt", file.Stmts[0])
@@ -282,6 +282,9 @@ func TestDDLStructure_CreateView(t *testing.T) {
 	}
 	if stmt.Security != ViewSecurityInvoker {
 		t.Errorf("Security = %v, want ViewSecurityInvoker", stmt.Security)
+	}
+	if len(stmt.Properties) != 1 {
+		t.Errorf("Properties = %v, want one", stmt.Properties)
 	}
 	if stmt.Query == nil {
 		t.Error("Query is nil")

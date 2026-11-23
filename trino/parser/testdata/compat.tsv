@@ -28,6 +28,20 @@ reject	reject	engine	statement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_USING_
 reject	reject	engine	statement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_USING_identi~baac35aa!drop-5	CREATE CATALOG a USING
 reject	reject	engine	statement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_USING_identi~baac35aa!insert	CREATE CATALOG a USING a zzz
 reject	reject	engine	statement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_USING_identi~baac35aa!swap	CROSS CATALOG a USING a
+accept	accept	engine	statement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_USING_identi~baac35aa+statement(IF_NOT_EXISTS)?	CREATE CATALOG IF NOT EXISTS a USING a
+reject	reject	engine	statement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_USING_identi~baac35aa+statement(IF_NOT_EXISTS)?!drop-3	CREATE CATALOG NOT EXISTS a USING a
+reject	reject	engine	statement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_USING_identi~baac35aa+statement(IF_NOT_EXISTS)?!drop-4	CREATE CATALOG IF EXISTS a USING a
+reject	reject	engine	statement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_USING_identi~baac35aa+statement(IF_NOT_EXISTS)?!drop-5	CREATE CATALOG IF NOT a USING a
+accept	accept	engine	statement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_USING_identi~baac35aa+statement(AUTHORIZATION_principal)?	CREATE CATALOG a USING a AUTHORIZATION a
+reject	reject	engine	statement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_USING_identi~baac35aa+statement(AUTHORIZATION_principal)?!drop-6	CREATE CATALOG a USING a a
+reject	reject	engine	statement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_USING_identi~baac35aa+statement(AUTHORIZATION_principal)?!drop-7	CREATE CATALOG a USING a AUTHORIZATION
+accept	accept	engine	statement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_USING_identi~baac35aa+statement(WITH_properties)?	CREATE CATALOG a USING a WITH(a = DEFAULT)
+reject	reject	engine	statement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_USING_identi~baac35aa+statement(WITH_properties)?!drop-6	CREATE CATALOG a USING a(a = DEFAULT)
+reject	reject	engine	statement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_USING_identi~baac35aa+statement(WITH_properties)?!drop-7	CREATE CATALOG a USING a WITH a = DEFAULT)
+reject	reject	engine	statement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_USING_identi~baac35aa+statement(WITH_properties)?!drop-8	CREATE CATALOG a USING a WITH(= DEFAULT)
+reject	reject	engine	statement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_USING_identi~baac35aa+statement(WITH_properties)?!drop-9	CREATE CATALOG a USING a WITH(a DEFAULT)
+reject	reject	engine	statement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_USING_identi~baac35aa+statement(WITH_properties)?!drop-10	CREATE CATALOG a USING a WITH(a =)
+reject	reject	engine	statement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_USING_identi~baac35aa+statement(WITH_properties)?!drop-11	CREATE CATALOG a USING a WITH(a = DEFAULT
 accept	accept	engine	statement/DROP_CATALOG_(IF_EXISTS)?_identifier_(CASCADE|RESTRICT)?	DROP CATALOG a
 reject	reject	engine	statement/DROP_CATALOG_(IF_EXISTS)?_identifier_(CASCADE|RESTRICT)?!drop-1	CATALOG a
 reject	reject	engine	statement/DROP_CATALOG_(IF_EXISTS)?_identifier_(CASCADE|RESTRICT)?!drop-2	DROP a
@@ -40,10 +54,21 @@ reject	reject	engine	statement/CREATE_SCHEMA_(IF_NOT_EXISTS)?_qualifiedName_(AUT
 reject	reject	engine	statement/CREATE_SCHEMA_(IF_NOT_EXISTS)?_qualifiedName_(AUTHORIZA~e7c3e1bb!drop-3	CREATE SCHEMA
 reject	reject	engine	statement/CREATE_SCHEMA_(IF_NOT_EXISTS)?_qualifiedName_(AUTHORIZA~e7c3e1bb!insert	CREATE SCHEMA a zzz
 reject	reject	engine	statement/CREATE_SCHEMA_(IF_NOT_EXISTS)?_qualifiedName_(AUTHORIZA~e7c3e1bb!swap	CROSS SCHEMA a
+accept	accept	engine	statement/CREATE_SCHEMA_(IF_NOT_EXISTS)?_qualifiedName_(AUTHORIZA~e7c3e1bb+statement(WITH_properties)?	CREATE SCHEMA a WITH(a = DEFAULT)
+reject	reject	engine	statement/CREATE_SCHEMA_(IF_NOT_EXISTS)?_qualifiedName_(AUTHORIZA~e7c3e1bb+statement(WITH_properties)?!drop-4	CREATE SCHEMA a(a = DEFAULT)
+reject	reject	engine	statement/CREATE_SCHEMA_(IF_NOT_EXISTS)?_qualifiedName_(AUTHORIZA~e7c3e1bb+statement(WITH_properties)?!drop-5	CREATE SCHEMA a WITH a = DEFAULT)
+reject	reject	engine	statement/CREATE_SCHEMA_(IF_NOT_EXISTS)?_qualifiedName_(AUTHORIZA~e7c3e1bb+statement(WITH_properties)?!drop-6	CREATE SCHEMA a WITH(= DEFAULT)
+reject	reject	engine	statement/CREATE_SCHEMA_(IF_NOT_EXISTS)?_qualifiedName_(AUTHORIZA~e7c3e1bb+statement(WITH_properties)?!drop-7	CREATE SCHEMA a WITH(a DEFAULT)
+reject	reject	engine	statement/CREATE_SCHEMA_(IF_NOT_EXISTS)?_qualifiedName_(AUTHORIZA~e7c3e1bb+statement(WITH_properties)?!drop-8	CREATE SCHEMA a WITH(a =)
+reject	reject	engine	statement/CREATE_SCHEMA_(IF_NOT_EXISTS)?_qualifiedName_(AUTHORIZA~e7c3e1bb+statement(WITH_properties)?!drop-9	CREATE SCHEMA a WITH(a = DEFAULT
 accept	accept	engine	statement/DROP_SCHEMA_(IF_EXISTS)?_qualifiedName_(CASCADE|RESTRICT)?	DROP SCHEMA a
 reject	reject	engine	statement/DROP_SCHEMA_(IF_EXISTS)?_qualifiedName_(CASCADE|RESTRICT)?!drop-3	DROP SCHEMA
 reject	reject	engine	statement/DROP_SCHEMA_(IF_EXISTS)?_qualifiedName_(CASCADE|RESTRICT)?!insert	DROP SCHEMA a zzz
 reject	reject	engine	statement/DROP_SCHEMA_(IF_EXISTS)?_qualifiedName_(CASCADE|RESTRICT)?!swap	ELSE SCHEMA a
+accept	accept	engine	statement/DROP_SCHEMA_(IF_EXISTS)?_qualifiedName_(CASCADE|RESTRICT)?+statement(IF_EXISTS)?	DROP SCHEMA IF EXISTS a
+reject	reject	engine	statement/DROP_SCHEMA_(IF_EXISTS)?_qualifiedName_(CASCADE|RESTRICT)?+statement(IF_EXISTS)?!drop-3	DROP SCHEMA EXISTS a
+reject	reject	engine	statement/DROP_SCHEMA_(IF_EXISTS)?_qualifiedName_(CASCADE|RESTRICT)?+statement(IF_EXISTS)?!drop-4	DROP SCHEMA IF a
+accept	accept	engine	statement/DROP_SCHEMA_(IF_EXISTS)?_qualifiedName_(CASCADE|RESTRICT)?+statement(CASCADE|RESTRICT)?	DROP SCHEMA a CASCADE
 accept	accept	engine	statement/ALTER_SCHEMA_qualifiedName_RENAME_TO_identifier	ALTER SCHEMA a RENAME TO a
 reject	reject	engine	statement/ALTER_SCHEMA_qualifiedName_RENAME_TO_identifier!drop-1	SCHEMA a RENAME TO a
 reject	reject	engine	statement/ALTER_SCHEMA_qualifiedName_RENAME_TO_identifier!drop-2	ALTER a RENAME TO a
@@ -62,6 +87,20 @@ reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_quali
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb!drop-6	CREATE TABLE a AS SELECT
 accept	accept	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb!insert	CREATE TABLE a AS SELECT 1.5 zzz
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb!swap	CROSS TABLE a AS SELECT 1.5
+accept	accept	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(IF_NOT_EXISTS)?	CREATE TABLE IF NOT EXISTS a AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(IF_NOT_EXISTS)?!drop-3	CREATE TABLE NOT EXISTS a AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(IF_NOT_EXISTS)?!drop-4	CREATE TABLE IF EXISTS a AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(IF_NOT_EXISTS)?!drop-5	CREATE TABLE IF NOT a AS SELECT 1.5
+accept	accept	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(COMMENT_string)?	CREATE TABLE a COMMENT 'a' AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(COMMENT_string)?!drop-4	CREATE TABLE a 'a' AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(COMMENT_string)?!drop-5	CREATE TABLE a COMMENT AS SELECT 1.5
+accept	accept	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(WITH_properties)?	CREATE TABLE a WITH(a = DEFAULT) AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(WITH_properties)?!drop-4	CREATE TABLE a(a = DEFAULT) AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(WITH_properties)?!drop-5	CREATE TABLE a WITH a = DEFAULT) AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(WITH_properties)?!drop-6	CREATE TABLE a WITH(= DEFAULT) AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(WITH_properties)?!drop-7	CREATE TABLE a WITH(a DEFAULT) AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(WITH_properties)?!drop-8	CREATE TABLE a WITH(a =) AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~9aa827bb+statement(WITH_properties)?!drop-9	CREATE TABLE a WITH(a = DEFAULT AS SELECT 1.5
 accept	accept	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368	CREATE TABLE a(a TIMESTAMP)
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368!drop-1	TABLE a(a TIMESTAMP)
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368!drop-2	CREATE a(a TIMESTAMP)
@@ -72,10 +111,30 @@ reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_quali
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368!drop-7	CREATE TABLE a(a TIMESTAMP
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368!insert	CREATE TABLE a(a TIMESTAMP) zzz
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368!swap	CROSS TABLE a(a TIMESTAMP)
+accept	accept	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(OR_REPLACE)?	CREATE OR REPLACE TABLE a(a TIMESTAMP)
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(OR_REPLACE)?!drop-2	CREATE REPLACE TABLE a(a TIMESTAMP)
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(OR_REPLACE)?!drop-3	CREATE OR TABLE a(a TIMESTAMP)
+accept	accept	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(IF_NOT_EXISTS)?	CREATE TABLE IF NOT EXISTS a(a TIMESTAMP)
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(IF_NOT_EXISTS)?!drop-3	CREATE TABLE NOT EXISTS a(a TIMESTAMP)
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(IF_NOT_EXISTS)?!drop-4	CREATE TABLE IF EXISTS a(a TIMESTAMP)
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(IF_NOT_EXISTS)?!drop-5	CREATE TABLE IF NOT a(a TIMESTAMP)
+accept	accept	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(COMMENT_string)?	CREATE TABLE a(a TIMESTAMP) COMMENT 'a'
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(COMMENT_string)?!drop-8	CREATE TABLE a(a TIMESTAMP) 'a'
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(COMMENT_string)?!drop-9	CREATE TABLE a(a TIMESTAMP) COMMENT
+accept	accept	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(WITH_properties)?	CREATE TABLE a(a TIMESTAMP) WITH(a = DEFAULT)
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(WITH_properties)?!drop-8	CREATE TABLE a(a TIMESTAMP)(a = DEFAULT)
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(WITH_properties)?!drop-9	CREATE TABLE a(a TIMESTAMP) WITH a = DEFAULT)
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(WITH_properties)?!drop-10	CREATE TABLE a(a TIMESTAMP) WITH(= DEFAULT)
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(WITH_properties)?!drop-11	CREATE TABLE a(a TIMESTAMP) WITH(a DEFAULT)
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(WITH_properties)?!drop-12	CREATE TABLE a(a TIMESTAMP) WITH(a =)
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_TABLE_(IF_NOT_EXISTS)?_qualifiedNa~e4a46368+statement(WITH_properties)?!drop-13	CREATE TABLE a(a TIMESTAMP) WITH(a = DEFAULT
 accept	accept	engine	statement/DROP_TABLE_(IF_EXISTS)?_qualifiedName	DROP TABLE a
 reject	reject	engine	statement/DROP_TABLE_(IF_EXISTS)?_qualifiedName!drop-3	DROP TABLE
 reject	reject	engine	statement/DROP_TABLE_(IF_EXISTS)?_qualifiedName!insert	DROP TABLE a zzz
 reject	reject	engine	statement/DROP_TABLE_(IF_EXISTS)?_qualifiedName!swap	ELSE TABLE a
+accept	accept	engine	statement/DROP_TABLE_(IF_EXISTS)?_qualifiedName+statement(IF_EXISTS)?	DROP TABLE IF EXISTS a
+reject	reject	engine	statement/DROP_TABLE_(IF_EXISTS)?_qualifiedName+statement(IF_EXISTS)?!drop-3	DROP TABLE EXISTS a
+reject	reject	engine	statement/DROP_TABLE_(IF_EXISTS)?_qualifiedName+statement(IF_EXISTS)?!drop-4	DROP TABLE IF a
 accept	accept	engine	statement/INSERT_INTO_qualifiedName_(@_identifier)?_(columnAliase~6a5f191c	INSERT INTO a SELECT 1.5
 reject	reject	engine	statement/INSERT_INTO_qualifiedName_(@_identifier)?_(columnAliase~6a5f191c!drop-1	INTO a SELECT 1.5
 reject	reject	engine	statement/INSERT_INTO_qualifiedName_(@_identifier)?_(columnAliase~6a5f191c!drop-2	INSERT a SELECT 1.5
@@ -128,6 +187,9 @@ reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_TO_
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_TO_qualifiedName!drop-6	ALTER TABLE a RENAME TO
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_TO_qualifiedName!insert	ALTER TABLE a RENAME TO a zzz
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_TO_qualifiedName!swap	ANALYZE TABLE a RENAME TO a
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_TO_qualifiedName+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a RENAME TO a
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_TO_qualifiedName+statement(IF_EXISTS)?!drop-3	ALTER TABLE EXISTS a RENAME TO a
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_TO_qualifiedName+statement(IF_EXISTS)?!drop-4	ALTER TABLE IF a RENAME TO a
 accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23	ALTER TABLE a ADD COLUMN a TIMESTAMP
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23!drop-1	TABLE a ADD COLUMN a TIMESTAMP
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23!drop-2	ALTER a ADD COLUMN a TIMESTAMP
@@ -138,6 +200,13 @@ reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23!drop-7	ALTER TABLE a ADD COLUMN a
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23!insert	ALTER TABLE a ADD COLUMN a TIMESTAMP zzz
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23!swap	ANALYZE TABLE a ADD COLUMN a TIMESTAMP
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ADD COLUMN a TIMESTAMP
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23+statement(IF_EXISTS)?!drop-3	ALTER TABLE EXISTS a ADD COLUMN a TIMESTAMP
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23+statement(IF_EXISTS)?!drop-4	ALTER TABLE IF a ADD COLUMN a TIMESTAMP
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23+statement(IF_NOT_EXISTS)?	ALTER TABLE a ADD COLUMN IF NOT EXISTS a TIMESTAMP
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23+statement(IF_NOT_EXISTS)?!drop-6	ALTER TABLE a ADD COLUMN NOT EXISTS a TIMESTAMP
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23+statement(IF_NOT_EXISTS)?!drop-7	ALTER TABLE a ADD COLUMN IF EXISTS a TIMESTAMP
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ADD_COLUMN_(IF_N~4be82d23+statement(IF_NOT_EXISTS)?!drop-8	ALTER TABLE a ADD COLUMN IF NOT a TIMESTAMP
 accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COLUMN_(I~c966dd7d	ALTER TABLE a RENAME COLUMN a TO a
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COLUMN_(I~c966dd7d!drop-1	TABLE a RENAME COLUMN a TO a
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COLUMN_(I~c966dd7d!drop-2	ALTER a RENAME COLUMN a TO a
@@ -149,6 +218,12 @@ reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COL
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COLUMN_(I~c966dd7d!drop-8	ALTER TABLE a RENAME COLUMN a TO
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COLUMN_(I~c966dd7d!insert	ALTER TABLE a RENAME COLUMN a TO a zzz
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COLUMN_(I~c966dd7d!swap	ANALYZE TABLE a RENAME COLUMN a TO a
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COLUMN_(I~c966dd7d+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a RENAME COLUMN a TO a
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COLUMN_(I~c966dd7d+statement(IF_EXISTS)?!drop-3	ALTER TABLE EXISTS a RENAME COLUMN a TO a
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COLUMN_(I~c966dd7d+statement(IF_EXISTS)?!drop-4	ALTER TABLE IF a RENAME COLUMN a TO a
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COLUMN_(I~c966dd7d+statement(IF_EXISTS)?#2	ALTER TABLE a RENAME COLUMN IF EXISTS a TO a
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COLUMN_(I~c966dd7d+statement(IF_EXISTS)?#2!drop-6	ALTER TABLE a RENAME COLUMN EXISTS a TO a
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_RENAME_COLUMN_(I~c966dd7d+statement(IF_EXISTS)?#2!drop-7	ALTER TABLE a RENAME COLUMN IF a TO a
 accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUMN_(IF_~2c561062	ALTER TABLE a DROP COLUMN a
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUMN_(IF_~2c561062!drop-1	TABLE a DROP COLUMN a
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUMN_(IF_~2c561062!drop-2	ALTER a DROP COLUMN a
@@ -158,6 +233,12 @@ reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUM
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUMN_(IF_~2c561062!drop-6	ALTER TABLE a DROP COLUMN
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUMN_(IF_~2c561062!insert	ALTER TABLE a DROP COLUMN a zzz
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUMN_(IF_~2c561062!swap	ANALYZE TABLE a DROP COLUMN a
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUMN_(IF_~2c561062+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a DROP COLUMN a
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUMN_(IF_~2c561062+statement(IF_EXISTS)?!drop-3	ALTER TABLE EXISTS a DROP COLUMN a
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUMN_(IF_~2c561062+statement(IF_EXISTS)?!drop-4	ALTER TABLE IF a DROP COLUMN a
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUMN_(IF_~2c561062+statement(IF_EXISTS)?#2	ALTER TABLE a DROP COLUMN IF EXISTS a
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUMN_(IF_~2c561062+statement(IF_EXISTS)?#2!drop-6	ALTER TABLE a DROP COLUMN EXISTS a
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_DROP_COLUMN_(IF_~2c561062+statement(IF_EXISTS)?#2!drop-7	ALTER TABLE a DROP COLUMN IF a
 accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110	ALTER TABLE a ALTER COLUMN a SET DEFAULT 1.5
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110!drop-1	TABLE a ALTER COLUMN a SET DEFAULT 1.5
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110!drop-2	ALTER a ALTER COLUMN a SET DEFAULT 1.5
@@ -170,6 +251,9 @@ reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLU
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110!drop-9	ALTER TABLE a ALTER COLUMN a SET DEFAULT
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110!insert	ALTER TABLE a ALTER COLUMN a SET DEFAULT 1.5 zzz
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110!swap	ANALYZE TABLE a ALTER COLUMN a SET DEFAULT 1.5
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ALTER COLUMN a SET DEFAULT 1.5
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+statement(IF_EXISTS)?!drop-3	ALTER TABLE EXISTS a ALTER COLUMN a SET DEFAULT 1.5
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~8345e110+statement(IF_EXISTS)?!drop-4	ALTER TABLE IF a ALTER COLUMN a SET DEFAULT 1.5
 accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~44d3f562	ALTER TABLE a ALTER COLUMN a DROP DEFAULT
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~44d3f562!drop-1	TABLE a ALTER COLUMN a DROP DEFAULT
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~44d3f562!drop-2	ALTER a ALTER COLUMN a DROP DEFAULT
@@ -181,6 +265,9 @@ reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLU
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~44d3f562!drop-8	ALTER TABLE a ALTER COLUMN a DROP
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~44d3f562!insert	ALTER TABLE a ALTER COLUMN a DROP DEFAULT zzz
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~44d3f562!swap	ANALYZE TABLE a ALTER COLUMN a DROP DEFAULT
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~44d3f562+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ALTER COLUMN a DROP DEFAULT
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~44d3f562+statement(IF_EXISTS)?!drop-3	ALTER TABLE EXISTS a ALTER COLUMN a DROP DEFAULT
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~44d3f562+statement(IF_EXISTS)?!drop-4	ALTER TABLE IF a ALTER COLUMN a DROP DEFAULT
 accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~58a004eb	ALTER TABLE a ALTER COLUMN a SET DATA TYPE TIMESTAMP
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~58a004eb!drop-1	TABLE a ALTER COLUMN a SET DATA TYPE TIMESTAMP
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~58a004eb!drop-2	ALTER a ALTER COLUMN a SET DATA TYPE TIMESTAMP
@@ -194,6 +281,9 @@ reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLU
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~58a004eb!drop-10	ALTER TABLE a ALTER COLUMN a SET DATA TYPE
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~58a004eb!insert	ALTER TABLE a ALTER COLUMN a SET DATA TYPE TIMESTAMP zzz
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~58a004eb!swap	ANALYZE TABLE a ALTER COLUMN a SET DATA TYPE TIMESTAMP
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~58a004eb+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ALTER COLUMN a SET DATA TYPE TIMESTAMP
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~58a004eb+statement(IF_EXISTS)?!drop-3	ALTER TABLE EXISTS a ALTER COLUMN a SET DATA TYPE TIMESTAMP
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_qua~58a004eb+statement(IF_EXISTS)?!drop-4	ALTER TABLE IF a ALTER COLUMN a SET DATA TYPE TIMESTAMP
 accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_ide~a20e0071	ALTER TABLE a ALTER COLUMN a DROP NOT NULL
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_ide~a20e0071!drop-1	TABLE a ALTER COLUMN a DROP NOT NULL
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_ide~a20e0071!drop-2	ALTER a ALTER COLUMN a DROP NOT NULL
@@ -206,6 +296,9 @@ reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLU
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_ide~a20e0071!drop-9	ALTER TABLE a ALTER COLUMN a DROP NOT
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_ide~a20e0071!insert	ALTER TABLE a ALTER COLUMN a DROP NOT NULL zzz
 reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_ide~a20e0071!swap	ANALYZE TABLE a ALTER COLUMN a DROP NOT NULL
+accept	accept	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_ide~a20e0071+statement(IF_EXISTS)?	ALTER TABLE IF EXISTS a ALTER COLUMN a DROP NOT NULL
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_ide~a20e0071+statement(IF_EXISTS)?!drop-3	ALTER TABLE EXISTS a ALTER COLUMN a DROP NOT NULL
+reject	reject	engine	statement/ALTER_TABLE_(IF_EXISTS)?_qualifiedName_ALTER_COLUMN_ide~a20e0071+statement(IF_EXISTS)?!drop-4	ALTER TABLE IF a ALTER COLUMN a DROP NOT NULL
 accept	accept	engine	statement/ALTER_TABLE_qualifiedName_SET_PROPERTIES_propertyAssignments	ALTER TABLE a SET PROPERTIES a = DEFAULT
 reject	reject	engine	statement/ALTER_TABLE_qualifiedName_SET_PROPERTIES_propertyAssignments!drop-1	TABLE a SET PROPERTIES a = DEFAULT
 reject	reject	engine	statement/ALTER_TABLE_qualifiedName_SET_PROPERTIES_propertyAssignments!drop-2	ALTER a SET PROPERTIES a = DEFAULT
@@ -225,6 +318,9 @@ reject	reject	engine	statement/ALTER_TABLE_qualifiedName_EXECUTE_identifier_((_(
 reject	reject	engine	statement/ALTER_TABLE_qualifiedName_EXECUTE_identifier_((_(argume~52676478!drop-5	ALTER TABLE a EXECUTE
 reject	reject	engine	statement/ALTER_TABLE_qualifiedName_EXECUTE_identifier_((_(argume~52676478!insert	ALTER TABLE a EXECUTE a zzz
 reject	reject	engine	statement/ALTER_TABLE_qualifiedName_EXECUTE_identifier_((_(argume~52676478!swap	ANALYZE TABLE a EXECUTE a
+accept	accept	engine	statement/ALTER_TABLE_qualifiedName_EXECUTE_identifier_((_(argume~52676478+statement(WHERE_booleanExpression)?	ALTER TABLE a EXECUTE a WHERE 1.5
+reject	reject	engine	statement/ALTER_TABLE_qualifiedName_EXECUTE_identifier_((_(argume~52676478+statement(WHERE_booleanExpression)?!drop-6	ALTER TABLE a EXECUTE a 1.5
+reject	reject	engine	statement/ALTER_TABLE_qualifiedName_EXECUTE_identifier_((_(argume~52676478+statement(WHERE_booleanExpression)?!drop-7	ALTER TABLE a EXECUTE a WHERE
 accept	accept	engine	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal	ALTER TABLE a SET AUTHORIZATION a
 reject	reject	engine	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal!drop-1	TABLE a SET AUTHORIZATION a
 reject	reject	engine	statement/ALTER_ownedEntityKind_qualifiedName_SET_AUTHORIZATION_principal!drop-2	ALTER a SET AUTHORIZATION a
@@ -247,6 +343,23 @@ reject	reject	engine	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EX
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2!drop-7	CREATE MATERIALIZED VIEW a AS SELECT
 accept	accept	engine	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2!insert	CREATE MATERIALIZED VIEW a AS SELECT 1.5 zzz
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2!swap	CROSS MATERIALIZED VIEW a AS SELECT 1.5
+accept	accept	engine	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(OR_REPLACE)?	CREATE OR REPLACE MATERIALIZED VIEW a AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(OR_REPLACE)?!drop-2	CREATE REPLACE MATERIALIZED VIEW a AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(OR_REPLACE)?!drop-3	CREATE OR MATERIALIZED VIEW a AS SELECT 1.5
+accept	accept	engine	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(IF_NOT_EXISTS)?	CREATE MATERIALIZED VIEW IF NOT EXISTS a AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(IF_NOT_EXISTS)?!drop-4	CREATE MATERIALIZED VIEW NOT EXISTS a AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(IF_NOT_EXISTS)?!drop-5	CREATE MATERIALIZED VIEW IF EXISTS a AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(IF_NOT_EXISTS)?!drop-6	CREATE MATERIALIZED VIEW IF NOT a AS SELECT 1.5
+accept	accept	engine	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(COMMENT_string)?	CREATE MATERIALIZED VIEW a COMMENT 'a' AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(COMMENT_string)?!drop-5	CREATE MATERIALIZED VIEW a 'a' AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(COMMENT_string)?!drop-6	CREATE MATERIALIZED VIEW a COMMENT AS SELECT 1.5
+accept	accept	engine	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(WITH_properties)?	CREATE MATERIALIZED VIEW a WITH(a = DEFAULT) AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(WITH_properties)?!drop-5	CREATE MATERIALIZED VIEW a(a = DEFAULT) AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(WITH_properties)?!drop-6	CREATE MATERIALIZED VIEW a WITH a = DEFAULT) AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(WITH_properties)?!drop-7	CREATE MATERIALIZED VIEW a WITH(= DEFAULT) AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(WITH_properties)?!drop-8	CREATE MATERIALIZED VIEW a WITH(a DEFAULT) AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(WITH_properties)?!drop-9	CREATE MATERIALIZED VIEW a WITH(a =) AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_MATERIALIZED_VIEW_(IF_NOT_EXISTS)?~21fb5cb2+statement(WITH_properties)?!drop-10	CREATE MATERIALIZED VIEW a WITH(a = DEFAULT AS SELECT 1.5
 accept	accept	engine	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667	CREATE VIEW a AS SELECT 1.5
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667!drop-1	VIEW a AS SELECT 1.5
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667!drop-3	CREATE VIEW AS SELECT 1.5
@@ -255,6 +368,19 @@ reject	reject	engine	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667!drop-6	CREATE VIEW a AS SELECT
 accept	accept	engine	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667!insert	CREATE VIEW a AS SELECT 1.5 zzz
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667!swap	CROSS VIEW a AS SELECT 1.5
+accept	accept	engine	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(OR_REPLACE)?	CREATE OR REPLACE VIEW a AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(OR_REPLACE)?!drop-2	CREATE REPLACE VIEW a AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(OR_REPLACE)?!drop-3	CREATE OR VIEW a AS SELECT 1.5
+accept	accept	engine	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(COMMENT_string)?	CREATE VIEW a COMMENT 'a' AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(COMMENT_string)?!drop-4	CREATE VIEW a 'a' AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(COMMENT_string)?!drop-5	CREATE VIEW a COMMENT AS SELECT 1.5
+accept	accept	engine	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(WITH_properties)?	CREATE VIEW a WITH(a = DEFAULT) AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(WITH_properties)?!drop-4	CREATE VIEW a(a = DEFAULT) AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(WITH_properties)?!drop-5	CREATE VIEW a WITH a = DEFAULT) AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(WITH_properties)?!drop-6	CREATE VIEW a WITH(= DEFAULT) AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(WITH_properties)?!drop-7	CREATE VIEW a WITH(a DEFAULT) AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(WITH_properties)?!drop-8	CREATE VIEW a WITH(a =) AS SELECT 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_VIEW_qualifiedName_(COMMENT_string~b71d1667+statement(WITH_properties)?!drop-9	CREATE VIEW a WITH(a = DEFAULT AS SELECT 1.5
 accept	accept	engine	statement/REFRESH_MATERIALIZED_VIEW_qualifiedName	REFRESH MATERIALIZED VIEW a
 reject	reject	engine	statement/REFRESH_MATERIALIZED_VIEW_qualifiedName!drop-1	MATERIALIZED VIEW a
 reject	reject	engine	statement/REFRESH_MATERIALIZED_VIEW_qualifiedName!drop-2	REFRESH VIEW a
@@ -267,6 +393,9 @@ reject	reject	engine	statement/DROP_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName
 reject	reject	engine	statement/DROP_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName!drop-4	DROP MATERIALIZED VIEW
 reject	reject	engine	statement/DROP_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName!insert	DROP MATERIALIZED VIEW a zzz
 reject	reject	engine	statement/DROP_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName!swap	ELSE MATERIALIZED VIEW a
+accept	accept	engine	statement/DROP_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName+statement(IF_EXISTS)?	DROP MATERIALIZED VIEW IF EXISTS a
+reject	reject	engine	statement/DROP_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName+statement(IF_EXISTS)?!drop-4	DROP MATERIALIZED VIEW EXISTS a
+reject	reject	engine	statement/DROP_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName+statement(IF_EXISTS)?!drop-5	DROP MATERIALIZED VIEW IF a
 accept	accept	engine	statement/ALTER_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName_RENA~987f4fe4	ALTER MATERIALIZED VIEW a RENAME TO a
 reject	reject	engine	statement/ALTER_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName_RENA~987f4fe4!drop-1	MATERIALIZED VIEW a RENAME TO a
 reject	reject	engine	statement/ALTER_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName_RENA~987f4fe4!drop-3	ALTER MATERIALIZED a RENAME TO a
@@ -276,6 +405,9 @@ reject	reject	engine	statement/ALTER_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedNam
 reject	reject	engine	statement/ALTER_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName_RENA~987f4fe4!drop-7	ALTER MATERIALIZED VIEW a RENAME TO
 reject	reject	engine	statement/ALTER_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName_RENA~987f4fe4!insert	ALTER MATERIALIZED VIEW a RENAME TO a zzz
 reject	reject	engine	statement/ALTER_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName_RENA~987f4fe4!swap	ANALYZE MATERIALIZED VIEW a RENAME TO a
+accept	accept	engine	statement/ALTER_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName_RENA~987f4fe4+statement(IF_EXISTS)?	ALTER MATERIALIZED VIEW IF EXISTS a RENAME TO a
+reject	reject	engine	statement/ALTER_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName_RENA~987f4fe4+statement(IF_EXISTS)?!drop-4	ALTER MATERIALIZED VIEW EXISTS a RENAME TO a
+reject	reject	engine	statement/ALTER_MATERIALIZED_VIEW_(IF_EXISTS)?_qualifiedName_RENA~987f4fe4+statement(IF_EXISTS)?!drop-5	ALTER MATERIALIZED VIEW IF a RENAME TO a
 accept	accept	engine	statement/ALTER_MATERIALIZED_VIEW_qualifiedName_SET_PROPERTIES_pr~e2b861c5	ALTER MATERIALIZED VIEW a SET PROPERTIES a = DEFAULT
 reject	reject	engine	statement/ALTER_MATERIALIZED_VIEW_qualifiedName_SET_PROPERTIES_pr~e2b861c5!drop-1	MATERIALIZED VIEW a SET PROPERTIES a = DEFAULT
 reject	reject	engine	statement/ALTER_MATERIALIZED_VIEW_qualifiedName_SET_PROPERTIES_pr~e2b861c5!drop-2	ALTER VIEW a SET PROPERTIES a = DEFAULT
@@ -293,6 +425,9 @@ reject	reject	engine	statement/DROP_VIEW_(IF_EXISTS)?_qualifiedName!drop-1	VIEW 
 reject	reject	engine	statement/DROP_VIEW_(IF_EXISTS)?_qualifiedName!drop-3	DROP VIEW
 reject	reject	engine	statement/DROP_VIEW_(IF_EXISTS)?_qualifiedName!insert	DROP VIEW a zzz
 reject	reject	engine	statement/DROP_VIEW_(IF_EXISTS)?_qualifiedName!swap	ELSE VIEW a
+accept	accept	engine	statement/DROP_VIEW_(IF_EXISTS)?_qualifiedName+statement(IF_EXISTS)?	DROP VIEW IF EXISTS a
+reject	reject	engine	statement/DROP_VIEW_(IF_EXISTS)?_qualifiedName+statement(IF_EXISTS)?!drop-3	DROP VIEW EXISTS a
+reject	reject	engine	statement/DROP_VIEW_(IF_EXISTS)?_qualifiedName+statement(IF_EXISTS)?!drop-4	DROP VIEW IF a
 accept	accept	engine	statement/ALTER_VIEW_qualifiedName_RENAME_TO_qualifiedName	ALTER VIEW a RENAME TO a
 reject	reject	engine	statement/ALTER_VIEW_qualifiedName_RENAME_TO_qualifiedName!drop-1	VIEW a RENAME TO a
 reject	reject	engine	statement/ALTER_VIEW_qualifiedName_RENAME_TO_qualifiedName!drop-3	ALTER VIEW RENAME TO a
@@ -327,6 +462,9 @@ reject	reject	engine	statement/CREATE_(OR_REPLACE)?_functionSpecification!drop-8
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_functionSpecification!drop-9	CREATE FUNCTION a() RETURNS TIMESTAMP RETURN
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_functionSpecification!insert	CREATE FUNCTION a() RETURNS TIMESTAMP RETURN 1.5 zzz
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_functionSpecification!swap	CROSS FUNCTION a() RETURNS TIMESTAMP RETURN 1.5
+accept	accept	engine	statement/CREATE_(OR_REPLACE)?_functionSpecification+statement(OR_REPLACE)?	CREATE OR REPLACE FUNCTION a() RETURNS TIMESTAMP RETURN 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_functionSpecification+statement(OR_REPLACE)?!drop-2	CREATE REPLACE FUNCTION a() RETURNS TIMESTAMP RETURN 1.5
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_functionSpecification+statement(OR_REPLACE)?!drop-3	CREATE OR FUNCTION a() RETURNS TIMESTAMP RETURN 1.5
 accept	accept	engine	statement/DROP_FUNCTION_(IF_EXISTS)?_functionDeclaration	DROP FUNCTION a()
 reject	reject	engine	statement/DROP_FUNCTION_(IF_EXISTS)?_functionDeclaration!drop-1	FUNCTION a()
 reject	reject	engine	statement/DROP_FUNCTION_(IF_EXISTS)?_functionDeclaration!drop-2	DROP a()
@@ -335,6 +473,9 @@ reject	reject	engine	statement/DROP_FUNCTION_(IF_EXISTS)?_functionDeclaration!dr
 reject	reject	engine	statement/DROP_FUNCTION_(IF_EXISTS)?_functionDeclaration!drop-5	DROP FUNCTION a(
 reject	reject	engine	statement/DROP_FUNCTION_(IF_EXISTS)?_functionDeclaration!insert	DROP FUNCTION a() zzz
 reject	reject	engine	statement/DROP_FUNCTION_(IF_EXISTS)?_functionDeclaration!swap	ELSE FUNCTION a()
+accept	accept	engine	statement/DROP_FUNCTION_(IF_EXISTS)?_functionDeclaration+statement(IF_EXISTS)?	DROP FUNCTION IF EXISTS a()
+reject	reject	engine	statement/DROP_FUNCTION_(IF_EXISTS)?_functionDeclaration+statement(IF_EXISTS)?!drop-3	DROP FUNCTION EXISTS a()
+reject	reject	engine	statement/DROP_FUNCTION_(IF_EXISTS)?_functionDeclaration+statement(IF_EXISTS)?!drop-4	DROP FUNCTION IF a()
 accept	accept	engine	statement/CREATE_(OR_REPLACE)?_BRANCH_(IF_NOT_EXISTS)?_identifier~bb5e4b2d	CREATE BRANCH a IN TABLE a
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_BRANCH_(IF_NOT_EXISTS)?_identifier~bb5e4b2d!drop-1	BRANCH a IN TABLE a
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_BRANCH_(IF_NOT_EXISTS)?_identifier~bb5e4b2d!drop-2	CREATE a IN TABLE a
@@ -344,6 +485,20 @@ reject	reject	engine	statement/CREATE_(OR_REPLACE)?_BRANCH_(IF_NOT_EXISTS)?_iden
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_BRANCH_(IF_NOT_EXISTS)?_identifier~bb5e4b2d!drop-6	CREATE BRANCH a IN TABLE
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_BRANCH_(IF_NOT_EXISTS)?_identifier~bb5e4b2d!insert	CREATE BRANCH a IN TABLE a zzz
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_BRANCH_(IF_NOT_EXISTS)?_identifier~bb5e4b2d!swap	CROSS BRANCH a IN TABLE a
+accept	accept	engine	statement/CREATE_(OR_REPLACE)?_BRANCH_(IF_NOT_EXISTS)?_identifier~bb5e4b2d+statement(OR_REPLACE)?	CREATE OR REPLACE BRANCH a IN TABLE a
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_BRANCH_(IF_NOT_EXISTS)?_identifier~bb5e4b2d+statement(OR_REPLACE)?!drop-2	CREATE REPLACE BRANCH a IN TABLE a
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_BRANCH_(IF_NOT_EXISTS)?_identifier~bb5e4b2d+statement(OR_REPLACE)?!drop-3	CREATE OR BRANCH a IN TABLE a
+accept	accept	engine	statement/CREATE_(OR_REPLACE)?_BRANCH_(IF_NOT_EXISTS)?_identifier~bb5e4b2d+statement(IF_NOT_EXISTS)?	CREATE BRANCH IF NOT EXISTS a IN TABLE a
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_BRANCH_(IF_NOT_EXISTS)?_identifier~bb5e4b2d+statement(IF_NOT_EXISTS)?!drop-3	CREATE BRANCH NOT EXISTS a IN TABLE a
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_BRANCH_(IF_NOT_EXISTS)?_identifier~bb5e4b2d+statement(IF_NOT_EXISTS)?!drop-4	CREATE BRANCH IF EXISTS a IN TABLE a
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_BRANCH_(IF_NOT_EXISTS)?_identifier~bb5e4b2d+statement(IF_NOT_EXISTS)?!drop-5	CREATE BRANCH IF NOT a IN TABLE a
+accept	accept	engine	statement/CREATE_(OR_REPLACE)?_BRANCH_(IF_NOT_EXISTS)?_identifier~bb5e4b2d+statement(WITH_properties)?	CREATE BRANCH a WITH(a = DEFAULT) IN TABLE a
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_BRANCH_(IF_NOT_EXISTS)?_identifier~bb5e4b2d+statement(WITH_properties)?!drop-4	CREATE BRANCH a(a = DEFAULT) IN TABLE a
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_BRANCH_(IF_NOT_EXISTS)?_identifier~bb5e4b2d+statement(WITH_properties)?!drop-5	CREATE BRANCH a WITH a = DEFAULT) IN TABLE a
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_BRANCH_(IF_NOT_EXISTS)?_identifier~bb5e4b2d+statement(WITH_properties)?!drop-6	CREATE BRANCH a WITH(= DEFAULT) IN TABLE a
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_BRANCH_(IF_NOT_EXISTS)?_identifier~bb5e4b2d+statement(WITH_properties)?!drop-7	CREATE BRANCH a WITH(a DEFAULT) IN TABLE a
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_BRANCH_(IF_NOT_EXISTS)?_identifier~bb5e4b2d+statement(WITH_properties)?!drop-8	CREATE BRANCH a WITH(a =) IN TABLE a
+reject	reject	engine	statement/CREATE_(OR_REPLACE)?_BRANCH_(IF_NOT_EXISTS)?_identifier~bb5e4b2d+statement(WITH_properties)?!drop-9	CREATE BRANCH a WITH(a = DEFAULT IN TABLE a
 accept	accept	engine	statement/DROP_BRANCH_(IF_EXISTS)?_identifier_IN_TABLE_qualifiedName	DROP BRANCH a IN TABLE a
 reject	reject	engine	statement/DROP_BRANCH_(IF_EXISTS)?_identifier_IN_TABLE_qualifiedName!drop-2	DROP a IN TABLE a
 reject	reject	engine	statement/DROP_BRANCH_(IF_EXISTS)?_identifier_IN_TABLE_qualifiedName!drop-3	DROP BRANCH IN TABLE a
@@ -352,6 +507,9 @@ reject	reject	engine	statement/DROP_BRANCH_(IF_EXISTS)?_identifier_IN_TABLE_qual
 reject	reject	engine	statement/DROP_BRANCH_(IF_EXISTS)?_identifier_IN_TABLE_qualifiedName!drop-6	DROP BRANCH a IN TABLE
 reject	reject	engine	statement/DROP_BRANCH_(IF_EXISTS)?_identifier_IN_TABLE_qualifiedName!insert	DROP BRANCH a IN TABLE a zzz
 reject	reject	engine	statement/DROP_BRANCH_(IF_EXISTS)?_identifier_IN_TABLE_qualifiedName!swap	ELSE BRANCH a IN TABLE a
+accept	accept	engine	statement/DROP_BRANCH_(IF_EXISTS)?_identifier_IN_TABLE_qualifiedName+statement(IF_EXISTS)?	DROP BRANCH IF EXISTS a IN TABLE a
+reject	reject	engine	statement/DROP_BRANCH_(IF_EXISTS)?_identifier_IN_TABLE_qualifiedName+statement(IF_EXISTS)?!drop-3	DROP BRANCH EXISTS a IN TABLE a
+reject	reject	engine	statement/DROP_BRANCH_(IF_EXISTS)?_identifier_IN_TABLE_qualifiedName+statement(IF_EXISTS)?!drop-4	DROP BRANCH IF a IN TABLE a
 accept	accept	engine	statement/ALTER_BRANCH_identifier_IN_TABLE_qualifiedName_FAST_FOR~9126f1f2	ALTER BRANCH a IN TABLE a FAST FORWARD TO a
 reject	reject	engine	statement/ALTER_BRANCH_identifier_IN_TABLE_qualifiedName_FAST_FOR~9126f1f2!drop-1	BRANCH a IN TABLE a FAST FORWARD TO a
 reject	reject	engine	statement/ALTER_BRANCH_identifier_IN_TABLE_qualifiedName_FAST_FOR~9126f1f2!drop-2	ALTER a IN TABLE a FAST FORWARD TO a
@@ -382,6 +540,12 @@ accept	accept	engine	statement/DROP_ROLE_(IF_EXISTS)?_identifier_(IN_identifier)
 reject	reject	engine	statement/DROP_ROLE_(IF_EXISTS)?_identifier_(IN_identifier)?!drop-3	DROP ROLE
 reject	reject	engine	statement/DROP_ROLE_(IF_EXISTS)?_identifier_(IN_identifier)?!insert	DROP ROLE a zzz
 reject	reject	engine	statement/DROP_ROLE_(IF_EXISTS)?_identifier_(IN_identifier)?!swap	ELSE ROLE a
+accept	accept	engine	statement/DROP_ROLE_(IF_EXISTS)?_identifier_(IN_identifier)?+statement(IF_EXISTS)?	DROP ROLE IF EXISTS a
+reject	reject	engine	statement/DROP_ROLE_(IF_EXISTS)?_identifier_(IN_identifier)?+statement(IF_EXISTS)?!drop-3	DROP ROLE EXISTS a
+reject	reject	engine	statement/DROP_ROLE_(IF_EXISTS)?_identifier_(IN_identifier)?+statement(IF_EXISTS)?!drop-4	DROP ROLE IF a
+accept	accept	engine	statement/DROP_ROLE_(IF_EXISTS)?_identifier_(IN_identifier)?+statement(IN_identifier)?	DROP ROLE a IN a
+reject	reject	engine	statement/DROP_ROLE_(IF_EXISTS)?_identifier_(IN_identifier)?+statement(IN_identifier)?!drop-4	DROP ROLE a a
+reject	reject	engine	statement/DROP_ROLE_(IF_EXISTS)?_identifier_(IN_identifier)?+statement(IN_identifier)?!drop-5	DROP ROLE a IN
 reject	reject	engine	statement/GRANT_privilegeOrRole_(,_privilegeOrRole)*_TO_principal~4e6184e1	GRANT CREATE TO a
 reject	reject	engine	statement/GRANT_privilegeOrRole_(,_privilegeOrRole)*_TO_principal~4e6184e1!drop-1	CREATE TO a
 reject	reject	engine	statement/GRANT_privilegeOrRole_(,_privilegeOrRole)*_TO_principal~4e6184e1!drop-2	GRANT TO a
@@ -389,6 +553,9 @@ reject	reject	engine	statement/GRANT_privilegeOrRole_(,_privilegeOrRole)*_TO_pri
 reject	reject	engine	statement/GRANT_privilegeOrRole_(,_privilegeOrRole)*_TO_principal~4e6184e1!drop-4	GRANT CREATE TO
 reject	reject	engine	statement/GRANT_privilegeOrRole_(,_privilegeOrRole)*_TO_principal~4e6184e1!insert	GRANT CREATE TO a zzz
 reject	reject	engine	statement/GRANT_privilegeOrRole_(,_privilegeOrRole)*_TO_principal~4e6184e1!swap	GRANTED CREATE TO a
+reject	reject	engine	statement/GRANT_privilegeOrRole_(,_privilegeOrRole)*_TO_principal~4e6184e1+statement(IN_identifier)?	GRANT CREATE TO a IN a
+reject	reject	engine	statement/GRANT_privilegeOrRole_(,_privilegeOrRole)*_TO_principal~4e6184e1+statement(IN_identifier)?!drop-5	GRANT CREATE TO a a
+reject	reject	engine	statement/GRANT_privilegeOrRole_(,_privilegeOrRole)*_TO_principal~4e6184e1+statement(IN_identifier)?!drop-6	GRANT CREATE TO a IN
 accept	accept	engine	statement/GRANT_((privilegeOrRole_(,_privilegeOrRole)~adbbce80)_O~4d4ff177	GRANT CREATE ON a TO a
 reject	reject	engine	statement/GRANT_((privilegeOrRole_(,_privilegeOrRole)~adbbce80)_O~4d4ff177!drop-1	CREATE ON a TO a
 reject	reject	engine	statement/GRANT_((privilegeOrRole_(,_privilegeOrRole)~adbbce80)_O~4d4ff177!drop-2	GRANT ON a TO a
@@ -405,6 +572,13 @@ reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_pri
 reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be!drop-4	REVOKE CREATE FROM
 reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be!insert	REVOKE CREATE FROM a zzz
 reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be!swap	RIGHT CREATE FROM a
+reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be+statement(GRANTED_BY_grantor)?	REVOKE CREATE FROM a GRANTED BY a
+reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be+statement(GRANTED_BY_grantor)?!drop-5	REVOKE CREATE FROM a BY a
+reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be+statement(GRANTED_BY_grantor)?!drop-6	REVOKE CREATE FROM a GRANTED a
+reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be+statement(GRANTED_BY_grantor)?!drop-7	REVOKE CREATE FROM a GRANTED BY
+reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be+statement(IN_identifier)?	REVOKE CREATE FROM a IN a
+reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be+statement(IN_identifier)?!drop-5	REVOKE CREATE FROM a a
+reject	reject	engine	statement/REVOKE_(ADMIN_OPTION_FOR)?_privilegeOrRole_(,_privilege~3d2a91be+statement(IN_identifier)?!drop-6	REVOKE CREATE FROM a IN
 accept	accept	engine	statement/REVOKE_(GRANT_OPTION_FOR)?_((privilegeOrRole_(,_privile~88a6db37	REVOKE CREATE ON a FROM a
 reject	reject	engine	statement/REVOKE_(GRANT_OPTION_FOR)?_((privilegeOrRole_(,_privile~88a6db37!drop-1	CREATE ON a FROM a
 reject	reject	engine	statement/REVOKE_(GRANT_OPTION_FOR)?_((privilegeOrRole_(,_privile~88a6db37!drop-2	REVOKE ON a FROM a
@@ -428,6 +602,9 @@ reject	reject	engine	statement/SET_ROLE_(ALL|NONE|identifier)_(IN_identifier)?!d
 reject	reject	engine	statement/SET_ROLE_(ALL|NONE|identifier)_(IN_identifier)?!drop-3	SET ROLE
 reject	reject	engine	statement/SET_ROLE_(ALL|NONE|identifier)_(IN_identifier)?!insert	SET ROLE ALL zzz
 reject	reject	engine	statement/SET_ROLE_(ALL|NONE|identifier)_(IN_identifier)?!swap	SETS ROLE ALL
+accept	accept	engine	statement/SET_ROLE_(ALL|NONE|identifier)_(IN_identifier)?+statement(IN_identifier)?	SET ROLE ALL IN a
+reject	reject	engine	statement/SET_ROLE_(ALL|NONE|identifier)_(IN_identifier)?+statement(IN_identifier)?!drop-4	SET ROLE ALL a
+reject	reject	engine	statement/SET_ROLE_(ALL|NONE|identifier)_(IN_identifier)?+statement(IN_identifier)?!drop-5	SET ROLE ALL IN
 accept	accept	engine	statement/SHOW_GRANTS_(ON_grantObject)?	SHOW GRANTS
 reject	reject	engine	statement/SHOW_GRANTS_(ON_grantObject)?!drop-1	GRANTS
 reject	reject	engine	statement/SHOW_GRANTS_(ON_grantObject)?!drop-2	SHOW
@@ -632,6 +809,9 @@ reject	reject	engine	statement/UPDATE_qualifiedName_(@_identifier)?_SET_updateAs
 reject	reject	engine	statement/UPDATE_qualifiedName_(@_identifier)?_SET_updateAssignme~41dd0709!drop-6	UPDATE a SET a =
 reject	reject	engine	statement/UPDATE_qualifiedName_(@_identifier)?_SET_updateAssignme~41dd0709!insert	UPDATE a SET a = 1.5 zzz
 reject	reject	engine	statement/UPDATE_qualifiedName_(@_identifier)?_SET_updateAssignme~41dd0709!swap	USE a SET a = 1.5
+accept	accept	engine	statement/UPDATE_qualifiedName_(@_identifier)?_SET_updateAssignme~41dd0709+statement(WHERE_booleanExpression)?	UPDATE a SET a = 1.5 WHERE 1.5
+reject	reject	engine	statement/UPDATE_qualifiedName_(@_identifier)?_SET_updateAssignme~41dd0709+statement(WHERE_booleanExpression)?!drop-7	UPDATE a SET a = 1.5 1.5
+reject	reject	engine	statement/UPDATE_qualifiedName_(@_identifier)?_SET_updateAssignme~41dd0709+statement(WHERE_booleanExpression)?!drop-8	UPDATE a SET a = 1.5 WHERE
 accept	accept	engine	statement/MERGE_INTO_qualifiedName_(@_identifier)?_(AS?_identifie~953a5271	MERGE INTO a USING a ON 1.5 WHEN MATCHED THEN DELETE
 reject	reject	engine	statement/MERGE_INTO_qualifiedName_(@_identifier)?_(AS?_identifie~953a5271!drop-1	INTO a USING a ON 1.5 WHEN MATCHED THEN DELETE
 reject	reject	engine	statement/MERGE_INTO_qualifiedName_(@_identifier)?_(AS?_identifie~953a5271!drop-2	MERGE a USING a ON 1.5 WHEN MATCHED THEN DELETE
@@ -852,7 +1032,6 @@ reject	reject	engine	statement(,_privilegeOrRole)*/,_privilegeOrRole_(,_privileg
 reject	reject	engine	statement(,_privilegeOrRole)*/,_privilegeOrRole_(,_privilegeOrRole)*!swap	GRANT CREATE, CROSS TO a
 reject	reject	engine	statement(,_principal)*/%empty	GRANT CREATE TO a
 reject	reject	engine	statement(,_principal)*/,_principal_(,_principal)*	GRANT CREATE TO a, a
-reject	reject	engine	statement(,_principal)*/,_principal_(,_principal)*!drop-1	GRANT CREATE TO a a
 reject	reject	engine	statement(,_principal)*/,_principal_(,_principal)*!drop-2	GRANT CREATE TO a,
 reject	reject	engine	statement(,_principal)*/,_principal_(,_principal)*!insert	GRANT CREATE TO a, a zzz
 reject	reject	engine	statement(WITH_ADMIN_OPTION)?/%empty	GRANT CREATE TO a

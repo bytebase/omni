@@ -16,3 +16,16 @@ DECIMAL_VALUE	1.5	SqlBase.g4:1453 digits with a point; 1. would sit against the 
 DOUBLE_VALUE	1E1	SqlBase.g4:1458 digits with an exponent
 DELIMITER	(unreachable)	SqlBase.g4:27 declared in tokens { }, produced only by the CLI's DelimiterLexer
 .	ALTER	SqlBase.g4:1056 methodName : {isKeyword()}? . ; any keyword, so a reserved one
+# Optional clauses tried at every site the grammar allows them, and not only
+# at the one its own row reaches. Each is an inline (...)? group of statement,
+# which the reader lowers to a rule named after the group.
+statement(IF_NOT_EXISTS)?	(every site)	SqlBase.g4:58 IF NOT EXISTS
+statement(IF_EXISTS)?	(every site)	SqlBase.g4:63 IF EXISTS
+statement(OR_REPLACE)?	(every site)	SqlBase.g4:70 OR REPLACE
+statement(CASCADE|RESTRICT)?	(every site)	SqlBase.g4:64 CASCADE or RESTRICT
+statement(WITH_properties)?	(every site)	SqlBase.g4:62 WITH properties
+statement(COMMENT_string)?	(every site)	SqlBase.g4:60 COMMENT string
+statement(AUTHORIZATION_principal)?	(every site)	SqlBase.g4:61 AUTHORIZATION principal
+statement(IN_identifier)?	(every site)	SqlBase.g4:145 IN identifier, a role's catalog
+statement(GRANTED_BY_grantor)?	(every site)	SqlBase.g4:151 GRANTED BY grantor
+statement(WHERE_booleanExpression)?	(every site)	SqlBase.g4:83 WHERE booleanExpression
