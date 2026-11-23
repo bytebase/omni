@@ -1241,6 +1241,7 @@ func (b *builder) createCompositeType(v *ast.CompositeTypeStmt) bool {
 	b.mayAddArrayType(c.schema)
 	b.forget(walk.Scope{Parent: tableOf(k), Deep: true})
 	b.made(k)
+	b.session(func() { b.w.dirtyTypes[k] = true })
 	return true
 }
 
@@ -2653,6 +2654,13 @@ func (b *builder) renameColumn(v *ast.RenameStmt) bool {
 	}
 	b.set(oldKey, walk.Absent, "")
 	b.set(newKey, walk.Present, kindColumn)
+	b.session(func() {
+		if inh {
+			b.w.allDirty = true
+		} else {
+			b.w.dirtyTables[r.key] = true
+		}
+	})
 	return true
 }
 
@@ -3172,6 +3180,7 @@ func (b *builder) dropType(parts []string, tn *ast.TypeName, missingOK, domain b
 		if !domain {
 			b.mayRemove(walk.Scope{Space: spaceFunction, Deep: true})
 		}
+		b.session(func() { b.w.allDirty = true })
 		return
 	}
 	// r.fact == walk.Present.
@@ -3217,11 +3226,12 @@ func (b *builder) dropType(parts []string, tn *ast.TypeName, missingOK, domain b
 		b.mayRemove(walk.Scope{Space: spaceFunction, Parent: walk.Path(s)})
 	}
 	b.set(r.key, walk.Absent, "")
+	rk := relKey(s, r.key.Name)
 	b.session(func() {
 		delete(b.w.shellTypes, r.key)
 		delete(b.w.typmodTypes, r.key)
+		b.w.dirtyTypes[rk] = true
 	})
-	rk := relKey(s, r.key.Name)
 	switch f, kind := b.l.Lookup(rk); {
 	case f == walk.Present && kind == relComposite:
 		b.set(rk, walk.Absent, "")
