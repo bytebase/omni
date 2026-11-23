@@ -670,10 +670,8 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 			}
 			col.Identity = identSpec
 			if p.cur.Type == kwNOT && p.peekNext().Type == kwFOR {
-				p.advance() // NOT
-				p.advance() // FOR
-				if p.cur.Type == kwREPLICATION {
-					p.advance()
+				if err := p.parseNotForReplication(); err != nil {
+					return nil, err
 				}
 				col.NotForReplication = true
 			}
@@ -995,7 +993,9 @@ func (p *Parser) parseInlineConstraint(name string) (*nodes.ConstraintDef, error
 			return nil, err
 		}
 		p.parseConstraintWithOptions(cd)
-		p.parseConstraintOnFilegroup(cd)
+		if err := p.parseConstraintOnFilegroup(cd); err != nil {
+			return nil, err
+		}
 	case kwUNIQUE:
 		p.advance()
 		cd.Type = nodes.ConstraintUnique
@@ -1004,16 +1004,16 @@ func (p *Parser) parseInlineConstraint(name string) (*nodes.ConstraintDef, error
 			return nil, err
 		}
 		p.parseConstraintWithOptions(cd)
-		p.parseConstraintOnFilegroup(cd)
+		if err := p.parseConstraintOnFilegroup(cd); err != nil {
+			return nil, err
+		}
 	case kwCHECK:
 		p.advance()
 		cd.Type = nodes.ConstraintCheck
 		// [ NOT FOR REPLICATION ]
 		if p.cur.Type == kwNOT && p.peekNext().Type == kwFOR {
-			p.advance() // NOT
-			p.advance() // FOR
-			if p.cur.Type == kwREPLICATION {
-				p.advance()
+			if err := p.parseNotForReplication(); err != nil {
+				return nil, err
 			}
 			cd.NotForReplication = true
 		}
@@ -1072,10 +1072,8 @@ func (p *Parser) parseInlineConstraint(name string) (*nodes.ConstraintDef, error
 		}
 		// [ NOT FOR REPLICATION ]
 		if p.cur.Type == kwNOT && p.peekNext().Type == kwFOR {
-			p.advance() // NOT
-			p.advance() // FOR
-			if p.cur.Type == kwREPLICATION {
-				p.advance()
+			if err := p.parseNotForReplication(); err != nil {
+				return nil, err
 			}
 			cd.NotForReplication = true
 		}
@@ -1108,23 +1106,38 @@ func (p *Parser) parseConstraintWithOptions(cd *nodes.ConstraintDef) {
 }
 
 // parseConstraintOnFilegroup parses [ ON { partition_scheme(col) | filegroup | "default" } ].
-func (p *Parser) parseConstraintOnFilegroup(cd *nodes.ConstraintDef) {
+// uniqueConstraintTailOpt (TSql160.g:29806) writes it On
+// filegroupOrPartitionScheme, a stringOrIdentifier (TSql160.g:17224): SQL
+// Server takes UNIQUE (a) ON 'a' and refuses a bare ON (measured).
+func (p *Parser) parseConstraintOnFilegroup(cd *nodes.ConstraintDef) error {
 	if p.cur.Type != kwON {
-		return
+		return nil
 	}
 	p.advance()
-	if p.isIdentLike() || p.cur.Type == kwPRIMARY {
+	switch {
+	case p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST:
+		cd.OnFilegroup = p.cur.Str
+		p.advance()
+	case p.isIdentLike() || p.cur.Type == kwPRIMARY:
 		name := p.cur.Str
 		p.advance()
 		if p.cur.Type == '(' {
 			p.advance()
-			col, _ := p.parseIdentifier()
-			p.expect(')')
+			col, ok := p.parseIdentifier()
+			if !ok {
+				return p.syntaxErrorAtCur()
+			}
+			if _, err := p.expect(')'); err != nil {
+				return err
+			}
 			cd.OnFilegroup = name + "(" + col + ")"
 		} else {
 			cd.OnFilegroup = name
 		}
+	default:
+		return p.syntaxErrorAtCur()
 	}
+	return nil
 }
 
 // parseColumnConstraintColumnList parses the column list SQL Server also
@@ -1199,7 +1212,9 @@ func (p *Parser) parseTableConstraint() (*nodes.ConstraintDef, error) {
 			return nil, err
 		}
 		p.parseConstraintWithOptions(cd)
-		p.parseConstraintOnFilegroup(cd)
+		if err := p.parseConstraintOnFilegroup(cd); err != nil {
+			return nil, err
+		}
 	case kwUNIQUE:
 		p.advance()
 		cd.Type = nodes.ConstraintUnique
@@ -1213,16 +1228,16 @@ func (p *Parser) parseTableConstraint() (*nodes.ConstraintDef, error) {
 			return nil, err
 		}
 		p.parseConstraintWithOptions(cd)
-		p.parseConstraintOnFilegroup(cd)
+		if err := p.parseConstraintOnFilegroup(cd); err != nil {
+			return nil, err
+		}
 	case kwCHECK:
 		p.advance()
 		cd.Type = nodes.ConstraintCheck
 		// [ NOT FOR REPLICATION ]
 		if p.cur.Type == kwNOT && p.peekNext().Type == kwFOR {
-			p.advance() // NOT
-			p.advance() // FOR
-			if p.cur.Type == kwREPLICATION {
-				p.advance()
+			if err := p.parseNotForReplication(); err != nil {
+				return nil, err
 			}
 			cd.NotForReplication = true
 		}
@@ -1286,10 +1301,8 @@ func (p *Parser) parseTableConstraint() (*nodes.ConstraintDef, error) {
 		}
 		// [ NOT FOR REPLICATION ]
 		if p.cur.Type == kwNOT && p.peekNext().Type == kwFOR {
-			p.advance() // NOT
-			p.advance() // FOR
-			if p.cur.Type == kwREPLICATION {
-				p.advance()
+			if err := p.parseNotForReplication(); err != nil {
+				return nil, err
 			}
 			cd.NotForReplication = true
 		}
@@ -2056,4 +2069,17 @@ func (p *Parser) parseParenIdentList() (*nodes.List, error) {
 		return nil, err
 	}
 	return &nodes.List{Items: items}, nil
+}
+
+// parseNotForReplication consumes NOT FOR REPLICATION, the cursor on NOT.
+// replicationClauseOpt (TSql160.g:29984) spells all three words, and SQL
+// Server refuses CHECK NOT FOR (1 = 1) (measured, Msg 102).
+func (p *Parser) parseNotForReplication() error {
+	p.advance() // NOT
+	p.advance() // FOR
+	if p.cur.Type != kwREPLICATION {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance() // REPLICATION
+	return nil
 }

@@ -49,6 +49,7 @@ func walkThrough(ctx context.Context, sql string, stmts []statement, t review.Ta
 		clear(w.indexLeads)
 		clear(w.indexLeadsKnown)
 		clear(w.fkCols)
+		clear(w.checkColumns)
 	}
 	return walk.Run(ctx, len(stmts), snap, w.lower)
 }
@@ -232,6 +233,11 @@ type walker struct {
 	indexLeads      map[walk.Key][][]string
 	indexLeadsKnown map[walk.Key]bool
 	fkCols          map[walk.Key]map[string]bool
+	// checkColumns holds the synced CHECK constraints of each table and
+	// the columns each reads, on OceanBase. The walk does not maintain it:
+	// it holds until the first statement that may change a table
+	// (lower).
+	checkColumns map[walk.Key]map[string][]string
 	// oceanBase is OceanBase's MySQL mode, whose deltas from MySQL each
 	// lowering gates on it.
 	oceanBase bool
@@ -262,6 +268,10 @@ func newWalker(sql string, stmts []statement, t review.Target, d dialect) *walke
 		indexLeads:       make(map[walk.Key][][]string),
 		indexLeadsKnown:  make(map[walk.Key]bool),
 		fkCols:           make(map[walk.Key]map[string]bool),
+		checkColumns:     make(map[walk.Key]map[string][]string),
+	}
+	for name, reads := range snap.checkColumns {
+		w.checkColumns[relKey(snap.db, name)] = reads
 	}
 	for name := range snap.triggered {
 		w.triggered[relKey(snap.db, name)] = true
@@ -314,7 +324,24 @@ func (w *walker) lower(i int, l *walk.Ledger) *walk.Step {
 	if !b.statement(w.stmts[i].node) {
 		return nil
 	}
+	if !keepsTables(w.stmts[i].node) {
+		clear(w.checkColumns)
+	}
 	return b.Step()
+}
+
+// keepsTables reports whether a statement changes no table's columns or
+// CHECK constraints, so the synced checkColumns still hold after it.
+func keepsTables(n ast.Node) bool {
+	switch n.(type) {
+	case *ast.SelectStmt, *ast.DoStmt, *ast.ValuesStmt, *ast.TableStmt, *ast.ExplainStmt,
+		*ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.LoadDataStmt,
+		*ast.SetStmt, *ast.UseStmt, *ast.BeginStmt, *ast.CommitStmt, *ast.SavepointStmt, *ast.SetTransactionStmt,
+		*ast.CreateIndexStmt, *ast.DropIndexStmt, *ast.CreateViewStmt, *ast.AlterViewStmt, *ast.DropViewStmt,
+		*ast.CreateTriggerStmt, *ast.DropTriggerStmt:
+		return true
+	}
+	return false
 }
 
 // builder lowers one statement into a walk.Step.
@@ -343,6 +370,10 @@ type builder struct {
 	changesPK   bool
 	addsIndex   bool
 	touchedCols map[string]bool
+	// changesChecks is set while an ALTER TABLE drops or alters a
+	// constraint, which may take a CHECK constraint a column drop or rename
+	// would otherwise break (checkReadsColumn).
+	changesChecks bool
 }
 
 // leave records that an ALTER TABLE subcommand takes a column or index

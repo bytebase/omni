@@ -70,7 +70,7 @@ var server struct {
 // image's own is dropped and the test's database is created empty.
 func Open(t testing.TB) *sql.DB {
 	t.Helper()
-	s := &tape.Server{Pins: Pins, Codec: Codec{}, Live: func(t testing.TB, pin enginetest.Pin) driver.Connector {
+	s := &tape.Server{Pins: Pins, Codec: Codec{}, Types: Types, Live: func(t testing.TB, pin enginetest.Pin) driver.Connector {
 		t.Helper()
 		return live(t, pin)
 	}}
@@ -100,7 +100,7 @@ func Judge(t testing.TB, pin enginetest.Pin) *sql.DB {
 // database the image did not start with and creates none.
 func OpenMissingDatabase(t testing.TB, name string) *sql.DB {
 	t.Helper()
-	s := &tape.Server{Pins: Pins, Codec: Codec{}, Live: func(t testing.TB, pin enginetest.Pin) driver.Connector {
+	s := &tape.Server{Pins: Pins, Codec: Codec{}, Types: Types, Live: func(t testing.TB, pin enginetest.Pin) driver.Connector {
 		t.Helper()
 		if err := start(context.Background(), pin); err != nil {
 			t.Fatalf("ClickHouse: %v", err)

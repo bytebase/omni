@@ -112,8 +112,7 @@ func addsRowBoundColumn(cmd *ast.AlterTableCmd) bool {
 }
 
 // alterSequence follows ALTER SEQUENCE [IF EXISTS] name ...: the target must
-// exist as a sequence (4091 missing, 4089 table or view) unless IF EXISTS is
-// given, and an out-of-range signed-64-bit INCREMENT always fails (4085).
+// exist (4091) unless IF EXISTS is given, and be a sequence (4089), and an out-of-range signed-64-bit INCREMENT always fails (4085).
 func (b *builder) alterSequence(v *ast.AlterSequenceStmt) bool {
 	r, st := b.ref(v.Name)
 	switch st {
@@ -136,7 +135,9 @@ func (b *builder) alterSequence(v *ast.AlterSequenceStmt) bool {
 	}
 	k := relKey(r.db, r.name)
 	f, kind := b.l.Lookup(k)
-	if !v.IfExists {
+	// IF EXISTS skips a missing name, not one of another kind (4089,
+	// verified on mariadb:11.8.8).
+	if !v.IfExists || f == walk.Present {
 		b.needKind(k, []string{relSequence}, r.rng, notFound("sequence", r.written, ""), r.written, "sequence")
 	}
 	if f == walk.Present && kind == relSequence {
@@ -184,7 +185,7 @@ func (b *builder) checkSequenceValues(v *ast.AlterSequenceStmt, r tableRef, k wa
 		if set.e == nil {
 			continue
 		}
-		n, ok := sequenceBigInt(set.e)
+		n, ok := truncatedSequenceBigInt(set.e)
 		if !ok {
 			forget()
 			return
@@ -214,6 +215,23 @@ func (b *builder) checkSequenceIncrement(inc ast.ExprNode, r tableRef) {
 	if val.Cmp(minAllowed) < 0 || val.Cmp(maxAllowed) > 0 {
 		b.fail(r.rng, nil, review.UnsupportedForm, "Sequence "+review.Code(r.written)+" has an out-of-range increment.")
 	}
+}
+
+// truncatedSequenceBigInt reads a START, MINVALUE, or MAXVALUE value.
+// MINVALUE and MAXVALUE take a DECIMAL_NUM, which MariaDB reads as
+// ULONGLONG_MAX and, after a minus, LONGLONG_MIN
+// (sequence_truncated_value_hybrid_num in sql_yacc.yy; MINVALUE 1.5 is
+// 4085 on mariadb:11.8.8).
+func truncatedSequenceBigInt(e ast.ExprNode) (*big.Int, bool) {
+	switch n := e.(type) {
+	case *ast.FloatLit:
+		return new(big.Int).SetUint64(math.MaxUint64), true
+	case *ast.UnaryExpr:
+		if _, ok := n.Operand.(*ast.FloatLit); ok && n.Op == ast.UnaryMinus {
+			return big.NewInt(math.MinInt64), true
+		}
+	}
+	return sequenceBigInt(e)
 }
 
 func sequenceBigInt(e ast.ExprNode) (*big.Int, bool) {

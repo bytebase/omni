@@ -30,6 +30,80 @@ var Aspects = []string{Results, Lineage, Tables}
 // Unjudged marks a cell no recording has filled yet.
 const Unjudged = compat.Unjudged
 
+// Unstated is a source, in a lineage column or the tables list of an
+// engine's answer, that stands for what the engine does not state: it names
+// the other entries, and says nothing about whether there are more. A column
+// whose sources are Unstated alone is one the engine says nothing about,
+// such as an expression whose result-set metadata names no column. It is
+// not ?, which marks a whole cell as Unjudged.
+const Unstated = "~"
+
+// Agrees reports whether omni's cell of aspect agrees with the engine's
+// expected cell: it is the same, or it differs only where the engine leaves
+// something unstated. A lineage column or tables list whose expected
+// entries include Unstated agrees when omni names every other entry, and
+// any more; every other column and every other aspect must be equal.
+func Agrees(aspect, omni, expected string) bool {
+	if omni == expected {
+		return true
+	}
+	if strings.HasPrefix(omni, "error:") || strings.HasPrefix(expected, "error:") {
+		return false
+	}
+	switch aspect {
+	case Lineage:
+		// A lone - is one column with no sources, or no column at all; the
+		// results row tells them apart.
+		o, e := strings.Split(omni, " | "), strings.Split(expected, " | ")
+		if len(o) != len(e) {
+			return false
+		}
+		for i := range e {
+			if !covers(entries(o[i], " "), entries(e[i], " ")) {
+				return false
+			}
+		}
+		return true
+	case Tables:
+		return covers(entries(omni, ", "), entries(expected, ", "))
+	}
+	return false
+}
+
+// entries splits a list cell; - is the empty list.
+func entries(cell, sep string) []string {
+	if cell == "-" {
+		return nil
+	}
+	return strings.Split(cell, sep)
+}
+
+// covers reports whether omni's entries are the expected ones, or, when the
+// expected entries include Unstated, hold every other expected entry.
+func covers(omni, expected []string) bool {
+	if !slices.Contains(expected, Unstated) {
+		return slices.Equal(sorted(omni), sorted(expected))
+	}
+	for _, e := range expected {
+		if e != Unstated && !slices.Contains(omni, e) {
+			return false
+		}
+	}
+	return true
+}
+
+// unstated reports whether an expected cell leaves something unstated.
+func unstated(expected string) bool {
+	for _, sep := range []string{" | ", ", "} {
+		for _, part := range strings.Split(expected, sep) {
+			if slices.Contains(strings.Split(part, " "), Unstated) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 const (
 	noSource      = "-"
 	pinPrefix     = "# pin: "
@@ -181,8 +255,8 @@ func (f *File) Write(path string) error {
 // Guard compares a span.tsv before and after a change and returns what the
 // change may not do, as simulate.Guard does for a simulate.tsv:
 //
-//   - An omni cell that held its row's expected answer keeps it: a regression
-//     is never committed as omni's new answer. A cell that differed may
+//   - An omni cell that agreed with its row's expected answer (Agrees) still
+//     does: a regression is never committed as omni's new answer. A cell that differed may
 //     change to anything, since a fix can move a row from one difference to
 //     another, and the test holds the cell to what omni does.
 //   - An expected cell (and its source) changes only from ?, or when the
@@ -201,8 +275,8 @@ func Guard(before, after *File) []string {
 		if !ok {
 			continue
 		}
-		if r.Omni != o.Omni && o.Omni == o.Expected && o.Omni != Unjudged && r.Omni != r.Expected {
-			problems = append(problems, fmt.Sprintf("%s in %s on %s: omni changed from %s, the expected answer, to %s: a regression\n    %s",
+		if r.Omni != o.Omni && o.Omni != Unjudged && Agrees(o.Aspect, o.Omni, o.Expected) && !Agrees(r.Aspect, r.Omni, r.Expected) {
+			problems = append(problems, fmt.Sprintf("%s in %s on %s: omni changed from %s, which agreed with the expected answer, to %s: a regression\n    %s",
 				r.Aspect, r.Session, r.Fixture, o.Omni, r.Omni, r.Statement))
 		}
 		if (r.Expected != o.Expected || r.Source != o.Source) && o.Expected != Unjudged && !repinned {

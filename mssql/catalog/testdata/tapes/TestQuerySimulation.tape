@@ -703,6 +703,30 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT(SELECT ALL *)
+|
+< error
+| 263 1 16 1 proc=_v Must specify table to select from.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT(SELECT * FROM @a)
+|
+< error
+| 1087 2 15 1 proc=_v Must declare the table variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT(SELECT TOP 1 *)
 |
 < error
@@ -2136,6 +2160,18 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT * FROM @a RIGHT OUTER JOIN @a ON 1 = 1
+|
+< error
+| 1087 2 15 1 proc=_v Must declare the table variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT * FROM @a FULL JOIN @a ON 1 = 1
 |
 < error
@@ -2149,6 +2185,18 @@
 < ok 0 -
 > exec
 | CREATE VIEW _v AS SELECT * FROM @a FULLSCAN JOIN @a ON 1 = 1
+|
+< error
+| 1087 2 15 1 proc=_v Must declare the table variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM @a FULL OUTER JOIN @a ON 1 = 1
 |
 < error
 | 1087 2 15 1 proc=_v Must declare the table variable "@a".
@@ -2176,6 +2224,18 @@
 |
 < error
 | 1087 2 15 1 proc=_v Must declare the table variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM a() a
+|
+< error
+| 215 1 16 1 proc=_v Parameters supplied for object 'a' which is not a function. If the parameters are intended as a table hint, a WITH keyword is required.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -2438,6 +2498,18 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT * FROM CONTAINSTABLE(a, a, 'a') a
+|
+< error
+| 7601 2 16 1 proc=_v Cannot use a CONTAINS or FREETEXT predicate on table or indexed view 'a' because it is not full-text indexed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT * FROM CONTAINSTABLE(a, a, 'a', 1)
 |
 < error
@@ -2606,10 +2678,58 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, a) a
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, a, 1)
 |
 < error
 | 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYTABLE(a, a, 1) a
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(a, a, 1, a, 1) a
+|
+< error
+| 41202 1 16 1 proc=_v The source table 'a' specified in the SEMANTICSIMILARITYTABLE, SEMANTICKEYPHRASETABLE or SEMANTICSIMILARITYDETAILSTABLE function doesn't have a full-text index that uses the STATISTICAL_SEMANTICS option.  A full-text index using the STATISTICAL_SEMANTICS option is required to use this function.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM OPENXML(@a, 'a') a
+|
+< error
+| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -2623,18 +2743,6 @@
 < error
 | 137 2 15 1 proc=_v Must declare the scalar variable "@a".
 | 319 1 15 1 proc=_v Incorrect syntax near the keyword 'with'. If this statement is a common table expression, an xmlnamespaces clause or a change tracking context clause, the previous statement must be terminated with a semicolon.
-> exec
-| EXEC [dbo].[_sim_reset]
-< ok 0 -
-> exec
-| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
-| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
-< ok 0 -
-> exec
-| CREATE VIEW _v AS SELECT * FROM OPENXML(@a, 'a') a
-|
-< error
-| 137 2 15 1 proc=_v Must declare the scalar variable "@a".
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -4610,6 +4718,30 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT a :: a COLLATE a
+|
+< error
+| 243 4 16 1 proc=_v Type a is not a defined system type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT a :: a a
+|
+< error
+| 243 4 16 1 proc=_v Type a is not a defined system type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT CONVERT(a, 1, 1)
 |
 < error
@@ -5299,6 +5431,42 @@
 |
 < error
 | 137 2 15 1 proc=_v Must declare the scalar variable "@a".
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM OPENJSON(1) a
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| VIEW
+: string
+| dbo._v
+: string
+| CREATE VIEW _v AS SELECT * FROM OPENJSON(1) a
+|
+|
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -31165,3 +31333,1692 @@
 |
 < error
 | 2720 1 16 1 proc=_v Cannot schema bind view '_v' because it references system object 'sys.objects'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT name COLLATE a AS n FROM customers
+|
+< error
+| 448 1 16 1 proc=_v Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT name COLLATE latin1_general_bin2 AS n FROM customers
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| VIEW
+: string
+| dbo._v
+: string
+| CREATE VIEW _v AS SELECT name COLLATE latin1_general_bin2 AS n FROM customers
+|
+|
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.customers
+: string
+| CREATE TABLE [dbo].[customers] ([id] int NOT NULL, [name] nvarchar(100) NULL, [region] varchar(10) NULL, [born] date NULL);
+| ALTER TABLE [dbo].[customers] ADD CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_double
+: string
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_orders
+: string
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.orders
+: string
+| CREATE TABLE [dbo].[orders] ([id] int NOT NULL, [customer_id] int NULL, [amount] decimal(10,2) NULL, [status] nvarchar(20) NULL, [created] datetime2(3) NULL, [doc] xml NULL);
+| ALTER TABLE [dbo].[orders] ADD CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| VIEW
+: string
+| dbo.v_customers
+: string
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+|
+< row
+: string
+| SCHEMA
+: string
+| s
+: string
+| CREATE SCHEMA [s];
+|
+< row
+: string
+| TABLE
+: string
+| s.orders
+: string
+| CREATE TABLE [s].[orders] ([id] int NOT NULL, [note] nvarchar(max) NULL);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT name COLLATE database_default AS n FROM customers
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| VIEW
+: string
+| dbo._v
+: string
+| CREATE VIEW _v AS SELECT name COLLATE database_default AS n FROM customers
+|
+|
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.customers
+: string
+| CREATE TABLE [dbo].[customers] ([id] int NOT NULL, [name] nvarchar(100) NULL, [region] varchar(10) NULL, [born] date NULL);
+| ALTER TABLE [dbo].[customers] ADD CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_double
+: string
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_orders
+: string
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.orders
+: string
+| CREATE TABLE [dbo].[orders] ([id] int NOT NULL, [customer_id] int NULL, [amount] decimal(10,2) NULL, [status] nvarchar(20) NULL, [created] datetime2(3) NULL, [doc] xml NULL);
+| ALTER TABLE [dbo].[orders] ADD CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| VIEW
+: string
+| dbo.v_customers
+: string
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+|
+< row
+: string
+| SCHEMA
+: string
+| s
+: string
+| CREATE SCHEMA [s];
+|
+< row
+: string
+| TABLE
+: string
+| s.orders
+: string
+| CREATE TABLE [s].[orders] ([id] int NOT NULL, [note] nvarchar(max) NULL);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT name COLLATE Latin1_General_CI_AS_WS_KS AS n FROM customers
+|
+< error
+| 448 1 16 1 proc=_v Invalid collation 'Latin1_General_CI_AS_WS_KS'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT name COLLATE Latin1_General_CI_AS_KS_WS AS n FROM customers
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| VIEW
+: string
+| dbo._v
+: string
+| CREATE VIEW _v AS SELECT name COLLATE Latin1_General_CI_AS_KS_WS AS n FROM customers
+|
+|
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.customers
+: string
+| CREATE TABLE [dbo].[customers] ([id] int NOT NULL, [name] nvarchar(100) NULL, [region] varchar(10) NULL, [born] date NULL);
+| ALTER TABLE [dbo].[customers] ADD CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_double
+: string
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_orders
+: string
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.orders
+: string
+| CREATE TABLE [dbo].[orders] ([id] int NOT NULL, [customer_id] int NULL, [amount] decimal(10,2) NULL, [status] nvarchar(20) NULL, [created] datetime2(3) NULL, [doc] xml NULL);
+| ALTER TABLE [dbo].[orders] ADD CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| VIEW
+: string
+| dbo.v_customers
+: string
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+|
+< row
+: string
+| SCHEMA
+: string
+| s
+: string
+| CREATE SCHEMA [s];
+|
+< row
+: string
+| TABLE
+: string
+| s.orders
+: string
+| CREATE TABLE [s].[orders] ([id] int NOT NULL, [note] nvarchar(max) NULL);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT 'x' COLLATE a AS c FROM nope
+|
+< error
+| 208 1 16 1 proc=_v Invalid object name 'nope'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT id FROM customers ORDER BY name COLLATE a OFFSET 0 ROWS
+|
+< error
+| 448 1 16 1 proc=_v Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM OPENJSON(N'[]') WITH (c NVARCHAR(10) COLLATE a)
+|
+< error
+| 448 2 16 1 proc=_v Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE TABLE t (c NVARCHAR(10) COLLATE latin1_general_100_ci_as_sc_utf8)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.customers
+: string
+| CREATE TABLE [dbo].[customers] ([id] int NOT NULL, [name] nvarchar(100) NULL, [region] varchar(10) NULL, [born] date NULL);
+| ALTER TABLE [dbo].[customers] ADD CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_double
+: string
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_orders
+: string
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.orders
+: string
+| CREATE TABLE [dbo].[orders] ([id] int NOT NULL, [customer_id] int NULL, [amount] decimal(10,2) NULL, [status] nvarchar(20) NULL, [created] datetime2(3) NULL, [doc] xml NULL);
+| ALTER TABLE [dbo].[orders] ADD CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([c] nvarchar(10) NULL);
+|
+< row
+: string
+| VIEW
+: string
+| dbo.v_customers
+: string
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+|
+< row
+: string
+| SCHEMA
+: string
+| s
+: string
+| CREATE SCHEMA [s];
+|
+< row
+: string
+| TABLE
+: string
+| s.orders
+: string
+| CREATE TABLE [s].[orders] ([id] int NOT NULL, [note] nvarchar(max) NULL);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE TABLE t (c NVARCHAR(10) COLLATE database_default)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.customers
+: string
+| CREATE TABLE [dbo].[customers] ([id] int NOT NULL, [name] nvarchar(100) NULL, [region] varchar(10) NULL, [born] date NULL);
+| ALTER TABLE [dbo].[customers] ADD CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_double
+: string
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_orders
+: string
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.orders
+: string
+| CREATE TABLE [dbo].[orders] ([id] int NOT NULL, [customer_id] int NULL, [amount] decimal(10,2) NULL, [status] nvarchar(20) NULL, [created] datetime2(3) NULL, [doc] xml NULL);
+| ALTER TABLE [dbo].[orders] ADD CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([c] nvarchar(10) NULL);
+|
+< row
+: string
+| VIEW
+: string
+| dbo.v_customers
+: string
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+|
+< row
+: string
+| SCHEMA
+: string
+| s
+: string
+| CREATE SCHEMA [s];
+|
+< row
+: string
+| TABLE
+: string
+| s.orders
+: string
+| CREATE TABLE [s].[orders] ([id] int NOT NULL, [note] nvarchar(max) NULL);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE TABLE t (c NVARCHAR(10) COLLATE a)
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE TABLE nope.t (c NVARCHAR(10) COLLATE a)
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE TABLE customers (c nope COLLATE a)
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE TABLE t (c INT, d AS (c COLLATE a))
+|
+< error
+| 447 0 16 1 Expression type int is invalid for COLLATE clause.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE TABLE t (c NVARCHAR(10), d AS ([c] COLLATE a))
+|
+< error
+| 448 1 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE TABLE t (c NVARCHAR(10), d AS ([c] COLLATE Latin1_General_BIN2))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.customers
+: string
+| CREATE TABLE [dbo].[customers] ([id] int NOT NULL, [name] nvarchar(100) NULL, [region] varchar(10) NULL, [born] date NULL);
+| ALTER TABLE [dbo].[customers] ADD CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_double
+: string
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_orders
+: string
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.orders
+: string
+| CREATE TABLE [dbo].[orders] ([id] int NOT NULL, [customer_id] int NULL, [amount] decimal(10,2) NULL, [status] nvarchar(20) NULL, [created] datetime2(3) NULL, [doc] xml NULL);
+| ALTER TABLE [dbo].[orders] ADD CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([c] nvarchar(10) NULL, [d] AS (([c]) collate Latin1_General_BIN2));
+|
+< row
+: string
+| VIEW
+: string
+| dbo.v_customers
+: string
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+|
+< row
+: string
+| SCHEMA
+: string
+| s
+: string
+| CREATE SCHEMA [s];
+|
+< row
+: string
+| TABLE
+: string
+| s.orders
+: string
+| CREATE TABLE [s].[orders] ([id] int NOT NULL, [note] nvarchar(max) NULL);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE TABLE t (c NVARCHAR(10) DEFAULT (1 COLLATE a))
+|
+< error
+| 447 0 16 1 Expression type int is invalid for COLLATE clause.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE TABLE nope.t (c NVARCHAR(10) DEFAULT (N'x' COLLATE a))
+|
+< error
+| 448 1 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE TABLE t (c NVARCHAR(10), CONSTRAINT q CHECK ([c] = N'x' COLLATE latin1_general_bin))
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.customers
+: string
+| CREATE TABLE [dbo].[customers] ([id] int NOT NULL, [name] nvarchar(100) NULL, [region] varchar(10) NULL, [born] date NULL);
+| ALTER TABLE [dbo].[customers] ADD CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_double
+: string
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_orders
+: string
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.orders
+: string
+| CREATE TABLE [dbo].[orders] ([id] int NOT NULL, [customer_id] int NULL, [amount] decimal(10,2) NULL, [status] nvarchar(20) NULL, [created] datetime2(3) NULL, [doc] xml NULL);
+| ALTER TABLE [dbo].[orders] ADD CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([c] nvarchar(10) NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [q] CHECK ([c]=(N'x') collate latin1_general_bin);
+|
+< row
+: string
+| VIEW
+: string
+| dbo.v_customers
+: string
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+|
+< row
+: string
+| SCHEMA
+: string
+| s
+: string
+| CREATE SCHEMA [s];
+|
+< row
+: string
+| TABLE
+: string
+| s.orders
+: string
+| CREATE TABLE [s].[orders] ([id] int NOT NULL, [note] nvarchar(max) NULL);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE TABLE t (c NVARCHAR(10), CHECK (c = N'x' COLLATE a))
+|
+< error
+| 448 1 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| ALTER TABLE customers ALTER COLUMN name NVARCHAR(100) COLLATE sql_latin1_general_cp1_cs_as
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.customers
+: string
+| CREATE TABLE [dbo].[customers] ([id] int NOT NULL, [name] nvarchar(100) NULL, [region] varchar(10) NULL, [born] date NULL);
+| ALTER TABLE [dbo].[customers] ADD CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_double
+: string
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_orders
+: string
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.orders
+: string
+| CREATE TABLE [dbo].[orders] ([id] int NOT NULL, [customer_id] int NULL, [amount] decimal(10,2) NULL, [status] nvarchar(20) NULL, [created] datetime2(3) NULL, [doc] xml NULL);
+| ALTER TABLE [dbo].[orders] ADD CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| VIEW
+: string
+| dbo.v_customers
+: string
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+|
+< row
+: string
+| SCHEMA
+: string
+| s
+: string
+| CREATE SCHEMA [s];
+|
+< row
+: string
+| TABLE
+: string
+| s.orders
+: string
+| CREATE TABLE [s].[orders] ([id] int NOT NULL, [note] nvarchar(max) NULL);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| ALTER TABLE customers ALTER COLUMN name NVARCHAR(100) COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| ALTER TABLE nope ALTER COLUMN name NVARCHAR(100) COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| ALTER TABLE nope ADD c NVARCHAR(10) COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| ALTER TABLE nope ADD c AS (N'x' COLLATE a)
+|
+< error
+| 4902 1 16 1 Cannot find the object "nope" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| ALTER TABLE customers ADD c NVARCHAR(10) DEFAULT (N'x' COLLATE a)
+|
+< error
+| 448 1 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| ALTER TABLE customers ADD c NVARCHAR(10) DEFAULT (N'x' COLLATE latin1_general_ci_as)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.customers
+: string
+| CREATE TABLE [dbo].[customers] ([id] int NOT NULL, [name] nvarchar(100) NULL, [region] varchar(10) NULL, [born] date NULL, [c] nvarchar(10) NULL DEFAULT ((N'x') collate latin1_general_ci_as));
+| ALTER TABLE [dbo].[customers] ADD CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_double
+: string
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_orders
+: string
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.orders
+: string
+| CREATE TABLE [dbo].[orders] ([id] int NOT NULL, [customer_id] int NULL, [amount] decimal(10,2) NULL, [status] nvarchar(20) NULL, [created] datetime2(3) NULL, [doc] xml NULL);
+| ALTER TABLE [dbo].[orders] ADD CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| VIEW
+: string
+| dbo.v_customers
+: string
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+|
+< row
+: string
+| SCHEMA
+: string
+| s
+: string
+| CREATE SCHEMA [s];
+|
+< row
+: string
+| TABLE
+: string
+| s.orders
+: string
+| CREATE TABLE [s].[orders] ([id] int NOT NULL, [note] nvarchar(max) NULL);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| ALTER TABLE customers ADD CHECK (id COLLATE Latin1_General_CI_AS = N'x')
+|
+< error
+| 447 0 16 1 Expression type int is invalid for COLLATE clause.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| ALTER TABLE customers ADD CHECK (name = N'x' COLLATE a)
+|
+< error
+| 448 1 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| ALTER TABLE customers ADD CONSTRAINT k DEFAULT (N'x' COLLATE a) FOR nope
+|
+< error
+| 1752 0 16 1 Column 'nope' in table 'customers' is invalid for creating a default constraint.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| ALTER TABLE customers ADD CONSTRAINT k DEFAULT (N'x' COLLATE a) FOR region
+|
+< error
+| 448 1 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE TYPE tt AS TABLE (c NVARCHAR(10) COLLATE a)
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE PARTITION FUNCTION pf (NVARCHAR(10) COLLATE database_default) AS RANGE FOR VALUES ()
+|
+< error
+| 448 3 16 1 Invalid collation 'database_default'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE DATABASE zz COLLATE database_default
+|
+< error
+| 448 3 16 1 Invalid collation 'database_default'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, [born] DATE NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, [created] DATETIME2(3) NULL, [doc] XML NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE TABLE [s].[orders] ([id] INT NOT NULL, [note] NVARCHAR(MAX) NULL);
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| ALTER DATABASE CURRENT COLLATE a
+|
+< error
+| 448 3 16 1 Invalid collation 'a'.

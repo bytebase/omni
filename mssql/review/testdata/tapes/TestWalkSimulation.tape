@@ -2318,6 +2318,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
+< error
+| 1088 12 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE INDEX a ON a(a) INCLUDE(a)
 < error
 | 1909 2 16 1 Cannot use duplicate column names in index. Column name 'a' listed more than once.
@@ -2699,6 +2709,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a FROM @a
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | DELETE FROM a
 < error
 | 208 1 16 1 Invalid object name 'a'.
@@ -2710,6 +2730,16 @@
 < ok 0 -
 > exec
 | DELETE a WHERE 1 = 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| INSERT TOP(1) a DEFAULT VALUES
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -2792,6 +2822,26 @@
 | INSERT a SELECT *
 < error
 | 263 1 16 1 Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE TOP(1) a SET @a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = 1 FROM @a
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -2950,6 +3000,16 @@
 < ok 0 -
 > exec
 | DELETE OPENDATASOURCE('a', 'a').a zzz
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -3688,6 +3748,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -3828,6 +3898,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP INDEX a
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -3958,6 +4038,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -4051,6 +4141,16 @@
 | ALTER TABLE a ADD a a
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -4228,6 +4328,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -4269,6 +4379,16 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
@@ -4499,6 +4619,35 @@
 | ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+< ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -6833,6 +6982,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
+< error
+| 1088 12 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE INDEX a ON a(a) INCLUDE(a)
 < error
 | 1909 2 16 1 Cannot use duplicate column names in index. Column name 'a' listed more than once.
@@ -7214,6 +7373,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a FROM @a
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | DELETE FROM a
 < error
 | 208 1 16 1 Invalid object name 'a'.
@@ -7225,6 +7394,16 @@
 < ok 0 -
 > exec
 | DELETE a WHERE 1 = 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| INSERT TOP(1) a DEFAULT VALUES
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -7307,6 +7486,26 @@
 | INSERT a SELECT *
 < error
 | 263 1 16 1 Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE TOP(1) a SET @a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = 1 FROM @a
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -7465,6 +7664,16 @@
 < ok 0 -
 > exec
 | DELETE OPENDATASOURCE('a', 'a').a zzz
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -8192,6 +8401,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -8332,6 +8551,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP INDEX a
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -8462,6 +8691,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -8555,6 +8794,16 @@
 | ALTER TABLE a ADD a a
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -8732,6 +8981,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -8773,6 +9032,16 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
@@ -9004,6 +9273,35 @@
 | ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+< ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -11264,6 +11562,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
+< error
+| 1716 2 16 1 FILESTREAM_ON cannot be specified when a table has no FILESTREAM columns. Remove the FILESTREAM_ON clause from the statement, or add a FILESTREAM column to the table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE INDEX a ON a(a) INCLUDE(a)
 < error
 | 1909 2 16 1 Cannot use duplicate column names in index. Column name 'a' listed more than once.
@@ -11653,6 +11961,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a FROM @a
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | DELETE FROM a
 < ok 0 -
 > exec
@@ -11664,6 +11982,15 @@
 > exec
 | DELETE a WHERE 1 = 1
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| INSERT TOP(1) a DEFAULT VALUES
+< ok 1 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -11744,6 +12071,26 @@
 < error
 | 263 1 16 1 Must specify table to select from.
 | 213 1 16 1 Column name or number of supplied values does not match table definition.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE TOP(1) a SET @a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = 1 FROM @a
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -11904,6 +12251,16 @@
 < ok 0 -
 > exec
 | DELETE OPENDATASOURCE('a', 'a').a zzz
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -12651,6 +13008,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 < error
 | 4924 0 16 1 ALTER TABLE ALTER COLUMN failed because column 'a' does not exist in table 'a'.
@@ -12785,6 +13152,15 @@
 | ALTER TABLE a DROP COLUMN a
 < error
 | 4924 1 16 1 ALTER TABLE DROP COLUMN failed because column 'a' does not exist in table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
+< ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -12933,6 +13309,18 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -13032,6 +13420,16 @@
 > exec
 | ALTER TABLE a ADD a a
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -13213,6 +13611,17 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 < error
 | 1911 1 16 1 Column name 'a' does not exist in the target table or view.
@@ -13260,6 +13669,15 @@
 < error
 | 1769 1 16 1 Foreign key 'a' references invalid column 'a' in referencing table 'a'.
 | 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+< ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -13487,6 +13905,36 @@
 | ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 < error
 | 4924 1 16 1 ALTER TABLE ALTER COLUMN failed because column 'a' does not exist in table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+< error
+| 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -15806,6 +16254,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
+< error
+| 1716 2 16 1 FILESTREAM_ON cannot be specified when a table has no FILESTREAM columns. Remove the FILESTREAM_ON clause from the statement, or add a FILESTREAM column to the table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE INDEX a ON a(a) INCLUDE(a)
 < error
 | 1909 2 16 1 Cannot use duplicate column names in index. Column name 'a' listed more than once.
@@ -16191,6 +16649,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a FROM @a
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | DELETE FROM a
 < ok 0 -
 > exec
@@ -16202,6 +16670,15 @@
 > exec
 | DELETE a WHERE 1 = 1
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| INSERT TOP(1) a DEFAULT VALUES
+< ok 1 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -16279,6 +16756,26 @@
 < error
 | 263 1 16 1 Must specify table to select from.
 | 213 1 16 1 Column name or number of supplied values does not match table definition.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE TOP(1) a SET @a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = 1 FROM @a
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -16438,6 +16935,16 @@
 < ok 0 -
 > exec
 | DELETE OPENDATASOURCE('a', 'a').a zzz
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -17184,6 +17691,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 < error
 | 2761 1 16 1 The ROWGUIDCOL property can only be specified on the uniqueidentifier data type.
@@ -17312,6 +17829,15 @@
 < ok 0 -
 > exec
 | ALTER TABLE a DROP COLUMN a
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
 < ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -17461,6 +17987,18 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -17561,6 +18099,16 @@
 | ALTER TABLE a ADD a a
 < error
 | 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -17738,6 +18286,17 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+< error
+| 1921 1 16 1 Invalid filegroup 'a' specified.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 < ok 0 -
 > exec
@@ -17780,6 +18339,15 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 < ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -18009,6 +18577,36 @@
 | ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 < error
 | 1733 3 16 1 Cannot create the sparse column set 'a' in the table 'a' because a sparse column set must be a nullable xml column. Modify the column definition to allow null values.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+< error
+| 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -20316,6 +20914,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
+< error
+| 1716 2 16 1 FILESTREAM_ON cannot be specified when a table has no FILESTREAM columns. Remove the FILESTREAM_ON clause from the statement, or add a FILESTREAM column to the table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE INDEX a ON a(a) INCLUDE(a)
 < error
 | 1909 2 16 1 Cannot use duplicate column names in index. Column name 'a' listed more than once.
@@ -20705,6 +21313,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a FROM @a
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | DELETE FROM a
 < ok 0 -
 > exec
@@ -20716,6 +21334,16 @@
 > exec
 | DELETE a WHERE 1 = 1
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| INSERT TOP(1) a DEFAULT VALUES
+< error
+| 515 2 16 1 Cannot insert the value NULL into column 'b', table 'sim.dbo.a'; column does not allow nulls. INSERT fails.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -20797,6 +21425,26 @@
 < error
 | 263 1 16 1 Must specify table to select from.
 | 213 1 16 1 Column name or number of supplied values does not match table definition.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE TOP(1) a SET @a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = 1 FROM @a
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -20956,6 +21604,16 @@
 < ok 0 -
 > exec
 | DELETE OPENDATASOURCE('a', 'a').a zzz
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -21701,6 +22359,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 < error
 | 2761 1 16 1 The ROWGUIDCOL property can only be specified on the uniqueidentifier data type.
@@ -21834,6 +22502,17 @@
 < ok 0 -
 > exec
 | ALTER TABLE a DROP COLUMN a
+< error
+| 5074 1 16 1 The index 'a' is dependent on column 'a'.
+| 4922 9 16 1 ALTER TABLE DROP COLUMN a failed because one or more objects access this column.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
 < error
 | 5074 1 16 1 The index 'a' is dependent on column 'a'.
 | 4922 9 16 1 ALTER TABLE DROP COLUMN a failed because one or more objects access this column.
@@ -21986,6 +22665,18 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -22086,6 +22777,16 @@
 | ALTER TABLE a ADD a a
 < error
 | 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -22264,6 +22965,17 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+< error
+| 1921 1 16 1 Invalid filegroup 'a' specified.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 < ok 0 -
 > exec
@@ -22306,6 +23018,15 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 < ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
@@ -22533,6 +23254,36 @@
 | ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 < error
 | 2715 6 16 1 Column, parameter, or variable #3: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+< error
+| 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -24852,6 +25603,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
+< error
+| 1716 2 16 1 FILESTREAM_ON cannot be specified when a table has no FILESTREAM columns. Remove the FILESTREAM_ON clause from the statement, or add a FILESTREAM column to the table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE INDEX a ON a(a) INCLUDE(a)
 < error
 | 1909 2 16 1 Cannot use duplicate column names in index. Column name 'a' listed more than once.
@@ -25227,6 +25988,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a FROM @a
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | DELETE FROM a
 < ok 0 -
 > exec
@@ -25238,6 +26009,16 @@
 > exec
 | DELETE a WHERE 1 = 1
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| INSERT TOP(1) a DEFAULT VALUES
+< error
+| 515 2 16 1 Cannot insert the value NULL into column 'b', table 'sim.dbo.t'; column does not allow nulls. INSERT fails.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -25319,6 +26100,26 @@
 < error
 | 263 1 16 1 Must specify table to select from.
 | 4406 1 16 1 Update or insert of view or function 'a' failed because it contains a derived or constant field.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE TOP(1) a SET @a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = 1 FROM @a
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -25478,6 +26279,16 @@
 < ok 0 -
 > exec
 | DELETE OPENDATASOURCE('a', 'a').a zzz
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -26225,6 +27036,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -26365,6 +27186,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP INDEX a
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -26495,6 +27326,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -26588,6 +27429,16 @@
 | ALTER TABLE a ADD a a
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -26765,6 +27616,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -26806,6 +27667,16 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -27038,6 +27909,36 @@
 | ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+< error
+| 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -29358,6 +30259,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
+< error
+| 1914 2 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE INDEX a ON a(a) INCLUDE(a)
 < error
 | 1909 2 16 1 Cannot use duplicate column names in index. Column name 'a' listed more than once.
@@ -29739,6 +30650,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a FROM @a
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | DELETE FROM a
 < error
 | 208 3 16 1 Invalid object name 'a'.
@@ -29750,6 +30671,16 @@
 < ok 0 -
 > exec
 | DELETE a WHERE 1 = 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| INSERT TOP(1) a DEFAULT VALUES
 < error
 | 208 3 16 1 Invalid object name 'a'.
 > exec
@@ -29832,6 +30763,26 @@
 | INSERT a SELECT *
 < error
 | 263 1 16 1 Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE TOP(1) a SET @a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = 1 FROM @a
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -29990,6 +30941,16 @@
 < ok 0 -
 > exec
 | DELETE OPENDATASOURCE('a', 'a').a zzz
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -30734,6 +31695,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -30874,6 +31845,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP INDEX a
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -31004,6 +31985,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -31097,6 +32088,16 @@
 | ALTER TABLE a ADD a a
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -31274,6 +32275,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -31315,6 +32326,16 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -31541,6 +32562,36 @@
 | ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+< error
+| 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -33861,6 +34912,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
+< error
+| 1914 2 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE INDEX a ON a(a) INCLUDE(a)
 < error
 | 1909 2 16 1 Cannot use duplicate column names in index. Column name 'a' listed more than once.
@@ -34242,6 +35303,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a FROM @a
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | DELETE FROM a
 < error
 | 208 3 16 1 Invalid object name 'a'.
@@ -34253,6 +35324,16 @@
 < ok 0 -
 > exec
 | DELETE a WHERE 1 = 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| INSERT TOP(1) a DEFAULT VALUES
 < error
 | 208 3 16 1 Invalid object name 'a'.
 > exec
@@ -34335,6 +35416,26 @@
 | INSERT a SELECT *
 < error
 | 263 1 16 1 Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE TOP(1) a SET @a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = 1 FROM @a
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -34493,6 +35594,16 @@
 < ok 0 -
 > exec
 | DELETE OPENDATASOURCE('a', 'a').a zzz
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -35242,6 +36353,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -35382,6 +36503,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP INDEX a
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -35512,6 +36643,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -35605,6 +36746,16 @@
 | ALTER TABLE a ADD a a
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -35782,6 +36933,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -35823,6 +36984,16 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -36055,6 +37226,35 @@
 | ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+< ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -38394,6 +39594,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
+< error
+| 1914 2 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE INDEX a ON a(a) INCLUDE(a)
 < error
 | 1909 2 16 1 Cannot use duplicate column names in index. Column name 'a' listed more than once.
@@ -38775,6 +39985,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a FROM @a
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | DELETE FROM a
 < error
 | 208 3 16 1 Invalid object name 'a'.
@@ -38786,6 +40006,16 @@
 < ok 0 -
 > exec
 | DELETE a WHERE 1 = 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| INSERT TOP(1) a DEFAULT VALUES
 < error
 | 208 3 16 1 Invalid object name 'a'.
 > exec
@@ -38868,6 +40098,26 @@
 | INSERT a SELECT *
 < error
 | 263 1 16 1 Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE TOP(1) a SET @a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = 1 FROM @a
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -39026,6 +40276,16 @@
 < ok 0 -
 > exec
 | DELETE OPENDATASOURCE('a', 'a').a zzz
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -39775,6 +41035,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -39915,6 +41185,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP INDEX a
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -40045,6 +41325,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -40138,6 +41428,16 @@
 | ALTER TABLE a ADD a a
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -40315,6 +41615,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -40356,6 +41666,16 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -40589,6 +41909,36 @@
 | ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+< error
+| 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -42909,6 +44259,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
+< error
+| 1914 2 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE INDEX a ON a(a) INCLUDE(a)
 < error
 | 1909 2 16 1 Cannot use duplicate column names in index. Column name 'a' listed more than once.
@@ -43284,6 +44644,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a FROM @a
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | DELETE FROM a
 < ok 0 -
 > exec
@@ -43295,6 +44665,16 @@
 > exec
 | DELETE a WHERE 1 = 1
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| INSERT TOP(1) a DEFAULT VALUES
+< error
+| 515 2 16 1 Cannot insert the value NULL into column 'b', table 'sim.dbo.t'; column does not allow nulls. INSERT fails.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -43376,6 +44756,26 @@
 < error
 | 263 1 16 1 Must specify table to select from.
 | 213 1 16 1 Column name or number of supplied values does not match table definition.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE TOP(1) a SET @a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = 1 FROM @a
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -43535,6 +44935,16 @@
 < ok 0 -
 > exec
 | DELETE OPENDATASOURCE('a', 'a').a zzz
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -44282,6 +45692,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -44422,6 +45842,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP INDEX a
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -44552,6 +45982,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -44645,6 +46085,16 @@
 | ALTER TABLE a ADD a a
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -44822,6 +46272,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -44863,6 +46323,16 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -45094,6 +46564,36 @@
 | ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+< error
+| 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -47401,6 +48901,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
+< error
+| 1088 12 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE INDEX a ON a(a) INCLUDE(a)
 < error
 | 1909 2 16 1 Cannot use duplicate column names in index. Column name 'a' listed more than once.
@@ -47782,6 +49292,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a FROM @a
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | DELETE FROM a
 < error
 | 208 1 16 1 Invalid object name 'a'.
@@ -47793,6 +49313,16 @@
 < ok 0 -
 > exec
 | DELETE a WHERE 1 = 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| INSERT TOP(1) a DEFAULT VALUES
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -47875,6 +49405,26 @@
 | INSERT a SELECT *
 < error
 | 263 1 16 1 Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE TOP(1) a SET @a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = 1 FROM @a
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -48033,6 +49583,16 @@
 < ok 0 -
 > exec
 | DELETE OPENDATASOURCE('a', 'a').a zzz
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -48771,6 +50331,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -48911,6 +50481,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP INDEX a
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -49041,6 +50621,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -49134,6 +50724,16 @@
 | ALTER TABLE a ADD a a
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -49311,6 +50911,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -49352,6 +50962,16 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
@@ -49582,6 +51202,35 @@
 | ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+< ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -51811,6 +53460,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
+< error
+| 1088 12 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE INDEX a ON a(a) INCLUDE(a)
 < error
 | 1909 2 16 1 Cannot use duplicate column names in index. Column name 'a' listed more than once.
@@ -52192,6 +53851,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a FROM @a
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | DELETE FROM a
 < error
 | 208 1 16 1 Invalid object name 'a'.
@@ -52203,6 +53872,16 @@
 < ok 0 -
 > exec
 | DELETE a WHERE 1 = 1
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| INSERT TOP(1) a DEFAULT VALUES
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -52285,6 +53964,26 @@
 | INSERT a SELECT *
 < error
 | 263 1 16 1 Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE TOP(1) a SET @a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = 1 FROM @a
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -52443,6 +54142,16 @@
 < ok 0 -
 > exec
 | DELETE OPENDATASOURCE('a', 'a').a zzz
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -53181,6 +54890,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -53321,6 +55040,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP INDEX a
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -53451,6 +55180,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -53544,6 +55283,16 @@
 | ALTER TABLE a ADD a a
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -53721,6 +55470,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -53762,6 +55521,16 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
@@ -53992,6 +55761,35 @@
 | ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+< ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -56282,6 +58080,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
+< error
+| 1914 2 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE INDEX a ON a(a) INCLUDE(a)
 < error
 | 1909 2 16 1 Cannot use duplicate column names in index. Column name 'a' listed more than once.
@@ -56663,6 +58471,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a FROM @a
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | DELETE FROM a
 < error
 | 208 3 16 1 Invalid object name 'a'.
@@ -56674,6 +58492,16 @@
 < ok 0 -
 > exec
 | DELETE a WHERE 1 = 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| INSERT TOP(1) a DEFAULT VALUES
 < error
 | 208 3 16 1 Invalid object name 'a'.
 > exec
@@ -56756,6 +58584,26 @@
 | INSERT a SELECT *
 < error
 | 263 1 16 1 Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE TOP(1) a SET @a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = 1 FROM @a
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -56914,6 +58762,16 @@
 < ok 0 -
 > exec
 | DELETE OPENDATASOURCE('a', 'a').a zzz
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -57663,6 +59521,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -57803,6 +59671,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP INDEX a
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -57933,6 +59811,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -58026,6 +59914,16 @@
 | ALTER TABLE a ADD a a
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -58203,6 +60101,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -58244,6 +60152,16 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -58476,6 +60394,36 @@
 | ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+< error
+| 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -60783,6 +62731,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
+< error
+| 1914 2 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE INDEX a ON a(a) INCLUDE(a)
 < error
 | 1909 2 16 1 Cannot use duplicate column names in index. Column name 'a' listed more than once.
@@ -61164,6 +63122,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a FROM @a
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | DELETE FROM a
 < error
 | 208 3 16 1 Invalid object name 'a'.
@@ -61175,6 +63143,16 @@
 < ok 0 -
 > exec
 | DELETE a WHERE 1 = 1
+< error
+| 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| INSERT TOP(1) a DEFAULT VALUES
 < error
 | 208 3 16 1 Invalid object name 'a'.
 > exec
@@ -61257,6 +63235,26 @@
 | INSERT a SELECT *
 < error
 | 263 1 16 1 Must specify table to select from.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE TOP(1) a SET @a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = 1 FROM @a
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -61415,6 +63413,16 @@
 < ok 0 -
 > exec
 | DELETE OPENDATASOURCE('a', 'a').a zzz
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -62164,6 +64172,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -62304,6 +64322,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP INDEX a
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -62434,6 +64462,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -62527,6 +64565,16 @@
 | ALTER TABLE a ADD a a
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -62704,6 +64752,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -62745,6 +64803,16 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -62977,6 +65045,36 @@
 | ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+< error
+| 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -65246,6 +67344,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
+< error
+| 1716 2 16 1 FILESTREAM_ON cannot be specified when a table has no FILESTREAM columns. Remove the FILESTREAM_ON clause from the statement, or add a FILESTREAM column to the table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE INDEX a ON a(a) INCLUDE(a)
 < error
 | 1909 2 16 1 Cannot use duplicate column names in index. Column name 'a' listed more than once.
@@ -65635,6 +67743,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a FROM @a
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | DELETE FROM a
 < ok 0 -
 > exec
@@ -65646,6 +67764,16 @@
 > exec
 | DELETE a WHERE 1 = 1
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| INSERT TOP(1) a DEFAULT VALUES
+< error
+| 515 2 16 1 Cannot insert the value NULL into column 'b', table 'sim.dbo.a'; column does not allow nulls. INSERT fails.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -65727,6 +67855,26 @@
 < error
 | 263 1 16 1 Must specify table to select from.
 | 213 1 16 1 Column name or number of supplied values does not match table definition.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE TOP(1) a SET @a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = 1 FROM @a
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -65887,6 +68035,16 @@
 < ok 0 -
 > exec
 | DELETE OPENDATASOURCE('a', 'a').a zzz
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -66634,6 +68792,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 < error
 | 2761 1 16 1 The ROWGUIDCOL property can only be specified on the uniqueidentifier data type.
@@ -66766,6 +68934,16 @@
 < ok 0 -
 > exec
 | ALTER TABLE a DROP COLUMN a
+< error
+| 689 1 16 1 Operation not allowed because of pending cleanup of online index build. Wait for cleanup to complete and re-run the operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
 < error
 | 689 1 16 1 Operation not allowed because of pending cleanup of online index build. Wait for cleanup to complete and re-run the operation.
 > exec
@@ -66917,6 +69095,18 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -67019,6 +69209,16 @@
 | ALTER TABLE a ADD a a
 < error
 | 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -67199,6 +69399,17 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+< error
+| 1919 1 16 1 Column 'a' in table 'a' is of a type that is invalid for use as a key column in an index.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 < error
 | 1919 1 16 1 Column 'a' in table 'a' is of a type that is invalid for use as a key column in an index.
@@ -67246,6 +69457,15 @@
 < error
 | 1778 0 16 1 Column 'a.b' is not the same data type as referencing column 'a.a' in foreign key 'FK__a__a__standin4'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+< ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -67470,6 +69690,36 @@
 | ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 < error
 | 2715 6 16 1 Column, parameter, or variable #2: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+< error
+| 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -69740,6 +71990,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
+< error
+| 1716 2 16 1 FILESTREAM_ON cannot be specified when a table has no FILESTREAM columns. Remove the FILESTREAM_ON clause from the statement, or add a FILESTREAM column to the table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE INDEX a ON a(a) INCLUDE(a)
 < error
 | 1909 2 16 1 Cannot use duplicate column names in index. Column name 'a' listed more than once.
@@ -70129,6 +72389,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DELETE a FROM @a
+< error
+| 1087 2 15 1 Must declare the table variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | DELETE FROM a
 < ok 0 -
 > exec
@@ -70140,6 +72410,16 @@
 > exec
 | DELETE a WHERE 1 = 1
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| INSERT TOP(1) a DEFAULT VALUES
+< error
+| 515 2 16 1 Cannot insert the value NULL into column 'b', table 'sim.dbo.a'; column does not allow nulls. INSERT fails.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -70221,6 +72501,26 @@
 < error
 | 263 1 16 1 Must specify table to select from.
 | 213 1 16 1 Column name or number of supplied values does not match table definition.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE TOP(1) a SET @a = 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a = 1 FROM @a
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -70381,6 +72681,16 @@
 < ok 0 -
 > exec
 | DELETE OPENDATASOURCE('a', 'a').a zzz
+< error
+| 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
 > exec
@@ -71126,6 +73436,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 < error
 | 2761 1 16 1 The ROWGUIDCOL property can only be specified on the uniqueidentifier data type.
@@ -71258,6 +73578,16 @@
 < ok 0 -
 > exec
 | ALTER TABLE a DROP COLUMN a
+< error
+| 689 1 16 1 Operation not allowed because of pending cleanup of online index build. Wait for cleanup to complete and re-run the operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
 < error
 | 689 1 16 1 Operation not allowed because of pending cleanup of online index build. Wait for cleanup to complete and re-run the operation.
 > exec
@@ -71409,6 +73739,18 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -71511,6 +73853,16 @@
 | ALTER TABLE a ADD a a
 < error
 | 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -71691,6 +74043,17 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+< error
+| 1919 1 16 1 Column 'a' in table 'a' is of a type that is invalid for use as a key column in an index.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 < error
 | 1919 1 16 1 Column 'a' in table 'a' is of a type that is invalid for use as a key column in an index.
@@ -71738,6 +74101,15 @@
 < error
 | 1778 0 16 1 Column 'a.b' is not the same data type as referencing column 'a.a' in foreign key 'FK__a__a__standin6'.
 | 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+< ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -71964,6 +74336,36 @@
 | ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 < error
 | 2715 6 16 1 Column, parameter, or variable #2: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+< error
+| 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -

@@ -326,6 +326,24 @@ func TestWalkThroughTiDBColumnsAndKeys(t *testing.T) {
 		{sql: "ALTER TABLE ac AUTO_ID_CACHE 100;", want: "TiDB can't move `AUTO_ID_CACHE` of `ac` between 1 and another value."},
 		{sql: "ALTER TABLE ac AUTO_ID_CACHE 1;"},
 		{sql: "CREATE TABLE x (id INT PRIMARY KEY) AUTO_ID_CACHE 1;\nALTER TABLE x AUTO_ID_CACHE 100;", statement: 1, want: "TiDB can't move `AUTO_ID_CACHE` of `x` between 1 and another value."},
+		{sql: "ALTER TABLE t DROP PRIMARY KEY;", want: "TiDB can't drop the primary key of `t`, which clusters the table."},
+		{sql: "ALTER TABLE comp DROP INDEX `PRIMARY`;", want: "TiDB can't drop the primary key of `comp`, which clusters the table."},
+		{sql: "DROP INDEX `PRIMARY` ON t;", want: "TiDB can't drop the primary key of `t`, which clusters the table."},
+		{sql: "ALTER TABLE t RENAME TO t2;\nALTER TABLE t2 DROP PRIMARY KEY;", statement: 1, want: "TiDB can't drop the primary key of `t2`, which clusters the table."},
+		{sql: "ALTER TABLE nc DROP PRIMARY KEY;"},
+		// TiDB refuses this too (8200); the walk leaves IF EXISTS alone.
+		{sql: "ALTER TABLE t DROP INDEX IF EXISTS `PRIMARY`;"},
+		// Whether TiDB clusters the key is tidb_enable_clustered_index,
+		// which the walk does not read from CREATE TABLE.
+		{sql: "CREATE TABLE x (id INT PRIMARY KEY);\nALTER TABLE x DROP PRIMARY KEY;"},
+		{sql: "DROP TABLE t;\nCREATE TABLE t (id INT, a INT);\nALTER TABLE t SHARD_ROW_ID_BITS = 4;"},
+		{sql: "ALTER TABLE t SHARD_ROW_ID_BITS = 4;", want: "TiDB can't set `SHARD_ROW_ID_BITS` on `t`, which is clustered by its primary key and has no row id to shard."},
+		{sql: "ALTER TABLE comp SHARD_ROW_ID_BITS 1, COMMENT 'c';", want: "TiDB can't set `SHARD_ROW_ID_BITS` on `comp`, which is clustered by its primary key and has no row id to shard."},
+		{sql: "ALTER TABLE t SHARD_ROW_ID_BITS = 0;"},
+		{sql: "ALTER TABLE nc SHARD_ROW_ID_BITS = 4;"},
+		// TiDB refuses this too (8200); the walk claims only an option that
+		// comes first.
+		{sql: "ALTER TABLE t COMMENT 'c', SHARD_ROW_ID_BITS = 4;"},
 		{sql: "ALTER TABLE t PARTITION BY HASH (a);", want: "Every unique key of `t` must hold all columns of its partitioning, and the primary key doesn't."},
 		{sql: "ALTER TABLE nc PARTITION BY HASH (a);", want: "Every unique key of `nc` must hold all columns of its partitioning, and the primary key doesn't."},
 		{sql: "ALTER TABLE t PARTITION BY HASH (id);"},

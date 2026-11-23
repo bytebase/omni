@@ -150,6 +150,15 @@ func (p *Parser) parseCreateConstraintTrigger(replace bool) (*nodes.CreateTrigSt
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
+	// gram.y CreateTrigStmt: the CONSTRAINT TRIGGER alternative takes
+	// opt_or_replace, and its action refuses it with no position:
+	// "CREATE OR REPLACE CONSTRAINT TRIGGER is not supported".
+	if replace {
+		if p.collectMode() {
+			return nil, errCollecting
+		}
+		return nil, &ParseError{Code: "0A000", Message: "CREATE OR REPLACE CONSTRAINT TRIGGER is not supported", Position: -1}
+	}
 	return &nodes.CreateTrigStmt{
 		Replace: replace, IsConstraint: true, Trigname: trigname,
 		Relation: relation, Funcname: funcname, Args: args, Row: true,

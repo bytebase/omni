@@ -602,10 +602,17 @@ CREATE SYNONYM APP.S_UNQUAL_REMOTE FOR APP.T@REMOTE_LINK;
 				{Name: "NAME", Type: "VARCHAR2(20 BYTE)", Position: 2, Nullable: true},
 			},
 		}
+		// Oracle stores a view's * expanded, and so does LoadSQL when the
+		// view's table is in the schema.
+		syncedExpandedView := &metadatapb.ViewMetadata{
+			Name:       "V",
+			Definition: `SELECT "ID","NAME" FROM T`,
+			Columns:    syncedStarView.Columns,
+		}
 		fromWithTable := loadMeta(t, schemaWith(&metadatapb.SchemaMetadata{
 			Name:   "APP",
 			Tables: []*metadatapb.TableMetadata{syncedTable},
-			Views:  []*metadatapb.ViewMetadata{syncedStarView},
+			Views:  []*metadatapb.ViewMetadata{syncedExpandedView},
 		}))
 		toWithTable, err := LoadSQL(`
 CREATE TABLE APP.T (ID NUMBER, NAME VARCHAR2(20 BYTE));
@@ -641,7 +648,7 @@ CREATE FORCE VIEW APP.V_EXPR AS SELECT ID + 1 FROM T;
 			Tables: []*metadatapb.TableMetadata{syncedTable},
 			Views: []*metadatapb.ViewMetadata{{
 				Name:       "V",
-				Definition: "SELECT * FROM T",
+				Definition: `SELECT "ID","NAME" FROM T`,
 				Columns: []*metadatapb.ColumnMetadata{
 					{Name: "RENAMED_ID", Type: "NUMBER", Position: 1, Nullable: true},
 					{Name: "RENAMED_NAME", Type: "VARCHAR2(20 BYTE)", Position: 2, Nullable: true},
@@ -656,7 +663,7 @@ CREATE FORCE VIEW APP.V_EXPR AS SELECT ID + 1 FROM T;
 			Tables: []*metadatapb.TableMetadata{syncedTable},
 			Views: []*metadatapb.ViewMetadata{{
 				Name:       "V",
-				Definition: "SELECT * FROM T",
+				Definition: `SELECT "ID","NAME" FROM T`,
 				Columns: []*metadatapb.ColumnMetadata{
 					{Name: "ID", Type: "NUMBER", Position: 1, Nullable: true, IsInvisible: true},
 					{Name: "NAME", Type: "VARCHAR2(20 BYTE)", Position: 2, Nullable: true},
@@ -673,7 +680,7 @@ CREATE VIEW APP.V (A, B) AS SELECT * FROM T;
 		require.NoError(t, err)
 		addAliasSQL := GenerateMigration(toWithTable, toAliasedStar, nil).SQL()
 		require.Contains(t, addAliasSQL, `DROP VIEW "APP"."V";`)
-		require.Contains(t, addAliasSQL, `CREATE VIEW "APP"."V" ("A", "B") AS SELECT * FROM T;`)
+		require.Contains(t, addAliasSQL, `CREATE VIEW "APP"."V" ("A", "B") AS SELECT "ID","NAME" FROM T;`)
 	})
 
 	t.Run("column collation change detaches and restores indexes, constraints, and incoming foreign keys", func(t *testing.T) {

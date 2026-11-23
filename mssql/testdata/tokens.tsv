@@ -30,3 +30,29 @@ Object	(unreachable)	TSql160.g:33828 a token the parser names and neither tokens
 Disk	(unreachable)	TSqlTokenTypes.g:208 a keyword of T-SQL 80 only, with no text in TSql160
 Precision	(unreachable)	TSqlTokenTypes.g:209 a keyword of T-SQL 80 only, with no text in TSql160; DOUBLE PRECISION matches an identifier
 statement	SELECT 1	TSql160.g:5013 the plainest statement, where the grammar's first, BREAK, is refused outside a WHILE (135)
+# Optional clauses tried at every site the grammar allows them, and not only
+# at the one its shortest row reaches. TSql160.g4 writes most optional clauses
+# inline, ( If Exists )?, as a rule of each statement's own, so each already
+# has its row; these are the ones a rule names at more than one site.
+alterTableDropTableElement(If_Exists)?	(every site)	TSql160.g:28393 IF EXISTS on ALTER TABLE DROP CONSTRAINT and DROP COLUMN
+foreignKeyConstraintCommonEnd(On_Delete_deleteUpdateAction)?	(every site)	TSql160.g:29924 ON DELETE CASCADE, alone or after ON UPDATE
+replicationClauseOpt	(every site)	TSql160.g:29984 NOT FOR REPLICATION
+authorizationOpt	(every site)	TSql160.g:33152 AUTHORIZATION owner
+collationOpt	(every site)	TSql160.g:33166 COLLATE name
+fileStreamOnOpt	(every site)	TSql160.g:29193 FILESTREAM_ON
+outputClauseOpt	(every site)	TSql160.g:19663 OUTPUT on a DML statement
+dmlTopRowFilterOpt	(every site)	TSql160.g:18343 TOP on a DML statement
+fromClauseOpt	(every site)	TSql160.g:18561 FROM
+uniqueRowFilterOpt	(every site)	TSql160.g:18224 ALL or DISTINCT
+simpleTableReferenceAliasOpt	(every site)	TSql160.g:20284 a table source's alias
+qualifiedJoin(Outer)?	(every site)	TSql160.g:19301 OUTER
+populationOption	(every site)	TSql160.g:11688 WITH NO POPULATION
+securityStatementAsClauseOpt	(every site)	TSql160.g:14152 AS principal
+securityStatementTargetObjectOpt	(every site)	TSql160.g:14141 ON securable
+auditSpecificationStateOpt	(every site)	TSql160.g:5491 WITH (STATE = ...)
+dataTypeParametersOpt	(every site)	TSql160.g:30253 a type's parameters
+optSessionOptionList	(every site)	TSql160.g:7862 an event session's WITH options
+uniqueConstraintTailOpt	(every site)	TSql160.g:29806 ON a filegroup
+foreignConstraintColumnsOpt	(every site)	TSql160.g:30091 a FOREIGN KEY's columns
+inlineIndexType	(every site)	TSql160.g:28624 CLUSTERED, NONCLUSTERED or HASH
+functionReturnTypeAndBody(functionAttributes)?	(every site)	TSql160.g:13029 a function's WITH options

@@ -9,7 +9,7 @@ columns and what passes, and starts no server.
 
 | Rule | Rows | From |
 |---|---|---|
-| Generated (`Rule/symbols`, near-misses `!drop-2`, `!swap`) | 13,700 | `../../testdata/gram.y` and `../../testdata/tokens.tsv` |
+| Generated (`Rule/symbols`, near-misses `!drop-2`, `!swap`) | 13,971 | `../../testdata/gram.y` and `../../testdata/tokens.tsv` |
 | `suite:lexer` | 250 | the token forms `tokens.tsv` does not spell (below) |
 | `suite:psql` | 7 | psql-adjacent non-metacommand and variable forms rejected by both server and omni |
 | `suite:paren-fuzz` | 2,827 | the paren dispatch fuzz (`../paren_oracle_fuzz_test.go`) |
@@ -19,8 +19,12 @@ shortest statement that reaches it, then its near-misses: the statement with
 one token dropped, the end cut off, a stray word inserted, or a keyword
 swapped. 13 alternatives get no row: the five `MODE_*` entry points
 `raw_parser` uses for a type name and for PL/pgSQL, and the rules only they
-reach. `TestCompatibility` regenerates these rows and fails if the file holds
-others.
+reach. A rule `tokens.tsv` marks `(every site)` (`opt_drop_behavior`,
+`opt_or_replace`, `OptTemp`, `opt_if_not_exists` and the other optional
+clauses listed there) also gets a row at each alternative that names it, with
+the clause written out (`Rule/symbols+opt_drop_behavior`), whose near-misses
+drop the clause's tokens. `TestCompatibility` regenerates these rows and fails
+if the file holds others.
 
 **`suite:lexer`** is every form `scan.l` reads that a generated row does not
 write, each in a `SELECT`: strings with `''` and with a newline between
@@ -63,7 +67,7 @@ parses the whole text before it runs any of it, so:
   `CREATE ASSERTION`, which `gram.y` refuses). The verdict is `reject@<byte>`,
   the byte the server points at, and `omniVerdict` writes `ParseError.Position`
   the same way. So a row agrees only when omni rejects at the same byte.
-- **No position:** 33 rows, where an action reports none: an unknown
+- **No position:** 34 rows, where an action reports none: an unknown
   partitioning strategy, a constraint attribute on a domain's `NOT NULL`
   (`processCASbits`), `WITH TIES` without `ORDER BY`. The verdict is a bare
   `reject`.
@@ -77,24 +81,25 @@ What this cannot tell:
 
 ## Counts at `REL_17_12`
 
-PostgreSQL 17.12 server compatibility is **16,784 / 16,784 (100.00%)** (`13,700`
+PostgreSQL 17.12 server compatibility is **17,055 / 17,055 (100.00%)** (`13,971`
 PG 17 grammar rows + `250` `suite:lexer` + `7` `suite:psql` server-matching
 forms + `2,827` `suite:paren-fuzz`).
 
 | Rows | Total | Same verdict | Same byte | Only PostgreSQL accepts | Only omni accepts |
 |---|---|---|---|---|---|
-| Alternatives | 3,394 | 3,394 | 3,394 | 0 | 0 |
-| Near-misses | 10,306 | 10,306 | 10,306 | 0 | 0 |
+| Alternatives | 3,591 | 3,591 | 3,591 | 0 | 0 |
+| Near-misses | 10,380 | 10,380 | 10,380 | 0 | 0 |
 | `suite:lexer` | 250 | 250 | 250 | 0 | 0 |
 | `suite:psql` | 7 | 7 | 7 | 0 | 0 |
 | `suite:paren-fuzz` | 2,827 | 2,827 | 2,827 | 0 | 0 |
-| **All** | **16,784** | **16,784** | **16,784** | **0** | **0** |
+| **All** | **17,055** | **17,055** | **17,055** | **0** | **0** |
 
-PostgreSQL accepts 3,306 of the 3,394 alternatives. A grammar action refuses
-the other 88 as the generator writes them: `CREATE ASSERTION`, an operator
+PostgreSQL accepts 3,499 of the 3,591 alternatives. A grammar action refuses
+the other 92 as the generator writes them: `CREATE ASSERTION`, an operator
 written with one argument type (`DROP OPERATOR ~(a)`), a publication object
 with no `TABLE` before it, a `JSON_TABLE` path with no name, a window frame
-that ends before it starts, `OVERLAPS` with rows of the wrong length.
+that ends before it starts, `OVERLAPS` with rows of the wrong length,
+`CREATE OR REPLACE CONSTRAINT TRIGGER`.
 
 ## Commands
 
@@ -104,7 +109,7 @@ From `<repo root>`. Judge new rows, or every row after a pin bump:
 OMNI_RECORD=1 go test ./pg/parser/ -run '^TestCompatibility$'
 ```
 
-It starts the pinned image and judges all 16,784 rows in under ten seconds.
+It starts the pinned image and judges all 17,055 rows in under ten seconds.
 Commit rows a parser fix moved:
 
 ```bash

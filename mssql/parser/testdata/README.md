@@ -13,11 +13,18 @@ on a fresh server confirmed every row.
 
 | Rows | Total | Agree | Only SQL Server accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 5,510 | 5,510 | 0 | 0 |
-| Near-misses | 11,960 | 11,960 | 0 | 0 |
+| One per alternative | 5,592 | 5,592 | 0 | 0 |
+| Near-misses | 12,114 | 12,114 | 0 | 0 |
 | `suite:lexer` | 66 | 66 | 0 | 0 |
+| `suite:optional-clauses` | 100 | 100 | 0 | 0 |
 
-The rev 3 judge accepts 3,156 of the 5,510 alternatives. Five more alternatives get
+5,592 alternatives include 82 rows `tokens.tsv` adds with an optional clause
+written out at each site a rule names it (`(every site)`), such as
+`ALTER TABLE a DROP COLUMN IF EXISTS a`. `suite:optional-clauses` holds
+`IF EXISTS`, `IF NOT EXISTS`, `CREATE OR ALTER`, `CREATE OR REPLACE`,
+`TEMPORARY` and `CASCADE` where T-SQL has none, which no grammar row reaches.
+
+The rev 3 judge accepts 3,208 of the 5,592 alternatives. Five more alternatives get
 no row: they name a token neither keyword table gives a text
 (`Credential`, `Connection`, `Object`, `Disk`, `Precision`), so ScriptDOM's
 lexer never makes it.
@@ -48,7 +55,7 @@ lexer never makes it.
   `{NextTokenMatches(CodeGenerationSupporter.X)}? rule`, which becomes a copy
   of `rule` that starts with `X` (`rule_X`). An option a helper reads by its
   text (`ParseOption(tOption)`) stays an identifier, sampled `a`, so its rows
-  are refused: most of the 2,354 alternatives the rev 3 judge refuses are such
+  are refused: most of the 2,384 alternatives the rev 3 judge refuses are such
   options, and Azure SQL forms outside the rev 3 fallback families.
 - **Token forms** are in `../../testdata/tokens.tsv`, cited to the lexer rules
   of `TSql160.g`. One row picks a rule's text: a `statement` inside another is
@@ -129,7 +136,13 @@ go test ./mssql/parser/ -run '^TestCompatibility$' -update-compat
 
 ## The work list
 
-17,536 / 17,536 rows agree (**100.00%**, 0 `only_mssql`, 0 `only_omni`, up from
+17,872 / 17,872 rows agree (**100.00%**). The `(every site)` and
+`suite:optional-clauses` rows found 21 gaps, closed: `CREATE OR ALTER` on
+anything but a function, procedure, trigger or view (13), `IF EXISTS` on
+`DROP PARTITION FUNCTION`/`SCHEME` and `DROP XML SCHEMA COLLECTION` (3), a DML
+`FROM` with no table source (2), `NOT FOR` without `REPLICATION` (1), and a
+constraint's `ON` with a string filegroup or none (2). Before them,
+17,536 / 17,536 rows agreed (0 `only_mssql`, 0 `only_omni`, up from
 17,506 / 17,536 = 99.83% after judge rev 3): 12,212 when the file was first
 recorded, the rest closed family by family (#1034 to #1070, and then the
 batch's call by name, `ALTER AUTHORIZATION` and the refusals around it,
@@ -154,8 +167,8 @@ closing all 30 parser gaps judge rev 3 exposed in `external.go` (27 CETAS
 STREAM` option-duplication row, 1 `COPY INTO ... WITH(IDENTITY_INSERT = a)`
 row, and 1 duplicate `FORMAT_OPTIONS(USE_TYPE_DEFAULT = ...)` row).
 
-0 rows disagree: all 5,510 alternatives, all 11,960 near-misses, and all 66
-`suite:lexer` rows agree.
+0 rows disagree: all 5,592 alternatives, all 12,114 near-misses, all 66
+`suite:lexer` and all 100 `suite:optional-clauses` rows agree.
 
 ### Closed over-accepts (3)
 

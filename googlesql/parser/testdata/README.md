@@ -19,15 +19,22 @@ verified end-to-end with `OMNI_RECORD=verify` with zero differences.
 
 | Rows | Total | Agree | Only union accepts | Only omni accepts | Agreement |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| One per alternative | 2,614 | 2,614 | 0 | 0 | 100.00% |
-| Near-misses | 6,223 | 6,223 | 0 | 0 | 100.00% |
+| One per alternative | 2,737 | 2,737 | 0 | 0 | 100.00% |
+| Near-misses | 6,503 | 6,503 | 0 | 0 | 100.00% |
 | Suites (`suite:*`) | 626 | 626 | 0 | 0 | 100.00% |
-| **All** | **9,463** | **9,463** | **0** | **0** | **100.00%** |
+| **All** | **9,866** | **9,866** | **0** | **0** | **100.00%** |
 
 The rows start from `unterminated_statement`, a statement of a script, so
 they cover GoogleSQL's scripting and BigQuery statements as well as what
 Spanner runs. `select_column_expr`'s `ATTACHED_ALIAS` alternative gets no row:
 it refuses every input (`../../testdata/tokens.tsv`).
+
+Seven optional clauses (`opt_if_not_exists`, `opt_if_exists`, `opt_or_replace`,
+`opt_create_scope`, `opt_access`, `opt_unique`, `opt_options_list`) are tried
+at every site the grammar allows them (`(every site)` in
+`../../testdata/tokens.tsv`), adding 403 rows. They found two gaps, both
+closed: Spanner refuses `CREATE VIEW IF NOT EXISTS`, and an empty LOCALITY
+GROUP `OPTIONS()`.
 
 ### Judge revision 4 (`PinRole: "parser"`, BigQuery ∪ Spanner union judge)
 

@@ -26,7 +26,7 @@ func TestWalkSimulation(t *testing.T) {
 		// 30 of the ddl refusals the walk misses are ALTER TABLE ADD/DROP
 		// STATS_EXTENDED, 1105 while tidb_enable_extended_stats is off: a
 		// disabled feature, which the walk does not model (createStatistics).
-		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 97.8},
+		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 98.2},
 		{"sequences", filepath.Join("..", "catalog", "testdata", "sequences", "simulate.tsv"), 100.0},
 		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 96.5},
 	} {

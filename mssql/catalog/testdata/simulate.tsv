@@ -83,6 +83,7 @@ ok:c9be65ef10f0	ok:c9be65ef10f0	engine	one_table@missing	dropTriggerStatement(If
 4902	4902	engine	one_table@missing	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1088	1088	engine	one_table@missing	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1088	1088	engine	one_table@missing	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1088	1088	engine	one_table@missing	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	1909	engine	one_table@missing	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 208	208	engine	one_table@missing	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1088	1088	engine	one_table@missing	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -178,6 +179,7 @@ ok:8f7dec70eb31	ok:8f7dec70eb31	engine	one_table@missing	createTableStatement(FI
 4902	4902	engine	one_table@missing	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4902	4902	engine	one_table@missing	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4902	4902	engine	one_table@missing	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	448	engine	one_table@missing	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4902	4902	engine	one_table@missing	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4902	4902	engine	one_table@missing	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4902	4902	engine	one_table@missing	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -192,6 +194,7 @@ ok:8f7dec70eb31	ok:8f7dec70eb31	engine	one_table@missing	createTableStatement(FI
 8168	8168	engine	one_table@missing	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 4902	4902	engine	one_table@missing	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 4902	4902	engine	one_table@missing	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+4902	4902	engine	one_table@missing	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 4902	4902	engine	one_table@missing	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 4902	4902	engine	one_table@missing	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 4902	4902	engine	one_table@missing	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -205,6 +208,7 @@ ok:8f7dec70eb31	ok:8f7dec70eb31	engine	one_table@missing	createTableStatement(FI
 8135	8135	engine	one_table@missing	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	8135	engine	one_table@missing	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 4902	4902	engine	one_table@missing	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	8135	engine	one_table@missing	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	8135	engine	one_table@missing	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 4902	4902	engine	one_table@missing	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 4902	4902	engine	one_table@missing	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -215,6 +219,7 @@ ok:8f7dec70eb31	ok:8f7dec70eb31	engine	one_table@missing	createTableStatement(FI
 4902	4902	engine	one_table@missing	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4902	4902	engine	one_table@missing	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4902	4902	engine	one_table@missing	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	448	engine	one_table@missing	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4902	4902	engine	one_table@missing	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4902	4902	engine	one_table@missing	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4902	4902	engine	one_table@missing	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -232,11 +237,13 @@ ok:8f7dec70eb31	ok:8f7dec70eb31	engine	one_table@missing	createTableStatement(FI
 4902	4902	engine	one_table@missing	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 4902	4902	engine	one_table@missing	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 4902	4902	engine	one_table@missing	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+4902	4902	engine	one_table@missing	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4902	4902	engine	one_table@missing	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 4902	4902	engine	one_table@missing	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4902	4902	engine	one_table@missing	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4902	4902	engine	one_table@missing	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4902	4902	engine	one_table@missing	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+4902	4902	engine	one_table@missing	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 15151	15151	engine	one_table@missing	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 15151	15151	engine	one_table@missing	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 1088	1088	engine	one_table@missing	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/With_xmlNamespaces	CREATE SELECTIVE XML INDEX a ON a(a) WITH XMLNAMESPACES(DEFAULT 'a') FOR(a = 'a')
@@ -256,6 +263,9 @@ ok:c9be65ef10f0	ok:c9be65ef10f0	engine	one_table@missing	dropSequenceStatement_S
 4902	4902	engine	one_table@missing	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4902	4902	engine	one_table@missing	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4902	4902	engine	one_table@missing	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	8168	engine	one_table@missing	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	8168	engine	one_table@missing	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+ok:2b5f48c7bbbd	ok:2b5f48c7bbbd	engine	one_table@missing	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 ok:b08530f8a202	ok:b08530f8a202	engine	one_table@table	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	one_table@table	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	one_table@table	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -339,6 +349,7 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	dropTableStatement(If_Exi
 2715	2715	engine	one_table@table	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1911	1911	engine	one_table@table	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1911	1911	engine	one_table@table	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1716	1716	engine	one_table@table	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	1909	engine	one_table@table	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 207	207	engine	one_table@table	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1911	1911	engine	one_table@table	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -434,6 +445,7 @@ ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	constraintEnforcement/NoC
 1921	1921	engine	one_table@table	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 33411	33411	engine	one_table@table	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 13591	13591	engine	one_table@table	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	448	engine	one_table@table	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4924	4924	engine	one_table@table	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4924	4924	engine	one_table@table	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4924	4924	engine	one_table@table	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -448,6 +460,7 @@ ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	constraintEnforcement/NoC
 8168	8168	engine	one_table@table	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 13593	13593	engine	one_table@table	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 4924	4924	engine	one_table@table	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 10785	10785	engine	one_table@table	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 3728	3728	engine	one_table@table	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -461,6 +474,7 @@ ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	alterTableDropTableElemen
 8135	8135	engine	one_table@table	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	8135	engine	one_table@table	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 2715	2715	engine	one_table@table	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	8135	engine	one_table@table	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	8135	engine	one_table@table	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 10785	10785	engine	one_table@table	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 1909	1909	engine	one_table@table	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -471,6 +485,7 @@ ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	alterTableDropTableElemen
 ok:8cdc0a1f9ace	ok:8cdc0a1f9ace	engine	one_table@table	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 ok:ccc3e812d051	ok:ccc3e812d051	engine	one_table@table	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 2715	2715	engine	one_table@table	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	448	engine	one_table@table	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 2715	2715	engine	one_table@table	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 2715	2715	engine	one_table@table	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 2715	2715	engine	one_table@table	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -488,11 +503,13 @@ ok:6c971c3a9d9f	ok:6c971c3a9d9f	engine	one_table@table	tableConstraint(uniqueTab
 13930	13930	engine	one_table@table	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 1752	1752	engine	one_table@table	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 1909	1909	engine	one_table@table	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+1911	1911	engine	one_table@table	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 1911	1911	engine	one_table@table	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 2715	2715	engine	one_table@table	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 13930	13930	engine	one_table@table	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 13930	13930	engine	one_table@table	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 1769	1769	engine	one_table@table	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+ok:6c971c3a9d9f	ok:6c971c3a9d9f	engine	one_table@table	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 15151	15151	engine	one_table@table	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 15151	15151	engine	one_table@table	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 1911	1911	engine	one_table@table	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/With_xmlNamespaces	CREATE SELECTIVE XML INDEX a ON a(a) WITH XMLNAMESPACES(DEFAULT 'a') FOR(a = 'a')
@@ -512,6 +529,9 @@ ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	ignoreDupKeyIndexOption_I
 4955	4955	engine	one_table@table	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4924	4924	engine	one_table@table	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	8168	engine	one_table@table	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	8168	engine	one_table@table	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+2010	2010	engine	one_table@table	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 ok:700d834f3ec9	ok:700d834f3ec9	engine	one_table@column	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	one_table@column	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	one_table@column	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -595,6 +615,7 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	dropTableStatement(If_Ex
 2705	2705	engine	one_table@column	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 ok:89c47dbd1788	ok:89c47dbd1788	engine	one_table@column	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1902	1902	engine	one_table@column	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1716	1716	engine	one_table@column	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	1909	engine	one_table@column	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 207	207	engine	one_table@column	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 ok:89c47dbd1788	ok:89c47dbd1788	engine	one_table@column	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -690,6 +711,7 @@ ok:899120d16816	ok:899120d16816	engine	one_table@column	constraintEnforcement/No
 1921	1921	engine	one_table@column	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 33411	33411	engine	one_table@column	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 13591	13591	engine	one_table@column	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	448	engine	one_table@column	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 2761	2761	engine	one_table@column	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 2715	2715	engine	one_table@column	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 2715	2715	engine	one_table@column	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -704,6 +726,7 @@ ok:899120d16816	ok:899120d16816	engine	one_table@column	alterTableAlterColumnSta
 8168	8168	engine	one_table@column	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 13593	13593	engine	one_table@column	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 ok:f3f91e418855	ok:f3f91e418855	engine	one_table@column	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+ok:f3f91e418855	ok:f3f91e418855	engine	one_table@column	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 10785	10785	engine	one_table@column	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 3728	3728	engine	one_table@column	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 ok:899120d16816	ok:899120d16816	engine	one_table@column	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -717,6 +740,7 @@ ok:899120d16816	ok:899120d16816	engine	one_table@column	alterTableDropTableEleme
 8135	8135	engine	one_table@column	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	8135	engine	one_table@column	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 2715	2715	engine	one_table@column	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	8135	engine	one_table@column	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	8135	engine	one_table@column	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 10785	10785	engine	one_table@column	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 1909	1909	engine	one_table@column	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -727,6 +751,7 @@ ok:c1bdaacd0fe9	ok:c1bdaacd0fe9	engine	one_table@column	tableElement/tableConstr
 2705	2705	engine	one_table@column	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 2705	2705	engine	one_table@column	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 2705	2705	engine	one_table@column	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	448	engine	one_table@column	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 2705	2705	engine	one_table@column	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 2705	2705	engine	one_table@column	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 2705	2705	engine	one_table@column	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -744,11 +769,13 @@ ok:34d8ba350b50	ok:34d8ba350b50	engine	one_table@column	tableConstraint(uniqueTa
 13930	13930	engine	one_table@column	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 ok:45511b3ac5ea	ok:45511b3ac5ea	engine	one_table@column	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 1909	1909	engine	one_table@column	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+1921	1921	engine	one_table@column	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 ok:c1bdaacd0fe9	ok:c1bdaacd0fe9	engine	one_table@column	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 2705	2705	engine	one_table@column	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 13930	13930	engine	one_table@column	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 13930	13930	engine	one_table@column	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 ok:ff598b39c05d	ok:ff598b39c05d	engine	one_table@column	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+ok:34d8ba350b50	ok:34d8ba350b50	engine	one_table@column	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 15151	15151	engine	one_table@column	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 15151	15151	engine	one_table@column	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 6330	6330	engine	one_table@column	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/With_xmlNamespaces	CREATE SELECTIVE XML INDEX a ON a(a) WITH XMLNAMESPACES(DEFAULT 'a') FOR(a = 'a')
@@ -768,6 +795,9 @@ ok:899120d16816	ok:899120d16816	engine	one_table@column	ignoreDupKeyIndexOption_
 4955	4955	engine	one_table@column	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 ok:899120d16816	ok:899120d16816	engine	one_table@column	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 2715	2715	engine	one_table@column	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	8168	engine	one_table@column	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	8168	engine	one_table@column	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+2010	2010	engine	one_table@column	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 ok:5855584afb6a	ok:5855584afb6a	engine	one_table@index	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	one_table@index	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	one_table@index	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -851,6 +881,7 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@index	dropTableStatement(If_Exi
 2705	2705	engine	one_table@index	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1913	1913	engine	one_table@index	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1913	1913	engine	one_table@index	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1716	1716	engine	one_table@index	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	1909	engine	one_table@index	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 207	207	engine	one_table@index	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1913	1913	engine	one_table@index	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -946,6 +977,7 @@ ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	constraintEnforcement/NoC
 1921	1921	engine	one_table@index	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 33411	33411	engine	one_table@index	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 13591	13591	engine	one_table@index	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	448	engine	one_table@index	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 2761	2761	engine	one_table@index	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 2715	2715	engine	one_table@index	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 2715	2715	engine	one_table@index	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -960,6 +992,7 @@ ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	alterTableAlterColumnStat
 8168	8168	engine	one_table@index	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 13593	13593	engine	one_table@index	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 ok:46a01911f0a1	ok:46a01911f0a1	engine	one_table@index	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+ok:46a01911f0a1	ok:46a01911f0a1	engine	one_table@index	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 10785	10785	engine	one_table@index	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 3728	3728	engine	one_table@index	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -973,6 +1006,7 @@ ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	alterTableDropTableElemen
 8135	8135	engine	one_table@index	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	8135	engine	one_table@index	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 2715	2715	engine	one_table@index	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	8135	engine	one_table@index	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	8135	engine	one_table@index	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 10785	10785	engine	one_table@index	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 1909	1909	engine	one_table@index	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -983,6 +1017,7 @@ ok:c5b4fe588b97	ok:c5b4fe588b97	engine	one_table@index	tableElement/tableConstra
 2705	2705	engine	one_table@index	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 2705	2705	engine	one_table@index	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 2705	2705	engine	one_table@index	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	448	engine	one_table@index	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 2705	2705	engine	one_table@index	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 2705	2705	engine	one_table@index	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 2705	2705	engine	one_table@index	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -1000,11 +1035,13 @@ ok:d3bb6f6e137e	ok:d3bb6f6e137e	engine	one_table@index	tableConstraint(uniqueTab
 13930	13930	engine	one_table@index	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 ok:f7db7e86818d	ok:f7db7e86818d	engine	one_table@index	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 1909	1909	engine	one_table@index	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+1921	1921	engine	one_table@index	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 ok:c5b4fe588b97	ok:c5b4fe588b97	engine	one_table@index	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 2705	2705	engine	one_table@index	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 13930	13930	engine	one_table@index	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 13930	13930	engine	one_table@index	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 ok:a7a4d6c3399e	ok:a7a4d6c3399e	engine	one_table@index	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+ok:d3bb6f6e137e	ok:d3bb6f6e137e	engine	one_table@index	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 15151	15151	engine	one_table@index	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 15151	15151	engine	one_table@index	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 1913	1913	engine	one_table@index	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/With_xmlNamespaces	CREATE SELECTIVE XML INDEX a ON a(a) WITH XMLNAMESPACES(DEFAULT 'a') FOR(a = 'a')
@@ -1024,6 +1061,9 @@ ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	ignoreDupKeyIndexOption_I
 4955	4955	engine	one_table@index	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 2715	2715	engine	one_table@index	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	8168	engine	one_table@index	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	8168	engine	one_table@index	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+2010	2010	engine	one_table@index	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 ok:35bdc4532691	ok:35bdc4532691	engine	objects@view	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@view	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@view	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1107,6 +1147,7 @@ ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)
 4909	4909	engine	objects@view	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1939	1939	engine	objects@view	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1939	1939	engine	objects@view	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1716	1716	engine	objects@view	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	1909	engine	objects@view	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 10610	10610	engine	objects@view	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1939	1939	engine	objects@view	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -1202,6 +1243,7 @@ ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)
 4909	4909	engine	objects@view	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4909	4909	engine	objects@view	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	4909	engine	objects@view	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	448	engine	objects@view	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4909	4909	engine	objects@view	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	4909	engine	objects@view	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@view	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -1216,6 +1258,7 @@ ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)
 8168	8168	engine	objects@view	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 4909	4909	engine	objects@view	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 4909	4909	engine	objects@view	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+4909	4909	engine	objects@view	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 4909	4909	engine	objects@view	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 4909	4909	engine	objects@view	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 4909	4909	engine	objects@view	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -1229,6 +1272,7 @@ ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)
 8135	8135	engine	objects@view	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	8135	engine	objects@view	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 4909	4909	engine	objects@view	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	8135	engine	objects@view	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	8135	engine	objects@view	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 4909	4909	engine	objects@view	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 4909	4909	engine	objects@view	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -1239,6 +1283,7 @@ ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)
 4909	4909	engine	objects@view	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4909	4909	engine	objects@view	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	4909	engine	objects@view	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	448	engine	objects@view	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4909	4909	engine	objects@view	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@view	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	4909	engine	objects@view	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -1256,11 +1301,13 @@ ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)
 4909	4909	engine	objects@view	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 4909	4909	engine	objects@view	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 4909	4909	engine	objects@view	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+4909	4909	engine	objects@view	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4909	4909	engine	objects@view	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 4909	4909	engine	objects@view	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	4909	engine	objects@view	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4909	4909	engine	objects@view	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	4909	engine	objects@view	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+4909	4909	engine	objects@view	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 15151	15151	engine	objects@view	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 15151	15151	engine	objects@view	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 6334	6334	engine	objects@view	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/With_xmlNamespaces	CREATE SELECTIVE XML INDEX a ON a(a) WITH XMLNAMESPACES(DEFAULT 'a') FOR(a = 'a')
@@ -1280,6 +1327,9 @@ ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)
 4909	4909	engine	objects@view	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	4909	engine	objects@view	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4909	4909	engine	objects@view	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	8168	engine	objects@view	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	8168	engine	objects@view	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+2010	2010	engine	objects@view	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 ok:a39909444bda	ok:a39909444bda	engine	objects@fk	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@fk	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@fk	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1363,6 +1413,7 @@ ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	dropSchemaStatement(If_Exists)
 2705	2705	engine	objects@fk	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 ok:6510a2c87b10	ok:6510a2c87b10	engine	objects@fk	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1902	1902	engine	objects@fk	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1716	1716	engine	objects@fk	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	1909	engine	objects@fk	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 207	207	engine	objects@fk	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 ok:6510a2c87b10	ok:6510a2c87b10	engine	objects@fk	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -1458,6 +1509,7 @@ ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	constraintEnforcement/NoCheck	
 1921	1921	engine	objects@fk	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 33411	33411	engine	objects@fk	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 13591	13591	engine	objects@fk	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	448	engine	objects@fk	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 2761	2761	engine	objects@fk	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 2715	2715	engine	objects@fk	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 2715	2715	engine	objects@fk	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -1472,6 +1524,7 @@ ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	alterTableAlterColumnStatement
 8168	8168	engine	objects@fk	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 13593	13593	engine	objects@fk	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 5074	5074	engine	objects@fk	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+5074	5074	engine	objects@fk	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 10785	10785	engine	objects@fk	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 3728	3728	engine	objects@fk	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -1485,6 +1538,7 @@ ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	alterTableDropTableElement(If_
 8135	8135	engine	objects@fk	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	8135	engine	objects@fk	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 2715	2715	engine	objects@fk	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	8135	engine	objects@fk	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	8135	engine	objects@fk	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 10785	10785	engine	objects@fk	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 1909	1909	engine	objects@fk	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -1495,6 +1549,7 @@ ok:a597d2209282	ok:a597d2209282	engine	objects@fk	tableElement/tableConstraint	A
 2705	2705	engine	objects@fk	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 2705	2705	engine	objects@fk	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 2705	2705	engine	objects@fk	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	448	engine	objects@fk	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 2705	2705	engine	objects@fk	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 2705	2705	engine	objects@fk	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 2705	2705	engine	objects@fk	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -1512,11 +1567,13 @@ ok:6363ae2043b1	ok:6363ae2043b1	engine	objects@fk	tableConstraint(uniqueTableCon
 13930	13930	engine	objects@fk	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 ok:8dfc9979b324	ok:8dfc9979b324	engine	objects@fk	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 1909	1909	engine	objects@fk	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+1921	1921	engine	objects@fk	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 ok:a597d2209282	ok:a597d2209282	engine	objects@fk	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 2705	2705	engine	objects@fk	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 13930	13930	engine	objects@fk	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 13930	13930	engine	objects@fk	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 ok:91ee95387576	ok:91ee95387576	engine	objects@fk	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+ok:6363ae2043b1	ok:6363ae2043b1	engine	objects@fk	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 15151	15151	engine	objects@fk	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 15151	15151	engine	objects@fk	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 6330	6330	engine	objects@fk	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/With_xmlNamespaces	CREATE SELECTIVE XML INDEX a ON a(a) WITH XMLNAMESPACES(DEFAULT 'a') FOR(a = 'a')
@@ -1536,6 +1593,9 @@ ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	ignoreDupKeyIndexOption_IGNORE
 4955	4955	engine	objects@fk	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 2715	2715	engine	objects@fk	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	8168	engine	objects@fk	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	8168	engine	objects@fk	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+2010	2010	engine	objects@fk	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 2714	2714	engine	objects@schema	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@schema	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@schema	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1619,6 +1679,7 @@ ok:cd9e6b6f0770	ok:cd9e6b6f0770	engine	objects@schema	dropTableStatement(If_Exis
 2715	2715	engine	objects@schema	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1911	1911	engine	objects@schema	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1911	1911	engine	objects@schema	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1716	1716	engine	objects@schema	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	1909	engine	objects@schema	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 207	207	engine	objects@schema	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1911	1911	engine	objects@schema	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -1714,6 +1775,7 @@ ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	constraintEnforcement/NoCh
 1921	1921	engine	objects@schema	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 33411	33411	engine	objects@schema	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 13591	13591	engine	objects@schema	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	448	engine	objects@schema	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4924	4924	engine	objects@schema	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4924	4924	engine	objects@schema	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4924	4924	engine	objects@schema	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -1728,6 +1790,7 @@ ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	constraintEnforcement/NoCh
 8168	8168	engine	objects@schema	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 13593	13593	engine	objects@schema	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 4924	4924	engine	objects@schema	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 10785	10785	engine	objects@schema	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 3728	3728	engine	objects@schema	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -1741,6 +1804,7 @@ ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	alterTableDropTableElement
 8135	8135	engine	objects@schema	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	8135	engine	objects@schema	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 2715	2715	engine	objects@schema	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	8135	engine	objects@schema	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	8135	engine	objects@schema	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 10785	10785	engine	objects@schema	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 1909	1909	engine	objects@schema	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -1751,6 +1815,7 @@ ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	alterTableDropTableElement
 ok:e8519f0f49c4	ok:e8519f0f49c4	engine	objects@schema	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 ok:a0e4c99fe8e4	ok:a0e4c99fe8e4	engine	objects@schema	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 2715	2715	engine	objects@schema	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	448	engine	objects@schema	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 2715	2715	engine	objects@schema	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 2715	2715	engine	objects@schema	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 2715	2715	engine	objects@schema	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -1768,11 +1833,13 @@ ok:e26e8eaa6a10	ok:e26e8eaa6a10	engine	objects@schema	tableConstraint(uniqueTabl
 13930	13930	engine	objects@schema	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 1752	1752	engine	objects@schema	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 1909	1909	engine	objects@schema	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+1911	1911	engine	objects@schema	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 1911	1911	engine	objects@schema	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 2715	2715	engine	objects@schema	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 13930	13930	engine	objects@schema	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 13930	13930	engine	objects@schema	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 1769	1769	engine	objects@schema	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+ok:e26e8eaa6a10	ok:e26e8eaa6a10	engine	objects@schema	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 15151	15151	engine	objects@schema	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 15151	15151	engine	objects@schema	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 1911	1911	engine	objects@schema	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/With_xmlNamespaces	CREATE SELECTIVE XML INDEX a ON a(a) WITH XMLNAMESPACES(DEFAULT 'a') FOR(a = 'a')
@@ -1792,6 +1859,9 @@ ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	ignoreDupKeyIndexOption_IG
 4955	4955	engine	objects@schema	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4924	4924	engine	objects@schema	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	8168	engine	objects@schema	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	8168	engine	objects@schema	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+2010	2010	engine	objects@schema	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 ok:ca6ffa04f178	ok:ca6ffa04f178	engine	objects@sequence	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@sequence	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@sequence	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1875,6 +1945,7 @@ ok:ba4169ec1613	ok:ba4169ec1613	engine	objects@sequence	dropSchemaStatement(If_E
 4909	4909	engine	objects@sequence	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1914	1914	engine	objects@sequence	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1914	1914	engine	objects@sequence	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1914	1914	engine	objects@sequence	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	1909	engine	objects@sequence	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 208	208	engine	objects@sequence	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1914	1914	engine	objects@sequence	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -1970,6 +2041,7 @@ ok:05f99f60b270	ok:05f99f60b270	engine	objects@sequence	sequenceMinMaxOptionList
 4909	4909	engine	objects@sequence	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4909	4909	engine	objects@sequence	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	4909	engine	objects@sequence	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	448	engine	objects@sequence	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4909	4909	engine	objects@sequence	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	4909	engine	objects@sequence	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@sequence	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -1984,6 +2056,7 @@ ok:05f99f60b270	ok:05f99f60b270	engine	objects@sequence	sequenceMinMaxOptionList
 8168	8168	engine	objects@sequence	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 4909	4909	engine	objects@sequence	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 4909	4909	engine	objects@sequence	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+4909	4909	engine	objects@sequence	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 4909	4909	engine	objects@sequence	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 4909	4909	engine	objects@sequence	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 4909	4909	engine	objects@sequence	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -1997,6 +2070,7 @@ ok:05f99f60b270	ok:05f99f60b270	engine	objects@sequence	sequenceMinMaxOptionList
 8135	8135	engine	objects@sequence	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	8135	engine	objects@sequence	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 4909	4909	engine	objects@sequence	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	8135	engine	objects@sequence	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	8135	engine	objects@sequence	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 4909	4909	engine	objects@sequence	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 4909	4909	engine	objects@sequence	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -2007,6 +2081,7 @@ ok:05f99f60b270	ok:05f99f60b270	engine	objects@sequence	sequenceMinMaxOptionList
 4909	4909	engine	objects@sequence	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4909	4909	engine	objects@sequence	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	4909	engine	objects@sequence	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	448	engine	objects@sequence	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4909	4909	engine	objects@sequence	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@sequence	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	4909	engine	objects@sequence	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -2024,11 +2099,13 @@ ok:05f99f60b270	ok:05f99f60b270	engine	objects@sequence	sequenceMinMaxOptionList
 4909	4909	engine	objects@sequence	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 4909	4909	engine	objects@sequence	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 4909	4909	engine	objects@sequence	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+4909	4909	engine	objects@sequence	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4909	4909	engine	objects@sequence	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 4909	4909	engine	objects@sequence	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	4909	engine	objects@sequence	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4909	4909	engine	objects@sequence	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	4909	engine	objects@sequence	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+4909	4909	engine	objects@sequence	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 15151	15151	engine	objects@sequence	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 ok:00a15132948b	ok:00a15132948b	engine	objects@sequence	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 6334	6334	engine	objects@sequence	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/With_xmlNamespaces	CREATE SELECTIVE XML INDEX a ON a(a) WITH XMLNAMESPACES(DEFAULT 'a') FOR(a = 'a')
@@ -2048,6 +2125,9 @@ ok:ba4169ec1613	ok:ba4169ec1613	engine	objects@sequence	sequenceNoOptionListElem
 4909	4909	engine	objects@sequence	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	4909	engine	objects@sequence	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4909	4909	engine	objects@sequence	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	8168	engine	objects@sequence	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	8168	engine	objects@sequence	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+2010	2010	engine	objects@sequence	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 ok:9f5b0a656ba7	ok:9f5b0a656ba7	engine	objects@synonym	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@synonym	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@synonym	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2131,6 +2211,7 @@ ok:6765ddf8085d	ok:6765ddf8085d	engine	objects@synonym	dropSchemaStatement(If_Ex
 4909	4909	engine	objects@synonym	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1914	1914	engine	objects@synonym	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1914	1914	engine	objects@synonym	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1914	1914	engine	objects@synonym	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	1909	engine	objects@synonym	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 208	208	engine	objects@synonym	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1914	1914	engine	objects@synonym	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -2226,6 +2307,7 @@ ok:6765ddf8085d	ok:6765ddf8085d	engine	objects@synonym	dropSchemaStatement(If_Ex
 4909	4909	engine	objects@synonym	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4909	4909	engine	objects@synonym	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	4909	engine	objects@synonym	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	448	engine	objects@synonym	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4909	4909	engine	objects@synonym	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	4909	engine	objects@synonym	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@synonym	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -2240,6 +2322,7 @@ ok:6765ddf8085d	ok:6765ddf8085d	engine	objects@synonym	dropSchemaStatement(If_Ex
 8168	8168	engine	objects@synonym	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 4909	4909	engine	objects@synonym	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 4909	4909	engine	objects@synonym	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+4909	4909	engine	objects@synonym	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 4909	4909	engine	objects@synonym	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 4909	4909	engine	objects@synonym	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 4909	4909	engine	objects@synonym	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -2253,6 +2336,7 @@ ok:6765ddf8085d	ok:6765ddf8085d	engine	objects@synonym	dropSchemaStatement(If_Ex
 8135	8135	engine	objects@synonym	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	8135	engine	objects@synonym	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 4909	4909	engine	objects@synonym	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	8135	engine	objects@synonym	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	8135	engine	objects@synonym	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 4909	4909	engine	objects@synonym	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 4909	4909	engine	objects@synonym	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -2263,6 +2347,7 @@ ok:6765ddf8085d	ok:6765ddf8085d	engine	objects@synonym	dropSchemaStatement(If_Ex
 4909	4909	engine	objects@synonym	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4909	4909	engine	objects@synonym	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	4909	engine	objects@synonym	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	448	engine	objects@synonym	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4909	4909	engine	objects@synonym	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@synonym	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	4909	engine	objects@synonym	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -2280,11 +2365,13 @@ ok:6765ddf8085d	ok:6765ddf8085d	engine	objects@synonym	dropSchemaStatement(If_Ex
 4909	4909	engine	objects@synonym	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 4909	4909	engine	objects@synonym	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 4909	4909	engine	objects@synonym	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+4909	4909	engine	objects@synonym	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4909	4909	engine	objects@synonym	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 4909	4909	engine	objects@synonym	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	4909	engine	objects@synonym	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4909	4909	engine	objects@synonym	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	4909	engine	objects@synonym	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+4909	4909	engine	objects@synonym	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 15151	15151	engine	objects@synonym	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 15151	15151	engine	objects@synonym	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 6334	6334	engine	objects@synonym	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/With_xmlNamespaces	CREATE SELECTIVE XML INDEX a ON a(a) WITH XMLNAMESPACES(DEFAULT 'a') FOR(a = 'a')
@@ -2304,6 +2391,9 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@synonym	dropSynonymStatement_SYNO
 4909	4909	engine	objects@synonym	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	4909	engine	objects@synonym	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4909	4909	engine	objects@synonym	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	8168	engine	objects@synonym	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	8168	engine	objects@synonym	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+2010	2010	engine	objects@synonym	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 ok:2b3aebfef9a1	ok:2b3aebfef9a1	engine	objects@procedure	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@procedure	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@procedure	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2387,6 +2477,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 4909	4909	engine	objects@procedure	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1914	1914	engine	objects@procedure	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1914	1914	engine	objects@procedure	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1914	1914	engine	objects@procedure	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	1909	engine	objects@procedure	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 208	208	engine	objects@procedure	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1914	1914	engine	objects@procedure	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -2482,6 +2573,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 4909	4909	engine	objects@procedure	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4909	4909	engine	objects@procedure	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	4909	engine	objects@procedure	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	448	engine	objects@procedure	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4909	4909	engine	objects@procedure	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	4909	engine	objects@procedure	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@procedure	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -2496,6 +2588,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 8168	8168	engine	objects@procedure	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 4909	4909	engine	objects@procedure	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 4909	4909	engine	objects@procedure	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+4909	4909	engine	objects@procedure	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 4909	4909	engine	objects@procedure	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 4909	4909	engine	objects@procedure	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 4909	4909	engine	objects@procedure	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -2509,6 +2602,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 8135	8135	engine	objects@procedure	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	8135	engine	objects@procedure	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 4909	4909	engine	objects@procedure	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	8135	engine	objects@procedure	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	8135	engine	objects@procedure	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 4909	4909	engine	objects@procedure	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 4909	4909	engine	objects@procedure	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -2519,6 +2613,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 4909	4909	engine	objects@procedure	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4909	4909	engine	objects@procedure	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	4909	engine	objects@procedure	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	448	engine	objects@procedure	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4909	4909	engine	objects@procedure	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@procedure	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	4909	engine	objects@procedure	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -2536,11 +2631,13 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 4909	4909	engine	objects@procedure	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 4909	4909	engine	objects@procedure	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 4909	4909	engine	objects@procedure	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+4909	4909	engine	objects@procedure	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4909	4909	engine	objects@procedure	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 4909	4909	engine	objects@procedure	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	4909	engine	objects@procedure	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4909	4909	engine	objects@procedure	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	4909	engine	objects@procedure	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+4909	4909	engine	objects@procedure	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 15151	15151	engine	objects@procedure	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 15151	15151	engine	objects@procedure	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 6334	6334	engine	objects@procedure	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/With_xmlNamespaces	CREATE SELECTIVE XML INDEX a ON a(a) WITH XMLNAMESPACES(DEFAULT 'a') FOR(a = 'a')
@@ -2560,6 +2657,9 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 4909	4909	engine	objects@procedure	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	4909	engine	objects@procedure	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4909	4909	engine	objects@procedure	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	8168	engine	objects@procedure	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	8168	engine	objects@procedure	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+ok:0b121dab692c	ok:0b121dab692c	engine	objects@procedure	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 ok:e8852332e164	ok:e8852332e164	engine	objects@function	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@function	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@function	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2643,6 +2743,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 4909	4909	engine	objects@function	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1914	1914	engine	objects@function	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1914	1914	engine	objects@function	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1914	1914	engine	objects@function	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	1909	engine	objects@function	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 208	208	engine	objects@function	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1914	1914	engine	objects@function	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -2738,6 +2839,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 4909	4909	engine	objects@function	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4909	4909	engine	objects@function	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	4909	engine	objects@function	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	448	engine	objects@function	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4909	4909	engine	objects@function	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	4909	engine	objects@function	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@function	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -2752,6 +2854,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 8168	8168	engine	objects@function	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 4909	4909	engine	objects@function	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 4909	4909	engine	objects@function	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+4909	4909	engine	objects@function	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 4909	4909	engine	objects@function	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 4909	4909	engine	objects@function	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 4909	4909	engine	objects@function	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -2765,6 +2868,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 8135	8135	engine	objects@function	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	8135	engine	objects@function	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 4909	4909	engine	objects@function	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	8135	engine	objects@function	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	8135	engine	objects@function	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 4909	4909	engine	objects@function	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 4909	4909	engine	objects@function	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -2775,6 +2879,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 4909	4909	engine	objects@function	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4909	4909	engine	objects@function	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	4909	engine	objects@function	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	448	engine	objects@function	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4909	4909	engine	objects@function	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@function	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	4909	engine	objects@function	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -2792,11 +2897,13 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 4909	4909	engine	objects@function	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 4909	4909	engine	objects@function	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 4909	4909	engine	objects@function	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+4909	4909	engine	objects@function	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4909	4909	engine	objects@function	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 4909	4909	engine	objects@function	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	4909	engine	objects@function	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4909	4909	engine	objects@function	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	4909	engine	objects@function	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+4909	4909	engine	objects@function	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 15151	15151	engine	objects@function	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 15151	15151	engine	objects@function	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 6334	6334	engine	objects@function	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/With_xmlNamespaces	CREATE SELECTIVE XML INDEX a ON a(a) WITH XMLNAMESPACES(DEFAULT 'a') FOR(a = 'a')
@@ -2816,6 +2923,9 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 4909	4909	engine	objects@function	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	4909	engine	objects@function	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4909	4909	engine	objects@function	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	8168	engine	objects@function	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	8168	engine	objects@function	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+2010	2010	engine	objects@function	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1
 ok:67933fa12252	ok:67933fa12252	engine	objects@trigger	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@trigger	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@trigger	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2899,6 +3009,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_E
 4909	4909	engine	objects@trigger	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1914	1914	engine	objects@trigger	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
 1914	1914	engine	objects@trigger	createIndexStatement(createRelationalIndexStatement|creat~6990b242)/createRelationalIndexStatement	CREATE CLUSTERED INDEX a ON a(a)
+1914	1914	engine	objects@trigger	createRelationalIndexStatement/Index_identifier_On_schemaObjectThreePartName_LeftParen~3b3cacf2+fileStreamOnOpt	CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 1909	1909	engine	objects@trigger	createRelationalIndexStatement(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	CREATE INDEX a ON a(a) INCLUDE(a)
 208	208	engine	objects@trigger	createRelationalIndexStatement(filterClause)?/filterClause	CREATE INDEX a ON a(a) WHERE IDENTITYCOL IS NULL
 1914	1914	engine	objects@trigger	createRelationalIndexStatement(indexLegacyOptionList|indexOptionList)/indexOptionList	CREATE INDEX a ON a(a) WITH(FILLFACTOR = 1)
@@ -2994,6 +3105,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_E
 4909	4909	engine	objects@trigger	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4909	4909	engine	objects@trigger	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	4909	engine	objects@trigger	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
+448	448	engine	objects@trigger	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4909	4909	engine	objects@trigger	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	4909	engine	objects@trigger	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@trigger	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -3008,6 +3120,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_E
 8168	8168	engine	objects@trigger	alterTableDropTableElementStatement(Comma_alterTableDropTableElement)*/Comma_alterTableDropTableElement_(Comma_alterTableDropT~dc90c1bf	ALTER TABLE a DROP a, a
 4909	4909	engine	objects@trigger	alterTableDropTableElement/PERIOD_For_SYSTEM_TIME	ALTER TABLE a DROP PERIOD FOR SYSTEM_TIME
 4909	4909	engine	objects@trigger	alterTableDropTableElement/Column_(If_Exists)?_identifier	ALTER TABLE a DROP COLUMN a
+4909	4909	engine	objects@trigger	alterTableDropTableElement/Column_(If_Exists)?_identifier+alterTableDropTableElement(If_Exists)?	ALTER TABLE a DROP COLUMN IF EXISTS a
 4909	4909	engine	objects@trigger	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 4909	4909	engine	objects@trigger	alterTableDropTableElement(Constraint_(If_Exists)?)?/Constraint_(If_Exists)?	ALTER TABLE a DROP CONSTRAINT a
 4909	4909	engine	objects@trigger	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
@@ -3021,6 +3134,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_E
 8135	8135	engine	objects@trigger	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 8135	8135	engine	objects@trigger	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 4909	4909	engine	objects@trigger	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
+8135	8135	engine	objects@trigger	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba+fileStreamOnOpt	ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
 8135	8135	engine	objects@trigger	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 4909	4909	engine	objects@trigger	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 4909	4909	engine	objects@trigger	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
@@ -3031,6 +3145,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_E
 4909	4909	engine	objects@trigger	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4909	4909	engine	objects@trigger	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	4909	engine	objects@trigger	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
+448	448	engine	objects@trigger	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4909	4909	engine	objects@trigger	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@trigger	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	4909	engine	objects@trigger	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -3048,11 +3163,13 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_E
 4909	4909	engine	objects@trigger	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 4909	4909	engine	objects@trigger	defaultTableConstraint(With_Values)?/With_Values	ALTER TABLE a ADD DEFAULT 1 FOR a WITH VALUES
 4909	4909	engine	objects@trigger	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
+4909	4909	engine	objects@trigger	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4909	4909	engine	objects@trigger	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 4909	4909	engine	objects@trigger	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	4909	engine	objects@trigger	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4909	4909	engine	objects@trigger	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	4909	engine	objects@trigger	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+4909	4909	engine	objects@trigger	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 15151	15151	engine	objects@trigger	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 15151	15151	engine	objects@trigger	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 6334	6334	engine	objects@trigger	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/With_xmlNamespaces	CREATE SELECTIVE XML INDEX a ON a(a) WITH XMLNAMESPACES(DEFAULT 'a') FOR(a = 'a')
@@ -3072,3 +3189,6 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_E
 4909	4909	engine	objects@trigger	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	4909	engine	objects@trigger	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 4909	4909	engine	objects@trigger	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+8168	8168	engine	objects@trigger	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+8168	8168	engine	objects@trigger	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+2010	2010	engine	objects@trigger	suite:optional-clauses	CREATE OR ALTER PROC a AS SELECT 1

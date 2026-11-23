@@ -13,9 +13,10 @@ server wrote the same file.
 | --- | --- | --- | --- | --- |
 | One per alternative | 3,062 | 3,062 | 0 | 0 |
 | Near-misses | 8,196 | 8,196 | 0 | 0 |
+| An optional clause at every site, with near-misses | 29 | 29 | 0 | 0 |
 
-Every row agrees: the 11,258 generated rows and the 914 `suite:` rows below,
-12,172 in all. #1467 closed the last 203, 202 generated rows and one `suite:`
+Every row agrees: the 11,287 generated rows and the 914 `suite:` rows below,
+12,201 in all. #1467 closed the last 203, 202 generated rows and one `suite:`
 row. The generated ones were mostly statements omni did not read at all:
 `PIPE`, resource groups, `CATALOG`, data cache rules, `TRANSLATE`, the SQL and
 backend blacklists, plan advisors, `REFRESH EXTERNAL TABLE`, `EXECUTE AS` and
@@ -26,6 +27,13 @@ reserved word read as a name (`SELECT FLOOR`), `SELECT COUNT(DISTINCT)`,
 alternatives get no row: `expressionSingleton`, another entry point,
 `hintMap`, which StarRocks reads apart from a hint comment, and `CONCAT`,
 which `||` is only under sql_mode `PIPES_AS_CONCAT`.
+
+The optional clauses `../../testdata/tokens.tsv` names with `(every site)`
+get a row at each alternative that can write them. `StarRocks.g4` gives most
+statements a rule of its own, so most of its `(IF NOT EXISTS)?` groups have
+one site and their row already; the rows are for `ifNotExists`, `orReplace`
+and the partition and `ALTER USER` clauses written at more than one. Their 29
+rows agreed when first recorded, 2026-11-23.
 
 ## Suites
 

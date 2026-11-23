@@ -44,7 +44,13 @@ fresh container (`OMNI_RECORD=verify`).
 - **Token forms** are in `../../testdata/tokens.tsv`, cited to `Lexer.g`.
   Three rows pick what rows write: `cident` is a name, since the rule lists
   `""` first and every column would carry it, and `COLUMNFAMILY | TABLE` and
-  `COLUMNFAMILIES | TABLES` are written by their current spelling.
+  `COLUMNFAMILIES | TABLES` are written by their current spelling. Rows of
+  the form `(every site)` name optional clauses that get a row at every
+  alternative naming them, not only at the one their own row reaches: IF
+  EXISTS in `ALTER TABLE` and `ALTER TYPE` (on the object and on a column or
+  field), `STATIC` and `MASKED WITH` on an added column, the `PERMISSION`
+  noise word, and a selector's field or element. They added 38 rows, all
+  agreeing with `cassandra:5.0.9` (2,979 / 2,979).
 
 After a parser fix, commit the rows that now agree:
 

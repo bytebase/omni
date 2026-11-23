@@ -25,7 +25,24 @@ normalized DDL objects stored in the database afterwards. `TestSimulation`
 no server. The design is
 `docs/specs/2026-11-11-engine-compatibility-without-servers-design.md` §3.
 
-**3,072 / 3,072 rows (100.00%) agree** (256 statements × 12 fixtures).
+**3,192 / 3,192 rows (100.00%) agree** (266 statements × 12 fixtures).
+
+## Collations
+
+`../collations.txt` is every collation the pinned server lists in
+`sys.fn_helpcollations()` (5,508), which the catalog checks each `COLLATE`
+against without regard to case (Msg 448). `TestCollations`
+(`../collations_test.go`) holds the file to the server and holds the check to
+what SQL Server accepts as a column's collation, for every listed name in
+either case and for 39,047 other forms: version-less and versioned, with and
+without `_SC` and `_UTF8`, with flags swapped. SQL Server accepts no form the
+list does not hold, and `database_default` and `catalog_default` only for a
+column or an expression. It replays `tapes/TestCollations.tape`; rewrite the
+file from the server with:
+
+```bash
+OMNI_RECORD=1 go test ./mssql/catalog/ -run '^TestCollations$'
+```
 
 ## Commands
 
@@ -64,17 +81,19 @@ hashes the stored schema, view definition included. `TestQuerySimulation`
 (`../simulate_query_test.go`) replays it from
 `tapes/TestQuerySimulation.tape`. It has two parts:
 
-- 334 rows on `one_table@column`: every SELECT, WITH, or parenthesized query
+- 346 rows on `one_table@column`: every SELECT, WITH, or parenthesized query
   the parser's `compat.tsv` judges accepted, by its grammar rule.
-- 329 rows on `queries@tables`, labelled `feature:<feature>`: T-SQL query
+- 364 rows on `queries@tables`, labelled `feature:<feature>`: T-SQL query
   features the grammar's rows reach only with the one name `a` — select
   lists, joins, predicates, CASE, CAST, CONVERT and PARSE, built-in and
   user-defined functions, grouping, windows, TOP and OFFSET/FETCH, derived
   tables, CTEs, set operations, APPLY, PIVOT and UNPIVOT, FOR XML and FOR
-  JSON, table sources, and view options. Some are refused on purpose.
+  JSON, table sources, view options, and `COLLATE` (in a query, and in the
+  table, type, partition function and database DDL that names a collation).
+  Some are refused on purpose.
 
-**655 / 663 rows (98.79%) agree** (329 / 334 grammar rows, 326 / 329
-feature rows; 249 rows SQL Server accepts). The 8 that do not need something
+**702 / 710 rows (98.87%) agree** (341 / 346 grammar rows, 361 / 364
+feature rows; 259 rows SQL Server accepts). The 8 that do not need something
 the catalog does not model:
 
 - `SELECT $PARTITION.a(1)` and its three variants (Msg 208): partition
@@ -114,14 +133,14 @@ program statements, whose bodies name nothing. `TestProgramSimulation`
 
 | Kind | Rows | SQL Server accepts |
 | --- | ---: | ---: |
-| `procedure` | 66 | 40 |
-| `scalar-function` | 25 | 15 |
-| `inline-function` | 17 | 9 |
-| `multi-statement-function` | 10 | 4 |
-| `trigger` (DML) | 26 | 15 |
+| `procedure` | 73 | 42 |
+| `scalar-function` | 26 | 15 |
+| `inline-function` | 18 | 9 |
+| `multi-statement-function` | 11 | 4 |
+| `trigger` (DML) | 27 | 15 |
 | `ddl-trigger` | 7 | 4 |
 
-**151 / 151 rows (100.00%) agree**; the first recording agreed on 92.
+**162 / 162 rows (100.00%) agree**; the first recording agreed on 92.
 
 What a row holds the catalog to: variables are declared in the order the
 body is read (Msg 137, 1087); a statement whose tables all exist is bound
@@ -131,7 +150,10 @@ does not exist; a function writes only its table variables and returns no
 rows (Msg 443, 444) and ends with RETURN (Msg 455, 178); an inline function
 is bound as a view is (Msg 4514, 4506, 1033); a DML trigger reads
 `inserted` and `deleted` with its table's columns and lives in its table's
-schema (Msg 2103), and ALTER TRIGGER keeps its table (Msg 2110).
+schema (Msg 2103), and ALTER TRIGGER keeps its table (Msg 2110). A
+collation the body gives a column is checked as the body is parsed, even in a
+deferred statement, and a COLLATE operator as its statement is bound (Msg
+448).
 
 SQL Server stores a database DDL trigger, but the catalog models none, so a
 DDL trigger row is held to its refusal only: the stored schema read back has

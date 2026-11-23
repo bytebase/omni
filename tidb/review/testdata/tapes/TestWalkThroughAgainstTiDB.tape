@@ -83,7 +83,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -129,7 +129,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -145,9 +145,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -173,24 +173,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -198,6 +199,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -205,6 +208,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -212,6 +217,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -219,6 +226,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -226,6 +235,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -233,6 +244,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -242,7 +255,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -273,7 +286,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -304,7 +317,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -335,7 +348,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -366,7 +379,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -397,7 +410,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -428,7 +441,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -459,7 +472,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -490,7 +503,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -521,7 +534,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -552,7 +565,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -583,7 +596,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -614,7 +627,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -645,7 +658,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -676,7 +689,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -707,7 +720,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -738,7 +751,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 22
@@ -767,7 +780,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 22
@@ -945,7 +958,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -991,7 +1004,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -1007,9 +1020,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -1035,24 +1048,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -1060,6 +1074,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -1067,6 +1083,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -1074,6 +1092,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -1081,6 +1101,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -1088,6 +1110,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -1095,6 +1119,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -1104,7 +1130,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -1135,7 +1161,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -1166,7 +1192,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -1197,7 +1223,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -1228,7 +1254,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -1259,7 +1285,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -1290,7 +1316,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -1321,7 +1347,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -1352,7 +1378,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -1383,7 +1409,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -1414,7 +1440,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -1445,7 +1471,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -1476,7 +1502,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 22
@@ -1644,7 +1670,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -1690,7 +1716,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -1706,9 +1732,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -1734,24 +1760,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -1759,6 +1786,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -1766,6 +1795,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -1773,6 +1804,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -1780,6 +1813,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -1787,6 +1822,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -1794,6 +1831,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -1803,7 +1842,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -1834,7 +1873,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -1865,7 +1904,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -1896,7 +1935,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -1927,7 +1966,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -1958,7 +1997,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -1989,7 +2028,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -2020,7 +2059,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -2051,7 +2090,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -2082,7 +2121,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -2113,7 +2152,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -2144,7 +2183,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -2175,7 +2214,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -2206,7 +2245,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -2237,7 +2276,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -2268,7 +2307,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -2299,7 +2338,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -2330,7 +2369,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -2519,7 +2558,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -2565,7 +2604,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -2581,9 +2620,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -2609,24 +2648,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -2634,6 +2674,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -2641,6 +2683,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -2648,6 +2692,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -2655,6 +2701,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -2662,6 +2710,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -2669,6 +2719,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -2678,7 +2730,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -2709,7 +2761,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -2740,7 +2792,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -2771,7 +2823,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -2802,7 +2854,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -2833,7 +2885,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -2864,7 +2916,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -2895,7 +2947,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -2926,7 +2978,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 23
@@ -2956,7 +3008,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 23
@@ -3109,7 +3161,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -3155,7 +3207,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -3171,9 +3223,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -3199,24 +3251,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -3224,6 +3277,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -3231,6 +3286,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -3238,6 +3295,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -3245,6 +3304,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -3252,6 +3313,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -3259,6 +3322,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -3268,7 +3333,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -3299,7 +3364,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -3330,7 +3395,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -3361,7 +3426,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -3392,7 +3457,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -3423,7 +3488,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -3454,7 +3519,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -3600,7 +3665,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -3646,7 +3711,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -3662,9 +3727,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -3690,24 +3755,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -3715,6 +3781,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -3722,6 +3790,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -3729,6 +3799,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -3736,6 +3808,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -3743,6 +3817,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -3750,6 +3826,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -3759,7 +3837,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -3790,7 +3868,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -3821,7 +3899,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -3853,7 +3931,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -3884,7 +3962,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 22
@@ -3913,7 +3991,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 22
@@ -3942,7 +4020,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 22
@@ -4081,7 +4159,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -4127,7 +4205,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -4143,9 +4221,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -4171,24 +4249,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -4196,6 +4275,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -4203,6 +4284,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -4210,6 +4293,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -4217,6 +4302,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -4224,6 +4311,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -4231,6 +4320,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -4240,7 +4331,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -4271,7 +4362,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 23
@@ -4395,7 +4486,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -4441,7 +4532,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -4457,9 +4548,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -4485,24 +4576,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -4510,6 +4602,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -4517,6 +4611,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -4524,6 +4620,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -4531,6 +4629,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -4538,6 +4638,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -4545,6 +4647,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -4554,7 +4658,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -4585,7 +4689,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -4616,7 +4720,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -4647,7 +4751,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 23
@@ -4677,7 +4781,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 23
@@ -4707,7 +4811,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -4846,7 +4950,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -4892,7 +4996,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -4908,9 +5012,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -4936,24 +5040,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -4961,6 +5066,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -4968,6 +5075,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -4975,6 +5084,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -4982,6 +5093,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -4989,6 +5102,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -4996,6 +5111,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -5005,7 +5122,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -5036,7 +5153,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 23
@@ -5160,7 +5277,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -5206,7 +5323,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -5222,9 +5339,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -5250,24 +5367,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -5275,6 +5393,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -5282,6 +5402,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -5289,6 +5411,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -5296,6 +5420,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -5303,6 +5429,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -5310,6 +5438,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -5319,7 +5449,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -5350,7 +5480,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 23
@@ -5474,7 +5604,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -5520,7 +5650,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -5536,9 +5666,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -5564,24 +5694,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -5589,6 +5720,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -5596,6 +5729,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -5603,6 +5738,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -5610,6 +5747,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -5617,6 +5756,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -5624,6 +5765,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -5633,7 +5776,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -5664,7 +5807,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -5695,7 +5838,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -5726,7 +5869,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -5757,7 +5900,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 22
@@ -5786,7 +5929,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 22
@@ -5815,7 +5958,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 22
@@ -5844,7 +5987,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 22
@@ -5873,7 +6016,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 22
@@ -5902,7 +6045,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 22
@@ -5931,7 +6074,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 20
@@ -5958,7 +6101,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 20
@@ -5985,7 +6128,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 20
@@ -6012,7 +6155,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 20
@@ -6039,7 +6182,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 20
@@ -6210,7 +6353,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -6256,7 +6399,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -6272,9 +6415,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -6300,24 +6443,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -6325,6 +6469,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -6332,6 +6478,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -6339,6 +6487,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -6346,6 +6496,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -6353,6 +6505,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -6360,6 +6514,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -6369,7 +6525,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -6400,7 +6556,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -6431,7 +6587,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 23
@@ -6461,7 +6617,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 23
@@ -6596,7 +6752,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -6642,7 +6798,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -6658,9 +6814,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -6686,24 +6842,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -6711,6 +6868,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -6718,6 +6877,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -6725,6 +6886,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -6732,6 +6895,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -6739,6 +6904,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -6746,6 +6913,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -6755,7 +6924,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 27
@@ -6789,7 +6958,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 27
@@ -6823,7 +6992,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -6855,7 +7024,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -6986,7 +7155,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -7032,7 +7201,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -7048,9 +7217,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -7076,24 +7245,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -7101,6 +7271,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -7108,6 +7280,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -7115,6 +7289,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -7122,6 +7298,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -7129,6 +7307,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -7136,6 +7316,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -7145,7 +7327,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -7176,7 +7358,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 16
@@ -7293,7 +7475,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -7339,7 +7521,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -7355,9 +7537,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -7383,24 +7565,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -7408,6 +7591,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -7415,6 +7600,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -7422,6 +7609,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -7429,6 +7618,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -7436,6 +7627,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -7443,6 +7636,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -7452,7 +7647,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -7483,7 +7678,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 22
@@ -7606,7 +7801,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -7652,7 +7847,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -7668,9 +7863,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -7696,24 +7891,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -7721,6 +7917,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -7728,6 +7926,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -7735,6 +7935,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -7742,6 +7944,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -7749,6 +7953,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -7756,6 +7962,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -7765,7 +7973,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -7796,7 +8004,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 22
@@ -7919,7 +8127,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -7965,7 +8173,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -7981,9 +8189,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -8009,24 +8217,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -8034,6 +8243,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -8041,6 +8252,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -8048,6 +8261,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -8055,6 +8270,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -8062,6 +8279,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -8069,6 +8288,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -8078,7 +8299,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -8109,7 +8330,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 22
@@ -8232,7 +8453,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -8278,7 +8499,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -8294,9 +8515,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -8322,24 +8543,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -8347,6 +8569,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -8354,6 +8578,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -8361,6 +8587,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -8368,6 +8596,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -8375,6 +8605,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -8382,6 +8614,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -8391,7 +8625,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -8422,7 +8656,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 22
@@ -8545,7 +8779,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -8591,7 +8825,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -8607,9 +8841,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -8635,24 +8869,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -8660,6 +8895,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -8667,6 +8904,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -8674,6 +8913,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -8681,6 +8922,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -8688,6 +8931,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -8695,6 +8940,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -8704,7 +8951,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -8735,7 +8982,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 22
@@ -8858,7 +9105,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -8904,7 +9151,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -8920,9 +9167,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -8948,24 +9195,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -8973,6 +9221,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -8980,6 +9230,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -8987,6 +9239,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -8994,6 +9248,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -9001,6 +9257,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -9008,6 +9266,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -9017,7 +9277,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -9048,7 +9308,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -9079,7 +9339,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -9114,7 +9374,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -9149,7 +9409,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -9184,7 +9444,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -9219,7 +9479,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 30
@@ -9256,7 +9516,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 30
@@ -9408,7 +9668,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -9454,7 +9714,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -9470,9 +9730,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -9498,24 +9758,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -9523,6 +9784,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -9530,6 +9793,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -9537,6 +9802,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -9544,6 +9811,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -9551,6 +9820,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -9558,6 +9829,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -9567,7 +9840,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -9598,7 +9871,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -9629,7 +9902,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -9661,7 +9934,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 26
@@ -9694,7 +9967,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 26
@@ -9727,7 +10000,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 26
@@ -9760,7 +10033,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 26
@@ -9793,7 +10066,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 27
@@ -9827,7 +10100,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 27
@@ -9861,7 +10134,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 27
@@ -9895,7 +10168,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 27
@@ -10054,7 +10327,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -10100,7 +10373,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -10116,9 +10389,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -10144,24 +10417,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -10169,6 +10443,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -10176,6 +10452,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -10183,6 +10461,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -10190,6 +10470,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -10197,6 +10479,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -10204,6 +10488,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -10213,7 +10499,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -10244,7 +10530,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -10275,7 +10561,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -10306,7 +10592,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -10337,7 +10623,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -10368,7 +10654,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -10399,7 +10685,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -10540,7 +10826,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -10586,7 +10872,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -10602,9 +10888,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -10630,24 +10916,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -10655,6 +10942,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -10662,6 +10951,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -10669,6 +10960,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -10676,6 +10969,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -10683,6 +10978,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -10690,6 +10987,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -10699,7 +10998,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -10730,7 +11029,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -10761,7 +11060,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -10792,7 +11091,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -10823,7 +11122,7 @@
 | table foreign key	shop	r	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -10854,7 +11153,7 @@
 | table foreign key	shop	r	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -10885,7 +11184,7 @@
 | table foreign key	shop	r	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -10916,7 +11215,7 @@
 | table foreign key	shop	r	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -10947,7 +11246,7 @@
 | table foreign key	shop	r	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -10979,39 +11278,7 @@
 | table foreign key	shop	r	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
-< column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
-< row
-: int64 25
-: bytes
-| column	q	nokey	a	
-| column	shop	child	b	
-| column	shop	child	id	
-| column	shop	r	a	
-| column	shop	r	b	
-| column	shop	r	id	
-| column	shop	t2	id	
-| column	shop	v	id	
-| database	q			
-| database	shop			
-| database	test			
-| index	shop	child	PRIMARY	
-| index	shop	child	fk_1	
-| index	shop	r	PRIMARY	
-| index	shop	r	fk1	
-| index	shop	r	i	
-| index	shop	t2	PRIMARY	
-| relation	q		nokey	BASE TABLE
-| relation	shop		child	BASE TABLE
-| relation	shop		r	BASE TABLE
-| relation	shop		sq	SEQUENCE
-| relation	shop		t2	BASE TABLE
-| relation	shop		v	VIEW
-| table foreign key	shop	child	fk_1	
-| table foreign key	shop	r	fk1	
-> query ^
-< result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -11043,7 +11310,39 @@
 | table foreign key	shop	r	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
+< column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
+< row
+: int64 25
+: bytes
+| column	q	nokey	a	
+| column	shop	child	b	
+| column	shop	child	id	
+| column	shop	r	a	
+| column	shop	r	b	
+| column	shop	r	id	
+| column	shop	t2	id	
+| column	shop	v	id	
+| database	q			
+| database	shop			
+| database	test			
+| index	shop	child	PRIMARY	
+| index	shop	child	fk_1	
+| index	shop	r	PRIMARY	
+| index	shop	r	fk1	
+| index	shop	r	i	
+| index	shop	t2	PRIMARY	
+| relation	q		nokey	BASE TABLE
+| relation	shop		child	BASE TABLE
+| relation	shop		r	BASE TABLE
+| relation	shop		sq	SEQUENCE
+| relation	shop		t2	BASE TABLE
+| relation	shop		v	VIEW
+| table foreign key	shop	child	fk_1	
+| table foreign key	shop	r	fk1	
+> query ^
+< result
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -11075,7 +11374,7 @@
 | table foreign key	shop	r	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -11107,7 +11406,7 @@
 | table foreign key	shop	r	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -11139,7 +11438,7 @@
 | table foreign key	shop	r	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -11171,7 +11470,7 @@
 | table foreign key	shop	r	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -11203,7 +11502,7 @@
 | table foreign key	shop	r	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -11386,7 +11685,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -11432,7 +11731,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -11448,9 +11747,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -11476,24 +11775,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -11501,6 +11801,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -11508,6 +11810,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -11515,6 +11819,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -11522,6 +11828,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -11529,6 +11837,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -11536,6 +11846,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -11545,7 +11857,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -11576,7 +11888,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -11607,7 +11919,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -11638,7 +11950,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -11669,7 +11981,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -11700,7 +12012,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -11731,7 +12043,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -11762,7 +12074,7 @@
 | table foreign key	shop	t2	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -11793,7 +12105,7 @@
 | table foreign key	shop	t3	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -11824,7 +12136,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -11977,7 +12289,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -12023,7 +12335,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -12039,9 +12351,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -12067,24 +12379,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -12092,6 +12405,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -12099,6 +12414,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -12106,6 +12423,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -12113,6 +12432,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -12120,6 +12441,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -12127,6 +12450,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -12136,7 +12461,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -12167,7 +12492,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -12198,7 +12523,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -12233,7 +12558,7 @@
 | table foreign key	shop	y	fk_1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -12268,7 +12593,7 @@
 | table foreign key	shop	y	fk_1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 32
@@ -12307,7 +12632,7 @@
 | table foreign key	shop	z	fk_1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 32
@@ -12346,7 +12671,7 @@
 | table foreign key	shop	z	fk_1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 32
@@ -12385,7 +12710,7 @@
 | table foreign key	shop	z	fk_1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 32
@@ -12424,7 +12749,7 @@
 | table foreign key	shop	z	fk_1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 36
@@ -12467,7 +12792,7 @@
 | table foreign key	shop	z3	fk_1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 36
@@ -12510,7 +12835,7 @@
 | table foreign key	shop	z3	fk_1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 36
@@ -12553,7 +12878,7 @@
 | table foreign key	shop	z3	fk_1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 36
@@ -12596,7 +12921,7 @@
 | table foreign key	shop	z3	fk_1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 40
@@ -12643,7 +12968,7 @@
 | table foreign key	shop	z5	fk_1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 40
@@ -12690,7 +13015,7 @@
 | table foreign key	shop	z5	fk_1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 40
@@ -12872,7 +13197,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -12918,7 +13243,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -12934,9 +13259,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -12962,24 +13287,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -12987,6 +13313,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -12994,6 +13322,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -13001,6 +13331,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -13008,6 +13340,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -13015,6 +13349,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -13022,6 +13358,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -13031,7 +13369,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -13062,7 +13400,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -13093,7 +13431,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -13128,7 +13466,7 @@
 | table foreign key	shop	y	fk_1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -13163,7 +13501,7 @@
 | table foreign key	shop	y	fk_1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -13301,7 +13639,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -13347,7 +13685,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -13363,9 +13701,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -13391,24 +13729,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -13416,6 +13755,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -13423,6 +13764,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -13430,6 +13773,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -13437,6 +13782,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -13444,6 +13791,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -13451,6 +13800,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -13460,7 +13811,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -13491,7 +13842,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -13522,7 +13873,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -13557,7 +13908,7 @@
 | table foreign key	shop	y	fk_1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -13592,7 +13943,7 @@
 | table foreign key	shop	y	fk_1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -13627,7 +13978,7 @@
 | table foreign key	shop	y	fk_1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -13662,7 +14013,7 @@
 | table foreign key	shop	y	fk_1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 32
@@ -13701,7 +14052,7 @@
 | table foreign key	shop	y	fk_1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 32
@@ -13740,7 +14091,7 @@
 | table foreign key	shop	y	fk_1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 32
@@ -13895,7 +14246,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -13941,7 +14292,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -13957,9 +14308,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -13985,24 +14336,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -14010,6 +14362,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -14017,6 +14371,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -14024,6 +14380,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -14031,6 +14389,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -14038,6 +14398,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -14045,6 +14407,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -14054,7 +14418,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -14085,7 +14449,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -14117,7 +14481,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -14149,7 +14513,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 27
@@ -14183,7 +14547,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 27
@@ -14217,7 +14581,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 27
@@ -14251,7 +14615,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 27
@@ -14397,7 +14761,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -14443,7 +14807,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -14459,9 +14823,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -14487,24 +14851,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -14512,6 +14877,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -14519,6 +14886,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -14526,6 +14895,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -14533,6 +14904,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -14540,6 +14913,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -14547,6 +14922,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -14556,7 +14933,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -14587,7 +14964,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 26
@@ -14620,7 +14997,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 26
@@ -14653,7 +15030,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -14688,7 +15065,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -14723,7 +15100,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -14780,6 +15157,614 @@
 | CREATE TABLE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa (a int);
 < error
 | 1059 42000 Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+
+== TestWalkThroughAgainstTiDB/a_clustered_primary_key_stays default#1
+> exec
+| CREATE DATABASE shop
+< ok 0 0
+> exec
+| USE shop
+< ok 0 0
+> exec
+| CREATE TABLE r (id int PRIMARY KEY);
+< ok 0 0
+> exec
+| CREATE TABLE t (id int, a int, b int, PRIMARY KEY (id) NONCLUSTERED, KEY i (a), CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES r (id));
+< ok 0 0
+> exec
+| CREATE TABLE child (id int PRIMARY KEY, b int, FOREIGN KEY (b) REFERENCES r (id));
+< ok 0 0
+> exec
+| CREATE TABLE nokey (a int);
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT id FROM r;
+< ok 0 0
+> exec
+| CREATE SEQUENCE sq;
+< ok 0 0
+> exec
+| SET GLOBAL foreign_key_checks = 1
+< ok 0 0
+
+== TestWalkThroughAgainstTiDB/a_clustered_primary_key_stays default#2
+> exec
+| SET SESSION group_concat_max_len = 16777216
+< ok 0 0
+> query
+| SELECT TABLE_NAME, KEY_NAME, NON_UNIQUE FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ?
+: string
+| shop
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "KEY_NAME" "VARCHAR"
+< column "NON_UNIQUE" "BIGINT"
+< row
+: bytes
+| r
+: bytes
+| PRIMARY
+: int64 0
+< row
+: bytes
+| t
+: bytes
+| PRIMARY
+: int64 0
+< row
+: bytes
+| t
+: bytes
+| i
+: int64 1
+< row
+: bytes
+| t
+: bytes
+| fk1
+: int64 1
+< row
+: bytes
+| child
+: bytes
+| PRIMARY
+: int64 0
+< row
+: bytes
+| child
+: bytes
+| fk_1
+: int64 1
+> query
+| SELECT TABLE_NAME, IFNULL(COLUMN_NAME, '') FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| shop
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
+< row
+: bytes
+| child
+: bytes
+| id
+< row
+: bytes
+| child
+: bytes
+| b
+< row
+: bytes
+| nokey
+: bytes
+| a
+< row
+: bytes
+| r
+: bytes
+| id
+< row
+: bytes
+| t
+: bytes
+| id
+< row
+: bytes
+| t
+: bytes
+| a
+< row
+: bytes
+| t
+: bytes
+| b
+< row
+: bytes
+| v
+: bytes
+| id
+> query
+| SELECT TABLE_NAME FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ?
+: string
+| shop
+< result
+< column "TABLE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| v
+> query
+| SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, fks.REFERENCED_TABLE_NAME
+| 		FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS fks
+| 			JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+| 			ON fks.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA
+| 				AND fks.TABLE_NAME = kcu.TABLE_NAME
+| 				AND fks.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+| 		WHERE kcu.POSITION_IN_UNIQUE_CONSTRAINT IS NOT NULL AND fks.CONSTRAINT_SCHEMA = ?
+| 		ORDER BY fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
+: string
+| shop
+< result
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| child
+: bytes
+| fk_1
+: bytes
+| r
+< row
+: bytes
+| t
+: bytes
+| fk1
+: bytes
+| r
+> query
+| SELECT tc.TABLE_NAME, cc.CONSTRAINT_NAME
+| 		FROM information_schema.CHECK_CONSTRAINTS cc
+| 			JOIN information_schema.TABLE_CONSTRAINTS tc
+| 				ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+| 				AND cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
+| 		WHERE tc.CONSTRAINT_TYPE = 'CHECK' AND tc.TABLE_SCHEMA = ? AND cc.CONSTRAINT_SCHEMA = tc.TABLE_SCHEMA
+: string
+| shop
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+> query
+| SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
+: string
+| shop
+< result
+< column "SEQUENCE_NAME" "VARCHAR" "string"
+< row
+: bytes
+| sq
+> query
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| shop
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
+< row
+: bytes
+| child
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| CLUSTERED
+< row
+: bytes
+| nokey
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| NONCLUSTERED
+< row
+: bytes
+| r
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| CLUSTERED
+< row
+: bytes
+| sq
+: bytes
+| SEQUENCE
+: bytes
+| InnoDB
+: bytes
+| NONCLUSTERED
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| NONCLUSTERED
+< row
+: bytes
+| v
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+| NONCLUSTERED
+> query
+| SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
+| SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
+| UNION ALL SELECT CONCAT_WS('\t', 'relation', TABLE_SCHEMA, '', TABLE_NAME, TABLE_TYPE), TABLE_SCHEMA FROM information_schema.TABLES
+| UNION ALL SELECT CONCAT_WS('\t', 'column', TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, ''), TABLE_SCHEMA FROM information_schema.COLUMNS
+| UNION ALL SELECT DISTINCT CONCAT_WS('\t', 'index', TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, ''), TABLE_SCHEMA FROM information_schema.STATISTICS
+| UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
+| ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
+< result
+< column "COUNT(*)" "BIGINT" "int64"
+< column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
+< row
+: int64 24
+: bytes
+| column	shop	child	b	
+| column	shop	child	id	
+| column	shop	nokey	a	
+| column	shop	r	id	
+| column	shop	t	a	
+| column	shop	t	b	
+| column	shop	t	id	
+| column	shop	v	id	
+| database	shop			
+| database	test			
+| index	shop	child	PRIMARY	
+| index	shop	child	fk_1	
+| index	shop	r	PRIMARY	
+| index	shop	t	PRIMARY	
+| index	shop	t	fk1	
+| index	shop	t	i	
+| relation	shop		child	BASE TABLE
+| relation	shop		nokey	BASE TABLE
+| relation	shop		r	BASE TABLE
+| relation	shop		sq	SEQUENCE
+| relation	shop		t	BASE TABLE
+| relation	shop		v	VIEW
+| table foreign key	shop	child	fk_1	
+| table foreign key	shop	t	fk1	
+> query ^
+< result
+< column "COUNT(*)" "BIGINT" "int64"
+< column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
+< row
+: int64 24
+: bytes
+| column	shop	child	b	
+| column	shop	child	id	
+| column	shop	nokey	a	
+| column	shop	r	id	
+| column	shop	t	a	
+| column	shop	t	b	
+| column	shop	t	id	
+| column	shop	v	id	
+| database	shop			
+| database	test			
+| index	shop	child	PRIMARY	
+| index	shop	child	fk_1	
+| index	shop	r	PRIMARY	
+| index	shop	t	PRIMARY	
+| index	shop	t	fk1	
+| index	shop	t	i	
+| relation	shop		child	BASE TABLE
+| relation	shop		nokey	BASE TABLE
+| relation	shop		r	BASE TABLE
+| relation	shop		sq	SEQUENCE
+| relation	shop		t	BASE TABLE
+| relation	shop		v	VIEW
+| table foreign key	shop	child	fk_1	
+| table foreign key	shop	t	fk1	
+> query ^
+< result
+< column "COUNT(*)" "BIGINT" "int64"
+< column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
+< row
+: int64 24
+: bytes
+| column	shop	child	b	
+| column	shop	child	id	
+| column	shop	nokey	a	
+| column	shop	r	id	
+| column	shop	t	a	
+| column	shop	t	b	
+| column	shop	t	id	
+| column	shop	v	id	
+| database	shop			
+| database	test			
+| index	shop	child	PRIMARY	
+| index	shop	child	fk_1	
+| index	shop	r	PRIMARY	
+| index	shop	t	PRIMARY	
+| index	shop	t	fk1	
+| index	shop	t	i	
+| relation	shop		child	BASE TABLE
+| relation	shop		nokey	BASE TABLE
+| relation	shop		r	BASE TABLE
+| relation	shop		sq	SEQUENCE
+| relation	shop		t	BASE TABLE
+| relation	shop		v	VIEW
+| table foreign key	shop	child	fk_1	
+| table foreign key	shop	t	fk1	
+> query ^
+< result
+< column "COUNT(*)" "BIGINT" "int64"
+< column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
+< row
+: int64 24
+: bytes
+| column	shop	child	b	
+| column	shop	child	id	
+| column	shop	nokey	a	
+| column	shop	r	id	
+| column	shop	t	a	
+| column	shop	t	b	
+| column	shop	t	id	
+| column	shop	v	id	
+| database	shop			
+| database	test			
+| index	shop	child	PRIMARY	
+| index	shop	child	fk_1	
+| index	shop	r	PRIMARY	
+| index	shop	t	PRIMARY	
+| index	shop	t	fk1	
+| index	shop	t	i	
+| relation	shop		child	BASE TABLE
+| relation	shop		nokey	BASE TABLE
+| relation	shop		r	BASE TABLE
+| relation	shop		sq	SEQUENCE
+| relation	shop		t	BASE TABLE
+| relation	shop		v	VIEW
+| table foreign key	shop	child	fk_1	
+| table foreign key	shop	t	fk1	
+> query ^
+< result
+< column "COUNT(*)" "BIGINT" "int64"
+< column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
+< row
+: int64 24
+: bytes
+| column	shop	child	b	
+| column	shop	child	id	
+| column	shop	nokey	a	
+| column	shop	r	id	
+| column	shop	t	a	
+| column	shop	t	b	
+| column	shop	t	id	
+| column	shop	v	id	
+| database	shop			
+| database	test			
+| index	shop	child	PRIMARY	
+| index	shop	child	fk_1	
+| index	shop	r	PRIMARY	
+| index	shop	t	PRIMARY	
+| index	shop	t	fk1	
+| index	shop	t	i	
+| relation	shop		child	BASE TABLE
+| relation	shop		nokey	BASE TABLE
+| relation	shop		r	BASE TABLE
+| relation	shop		sq	SEQUENCE
+| relation	shop		t	BASE TABLE
+| relation	shop		v	VIEW
+| table foreign key	shop	child	fk_1	
+| table foreign key	shop	t	fk1	
+> query ^
+< result
+< column "COUNT(*)" "BIGINT" "int64"
+< column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
+< row
+: int64 24
+: bytes
+| column	shop	child	b	
+| column	shop	child	id	
+| column	shop	nokey	a	
+| column	shop	r	id	
+| column	shop	t	a	
+| column	shop	t	b	
+| column	shop	t	id	
+| column	shop	v	id	
+| database	shop			
+| database	test			
+| index	shop	child	PRIMARY	
+| index	shop	child	fk_1	
+| index	shop	r	PRIMARY	
+| index	shop	t	PRIMARY	
+| index	shop	t	fk1	
+| index	shop	t	i	
+| relation	shop		child	BASE TABLE
+| relation	shop		nokey	BASE TABLE
+| relation	shop		r	BASE TABLE
+| relation	shop		sq	SEQUENCE
+| relation	shop		t	BASE TABLE
+| relation	shop		v	VIEW
+| table foreign key	shop	child	fk_1	
+| table foreign key	shop	t	fk1	
+> query ^
+< result
+< column "COUNT(*)" "BIGINT" "int64"
+< column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
+< row
+: int64 24
+: bytes
+| column	shop	child	b	
+| column	shop	child	id	
+| column	shop	nokey	a	
+| column	shop	r	id	
+| column	shop	t	a	
+| column	shop	t	b	
+| column	shop	t	id	
+| column	shop	v	id	
+| database	shop			
+| database	test			
+| index	shop	child	PRIMARY	
+| index	shop	child	fk_1	
+| index	shop	r	PRIMARY	
+| index	shop	t	PRIMARY	
+| index	shop	t	fk1	
+| index	shop	t	i	
+| relation	shop		child	BASE TABLE
+| relation	shop		nokey	BASE TABLE
+| relation	shop		r	BASE TABLE
+| relation	shop		sq	SEQUENCE
+| relation	shop		t	BASE TABLE
+| relation	shop		v	VIEW
+| table foreign key	shop	child	fk_1	
+| table foreign key	shop	t	fk1	
+> query ^
+< result
+< column "COUNT(*)" "BIGINT" "int64"
+< column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
+< row
+: int64 24
+: bytes
+| column	shop	child	b	
+| column	shop	child	id	
+| column	shop	nokey	a	
+| column	shop	r	id	
+| column	shop	t	a	
+| column	shop	t	b	
+| column	shop	t	id	
+| column	shop	v	id	
+| database	shop			
+| database	test			
+| index	shop	child	PRIMARY	
+| index	shop	child	fk_1	
+| index	shop	r	PRIMARY	
+| index	shop	t	PRIMARY	
+| index	shop	t	fk1	
+| index	shop	t	i	
+| relation	shop		child	BASE TABLE
+| relation	shop		nokey	BASE TABLE
+| relation	shop		r	BASE TABLE
+| relation	shop		sq	SEQUENCE
+| relation	shop		t	BASE TABLE
+| relation	shop		v	VIEW
+| table foreign key	shop	child	fk_1	
+| table foreign key	shop	t	fk1	
+> query ^
+< result
+< column "COUNT(*)" "BIGINT" "int64"
+< column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
+< row
+: int64 24
+: bytes
+| column	shop	kid	b	
+| column	shop	kid	id	
+| column	shop	nokey	a	
+| column	shop	r	id	
+| column	shop	t	a	
+| column	shop	t	b	
+| column	shop	t	id	
+| column	shop	v	id	
+| database	shop			
+| database	test			
+| index	shop	kid	PRIMARY	
+| index	shop	kid	fk_1	
+| index	shop	r	PRIMARY	
+| index	shop	t	PRIMARY	
+| index	shop	t	fk1	
+| index	shop	t	i	
+| relation	shop		kid	BASE TABLE
+| relation	shop		nokey	BASE TABLE
+| relation	shop		r	BASE TABLE
+| relation	shop		sq	SEQUENCE
+| relation	shop		t	BASE TABLE
+| relation	shop		v	VIEW
+| table foreign key	shop	kid	fk_1	
+| table foreign key	shop	t	fk1	
+> query ^
+< result
+< column "COUNT(*)" "BIGINT" "int64"
+< column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
+< row
+: int64 24
+: bytes
+| column	shop	kid	b	
+| column	shop	kid	id	
+| column	shop	nokey	a	
+| column	shop	r	id	
+| column	shop	t	a	
+| column	shop	t	b	
+| column	shop	t	id	
+| column	shop	v	id	
+| database	shop			
+| database	test			
+| index	shop	kid	PRIMARY	
+| index	shop	kid	fk_1	
+| index	shop	r	PRIMARY	
+| index	shop	t	PRIMARY	
+| index	shop	t	fk1	
+| index	shop	t	i	
+| relation	shop		kid	BASE TABLE
+| relation	shop		nokey	BASE TABLE
+| relation	shop		r	BASE TABLE
+| relation	shop		sq	SEQUENCE
+| relation	shop		t	BASE TABLE
+| relation	shop		v	VIEW
+| table foreign key	shop	kid	fk_1	
+| table foreign key	shop	t	fk1	
+
+== TestWalkThroughAgainstTiDB/a_clustered_primary_key_stays default#3
+> exec
+| USE shop
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| ALTER TABLE r DROP PRIMARY KEY;
+< error
+| 8200 HY000 Unsupported drop primary key when the table is using clustered index
+> exec
+| ALTER TABLE child DROP INDEX `PRIMARY`;
+< error
+| 8200 HY000 Unsupported drop primary key when the table is using clustered index
+> exec
+| DROP INDEX `PRIMARY` ON r;
+< error
+| 8200 HY000 Unsupported drop primary key when the table is using clustered index
+> exec
+| ALTER TABLE child SHARD_ROW_ID_BITS = 4;
+< error
+| 8200 HY000 Unsupported shard_row_id_bits for table with primary key as row id
+> exec
+| ALTER TABLE r SHARD_ROW_ID_BITS 1, COMMENT 'c';
+< error
+| 8200 HY000 Unsupported shard_row_id_bits for table with primary key as row id
+> exec
+| ALTER TABLE r SHARD_ROW_ID_BITS = 0;
+< ok 0 0
+> exec
+| ALTER TABLE t SHARD_ROW_ID_BITS = 4;
+< ok 0 0
+> exec
+| RENAME TABLE child TO kid;
+< ok 0 0
+> exec
+| ALTER TABLE kid DROP PRIMARY KEY;
+< error
+| 8200 HY000 Unsupported drop primary key when the table is using clustered index
+> exec
+| ALTER TABLE t DROP PRIMARY KEY;
+< ok 0 0
 
 == TestWalkThroughAgainstTiDB/a_constraint's_name_and_its_index's default#1
 > exec
@@ -14864,7 +15849,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -14910,7 +15895,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -14926,9 +15911,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -14954,24 +15939,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -14979,6 +15965,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -14986,6 +15974,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -14993,6 +15983,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -15000,6 +15992,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -15007,6 +16001,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -15014,6 +16010,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -15023,7 +16021,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -15054,7 +16052,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -15089,7 +16087,7 @@
 | table foreign key	shop	x	cx	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 27
@@ -15123,7 +16121,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 27
@@ -15157,7 +16155,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 26
@@ -15190,7 +16188,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 30
@@ -15227,7 +16225,7 @@
 | table foreign key	shop	y	fy	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 29
@@ -15263,7 +16261,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -15298,7 +16296,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 29
@@ -15334,7 +16332,7 @@
 | table foreign key	shop	t	nk	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 33
@@ -15374,7 +16372,7 @@
 | table foreign key	shop	t	nk	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 32
@@ -15413,7 +16411,7 @@
 | table foreign key	shop	t	nk	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 32
@@ -15452,7 +16450,7 @@
 | table foreign key	shop	t	nk	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 33
@@ -15492,7 +16490,7 @@
 | table foreign key	shop	t	nk	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 32
@@ -15531,7 +16529,7 @@
 | table foreign key	shop	t	nk	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 36
@@ -15574,7 +16572,7 @@
 | table foreign key	shop	w	cw	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 36
@@ -15617,7 +16615,7 @@
 | table foreign key	shop	w	cw	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 39
@@ -15663,7 +16661,7 @@
 | table foreign key	shop	w	cw	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 39
@@ -15852,7 +16850,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -15898,7 +16896,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -15914,9 +16912,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -15942,24 +16940,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -15967,6 +16966,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -15974,6 +16975,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -15981,6 +16984,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -15988,6 +16993,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -15995,6 +17002,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -16002,6 +17011,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -16011,7 +17022,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -16042,7 +17053,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -16073,7 +17084,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -16104,7 +17115,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -16135,7 +17146,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -16166,7 +17177,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -16394,7 +17405,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -16440,7 +17451,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -16456,9 +17467,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -16484,24 +17495,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -16509,6 +17521,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -16516,6 +17530,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -16523,6 +17539,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -16530,6 +17548,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -16537,6 +17557,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -16544,6 +17566,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -16553,7 +17577,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -16584,7 +17608,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -16615,7 +17639,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -16646,7 +17670,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -16677,7 +17701,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -16814,7 +17838,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -16860,7 +17884,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -16876,9 +17900,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -16904,24 +17928,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -16929,6 +17954,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -16936,6 +17963,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -16943,6 +17972,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -16950,6 +17981,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -16957,6 +17990,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -16964,6 +17999,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -16973,7 +18010,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -17004,7 +18041,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 30
@@ -17041,7 +18078,7 @@
 | table foreign key	shop	x	fx	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 30
@@ -17078,7 +18115,7 @@
 | table foreign key	shop	x	fx	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 30
@@ -17115,7 +18152,7 @@
 | table foreign key	shop	x	fx	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 30
@@ -17152,7 +18189,7 @@
 | table foreign key	shop	x	fx	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 30
@@ -17189,7 +18226,7 @@
 | table foreign key	shop	x	fx	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 30
@@ -17226,7 +18263,7 @@
 | table foreign key	shop	x	fx	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 30
@@ -17263,7 +18300,7 @@
 | table foreign key	shop	x	fx	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 32
@@ -17302,7 +18339,7 @@
 | table foreign key	shop	x	fx	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 31
@@ -17340,7 +18377,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 31
@@ -17378,7 +18415,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 36
@@ -17553,7 +18590,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -17599,7 +18636,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -17615,9 +18652,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -17643,24 +18680,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -17668,6 +18706,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -17675,6 +18715,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -17682,6 +18724,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -17689,6 +18733,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -17696,6 +18742,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -17703,6 +18751,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -17712,7 +18762,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -17743,7 +18793,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 26
@@ -17776,7 +18826,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 26
@@ -17809,7 +18859,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 26
@@ -17842,7 +18892,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 26
@@ -17979,7 +19029,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -18025,7 +19075,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -18041,9 +19091,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -18069,24 +19119,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -18094,6 +19145,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -18101,6 +19154,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -18108,6 +19163,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -18115,6 +19172,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -18122,6 +19181,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -18129,6 +19190,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -18138,7 +19201,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -18169,7 +19232,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -18200,7 +19263,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 26
@@ -18233,7 +19296,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 26
@@ -18266,7 +19329,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 26
@@ -18299,7 +19362,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 27
@@ -18333,7 +19396,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 27
@@ -18478,7 +19541,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -18524,7 +19587,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -18540,9 +19603,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -18568,24 +19631,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -18593,6 +19657,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -18600,6 +19666,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -18607,6 +19675,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -18614,6 +19684,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -18621,6 +19693,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -18628,6 +19702,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -18637,7 +19713,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -18668,7 +19744,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -18699,7 +19775,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -18730,7 +19806,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -18761,7 +19837,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -18792,7 +19868,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -18823,7 +19899,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -18854,7 +19930,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -19097,7 +20173,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -19143,7 +20219,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -19159,9 +20235,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -19187,24 +20263,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -19212,6 +20289,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -19219,6 +20298,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -19226,6 +20307,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -19233,6 +20316,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -19240,6 +20325,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -19247,6 +20334,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -19256,7 +20345,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -19287,7 +20376,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -19318,7 +20407,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -19349,7 +20438,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -19610,7 +20699,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -19656,7 +20745,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -19672,9 +20761,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -19700,24 +20789,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -19725,6 +20815,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -19732,6 +20824,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -19739,6 +20833,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -19746,6 +20842,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -19753,6 +20851,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -19760,6 +20860,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -19769,7 +20871,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -19800,7 +20902,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -19832,7 +20934,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -19964,7 +21066,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -20010,7 +21112,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -20026,9 +21128,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -20054,24 +21156,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -20079,6 +21182,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -20086,6 +21191,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -20093,6 +21200,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -20100,6 +21209,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -20107,6 +21218,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -20114,6 +21227,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -20123,7 +21238,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -20154,7 +21269,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -20185,7 +21300,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -20217,7 +21332,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -20248,7 +21363,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -20382,7 +21497,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -20428,7 +21543,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -20444,9 +21559,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -20472,24 +21587,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -20497,6 +21613,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -20504,6 +21622,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -20511,6 +21631,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -20518,6 +21640,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -20525,6 +21649,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -20532,6 +21658,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -20541,7 +21669,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -20572,7 +21700,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -20604,7 +21732,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -20639,7 +21767,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 32
@@ -20678,7 +21806,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 33
@@ -20718,7 +21846,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 33
@@ -20864,7 +21992,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -20910,7 +22038,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -20926,9 +22054,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -20954,24 +22082,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -20979,6 +22108,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -20986,6 +22117,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -20993,6 +22126,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -21000,6 +22135,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -21007,6 +22144,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -21014,6 +22153,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -21023,7 +22164,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -21054,7 +22195,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -21085,7 +22226,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -21116,7 +22257,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -21147,7 +22288,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -21178,7 +22319,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -21209,7 +22350,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -21240,7 +22381,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -21271,7 +22412,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -21302,7 +22443,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -21333,7 +22474,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -21491,7 +22632,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -21537,7 +22678,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -21553,9 +22694,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -21581,24 +22722,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -21606,6 +22748,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -21613,6 +22757,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -21620,6 +22766,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -21627,6 +22775,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -21634,6 +22784,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -21641,6 +22793,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -21650,7 +22804,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -21681,7 +22835,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -21712,7 +22866,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -21744,7 +22898,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -21776,7 +22930,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -21808,7 +22962,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -21840,7 +22994,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -21872,7 +23026,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 27
@@ -21906,7 +23060,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 27
@@ -21940,7 +23094,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -21971,7 +23125,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -22125,7 +23279,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -22171,7 +23325,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -22187,9 +23341,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -22215,24 +23369,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -22240,6 +23395,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -22247,6 +23404,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -22254,6 +23413,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -22261,6 +23422,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -22268,6 +23431,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -22275,6 +23440,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -22284,7 +23451,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -22315,7 +23482,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -22346,7 +23513,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -22381,7 +23548,7 @@
 | table foreign key	shop	y00	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -22416,7 +23583,7 @@
 | table foreign key	shop	y00	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 30
@@ -22453,7 +23620,7 @@
 | table foreign key	shop	y00	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 30
@@ -22490,7 +23657,7 @@
 | table foreign key	shop	y00	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 30
@@ -22527,7 +23694,7 @@
 | table foreign key	shop	y00	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 30
@@ -22564,7 +23731,7 @@
 | table foreign key	shop	y00	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 30
@@ -22601,7 +23768,7 @@
 | table foreign key	shop	y00	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 29
@@ -22637,7 +23804,7 @@
 | table foreign key	shop	y00	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 29
@@ -22673,7 +23840,7 @@
 | table foreign key	shop	y00	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 29
@@ -22709,7 +23876,7 @@
 | table foreign key	shop	y00	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 29
@@ -22745,7 +23912,7 @@
 | table foreign key	shop	y00	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 29
@@ -22781,7 +23948,7 @@
 | table foreign key	shop	y00	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 33
@@ -22821,7 +23988,7 @@
 | table foreign key	shop	y00	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 33
@@ -22861,7 +24028,7 @@
 | table foreign key	shop	y00	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 33
@@ -23051,7 +24218,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -23097,7 +24264,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -23113,9 +24280,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -23141,24 +24308,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -23166,6 +24334,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -23173,6 +24343,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -23180,6 +24352,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -23187,6 +24361,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -23194,6 +24370,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -23201,6 +24379,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -23210,7 +24390,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -23241,7 +24421,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -23272,7 +24452,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -23404,7 +24584,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -23450,7 +24630,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -23466,9 +24646,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -23494,24 +24674,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -23519,6 +24700,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -23526,6 +24709,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -23533,6 +24718,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -23540,6 +24727,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -23547,6 +24736,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -23554,6 +24745,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -23563,7 +24756,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -23594,7 +24787,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 30
@@ -23631,7 +24824,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 30
@@ -23668,7 +24861,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 29
@@ -23704,7 +24897,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 29
@@ -23740,7 +24933,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 31
@@ -23778,7 +24971,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 31
@@ -23816,7 +25009,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 30
@@ -23853,7 +25046,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 30
@@ -23890,7 +25083,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 30
@@ -23927,7 +25120,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 31
@@ -23965,7 +25158,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 31
@@ -24126,7 +25319,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -24172,7 +25365,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -24188,9 +25381,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -24216,24 +25409,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -24241,6 +25435,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -24248,6 +25444,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -24255,6 +25453,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -24262,6 +25462,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -24269,6 +25471,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -24276,6 +25480,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -24285,7 +25491,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -24316,7 +25522,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -24347,7 +25553,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 22
@@ -24376,7 +25582,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 23
@@ -24406,7 +25612,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 23
@@ -24436,7 +25642,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -24468,7 +25674,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -24500,7 +25706,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -24532,7 +25738,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -24564,7 +25770,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -24596,7 +25802,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -24627,7 +25833,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -24658,7 +25864,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 23
@@ -24688,7 +25894,7 @@
 | table foreign key	shop	child	fk_1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 23
@@ -24861,7 +26067,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -24922,7 +26128,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -24938,9 +26144,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -24966,24 +26172,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -24991,6 +26198,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | kel
@@ -24998,6 +26207,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | nokey
@@ -25005,6 +26216,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -25012,6 +26225,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -25019,6 +26234,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -25026,6 +26243,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | tK
@@ -25033,6 +26252,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -25040,6 +26261,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -25049,7 +26272,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 29
@@ -25085,7 +26308,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -25120,7 +26343,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -25155,7 +26378,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 26
@@ -25188,7 +26411,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 30
@@ -25225,7 +26448,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 29
@@ -25261,7 +26484,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -25296,7 +26519,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -25444,7 +26667,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -25490,7 +26713,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -25506,9 +26729,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -25534,24 +26757,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -25559,6 +26783,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -25566,6 +26792,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -25573,6 +26801,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -25580,6 +26810,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -25587,6 +26819,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -25594,6 +26828,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -25603,7 +26839,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -25634,7 +26870,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -25665,7 +26901,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -25696,7 +26932,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -25727,7 +26963,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -25758,7 +26994,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -25789,7 +27025,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -25820,7 +27056,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -25851,7 +27087,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -25882,7 +27118,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -25913,7 +27149,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -26075,7 +27311,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -26121,7 +27357,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -26137,9 +27373,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -26165,24 +27401,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -26190,6 +27427,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -26197,6 +27436,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -26204,6 +27445,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -26211,6 +27454,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -26218,6 +27463,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -26225,6 +27472,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -26234,7 +27483,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -26265,7 +27514,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 1
@@ -26273,7 +27522,7 @@
 | database	test			
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 1
@@ -26281,7 +27530,7 @@
 | database	test			
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 1
@@ -26289,7 +27538,7 @@
 | database	test			
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 1
@@ -26297,7 +27546,7 @@
 | database	test			
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 1
@@ -26305,7 +27554,7 @@
 | database	test			
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 1
@@ -26313,7 +27562,7 @@
 | database	test			
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 1
@@ -26321,7 +27570,7 @@
 | database	test			
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 1
@@ -26490,7 +27739,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -26536,7 +27785,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -26552,9 +27801,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -26580,24 +27829,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -26605,6 +27855,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -26612,6 +27864,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -26619,6 +27873,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -26626,6 +27882,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -26633,6 +27891,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -26640,6 +27900,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -26649,7 +27911,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -26680,7 +27942,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -26712,7 +27974,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -26743,7 +28005,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -26774,7 +28036,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -26805,7 +28067,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -26836,7 +28098,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -27039,7 +28301,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -27085,7 +28347,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -27101,9 +28363,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -27129,24 +28391,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -27154,6 +28417,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -27161,6 +28426,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -27168,6 +28435,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -27175,6 +28444,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -27182,6 +28453,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -27189,6 +28462,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -27198,7 +28473,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -27229,7 +28504,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -27260,7 +28535,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -27291,7 +28566,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -27322,7 +28597,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -27353,7 +28628,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -27384,7 +28659,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -27415,7 +28690,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -27446,7 +28721,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -27477,7 +28752,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -27637,7 +28912,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -27683,7 +28958,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -27699,9 +28974,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -27727,24 +29002,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -27752,6 +29028,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -27759,6 +29037,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -27766,6 +29046,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -27773,6 +29055,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -27780,6 +29064,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -27787,6 +29073,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -27796,7 +29084,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -27827,7 +29115,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -27858,7 +29146,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -27889,7 +29177,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -27920,7 +29208,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -27951,7 +29239,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -27982,7 +29270,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -28013,7 +29301,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -28044,7 +29332,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -28075,7 +29363,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -28106,7 +29394,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -28137,7 +29425,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -28168,7 +29456,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -28199,7 +29487,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 23
@@ -28229,7 +29517,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 23
@@ -28259,7 +29547,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -28290,7 +29578,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -28321,7 +29609,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -28352,7 +29640,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 23
@@ -28382,7 +29670,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 23
@@ -28412,7 +29700,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 23
@@ -29100,7 +30388,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -29146,7 +30434,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -29162,9 +30450,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -29190,24 +30478,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -29215,6 +30504,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -29222,6 +30513,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -29229,6 +30522,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -29236,6 +30531,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -29243,6 +30540,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -29250,6 +30549,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -29259,7 +30560,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -29290,7 +30591,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -29321,7 +30622,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -29352,7 +30653,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -29383,7 +30684,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -29414,7 +30715,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -29445,7 +30746,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -29476,7 +30777,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -29507,7 +30808,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -29538,7 +30839,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -29569,7 +30870,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -29600,7 +30901,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -29631,7 +30932,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -29662,7 +30963,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -29693,7 +30994,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -29857,7 +31158,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -29903,7 +31204,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -29919,9 +31220,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -29947,24 +31248,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -29972,6 +31274,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -29979,6 +31283,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -29986,6 +31292,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -29993,6 +31301,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -30000,6 +31310,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -30007,6 +31319,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -30016,7 +31330,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -30047,7 +31361,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -30078,7 +31392,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -30110,7 +31424,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -30142,7 +31456,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -30174,7 +31488,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -30206,7 +31520,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -30238,7 +31552,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -30270,7 +31584,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -30302,7 +31616,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -30334,7 +31648,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -30827,7 +32141,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -30873,7 +32187,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -30889,9 +32203,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -30917,24 +32231,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -30942,6 +32257,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -30949,6 +32266,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -30956,6 +32275,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -30963,6 +32284,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -30970,6 +32293,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -30977,6 +32302,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -30986,7 +32313,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -31017,7 +32344,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -31049,7 +32376,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -31081,7 +32408,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -31112,7 +32439,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -31144,7 +32471,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -31176,7 +32503,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 25
@@ -31409,7 +32736,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -31455,7 +32782,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -31471,9 +32798,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -31499,24 +32826,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -31524,6 +32852,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -31531,6 +32861,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -31538,6 +32870,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -31545,6 +32879,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -31552,6 +32888,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -31559,6 +32897,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -31568,7 +32908,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -31599,7 +32939,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -31630,7 +32970,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -31661,7 +33001,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -31692,7 +33032,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -31723,7 +33063,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -31758,7 +33098,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -31793,7 +33133,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -31828,7 +33168,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -31863,7 +33203,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -31898,7 +33238,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -31933,7 +33273,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -31968,7 +33308,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -32003,7 +33343,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -32038,7 +33378,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -32073,7 +33413,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -32108,7 +33448,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -32143,42 +33483,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
-< column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
-< row
-: int64 28
-: bytes
-| column	shop	child	b	
-| column	shop	child	id	
-| column	shop	nokey	a	
-| column	shop	r	id	
-| column	shop	t	a	
-| column	shop	t	b	
-| column	shop	t	id	
-| column	shop	v	id	
-| column	shop	x	a	
-| column	shop	x	b	
-| database	shop			
-| database	test			
-| index	shop	child	PRIMARY	
-| index	shop	child	fk_1	
-| index	shop	r	PRIMARY	
-| index	shop	t	PRIMARY	
-| index	shop	t	fk1	
-| index	shop	t	i	
-| index	shop	x	b	
-| relation	shop		child	BASE TABLE
-| relation	shop		nokey	BASE TABLE
-| relation	shop		r	BASE TABLE
-| relation	shop		sq	SEQUENCE
-| relation	shop		t	BASE TABLE
-| relation	shop		v	VIEW
-| relation	shop		x	BASE TABLE
-| table foreign key	shop	child	fk_1	
-| table foreign key	shop	t	fk1	
-> query ^
-< result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 28
@@ -32266,10 +33571,6 @@
 | ALTER TABLE t ALTER COLUMN a SET DEFAULT 1, MODIFY a int;
 < error
 | 8200 HY000 Unsupported operate same column 'a'
-> exec
-| ALTER TABLE r DROP PRIMARY KEY;
-< error
-| 8200 HY000 Unsupported drop primary key when the table is using clustered index
 > exec
 | ALTER TABLE t DROP CONSTRAINT nosuch;
 < error
@@ -32374,7 +33675,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -32420,7 +33721,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -32436,9 +33737,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -32464,24 +33765,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -32489,6 +33791,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -32496,6 +33800,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -32503,6 +33809,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -32510,6 +33818,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -32517,6 +33827,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -32524,6 +33836,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -32533,7 +33847,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -32564,7 +33878,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 26
@@ -32597,7 +33911,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 26
@@ -32630,7 +33944,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 27
@@ -32664,7 +33978,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 27
@@ -32698,7 +34012,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 27
@@ -32732,7 +34046,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 27
@@ -32766,7 +34080,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 27
@@ -32800,7 +34114,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 27
@@ -32834,7 +34148,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 27
@@ -32991,7 +34305,7 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -33037,7 +34351,7 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | v
@@ -33053,9 +34367,9 @@
 : string
 | shop
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -33081,24 +34395,25 @@
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
 > query
 | SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
 : string
 | shop
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sq
 > query
-| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TIDB_PK_TYPE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | shop
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | child
@@ -33106,6 +34421,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | nokey
@@ -33113,6 +34430,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | r
@@ -33120,6 +34439,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| CLUSTERED
 < row
 : bytes
 | sq
@@ -33127,6 +34448,8 @@
 | SEQUENCE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | t
@@ -33134,6 +34457,8 @@
 | BASE TABLE
 : bytes
 | InnoDB
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v
@@ -33141,6 +34466,8 @@
 | VIEW
 : bytes
 |
+: bytes
+| NONCLUSTERED
 > query
 | SELECT COUNT(*), GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\n') FROM (
 | SELECT CONCAT_WS('\t', 'database', SCHEMA_NAME, '', '', '') AS line, SCHEMA_NAME AS db FROM information_schema.SCHEMATA
@@ -33150,7 +34477,7 @@
 | UNION ALL SELECT CONCAT_WS('\t', 'table foreign key', CONSTRAINT_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, ''), CONSTRAINT_SCHEMA FROM information_schema.REFERENTIAL_CONSTRAINTS
 | ) o WHERE LOWER(o.db) NOT IN ('mysql', 'information_schema', 'performance_schema', 'metrics_schema', 'sys')
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -33181,7 +34508,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -33212,7 +34539,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -33243,7 +34570,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -33274,7 +34601,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -33305,7 +34632,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24
@@ -33336,7 +34663,7 @@
 | table foreign key	shop	t	fk1	
 > query ^
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < column "GROUP_CONCAT(o.line ORDER BY BINARY o.line SEPARATOR '\\n')" "VARCHAR"
 < row
 : int64 24

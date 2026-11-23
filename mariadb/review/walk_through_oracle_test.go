@@ -532,6 +532,9 @@ var walkCodes = []struct {
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Referenced table ") || strings.HasSuffix(m, ", not a table a foreign key can reference.")
 	}, []string{"1005:150"}},
+	{func(m, _ string) bool {
+		return strings.HasSuffix(m, " has no index on the columns its foreign key references.")
+	}, []string{"1005:150"}},
 	{func(m, _ string) bool { return saysTwice(m, "foreign key", "declares", "adds") }, []string{"1061"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "MariaDB doesn't accept `RENAME TABLE` of view ") }, []string{"1450"}},
 	{func(m, _ string) bool {

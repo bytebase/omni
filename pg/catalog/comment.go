@@ -100,12 +100,11 @@ func (c *Catalog) CommentObject(stmt *nodes.CommentStmt) error {
 		key = commentKey{ObjType: 'r', ObjOID: rel.OID, SubID: rel.Columns[idx].AttNum}
 
 	case nodes.OBJECT_INDEX:
+		// An index is looked up as a relation, so a missing one is 42P01,
+		// not DROP INDEX's 42704.
+		// pg: src/backend/catalog/objectaddress.c — get_relation_by_qualified_name
 		schemaName, name := extractCommentObjectName(stmt.Object)
-		schema, err := c.resolveTargetSchema(schemaName)
-		if err != nil {
-			return err
-		}
-		idx, err := c.findNamedIndex(schema, name)
+		_, idx, err := c.findIndexRelation(schemaName, name)
 		if err != nil {
 			return err
 		}

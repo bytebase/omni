@@ -1,6 +1,7 @@
 package review
 
 import (
+	"encoding/json"
 	"slices"
 	"strconv"
 	"strings"
@@ -941,11 +942,11 @@ func (b *builder) createIndex(v *ast.IndexStmt) bool {
 		b.mayAdd(walk.Scope{Space: spaceRelation, Parent: s, Prefix: generatedPrefix(r.key.Name)})
 		return true
 	}
+	// DefineIndex resolves the index's columns (ComputeIndexAttrs) before
+	// index_create meets the name, even under IF NOT EXISTS.
+	b.checkIndexElems(r, v)
 	name, ok := walkName(v.Idxname)
 	if !ok {
-		if !v.IfNotExists {
-			b.checkIndexElems(r, v)
-		}
 		b.mayAdd(walk.Scope{Space: spaceRelation, Parent: s})
 		return true
 	}
@@ -954,9 +955,6 @@ func (b *builder) createIndex(v *ast.IndexStmt) bool {
 	if !v.IfNotExists {
 		b.need(ik, walk.Absent, nil, taken(b.anchor(), relIndex, ident(v.Idxname))) // 42P07
 		prior = walk.Absent
-	}
-	if prior == walk.Absent {
-		b.checkIndexElems(r, v)
 	}
 	switch prior {
 	case walk.Absent:
@@ -1095,6 +1093,11 @@ func (b *builder) createTableAs(into *ast.IntoClause, matview, ifNotExists bool,
 		b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: alreadyExists("type", relation(rv))}) // 42710
 	}
 	if prior == walk.Absent {
+		// The relation's columns meet CheckAttributeType only when it is
+		// created; IF NOT EXISTS on an existing one returns before that.
+		if !isExecute && b.recordColumn(query) {
+			return true
+		}
 		if into.AccessMethod == "" || into.AccessMethod == "heap" {
 			b.checkHeapRelOptions(into.Options, rng)
 		}
@@ -3646,10 +3649,8 @@ func (b *builder) setVariable(v *ast.VariableSetStmt) bool {
 //
 // pg: src/backend/commands/trigger.c — CreateTrigger
 func (b *builder) createTrigger(v *ast.CreateTrigStmt) bool {
-	if v.Replace && v.IsConstraint {
-		b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`CREATE OR REPLACE CONSTRAINT TRIGGER`")) // 0A000
-		return true
-	}
+	// CREATE OR REPLACE CONSTRAINT TRIGGER never reaches here: gram.y's
+	// action refuses it, and so does the parser.
 	if v.IsConstraint && v.Constrrel != nil {
 		b.exists(v.Constrrel, false)
 	}
@@ -4553,7 +4554,7 @@ func (b *builder) checkViewQuery(v *ast.ViewStmt, k walk.Key, prior walk.Fact) {
 		b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`SELECT INTO` in a view")) // 0A000
 		return
 	}
-	if b.queryRefused(sel) {
+	if b.queryRefused(sel) || b.recordColumn(sel) {
 		return
 	}
 	if v.WithCheckOption != 0 && sel.Op == ast.SETOP_NONE && (sel.FromClause == nil || len(sel.FromClause.Items) == 0) {
@@ -6368,6 +6369,29 @@ func refusedForm(q ast.Node) string {
 				// The cast gives the array its type.
 				return false
 			}
+			if typ, ok := badTypedLiteral(v); ok {
+				msg = unsupported("this literal as " + review.Code(typ))
+			}
+		case *ast.RangeFunction:
+			if scalarColumnDefinitions(v) {
+				msg = unsupported("a column definition list on a function that doesn't return `record`")
+			}
+		case *ast.WindowDef:
+			// pg: src/backend/parser/parse_clause.c — transformWindowDefinitions
+			// ("GROUPS mode requires an ORDER BY clause"); a referenced window
+			// may supply the ORDER BY.
+			if v.FrameOptions&ast.FRAMEOPTION_GROUPS != 0 && v.Refname == "" && (v.OrderClause == nil || len(v.OrderClause.Items) == 0) {
+				msg = unsupported("a `GROUPS` frame without `ORDER BY`")
+			}
+		case *ast.JsonArrayQueryConstructor:
+			// pg: src/backend/parser/parse_expr.c —
+			// transformJsonArrayQueryConstructor ("subquery must return only
+			// one column")
+			if sel, ok := v.Query.(*ast.SelectStmt); ok && sel.Op == ast.SETOP_NONE && sel.ValuesLists == nil {
+				if n, exact := selectTargetCount(sel); exact && n != 1 {
+					msg = unsupported("a `JSON_ARRAY` subquery of other than one column")
+				}
+			}
 		case *ast.ParamRef:
 			msg = "Query references parameter `$" + strconv.Itoa(v.Number) + "`, which nothing supplies here."
 		case *ast.SetToDefault:
@@ -6388,6 +6412,22 @@ func refusedForm(q ast.Node) string {
 				}
 			}
 		case *ast.SelectStmt:
+			if v.LockingClause != nil && v.Op == ast.SETOP_NONE && (v.FromClause == nil || len(v.FromClause.Items) == 0) {
+				// pg: src/backend/parser/analyze.c — transformLockingClause
+				// finds each named relation in the query's own FROM.
+				for _, item := range v.LockingClause.Items {
+					lc, ok := item.(*ast.LockingClause)
+					if !ok || lc.LockedRels == nil {
+						continue
+					}
+					for _, rel := range lc.LockedRels.Items {
+						if rv, ok := rel.(*ast.RangeVar); ok {
+							msg = "Relation " + review.Code(ident(rv.Relname)) + " in `FOR UPDATE` or `FOR SHARE` isn't in `FROM`."
+							return false
+						}
+					}
+				}
+			}
 			if v.WindowClause != nil {
 				defined := make(map[string]bool, len(v.WindowClause.Items))
 				for _, item := range v.WindowClause.Items {
@@ -6410,6 +6450,141 @@ func refusedForm(q ast.Node) string {
 		return msg == ""
 	})
 	return msg
+}
+
+// recordColumn fails a query whose output, which becomes a relation's
+// columns, holds a bare ROW(...): its type is the pseudo-type record (pg:
+// src/backend/catalog/heap.c — CheckAttributeType, "column has pseudo-type
+// record", 42P16).
+func (b *builder) recordColumn(q ast.Node) bool {
+	sel, ok := q.(*ast.SelectStmt)
+	if !ok || sel.Op != ast.SETOP_NONE || sel.TargetList == nil {
+		return false
+	}
+	for _, item := range sel.TargetList.Items {
+		if rt, ok := item.(*ast.ResTarget); ok {
+			if _, ok := rt.Val.(*ast.RowExpr); ok {
+				b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("a `ROW(...)` column, whose type is the pseudo-type `record`"))
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// badTypedLiteral reports a string literal cast to a built-in type whose
+// input function can never read it, with the type's name. The cast is
+// evaluated when the query is analyzed, wherever it sits (pg:
+// src/backend/parser/parse_coerce.c — coerce_type converts an unknown
+// literal at once). Only a pg_catalog-qualified name, which is what the
+// grammar gives INT, BOOLEAN, BIT, and JSON, is judged, so no user type
+// can stand behind it.
+func badTypedLiteral(c *ast.TypeCast) (string, bool) {
+	con, ok := c.Arg.(*ast.A_Const)
+	if !ok || con.Isnull || c.TypeName == nil || c.TypeName.Setof || c.TypeName.PctType || c.TypeName.ArrayBounds != nil {
+		return "", false
+	}
+	str, ok := con.Val.(*ast.String)
+	if !ok {
+		return "", false
+	}
+	parts := nameParts(c.TypeName.Names)
+	if len(parts) != 2 || parts[0] != "pg_catalog" {
+		return "", false
+	}
+	s := str.Str
+	var bad bool
+	switch parts[1] {
+	case "int2", "int4", "int8":
+		// pg: src/backend/utils/adt/numutils.c — pg_strtoint*_safe need a
+		// digit in every accepted form (decimal, 0x, 0o, 0b, with _).
+		bad = !strings.ContainsAny(s, "0123456789")
+	case "bool":
+		bad = !validBool(s)
+	case "bit", "varbit":
+		bad = !validBitString(s)
+	case "json", "jsonb":
+		bad = !json.Valid([]byte(s))
+	default:
+		return "", false
+	}
+	return parts[1], bad
+}
+
+// validBool follows boolin (pg: src/backend/utils/adt/bool.c —
+// parse_bool_with_len), which trims whitespace and takes any prefix of
+// true, false, yes, or no, at least two letters of on or off, 1, or 0.
+func validBool(s string) bool {
+	s = strings.ToLower(strings.Trim(s, " \t\n\r\v\f"))
+	if s == "" {
+		return false
+	}
+	prefix := func(word string) bool { return strings.HasPrefix(word, s) }
+	switch s[0] {
+	case 't':
+		return prefix("true")
+	case 'f':
+		return prefix("false")
+	case 'y':
+		return prefix("yes")
+	case 'n':
+		return prefix("no")
+	case 'o':
+		return len(s) >= 2 && (prefix("on") || prefix("off"))
+	case '1', '0':
+		return len(s) == 1
+	}
+	return false
+}
+
+// validBitString follows bit_in and varbit_in (pg:
+// src/backend/utils/adt/varbit.c): a leading b or B, or none, takes binary
+// digits; a leading x or X takes hexadecimal ones.
+func validBitString(s string) bool {
+	digits := "01"
+	switch {
+	case s != "" && (s[0] == 'b' || s[0] == 'B'):
+		s = s[1:]
+	case s != "" && (s[0] == 'x' || s[0] == 'X'):
+		s, digits = s[1:], "0123456789abcdefABCDEF"
+	}
+	for _, c := range s {
+		if !strings.ContainsRune(digits, c) {
+			return false
+		}
+	}
+	return true
+}
+
+// scalarColumnDefinitions reports a column definition list on a FROM
+// function that is an SQL value function such as CURRENT_DATE, none of
+// which returns record (pg: src/backend/parser/parse_relation.c —
+// addRangeTableEntryForFunction, "a column definition list is only
+// allowed for functions returning "record"").
+func scalarColumnDefinitions(rf *ast.RangeFunction) bool {
+	if rf.Functions == nil {
+		return false
+	}
+	for _, item := range rf.Functions.Items {
+		pair, ok := item.(*ast.List)
+		if !ok || len(pair.Items) == 0 {
+			continue
+		}
+		if _, ok := pair.Items[0].(*ast.SQLValueFunction); !ok {
+			continue
+		}
+		defs := rf.Coldeflist
+		if rf.IsRowsfrom {
+			defs = nil
+			if len(pair.Items) > 1 {
+				defs, _ = pair.Items[1].(*ast.List)
+			}
+		}
+		if defs != nil && len(defs.Items) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // emptyArray reports whether an ARRAY[] holds no element at any depth.

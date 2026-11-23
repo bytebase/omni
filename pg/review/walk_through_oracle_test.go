@@ -1055,6 +1055,17 @@ func walkStates(msg string) []string {
 		return []string{"42601"}
 	case strings.HasPrefix(msg, "PostgreSQL doesn't accept an empty `ARRAY` with no cast"):
 		return []string{"42P18"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept this literal as "):
+		return []string{"22P02", "22026"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept a column definition list on a function that doesn't return `record`"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept a `JSON_ARRAY` subquery of other than one column"):
+		return []string{"42601"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept a `GROUPS` frame without `ORDER BY`"):
+		return []string{"42P20"}
+	case strings.HasPrefix(msg, "Relation ") && strings.HasSuffix(msg, " in `FOR UPDATE` or `FOR SHARE` isn't in `FROM`."):
+		return []string{"42P01"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept a `ROW(...)` column, whose type is the pseudo-type `record`"):
+		return []string{"42P16"}
 	case strings.HasPrefix(msg, "Window ") && strings.HasSuffix(msg, " doesn't exist."):
 		return []string{"42704"}
 	case strings.HasPrefix(msg, "PostgreSQL doesn't accept window ") && strings.HasSuffix(msg, " defined twice."):
@@ -1077,7 +1088,6 @@ func walkStates(msg string) []string {
 	case strings.HasSuffix(msg, " refers to another database, which PostgreSQL doesn't allow."),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `DROP INDEX CONCURRENTLY` "),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `CREATE INDEX CONCURRENTLY` "),
-		strings.HasPrefix(msg, "PostgreSQL doesn't accept `CREATE OR REPLACE CONSTRAINT TRIGGER`"),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `INSTEAD OF` trigger without `FOR EACH ROW`"),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `REFERENCING ... ROW` in `CREATE TRIGGER`"),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `FOR EACH ROW` trigger with transition tables"),

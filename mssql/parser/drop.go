@@ -185,6 +185,13 @@ func (p *Parser) parseDropStmt() (*nodes.DropStmt, error) {
 	// IF EXISTS: a bare IF is not part of the statement, and SQL Server
 	// refuses DROP DATABASE IF a with Msg 102 (measured).
 	if p.cur.Type == kwIF {
+		// DROP PARTITION FUNCTION (TSql160.g:15200), DROP PARTITION SCHEME
+		// (TSql160.g:15259) and DROP XML SCHEMA COLLECTION (TSql160.g:15469)
+		// take no IF EXISTS, and SQL Server refuses it there (measured).
+		switch stmt.ObjectType {
+		case nodes.DropPartitionFunction, nodes.DropPartitionScheme, nodes.DropXmlSchemaCollection:
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance() // IF
 		if _, err := p.expect(kwEXISTS); err != nil {
 			return nil, err

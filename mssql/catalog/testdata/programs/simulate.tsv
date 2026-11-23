@@ -151,3 +151,14 @@ ok:a8198e1519f6	ok:a8198e1519f6	engine	programs@objects	program:ddl-trigger	CREA
 207	207	engine	programs@objects	program:ddl-trigger	CREATE TRIGGER t ON DATABASE FOR CREATE_TABLE AS SELECT nope FROM customers
 ok:a8198e1519f6	ok:a8198e1519f6	engine	programs@objects	program:ddl-trigger	CREATE TRIGGER t ON DATABASE FOR CREATE_TABLE AS INSERT INTO audit (what) VALUES (EVENTDATA().value('(/EVENT_INSTANCE/ObjectName)[1]', 'nvarchar(100)'))
 3701	3701	engine	programs@objects	program:ddl-trigger	DROP TRIGGER nope ON DATABASE
+448	448	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS CREATE TABLE #t (c NVARCHAR(10) COLLATE a)
+448	448	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS DECLARE @t TABLE (c NVARCHAR(10) COLLATE a)
+448	448	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS ALTER TABLE missing_t ADD c NVARCHAR(10) COLLATE a
+448	448	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS SELECT name COLLATE a FROM customers
+ok:2e6b5a2600b8	ok:2e6b5a2600b8	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS SELECT name COLLATE latin1_general_ci_as FROM customers
+ok:89dd93aa6af8	ok:89dd93aa6af8	engine	programs@objects	program:procedure	CREATE PROCEDURE p AS SELECT 'x' COLLATE a FROM missing_t
+448	448	engine	programs@objects	program:procedure	CREATE PROCEDURE p @x NVARCHAR(10) AS SELECT @x COLLATE a
+448	448	engine	programs@objects	program:scalar-function	CREATE FUNCTION f() RETURNS NVARCHAR(10) AS BEGIN RETURN N'x' COLLATE a END
+448	448	engine	programs@objects	program:inline-function	CREATE FUNCTION f() RETURNS TABLE AS RETURN SELECT name COLLATE a AS n FROM customers
+448	448	engine	programs@objects	program:multi-statement-function	CREATE FUNCTION f() RETURNS @r TABLE (c NVARCHAR(10) COLLATE a) AS BEGIN RETURN END
+448	448	engine	programs@objects	program:trigger	CREATE TRIGGER tr ON customers AFTER INSERT AS SELECT name COLLATE a FROM inserted

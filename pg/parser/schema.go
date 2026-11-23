@@ -824,7 +824,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 		}
 
 		// Try object_type_name: SCHEMA | DATABASE | ROLE | TABLESPACE | ...
-		if objType, ok := p.tryParseObjectTypeName(); ok {
+		objType, ok, err := p.tryParseObjectTypeName()
+		if err != nil {
+			return nil, err
+		}
+		if ok {
 			stmt.Objtype = nodes.ObjectType(objType)
 			name, err := p.parseName()
 			if err != nil {
@@ -889,40 +893,55 @@ func (p *Parser) parseCommentText() (string, error) {
 	return "", p.syntaxErrorAtCur()
 }
 
-// tryParseObjectTypeName tries to parse object_type_name.
-//
-// Mirrors upstream gram.y `object_type_name` (= `drop_type_name` + DATABASE,
-// ROLE, SUBSCRIPTION, TABLESPACE). The non-EXTENSION drop_type_name entries
-// that omni does not yet handle here ([PROCEDURAL] LANGUAGE) are tracked
-// separately.
-func (p *Parser) tryParseObjectTypeName() (int64, bool) {
+// tryParseObjectTypeName tries to parse object_type_name (gram.y:6972):
+// drop_type_name (gram.y:6980) and DATABASE, ROLE, SUBSCRIPTION and
+// TABLESPACE. It reports false, consuming nothing, when the current token
+// starts none of them; FOREIGN starts one only before DATA, since FOREIGN
+// TABLE is an object_type_any_name. Once a form's first word is read, a
+// missing second word is an error.
+func (p *Parser) tryParseObjectTypeName() (int64, bool, error) {
+	var objType nodes.ObjectType
+	var then []int
 	switch p.cur.Type {
 	case SCHEMA:
-		p.advance()
-		return int64(nodes.OBJECT_SCHEMA), true
+		objType = nodes.OBJECT_SCHEMA
 	case DATABASE:
-		p.advance()
-		return int64(nodes.OBJECT_DATABASE), true
+		objType = nodes.OBJECT_DATABASE
 	case ROLE:
-		p.advance()
-		return int64(nodes.OBJECT_ROLE), true
+		objType = nodes.OBJECT_ROLE
 	case TABLESPACE:
-		p.advance()
-		return int64(nodes.OBJECT_TABLESPACE), true
+		objType = nodes.OBJECT_TABLESPACE
 	case SUBSCRIPTION:
-		p.advance()
-		return int64(nodes.OBJECT_SUBSCRIPTION), true
+		objType = nodes.OBJECT_SUBSCRIPTION
 	case PUBLICATION:
-		p.advance()
-		return int64(nodes.OBJECT_PUBLICATION), true
+		objType = nodes.OBJECT_PUBLICATION
 	case SERVER:
-		p.advance()
-		return int64(nodes.OBJECT_FOREIGN_SERVER), true
+		objType = nodes.OBJECT_FOREIGN_SERVER
 	case EXTENSION:
-		p.advance()
-		return int64(nodes.OBJECT_EXTENSION), true
+		objType = nodes.OBJECT_EXTENSION
+	case ACCESS:
+		objType, then = nodes.OBJECT_ACCESS_METHOD, []int{METHOD}
+	case EVENT:
+		objType, then = nodes.OBJECT_EVENT_TRIGGER, []int{TRIGGER}
+	case FOREIGN:
+		if p.peekNext().Type != DATA_P {
+			return 0, false, nil
+		}
+		objType, then = nodes.OBJECT_FDW, []int{DATA_P, WRAPPER}
+	case PROCEDURAL:
+		objType, then = nodes.OBJECT_LANGUAGE, []int{LANGUAGE}
+	case LANGUAGE:
+		objType = nodes.OBJECT_LANGUAGE
+	default:
+		return 0, false, nil
 	}
-	return 0, false
+	p.advance()
+	for _, t := range then {
+		if _, err := p.expect(t); err != nil {
+			return 0, false, err
+		}
+	}
+	return int64(objType), true, nil
 }
 
 // tryParseObjectTypeNameOnAnyName tries to parse object_type_name_on_any_name.
@@ -1141,7 +1160,11 @@ func (p *Parser) parseSecLabelStmt() (nodes.Node, error) {
 		return stmt, nil
 
 	default:
-		if objType, ok := p.tryParseObjectTypeName(); ok {
+		objType, ok, err := p.tryParseObjectTypeName()
+		if err != nil {
+			return nil, err
+		}
+		if ok {
 			stmt.Objtype = nodes.ObjectType(objType)
 			name, err := p.parseName()
 			if err != nil {

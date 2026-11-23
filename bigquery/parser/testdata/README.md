@@ -22,12 +22,13 @@ differences (793 seconds).
 
 | Rows | Total | Agree | Only BigQuery accepts | Only omni accepts | Agreement |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| One per alternative | 2,614 | 2,614 | 0 | 0 | 100.00% |
-| Near-misses | 6,223 | 6,223 | 0 | 0 | 100.00% |
-| **All** | **8,837** | **8,837** | **0** | **0** | **100.00%** |
+| One per alternative | 2,737 | 2,737 | 0 | 0 | 100.00% |
+| Near-misses | 6,503 | 6,503 | 0 | 0 | 100.00% |
+| **All** | **9,240** | **9,240** | **0** | **0** | **100.00%** |
 
 `select_column_expr`'s `ATTACHED_ALIAS` alternative gets no generated row: it
-refuses every input (`../../../googlesql/testdata/tokens.tsv`).
+refuses every input (`../../../googlesql/testdata/tokens.tsv`). The optional
+clauses that file marks `(every site)` add 403 rows, all agreeing.
 
 ### Comparison with Spanner emulator `1.5.54` (`googlesql/parser/testdata/compat.tsv`)
 

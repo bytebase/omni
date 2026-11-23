@@ -20,3 +20,18 @@ BIGDECIMAL_LITERAL	1BD	SqlBaseLexer.g4:584 digits or decimal with BD
 UNRECOGNIZED	(unreachable)	SqlBaseLexer.g4:638 catch-all fallback token for statement splitting, never accepted by parser rules
 .	a	SqlBaseParser.g4:325,335,345,349-361 wildcard in REFRESH, ADD/LIST, SET/RESET, and unsupportedHiveNativeCommands (.*?)
 primaryExpression	a	SqlBaseParser.g4:1156 the plainest expression is a name: the rule lists CURRENT_DATE first, so without this every expression row would carry CURRENT_DATE
+# Optional clauses tried at every site the grammar allows them, and not only
+# at the one its own row reaches. Each is an inline (...)? group, which the
+# reader lowers to a rule named after the group.
+statement(IF_errorCapturingNot_EXISTS)?	(every site)	SqlBaseParser.g4:191 IF NOT EXISTS (or IF ! EXISTS)
+statement(IF_EXISTS)?	(every site)	SqlBaseParser.g4:201 IF EXISTS
+statement(OR_REPLACE)?	(every site)	SqlBaseParser.g4:270 OR REPLACE
+statement(TEMPORARY)?	(every site)	SqlBaseParser.g4:284 TEMPORARY FUNCTION
+statement(PURGE)?	(every site)	SqlBaseParser.g4:261 PURGE
+statement(TABLE)?	(every site)	SqlBaseParser.g4:317 TABLE, a noise word
+insertInto(TABLE)?	(every site)	SqlBaseParser.g4:491 INSERT ... TABLE, a noise word
+insertInto(optionsClause)?	(every site)	SqlBaseParser.g4:491 WITH OPTIONS
+insertInto(IF_errorCapturingNot_EXISTS)?	(every site)	SqlBaseParser.g4:491 INSERT ... PARTITION (...) IF NOT EXISTS
+statement(partitionSpec)?	(every site)	SqlBaseParser.g4:218 PARTITION (...)
+statement((FROM|IN)_identifierReference)?	(every site)	SqlBaseParser.g4:220 FROM or IN a namespace
+predicate(errorCapturingNot)?	(every site)	SqlBaseParser.g4:1116 NOT BETWEEN, NOT IN, NOT LIKE, IS NOT

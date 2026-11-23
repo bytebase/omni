@@ -105,12 +105,13 @@ type tidbSnapshot struct {
 	// mixed lists the spaces where the sync lists a name outside ASCII, as
 	// the space and its table's key ("" for the database's relations).
 	mixed map[[2]string]bool
-	// colTypes, indexSets, fkDefs, and idCaches hold each table's shape
+	// colTypes, indexSets, fkDefs, idCaches, and clustered hold each table's shape
 	// (walk_table_shape.go), and fkRefs every foreign key the sync lists.
 	colTypes  map[string]map[string]string
 	indexSets map[string]string
 	fkDefs    map[string]map[string]string
 	idCaches  map[string]string
+	clustered map[string]bool
 	fkRefs    []syncedFKRef
 	// checkSets holds each table's CHECK constraints (walk_checks.go).
 	checkSets map[string]string
@@ -132,6 +133,7 @@ func newTiDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *tidb
 		indexSets:        make(map[string]string),
 		fkDefs:           make(map[string]map[string]string),
 		idCaches:         make(map[string]string),
+		clustered:        make(map[string]bool),
 		checkSets:        make(map[string]string),
 	}
 	s.db, _ = nameKey(spaceDatabase, db.GetName(), foldTables)
@@ -280,7 +282,7 @@ func (s *tidbSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 			}
 		}
 		return walk.Unknown, ""
-	case spaceColumnType, spaceIndexSet, spaceFKDef, spaceOrigin, spaceIDCache, spaceCheckSet:
+	case spaceColumnType, spaceIndexSet, spaceFKDef, spaceOrigin, spaceIDCache, spaceCheckSet, spaceClustered:
 		if len(path) != 2 {
 			return walk.Unknown, ""
 		}

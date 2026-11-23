@@ -1054,6 +1054,12 @@ func (c *Catalog) execCreateTable(n *ast.CreateTableStmt, source string) error {
 				return mssqlErr(ErrUnknownColumnType, "Column, parameter, or variable #%d: Cannot find data type %s.", idx+1, typeName)
 			}
 		}
+		// The table's expressions are bound next, before its name is
+		// resolved: CREATE TABLE nope.t (c NVARCHAR(1) DEFAULT (N'x'
+		// COLLATE a)) is 448 (measured).
+		if err := checkCreateTableExprCollations(n); err != nil {
+			return err
+		}
 	}
 
 	schemaName, tableName := tableRefSchemaObject(n.Name, c.defaultSchema)
@@ -1184,6 +1190,15 @@ func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt, source string) error {
 			return mssqlErr(ErrFilteredIndexOnView, "Filtered index '%s' cannot be created on object '%s' because it is not a user table.", n.Name, tableName)
 		}
 		return mssqlErr(ErrInvalidObjectName, "Invalid object name '%s'.", tableName)
+	}
+
+	// FILESTREAM_ON needs a FILESTREAM column, which no table here holds:
+	// the server has no FILESTREAM filegroup (1969). SQL Server checks it
+	// before the view, column and name checks:
+	// CREATE INDEX a ON a(a) FILESTREAM_ON 'a' is 1716 on a view, on a
+	// table without column a and beside an index a (measured).
+	if !c.lenientMetadataLoad && n.FilestreamOn != "" && (kind == kindTable || kind == kindView) {
+		return mssqlErr(ErrDropIndexFilestreamOn, "FILESTREAM_ON cannot be specified when a table has no FILESTREAM columns.")
 	}
 
 	switch kind {
@@ -2306,11 +2321,21 @@ func checkAlterTablePreLookup(n *ast.AlterTableStmt) error {
 			if action.Index == nil || action.Index.Columns == nil || len(action.Index.Columns.Items) == 0 {
 				return mssqlErr(ErrAlterTableAddIndexSyntax, "Table level constraint or index does not specify column list.")
 			}
-		case ast.ATDropConstraint:
-			if action.Constraint != nil && action.Constraint.Name != "" {
-				low := strings.ToLower(action.Constraint.Name)
+		case ast.ATDropConstraint, ast.ATDropColumn:
+			// One DROP list names a column and a constraint alike: DROP
+			// COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a is 8168 before
+			// the table is looked up (measured).
+			name := action.ColName
+			if action.Type == ast.ATDropConstraint {
+				name = ""
+				if action.Constraint != nil {
+					name = action.Constraint.Name
+				}
+			}
+			if name != "" {
+				low := strings.ToLower(name)
 				if seenDrop[low] {
-					return mssqlErr(ErrDupTargetInAlter, "Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named '%s' in this context.", action.Constraint.Name)
+					return mssqlErr(ErrDupTargetInAlter, "Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named '%s' in this context.", name)
 				}
 				seenDrop[low] = true
 			}
@@ -2381,6 +2406,14 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 					if err := c.validateForeignKeyTarget(table, []string{action.Column.Name}, cd); err != nil {
 						return err
 					}
+				}
+			}
+		}
+		if !c.lenientMetadataLoad {
+			class := tableColumnClass(table, action.Column)
+			for _, expr := range columnDefExprs(action.Column) {
+				if err := checkExprCollations(expr, class); err != nil {
+					return err
 				}
 			}
 		}
@@ -2464,7 +2497,7 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 		col.Type = newType
 		col.Nullable = newNullable
 		if action.Collation != "" {
-			col.Collation = action.Collation
+			col.Collation = storedCollation(action.Collation)
 		} else if !isCharacterDataType(action.DataType) {
 			col.Collation = ""
 		}
@@ -2701,6 +2734,11 @@ func (c *Catalog) execAlterTableAddConstraint(table *metadata.TableMetadata, sch
 				return mssqlErr(ErrIndexColumnNotFound, "Column name '%s' does not exist in the target table or view.", colName)
 			}
 		}
+		// ADD UNIQUE(a) ON 'a' names a filegroup the database lacks: 1921
+		// after the column check (measured).
+		if !c.lenientMetadataLoad && !isValidFilegroup(n.OnFilegroup) {
+			return mssqlErr(ErrInvalidFilegroup, "Invalid filegroup '%s' specified.", n.OnFilegroup)
+		}
 		if n.Name != "" {
 			if schema := c.GetSchema(schemaName); schema != nil && c.lookupSchemaObject(schema, n.Name, false) != kindNone {
 				return mssqlErr(ErrDupObject, "There is already an object named '%s' in the database.", n.Name)
@@ -2720,6 +2758,11 @@ func (c *Catalog) execAlterTableAddConstraint(table *metadata.TableMetadata, sch
 		}
 		if col.Default != "" {
 			return mssqlErr(ErrColumnAlreadyHasDefault, "Column already has a DEFAULT bound to it.")
+		}
+		if !c.lenientMetadataLoad {
+			if err := checkExprCollations(n.Expr, tableColumnClass(table, nil)); err != nil {
+				return err
+			}
 		}
 		if n.Name != "" {
 			if schema := c.GetSchema(schemaName); schema != nil && c.lookupSchemaObject(schema, n.Name, false) != kindNone {
@@ -2762,6 +2805,11 @@ func (c *Catalog) execAlterTableAddConstraint(table *metadata.TableMetadata, sch
 		return nil
 
 	case ast.ConstraintCheck:
+		if !c.lenientMetadataLoad {
+			if err := checkExprCollations(n.Expr, tableColumnClass(table, nil)); err != nil {
+				return err
+			}
+		}
 		if n.Name != "" {
 			if schema := c.GetSchema(schemaName); schema != nil && c.lookupSchemaObject(schema, n.Name, false) != kindNone {
 				return mssqlErr(ErrDupObject, "There is already an object named '%s' in the database.", n.Name)

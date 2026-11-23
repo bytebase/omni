@@ -7,20 +7,20 @@ pinned PostgreSQL 18 server (`../../../testdata/pins.tsv`, role `pg18`:
 
 ## Coverage
 
-5,424 rows total (5,391 generated from `pg/parser/testdata/compat.tsv` across
+6,261 rows total (6,228 generated from `pg/parser/testdata/compat.tsv` across
 9 core fixtures in `../fixtures/` + 33 curated `pg18/` feature rows):
 
-- `one_table@missing` (611 rows) — object creation, missing targets, PG 18 built-ins (`uuidv7()`, `casefold()`, `array_sort()`), SQL/JSON views, `UNIQUE NULLS NOT DISTINCT`, unlogged sequences, SQL-body functions, named `NOT NULL` constraints
-- `one_table@table` (599 rows) — table DDL and PG 18 `ATTACH`/`DETACH PARTITION` `42809` checks on non-partitioned tables
-- `one_table@column` (614 rows) — column, constraint, generated expression, identity, `LIKE INCLUDING ALL`, inheritance, and PG 18 cataloged `NOT NULL` constraints (`DROP`/`RENAME`/`COMMENT ON CONSTRAINT`)
-- `objects@view` (599 rows) — view DDL
-- `objects@matview` (599 rows) — materialized view DDL
-- `objects@sequence` (599 rows) — sequence DDL
-- `objects@partitioned` (602 rows) — partitioned table DDL, PG 18 `SET LOGGED`/`SET UNLOGGED` `42809` rejection, partition detach PK naming, identity and `NOT NULL` propagation
-- `objects@fk` (600 rows) — foreign key and check constraints
-- `objects@domain` (601 rows) — domain DDL and PG 18 `ALTER DOMAIN ... ADD [CONSTRAINT ...] NOT NULL NO INHERIT` `0A000` rejection
+- `one_table@missing` (704 rows) — object creation, missing targets, PG 18 built-ins (`uuidv7()`, `casefold()`, `array_sort()`), SQL/JSON views, `UNIQUE NULLS NOT DISTINCT`, unlogged sequences, SQL-body functions, named `NOT NULL` constraints
+- `one_table@table` (692 rows) — table DDL and PG 18 `ATTACH`/`DETACH PARTITION` `42809` checks on non-partitioned tables
+- `one_table@column` (707 rows) — column, constraint, generated expression, identity, `LIKE INCLUDING ALL`, inheritance, and PG 18 cataloged `NOT NULL` constraints (`DROP`/`RENAME`/`COMMENT ON CONSTRAINT`)
+- `objects@view` (692 rows) — view DDL
+- `objects@matview` (692 rows) — materialized view DDL
+- `objects@sequence` (692 rows) — sequence DDL
+- `objects@partitioned` (695 rows) — partitioned table DDL, PG 18 `SET LOGGED`/`SET UNLOGGED` `42809` rejection, partition detach PK naming, identity and `NOT NULL` propagation
+- `objects@fk` (693 rows) — foreign key and check constraints
+- `objects@domain` (694 rows) — domain DDL and PG 18 `ALTER DOMAIN ... ADD [CONSTRAINT ...] NOT NULL NO INHERIT` `0A000` rejection
 
-**5,424 rows: 5,424 agree, 0 disagree (100.00%).**
+**6,261 rows: 6,261 agree, 0 disagree (100.00%).**
 
 ## PG 17 vs PG 18 catalog differences verified
 
