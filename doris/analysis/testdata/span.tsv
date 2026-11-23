@@ -60,9 +60,9 @@ shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	
 id, name, region, email	id, name, region, email	engine	base	shop	results	SELECT * FROM (SELECT * FROM customers) c
 shop.customers.id | shop.customers.name | shop.customers.region | shop.customers.email	shop.customers.id | shop.customers.name | shop.customers.region | shop.customers.email	engine	base	shop	lineage	SELECT * FROM (SELECT * FROM customers) c
 shop.customers	shop.customers	engine	base	shop	tables	SELECT * FROM (SELECT * FROM customers) c
-error:syntax	id, customer_id, created_at	engine	base	shop	results	SELECT * EXCEPT (amount, status) FROM orders
-error:syntax	shop.orders.id | shop.orders.customer_id | shop.orders.created_at	engine	base	shop	lineage	SELECT * EXCEPT (amount, status) FROM orders
-error:syntax	shop.orders	engine	base	shop	tables	SELECT * EXCEPT (amount, status) FROM orders
+id, customer_id, created_at	id, customer_id, created_at	engine	base	shop	results	SELECT * EXCEPT (amount, status) FROM orders
+shop.orders.id | shop.orders.customer_id | shop.orders.created_at	shop.orders.id | shop.orders.customer_id | shop.orders.created_at	engine	base	shop	lineage	SELECT * EXCEPT (amount, status) FROM orders
+shop.orders	shop.orders	engine	base	shop	tables	SELECT * EXCEPT (amount, status) FROM orders
 id	id	engine	base	shop	results	SELECT id FROM shop.orders
 shop.orders.id	shop.orders.id	engine	base	shop	lineage	SELECT id FROM shop.orders
 shop.orders	shop.orders	engine	base	shop	tables	SELECT id FROM shop.orders
@@ -231,9 +231,9 @@ shop.customers	shop.customers	engine	base	shop	tables	WITH orders AS (SELECT id,
 id	id	engine	base	shop	results	WITH c AS (SELECT id, amount FROM orders) SELECT id FROM c WHERE amount > (SELECT avg(amount) FROM c)
 shop.orders.id	shop.orders.id	engine	base	shop	lineage	WITH c AS (SELECT id, amount FROM orders) SELECT id FROM c WHERE amount > (SELECT avg(amount) FROM c)
 shop.orders	shop.orders	engine	base	shop	tables	WITH c AS (SELECT id, amount FROM orders) SELECT id FROM c WHERE amount > (SELECT avg(amount) FROM c)
-error:unknown-table	error:syntax	engine	base	shop	results	WITH RECURSIVE r (n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r
-error:unknown-table	error:syntax	engine	base	shop	lineage	WITH RECURSIVE r (n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r
-error:unknown-table	error:syntax	engine	base	shop	tables	WITH RECURSIVE r (n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r
+error:syntax	error:syntax	engine	base	shop	results	WITH RECURSIVE r (n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r
+error:syntax	error:syntax	engine	base	shop	lineage	WITH RECURSIVE r (n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r
+error:syntax	error:syntax	engine	base	shop	tables	WITH RECURSIVE r (n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r
 id	id	engine	base	shop	results	SELECT id FROM orders UNION SELECT id FROM customers
 shop.customers.id shop.orders.id	~	engine	base	shop	lineage	SELECT id FROM orders UNION SELECT id FROM customers
 shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT id FROM orders UNION SELECT id FROM customers
@@ -321,9 +321,9 @@ shop.orders	shop.orders	engine	base	shop	tables	SELECT id, lag(amount) OVER (ORD
 id, rank() OVER (PARTITION BY status ORDER BY amount)	id, rank() OVER (PARTITION BY status ORDER BY amount)	engine	base	shop	results	SELECT id, rank() OVER (PARTITION BY status ORDER BY amount) FROM orders
 shop.orders.id | shop.orders.amount shop.orders.status	shop.orders.id | ~	engine	base	shop	lineage	SELECT id, rank() OVER (PARTITION BY status ORDER BY amount) FROM orders
 shop.orders	shop.orders	engine	base	shop	tables	SELECT id, rank() OVER (PARTITION BY status ORDER BY amount) FROM orders
-id	error:syntax	engine	base	shop	results	SELECT id FROM orders QUALIFY row_number() OVER (PARTITION BY customer_id ORDER BY amount) = 1
-shop.orders.id	error:syntax	engine	base	shop	lineage	SELECT id FROM orders QUALIFY row_number() OVER (PARTITION BY customer_id ORDER BY amount) = 1
-shop.orders	error:syntax	engine	base	shop	tables	SELECT id FROM orders QUALIFY row_number() OVER (PARTITION BY customer_id ORDER BY amount) = 1
+error:syntax	error:syntax	engine	base	shop	results	SELECT id FROM orders QUALIFY row_number() OVER (PARTITION BY customer_id ORDER BY amount) = 1
+error:syntax	error:syntax	engine	base	shop	lineage	SELECT id FROM orders QUALIFY row_number() OVER (PARTITION BY customer_id ORDER BY amount) = 1
+error:syntax	error:syntax	engine	base	shop	tables	SELECT id FROM orders QUALIFY row_number() OVER (PARTITION BY customer_id ORDER BY amount) = 1
 customer_id, sum(amount), count(*)	customer_id, sum(amount), count(*)	engine	base	shop	results	SELECT customer_id, sum(amount), count(*) FROM orders GROUP BY customer_id
 shop.orders.customer_id | shop.orders.amount | -	shop.orders.customer_id | ~ | ~	engine	base	shop	lineage	SELECT customer_id, sum(amount), count(*) FROM orders GROUP BY customer_id
 shop.orders	shop.orders	engine	base	shop	tables	SELECT customer_id, sum(amount), count(*) FROM orders GROUP BY customer_id

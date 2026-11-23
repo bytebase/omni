@@ -431,9 +431,30 @@ func TestSelectCrossJoin(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestSelectQualify(t *testing.T) {
-	stmt := mustParseSelect(t, "SELECT a FROM t QUALIFY ROW_NUMBER() OVER() = 1")
-	if stmt.Qualify == nil {
-		t.Fatal("Qualify = nil, want non-nil")
+	// DorisParser.g4 has no QUALIFY clause at the pin: the 3.1.4 server
+	// reads QUALIFY as the table's alias and refuses what follows
+	// (compat.tsv's suite:conformance rows).
+	if _, errs := parseForTest("SELECT a FROM t QUALIFY ROW_NUMBER() OVER() = 1"); len(errs) == 0 {
+		t.Error("QUALIFY clause parsed, want an error")
+	}
+	stmt := mustParseSelect(t, "SELECT a FROM t QUALIFY")
+	if ref, ok := stmt.From[0].(*ast.TableRef); !ok || ref.Alias != "QUALIFY" {
+		t.Errorf("From[0] = %+v, want t aliased QUALIFY", stmt.From[0])
+	}
+}
+
+func TestSelectStarExcept(t *testing.T) {
+	stmt := mustParseSelect(t, "SELECT * EXCEPT (a, t.b) FROM t")
+	if len(stmt.Items) != 1 || !stmt.Items[0].Star || len(stmt.Items[0].ExceptColumns) != 2 || stmt.Items[0].ExceptColumns[1] != "b" {
+		t.Errorf("Items = %+v, want * EXCEPT (a, b)", stmt.Items)
+	}
+	for _, sql := range []string{"SELECT * EXCEPT (a)", "SELECT a, * EXCEPT (b) FROM t"} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%s parsed, want an error", sql)
+		}
+	}
+	if _, errs := parseForTest("SELECT * FROM t EXCEPT (SELECT * FROM u)"); len(errs) > 0 {
+		t.Errorf("a set operation: %v", errs)
 	}
 }
 

@@ -19,6 +19,12 @@ query's rows name the cause the message states: `error:syntax`,
 `error:ambiguous-column`. omni's refusal is a parse error or its
 `NotFoundError`, named the same way.
 
+Bytebase passes no `Catalog` today: it reads only the span's tables, and it
+refuses a query that reads a table holding masked columns rather than mask
+the result. The follow-up that lets masking work instead is Bytebase's
+adapter passing a `Catalog`, so `Results` carries the lineage this file
+holds to Doris.
+
 omni resolves each query with `DefaultDatabase` set to the session's database
 and `Catalog` holding the metadata a sync stores for the fixture (each
 table's and view's columns, and a view's `VIEW_DEFINITION`), case-sensitively,
@@ -60,8 +66,3 @@ queries that hold the text.
   Doris refuses it as ambiguous, and omni names the column of both tables.
   Doris returns no rows, so no masked value can pass, and both sides are what
   a masking policy on either needs.
-- `SELECT * EXCEPT (amount, status) FROM orders`: Doris accepts it
-  (`selectColumnClause` in `DorisParser.g4`), and omni's parser refuses it.
-- `QUALIFY` and `WITH RECURSIVE`: 3.1.4's grammar has neither, and Doris
-  refuses both; omni's parser accepts them. omni refuses the recursive CTE
-  anyway, as a table it cannot find.
