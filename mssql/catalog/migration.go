@@ -2,11 +2,12 @@ package catalog
 
 import (
 	"fmt"
-	"regexp"
 	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/mssql/ast"
+	mssqlparser "github.com/bytebase/omni/mssql/parser"
 )
 
 // MigrationOpType names one emitted chunk of a migration script.
@@ -627,12 +628,12 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 				continue
 			}
 			for _, trigger := range tableDiff.NewTable.Triggers {
-				writeTriggerMigration(&buf, trigger)
+				writeTriggerMigration(&buf, tableDiff.SchemaName, tableDiff.TableName, trigger)
 			}
 		case DiffAlter:
 			for _, triggerDiff := range tableDiff.Triggers {
 				if triggerDiff.Action == DiffCreate || triggerDiff.Action == DiffAlter {
-					writeTriggerMigration(&buf, triggerDiff.NewTrigger)
+					writeTriggerMigration(&buf, tableDiff.SchemaName, tableDiff.TableName, triggerDiff.NewTrigger)
 				}
 			}
 		}
@@ -708,14 +709,14 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	for _, procDiff := range diff.Procedures {
 		switch procDiff.Action {
 		case DiffCreate:
-			buf.WriteString(creationDefinition(procDiff.NewProcedure.Definition))
+			buf.WriteString(qualifyModuleDefinition(creationDefinition(procDiff.NewProcedure.Definition), procDiff.SchemaName, false))
 			if !strings.HasSuffix(strings.TrimSpace(procDiff.NewProcedure.Definition), ";") {
 				buf.WriteString(";")
 			}
 			buf.WriteString("\nGO\n")
 		case DiffAlter:
 			fmt.Fprintf(&buf, "DROP PROCEDURE %s.%s;\nGO\n", quote(procDiff.SchemaName), quote(procDiff.ProcedureName))
-			buf.WriteString(creationDefinition(procDiff.NewProcedure.Definition))
+			buf.WriteString(qualifyModuleDefinition(creationDefinition(procDiff.NewProcedure.Definition), procDiff.SchemaName, false))
 			if !strings.HasSuffix(strings.TrimSpace(procDiff.NewProcedure.Definition), ";") {
 				buf.WriteString(";")
 			}
@@ -1317,7 +1318,11 @@ func dropSequenceDefaults(from *Catalog, diff *SchemaDiff, buf *strings.Builder)
 				if column.Default == "" || column.DefaultConstraintName == "" || droppedColumns[tableID+"."+column.Name] {
 					continue
 				}
-				if !strings.Contains(strings.ToLower(column.Default), "next value for") {
+				if !strings.Contains(strings.ToLower(column.Default), "next") {
+					continue
+				}
+				refs := defaultSequenceRefs(column.Default)
+				if len(refs) == 0 {
 					continue
 				}
 				for name := range droppedSequences {
@@ -1325,7 +1330,7 @@ func dropSequenceDefaults(from *Catalog, diff *SchemaDiff, buf *strings.Builder)
 					if len(parts) != 2 {
 						continue
 					}
-					if defaultReferencesSequence(column.Default, parts[0], parts[1]) {
+					if sequenceRefsMatch(refs, parts[0], parts[1]) {
 						fmt.Fprintf(buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(schema.Name), quote(table.Name), quote(column.DefaultConstraintName))
 						removed[schema.Name+"."+column.DefaultConstraintName] = true
 						break
@@ -2128,7 +2133,7 @@ func createViewsAndFunctionsInOrder(viewsToCreate []*ViewDiffEntry, funcCreates 
 		}
 	}
 	writeViewEntry := func(viewDiff *ViewDiffEntry) {
-		buf.WriteString(creationDefinition(viewDiff.NewView.Definition))
+		buf.WriteString(qualifyModuleDefinition(creationDefinition(viewDiff.NewView.Definition), viewDiff.SchemaName, false))
 		if !strings.HasSuffix(strings.TrimSpace(viewDiff.NewView.Definition), ";") {
 			buf.WriteString(";")
 		}
@@ -2138,7 +2143,7 @@ func createViewsAndFunctionsInOrder(viewsToCreate []*ViewDiffEntry, funcCreates 
 			buf.WriteString(";\nGO\n")
 		}
 		for _, trigger := range viewDiff.NewView.Triggers {
-			writeTriggerMigration(buf, trigger)
+			writeTriggerMigration(buf, viewDiff.SchemaName, viewDiff.ViewName, trigger)
 		}
 	}
 	order, err := g.topologicalSort()
@@ -2592,24 +2597,48 @@ func dropFunctionChecks(from *Catalog, diff *SchemaDiff, functionDrops []*Functi
 	return removed, restore
 }
 
-func defaultReferencesSequence(expression, schemaName, sequenceName string) bool {
-	matches := sequenceReference.FindAllStringSubmatch(expression, -1)
-	for _, match := range matches {
-		parts := strings.Split(match[1], ".")
-		for i := range parts {
-			parts[i] = strings.Trim(parts[i], "[]")
-		}
-		if len(parts) == 0 || !strings.EqualFold(parts[len(parts)-1], sequenceName) {
+type nextValueForCollector struct {
+	refs []*ast.TableRef
+}
+
+func (c *nextValueForCollector) Visit(n ast.Node) ast.Visitor {
+	if n == nil {
+		return nil
+	}
+	if nv, ok := n.(*ast.NextValueForExpr); ok && nv.Sequence != nil {
+		c.refs = append(c.refs, nv.Sequence)
+	}
+	return c
+}
+
+func defaultSequenceRefs(expression string) []*ast.TableRef {
+	if !strings.Contains(strings.ToLower(expression), "next") {
+		return nil
+	}
+	list, err := mssqlparser.Parse("SELECT " + expression + "\n")
+	if err != nil || list == nil {
+		return nil
+	}
+	collector := &nextValueForCollector{}
+	ast.Walk(collector, list)
+	return collector.refs
+}
+
+func sequenceRefsMatch(refs []*ast.TableRef, schemaName, sequenceName string) bool {
+	for _, ref := range refs {
+		if !strings.EqualFold(ref.Object, sequenceName) {
 			continue
 		}
-		if len(parts) == 1 || strings.EqualFold(parts[len(parts)-2], schemaName) {
+		if ref.Schema == "" || strings.EqualFold(ref.Schema, schemaName) {
 			return true
 		}
 	}
 	return false
 }
 
-var sequenceReference = regexp.MustCompile(`(?i)NEXT\s+VALUE\s+FOR\s+((?:\[[^\]]+\]|[A-Za-z0-9_]+)(?:\.(?:\[[^\]]+\]|[A-Za-z0-9_]+))*)`)
+func defaultReferencesSequence(expression, schemaName, sequenceName string) bool {
+	return sequenceRefsMatch(defaultSequenceRefs(expression), schemaName, sequenceName)
+}
 
 func schemaHasSkipDump(schema *metadata.SchemaMetadata) bool {
 	if schema == nil {
@@ -2992,7 +3021,7 @@ func writeFunctionMigration(buf *strings.Builder, funcDiff *FunctionDiffEntry) {
 	if funcDiff.NewFunction == nil {
 		return
 	}
-	buf.WriteString(creationDefinition(funcDiff.NewFunction.Definition))
+	buf.WriteString(qualifyModuleDefinition(creationDefinition(funcDiff.NewFunction.Definition), funcDiff.SchemaName, false))
 	if !strings.HasSuffix(strings.TrimSpace(funcDiff.NewFunction.Definition), ";") {
 		buf.WriteString(";")
 	}
@@ -3028,11 +3057,11 @@ func containsString(values []string, value string) bool {
 	return false
 }
 
-func writeTriggerMigration(buf *strings.Builder, trigger *metadata.TriggerMetadata) {
+func writeTriggerMigration(buf *strings.Builder, schemaName, targetName string, trigger *metadata.TriggerMetadata) {
 	if trigger == nil || trigger.Body == "" {
 		return
 	}
-	buf.WriteString(strings.TrimRight(strings.TrimSpace(creationDefinition(trigger.Body)), ";"))
+	buf.WriteString(strings.TrimRight(strings.TrimSpace(qualifyTriggerDefinition(creationDefinition(trigger.Body), schemaName, targetName, false)), ";"))
 	buf.WriteString("\nGO\n")
 }
 
@@ -3262,6 +3291,15 @@ func generateXMLIndex(schemaName, tableName string, index *metadata.IndexMetadat
 		}
 		return fmt.Sprintf("CREATE XML INDEX %s ON %s.%s (%s) USING XML INDEX %s FOR %s",
 			quote(index.Name), quote(schemaName), quote(tableName), column, quote(parent), secondaryType)
+	}
+	if index.Definition == "SELECTIVE" || strings.HasPrefix(index.Definition, "SELECTIVE ") {
+		rest := strings.TrimSpace(strings.TrimPrefix(index.Definition, "SELECTIVE"))
+		if rest != "" {
+			return fmt.Sprintf("CREATE SELECTIVE XML INDEX %s ON %s.%s (%s) %s",
+				quote(index.Name), quote(schemaName), quote(tableName), column, rest)
+		}
+		return fmt.Sprintf("CREATE SELECTIVE XML INDEX %s ON %s.%s (%s)",
+			quote(index.Name), quote(schemaName), quote(tableName), column)
 	}
 	return fmt.Sprintf("CREATE PRIMARY XML INDEX %s ON %s.%s (%s)",
 		quote(index.Name), quote(schemaName), quote(tableName), column)
@@ -3496,7 +3534,7 @@ func createViewsInOrder(diff *SchemaDiff, rebuiltViews []viewWithSchema, buf *st
 		}
 	}
 	writeView := func(viewDiff *ViewDiffEntry) {
-		buf.WriteString(creationDefinition(viewDiff.NewView.Definition))
+		buf.WriteString(qualifyModuleDefinition(creationDefinition(viewDiff.NewView.Definition), viewDiff.SchemaName, false))
 		if !strings.HasSuffix(strings.TrimSpace(viewDiff.NewView.Definition), ";") {
 			buf.WriteString(";")
 		}
@@ -3506,7 +3544,7 @@ func createViewsInOrder(diff *SchemaDiff, rebuiltViews []viewWithSchema, buf *st
 			buf.WriteString(";\nGO\n")
 		}
 		for _, trigger := range viewDiff.NewView.Triggers {
-			writeTriggerMigration(buf, trigger)
+			writeTriggerMigration(buf, viewDiff.SchemaName, viewDiff.ViewName, trigger)
 		}
 	}
 	ordered, err := graph.topologicalSort()

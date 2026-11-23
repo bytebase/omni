@@ -721,7 +721,8 @@ func writeTriggers(out *strings.Builder, schemas []*metadata.SchemaMetadata) {
 				if trigger.Body == "" || trigger.SkipDump {
 					continue
 				}
-				fmt.Fprintf(out, "%s\n\nGO\n\n", strings.TrimRight(creationDefinition(trigger.Body), ";"))
+				body := qualifyTriggerDefinition(creationDefinition(trigger.Body), schema.Name, table.Name, false)
+				fmt.Fprintf(out, "%s\n\nGO\n\n", strings.TrimRight(body, ";"))
 			}
 		}
 		for _, view := range schema.Views {
@@ -732,7 +733,8 @@ func writeTriggers(out *strings.Builder, schemas []*metadata.SchemaMetadata) {
 				if trigger.Body == "" || trigger.SkipDump {
 					continue
 				}
-				fmt.Fprintf(out, "%s\n\nGO\n\n", strings.TrimRight(creationDefinition(trigger.Body), ";"))
+				body := qualifyTriggerDefinition(creationDefinition(trigger.Body), schema.Name, view.Name, false)
+				fmt.Fprintf(out, "%s\n\nGO\n\n", strings.TrimRight(body, ";"))
 			}
 		}
 	}
@@ -1012,19 +1014,34 @@ func writeXMLIndex(out *strings.Builder, schemaName, tableName string, index *me
 			quote(index.Name), quote(schemaName), quote(tableName), column, quote(parent), secondaryType)
 		return
 	}
+	if index.Definition == "SELECTIVE" || strings.HasPrefix(index.Definition, "SELECTIVE ") {
+		rest := strings.TrimSpace(strings.TrimPrefix(index.Definition, "SELECTIVE"))
+		if rest != "" {
+			fmt.Fprintf(out, "CREATE SELECTIVE XML INDEX %s ON %s.%s (%s)\n%s;\n\n",
+				quote(index.Name), quote(schemaName), quote(tableName), column, rest)
+			return
+		}
+		fmt.Fprintf(out, "CREATE SELECTIVE XML INDEX %s ON %s.%s (%s);\n\n",
+			quote(index.Name), quote(schemaName), quote(tableName), column)
+		return
+	}
 	fmt.Fprintf(out, "CREATE PRIMARY XML INDEX %s ON %s.%s (%s);\n\n",
 		quote(index.Name), quote(schemaName), quote(tableName), column)
+}
+
+func isPrimaryXMLIndex(index *metadata.IndexMetadata) bool {
+	return index.Type == "XML" && (index.Definition == "PRIMARY" || index.Definition == "SELECTIVE" || strings.HasPrefix(index.Definition, "SELECTIVE "))
 }
 
 func orderedIndexes(indexes []*metadata.IndexMetadata) []*metadata.IndexMetadata {
 	out := make([]*metadata.IndexMetadata, 0, len(indexes))
 	for _, index := range indexes {
-		if index.Type == "XML" && index.Definition == "PRIMARY" {
+		if isPrimaryXMLIndex(index) {
 			out = append(out, index)
 		}
 	}
 	for _, index := range indexes {
-		if index.Type != "XML" || index.Definition != "PRIMARY" {
+		if !isPrimaryXMLIndex(index) {
 			out = append(out, index)
 		}
 	}
@@ -1285,21 +1302,24 @@ func writeView(out *strings.Builder, schemaName string, view *metadata.ViewMetad
 	// A synced definition keeps the trailing semicolon the CREATE VIEW was run
 	// with. Trimming and adding one back makes a dump of a dump identical:
 	// appending unconditionally would add a semicolon on every restore.
-	fmt.Fprintf(out, "%s;\n\nGO\n\n", strings.TrimRight(strings.TrimSpace(creationDefinition(view.Definition)), ";"))
+	def := qualifyModuleDefinition(creationDefinition(view.Definition), schemaName, false)
+	fmt.Fprintf(out, "%s;\n\nGO\n\n", strings.TrimRight(strings.TrimSpace(def), ";"))
 	if schemaName != "" && view.Comment != "" && hasRestorableDefinition(view.Definition) {
 		fmt.Fprintf(out, "%s;\nGO\n\n", generateViewCommentSQL("ADD", schemaName, view.Name, view.Comment))
 	}
 }
 
 func writeFunction(out *strings.Builder, schemaName string, function *metadata.FunctionMetadata) {
-	fmt.Fprintf(out, "%s\n\nGO\n\n", creationDefinition(function.Definition))
+	def := qualifyModuleDefinition(creationDefinition(function.Definition), schemaName, false)
+	fmt.Fprintf(out, "%s\n\nGO\n\n", def)
 	if schemaName != "" && function.Comment != "" && hasRestorableDefinition(function.Definition) {
 		fmt.Fprintf(out, "%s;\nGO\n\n", generateFunctionCommentSQL("ADD", schemaName, function.Name, function.Comment))
 	}
 }
 
 func writeProcedure(out *strings.Builder, schemaName string, procedure *metadata.ProcedureMetadata) {
-	fmt.Fprintf(out, "%s\n\nGO\n\n", creationDefinition(procedure.Definition))
+	def := qualifyModuleDefinition(creationDefinition(procedure.Definition), schemaName, false)
+	fmt.Fprintf(out, "%s\n\nGO\n\n", def)
 	if schemaName != "" && procedure.Comment != "" && hasRestorableDefinition(procedure.Definition) {
 		fmt.Fprintf(out, "%s;\nGO\n\n", generateExtendedPropertySQL("ADD", "PROCEDURE", schemaName, procedure.Name, procedure.Comment))
 	}

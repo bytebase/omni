@@ -1308,9 +1308,11 @@ func (p *Parser) parseTableConstraint() (*nodes.ConstraintDef, error) {
 		if _, err := p.expect(kwFOR); err != nil {
 			return nil, err
 		}
-		if _, ok := p.parseIdentifier(); !ok {
+		colName, ok := p.parseIdentifier()
+		if !ok {
 			return nil, p.syntaxErrorAtCur()
 		}
+		cd.Columns = &nodes.List{Items: []nodes.Node{&nodes.String{Str: colName}}}
 		if p.cur.Type == kwWITH && p.peekNext().Type == kwVALUES {
 			p.advance() // WITH
 			p.advance() // VALUES

@@ -1,0 +1,2 @@
+CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+CREATE SYNONYM [dbo].[a] FOR [dbo].[t];

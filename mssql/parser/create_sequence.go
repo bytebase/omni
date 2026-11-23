@@ -88,6 +88,7 @@ func (p *Parser) parseAlterSequenceStmt() (*nodes.AlterSequenceStmt, error) {
 	stmt.NoMaxVal = tmp.NoMaxVal
 	stmt.Cycle = tmp.Cycle
 	stmt.Cache = tmp.Cache
+	stmt.HasCache = tmp.HasCache
 	stmt.NoCache = tmp.NoCache
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
@@ -173,6 +174,7 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt, isAlter bo
 		case p.ddlIsWord("CACHE"):
 			p.advance()
 			opt = "CACHE"
+			stmt.HasCache = true
 			if p.cur.Type == tokICONST && sequenceIsDecimal(p.cur.Str, false) {
 				stmt.Cache, err = p.parsePrimary()
 			}
