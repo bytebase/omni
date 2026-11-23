@@ -40,7 +40,8 @@ type dumpObject struct {
 // do not carry a table's settings, data-skipping indexes, TTL or column codecs,
 // so a synced schema cannot be turned back into ClickHouse DDL, and the
 // server's own statements are the only complete definition. The caller creates
-// the database; the dump carries the objects in it, in an order that replays.
+// the database; the dump carries the objects in it, in an order that replays,
+// and then the row policies on them.
 func (d *Driver) Dump(ctx context.Context, out io.Writer, _ *metadatapb.DatabaseSchemaMetadata) error {
 	database, err := d.syncDatabaseName(ctx)
 	if err != nil {
@@ -65,6 +66,19 @@ func (d *Driver) Dump(ctx context.Context, out io.Writer, _ *metadatapb.Database
 	}
 	for _, o := range orderDumpObjects(objects) {
 		if _, err := fmt.Fprintf(out, "--\n-- %s structure for %s\n--\n%s;\n\n", dumpKindLabel(o.kind), dumpIdentifier(o.name), o.stmt); err != nil {
+			return err
+		}
+	}
+	policies, denied, err := dumpRowPolicies(ctx, conn, database)
+	if err != nil {
+		return err
+	}
+	if denied {
+		_, err := io.WriteString(out, "--\n-- Row policies are left out: this login may not read them (SHOW ROW POLICIES).\n--\n")
+		return err
+	}
+	for _, p := range policies {
+		if _, err := fmt.Fprintf(out, "--\n-- Row policy structure for %s\n--\n%s;\n\n", p.target, p.stmt); err != nil {
 			return err
 		}
 	}

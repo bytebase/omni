@@ -73,7 +73,13 @@ func (p *parser) parseCreateStmt() (Statement, error) {
 	case KwFunction:
 		return p.parseCreateFunctionStmt(start, orReplace)
 	case KwUser, KwRole, KwQuota, KwSettings, KwProfile, KwRow, KwPolicy:
-		return p.parseCreateAccessStmt(start, action, orReplace)
+		// An access entity takes OR REPLACE after its keyword, as
+		// ParserCreateUserQuery and its siblings read it: the server answers
+		// CREATE OR REPLACE ROLE with a syntax error at ROLE.
+		if orReplace {
+			return nil, p.errAt(p.cur(), "OR REPLACE follows the entity: CREATE "+p.cur().Raw+" OR REPLACE")
+		}
+		return p.parseCreateAccessStmt(start, action)
 	default:
 		return nil, p.errAt(p.cur(), fmt.Sprintf("unexpected token %q after %s", p.cur().Raw, action))
 	}
@@ -765,7 +771,7 @@ func (p *parser) parseCreateFunctionStmt(start int, orReplace bool) (*CreateFunc
 	}, nil
 }
 
-func (p *parser) parseCreateAccessStmt(start int, action string, orReplace bool) (*AccessControlStmt, error) {
+func (p *parser) parseCreateAccessStmt(start int, action string) (*AccessControlStmt, error) {
 	var entity string
 	switch p.cur().Type {
 	case KwUser:
@@ -798,15 +804,18 @@ func (p *parser) parseCreateAccessStmt(start int, action string, orReplace bool)
 	}
 	kind := action + " " + entity
 	stmt := &AccessControlStmt{
-		span:      span{Pos: start},
-		Kind:      kind,
-		OrReplace: orReplace,
+		span: span{Pos: start},
+		Kind: kind,
 	}
 
+	// CREATE takes IF NOT EXISTS or OR REPLACE after the entity, not both.
 	if action == "ALTER" {
 		stmt.IfExists = p.matchIfExists()
-	} else {
-		stmt.IfNotExists = p.matchIfNotExists()
+	} else if stmt.IfNotExists = p.matchIfNotExists(); !stmt.IfNotExists && action == "CREATE" &&
+		p.cur().Type == KwOr && p.peek(1).Type == KwReplace {
+		p.advance()
+		p.advance()
+		stmt.OrReplace = true
 	}
 
 	// Entity name(s) (comma-separated)
@@ -1640,7 +1649,7 @@ func (p *parser) parseAlterStmt() (Statement, error) {
 			Clauses:  clauses,
 		}, nil
 	case KwUser, KwRole, KwQuota, KwSettings, KwProfile, KwRow, KwPolicy:
-		return p.parseCreateAccessStmt(start, "ALTER", false)
+		return p.parseCreateAccessStmt(start, "ALTER")
 	default:
 		return nil, p.errAt(p.cur(), fmt.Sprintf("expected TABLE after ALTER, got %q", p.cur().Raw))
 	}
