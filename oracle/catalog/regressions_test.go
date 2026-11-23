@@ -3080,3 +3080,32 @@ CREATE VIEW W AS WITH A ANALYTIC VIEW AS (USING AV) SELECT C FROM A`)
 		}
 	}
 }
+
+// TestPackageSpecNamingItselfCompiles holds a package spec that qualifies its
+// own items, or two specs that name each other's, to compiling once: the
+// checker reads a spec it is already reading as declared.
+func TestPackageSpecNamingItselfCompiles(t *testing.T) {
+	c, err := LoadSQL("CREATE PACKAGE p AS a NUMBER := 1; b NUMBER := p.a; END p;\n/\n" +
+		"CREATE PACKAGE q AS x NUMBER := p.b; END q;\n/\n" +
+		"CREATE OR REPLACE PACKAGE p AS a NUMBER := q.x; b NUMBER := p.a; END p;\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range c.unitStates() {
+		if u.status != "VALID" {
+			t.Errorf("%s %s is %s %s", u.kind, u.name, u.status, u.err)
+		}
+	}
+}
+
+// TestTriggerOnMaterializedView holds a DML trigger on a materialized view,
+// which Oracle creates, to being created.
+func TestTriggerOnMaterializedView(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE t (id NUMBER PRIMARY KEY); CREATE MATERIALIZED VIEW mv AS SELECT id FROM t; CREATE TRIGGER trg BEFORE INSERT ON mv FOR EACH ROW BEGIN NULL; END;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.unitStates()) != 1 {
+		t.Fatalf("units = %+v, want the trigger", c.unitStates())
+	}
+}

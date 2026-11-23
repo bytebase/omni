@@ -128,7 +128,9 @@ func (c *plChecker) packageNames(pkg string) map[string]bool {
 // of each subprogram, or nil when the checker cannot read the spec.
 func (c *plChecker) packageItems(pkg string) map[string]*plSym {
 	p := c.e.packages[pkg]
-	if p == nil {
+	if p == nil || c.reading[pkg] || c.kind == unitPackage && c.name == pkg {
+		// A spec that names itself, or one already being read: its items
+		// are taken as declared.
 		return nil
 	}
 	spec, _ := splitPackageUnits(p.Definition)
@@ -137,6 +139,9 @@ func (c *plChecker) packageItems(pkg string) map[string]*plSym {
 		return nil
 	}
 	sub := newPLChecker(c.e, unitPackage, pkg)
+	sub.reading = c.reading
+	c.reading[pkg] = true
+	defer delete(c.reading, pkg)
 	sub.push()
 	sub.declarations(stmt.Body)
 	return sub.scope.names

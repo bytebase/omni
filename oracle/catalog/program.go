@@ -356,7 +356,7 @@ func (e *oracleMetadataExtractor) checkTrigger(n *ast.CreateTriggerStmt) bool {
 		}
 	}
 	view := e.views[table] != nil
-	if !view && e.tables[table] == nil {
+	if !view && e.tables[table] == nil && e.materializedViews[table] == nil {
 		e.setError(oraError("00942", "table or view %q does not exist", n.Table.Name))
 		return false
 	}

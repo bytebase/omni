@@ -33,6 +33,10 @@ type plChecker struct {
 	rowTable string
 	// labels holds the labels of the unit's blocks and statements.
 	labels map[string]bool
+	// reading holds the packages whose specs the checker is reading, which
+	// a spec that names itself, or two that name each other, would read
+	// again without end.
+	reading map[string]bool
 }
 
 // plScope is one declarative region.
@@ -75,7 +79,7 @@ type plSignature struct {
 }
 
 func newPLChecker(e *oracleMetadataExtractor, kind, name string) *plChecker {
-	return &plChecker{e: e, kind: kind, name: name, reads: map[string]bool{}, labels: map[string]bool{}}
+	return &plChecker{e: e, kind: kind, name: name, reads: map[string]bool{}, labels: map[string]bool{}, reading: map[string]bool{}}
 }
 
 // fail records the unit's first error.
