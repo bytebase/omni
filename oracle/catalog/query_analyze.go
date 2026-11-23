@@ -1,10 +1,13 @@
 package catalog
 
 import (
+	"encoding/binary"
 	"fmt"
+	"hash/fnv"
 	"reflect"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -137,6 +140,8 @@ type queryAnalyzer struct {
 	queryMemo map[queryMemoKey]queryMemo
 	// blockMemo holds each query block's analysis likewise.
 	blockMemo map[blockMemoKey]queryMemo
+	// hashMemo holds each subtree's structural hash by scope.
+	hashMemo map[hashMemoKey]uint64
 }
 
 type textEdit struct {
@@ -156,7 +161,7 @@ func (e *oracleMetadataExtractor) analyzeViewQuery(query ast.StmtNode) ([]qcol, 
 	if !ok || sel == nil {
 		return nil, e.nodeText(query), nil
 	}
-	a := &queryAnalyzer{e: e, plsqlFuncs: map[string]qtype{}, owner: map[*ast.ColumnRef]*qfrom{}, memo: map[exprMemoKey]exprMemo{}, queryMemo: map[queryMemoKey]queryMemo{}, blockMemo: map[blockMemoKey]queryMemo{}}
+	a := &queryAnalyzer{e: e, plsqlFuncs: map[string]qtype{}, owner: map[*ast.ColumnRef]*qfrom{}, memo: map[exprMemoKey]exprMemo{}, queryMemo: map[queryMemoKey]queryMemo{}, blockMemo: map[blockMemoKey]queryMemo{}, hashMemo: map[hashMemoKey]uint64{}}
 	res, err := a.query(sel, nil, nil, true)
 	if err != nil {
 		return nil, "", err
@@ -1638,10 +1643,93 @@ func unparen(x ast.ExprNode) ast.ExprNode {
 // groupKey renders an expression's tree without positions, each column
 // reference as the column it resolves to, so two expressions written alike,
 // or t.id and id, compare equal in a GROUP BY check.
+//
+// The key is a structural hash, memoized per node and scope, so keying
+// every subtree of a long expression stays linear. A reference that
+// resolves to a column is marked "c:".
 func (a *queryAnalyzer) groupKey(n ast.Node, sc *qscope) string {
-	var b strings.Builder
-	writeKey(reflect.ValueOf(n), &b, func(ref *ast.ColumnRef) string { return a.columnIdentity(ref, sc) })
-	return b.String()
+	prefix := "h:"
+	if ref, ok := n.(*ast.ColumnRef); ok && a.columnIdentity(ref, sc) != "" {
+		prefix = "c:"
+	}
+	return prefix + strconv.FormatUint(a.structHash(reflect.ValueOf(n), sc), 16)
+}
+
+type hashMemoKey struct {
+	node ast.Node
+	sc   *qscope
+}
+
+// structHash hashes a tree's structure without positions, a column
+// reference as the column it resolves to.
+func (a *queryAnalyzer) structHash(v reflect.Value, sc *qscope) uint64 {
+	for v.Kind() == reflect.Interface || v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			return hashBytes([]byte("nil"))
+		}
+		if v.Kind() == reflect.Ptr {
+			if node, ok := v.Interface().(ast.Node); ok {
+				key := hashMemoKey{node: node, sc: sc}
+				if h, ok := a.hashMemo[key]; ok {
+					return h
+				}
+				h := a.nodeHash(v, node, sc)
+				a.hashMemo[key] = h
+				return h
+			}
+		}
+		v = v.Elem()
+	}
+	return a.valueHash(v, sc)
+}
+
+func (a *queryAnalyzer) nodeHash(v reflect.Value, node ast.Node, sc *qscope) uint64 {
+	switch n := node.(type) {
+	case *ast.ColumnRef:
+		if id := a.columnIdentity(n, sc); id != "" {
+			return hashBytes([]byte("col " + id))
+		}
+	case *ast.ParenExpr:
+		return a.structHash(reflect.ValueOf(n.Expr), sc)
+	}
+	return a.valueHash(v.Elem(), sc)
+}
+
+func (a *queryAnalyzer) valueHash(v reflect.Value, sc *qscope) uint64 {
+	h := fnv.New64a()
+	var buf [8]byte
+	put := func(x uint64) {
+		binary.LittleEndian.PutUint64(buf[:], x)
+		_, _ = h.Write(buf[:])
+	}
+	switch v.Kind() {
+	case reflect.Struct:
+		_, _ = h.Write([]byte(v.Type().Name()))
+		for i := 0; i < v.NumField(); i++ {
+			f := v.Type().Field(i)
+			if f.Name == "Loc" || !f.IsExported() {
+				continue
+			}
+			_, _ = h.Write([]byte(f.Name))
+			put(a.structHash(v.Field(i), sc))
+		}
+	case reflect.Slice:
+		_, _ = h.Write([]byte("["))
+		for i := 0; i < v.Len(); i++ {
+			put(a.structHash(v.Index(i), sc))
+		}
+	case reflect.Interface, reflect.Ptr:
+		put(a.structHash(v, sc))
+	default:
+		_, _ = fmt.Fprintf(h, "%v", v.Interface())
+	}
+	return h.Sum64()
+}
+
+func hashBytes(b []byte) uint64 {
+	h := fnv.New64a()
+	_, _ = h.Write(b)
+	return h.Sum64()
 }
 
 // columnIdentity names the column a reference resolves to, or "" when it
@@ -1679,51 +1767,6 @@ func (a *queryAnalyzer) columnIdentity(ref *ast.ColumnRef, sc *qscope) string {
 		}
 	}
 	return ""
-}
-
-func writeKey(v reflect.Value, b *strings.Builder, colKey func(*ast.ColumnRef) string) {
-	for v.Kind() == reflect.Interface || v.Kind() == reflect.Ptr {
-		if v.IsNil() {
-			b.WriteString("nil")
-			return
-		}
-		if ref, ok := v.Interface().(*ast.ColumnRef); ok && colKey != nil {
-			if k := colKey(ref); k != "" {
-				b.WriteString(k)
-				return
-			}
-		}
-		v = v.Elem()
-	}
-	switch v.Kind() {
-	case reflect.Struct:
-		if v.Type() == reflect.TypeOf(ast.ParenExpr{}) {
-			writeKey(v.FieldByName("Expr"), b, colKey)
-			return
-		}
-		b.WriteString(v.Type().Name())
-		b.WriteByte('{')
-		for i := 0; i < v.NumField(); i++ {
-			f := v.Type().Field(i)
-			if f.Name == "Loc" || !f.IsExported() {
-				continue
-			}
-			b.WriteString(f.Name)
-			b.WriteByte(':')
-			writeKey(v.Field(i), b, colKey)
-			b.WriteByte(' ')
-		}
-		b.WriteByte('}')
-	case reflect.Slice:
-		b.WriteByte('[')
-		for i := 0; i < v.Len(); i++ {
-			writeKey(v.Index(i), b, colKey)
-			b.WriteByte(',')
-		}
-		b.WriteByte(']')
-	default:
-		fmt.Fprintf(b, "%v", v.Interface())
-	}
 }
 
 // walkExpr visits an expression tree depth first; fn returns false to skip

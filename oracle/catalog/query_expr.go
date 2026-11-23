@@ -948,7 +948,7 @@ func containsWindow(x ast.Node) bool {
 // checkGrouped checks an expression of a grouped query block: each column
 // it reads outside an aggregate is a GROUP BY expression.
 func checkGrouped(x ast.Node, keys []string, keyOf func(ast.Node) string, owned func(*ast.ColumnRef) bool, hasGroupBy, positional, nested bool) error {
-	if ex, ok := x.(ast.ExprNode); ok {
+	if ex, ok := x.(ast.ExprNode); ok && len(keys) > 0 {
 		key := keyOf(ex)
 		for _, k := range keys {
 			if k == key {
@@ -969,7 +969,7 @@ func checkGrouped(x ast.Node, keys []string, keyOf func(ast.Node) string, owned 
 			return nil
 		}
 		key := keyOf(n)
-		resolved := strings.HasPrefix(key, "col:") || strings.HasPrefix(key, "merged:")
+		resolved := strings.HasPrefix(key, "c:")
 		if _, ok := keywordValues[n.Column]; ok && n.Table == "" && !resolved {
 			// CURRENT_DATE and the like, when no column is named so.
 			return nil

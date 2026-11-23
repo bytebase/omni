@@ -571,7 +571,13 @@ func (a *queryAnalyzer) tableCollection(n *ast.TableCollectionExpr, sc *qscope) 
 		}
 		return nil, oraError("22905", "Cannot access rows from unsupported input to TABLE operator.")
 	}
-	// The constructor's arguments are expressions like any other.
+	// The constructor's arguments, or the cast's operand, are expressions
+	// like any other.
+	if c, ok := unparen(x).(*ast.CastExpr); ok {
+		if _, _, err := a.expr(c.Arg, sc, clauseFrom); err != nil {
+			return nil, err
+		}
+	}
 	if fc, ok := unparen(x).(*ast.FuncCallExpr); ok {
 		for _, item := range listItems(fc.Args) {
 			if ex, ok := item.(ast.ExprNode); ok {
@@ -587,6 +593,19 @@ func (a *queryAnalyzer) tableCollection(n *ast.TableCollectionExpr, sc *qscope) 
 // collectionElementType is the element type of a built-in collection
 // constructor: the SYS.ODCI*LIST types.
 func collectionElementType(x ast.ExprNode) (qtype, bool) {
+	if c, ok := unparen(x).(*ast.CastExpr); ok && c.TypeName != nil {
+		// CAST(... AS SYS.ODCI*LIST) names the collection type itself.
+		var names []string
+		for _, item := range listItems(c.TypeName.Names) {
+			if s, ok := item.(*ast.String); ok {
+				names = append(names, strings.ToUpper(s.Str))
+			}
+		}
+		if len(names) == 0 || len(names) > 2 || len(names) == 2 && names[0] != "SYS" {
+			return qtype{}, false
+		}
+		return odciElementType(names[len(names)-1])
+	}
 	fc, ok := unparen(x).(*ast.FuncCallExpr)
 	if !ok || fc.FuncName == nil {
 		return qtype{}, false
@@ -594,7 +613,12 @@ func collectionElementType(x ast.ExprNode) (qtype, bool) {
 	if fc.FuncName.Schema != "" && fc.FuncName.Schema != "SYS" {
 		return qtype{}, false
 	}
-	switch fc.FuncName.Name {
+	return odciElementType(fc.FuncName.Name)
+}
+
+// odciElementType is a SYS.ODCI*LIST collection's element type.
+func odciElementType(name string) (qtype, bool) {
+	switch name {
 	case "ODCINUMBERLIST":
 		return numberType(), true
 	case "ODCIVARCHAR2LIST":

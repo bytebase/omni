@@ -191,6 +191,9 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"quoted_pattern_variable", `CREATE VIEW v AS SELECT first_id FROM t MATCH_RECOGNIZE (ORDER BY id MEASURES FIRST("a".id) AS first_id PATTERN ("a") DEFINE "a" AS id > 0)`, ""},
 		{"range_interval_numeric_key", `CREATE VIEW v AS SELECT SUM(id) OVER (ORDER BY id RANGE INTERVAL '1' DAY PRECEDING) x FROM t`, "00902"},
 		{"range_interval_date_key", `CREATE VIEW v AS SELECT SUM(id) OVER (ORDER BY d RANGE INTERVAL '1' DAY PRECEDING) x FROM t`, ""},
+		{"table_cast_collection", `CREATE VIEW v AS SELECT column_value cv FROM TABLE(CAST(sys.odcinumberlist(1, 2) AS sys.odcinumberlist))`, ""},
+		{"json_object_returning_number", `CREATE VIEW v AS SELECT JSON_OBJECT('a' VALUE 1 RETURNING NUMBER) x FROM dual`, "40449"},
+		{"json_value_returning_number", `CREATE VIEW v AS SELECT JSON_VALUE('{"a":1}', '$.a' RETURNING NUMBER) x FROM dual`, ""},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -774,5 +777,25 @@ CREATE VIEW w AS SELECT id FROM t AS OF PERIOD FOR valid_time :p;`, &ExecOptions
 		if v.GetName() == "V" && v.GetColumns()[0].GetType() != "VARCHAR2(6000 BYTE)" {
 			t.Errorf("V.X type = %q, want VARCHAR2(6000 BYTE)", v.GetColumns()[0].GetType())
 		}
+	}
+}
+
+func TestViewQueryLongExpressionStaysFast(t *testing.T) {
+	expr := "1" + strings.Repeat("+1", 4000)
+	done := make(chan error, 1)
+	go func() {
+		c, err := LoadSQL("CREATE TABLE t (id NUMBER);")
+		if err == nil {
+			_, err = c.Exec("CREATE VIEW v AS SELECT "+expr+" x, COUNT(*) c FROM t GROUP BY id", nil)
+		}
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("a 4,000-term grouped expression took more than 10s")
 	}
 }

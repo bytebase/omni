@@ -178,6 +178,9 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		// A SQL/JSON function returns the type its RETURNING clause names;
 		// VARCHAR2 without a length is VARCHAR2(4000).
 		t := typeNameType(n.Returning)
+		if !jsonReturningAllowed(name, t) {
+			return qtype{}, false, oraError("40449", "invalid data type for return value")
+		}
 		if t.kind == "VARCHAR2" && listItems(n.Returning.TypeMods) == nil {
 			t = varchar2Bytes(4000)
 		}
@@ -862,4 +865,18 @@ func convertibleArgs(args []qtype) error {
 		}
 	}
 	return nil
+}
+
+// jsonReturningAllowed reports whether a SQL/JSON function may return the
+// type its RETURNING clause names: JSON_VALUE scalars, the others
+// character, binary or JSON data.
+func jsonReturningAllowed(name string, t qtype) bool {
+	if name == "JSON_VALUE" {
+		return true
+	}
+	switch t.kind {
+	case "VARCHAR2", "CLOB", "BLOB", "JSON", "RAW", "UNKNOWN":
+		return true
+	}
+	return false
 }
