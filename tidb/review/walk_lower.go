@@ -43,6 +43,8 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.dropView(v)
 	case *ast.CreateSequenceStmt:
 		return b.createSequence(v)
+	case *ast.AlterSequenceStmt:
+		return b.alterSequence(v)
 	case *ast.DropSequenceStmt:
 		return b.dropSequence(v)
 	case *ast.InsertStmt:
@@ -336,6 +338,28 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 	if b.namesTooLong(v) {
 		return true
 	}
+	// TiDB v8.5.5 judges preprocess-time column defaults/charsets (1067/1115),
+	// unsupported CREATE TABLE ... SELECT (1105), unsupported table options
+	// (8232/8233/1286/8266), and empty column definitions (1113) before table
+	// name lookup.
+	for _, col := range v.Columns {
+		if b.checkColumnDefPreprocess(col, rangeOf(col.Loc)) {
+			return true
+		}
+	}
+	if v.Select != nil {
+		b.fail(b.anchor(), nil, review.UnsupportedForm, engineName+" doesn't support "+review.Code("CREATE TABLE ... SELECT")+".")
+		return true
+	}
+	for _, opt := range v.Options {
+		if b.checkTableOption(opt, rangeOf(opt.Loc), false) {
+			return true
+		}
+	}
+	if v.Like == nil && v.Select == nil && len(v.Columns) == 0 {
+		b.fail(b.anchor(), nil, review.UnsupportedForm, review.Code("CREATE TABLE")+" must define at least one column.")
+		return true
+	}
 	r, st := b.ref(v.Table)
 	switch st {
 	case refFailed:
@@ -479,6 +503,9 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 			primaries++
 			continue
 		case ast.ConstrForeignKey:
+			if b.checkConstraintForeignKeyShape(c, rangeOf(c.Loc)) {
+				return true
+			}
 			if k, ok := b.key(spaceTableForeignKey, keyName(c)); ok && b.fks {
 				if foreignKeys[k] {
 					b.fail(rangeOf(c.Loc), nil, review.DuplicateName, statesTwice("declares", "foreign key", ident(keyName(c))))

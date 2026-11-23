@@ -29,11 +29,48 @@ func (b *builder) tableOf(tr *ast.TableRef) (tableRef, bool, bool) {
 }
 
 func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
-	r, ok, lowered := b.tableOf(v.Table)
-	if !ok {
-		return lowered
+	r, st := b.ref(v.Table)
+	switch st {
+	case refFailed:
+		return true
+	case refUnknown:
+		return false
+	}
+	f, temp, kind := b.resolve(r)
+	if temp || f == walk.Unknown {
+		return false
+	}
+	if f == walk.Absent {
+		b.need(relKey(r.db, r.name), walk.Present, nil, r.rng, notFound("table", r.written, ""), "")
+		return true
 	}
 	rng := b.anchor()
+	// TiDB v8.5.5 refuses CREATE FULLTEXT INDEX and CREATE SPATIAL INDEX (8200)
+	// once the relation exists, including on views and sequences.
+	if v.Fulltext {
+		b.fail(rng, nil, review.UnsupportedForm, engineName+" doesn't support FULLTEXT indexes.")
+		return true
+	}
+	if v.Spatial {
+		b.fail(rng, nil, review.UnsupportedForm, engineName+" doesn't support SPATIAL indexes.")
+		return true
+	}
+	if kind == relView {
+		// Functional expression indexes succeed on views, while a column key
+		// part fails with 1105 ("Unknown charset ").
+		for _, ic := range v.Columns {
+			if ic != nil && !ic.Functional {
+				if _, ok := ic.Expr.(*ast.ColumnRef); ok {
+					b.fail(rng, []walk.Key{relKey(r.db, r.name)}, review.UnsupportedForm, engineName+" doesn't support column indexes on view "+review.Code(r.written)+".")
+					return true
+				}
+			}
+		}
+		return false
+	}
+	if kind == relSequence {
+		return false
+	}
 	if b.tooLong(v.IndexName, rng) {
 		return true
 	}
@@ -47,10 +84,18 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	}
 	ik := idxKey(r.db, r.name, k)
 	if v.IfNotExists {
+		if existing, _ := b.l.Lookup(ik); existing == walk.Absent {
+			if !v.Vector {
+				b.checkIndexColumnsExist(r, v.Columns, nil, rng)
+			}
+		}
 		b.Next()
 		b.Optional()
 	} else {
 		b.need(ik, walk.Absent, nil, rng, "", alreadyExists("index", ident(v.IndexName), r.written)) // 1061
+		if !v.Vector {
+			b.checkIndexColumnsExist(r, v.Columns, nil, rng)
+		}
 	}
 	b.Set(ik, walk.Present, "")
 	return true
@@ -77,6 +122,16 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 	}
 	if v.Name.Schema != "" {
 		b.databaseNeeds(r.db, v.Name.Schema, r.rng) // 1049
+	}
+	// TiDB v8.5.5 resolves a view body's stars before checking whether the
+	// view name collides (1051 ahead of 1050).
+	currentDB := ""
+	if !b.w.lost && !b.w.noDatabase && !strings.HasPrefix(b.w.current, nonASCII) {
+		currentDB = b.w.current
+	}
+	if viewBodyHasNoTableStar(v.Select, b.w.sql, currentDB) {
+		b.fail(b.anchor(), nil, review.UnsupportedForm, review.Code("CREATE VIEW")+" expands "+review.Code("*")+" with no table to read from.")
+		return true
 	}
 	k := relKey(r.db, r.name)
 	if v.OrReplace {
@@ -143,6 +198,9 @@ func (b *builder) createSequence(v *ast.CreateSequenceStmt) bool {
 		b.needFree(k, r.rng, r.written, relSequence) // 1050
 		prior = walk.Absent
 	}
+	if prior == walk.Absent && b.checkSequenceOptionsValid(r.written, v.Options, b.anchor()) {
+		return true
+	}
 	switch prior {
 	case walk.Present:
 		// A note: nothing is created (verified).
@@ -152,6 +210,28 @@ func (b *builder) createSequence(v *ast.CreateSequenceStmt) bool {
 		b.Set(k, walk.Present, relSequence)
 	default:
 		b.Set(k, walk.Present, relSequence)
+	}
+	return true
+}
+
+// alterSequence follows ALTER SEQUENCE [IF EXISTS]. The target must exist
+// (1146, even with IF EXISTS on TiDB v8.5.5) as a sequence (1347 for a base
+// table or view). A temporary table is no sequence and shadows none.
+func (b *builder) alterSequence(v *ast.AlterSequenceStmt) bool {
+	r, st := b.ref(v.Name)
+	switch st {
+	case refFailed:
+		return true
+	case refUnknown:
+		return false
+	}
+	if v.Name.Schema != "" {
+		b.databaseNeeds(r.db, v.Name.Schema, r.rng) // 1049
+	}
+	k := relKey(r.db, r.name)
+	b.needKind(k, []string{relSequence}, r.rng, notFound("sequence", r.written, ""), r.written, "sequence") // 1146, 1347
+	if f, kind := b.l.Lookup(k); f == walk.Present && kind == relSequence {
+		b.checkSequenceOptionsValid(r.written, v.Options, b.anchor())
 	}
 	return true
 }

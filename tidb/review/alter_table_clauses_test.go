@@ -29,23 +29,28 @@ func TestWalkAlterTableClausesAreSilent(t *testing.T) {
 		"ALTER TABLE t COMPACT;",
 		"ALTER TABLE t COMPACT TIFLASH REPLICA;",
 		"ALTER TABLE t COMPACT PARTITION p1, p2;",
-		"ALTER TABLE t ATTRIBUTES = 'str1,str2';",
+		"ALTER TABLE t ATTRIBUTES = 'k1=v1,k2=v2';",
 		"ALTER TABLE t ATTRIBUTES = DEFAULT;",
-		"ALTER TABLE t STATS_OPTIONS = 'str';",
 		"ALTER TABLE t ANALYZE PARTITION p0;",
 		"ALTER TABLE t ANALYZE PARTITION p0 INDEX i WITH 4 BUCKETS;",
-		"ALTER TABLE t PARTITION p0 ATTRIBUTES = 'str';",
-		"ALTER TABLE t PARTITION p0 ENGINE = InnoDB MAX_ROWS 5;",
+		"ALTER TABLE t PARTITION p0 ATTRIBUTES = 'k=v';",
+		"ALTER TABLE t PARTITION p0 PLACEMENT POLICY = 'p';",
 		"ALTER TABLE t LAST PARTITION LESS THAN (1000);",
 		"ALTER TABLE t FIRST PARTITION LESS THAN (1);",
-		"ALTER TABLE t SPLIT MAXVALUE PARTITION LESS THAN (1000);",
-		"ALTER TABLE t MERGE FIRST PARTITION LESS THAN (1000);",
 		"ALTER TABLE t FORCE AUTO_INCREMENT = 3;",
-		"ALTER TABLE t ATTRIBUTES = 'x', ADD COLUMN c int;",
+		"ALTER TABLE t ATTRIBUTES = 'k=v', ADD COLUMN c int;",
 		"ALTER TABLE t CACHE, ADD COLUMN c int, READ ONLY;",
 	} {
 		t.Run(sql, func(t *testing.T) { noFinding(t, sql, shop) })
 	}
+	// Unsupported or malformed clauses that TiDB v8.5.5 always rejects are
+	// reported instead of being treated as silent no-ops.
+	oneFinding(t, "ALTER TABLE t ATTRIBUTES = 'str1,str2';", 0, "TiDB requires `ATTRIBUTES` entries in `key=value` format without conflicts.", shop)
+	oneFinding(t, "ALTER TABLE t STATS_OPTIONS = 'str';", 0, "TiDB doesn't support `STATS_OPTIONS` in `ALTER TABLE`.", shop)
+	oneFinding(t, "ALTER TABLE t PARTITION p0 ATTRIBUTES = 'str';", 0, "TiDB requires `ATTRIBUTES` entries in `key=value` format without conflicts.", shop)
+	oneFinding(t, "ALTER TABLE t PARTITION p0 ENGINE = InnoDB MAX_ROWS 5;", 0, "TiDB doesn't support partition option `ENGINE` in `ALTER TABLE`.", shop)
+	oneFinding(t, "ALTER TABLE t SPLIT MAXVALUE PARTITION LESS THAN (1000);", 0, "TiDB doesn't support `SPLIT MAXVALUE PARTITION` in `ALTER TABLE`.", shop)
+	oneFinding(t, "ALTER TABLE t MERGE FIRST PARTITION LESS THAN (1000);", 0, "TiDB doesn't support `MERGE FIRST PARTITION` in `ALTER TABLE`.", shop)
 }
 
 // TestWalkAlterTableClausesStillFollowNames: a clause beside one of the silent
@@ -55,7 +60,7 @@ func TestWalkAlterTableClausesStillFollowNames(t *testing.T) {
 	shop := review.Target{Schema: walkSchema()}
 	oneFinding(t, "ALTER TABLE t CACHE, ADD COLUMN c int;\nALTER TABLE t ADD COLUMN c int;",
 		1, "Column `c` already exists in `t`.", shop)
-	oneFinding(t, "ALTER TABLE t ATTRIBUTES = 'x', DROP COLUMN zz;",
+	oneFinding(t, "ALTER TABLE t ATTRIBUTES = 'k=v', DROP COLUMN zz;",
 		0, "Column `zz` doesn't exist in `t`.", shop)
 	oneFinding(t, "ALTER TABLE t READ ONLY, ADD INDEX i (a);",
 		0, "Index `i` already exists in `t`.", shop)
@@ -66,14 +71,18 @@ func TestWalkAlterTableClausesStillFollowNames(t *testing.T) {
 // name the table already has is 1061 whichever form adds it.
 func TestWalkAlterTableAddTableElementList(t *testing.T) {
 	shop := review.Target{Schema: walkSchema()}
-	oneFinding(t, "ALTER TABLE t ADD COLUMN (c int, INDEX i (c));",
+	oneFinding(t, "ALTER TABLE t ADD COLUMN (c int, INDEX i (a));",
 		0, "Index `i` already exists in `t`.", shop)
-	oneFinding(t, "ALTER TABLE t ADD (c int, PRIMARY KEY (c));",
+	oneFinding(t, "ALTER TABLE t ADD (c int, PRIMARY KEY (a));",
 		0, "`t` already has a primary key.", shop)
 	// The columns of the list are followed too.
 	oneFinding(t, "ALTER TABLE t ADD COLUMN (c int, d int);\nALTER TABLE t ADD COLUMN d int;",
 		1, "Column `d` already exists in `t`.", shop)
-	noFinding(t, "ALTER TABLE t ADD COLUMN (c int, UNIQUE KEY u (c));", shop)
+	// TiDB resolves key columns against the pre-alter table (1072 for a column
+	// added in the same statement), while an existing column is accepted.
+	noFinding(t, "ALTER TABLE t ADD COLUMN (c int, UNIQUE KEY u (a));", shop)
+	oneFinding(t, "ALTER TABLE t ADD COLUMN (c int, UNIQUE KEY u (c));",
+		0, "Column `c` doesn't exist in `t`.", shop)
 }
 
 // TestWalkAlterTableIfExistsClauses: IF NOT EXISTS and IF EXISTS turn the

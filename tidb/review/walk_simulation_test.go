@@ -19,14 +19,15 @@ import (
 func TestWalkSimulation(t *testing.T) {
 	same := (&tidbEngine{}).Same
 	for _, suite := range []struct {
-		name string
-		path string
+		name      string
+		path      string
+		minRecall float64
 	}{
-		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv")},
-		{"sequences", filepath.Join("..", "catalog", "testdata", "sequences", "simulate.tsv")},
+		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 90.0},
+		{"sequences", filepath.Join("..", "catalog", "testdata", "sequences", "simulate.tsv"), 95.0},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
-			walktest.CheckSimulation(t, walktest.Simulation{
+			res := walktest.CheckSimulation(t, walktest.Simulation{
 				Path:     suite.path,
 				Fixtures: filepath.Join("..", "catalog", "testdata", "fixtures"),
 				Setup:    tidbSimFixture,
@@ -40,6 +41,13 @@ func TestWalkSimulation(t *testing.T) {
 				},
 				Same: same,
 			})
+			if res.Refused > 0 {
+				pct := 100 * float64(res.Found) / float64(res.Refused)
+				if pct < suite.minRecall {
+					t.Errorf("%s recall = %.1f%% (%d/%d), want >= %.1f%%",
+						suite.name, pct, res.Found, res.Refused, suite.minRecall)
+				}
+			}
 		})
 	}
 }

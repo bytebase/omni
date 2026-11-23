@@ -436,7 +436,8 @@ var walkCodes = []struct {
 		return (strings.HasPrefix(m, "Table ") || strings.HasPrefix(m, "`")) && strings.HasSuffix(m, " doesn't exist.")
 	}, []string{"1146", "1051"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "View ") }, []string{"1051"}},
-	{func(m, _ string) bool { return strings.HasPrefix(m, "Sequence ") }, []string{"4139"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, " has conflicting options.") }, []string{"4136"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Sequence ") }, []string{"4139", "1146"}},
 	{func(m, _ string) bool { return saysWrongKind(m) }, []string{"1347"}},
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Database ") && strings.HasSuffix(m, " already exists.")
@@ -446,17 +447,89 @@ var walkCodes = []struct {
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Column ") && strings.Contains(m, " already exists in ") || saysTwice(m, "column", "declares", "adds", "drops")
 	}, []string{"1060", "1091", "8200"}},
-	{func(m, _ string) bool { return strings.HasPrefix(m, "Column ") }, []string{"1054", "1091"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Column ") }, []string{"1054", "1091", "1072", "1488"}},
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Index ") && strings.Contains(m, " already exists in ") || saysTwice(m, "index", "declares", "adds")
 	}, []string{"1061", "8200"}},
 	{func(m, _ string) bool { return m == reservedPrimary }, []string{"1280"}},
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Index ") || saysTwice(m, "index", "drops") || m == "This statement drops the primary key twice."
-	}, []string{"1091", "1176", "8200"}},
+	}, []string{"1091", "1176", "8200", "8109", "1505"}},
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "TiDB doesn't accept `RENAME TO` with other changes ")
 	}, []string{"8200"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "TiDB doesn't support `HISTORY` partitions.") ||
+			strings.HasPrefix(m, "TiDB doesn't support `CURRENT` partitions.")
+	}, []string{"4113", "1480", "1505"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "TiDB can't exchange a partition of ")
+	}, []string{"1732", "1505"}},
+	{func(m, _ string) bool {
+		return saysTwice(m, "partition", "declares") || saysTwice(m, "subpartition", "declares")
+	}, []string{"1517", "1479", "1505"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "TiDB doesn't support `CREATE TABLE ... SELECT`.") ||
+			strings.HasPrefix(m, "TiDB doesn't support `CONVERT TO CHARSET DEFAULT`.") ||
+			strings.HasPrefix(m, "TiDB doesn't support partition option ") ||
+			strings.HasPrefix(m, "TiDB doesn't support column indexes on view ") ||
+			strings.HasPrefix(m, "`FOREIGN KEY` can't reference a functional expression.")
+	}, []string{"1105"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "TiDB doesn't support table option `UNION`.")
+	}, []string{"8232"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "TiDB doesn't support table option `INSERT_METHOD`.")
+	}, []string{"8233"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "TiDB doesn't recognize storage engine ")
+	}, []string{"1286"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "TiDB doesn't recognize `AFFINITY` value ")
+	}, []string{"8266"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "TiDB requires `ATTRIBUTES` entries ")
+	}, []string{"8237"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "TiDB doesn't support adding column ") && strings.HasSuffix(m, " with `AUTO_RANDOM`.")
+	}, []string{"8216"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "TiDB doesn't support a `STORED` generated column ")
+	}, []string{"3106"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "TiDB doesn't support a sequence default ")
+	}, []string{"8230"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "TiDB doesn't support ") ||
+			strings.HasPrefix(m, "TiDB requires `FIRST` and `LAST` partitions ")
+	}, []string{"8200"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "TiDB doesn't recognize character set ")
+	}, []string{"1115"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "TiDB doesn't allow ") && strings.HasSuffix(m, " in a column `DEFAULT` expression.")
+	}, []string{"3770"}},
+	{func(m, _ string) bool {
+		return strings.HasSuffix(m, " has an invalid default value for its type.")
+	}, []string{"1067"}},
+	{func(m, _ string) bool {
+		return strings.HasSuffix(m, " has an invalid `ON UPDATE` clause for its type.")
+	}, []string{"1294"}},
+	{func(m, _ string) bool {
+		return strings.Contains(m, " declares duplicate ENUM value ") || strings.Contains(m, " declares duplicate SET value ")
+	}, []string{"1291"}},
+	{func(m, _ string) bool {
+		return m == "`CREATE TABLE` must define at least one column."
+	}, []string{"1113"}},
+	{func(m, _ string) bool {
+		return m == "`CREATE VIEW` expands `*` with no table to read from."
+	}, []string{"1051"}},
+	{func(m, _ string) bool {
+		return m == "`FOREIGN KEY` must name the referenced columns."
+	}, []string{"1239"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Partition bound expression can't reference column ")
+	}, []string{"1054", "1480", "1505"}},
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "The name ") && strings.HasSuffix(m, "'s 64-character limit.")
 	}, []string{"1059"}},

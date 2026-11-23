@@ -413,6 +413,7 @@ var walkForms = []walktest.Form{
 	{SQL: "DROP VIEW IF EXISTS v, w;"},
 	{SQL: "CREATE SEQUENCE s2;"},
 	{SQL: "CREATE SEQUENCE IF NOT EXISTS sq;"},
+	{SQL: "ALTER SEQUENCE sq INCREMENT BY 2;"},
 	{SQL: "DROP SEQUENCE IF EXISTS sq, s2;"},
 	{SQL: "INSERT INTO nokey VALUES (1);"},
 	{SQL: "REPLACE INTO nokey VALUES (1);"},
