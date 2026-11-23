@@ -351,8 +351,11 @@ func (p *Parser) parseIfExists() bool {
 	return false
 }
 
-// parseUsingClause parses optional USING TTL n [AND TIMESTAMP m] / USING TIMESTAMP m [AND TTL n].
-func (p *Parser) parseUsingClause() (*ast.UsingClause, error) {
+// parseUsingClause parses an optional usingClause (Parser.g:529): USING
+// usingClauseObjective (AND usingClauseObjective)*, each TIMESTAMP or TTL
+// and an intValue (Parser.g:533). DELETE's usingClauseDelete (Parser.g:612)
+// is USING TIMESTAMP intValue alone: timestampOnly parses that.
+func (p *Parser) parseUsingClause(timestampOnly bool) (*ast.UsingClause, error) {
 	if p.cur.Type != tokUSING {
 		return nil, nil
 	}
@@ -361,25 +364,27 @@ func (p *Parser) parseUsingClause() (*ast.UsingClause, error) {
 
 	clause := &ast.UsingClause{}
 	for {
-		switch p.cur.Type {
-		case tokTTL:
+		switch {
+		case p.cur.Type == tokTTL && !timestampOnly:
 			p.advance()
-			val, err := p.parseConstant()
+			val, err := p.parseIntValue()
 			if err != nil {
 				return nil, err
 			}
 			clause.TTL = val
-		case tokTIMESTAMP:
+		case p.cur.Type == tokTIMESTAMP:
 			p.advance()
-			val, err := p.parseConstant()
+			val, err := p.parseIntValue()
 			if err != nil {
 				return nil, err
 			}
 			clause.Timestamp = val
+		case timestampOnly:
+			return nil, p.errorf("expected TIMESTAMP after USING")
 		default:
 			return nil, p.errorf("expected TTL or TIMESTAMP after USING")
 		}
-		if !p.match(tokAND) {
+		if timestampOnly || !p.match(tokAND) {
 			break
 		}
 	}

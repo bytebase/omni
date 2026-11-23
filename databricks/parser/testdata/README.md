@@ -15,12 +15,12 @@ run with no container, credentials, or network.
 
 | Rows | Total | Agree | Only Spark accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 2,281 | 2,281 | 0 | 0 |
-| Near-misses | 4,312 | 4,312 | 0 | 0 |
+| One per alternative | 2,472 | 2,472 | 0 | 0 |
+| Near-misses | 4,552 | 4,552 | 0 | 0 |
 | `suite:keywords` | 45 | 45 | 0 | 0 |
 | `suite:overcorrections` | 11 | 11 | 0 | 0 |
 | `suite:spark-astbuilder` | 262 | 262 | 0 | 0 |
-| **All** | **6,911** | **6,911** | **0** | **0** |
+| **All** | **7,342** | **7,342** | **0** | **0** |
 
 - **The judge** is the pinned official `apache/spark:4.0.5` container image
   (`../../testdata/pins.tsv`, role `default`, digest
@@ -31,7 +31,7 @@ run with no container, credentials, or network.
   `SqlBaseLexer`/`SqlBaseParser` and Spark's full `AstBuilder` /
   `DataTypeAstBuilder` parse-time validation without executing queries or
   requiring a catalog.
-- **The grammar** used to generate the 6,593 baseline rows is
+- **The grammar** used to generate the 7,024 baseline rows is
   `../../testdata/SqlBaseParser.g4` with `../../testdata/SqlBaseLexer.g4`
   (`sql/api/src/main/antlr4/org/apache/spark/sql/catalyst/parser/` in
   [`apache/spark`](https://github.com/apache/spark), `v4.0.5`, Apache-2.0 in
@@ -47,6 +47,9 @@ run with no container, credentials, or network.
   optional groups (IF [NOT] EXISTS, OR REPLACE, TEMPORARY, PURGE, TABLE,
   PARTITION, FROM/IN, NOT, and INSERT's WITH OPTIONS) that get a row at every
   alternative naming them, not only at the one their own row reaches.
+  Rows of the form `(every alternative)` name keyword and literal choices
+  (`namespace`, `errorCapturingNot`, `stringLit`, `dataType`, `constant` and
+  others) whose every form gets a row at each site that names the rule.
 - **22 alternatives have no generated row:** Spark's 8 auxiliary non-statement
   entry points (`singleExpression`, `singleTableIdentifier`,
   `singleMultipartIdentifier`, `singleFunctionIdentifier`, `singleDataType`,
@@ -77,12 +80,12 @@ go test ./databricks/parser/ -run '^TestCompatibility$' -update-compat
 
 ## Who judges what
 
-- **Live Spark 4.0.5 engine judge (`SourceEngine`), 6,911 rows.** All 6,593
+- **Live Spark 4.0.5 engine judge (`SourceEngine`), 7,342 rows.** All 7,024
   grammar-generated rows plus 318 hand-curated `suite:` rows
   (`suite:keywords`, `suite:overcorrections`, `suite:spark-astbuilder`) are
   judged by `apache/spark:4.0.5`'s `SparkSession.sessionState.sqlParser.parsePlan`
   with `spark.sql.scripting.enabled=true` and replayed offline in CI.
-- **Agreement: 6,911 / 6,911 (100.00%)** — 0 `judge-only` rows and 0 `omni-only`
+- **Agreement: 7,342 / 7,342 (100.00%)** — 0 `judge-only` rows and 0 `omni-only`
   rows.
 
 ## Databricks SQL dialect deltas beyond Apache Spark 4.0.5

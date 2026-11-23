@@ -8,3 +8,10 @@ LEX_IDENTIFIER	c	sql.g4:295 [a-zA-Z_]([a-zA-Z_]|DIGIT)*; the rule's first altern
 STRING_LITERAL	's'	sql.g4:270 a single- or double-quoted string with JSON's escapes
 NUMERIC_LITERAL	1	sql.g4:265 digits, with an optional sign, fraction and exponent
 PARAMETER	@a	sql.g4:300 '@' and an identifier
+# Choices tried at every site that names them, and not only where their own
+# alternatives' rows reach (see grammar.EveryAlternative). sql.g4 has no
+# optional clause named at several sites: each (...)? is its own rule per
+# site, so no row takes the form (every site).
+identifier	(every alternative)	sql.g4:201 a name, or ALL, FIRST or LAST as one, at each of its eight sites
+sort_order	(every alternative)	sql.g4:72 ASC or DESC, after an ORDER BY item and an ORDER BY RANK score
+function_call_scalar_expression	(every alternative)	sql.g4:189 a function, a udf. one, LEFT or RIGHT, as an expression and an ORDER BY RANK score

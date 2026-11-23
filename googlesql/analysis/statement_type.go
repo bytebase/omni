@@ -110,6 +110,9 @@ func StatementTypeOf(node ast.Node) StatementType {
 	case *ast.CreateSequenceStmt:
 		return CreateSequence
 	case *ast.CreateSnapshotStmt:
+		if n.Schema {
+			return CreateSchema
+		}
 		return CreateTable
 
 	case *ast.AlterStmt:

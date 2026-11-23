@@ -93,7 +93,12 @@ func TestDialectBigQuery(t *testing.T) {
 		"CREATE EXTERNAL TABLE a LIKE b DEFAULT COLLATE 'und:ci' WITH CONNECTION a OPTIONS()",
 		"CREATE EXTERNAL SCHEMA a WITH CONNECTION a OPTIONS()",
 		"DROP EXTERNAL TABLE a",
-		"DROP EXTERNAL TABLE FUNCTION a",
+		// SET AS on the ALTER kinds BigQuery parses and does not run, and
+		// SNAPSHOT SCHEMA (googlesql.tm:1462, 2963)
+		"ALTER DATABASE a SET AS 'a'",
+		"ALTER APPROX VIEW a SET AS JSON '{}'",
+		"ALTER SEQUENCE a SET AS 'a'",
+		"CREATE OR REPLACE SNAPSHOT SCHEMA IF NOT EXISTS a CLONE b FOR SYSTEM_TIME AS OF NULL OPTIONS()",
 		// Connections & constants
 		"CREATE CONNECTION a OPTIONS()",
 		"DROP CONNECTION a",
@@ -143,6 +148,11 @@ func TestDialectBigQuery(t *testing.T) {
 		"SELECT NULL QUALIFY",
 		// Disabled-in-BigQuery / strict syntax rejections
 		"SELECT NULL FOR UPDATE",
+		"DROP EXTERNAL TABLE FUNCTION a", // googlesql.tm:1800
+		"ALTER MATERIALIZED VIEW a SET AS 'a'",
+		"ALTER TABLE a SET AS 'a'",
+		"CREATE SNAPSHOT VIEW a CLONE b",
+
 		"DESCRIBE a |> AGGREGATE",
 		"|> INSERT REPLACE a",
 		"|> INSERT UPDATE a",

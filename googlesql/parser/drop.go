@@ -65,16 +65,21 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		// DROP EXTERNAL SCHEMA (BigQuery) — owned here as a SCHEMA-family drop;
-		// DROP EXTERNAL TABLE [FUNCTION] is enabled in DialectBigQuery.
+		// DROP EXTERNAL TABLE is enabled in DialectBigQuery.
 		if p.peekNext().Type == kwSCHEMA {
 			p.advance() // EXTERNAL
 			return p.parseDropObject(drop, ast.DropSchema, true /*external*/)
 		}
 		if !p.isSpanner() && p.peekNext().Type == kwTABLE {
-			p.advance() // EXTERNAL
+			ext := p.advance() // EXTERNAL
 			if p.peekNext().Type == kwFUNCTION {
-				p.advance() // TABLE
-				return p.parseDropObject(drop, ast.DropTableFunction, true /*external*/)
+				// googlesql.tm:1797: schema_object_kind refuses EXTERNAL TABLE
+				// FUNCTION at EXTERNAL ("EXTERNAL TABLE FUNCTION is not
+				// supported"), and BigQuery answers so.
+				return nil, &ParseError{
+					Position: ext.Loc.Start, End: ext.Loc.End,
+					Message: "EXTERNAL TABLE FUNCTION is not supported",
+				}
 			}
 			return p.parseDropObject(drop, ast.DropTable, true /*external*/)
 		}

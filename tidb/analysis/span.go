@@ -98,12 +98,15 @@ type tableSource interface {
 
 // pseudoTable is a derived relation: a CTE, subquery, alias or join.
 type pseudoTable struct {
-	Name    string
-	Columns []QuerySpanResult
+	Name string
+	// Database is the database of the table or view an alias names, so
+	// db.alias.column resolves; empty for any other relation.
+	Database string
+	Columns  []QuerySpanResult
 }
 
 func (p *pseudoTable) GetTableName() string                  { return p.Name }
-func (*pseudoTable) GetDatabaseName() string                 { return "" }
+func (p *pseudoTable) GetDatabaseName() string               { return p.Database }
 func (p *pseudoTable) GetQuerySpanResult() []QuerySpanResult { return p.Columns }
 
 // physicalView is a catalog view with its resolved columns.

@@ -88,9 +88,22 @@ func (p *Parser) parseAlterSequence(alter Token) (ast.Node, error) {
 	}
 	stmt.Name = name
 
-	// SET OPTIONS ( … ) is the only ALTER SEQUENCE action.
+	// SET OPTIONS ( … ) is the only ALTER SEQUENCE action Spanner takes.
 	if _, err := p.expect(kwSET); err != nil {
 		return nil, err
+	}
+	if !p.isSpanner() && p.cur.Type == kwAS {
+		// SET AS generic_entity_body (googlesql.tm:1462). BigQuery parses it on
+		// ALTER SEQUENCE and answers "Statement not supported:
+		// AlterSequenceStatement"; the Spanner emulator refuses it.
+		p.advance() // AS
+		body, err := p.parseGenericEntityBody()
+		if err != nil {
+			return nil, err
+		}
+		stmt.SetAsBody = body
+		stmt.Loc.End = p.prev.Loc.End
+		return stmt, nil
 	}
 	if p.cur.Type != kwOPTIONS {
 		return nil, p.syntaxErrorAtCur()

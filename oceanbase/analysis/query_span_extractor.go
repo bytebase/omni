@@ -27,6 +27,10 @@ type querySpanExtractor struct {
 	// ctes records common table expressions visible to the current select scope.
 	ctes []*pseudoTable
 
+	// windows is the WINDOW clause of the current SELECT, which OVER w
+	// names.
+	windows []*ast.WindowDef
+
 	// outerScopes holds enclosing select scopes (outermost first, innermost last)
 	// with their table sources and active lambda parameter bindings.
 	outerScopes []outerScope
@@ -173,9 +177,17 @@ func querySpanResultNamed(results []QuerySpanResult, name string) (QuerySpanResu
 
 func (q *querySpanExtractor) matchesSourceQualifiers(catalogName, databaseName, tableName string, tableSource tableSource) bool {
 	if tableSource.HasAlias() {
-		// An aliased relation cannot be qualified by catalog or database.
-		if catalogName != "" || databaseName != "" {
+		// An aliased relation takes no catalog, and only the database of
+		// the table or view it names: OceanBase resolves db.alias.column,
+		// and stores a view over a view in that form.
+		if catalogName != "" {
 			return false
+		}
+		if databaseName != "" {
+			db := tableSource.GetDatabaseName()
+			if db == "" || (databaseName != db && !(q.ignoreCaseSensitive && strings.EqualFold(databaseName, db))) {
+				return false
+			}
 		}
 		if tableName == "" {
 			return true
@@ -436,6 +448,16 @@ func (q *querySpanExtractor) findTableSchema(databaseName, tableName string) (ta
 		if err != nil {
 			return nil, fmt.Errorf("failed to get columns for view %q: %w", tableName, err)
 		}
+		// A view's columns take the names it stores, which a column list
+		// (CREATE VIEW v (a, b) AS ...) sets apart from its definition's.
+		if stored := viewSchema.GetColumns(); len(stored) == len(columns) {
+			renamed := make([]QuerySpanResult, len(columns))
+			for i, column := range columns {
+				column.Name = stored[i].Name
+				renamed[i] = column
+			}
+			columns = renamed
+		}
 		return &physicalView{
 			Name:     viewSchema.Name,
 			Schema:   emptySchema,
@@ -457,7 +479,8 @@ func (q *querySpanExtractor) getColumnsForView(databaseName, viewName, definitio
 		return nil, fmt.Errorf("cyclic view reference detected while resolving %q", viewName)
 	}
 
-	newQ := newQuerySpanExtractor(q.defaultDatabase, q.catalog, q.ignoreCaseSensitive)
+	// A view's definition resolves in the view's database, not the session's.
+	newQ := newQuerySpanExtractor(databaseName, q.catalog, q.ignoreCaseSensitive)
 	newQ.viewResolutionStack = cloneViewResolutionStack(q.viewResolutionStack)
 	newQ.viewResolutionStack[key] = true
 	span, err := newQ.getQuerySpan(definition)
@@ -538,7 +561,7 @@ func (q *querySpanExtractor) getQuerySpan(statement string) (*ResolvedSpan, erro
 	}
 
 	root := stmts.Items[0]
-	accessTables := collectAccessTables(root, q.defaultDatabase)
+	accessTables := q.storedNames(collectAccessTables(root, q.defaultDatabase))
 	allSystems, mixed := isMixedQuery(accessTables, q.ignoreCaseSensitive)
 	if mixed {
 		return nil, ErrMixUserSystemTables
@@ -553,6 +576,9 @@ func (q *querySpanExtractor) getQuerySpan(statement string) (*ResolvedSpan, erro
 
 	var results []QuerySpanResult
 	if queryType == Select {
+		// A query reads the tables behind each view it reads, as OceanBase's
+		// plan does.
+		accessTables = q.withViewTables(accessTables)
 		tableSource, err := q.extractSelectRoot(root)
 		if err != nil {
 			var resourceNotFound *NotFoundError
@@ -576,6 +602,113 @@ func (q *querySpanExtractor) getQuerySpan(statement string) (*ResolvedSpan, erro
 		Results:          results,
 		PredicateColumns: ColumnSet{},
 	}, nil
+}
+
+// storedNames spells each table of tables as the catalog stores it, when
+// names compare without case: OceanBase with lower_case_table_names set
+// stores and checks shop.mixedcase for a query that writes `MixedCase`. A
+// table the catalog lacks keeps the name it was written with.
+func (q *querySpanExtractor) storedNames(tables ColumnSet) ColumnSet {
+	if !q.ignoreCaseSensitive || q.catalog.ListDatabaseNames == nil || q.catalog.GetDatabase == nil {
+		return tables
+	}
+	names, err := q.catalog.ListDatabaseNames()
+	if err != nil {
+		return tables
+	}
+	// stored returns the spelling of name in list: itself when the list
+	// holds it, else the one entry that matches it without case.
+	stored := func(list []string, name string) (string, bool) {
+		folded := ""
+		for _, n := range list {
+			if n == name {
+				return n, true
+			}
+			if strings.EqualFold(n, name) {
+				if folded != "" {
+					return "", false
+				}
+				folded = n
+			}
+		}
+		return folded, folded != ""
+	}
+	out := make(ColumnSet, len(tables))
+	for t := range tables {
+		if db, ok := stored(names, t.Database); ok {
+			database, err := q.catalog.GetDatabase(db)
+			if err == nil && database != nil && database.HasSchema() {
+				if table, ok := stored(append(database.ListTableNames(), database.ListViewNames()...), t.Table); ok {
+					t.Database, t.Table = database.Name(), table
+				}
+			}
+		}
+		out[t] = true
+	}
+	return out
+}
+
+// withViewTables returns tables and, for each view among them, the tables
+// and views its definition reads, through views over views.
+func (q *querySpanExtractor) withViewTables(tables ColumnSet) ColumnSet {
+	out := make(ColumnSet, len(tables))
+	var queue []ColumnResource
+	for t := range tables {
+		out[t] = true
+		queue = append(queue, t)
+	}
+	for len(queue) > 0 {
+		t := queue[0]
+		queue = queue[1:]
+		database, view := q.lookupView(t.Database, t.Table)
+		if view == nil {
+			continue
+		}
+		list, err := parser.Parse(view.Definition)
+		if err != nil || list == nil || len(list.Items) != 1 {
+			// The definition OceanBase stored always parses; a synced one that
+			// does not names no further tables.
+			continue
+		}
+		for read := range collectAccessTables(list.Items[0], database) {
+			if !out[read] {
+				out[read] = true
+				queue = append(queue, read)
+			}
+		}
+	}
+	return out
+}
+
+// lookupView returns the view databaseName.name names, and its database as
+// the catalog spells it, or nil when it is no view.
+func (q *querySpanExtractor) lookupView(databaseName, name string) (string, *metadata.ViewMetadata) {
+	if q.catalog.ListDatabaseNames == nil || q.catalog.GetDatabase == nil {
+		return "", nil
+	}
+	names, err := q.catalog.ListDatabaseNames()
+	if err != nil {
+		return "", nil
+	}
+	for _, db := range names {
+		if db != databaseName && !(q.ignoreCaseSensitive && strings.EqualFold(db, databaseName)) {
+			continue
+		}
+		database, err := q.catalog.GetDatabase(db)
+		if err != nil || database == nil || !database.HasSchema() {
+			return "", nil
+		}
+		if q.ignoreCaseSensitive {
+			for _, view := range database.ListViewNames() {
+				if strings.EqualFold(view, name) {
+					return database.Name(), database.GetView(view)
+				}
+			}
+			return "", nil
+		}
+		return database.Name(), database.GetView(name)
+	}
+	return "", nil
 }
 
 func (q *querySpanExtractor) extractSelectRoot(root ast.Node) (*pseudoTable, error) {
@@ -632,6 +765,7 @@ func (q *querySpanExtractor) extractSelectStmt(stmt *ast.SelectStmt) (*pseudoTab
 	}
 	q.tableSourceFrom = append(q.tableSourceFrom, fromSources...)
 
+	q.windows = stmt.WindowClause
 	results, err := q.extractTargetList(stmt.TargetList, fromSources)
 	if err != nil {
 		return nil, err
@@ -662,13 +796,25 @@ func (q *querySpanExtractor) extractValuesStmt(stmt *ast.ValuesStmt) (*pseudoTab
 	if stmt == nil || len(stmt.Rows) == 0 {
 		return &pseudoTable{}, nil
 	}
+	// OceanBase names a VALUES column by its position. Every row is
+	// returned, so each adds its sources to its column.
 	var columns []QuerySpanResult
-	for _, expr := range stmt.Rows[0] {
-		field, err := q.extractExpr(expr)
-		if err != nil {
-			return nil, err
+	for i, row := range stmt.Rows {
+		for j, expr := range row {
+			field, err := q.extractExpr(expr)
+			if err != nil {
+				return nil, err
+			}
+			if i == 0 {
+				field.Name = fmt.Sprintf("column_%d", j)
+				columns = append(columns, field)
+				continue
+			}
+			if j < len(columns) {
+				columns[j].SourceColumns, _ = mergeColumnSet(columns[j].SourceColumns, field.SourceColumns)
+				columns[j].IsPlainField = columns[j].IsPlainField && field.IsPlainField
+			}
 		}
-		columns = append(columns, field)
 	}
 	return &pseudoTable{Columns: columns}, nil
 }
@@ -850,8 +996,11 @@ func (q *querySpanExtractor) extractTableSource(tableExpr ast.TableExpr) (tableS
 		if t.Alias == "" {
 			return tableSource, nil
 		}
+		// An alias keeps the database of the table or view it names, which
+		// OceanBase still matches in db.alias.column.
 		return &pseudoTable{
 			Name:    t.Alias,
+			DBName:  tableSource.GetDatabaseName(),
 			Aliased: true,
 			Columns: tableSource.GetQuerySpanResult(),
 		}, nil
@@ -1097,6 +1246,32 @@ func (q *querySpanExtractor) cloneForSubquery(includePrior bool) *querySpanExtra
 	}
 }
 
+// windowExprs returns the PARTITION BY and ORDER BY expressions of a window,
+// with those of the named windows it builds on (OVER w, OVER (w ORDER BY
+// ...)), which decide its value as much as its own do.
+func (q *querySpanExtractor) windowExprs(w *ast.WindowDef) []ast.ExprNode {
+	var exprs []ast.ExprNode
+	seen := map[*ast.WindowDef]bool{}
+	for w != nil && !seen[w] {
+		seen[w] = true
+		exprs = append(exprs, w.PartitionBy...)
+		for _, item := range w.OrderBy {
+			if item != nil {
+				exprs = append(exprs, item.Expr)
+			}
+		}
+		ref := w.RefName
+		w = nil
+		for _, def := range q.windows {
+			if def != nil && ref != "" && strings.EqualFold(def.Name, ref) {
+				w = def
+				break
+			}
+		}
+	}
+	return exprs
+}
+
 func (q *querySpanExtractor) extractTargetList(targets []ast.ExprNode, fromSources []tableSource) ([]QuerySpanResult, error) {
 	var result []QuerySpanResult
 	for _, target := range targets {
@@ -1228,14 +1403,7 @@ func (q *querySpanExtractor) extractExpr(expr ast.ExprNode) (QuerySpanResult, er
 				exprs = append(exprs, item.Expr)
 			}
 		}
-		if e.Over != nil {
-			exprs = append(exprs, e.Over.PartitionBy...)
-			for _, item := range e.Over.OrderBy {
-				if item != nil {
-					exprs = append(exprs, item.Expr)
-				}
-			}
-		}
+		exprs = append(exprs, q.windowExprs(e.Over)...)
 		sourceColumns, err := q.mergeExprSources(exprs...)
 		if err != nil {
 			return QuerySpanResult{}, err
@@ -1498,8 +1666,19 @@ func (q *querySpanExtractor) exprName(expr ast.ExprNode) string {
 		}
 		return strings.Join(parts, ".")
 	case *ast.BinaryExpr:
+		// OceanBase names an expression by its text as written.
+		if loc, ok := nodeLoc(e); ok {
+			if name := q.slice(loc); name != "" {
+				return name
+			}
+		}
 		return q.exprName(e.Left) + binaryOpName(e) + q.exprName(e.Right)
 	case *ast.InExpr:
+		if loc, ok := nodeLoc(e); ok {
+			if name := q.slice(loc); name != "" {
+				return name
+			}
+		}
 		var list []string
 		for _, expr := range e.List {
 			list = append(list, q.exprName(expr))
@@ -1520,9 +1699,8 @@ func (q *querySpanExtractor) exprName(expr ast.ExprNode) string {
 		}
 		return e.Value
 	case *ast.StringLit:
-		if name := q.slice(e.Loc); name != "" {
-			return name
-		}
+		// OceanBase names a string literal by its value, without quotes or an
+		// introducer.
 		return e.Value
 	case *ast.BoolLit:
 		if name := q.slice(e.Loc); name != "" {
@@ -1804,302 +1982,348 @@ func isDescribeStatement(source string, loc ast.Loc) bool {
 // collectAccessTablesFromMviewRefresh visits the expressions a materialized
 // view refresh clause holds. START WITH and NEXT are bit_exprs, so either may
 // carry a subquery that reads a table.
-func collectAccessTablesFromMviewRefresh(result ColumnSet, refresh *ast.MviewRefreshInfo, defaultDatabase string) {
+func collectAccessTablesFromMviewRefresh(result ColumnSet, refresh *ast.MviewRefreshInfo, scope *accessScope) {
 	if refresh == nil {
 		return
 	}
-	collectAccessTablesFromExpr(result, refresh.StartWith, defaultDatabase)
-	collectAccessTablesFromExpr(result, refresh.Next, defaultDatabase)
+	collectAccessTablesFromExpr(result, refresh.StartWith, scope)
+	collectAccessTablesFromExpr(result, refresh.Next, scope)
 }
 
 func collectAccessTables(root ast.Node, defaultDatabase string) ColumnSet {
 	result := make(ColumnSet)
-	collectAccessTablesFromNode(result, root, defaultDatabase)
+	collectAccessTablesFromNode(result, root, &accessScope{defaultDatabase: defaultDatabase})
 	return result
 }
 
-func collectAccessTablesFromNode(result ColumnSet, node ast.Node, defaultDatabase string) {
+// accessScope is what an unqualified table name in a statement resolves
+// against: a CTE of an enclosing WITH clause, which is no table, or else a
+// table of the default database.
+type accessScope struct {
+	defaultDatabase string
+	ctes            []string
+	parent          *accessScope
+}
+
+// with returns the scope in which ctes are also visible.
+func (s *accessScope) with(ctes []string) *accessScope {
+	if len(ctes) == 0 {
+		return s
+	}
+	return &accessScope{defaultDatabase: s.defaultDatabase, ctes: ctes, parent: s}
+}
+
+// isCTE reports whether an unqualified table name names a CTE in scope.
+// OceanBase compares CTE names without case.
+func (s *accessScope) isCTE(name string) bool {
+	for ; s != nil; s = s.parent {
+		for _, cte := range s.ctes {
+			if strings.EqualFold(cte, name) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func collectAccessTablesFromNode(result ColumnSet, node ast.Node, scope *accessScope) {
 	switch n := node.(type) {
 	case nil:
 	case *ast.SelectStmt:
 		if n == nil {
 			return
 		}
+		// A CTE's body sees the CTEs before it, and in a WITH RECURSIVE
+		// itself too; the query after the WITH sees them all.
+		var names []string
+		recursive := false
 		for _, cte := range n.CTEs {
 			if cte != nil {
-				collectAccessTablesFromNode(result, cte.Select, defaultDatabase)
+				names = append(names, cte.Name)
+				recursive = recursive || cte.Recursive
 			}
 		}
+		for i, cte := range n.CTEs {
+			if cte == nil {
+				continue
+			}
+			visible := names[:i]
+			if recursive {
+				visible = names[:i+1]
+			}
+			collectAccessTablesFromNode(result, cte.Select, scope.with(visible))
+		}
+		scope = scope.with(names)
 		if n.Left != nil {
-			collectAccessTablesFromNode(result, n.Left, defaultDatabase)
+			collectAccessTablesFromNode(result, n.Left, scope)
 		}
 		if n.Right != nil {
-			collectAccessTablesFromNode(result, n.Right, defaultDatabase)
+			collectAccessTablesFromNode(result, n.Right, scope)
 		}
 		if inner := n.ParenSource; inner != nil {
-			collectAccessTablesFromNode(result, inner, defaultDatabase)
+			collectAccessTablesFromNode(result, inner, scope)
 		}
 		if tableStmt := n.TableSource; tableStmt != nil {
-			collectAccessTablesFromNode(result, tableStmt, defaultDatabase)
+			collectAccessTablesFromNode(result, tableStmt, scope)
 		}
 		if valuesStmt := n.ValuesSource; valuesStmt != nil {
-			collectAccessTablesFromNode(result, valuesStmt, defaultDatabase)
+			collectAccessTablesFromNode(result, valuesStmt, scope)
 		}
 		for _, target := range n.TargetList {
-			collectAccessTablesFromExpr(result, target, defaultDatabase)
+			collectAccessTablesFromExpr(result, target, scope)
 		}
 		for _, tableExpr := range n.From {
-			collectAccessTablesFromTableExpr(result, tableExpr, defaultDatabase)
+			collectAccessTablesFromTableExpr(result, tableExpr, scope)
 		}
-		collectAccessTablesFromExpr(result, n.Where, defaultDatabase)
+		collectAccessTablesFromExpr(result, n.Where, scope)
 		for _, groupBy := range n.GroupBy {
 			if groupBy != nil {
-				collectAccessTablesFromExpr(result, groupBy.Expr, defaultDatabase)
+				collectAccessTablesFromExpr(result, groupBy.Expr, scope)
 			}
 		}
-		collectAccessTablesFromExpr(result, n.Having, defaultDatabase)
+		collectAccessTablesFromExpr(result, n.Having, scope)
 		for _, orderBy := range n.OrderBy {
 			if orderBy != nil {
-				collectAccessTablesFromExpr(result, orderBy.Expr, defaultDatabase)
+				collectAccessTablesFromExpr(result, orderBy.Expr, scope)
 			}
 		}
 		// INTO OUTFILE's partition key and its FORMAT list may hold a subquery.
 		if n.Into != nil {
-			collectAccessTablesFromExpr(result, n.Into.PartitionBy, defaultDatabase)
+			collectAccessTablesFromExpr(result, n.Into.PartitionBy, scope)
 			for _, prop := range n.Into.ExternalFormat {
 				if prop != nil {
-					collectAccessTablesFromExpr(result, prop.Value, defaultDatabase)
+					collectAccessTablesFromExpr(result, prop.Value, scope)
 				}
 			}
 		}
 	case *ast.PurgeStmt:
 		// PURGE TABLE names the table it empties out of the recycle bin.
 		if n.Kind == "TABLE" {
-			collectAccessTablesFromTableRef(result, n.Name, defaultDatabase)
+			collectAccessTablesFromTableRef(result, n.Name, scope)
 		}
 	case *ast.FlashbackStmt:
 		// FLASHBACK restores the table it names, and may rename it: both names
 		// are resources the statement touches.
 		if n.Kind == "TABLE" {
-			collectAccessTablesFromTableRef(result, n.Name, defaultDatabase)
-			collectAccessTablesFromTableRef(result, n.RenameTo, defaultDatabase)
+			collectAccessTablesFromTableRef(result, n.Name, scope)
+			collectAccessTablesFromTableRef(result, n.RenameTo, scope)
 		}
 	case *ast.ExplainStmt:
-		collectAccessTablesFromNode(result, n.Stmt, defaultDatabase)
+		collectAccessTablesFromNode(result, n.Stmt, scope)
 	case *ast.InsertStmt:
-		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
+		collectAccessTablesFromTableRef(result, n.Table, scope)
 		for _, row := range n.Values {
 			for _, expr := range row {
-				collectAccessTablesFromExpr(result, expr, defaultDatabase)
+				collectAccessTablesFromExpr(result, expr, scope)
 			}
 		}
-		collectAccessTablesFromNode(result, n.Select, defaultDatabase)
-		collectAccessTablesFromNode(result, n.TableSource, defaultDatabase)
+		collectAccessTablesFromNode(result, n.Select, scope)
+		collectAccessTablesFromNode(result, n.TableSource, scope)
 		for _, assignment := range n.SetList {
 			if assignment != nil {
-				collectAccessTablesFromExpr(result, assignment.Value, defaultDatabase)
+				collectAccessTablesFromExpr(result, assignment.Value, scope)
 			}
 		}
 		for _, assignment := range n.OnDuplicateKey {
 			if assignment != nil {
-				collectAccessTablesFromExpr(result, assignment.Value, defaultDatabase)
+				collectAccessTablesFromExpr(result, assignment.Value, scope)
 			}
 		}
 	case *ast.LoadDataStmt:
-		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
+		collectAccessTablesFromTableRef(result, n.Table, scope)
 		if n.Source != nil {
-			collectAccessTablesFromTableExpr(result, n.Source, defaultDatabase)
+			collectAccessTablesFromTableExpr(result, n.Source, scope)
 		}
-		collectAccessTablesFromNode(result, n.SourceQuery, defaultDatabase)
+		collectAccessTablesFromNode(result, n.SourceQuery, scope)
 		for _, column := range n.Columns {
-			collectAccessTablesFromExpr(result, column, defaultDatabase)
+			collectAccessTablesFromExpr(result, column, scope)
 		}
 		for _, assignment := range n.SetList {
 			if assignment != nil {
-				collectAccessTablesFromExpr(result, assignment.Value, defaultDatabase)
+				collectAccessTablesFromExpr(result, assignment.Value, scope)
 			}
 		}
 	case *ast.UpdateStmt:
 		for _, tableExpr := range n.Tables {
-			collectAccessTablesFromTableExpr(result, tableExpr, defaultDatabase)
+			collectAccessTablesFromTableExpr(result, tableExpr, scope)
 		}
 		for _, assignment := range n.SetList {
 			if assignment != nil {
-				collectAccessTablesFromExpr(result, assignment.Value, defaultDatabase)
+				collectAccessTablesFromExpr(result, assignment.Value, scope)
 			}
 		}
-		collectAccessTablesFromExpr(result, n.Where, defaultDatabase)
+		collectAccessTablesFromExpr(result, n.Where, scope)
 		for _, orderBy := range n.OrderBy {
 			if orderBy != nil {
-				collectAccessTablesFromExpr(result, orderBy.Expr, defaultDatabase)
+				collectAccessTablesFromExpr(result, orderBy.Expr, scope)
 			}
 		}
 	case *ast.DeleteStmt:
 		for _, tableExpr := range n.Tables {
-			collectAccessTablesFromTableExpr(result, tableExpr, defaultDatabase)
+			collectAccessTablesFromTableExpr(result, tableExpr, scope)
 		}
 		for _, tableExpr := range n.Using {
-			collectAccessTablesFromTableExpr(result, tableExpr, defaultDatabase)
+			collectAccessTablesFromTableExpr(result, tableExpr, scope)
 		}
-		collectAccessTablesFromExpr(result, n.Where, defaultDatabase)
+		collectAccessTablesFromExpr(result, n.Where, scope)
 		for _, orderBy := range n.OrderBy {
 			if orderBy != nil {
-				collectAccessTablesFromExpr(result, orderBy.Expr, defaultDatabase)
+				collectAccessTablesFromExpr(result, orderBy.Expr, scope)
 			}
 		}
 	case *ast.CreateTableStmt:
-		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
-		collectAccessTablesFromTableRef(result, n.Like, defaultDatabase)
-		collectAccessTablesFromNode(result, n.Select, defaultDatabase)
+		collectAccessTablesFromTableRef(result, n.Table, scope)
+		collectAccessTablesFromTableRef(result, n.Like, scope)
+		collectAccessTablesFromNode(result, n.Select, scope)
 	case *ast.CreateIndexStmt:
-		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
+		collectAccessTablesFromTableRef(result, n.Table, scope)
 		for _, column := range n.Columns {
 			if column != nil {
-				collectAccessTablesFromExpr(result, column.Expr, defaultDatabase)
+				collectAccessTablesFromExpr(result, column.Expr, scope)
 			}
 		}
 	case *ast.CreateViewStmt:
-		collectAccessTablesFromTableRef(result, n.Name, defaultDatabase)
-		collectAccessTablesFromNode(result, n.Select, defaultDatabase)
+		collectAccessTablesFromTableRef(result, n.Name, scope)
+		collectAccessTablesFromNode(result, n.Select, scope)
 	case *ast.AlterViewStmt:
-		collectAccessTablesFromTableRef(result, n.Name, defaultDatabase)
-		collectAccessTablesFromNode(result, n.Select, defaultDatabase)
+		collectAccessTablesFromTableRef(result, n.Name, scope)
+		collectAccessTablesFromNode(result, n.Select, scope)
 	case *ast.CreateMaterializedViewStmt:
-		collectAccessTablesFromTableRef(result, n.Name, defaultDatabase)
-		collectAccessTablesFromNode(result, n.Select, defaultDatabase)
+		collectAccessTablesFromTableRef(result, n.Name, scope)
+		collectAccessTablesFromNode(result, n.Select, scope)
 		if n.MviewOptions != nil {
-			collectAccessTablesFromMviewRefresh(result, n.MviewOptions.Refresh, defaultDatabase)
+			collectAccessTablesFromMviewRefresh(result, n.MviewOptions.Refresh, scope)
 		}
 	case *ast.CreateMaterializedViewLogStmt:
-		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
+		collectAccessTablesFromTableRef(result, n.Table, scope)
 		if n.Purge != nil {
-			collectAccessTablesFromExpr(result, n.Purge.StartWith, defaultDatabase)
-			collectAccessTablesFromExpr(result, n.Purge.Next, defaultDatabase)
+			collectAccessTablesFromExpr(result, n.Purge.StartWith, scope)
+			collectAccessTablesFromExpr(result, n.Purge.Next, scope)
 		}
 	case *ast.AlterMaterializedViewStmt:
-		collectAccessTablesFromTableRef(result, n.Name, defaultDatabase)
+		collectAccessTablesFromTableRef(result, n.Name, scope)
 		for _, action := range n.Actions {
 			if action != nil {
-				collectAccessTablesFromMviewRefresh(result, action.Refresh, defaultDatabase)
+				collectAccessTablesFromMviewRefresh(result, action.Refresh, scope)
 			}
 		}
 	case *ast.AlterMaterializedViewLogStmt:
-		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
+		collectAccessTablesFromTableRef(result, n.Table, scope)
 		for _, action := range n.Actions {
 			if action != nil {
-				collectAccessTablesFromExpr(result, action.StartWith, defaultDatabase)
-				collectAccessTablesFromExpr(result, action.Next, defaultDatabase)
+				collectAccessTablesFromExpr(result, action.StartWith, scope)
+				collectAccessTablesFromExpr(result, action.Next, scope)
 			}
 		}
 	case *ast.DropMaterializedViewLogStmt:
-		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
+		collectAccessTablesFromTableRef(result, n.Table, scope)
 	case *ast.AlterTableStmt:
-		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
+		collectAccessTablesFromTableRef(result, n.Table, scope)
 		for _, command := range n.Commands {
 			if command == nil {
 				continue
 			}
-			collectAccessTablesFromExpr(result, command.DefaultExpr, defaultDatabase)
-			collectAccessTablesFromTableRef(result, command.ExchangeTable, defaultDatabase)
-			collectAccessTablesFromOrderBy(result, command.OrderByItems, defaultDatabase)
+			collectAccessTablesFromExpr(result, command.DefaultExpr, scope)
+			collectAccessTablesFromTableRef(result, command.ExchangeTable, scope)
+			collectAccessTablesFromOrderBy(result, command.OrderByItems, scope)
 		}
 	case *ast.DropTableStmt:
-		collectAccessTablesFromTableRefs(result, n.Tables, defaultDatabase)
+		collectAccessTablesFromTableRefs(result, n.Tables, scope)
 	case *ast.DropIndexStmt:
-		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
+		collectAccessTablesFromTableRef(result, n.Table, scope)
 	case *ast.DropViewStmt:
-		collectAccessTablesFromTableRefs(result, n.Views, defaultDatabase)
+		collectAccessTablesFromTableRefs(result, n.Views, scope)
 	case *ast.RenameTableStmt:
 		for _, pair := range n.Pairs {
 			if pair == nil {
 				continue
 			}
-			collectAccessTablesFromTableRef(result, pair.Old, defaultDatabase)
-			collectAccessTablesFromTableRef(result, pair.New, defaultDatabase)
+			collectAccessTablesFromTableRef(result, pair.Old, scope)
+			collectAccessTablesFromTableRef(result, pair.New, scope)
 		}
 	case *ast.TruncateStmt:
-		collectAccessTablesFromTableRefs(result, n.Tables, defaultDatabase)
+		collectAccessTablesFromTableRefs(result, n.Tables, scope)
 	case *ast.AnalyzeTableStmt:
-		collectAccessTablesFromTableRefs(result, n.Tables, defaultDatabase)
+		collectAccessTablesFromTableRefs(result, n.Tables, scope)
 	case *ast.OptimizeTableStmt:
-		collectAccessTablesFromTableRefs(result, n.Tables, defaultDatabase)
+		collectAccessTablesFromTableRefs(result, n.Tables, scope)
 	case *ast.CheckTableStmt:
-		collectAccessTablesFromTableRefs(result, n.Tables, defaultDatabase)
+		collectAccessTablesFromTableRefs(result, n.Tables, scope)
 	case *ast.RepairTableStmt:
-		collectAccessTablesFromTableRefs(result, n.Tables, defaultDatabase)
+		collectAccessTablesFromTableRefs(result, n.Tables, scope)
 	case *ast.TableStmt:
 		if n == nil {
 			return
 		}
-		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
-		collectAccessTablesFromOrderBy(result, n.OrderBy, defaultDatabase)
-		collectAccessTablesFromLimit(result, n.Limit, defaultDatabase)
+		collectAccessTablesFromTableRef(result, n.Table, scope)
+		collectAccessTablesFromOrderBy(result, n.OrderBy, scope)
+		collectAccessTablesFromLimit(result, n.Limit, scope)
 	case *ast.ValuesStmt:
 		for _, row := range n.Rows {
 			for _, expr := range row {
-				collectAccessTablesFromExpr(result, expr, defaultDatabase)
+				collectAccessTablesFromExpr(result, expr, scope)
 			}
 		}
-		collectAccessTablesFromOrderBy(result, n.OrderBy, defaultDatabase)
-		collectAccessTablesFromLimit(result, n.Limit, defaultDatabase)
+		collectAccessTablesFromOrderBy(result, n.OrderBy, scope)
+		collectAccessTablesFromLimit(result, n.Limit, scope)
 	case *ast.CallStmt:
 		for _, arg := range n.Args {
-			collectAccessTablesFromExpr(result, arg, defaultDatabase)
+			collectAccessTablesFromExpr(result, arg, scope)
 		}
 	case *ast.SetStmt:
 		for _, assignment := range n.Assignments {
 			if assignment != nil {
-				collectAccessTablesFromExpr(result, assignment.Value, defaultDatabase)
+				collectAccessTablesFromExpr(result, assignment.Value, scope)
 			}
 		}
 	case *ast.DoStmt:
 		for _, expr := range n.Exprs {
-			collectAccessTablesFromExpr(result, expr, defaultDatabase)
+			collectAccessTablesFromExpr(result, expr, scope)
 		}
 	case *ast.HandlerOpenStmt:
-		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
+		collectAccessTablesFromTableRef(result, n.Table, scope)
 	case *ast.HandlerReadStmt:
-		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
+		collectAccessTablesFromTableRef(result, n.Table, scope)
 		// The key's values are read as well: one may hold a subquery.
 		for _, value := range n.Values {
-			collectAccessTablesFromExpr(result, value, defaultDatabase)
+			collectAccessTablesFromExpr(result, value, scope)
 		}
-		collectAccessTablesFromExpr(result, n.Where, defaultDatabase)
+		collectAccessTablesFromExpr(result, n.Where, scope)
 	case *ast.HandlerCloseStmt:
-		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
+		collectAccessTablesFromTableRef(result, n.Table, scope)
 	case *ast.LockTablesStmt:
 		for _, table := range n.Tables {
 			if table != nil {
-				collectAccessTablesFromTableRef(result, table.Table, defaultDatabase)
+				collectAccessTablesFromTableRef(result, table.Table, scope)
 			}
 		}
 	default:
 	}
 }
 
-func collectAccessTablesFromOrderBy(result ColumnSet, orderByItems []*ast.OrderByItem, defaultDatabase string) {
+func collectAccessTablesFromOrderBy(result ColumnSet, orderByItems []*ast.OrderByItem, scope *accessScope) {
 	for _, orderBy := range orderByItems {
 		if orderBy != nil {
-			collectAccessTablesFromExpr(result, orderBy.Expr, defaultDatabase)
+			collectAccessTablesFromExpr(result, orderBy.Expr, scope)
 		}
 	}
 }
 
-func collectAccessTablesFromLimit(result ColumnSet, limit *ast.Limit, defaultDatabase string) {
+func collectAccessTablesFromLimit(result ColumnSet, limit *ast.Limit, scope *accessScope) {
 	if limit == nil {
 		return
 	}
-	collectAccessTablesFromExpr(result, limit.Count, defaultDatabase)
-	collectAccessTablesFromExpr(result, limit.Offset, defaultDatabase)
+	collectAccessTablesFromExpr(result, limit.Count, scope)
+	collectAccessTablesFromExpr(result, limit.Offset, scope)
 }
 
-func collectAccessTablesFromTableRefs(result ColumnSet, tableRefs []*ast.TableRef, defaultDatabase string) {
+func collectAccessTablesFromTableRefs(result ColumnSet, tableRefs []*ast.TableRef, scope *accessScope) {
 	for _, tableRef := range tableRefs {
-		collectAccessTablesFromTableRef(result, tableRef, defaultDatabase)
+		collectAccessTablesFromTableRef(result, tableRef, scope)
 	}
 }
 
-func collectAccessTablesFromTableRef(result ColumnSet, tableRef *ast.TableRef, defaultDatabase string) {
+func collectAccessTablesFromTableRef(result ColumnSet, tableRef *ast.TableRef, scope *accessScope) {
 	if tableRef == nil {
 		return
 	}
@@ -2113,7 +2337,10 @@ func collectAccessTablesFromTableRef(result ColumnSet, tableRef *ast.TableRef, d
 	}
 	database := tableRef.Schema
 	if database == "" {
-		database = defaultDatabase
+		if scope.isCTE(tableRef.Name) {
+			return
+		}
+		database = scope.defaultDatabase
 	}
 	result[ColumnResource{
 		Database: database,
@@ -2125,153 +2352,153 @@ func isDualTable(tableRef *ast.TableRef) bool {
 	return tableRef != nil && tableRef.Schema == "" && tableRef.Catalog == "" && tableRef.Dblink == "" && strings.EqualFold(tableRef.Name, "dual")
 }
 
-func collectAccessTablesFromTableExpr(result ColumnSet, tableExpr ast.TableExpr, defaultDatabase string) {
+func collectAccessTablesFromTableExpr(result ColumnSet, tableExpr ast.TableExpr, scope *accessScope) {
 	switch n := tableExpr.(type) {
 	case *ast.TableRef:
-		collectAccessTablesFromTableRef(result, n, defaultDatabase)
+		collectAccessTablesFromTableRef(result, n, scope)
 		if n.Flashback != nil {
-			collectAccessTablesFromExpr(result, n.Flashback.Snapshot, defaultDatabase)
+			collectAccessTablesFromExpr(result, n.Flashback.Snapshot, scope)
 		}
 	case *ast.JoinClause:
-		collectAccessTablesFromTableExpr(result, n.Left, defaultDatabase)
-		collectAccessTablesFromTableExpr(result, n.Right, defaultDatabase)
+		collectAccessTablesFromTableExpr(result, n.Left, scope)
+		collectAccessTablesFromTableExpr(result, n.Right, scope)
 		switch condition := n.Condition.(type) {
 		case *ast.OnCondition:
-			collectAccessTablesFromExpr(result, condition.Expr, defaultDatabase)
+			collectAccessTablesFromExpr(result, condition.Expr, scope)
 		default:
 		}
 	case *ast.SubqueryExpr:
-		collectAccessTablesFromNode(result, n.Select, defaultDatabase)
+		collectAccessTablesFromNode(result, n.Select, scope)
 		if n.Flashback != nil {
-			collectAccessTablesFromExpr(result, n.Flashback.Snapshot, defaultDatabase)
+			collectAccessTablesFromExpr(result, n.Flashback.Snapshot, scope)
 		}
 	case *ast.JsonTableExpr:
-		collectAccessTablesFromExpr(result, n.Expr, defaultDatabase)
-		collectAccessTablesFromExpr(result, n.Path, defaultDatabase)
+		collectAccessTablesFromExpr(result, n.Expr, scope)
+		collectAccessTablesFromExpr(result, n.Path, scope)
 	case *ast.UnnestExpr:
 		for _, arg := range n.Args {
-			collectAccessTablesFromExpr(result, arg, defaultDatabase)
+			collectAccessTablesFromExpr(result, arg, scope)
 		}
 	case *ast.RbIterateExpr:
-		collectAccessTablesFromExpr(result, n.Arg, defaultDatabase)
+		collectAccessTablesFromExpr(result, n.Arg, scope)
 	case *ast.TableCollectionExpr:
-		collectAccessTablesFromExpr(result, n.Expr, defaultDatabase)
+		collectAccessTablesFromExpr(result, n.Expr, scope)
 	case *ast.ExternalTableRef:
 		// A format or property value may hold an expression, as FIELD_DELIMITER
 		// = (SELECT a FROM t1) does.
 		for _, prop := range n.Source {
 			if prop != nil {
-				collectAccessTablesFromExpr(result, prop.Value, defaultDatabase)
+				collectAccessTablesFromExpr(result, prop.Value, scope)
 			}
 		}
 		for _, prop := range n.Format {
 			if prop != nil {
-				collectAccessTablesFromExpr(result, prop.Value, defaultDatabase)
+				collectAccessTablesFromExpr(result, prop.Value, scope)
 			}
 		}
 	default:
 	}
 }
 
-func collectAccessTablesFromExpr(result ColumnSet, expr ast.ExprNode, defaultDatabase string) {
+func collectAccessTablesFromExpr(result ColumnSet, expr ast.ExprNode, scope *accessScope) {
 	switch e := expr.(type) {
 	case nil:
 	case *ast.ResTarget:
-		collectAccessTablesFromExpr(result, e.Val, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Val, scope)
 	case *ast.BinaryExpr:
-		collectAccessTablesFromExpr(result, e.Left, defaultDatabase)
-		collectAccessTablesFromExpr(result, e.Right, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Left, scope)
+		collectAccessTablesFromExpr(result, e.Right, scope)
 	case *ast.UnaryExpr:
-		collectAccessTablesFromExpr(result, e.Operand, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Operand, scope)
 	case *ast.QuantifiedExpr:
-		collectAccessTablesFromExpr(result, e.Expr, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Expr, scope)
 	case *ast.OdbcEscapeExpr:
-		collectAccessTablesFromExpr(result, e.Expr, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Expr, scope)
 	case *ast.LambdaExpr:
-		collectAccessTablesFromExpr(result, e.Body, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Body, scope)
 	case *ast.GroupingSet:
 		for _, item := range e.Items {
-			collectAccessTablesFromExpr(result, item, defaultDatabase)
+			collectAccessTablesFromExpr(result, item, scope)
 		}
 	case *ast.FuncCallExpr:
 		for _, arg := range e.Args {
-			collectAccessTablesFromExpr(result, arg, defaultDatabase)
+			collectAccessTablesFromExpr(result, arg, scope)
 		}
-		collectAccessTablesFromExpr(result, e.Separator, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Separator, scope)
 		for _, orderBy := range e.OrderBy {
 			if orderBy != nil {
-				collectAccessTablesFromExpr(result, orderBy.Expr, defaultDatabase)
+				collectAccessTablesFromExpr(result, orderBy.Expr, scope)
 			}
 		}
 		if e.Over != nil {
 			for _, partitionBy := range e.Over.PartitionBy {
-				collectAccessTablesFromExpr(result, partitionBy, defaultDatabase)
+				collectAccessTablesFromExpr(result, partitionBy, scope)
 			}
 			for _, orderBy := range e.Over.OrderBy {
 				if orderBy != nil {
-					collectAccessTablesFromExpr(result, orderBy.Expr, defaultDatabase)
+					collectAccessTablesFromExpr(result, orderBy.Expr, scope)
 				}
 			}
 		}
 	case *ast.SubqueryExpr:
-		collectAccessTablesFromNode(result, e.Select, defaultDatabase)
+		collectAccessTablesFromNode(result, e.Select, scope)
 	case *ast.CaseExpr:
-		collectAccessTablesFromExpr(result, e.Operand, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Operand, scope)
 		for _, when := range e.Whens {
 			if when == nil {
 				continue
 			}
-			collectAccessTablesFromExpr(result, when.Cond, defaultDatabase)
-			collectAccessTablesFromExpr(result, when.Result, defaultDatabase)
+			collectAccessTablesFromExpr(result, when.Cond, scope)
+			collectAccessTablesFromExpr(result, when.Result, scope)
 		}
-		collectAccessTablesFromExpr(result, e.Default, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Default, scope)
 	case *ast.BetweenExpr:
-		collectAccessTablesFromExpr(result, e.Expr, defaultDatabase)
-		collectAccessTablesFromExpr(result, e.Low, defaultDatabase)
-		collectAccessTablesFromExpr(result, e.High, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Expr, scope)
+		collectAccessTablesFromExpr(result, e.Low, scope)
+		collectAccessTablesFromExpr(result, e.High, scope)
 	case *ast.InExpr:
-		collectAccessTablesFromExpr(result, e.Expr, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Expr, scope)
 		for _, item := range e.List {
-			collectAccessTablesFromExpr(result, item, defaultDatabase)
+			collectAccessTablesFromExpr(result, item, scope)
 		}
-		collectAccessTablesFromNode(result, e.Select, defaultDatabase)
+		collectAccessTablesFromNode(result, e.Select, scope)
 	case *ast.LikeExpr:
-		collectAccessTablesFromExpr(result, e.Expr, defaultDatabase)
-		collectAccessTablesFromExpr(result, e.Pattern, defaultDatabase)
-		collectAccessTablesFromExpr(result, e.Escape, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Expr, scope)
+		collectAccessTablesFromExpr(result, e.Pattern, scope)
+		collectAccessTablesFromExpr(result, e.Escape, scope)
 	case *ast.IsExpr:
-		collectAccessTablesFromExpr(result, e.Expr, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Expr, scope)
 	case *ast.ExistsExpr:
-		collectAccessTablesFromNode(result, e.Select, defaultDatabase)
+		collectAccessTablesFromNode(result, e.Select, scope)
 	case *ast.CastExpr:
-		collectAccessTablesFromExpr(result, e.Expr, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Expr, scope)
 	case *ast.ExtractExpr:
-		collectAccessTablesFromExpr(result, e.Expr, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Expr, scope)
 	case *ast.IntervalExpr:
-		collectAccessTablesFromExpr(result, e.Value, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Value, scope)
 	case *ast.CollateExpr:
-		collectAccessTablesFromExpr(result, e.Expr, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Expr, scope)
 	case *ast.MatchExpr:
 		for _, column := range e.Columns {
-			collectAccessTablesFromExpr(result, column, defaultDatabase)
+			collectAccessTablesFromExpr(result, column, scope)
 		}
-		collectAccessTablesFromExpr(result, e.Against, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Against, scope)
 	case *ast.ConvertExpr:
-		collectAccessTablesFromExpr(result, e.Expr, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Expr, scope)
 	case *ast.RowExpr:
 		for _, item := range e.Items {
-			collectAccessTablesFromExpr(result, item, defaultDatabase)
+			collectAccessTablesFromExpr(result, item, scope)
 		}
 	case *ast.MemberOfExpr:
-		collectAccessTablesFromExpr(result, e.Value, defaultDatabase)
-		collectAccessTablesFromExpr(result, e.Array, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Value, scope)
+		collectAccessTablesFromExpr(result, e.Array, scope)
 	case *ast.ParenExpr:
-		collectAccessTablesFromExpr(result, e.Expr, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Expr, scope)
 	case *ast.WeightStringExpr:
-		collectAccessTablesFromExpr(result, e.Expr, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Expr, scope)
 	case *ast.PositionExpr:
-		collectAccessTablesFromExpr(result, e.Substr, defaultDatabase)
-		collectAccessTablesFromExpr(result, e.Str, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Substr, scope)
+		collectAccessTablesFromExpr(result, e.Str, scope)
 	default:
 	}
 }

@@ -391,7 +391,7 @@ func statementReads(databaseName string, node ast.Node, fullSQL string, targets 
 		if n == nil {
 			return
 		}
-		c := &accessTableCollector{resolveCTEs: true}
+		c := &accessTableCollector{}
 		ast.Walk(c, n)
 		for _, table := range c.tables {
 			database := table.Schema

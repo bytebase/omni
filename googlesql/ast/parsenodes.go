@@ -2741,6 +2741,7 @@ const (
 	AlterSetOnDelete                                     // Spanner SET ON DELETE foreign_key_action
 	AlterAddStoredColumn                                 // ALTER INDEX … ADD STORED COLUMN name
 	AlterDropStoredColumn                                // ALTER INDEX … DROP STORED COLUMN name
+	AlterSetAs                                           // SET AS generic_entity_body (ALTER DATABASE, BigQuery)
 )
 
 // AlterAction is one action of an alter_action_list. Kind selects the variant;
@@ -2769,6 +2770,7 @@ type AlterAction struct {
 	RenameTo       *PathExpr        // RENAME TO target (a Node; walked)
 	StoredColumn   string           // ALTER INDEX ADD/DROP STORED COLUMN name
 	Options        []*OptionsEntry  // SET OPTIONS / column SET OPTIONS payload
+	SetAsBody      string           // SET AS <generic_entity_body> text; "" if absent
 	Loc            Loc
 }
 
@@ -3053,12 +3055,13 @@ type CreateMaterializedViewStmt struct {
 // Tag implements Node.
 func (n *CreateMaterializedViewStmt) Tag() NodeTag { return T_CreateMaterializedViewStmt }
 
-// CreateSnapshotStmt is a CREATE SNAPSHOT TABLE statement (create_snapshot_statement):
+// CreateSnapshotStmt is a CREATE SNAPSHOT TABLE|SCHEMA statement (create_snapshot_statement):
 //
-//	CREATE [OR REPLACE] SNAPSHOT TABLE [IF NOT EXISTS] <name>
+//	CREATE [OR REPLACE] SNAPSHOT {TABLE | SCHEMA} [IF NOT EXISTS] <name>
 //	  CLONE <source> [FOR SYSTEM_TIME AS OF expr] [OPTIONS(…)]
 type CreateSnapshotStmt struct {
 	OrReplace     bool
+	Schema        bool // SNAPSHOT SCHEMA; false for SNAPSHOT TABLE
 	IfNotExists   bool
 	Name          *PathExpr
 	CloneSource   *PathExpr // CLONE <source>
@@ -4272,6 +4275,7 @@ type AlterSequenceStmt struct {
 	Name       *PathExpr
 	IfExists   bool
 	SetOptions []*OptionsEntry
+	SetAsBody  string // SET AS <generic_entity_body> text (BigQuery); "" if absent
 	Loc        Loc
 }
 

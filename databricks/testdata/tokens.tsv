@@ -35,3 +35,20 @@ insertInto(IF_errorCapturingNot_EXISTS)?	(every site)	SqlBaseParser.g4:491 INSER
 statement(partitionSpec)?	(every site)	SqlBaseParser.g4:218 PARTITION (...)
 statement((FROM|IN)_identifierReference)?	(every site)	SqlBaseParser.g4:220 FROM or IN a namespace
 predicate(errorCapturingNot)?	(every site)	SqlBaseParser.g4:1116 NOT BETWEEN, NOT IN, NOT LIKE, IS NOT
+# Choices tried at every site that names them, and not only where the rule's
+# own alternatives are reached.
+namespace	(every alternative)	SqlBaseParser.g4:511 NAMESPACE, DATABASE or SCHEMA
+namespaces	(every alternative)	SqlBaseParser.g4:517 NAMESPACES, DATABASES or SCHEMAS
+variable	(every alternative)	SqlBaseParser.g4:523 VARIABLE or VAR
+propertyKey	(every alternative)	SqlBaseParser.g4:576 a dotted name or a string
+createFileFormat	(every alternative)	SqlBaseParser.g4:604 STORED AS or STORED BY
+setQuantifier	(every alternative)	SqlBaseParser.g4:898 DISTINCT or ALL
+rowFormat	(every alternative)	SqlBaseParser.g4:1028 ROW FORMAT SERDE or DELIMITED
+errorCapturingNot	(every alternative)	SqlBaseParser.g4:1127 NOT or !
+constant	(every alternative)	SqlBaseParser.g4:1203 a literal or a parameter marker
+booleanValue	(every alternative)	SqlBaseParser.g4:1226 TRUE or FALSE
+colPosition	(every alternative)	SqlBaseParser.g4:1265 FIRST or AFTER a column
+dataType	(every alternative)	SqlBaseParser.g4:1299 ARRAY, MAP, STRUCT, an interval or a primitive type
+frameBound	(every alternative)	SqlBaseParser.g4:1453 UNBOUNDED, CURRENT ROW or an expression, PRECEDING or FOLLOWING
+stringLit	(every alternative)	SqlBaseParser.g4:1540 a single- or double-quoted string
+comment	(every alternative)	SqlBaseParser.g4:1545 a string or NULL

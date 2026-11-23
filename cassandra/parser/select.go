@@ -255,17 +255,20 @@ func (p *Parser) parsePerPartitionLimitClause() (ast.ExprNode, error) {
 	if err := p.expectKeyword(tokLIMIT); err != nil {
 		return nil, err
 	}
-	return p.parseLimitValue()
+	return p.parseIntValue()
 }
 
 // parseLimitClause parses LIMIT decimal.
 func (p *Parser) parseLimitClause() (ast.ExprNode, error) {
 	p.advance() // consume LIMIT
-	return p.parseLimitValue()
+	return p.parseIntValue()
 }
 
-// parseLimitValue parses an integer literal, bind marker, or named bind marker.
-func (p *Parser) parseLimitValue() (ast.ExprNode, error) {
+// parseIntValue parses intValue (Parser.g:1601), the value of LIMIT, PER
+// PARTITION LIMIT, TTL and TIMESTAMP: an INTEGER, a named marker or a
+// positional one. INTEGER takes a '-' written against its digits
+// (Lexer.g:333), so LIMIT -1 parses and LIMIT - 1 does not.
+func (p *Parser) parseIntValue() (ast.ExprNode, error) {
 	if p.cur.Type == tokQMARK {
 		m := &ast.BindMarker{Loc: ast.Loc{Start: p.cur.Loc, End: p.cur.End}}
 		p.advance()
@@ -280,10 +283,19 @@ func (p *Parser) parseLimitValue() (ast.ExprNode, error) {
 		}
 		return &ast.BindMarker{Name: name.Name, Loc: p.makeLoc(start)}, nil
 	}
+	if p.cur.Type == tokMINUS {
+		if next := p.peekNext(); next.Type == tokINTEGER && next.Loc == p.cur.End {
+			start := p.cur.Loc
+			p.advance()
+			lit := &ast.IntegerLit{Val: "-" + p.cur.Str, Loc: ast.Loc{Start: start, End: p.cur.End}}
+			p.advance()
+			return lit, nil
+		}
+	}
 	if p.cur.Type == tokINTEGER {
 		lit := &ast.IntegerLit{Val: p.cur.Str, Loc: ast.Loc{Start: p.cur.Loc, End: p.cur.End}}
 		p.advance()
 		return lit, nil
 	}
-	return nil, p.errorf("expected integer literal or bind marker for LIMIT, got %s", p.tokenDesc())
+	return nil, p.errorf("expected integer literal or bind marker, got %s", p.tokenDesc())
 }
