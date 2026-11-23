@@ -13,10 +13,11 @@ server wrote the same file.
 | --- | --- | --- | --- | --- |
 | One per alternative | 3,062 | 3,062 | 0 | 0 |
 | Near-misses | 8,196 | 8,196 | 0 | 0 |
-| An optional clause at every site, with near-misses | 29 | 29 | 0 | 0 |
+| An optional clause at every site, with near-misses | 219 | 219 | 0 | 0 |
+| Every form of a keyword choice at every site, with near-misses | 290 | 290 | 0 | 0 |
 
-Every row agrees: the 11,287 generated rows and the 914 `suite:` rows below,
-12,201 in all. #1467 closed the last 203, 202 generated rows and one `suite:`
+Every row agrees: the 11,764 generated rows and the 914 `suite:` rows below,
+12,678 in all. #1467 closed the last 203, 202 generated rows and one `suite:`
 row. The generated ones were mostly statements omni did not read at all:
 `PIPE`, resource groups, `CATALOG`, data cache rules, `TRANSLATE`, the SQL and
 backend blacklists, plan advisors, `REFRESH EXTERNAL TABLE`, `EXECUTE AS` and
@@ -31,9 +32,16 @@ which `||` is only under sql_mode `PIPES_AS_CONCAT`.
 The optional clauses `../../testdata/tokens.tsv` names with `(every site)`
 get a row at each alternative that can write them. `StarRocks.g4` gives most
 statements a rule of its own, so most of its `(IF NOT EXISTS)?` groups have
-one site and their row already; the rows are for `ifNotExists`, `orReplace`
-and the partition and `ALTER USER` clauses written at more than one. Their 29
-rows agreed when first recorded, 2026-11-23.
+one site and their row already; the rows are for `ifNotExists`, `orReplace`,
+and the clauses a rule writes at more than one of its alternatives: the
+partition and `ALTER USER` clauses, `SHOW ALTER`'s and `LOAD`'s tails,
+`DISTINCT` in an aggregate, `IGNORE NULLS`, a type's length and the rest.
+Their 219 rows agreed when first recorded, 2026-11-23.
+
+The keyword choices it names with `(every alternative)` (`keyDesc`,
+`explainDesc`, `limitElement`, `frameBound`, `privObjectType`, `varType`
+and the rest) get a row for each of their forms at each site that names
+them. Their 290 rows agreed when first recorded, 2026-11-23.
 
 ## Suites
 

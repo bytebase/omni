@@ -22,7 +22,8 @@ The design is `docs/specs/2026-11-11-engine-compatibility-without-servers-design
 - **`tokens.tsv`** gives the text each token class of `StarRocksLex.g4` is
   written as, citing its lexer rule, and the statement written for
   `translateSQL`'s wildcard. Its `(every site)` rows name the optional
-  clauses the grammar writes at more than one site.
+  clauses the grammar writes at more than one site, and its
+  `(every alternative)` rows the keyword choices it names at several.
 
 The two grammars are distributed under the Apache License 2.0, in
 `StarRocks.LICENSE` (the repository's `LICENSE.txt` at the tag). They are test
