@@ -90,7 +90,11 @@ say `SCHEMA` and `DATABASE` cannot be used as an identifier in `SHOW ... IN
 <identifier>`, so the dropped-database near-miss `IN SCHEMA.a` must not read as
 `<semantic_view_name>`.
 
-`../../testdata/tokens.tsv` samples every token class the grammar uses.
+`../../testdata/tokens.tsv` samples every token class the grammar uses. Its
+`(every site)` rows name a page's `IF EXISTS`, `IF NOT EXISTS`, `OR REPLACE`,
+`TEMP`/`TEMPORARY`, `TRANSIENT` and `RESTRICT`/`CASCADE` groups that stand in
+more than one of the page's forms, so each form gets a row with the clause
+written out, not only the one form its own row reaches.
 
 The parser reads the page's `SHOW GRANTS ... INCLUDE HIERARCHY` now
 (`../show.go`, `ast.ShowStmt.IncludeHierarchy`), for `SHOW GRANTS TO` a role, a
@@ -122,7 +126,7 @@ OMNI_RECORD=1 go test ./snowflake/parser/ -run '^TestCompatibility$'
 go test ./snowflake/parser/ -run '^TestCompatibility$' -update-compat
 ```
 
-## What is left: 0 rows (20,577 / 20,577 = 100.00%)
+## What is left: 0 rows (21,160 / 21,160 = 100.00%)
 
 After the pin bump the docs judged 118 rows that omni rejects. The converter
 and parser changes above closed 69 (#1459 left 49), `execute-dbt-project`
@@ -173,8 +177,8 @@ semantics remain to be pinned if a live Snowflake oracle is later wired up:
 | create-interactive-warehouse | 2 | `WAREHOUSE_SIZE = XSMALL WAREHOUSE_SIZE = XSMALL`, `MAX_CONCURRENCY_LEVEL = 1 MAX_CONCURRENCY_LEVEL = 1` ([page](https://docs.snowflake.com/en/sql-reference/sql/create-interactive-warehouse)) |
 | alter-organization-user, create-organization-user | 2 | `EMAIL = 's' EMAIL = 's'` ([alter](https://docs.snowflake.com/en/sql-reference/sql/alter-organization-user), [create](https://docs.snowflake.com/en/sql-reference/sql/create-organization-user)) |
 
-The agree count is now **20,577 / 20,577 (`100.00%`, 0 diffs)** across 74,103
-total rows (19,864 / 19,864 alternatives, 709 / 709 judged near-misses, 4 / 4
-suite rows, and 53,526 `undocumented` near-misses) at the same `2026-11-18`
+The agree count is now **21,160 / 21,160 (`100.00%`, 0 diffs)** across 75,804
+total rows (20,428 / 20,428 alternatives, 728 / 728 judged near-misses, 4 / 4
+suite rows, and 54,644 `undocumented` near-misses) at the same `2026-11-18`
 docs pin. No `expected` cell was edited by hand, and no row that agreed with
 the docs stopped agreeing.
