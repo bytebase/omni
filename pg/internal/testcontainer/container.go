@@ -300,20 +300,28 @@ func liveDatabase(t testing.TB, pin enginetest.Pin, name string) driver.Connecto
 func liveMissingDatabase(t testing.TB, pin enginetest.Pin, name string) driver.Connector {
 	t.Helper()
 	in := started(t, pin)
+	in.empty(t)
+	return connector{Connector: stdlib.GetConnector(*in.config(name))}
+}
+
+// empty drops what other tests made, on t's top-level test's first
+// connection to the server.
+func (in *instance) empty(t testing.TB) {
+	t.Helper()
 	top := enginetest.TopName(t.Name())
 	in.mu.Lock()
 	defer in.mu.Unlock()
-	if !in.emptied[top] {
-		db := sql.OpenDB(stdlib.GetConnector(*in.config("postgres")))
-		defer db.Close()
-		for _, stmt := range in.emptying(t, db) {
-			if _, err := db.ExecContext(context.Background(), stmt); err != nil {
-				t.Fatalf("%s: %v", stmt, err)
-			}
-		}
-		in.emptied[top] = true
+	if in.emptied[top] {
+		return
 	}
-	return connector{Connector: stdlib.GetConnector(*in.config(name))}
+	db := sql.OpenDB(stdlib.GetConnector(*in.config("postgres")))
+	defer db.Close()
+	for _, stmt := range in.emptying(t, db) {
+		if _, err := db.ExecContext(context.Background(), stmt); err != nil {
+			t.Fatalf("%s: %v", stmt, err)
+		}
+	}
+	in.emptied[top] = true
 }
 
 // emptying returns the statements that drop every database, tablespace and

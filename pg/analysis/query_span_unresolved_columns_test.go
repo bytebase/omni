@@ -90,12 +90,22 @@ func TestUnresolvedColumnsSignalScope(t *testing.T) {
 		require.Nil(t, span.UnresolvedColumnsError)
 	})
 
-	t.Run("a CTE named like a degraded relation is refused too", func(t *testing.T) {
+	t.Run("a CTE named like a degraded relation reads the CTE", func(t *testing.T) {
 		for _, statement := range []string{
 			"WITH t AS (SELECT 1 AS n) SELECT * FROM t",
 			"WITH outer_q AS (WITH t AS (SELECT 1 AS n) SELECT * FROM t) SELECT * FROM outer_q",
 			"SELECT * FROM (WITH t AS (SELECT 1 AS n) SELECT * FROM t) q",
 			"WITH RECURSIVE t AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM t WHERE n < 3) SELECT * FROM t",
+		} {
+			span := spanFor(t, statement, degradedSchema())
+			require.Nil(t, span.UnresolvedColumnsError, statement)
+		}
+	})
+
+	t.Run("a CTE out of scope leaves the relation of its name read", func(t *testing.T) {
+		for _, statement := range []string{
+			"SELECT * FROM t, (WITH t AS (SELECT 1 AS n) SELECT * FROM t) q",
+			"WITH a AS (SELECT * FROM t), t AS (SELECT 1 AS n) SELECT * FROM a",
 		} {
 			span := spanFor(t, statement, degradedSchema())
 			require.NotNil(t, span.UnresolvedColumnsError, statement)

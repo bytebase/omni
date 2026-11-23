@@ -861,6 +861,10 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 				d.buf.WriteString(quoteIdentifier(col))
 			}
 			d.buf.WriteByte(')')
+			if joinRTE != nil && joinRTE.JoinUsingAlias != "" {
+				d.buf.WriteString(" AS ")
+				d.buf.WriteString(quoteIdentifier(joinRTE.JoinUsingAlias))
+			}
 		} else if v.Quals != nil {
 			d.buf.WriteString(" ON ")
 			if !d.prettyParen {
@@ -1101,6 +1105,15 @@ func (d *deparseCtx) getVariableTarget(v *VarExpr, isTopLevel bool) string {
 	}
 	colNames := ctx.rtePrintedColNames(rte)
 	colIdx := int(v.AttNum - 1)
+	if name := SystemColumnName(v.AttNum); name != "" && rte.Kind == RTERelation {
+		// pg: get_variable — get_rte_attribute_name names a system column.
+		if v.LevelsUp > 0 || d.hasParentNamespace || len(d.query.RangeTable) != 1 {
+			d.buf.WriteString(quoteIdentifier(refName))
+			d.buf.WriteByte('.')
+		}
+		d.buf.WriteString(quoteIdentifier(name))
+		return name
+	}
 	if colIdx < 0 || colIdx >= len(colNames) {
 		d.buf.WriteString("???")
 		return "???"
@@ -1122,6 +1135,13 @@ func (d *deparseCtx) getVariableTarget(v *VarExpr, isTopLevel bool) string {
 					LevelsUp: v.LevelsUp + av.LevelsUp,
 				})
 			}
+		}
+		// A merged column a USING alias names is qualified by it: PostgreSQL
+		// prints it bare and renames any other column of its name, which
+		// this deparser does not, so the bare name could be ambiguous.
+		if rte.JoinUsingAlias != "" && colIdx < rte.joinMergedCols {
+			d.buf.WriteString(quoteIdentifier(rte.JoinUsingAlias))
+			d.buf.WriteByte('.')
 		}
 		d.buf.WriteString(quoteIdentifier(colName))
 		return colName

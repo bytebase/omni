@@ -276,9 +276,10 @@ func (c *Catalog) analyzeSimpleSelect(stmt *nodes.SelectStmt, opts AnalyzeOption
 	// 0. Process WITH clause (CTEs) before anything else.
 	// pg: src/backend/parser/analyze.c — transformSelectStmt calls analyzeCTEList
 	ac := &analyzeCtx{
-		catalog: c,
-		query:   q,
-		opts:    opts,
+		catalog:       c,
+		query:         q,
+		opts:          opts,
+		systemColumns: true,
 	}
 
 	if stmt.WithClause != nil {
@@ -645,6 +646,13 @@ type analyzeCtx struct {
 	// for a CTE or for an outer column, made a long UNION take quadratic
 	// time and memory, so each level keeps where those lookups go on,
 	// passing over the levels of set operations that cannot answer them.
+	// systemColumns lets a table's system columns (ctid, xmin, ...) resolve:
+	// a query's FROM items have them, while an expression analyzed on its
+	// own, for an index, a CHECK constraint or a generated column, refuses
+	// them as it did before, rather than learn each place PostgreSQL allows
+	// one (tableoid in a CHECK).
+	systemColumns bool
+
 	setOp       bool        // the level of a set operation
 	noCTEs      bool        // the level of a set operation with no WITH clause
 	cteParent   *analyzeCtx // the level lookupCTE searches after this one
@@ -662,6 +670,7 @@ func (ac *analyzeCtx) subContext(disallowParentCols bool) *analyzeCtx {
 		disallowParentCols: disallowParentCols,
 		opts:               ac.opts,
 		cteParent:          ac,
+		systemColumns:      true,
 	}
 	if ac.noCTEs {
 		sub.cteParent = ac.cteParent
@@ -759,8 +768,12 @@ func (ac *analyzeCtx) collectExposedNames(jn JoinNode, dst []exposedFromEntry) [
 		return dst
 	case *JoinExprNode:
 		if v.RTIndex >= 0 && v.RTIndex < len(ac.query.RangeTable) {
-			if alias := ac.query.RangeTable[v.RTIndex].Alias; alias != "" {
-				return append(dst, exposedFromEntry{name: alias})
+			rte := ac.query.RangeTable[v.RTIndex]
+			if rte.Alias != "" {
+				return append(dst, exposedFromEntry{name: rte.Alias})
+			}
+			if rte.JoinUsingAlias != "" {
+				dst = append(dst, exposedFromEntry{name: rte.JoinUsingAlias})
 			}
 		}
 		dst = ac.collectExposedNames(v.Left, dst)
@@ -1009,7 +1022,10 @@ func (ac *analyzeCtx) transformJoinExpr(je *nodes.JoinExpr) (JoinNode, error) {
 	if je.Alias != nil {
 		joinAlias = je.Alias.Aliasname
 	}
-	rte := &RangeTableEntry{Kind: RTEJoin, JoinType: jt, Alias: joinAlias, ERef: joinAlias}
+	rte := &RangeTableEntry{Kind: RTEJoin, JoinType: jt, Alias: joinAlias, ERef: joinAlias, joinMergedCols: len(usingClause)}
+	if je.JoinUsing != nil {
+		rte.JoinUsingAlias = je.JoinUsing.Aliasname
+	}
 	addColumn := func(name string, alias AnalyzedExpr) {
 		rte.ColNames = append(rte.ColNames, name)
 		rte.ColTypes = append(rte.ColTypes, alias.exprType())
@@ -1727,6 +1743,14 @@ func (ac *analyzeCtx) transformTargetEntry(rt *nodes.ResTarget, startIdx int) ([
 			return ac.expandStar(cr, startIdx)
 		}
 	}
+	if ind, ok := rt.Val.(*nodes.A_Indirection); ok && ind.Indirection != nil && len(ind.Indirection.Items) > 0 {
+		if _, star := ind.Indirection.Items[len(ind.Indirection.Items)-1].(*nodes.A_Star); star {
+			entries, expanded, err := ac.expandIndirectionStar(ind, startIdx)
+			if err != nil || expanded {
+				return entries, err
+			}
+		}
+	}
 
 	expr, err := ac.transformExpr(rt.Val)
 	if err != nil {
@@ -1829,10 +1853,15 @@ func (ac *analyzeCtx) expandStar(cr *nodes.ColumnRef, startIdx int) ([]*TargetEn
 	} else {
 		// Qualified table.* or no join tree: iterate RTEs directly.
 		for rtIdx, rte := range ac.query.RangeTable {
-			if rte.Kind == RTEJoin && rte.Alias == "" {
-				continue
+			reached := len(rte.ColNames)
+			if tableName != "" {
+				n, ok := rte.refColumns(tableName)
+				if !ok {
+					continue
+				}
+				reached = n
 			}
-			if tableName != "" && rte.ERef != tableName {
+			if rte.Kind == RTEJoin && rte.Alias == "" && (tableName == "" || rte.JoinUsingAlias != tableName) {
 				continue
 			}
 			if schemaName != "" {
@@ -1845,7 +1874,7 @@ func (ac *analyzeCtx) expandStar(cr *nodes.ColumnRef, startIdx int) ([]*TargetEn
 				}
 			}
 			hasSource = true
-			for colIdx, colName := range rte.ColNames {
+			for colIdx, colName := range rte.ColNames[:reached] {
 				v := ac.nsColumnVar(rtIdx, colIdx)
 				te := &TargetEntry{
 					Expr:    v,
@@ -2170,7 +2199,7 @@ func (ac *analyzeCtx) visibleRTEs() map[int]bool {
 func (ac *analyzeCtx) hasVisibleAlias(name string) bool {
 	visible := ac.visibleRTEs()
 	for i, rte := range ac.query.RangeTable {
-		if rte.ERef == name && (visible == nil || visible[i]) {
+		if _, ok := rte.refColumns(name); ok && (visible == nil || visible[i]) {
 			return true
 		}
 	}
@@ -2362,14 +2391,27 @@ func (ac *analyzeCtx) findColumnRef(tableName, colName string) (*VarExpr, error)
 	var cands []*VarExpr
 	ownsTable := false
 	for rtIdx, rte := range ac.query.RangeTable {
-		if !inScope(rtIdx) || (tableName != "" && rte.ERef != tableName) {
+		reached := len(rte.ColNames)
+		if tableName != "" {
+			n, ok := rte.refColumns(tableName)
+			if !ok {
+				continue
+			}
+			reached = n
+		}
+		if !inScope(rtIdx) {
 			continue
 		}
 		ownsTable = tableName != ""
 		var inTable []*VarExpr
-		for colIdx, cn := range rte.ColNames {
+		for colIdx, cn := range rte.ColNames[:reached] {
 			if cn == colName {
 				inTable = append(inTable, makeRTEColumnVar(rtIdx, rte, colIdx))
+			}
+		}
+		if len(inTable) == 0 {
+			if v := ac.systemColumnVar(rtIdx, colName); v != nil {
+				inTable = append(inTable, v)
 			}
 		}
 		if tableName != "" && len(inTable) > 0 {
@@ -2483,7 +2525,59 @@ func (ac *analyzeCtx) findVarsInRTE(rtIdx int, colName string) []*VarExpr {
 			vars = append(vars, ac.nsColumnVar(rtIdx, colIdx))
 		}
 	}
+	if len(vars) == 0 {
+		if v := ac.systemColumnVar(rtIdx, colName); v != nil {
+			vars = append(vars, v)
+		}
+	}
 	return vars
+}
+
+// systemColumns are the system columns of a table, by attribute number:
+// systemColumns[i] is attribute -(i+1).
+//
+// pg: src/backend/catalog/heap.c — SysAtt
+var systemColumns = []struct {
+	name    string
+	typeOID uint32
+}{
+	{"ctid", TIDOID},
+	{"xmin", XIDOID},
+	{"cmin", CIDOID},
+	{"xmax", XIDOID},
+	{"cmax", CIDOID},
+	{"tableoid", OIDOID},
+}
+
+// SystemColumnName is the name of system column attNum, a negative
+// attribute number, or "" for any other number.
+func SystemColumnName(attNum int16) string {
+	if i := -int(attNum) - 1; i >= 0 && i < len(systemColumns) {
+		return systemColumns[i].name
+	}
+	return ""
+}
+
+// systemColumnVar returns the Var of system column name of range table
+// entry rtIdx, when it is a relation that has system columns (not a view or
+// a composite type) and has no column of its own of that name.
+//
+// pg: src/backend/parser/parse_relation.c — scanRTEForColumn
+func (ac *analyzeCtx) systemColumnVar(rtIdx int, name string) *VarExpr {
+	rte := ac.query.RangeTable[rtIdx]
+	if !ac.systemColumns || rte.Kind != RTERelation || slices.Contains(rte.ColNames, name) {
+		return nil
+	}
+	rel := ac.catalog.relationByOID[rte.RelOID]
+	if rel == nil || rel.RelKind == 'v' || rel.RelKind == 'c' {
+		return nil
+	}
+	for i, sc := range systemColumns {
+		if sc.name == name {
+			return &VarExpr{RangeIdx: rtIdx, AttNum: int16(-(i + 1)), TypeOID: sc.typeOID, TypeMod: -1}
+		}
+	}
+	return nil
 }
 
 func makeRTEColumnVar(rtIdx int, rte *RangeTableEntry, colIdx int) *VarExpr {
@@ -4700,6 +4794,13 @@ func (ac *analyzeCtx) transformIndirection(ind *nodes.A_Indirection) (AnalyzedEx
 		case *nodes.String:
 			// Field access: rec.field — already handled as FieldSelectExprQ
 			fieldName := idx.Str
+			// A field of a whole-row reference is that column of the FROM
+			// item.
+			// pg: src/backend/parser/parse_func.c — ParseComplexProjection
+			if v := ac.wholeRowColumn(result, fieldName); v != nil {
+				result = v
+				continue
+			}
 			resultType := result.exprType()
 			// Try to resolve the field from composite type.
 			fieldType, fieldTypMod, fieldColl, fieldNum := ac.catalog.resolveCompositeField(resultType, fieldName)
@@ -4717,6 +4818,68 @@ func (ac *analyzeCtx) transformIndirection(ind *nodes.A_Indirection) (AnalyzedEx
 	}
 
 	return result, nil
+}
+
+// wholeRowColumn returns the Var of column name of the FROM item at this
+// level that row, a whole-row reference, reads, or nil when row is no such
+// reference or the item has no one column of that name.
+func (ac *analyzeCtx) wholeRowColumn(row AnalyzedExpr, name string) *VarExpr {
+	v, ok := row.(*VarExpr)
+	if !ok || v.AttNum != 0 || v.LevelsUp != 0 || v.RangeIdx < 0 || v.RangeIdx >= len(ac.query.RangeTable) {
+		return nil
+	}
+	found := -1
+	for i, cn := range ac.query.RangeTable[v.RangeIdx].ColNames {
+		if cn == name {
+			if found >= 0 {
+				return nil
+			}
+			found = i
+		}
+	}
+	if found < 0 {
+		return nil
+	}
+	return ac.nsColumnVar(v.RangeIdx, found)
+}
+
+// expandIndirectionStar expands (row).* in a target list into one entry per
+// field: a column of the FROM item a whole-row reference reads, or a field
+// selection from a row of a table's row type. It reports false for any
+// other expression, which stays one entry.
+//
+// pg: src/backend/parser/parse_target.c — ExpandIndirectionStar
+func (ac *analyzeCtx) expandIndirectionStar(ind *nodes.A_Indirection, startIdx int) ([]*TargetEntry, bool, error) {
+	items := ind.Indirection.Items
+	row, err := ac.transformIndirection(&nodes.A_Indirection{Arg: ind.Arg, Indirection: &nodes.List{Items: items[:len(items)-1]}})
+	if err != nil {
+		return nil, true, err
+	}
+	var entries []*TargetEntry
+	add := func(name string, expr AnalyzedExpr) {
+		te := &TargetEntry{Expr: expr, ResNo: int16(startIdx + len(entries) + 1), ResName: name}
+		if v, ok := expr.(*VarExpr); ok && v.LevelsUp == 0 {
+			if src := ac.query.RangeTable[v.RangeIdx]; src.Kind != RTEJoin {
+				te.ResOrigTbl = src.RelOID
+				te.ResOrigCol = v.AttNum
+			}
+		}
+		entries = append(entries, te)
+	}
+	if v, ok := row.(*VarExpr); ok && v.AttNum == 0 && v.LevelsUp == 0 && v.RangeIdx >= 0 && v.RangeIdx < len(ac.query.RangeTable) {
+		for i, name := range ac.query.RangeTable[v.RangeIdx].ColNames {
+			add(name, ac.nsColumnVar(v.RangeIdx, i))
+		}
+		return entries, true, nil
+	}
+	rel := ac.catalog.typeRelation(row.exprType())
+	if rel == nil {
+		return nil, false, nil
+	}
+	for i, col := range rel.Columns {
+		add(col.Name, &FieldSelectExprQ{Arg: row, FieldNum: int16(i + 1), FieldName: col.Name, ResultType: col.TypeOID, TypeMod: col.TypeMod, Collation: col.Collation})
+	}
+	return entries, true, nil
 }
 
 // transformNamedArgExpr transforms a named argument expression (arg_name => value).

@@ -716,3 +716,71 @@ func TestResolveQuerySpanWholeRowVar(t *testing.T) {
 	predSpan := spanFor(t, "SELECT 1 FROM t t1 WHERE to_jsonb(t1) IS NOT NULL", healthySchema())
 	require.Equal(t, []string{"db.public.t.email", "db.public.t.id", "db.public.t.ssn"}, columnNames(predSpan.PredicateColumns))
 }
+
+// A statement's target is the relation of its name, even where a CTE of the
+// same name is in scope; a reference in the query reads the CTE.
+func TestResolveQuerySpanKeepsATargetACTEShadows(t *testing.T) {
+	for _, statement := range []string{
+		"WITH t AS (SELECT 1 AS id) UPDATE t SET email = 'x'",
+		"WITH t AS (SELECT 1 AS id) DELETE FROM t",
+		"WITH t AS (SELECT 1 AS id) INSERT INTO t (id) SELECT id FROM t",
+		"WITH t AS (SELECT 1 AS id) MERGE INTO t USING o ON t.id = o.id WHEN MATCHED THEN DELETE",
+	} {
+		span := spanFor(t, statement, healthySchema())
+		require.Contains(t, columnNames(span.SourceColumns), "db.public.t", statement)
+	}
+	span := spanFor(t, "WITH t AS (SELECT id FROM o) SELECT * FROM t", healthySchema())
+	require.Equal(t, []string{"db.public.o"}, columnNames(span.SourceColumns))
+}
+
+// A JSON_TABLE column reads the context item, the PASSING arguments and its
+// own DEFAULT values.
+func TestResolveQuerySpanJSONTableColumns(t *testing.T) {
+	span := spanFor(t, "SELECT jt.* FROM t, JSON_TABLE(to_jsonb(t.email), '$' PASSING t.id AS k COLUMNS (n FOR ORDINALITY, v text PATH '$', d text PATH '$.x' DEFAULT t.ssn ON EMPTY)) AS jt", healthySchema())
+	var got [][]string
+	var names []string
+	for _, r := range span.Results {
+		names = append(names, r.Name)
+		got = append(got, columnNames(r.SourceColumns))
+	}
+	require.Equal(t, []string{"n", "v", "d"}, names)
+	require.Equal(t, [][]string{{}, {"db.public.t.email", "db.public.t.id"}, {"db.public.t.email", "db.public.t.id", "db.public.t.ssn"}}, got)
+}
+
+// In the parse-tree fallback, a qualified star expands the FROM item it
+// names, an unaliased function by its name; a qualifier that names none
+// leaves every FROM item's columns.
+func TestResolveQuerySpanFallbackQualifiedStar(t *testing.T) {
+	const jt = "JSON_TABLE('[1]'::jsonb, '$[*]' COLUMNS (v int PATH '$')) jt"
+	for statement, want := range map[string][]string{
+		"SELECT unnest.*, t.* FROM unnest(ARRAY['x']), t, " + jt: {"unnest", "id", "email", "ssn"},
+		"SELECT jt.* FROM t, " + jt:                              {"v"},
+		"SELECT nosuch.* FROM t, " + jt:                          {"id", "email", "ssn", "v"},
+	} {
+		var got []string
+		for _, r := range spanFor(t, statement, healthySchema()).Results {
+			got = append(got, r.Name)
+		}
+		require.Equal(t, want, got, statement)
+	}
+}
+
+// In the fallback, schema.table.* expands the table of that schema, written
+// with it or found through the search path.
+func TestResolveQuerySpanFallbackSchemaQualifiedStar(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{Name: "db", Schemas: []*metadatapb.SchemaMetadata{
+		{Name: "public", Tables: []*metadatapb.TableMetadata{{Name: "t", Columns: []*metadatapb.ColumnMetadata{column("a", "int4")}}}},
+		{Name: "private", Tables: []*metadatapb.TableMetadata{{Name: "t", Columns: []*metadatapb.ColumnMetadata{column("ssn", "text")}}}},
+	}}
+	const jt = "JSON_TABLE('{}'::jsonb, '$' COLUMNS (v int PATH '$.x')) jt"
+	for _, statement := range []string{
+		"SELECT public.t.*, private.t.* FROM public.t, private.t, " + jt,
+		"SELECT public.t.*, private.t.* FROM t, private.t, " + jt,
+	} {
+		var got []string
+		for _, r := range spanFor(t, statement, meta).Results {
+			got = append(got, columnNames(r.SourceColumns)...)
+		}
+		require.Equal(t, []string{"db.public.t.a", "db.private.t.ssn"}, got, statement)
+	}
+}
