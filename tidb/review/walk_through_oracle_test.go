@@ -469,6 +469,60 @@ var walkCodes = []struct {
 		return saysTwice(m, "partition", "declares") || saysTwice(m, "subpartition", "declares")
 	}, []string{"1517", "1479", "1505"}},
 	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, " is not partitioned.")
+	}, []string{"1505", "1105"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "TiDB can't cache ") }, []string{"8242"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "`COALESCE PARTITION` works only on ") }, []string{"1509"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "`REORGANIZE PARTITION` of ") || strings.HasPrefix(m, "TiDB can't change the character set of ")
+	}, []string{"8200"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Each partition of ") }, []string{"1492"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Partition ") && strings.Contains(m, " needs `VALUES ")
+	}, []string{"1479"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Partition ") && strings.Contains(m, " can't use `VALUES ")
+	}, []string{"1480"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Partition ") && strings.Contains(m, " can't have more than one ")
+	}, []string{"1657"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Partition ") && strings.Contains(m, " already exists in ")
+	}, []string{"1517"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, " column to rebase.")
+	}, []string{"8216"}},
+	{func(m, _ string) bool { return m == "A view's query can't read a variable." }, []string{"1351", "1350"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "A view's query can't hold a parameter marker ") }, []string{"1149"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, "()` needs at least one argument.") }, []string{"1582"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, " takes a constant, not a column, as its count.") }, []string{"1210"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Window ") && strings.Contains(m, " isn't defined in the query's ")
+	}, []string{"3579", "1210"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Window ") && strings.HasSuffix(m, " is defined twice.")
+	}, []string{"3591"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "A window frame can't start at ") }, []string{"3584"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "A window frame can't end ")
+	}, []string{"3585"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "A `ROWS` window frame can't take an `INTERVAL` bound.")
+	}, []string{"3596", "3585"}},
+	{func(m, _ string) bool { return saysTwice(m, "view column", "names") }, []string{"1060"}},
+	{func(m, _ string) bool { return m == "TiDB doesn't support `MATCH ... AGAINST`." }, []string{"1105"}},
+	{func(m, _ string) bool {
+		return m == "TiDB doesn't support a `GROUPS` window frame." ||
+			m == "TiDB doesn't support `CAST(... AS ... ARRAY)` outside an index."
+	}, []string{"1235"}},
+	{func(m, _ string) bool {
+		return strings.HasSuffix(m, " literal.") && strings.Contains(m, "` isn't a valid ")
+	}, []string{"1292"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Function ") && strings.HasSuffix(m, " has no stored functions.")
+	}, []string{"1305"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "A select item can't be a row of ") }, []string{"1241"}},
+	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "TiDB doesn't support `CREATE TABLE ... SELECT`.") ||
 			strings.HasPrefix(m, "TiDB doesn't support `CONVERT TO CHARSET DEFAULT`.") ||
 			strings.HasPrefix(m, "TiDB doesn't support partition option ") ||
