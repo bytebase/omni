@@ -1,6 +1,7 @@
 package grammar
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -396,6 +397,83 @@ Inner:
 	stmts := statements(t, nested, map[string]string{"identifier": "a", "Opt": EverySite})
 	if got, want := stmts["Stmt/CREATE_TABLE_Opt_identifier+Opt"], "CREATE TABLE IF NOT EXISTS a"; got != want {
 		t.Errorf("nested clause: got %q, want %q", got, want)
+	}
+}
+
+// TestEveryAlternativeRulesGetARowPerFormAtEachSite pins a tokens.tsv row
+// of the form (every alternative): each alternative that names the rule
+// gets a row for each of the rule's forms, labelled by the form's
+// alternative, whose near-misses drop the form's tokens only. A form whose
+// statement another row holds gets none: the rule's shortest form, and the
+// forms at the site the rule's own rows are reached through. A nested
+// (every alternative) rule stands for each of its forms, and a rule with
+// more forms than MaxEveryAlternative is refused.
+func TestEveryAlternativeRulesGetARowPerFormAtEachSite(t *testing.T) {
+	const src = `
+%%
+Stmt:
+	"DROP" ObjType identifier
+|	"COMMENT" "ON" ObjType identifier
+|	"COMMENT" "ON" NameType identifier
+|	"SECURITY" "LABEL" "ON" NameType identifier
+ObjType:
+	"TABLE"
+|	"MATERIALIZED" "VIEW"
+NameType:
+	"ROLE"
+|	DropType
+DropType:
+	"SCHEMA"
+|	"ACCESS" "METHOD"
+`
+	forms := map[string]string{"identifier": "a", "ObjType": EveryAlternative, "NameType": EveryAlternative, "DropType": EveryAlternative}
+	got, _ := rows(t, src, forms)
+	var positive []string
+	for _, r := range got {
+		if !IsNearMiss(r.Rule) && strings.Contains(r.Rule, "+") {
+			positive = append(positive, r.Rule+"\t"+r.Statement)
+		}
+	}
+	want := []string{
+		"Stmt/COMMENT_ON_ObjType_identifier+ObjType/MATERIALIZED_VIEW\tCOMMENT ON MATERIALIZED VIEW a",
+		"Stmt/SECURITY_LABEL_ON_NameType_identifier+NameType/DropType\tSECURITY LABEL ON SCHEMA a",
+		"Stmt/SECURITY_LABEL_ON_NameType_identifier+DropType/ACCESS_METHOD\tSECURITY LABEL ON ACCESS METHOD a",
+	}
+	if strings.Join(positive, "\n") != strings.Join(want, "\n") {
+		t.Errorf("form rows:\n%s\nwant:\n%s", strings.Join(positive, "\n"), strings.Join(want, "\n"))
+	}
+	stmts := map[string]string{}
+	for _, r := range got {
+		stmts[r.Rule] = r.Statement
+	}
+	for label, want := range map[string]string{
+		"ObjType/MATERIALIZED_VIEW": "DROP MATERIALIZED VIEW a",
+		"Stmt/COMMENT_ON_ObjType_identifier+ObjType/MATERIALIZED_VIEW!drop-3": "COMMENT ON VIEW a",
+		"Stmt/COMMENT_ON_ObjType_identifier+ObjType/MATERIALIZED_VIEW!drop-4": "COMMENT ON MATERIALIZED a",
+	} {
+		if stmts[label] != want {
+			t.Errorf("%s: got %q, want %q", label, stmts[label], want)
+		}
+	}
+	if _, ok := stmts["Stmt/COMMENT_ON_ObjType_identifier+ObjType/MATERIALIZED_VIEW!insert"]; ok {
+		t.Errorf("a form's row has near-misses beyond dropping its tokens")
+	}
+
+	g, err := ReadBison(src, tokens(map[string]string{"identifier": "a", "TABLE": EveryAlternative}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := g.EverySiteAbsent(); len(got) != 1 || got[0] != "TABLE" {
+		t.Errorf("a token given %s: absent %v, want [TABLE]", EveryAlternative, got)
+	}
+
+	var wide strings.Builder
+	wide.WriteString("%%\nStmt:\n\t\"DROP\" Wide identifier\nWide:\n\t\"K0\"\n")
+	for i := 1; i <= MaxEveryAlternative; i++ {
+		fmt.Fprintf(&wide, "|\t\"K%d\"\n", i)
+	}
+	if _, err := ReadBison(wide.String(), tokens(map[string]string{"identifier": "a", "Wide": EveryAlternative})); err == nil {
+		t.Errorf("a rule of %d forms given %s: no error", MaxEveryAlternative+1, EveryAlternative)
 	}
 }
 

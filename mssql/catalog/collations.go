@@ -40,10 +40,19 @@ func lookupCollation(name string) (string, bool) {
 	return canonical, ok
 }
 
-// isDefaultCollation reports database_default or catalog_default, which a
+// KnownCollation reports whether the pinned SQL Server 2022 knows the
+// collation name, matched without regard to case: whether
+// sys.fn_helpcollations() lists it. It is no verdict on another version,
+// which may know more (mssql/review's WALK_THROUGH).
+func KnownCollation(name string) bool {
+	_, ok := lookupCollation(name)
+	return ok
+}
+
+// IsDefaultCollation reports database_default or catalog_default, which a
 // column or an expression may name in place of a collation, though a database
 // may not.
-func isDefaultCollation(name string) bool {
+func IsDefaultCollation(name string) bool {
 	return strings.EqualFold(name, "database_default") || strings.EqualFold(name, "catalog_default")
 }
 
@@ -52,7 +61,7 @@ func isDefaultCollation(name string) bool {
 // a column or an expression is set, not a database's or a partition
 // function's (measured).
 func checkCollation(name string, defaultAllowed bool) error {
-	if name == "" || (defaultAllowed && isDefaultCollation(name)) {
+	if name == "" || (defaultAllowed && IsDefaultCollation(name)) {
 		return nil
 	}
 	if _, ok := lookupCollation(name); ok {

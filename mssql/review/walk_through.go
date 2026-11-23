@@ -211,14 +211,19 @@ func moduleOf(n ast.Node) module {
 // lower implements walk.Lower.
 func (w *walker) lower(i int, l *walk.Ledger) *walk.Step {
 	place := w.batch[i]
-	switch {
-	case place.body:
-		// The statement is part of a module's body and does not run.
-		return &walk.Step{}
-	case place.afterOnly:
+	if place.afterOnly {
 		return nil
 	}
 	b := &builder{w: w, l: l, s: &w.stmts[i], staged: make(map[walk.Key]staged)}
+	if b.declaredCollation(w.stmts[i].node) {
+		// SQL Server parses the batch, a module's body included, before
+		// it runs any of it.
+		return b.Step()
+	}
+	if place.body {
+		// The statement is part of a module's body and does not run.
+		return &walk.Step{}
+	}
 	if !b.statement(w.stmts[i].node) {
 		return nil
 	}
