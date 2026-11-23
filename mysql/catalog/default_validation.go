@@ -31,6 +31,25 @@ func columnDefEffectiveDefaultExpr(colDef *nodes.ColumnDef) nodes.ExprNode {
 	return eff
 }
 
+// validateAutoIncrementTypes enforces MySQL 8.4's removal of AUTO_INCREMENT on
+// FLOAT and DOUBLE columns (error 1063, verified on mysql:8.4.13). MySQL 8.0
+// continues to accept them (deprecated).
+func validateAutoIncrementTypes(tbl *Table, version Version) error {
+	if version < MySQL84 {
+		return nil
+	}
+	for _, col := range tbl.Columns {
+		if col == nil || !col.AutoIncrement {
+			continue
+		}
+		switch strings.ToLower(col.DataType) {
+		case "float", "double":
+			return errWrongFieldSpec(col.Name)
+		}
+	}
+	return nil
+}
+
 // validateAutoIncrementKeyed checks MySQL's post-DDL AUTO_INCREMENT invariant
 // (1075, measured on mysql:8.0.46): a table may hold at most one AUTO_INCREMENT
 // column, and an index must cover it — as the leading non-functional key part on

@@ -583,3 +583,27 @@ func TestVerifyRejectsUpdateCompatMissingPinRowsAndUnjudged(t *testing.T) {
 		t.Errorf("File.Write in verify mode created %s", directPath)
 	}
 }
+
+func TestCheckUsesPinRole(t *testing.T) {
+	s := suite(t, "", map[string]Answer{"B": refused}, map[string]Omni{"B": {Code: "1060"}}, nil)
+	write(t, s.Pins, "default\timg:1\tsha256:abc\tv1\nalt\timg:84\tsha256:def\tv84\n")
+	write(t, s.Path, "# pin: alt img:84 sha256:def v84\n"+columnsHeader+"\n1060\t1060\tengine\tfx\tr/B\tB\n")
+	s.Rows = []Generated{{"fx", "r/B", "B"}}
+	s.PinRole = "alt"
+
+	if rec := run(t, s); !rec.passed() {
+		t.Fatalf("replay with PinRole=alt: %q %q", rec.errors, rec.fatal)
+	}
+
+	// Changing the default row does not affect a PinRole=alt suite.
+	write(t, s.Pins, "default\timg:2\tsha256:999\tv2\nalt\timg:84\tsha256:def\tv84\n")
+	if rec := run(t, s); !rec.passed() {
+		t.Fatalf("changing default pin broke PinRole=alt: %q %q", rec.errors, rec.fatal)
+	}
+
+	// Changing the alt row fails replay with a pin mismatch.
+	write(t, s.Pins, "default\timg:1\tsha256:abc\tv1\nalt\timg:85\tsha256:999\tv85\n")
+	if rec := run(t, s); !rec.failed("was recorded at pin") {
+		t.Errorf("changed PinRole row passed: %q %q", rec.errors, rec.fatal)
+	}
+}

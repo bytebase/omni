@@ -1034,6 +1034,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 	}
 	if declared {
 		if !c.loadingSDL {
+			if err := validateAutoIncrementTypes(tbl, c.session.Version); err != nil {
+				return err
+			}
 			if err := validateAutoIncrementKeyed(tbl); err != nil {
 				return err
 			}
@@ -1044,8 +1047,14 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 	}
 
 	// Validate foreign key constraints (unless foreign_key_checks=0).
+	// On MySQL 8.4, restrict_fk_on_non_standard_key is still enforced against
+	// existing parent tables even when foreign_key_checks=0.
 	if c.foreignKeyChecks {
 		if err := c.validateForeignKeys(db, tbl); err != nil {
+			return err
+		}
+	} else if !c.loadingSDL && c.session.RestrictFKOnNonStandardKey && isInnoDBEngine(tbl.Engine) {
+		if err := c.validateForeignKeysNonStandardOnly(db, tbl); err != nil {
 			return err
 		}
 	}
@@ -2197,10 +2206,15 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 		return errFKNoRefTable(con.RefTable)
 	}
 
-	// Check that referenced columns have an index (PK or UNIQUE or KEY)
-	// that starts with the referenced columns in order (including InnoDB's
-	// implicitly appended clustered/primary key columns on secondary indexes).
-	if !hasIndexOnColumns(refTbl, con.RefColumns) && !hasParentIndexCoveringColumns(refTbl, con.RefColumns) {
+	// Check that referenced columns have a suitable parent index.
+	// On MySQL 8.4 with restrict_fk_on_non_standard_key=ON (the default), InnoDB
+	// requires a PRIMARY KEY or UNIQUE index matching the exact referenced
+	// columns in order with no prefix lengths (error 6125).
+	if c.session.RestrictFKOnNonStandardKey && isInnoDBEngine(tbl.Engine) {
+		if !hasParentUniqueIndexMatchingColumns(refTbl, con.RefColumns) {
+			return errFKNoUniqueIndexParent(con.Name, con.RefTable)
+		}
+	} else if !hasIndexOnColumns(refTbl, con.RefColumns) && !hasParentIndexCoveringColumns(refTbl, con.RefColumns) {
 		return errFKMissingIndex(con.Name, con.RefTable)
 	}
 
@@ -2600,6 +2614,82 @@ func fkIndexCoversWithPK(idx, pk *Index, fkCols []string) bool {
 	return true
 }
 
+// validateForeignKeysNonStandardOnly enforces MySQL 8.4's
+// restrict_fk_on_non_standard_key when foreign_key_checks=0: if the referenced
+// parent table exists, it must have an exact-match UNIQUE/PRIMARY index on the
+// referenced columns (error 6125). Forward references to not-yet-created tables
+// are allowed.
+func (c *Catalog) validateForeignKeysNonStandardOnly(db *Database, tbl *Table) error {
+	for _, con := range tbl.Constraints {
+		if con.Type != ConForeignKey {
+			continue
+		}
+		if err := c.validateSingleFKNonStandardOnly(db, tbl, con); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Catalog) validateSingleFKNonStandardOnly(db *Database, tbl *Table, con *Constraint) error {
+	refDB := db
+	if con.RefDatabase != "" {
+		refDB = c.GetDatabase(con.RefDatabase)
+	}
+	var refTbl *Table
+	if refDB != nil {
+		if toLower(con.RefTable) == toLower(tbl.Name) && refDB == db {
+			refTbl = tbl
+		} else {
+			refTbl = refDB.GetTable(con.RefTable)
+		}
+	}
+	if refTbl == nil {
+		return nil
+	}
+	if !hasParentUniqueIndexMatchingColumns(refTbl, con.RefColumns) {
+		return errFKNoUniqueIndexParent(con.Name, con.RefTable)
+	}
+	return nil
+}
+
+// fkIndexExactMatchesColumns reports whether idx is a non-fulltext, non-spatial
+// index whose full column list matches cols in exact order with no prefix
+// lengths or expression key parts.
+func fkIndexExactMatchesColumns(idx *Index, cols []string) bool {
+	if idx == nil || len(cols) == 0 || idx.Fulltext || idx.Spatial || isSpatialIndexType(idx.IndexType) {
+		return false
+	}
+	if len(idx.Columns) != len(cols) {
+		return false
+	}
+	for i, col := range cols {
+		ic := idx.Columns[i]
+		if ic == nil || ic.Expr != "" || ic.Length != 0 || toLower(ic.Name) != toLower(col) {
+			return false
+		}
+	}
+	return true
+}
+
+// hasParentUniqueIndexMatchingColumns reports whether tbl has a PRIMARY KEY or
+// UNIQUE index whose exact column list matches refCols in order, with no
+// prefix lengths or expression key parts.
+func hasParentUniqueIndexMatchingColumns(tbl *Table, refCols []string) bool {
+	if tbl == nil || len(refCols) == 0 {
+		return false
+	}
+	for _, idx := range tbl.Indexes {
+		if idx == nil || (!idx.Primary && !idx.Unique) {
+			continue
+		}
+		if fkIndexExactMatchesColumns(idx, refCols) {
+			return true
+		}
+	}
+	return false
+}
+
 // hasParentIndexCoveringColumns reports whether tbl has an index that can back
 // a parent-side foreign key reference to refCols, including InnoDB secondary
 // BTREE indexes extended with the table's clustered/primary key columns.
@@ -2671,6 +2761,16 @@ func (c *Catalog) validateDroppedIndexesForFK(tbl, oldTbl *Table, dropped []*Ind
 				}
 				if toLower(refDB) != dbKey || toLower(con.RefTable) != tblKey {
 					continue
+				}
+				if c.session.RestrictFKOnNonStandardKey {
+					if hasParentUniqueIndexMatchingColumns(tbl, con.RefColumns) {
+						continue
+					}
+					for _, d := range dropped {
+						if d != nil && (d.Primary || d.Unique) && fkIndexExactMatchesColumns(d, con.RefColumns) {
+							return errDropIndexNeededInFK(d.Name)
+						}
+					}
 				}
 				if hasParentIndexCoveringColumns(tbl, con.RefColumns) {
 					continue

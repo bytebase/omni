@@ -31,8 +31,8 @@ import (
 	nodes "github.com/bytebase/omni/mysql/ast"
 )
 
-// Version identifies the target MySQL major version whose stored form the
-// canonicalizer reproduces. MySQL80 is the only one: MySQL 5.7 is end-of-life, and a
+// Version identifies the target MySQL major version whose stored form and DDL
+// validation rules the catalog reproduces. MySQL 5.7 is end-of-life, and a
 // server older than 8.0 is canonicalized as 8.0.
 type Version int
 
@@ -41,6 +41,9 @@ const (
 	// tinyint(1)/zerofill, utf8mb3 spelling, utf8mb4_0900_ai_ci default, descending
 	// indexes, CHECK kept, functional defaults, _latin1 expression introducer).
 	MySQL80 Version = iota
+	// MySQL84 reproduces MySQL 8.4 LTS's stored form and DDL validation rules
+	// (restrict_fk_on_non_standard_key=ON by default, FLOAT/DOUBLE AUTO_INCREMENT removed).
+	MySQL84
 )
 
 // Normalizer carries the engine version plus the session/server variables that the

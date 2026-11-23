@@ -64,7 +64,11 @@ const (
 var servers = map[string]*Server{
 	Default: {role: Default, args: []string{"--skip-log-bin"}},
 	Folded:  {role: Folded, args: []string{"--skip-log-bin", "--lower-case-table-names=1"}},
-	MySQL84: {role: MySQL84, args: []string{"--skip-log-bin"}},
+	// MySQL 8.4 changed the default innodb_flush_method on Linux from fsync to
+	// O_DIRECT, which causes KEY_BLOCK_SIZE=1/2 to fail with EINVAL (reported as
+	// 3675 "disk is full") on 4K-sector disks while succeeding on 512B-sector
+	// disks. Pin fsync so recordings reproduce across host storage devices.
+	MySQL84: {role: MySQL84, args: []string{"--skip-log-bin", "--innodb-flush-method=fsync"}},
 }
 
 // Options is how a test's connection differs from the plain one.
