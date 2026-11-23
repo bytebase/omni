@@ -1024,6 +1024,93 @@ COMMENT ON CONSTRAINT nn ON t_nnn IS 'required';
 	if rem := GenerateMigration(fromNamedNN, toNamedNN, Diff(fromNamedNN, toNamedNN)); len(rem.Ops) != 0 {
 		t.Fatalf("expected empty diff after applying named NOT NULL migration, still have: %+v", rem.Ops)
 	}
+
+	// Migrating when a dropped CHECK occupied the default NOT NULL name predicts
+	// t_x_not_null (not t_x_not_null1) and executes cleanly.
+	fromDropChk, err := LoadSQLWithVersion(`CREATE TABLE t_dc_nn (x int, CONSTRAINT t_dc_nn_x_not_null CHECK (x > 0));`, PG18)
+	if err != nil {
+		t.Fatalf("LoadSQLWithVersion fromDropChk: %v", err)
+	}
+	toNamedAfterDrop, err := LoadSQLWithVersion(`CREATE TABLE t_dc_nn (x int CONSTRAINT nn NOT NULL);`, PG18)
+	if err != nil {
+		t.Fatalf("LoadSQLWithVersion toNamedAfterDrop: %v", err)
+	}
+	planDropChk := GenerateMigration(fromDropChk, toNamedAfterDrop, Diff(fromDropChk, toNamedAfterDrop))
+	for _, op := range planDropChk.Ops {
+		res, err := fromDropChk.Exec(op.SQL, nil)
+		if err != nil {
+			t.Fatalf("exec drop-check+named-nn op %q: %v", op.SQL, err)
+		}
+		for _, r := range res {
+			if r.Error != nil {
+				t.Fatalf("drop-check+named-nn op %q failed: %v", op.SQL, r.Error)
+			}
+		}
+	}
+
+	// Migrating a nullable partitioned table + partition to NOT NULL does not emit
+	// a bogus RENAME CONSTRAINT on the partition (recursion already creates p_x_not_null).
+	fromPartNN, err := LoadSQLWithVersion(`
+CREATE TABLE p_mig_nn (x int) PARTITION BY RANGE (x);
+CREATE TABLE c_mig_nn PARTITION OF p_mig_nn FOR VALUES FROM (0) TO (100);
+`, PG18)
+	if err != nil {
+		t.Fatalf("LoadSQLWithVersion fromPartNN: %v", err)
+	}
+	toPartNN, err := LoadSQLWithVersion(`
+CREATE TABLE p_mig_nn (x int NOT NULL) PARTITION BY RANGE (x);
+CREATE TABLE c_mig_nn PARTITION OF p_mig_nn FOR VALUES FROM (0) TO (100);
+`, PG18)
+	if err != nil {
+		t.Fatalf("LoadSQLWithVersion toPartNN: %v", err)
+	}
+	planPartNN := GenerateMigration(fromPartNN, toPartNN, Diff(fromPartNN, toPartNN))
+	for _, op := range planPartNN.Ops {
+		if strings.Contains(op.SQL, "RENAME CONSTRAINT") {
+			t.Fatalf("unexpected RENAME CONSTRAINT in partition SET NOT NULL migration: %s", op.SQL)
+		}
+		res, err := fromPartNN.Exec(op.SQL, nil)
+		if err != nil {
+			t.Fatalf("exec partition SET NOT NULL op %q: %v", op.SQL, err)
+		}
+		for _, r := range res {
+			if r.Error != nil {
+				t.Fatalf("partition SET NOT NULL op %q failed: %v", op.SQL, r.Error)
+			}
+		}
+	}
+
+	// Modifying a collation used by a NOT NULL stored generated column rebuilds the
+	// column without emitting an unsupported ADD CONSTRAINT for ConstraintNotNull.
+	fromCollGen, err := LoadSQLWithVersion(`
+CREATE COLLATION my_coll (locale = 'C');
+CREATE TABLE t_cg (src text, g text COLLATE my_coll GENERATED ALWAYS AS (lower(src)) STORED NOT NULL);
+`, PG18)
+	if err != nil {
+		t.Fatalf("LoadSQLWithVersion fromCollGen: %v", err)
+	}
+	toCollGen, err := LoadSQLWithVersion(`
+CREATE COLLATION my_coll (locale = 'POSIX');
+CREATE TABLE t_cg (src text, g text COLLATE my_coll GENERATED ALWAYS AS (lower(src)) STORED NOT NULL);
+`, PG18)
+	if err != nil {
+		t.Fatalf("LoadSQLWithVersion toCollGen: %v", err)
+	}
+	planCollGen := GenerateMigration(fromCollGen, toCollGen, Diff(fromCollGen, toCollGen))
+	for _, op := range planCollGen.Ops {
+		if strings.Contains(op.SQL, "unsupported type") {
+			t.Fatalf("unexpected unsupported constraint DDL in collation rebuild migration: %s", op.SQL)
+		}
+		res, err := fromCollGen.Exec(op.SQL, nil)
+		if err != nil {
+			t.Fatalf("exec collation rebuild op %q: %v", op.SQL, err)
+		}
+		for _, r := range res {
+			if r.Error != nil {
+				t.Fatalf("collation rebuild op %q failed: %v", op.SQL, r.Error)
+			}
+		}
+	}
 }
 
 func TestPG18PartitionDetachPKNameAndJsonExpr(t *testing.T) {

@@ -1350,7 +1350,7 @@ func wrapModifiedAccessMethodDependents(from, to *Catalog, diff *SchemaDiff, ops
 			if !mainAddedCon[conKey] {
 				if toRel := to.GetRelation(relSc, fromRel.Name); toRel != nil {
 					for _, toCon := range to.ConstraintsOf(toRel.OID) {
-						if toCon.Name == con.Name && toCon.Type != ConstraintTrigger {
+						if toCon.Name == con.Name && toCon.Type != ConstraintTrigger && toCon.Type != ConstraintNotNull {
 							mainAddedCon[conKey] = true
 							mainExtra = append(mainExtra, buildAddConstraintOp(to, relSc, fromRel.Name, toCon))
 							if txt, ok := to.GetComment('c', toCon.OID, 0); ok && txt != "" {
@@ -2086,7 +2086,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 	}
 
 	dropAndRestoreConstraint := func(con *Constraint) {
-		if con == nil || con.ConParentID != 0 || con.Type == ConstraintTrigger || preDroppedRel[con.RelOID] {
+		if con == nil || con.ConParentID != 0 || con.Type == ConstraintTrigger || con.Type == ConstraintNotNull || preDroppedRel[con.RelOID] {
 			return
 		}
 		cRel := from.GetRelationByOID(con.RelOID)
@@ -2105,7 +2105,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 		if !mainAddedCon[conKey] {
 			if toCRel := to.GetRelation(cSc, cRel.Name); toCRel != nil {
 				for _, toCon := range to.ConstraintsOf(toCRel.OID) {
-					if toCon.Name == con.Name && toCon.ConParentID == 0 && toCon.Type != ConstraintTrigger {
+					if toCon.Name == con.Name && toCon.ConParentID == 0 && toCon.Type != ConstraintTrigger && toCon.Type != ConstraintNotNull {
 						mainAddedCon[conKey] = true
 						mainExtra = append(mainExtra, buildAddConstraintOp(to, cSc, cRel.Name, toCon))
 						if txt, ok := to.GetComment('c', toCon.OID, 0); ok && txt != "" {
