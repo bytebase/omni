@@ -55,6 +55,15 @@ func (s Segment) Empty() bool {
 // Split splits an Oracle SQL script into source segments. It is deliberately
 // lexical and soft-fail: invalid or incomplete SQL still returns best-effort
 // statement boundaries.
+//
+// Every top-level ';' ends a segment, and the text after the last delimiter
+// is a segment when it is not zero-length. A segment holding no statement — a
+// lone ';', whitespace, a comment — is returned and reports Empty, so a
+// caller that accounts for every ';' can; a caller that wants statements
+// skips it. Its range ends before its ';' as a statement's does, so a lone
+// ';' right after another is a zero-length segment at the second ';'. A
+// SQL*Plus "/" or command line with nothing buffered before it yields no
+// segment, empty or not.
 func Split(sql string) []Segment {
 	if sql == "" {
 		return nil
@@ -65,6 +74,9 @@ func Split(sql string) []Segment {
 	lexer.ccSplit = true
 	stmtStart := 0
 	var segments []Segment
+	// empties counts the segments in segments that report Empty, so
+	// len(segments) > empties asks whether a statement came before.
+	empties := 0
 	state := splitState{}
 	// unitSegment is the segment of a PL/SQL unit that ended at its ';'.
 	// Directives right after it are the unit's, to their $END with the
@@ -103,7 +115,7 @@ func Split(sql string) []Segment {
 				}
 				if cmd.flush {
 					if prefixEmpty {
-						if tok.Type == '/' && len(segments) > 0 {
+						if tok.Type == '/' && len(segments) > empties {
 							stmtStart = lineEndBeforeBreak(sql, tok.End)
 						} else {
 							stmtStart = lineEndAfterBreak(sql, tok.End)
@@ -179,7 +191,11 @@ func Split(sql string) []Segment {
 					state.afterPLSQLSemicolon()
 				}
 			} else {
-				segments = appendSegmentWithKind(segments, sql, stmtStart, tok.Loc, state.segmentKind())
+				seg := newSegment(sql, stmtStart, tok.Loc, state.segmentKind())
+				if seg.Empty() {
+					empties++
+				}
+				segments = append(segments, seg)
 				stmtStart = tok.End
 				state.reset()
 			}
@@ -196,7 +212,9 @@ func Split(sql string) []Segment {
 		}
 	}
 
-	segments = appendSegmentWithKind(segments, sql, stmtStart, len(sql), state.segmentKind())
+	if stmtStart < len(sql) {
+		segments = append(segments, newSegment(sql, stmtStart, len(sql), state.segmentKind()))
+	}
 	if len(segments) == 0 {
 		return nil
 	}
@@ -964,7 +982,18 @@ func lineEndAfterBreak(sql string, pos int) int {
 	return pos
 }
 
+// appendSegmentWithKind appends the segment sql[start:end] unless it is
+// empty. It ends a segment at a SQL*Plus "/" or command line, or at a PL/SQL
+// unit's end, where an empty segment marks no delimiter of its own.
 func appendSegmentWithKind(segments []Segment, sql string, start, end int, kind SegmentKind) []Segment {
+	seg := newSegment(sql, start, end, kind)
+	if seg.Empty() {
+		return segments
+	}
+	return append(segments, seg)
+}
+
+func newSegment(sql string, start, end int, kind SegmentKind) Segment {
 	if start < 0 {
 		start = 0
 	}
@@ -974,16 +1003,12 @@ func appendSegmentWithKind(segments []Segment, sql string, start, end int, kind 
 	if end > len(sql) {
 		end = len(sql)
 	}
-	seg := Segment{
+	return Segment{
 		Text:      sql[start:end],
 		ByteStart: start,
 		ByteEnd:   end,
 		Kind:      kind,
 	}
-	if seg.Empty() {
-		return segments
-	}
-	return append(segments, seg)
 }
 
 func isSlashDelimiterLine(sql string, loc, end int) bool {

@@ -40,6 +40,11 @@ func Parse(sql string) ([]Statement, error) {
 	lineIndex := review.Index(sql)
 	stmts := make([]Statement, 0, len(segments))
 	for _, seg := range segments {
+		// Parse returns statements only; a segment holding none (a lone ';',
+		// a comment) is not one.
+		if seg.Empty() {
+			continue
+		}
 		list, err := parser.ParseRange(sql, seg.ByteStart, seg.ByteEnd)
 		if err != nil {
 			return nil, err

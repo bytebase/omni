@@ -16,7 +16,8 @@ type splitGoldenCase struct {
 }
 
 type splitGoldenStatement struct {
-	Text string `yaml:"text"`
+	Text  string `yaml:"text"`
+	Empty bool   `yaml:"empty,omitempty"`
 }
 
 func TestSplitGoldenCorpus(t *testing.T) {
@@ -51,13 +52,13 @@ func TestSplitGoldenCorpus(t *testing.T) {
 				if seg.Text != tc.Input[seg.ByteStart:seg.ByteEnd] {
 					t.Fatalf("segment[%d] Text does not match input range [%d,%d]", i, seg.ByteStart, seg.ByteEnd)
 				}
-				if seg.Empty() {
-					t.Fatalf("segment[%d] is empty: %q", i, seg.Text)
+				if seg.Empty() != tc.Statements[i].Empty {
+					t.Fatalf("segment[%d] %q empty = %v, want %v", i, seg.Text, seg.Empty(), tc.Statements[i].Empty)
 				}
 				if seg.Text != tc.Statements[i].Text {
 					t.Fatalf("segment[%d] = %q, want %q", i, seg.Text, tc.Statements[i].Text)
 				}
-				if tc.Parse {
+				if tc.Parse && !seg.Empty() {
 					if _, err := Parse(strings.Repeat(" ", seg.ByteStart) + seg.Text); err != nil {
 						t.Fatalf("segment[%d] parse error: %v\ntext:\n%s", i, err, seg.Text)
 					}

@@ -3,10 +3,14 @@
   statements: []
 - description: whitespace only
   input: " \t\n  "
-  statements: []
+  statements:
+    - text: " \t\n  "
+      empty: true
 - description: comment only
   input: "-- only comment\n/* block */"
-  statements: []
+  statements:
+    - text: "-- only comment\n/* block */"
+      empty: true
 - description: single select with semicolon
   input: "SELECT 1 FROM dual;"
   parse: true
@@ -29,11 +33,21 @@
   statements:
     - text: "SELECT 1 FROM dual"
     - text: " SELECT 2 FROM dual"
-- description: consecutive semicolons filtered
+- description: consecutive semicolons kept as empty segments
   input: ";;SELECT 1 FROM dual;;;SELECT 2 FROM dual;;"
   statements:
+    - text: ""
+      empty: true
+    - text: ""
+      empty: true
     - text: "SELECT 1 FROM dual"
+    - text: ""
+      empty: true
+    - text: ""
+      empty: true
     - text: "SELECT 2 FROM dual"
+    - text: ""
+      empty: true
 - description: leading whitespace preserved
   input: "\n  SELECT 1 FROM dual;"
   parse: true
@@ -55,6 +69,8 @@
   statements:
     - text: "SELECT 1 FROM dual"
     - text: "\r\nSELECT 2 FROM dual"
+    - text: "\r\n"
+      empty: true
 - description: utf8 comment between statements
   input: "SELECT 1 FROM dual; -- 日本語\nSELECT 2 FROM dual;"
   statements:

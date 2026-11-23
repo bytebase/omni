@@ -33,9 +33,9 @@ func TestSplitOrdinarySQL(t *testing.T) {
 			want: []string{"SELECT 1 FROM dual", " SELECT 2 FROM dual"},
 		},
 		{
-			name: "filters empty statements",
+			name: "keeps empty statements",
 			sql:  ";\n -- comment only\n ; SELECT 1 FROM dual;",
-			want: []string{" SELECT 1 FROM dual"},
+			want: []string{"", "\n -- comment only\n ", " SELECT 1 FROM dual"},
 		},
 		{
 			name: "WITH FUNCTION and PROCEDURE declarations stay with their query",
@@ -404,6 +404,7 @@ func TestSplitPLSQLBlocks(t *testing.T) {
 				"/\n",
 			want: []string{
 				"CREATE FUNCTION f RETURN NUMBER IS\nBEGIN\n  RETURN 10 / 2;\nEND;",
+				"\n",
 			},
 		},
 		{
@@ -1425,6 +1426,17 @@ func TestSplitDoesNotClassifyValidCorpusStatementsAsSQLPlus(t *testing.T) {
 	}
 }
 
+// statementSegments drops the segments that hold no statement.
+func statementSegments(segs []Segment) []Segment {
+	var out []Segment
+	for _, seg := range segs {
+		if !seg.Empty() {
+			out = append(out, seg)
+		}
+	}
+	return out
+}
+
 func splitTexts(segs []Segment) []string {
 	if len(segs) == 0 {
 		return nil
@@ -1448,6 +1460,62 @@ func TestSplitLongLineStaysLinear(t *testing.T) {
 	} {
 		cputime.Within(t, 2*time.Second, fmt.Sprintf("Split of a %d-byte line", len(sql)), func() {
 			_ = len(Split(sql))
+		})
+	}
+}
+
+// TestSplitKeepsEmptySegments: every top-level ';' ends a segment, and the
+// text after the last delimiter is one, so a segment holding no statement is
+// returned and reports Empty. Its range ends before its ';', as a statement's
+// does. A "/" line with nothing buffered yields no segment.
+func TestSplitKeepsEmptySegments(t *testing.T) {
+	type seg struct {
+		start, end int
+		empty      bool
+	}
+	tests := []struct {
+		name string
+		sql  string
+		want []seg
+	}{
+		{name: "lone semicolon", sql: ";", want: []seg{{0, 0, true}}},
+		{name: "two semicolons", sql: ";;", want: []seg{{0, 0, true}, {1, 1, true}}},
+		{name: "whitespace around a semicolon", sql: "  ;  ", want: []seg{{0, 2, true}, {3, 5, true}}},
+		{name: "comment before a semicolon", sql: "-- c\n;", want: []seg{{0, 5, true}}},
+		{name: "comment only", sql: "/* c */", want: []seg{{0, 7, true}}},
+		{name: "semicolon after a statement", sql: "SELECT 1 FROM dual;;", want: []seg{{0, 18, false}, {19, 19, true}}},
+		{name: "trailing comment", sql: "SELECT 1 FROM dual; -- tail", want: []seg{{0, 18, false}, {19, 27, true}}},
+		{name: "no trailing segment at the end", sql: "SELECT 1 FROM dual;", want: []seg{{0, 18, false}}},
+		{name: "semicolon after a PL/SQL unit", sql: "BEGIN NULL; END;;", want: []seg{{0, 16, false}, {16, 16, true}}},
+		{name: "newline after a slash", sql: "BEGIN NULL; END;\n/\n", want: []seg{{0, 16, false}, {18, 19, true}}},
+		{
+			name: "semicolons around a slash-terminated block",
+			sql:  ";\nBEGIN NULL; END;\n/\n;\nSELECT 1 FROM dual;\n",
+			want: []seg{{0, 0, true}, {1, 18, false}, {20, 21, true}, {22, 41, false}, {42, 43, true}},
+		},
+		{
+			name: "comment after a slash-terminated unit",
+			sql:  "CREATE PROCEDURE p IS BEGIN NULL; END;\n/\n-- done\n",
+			want: []seg{{0, 38, false}, {40, 49, true}},
+		},
+		{name: "slash after a lone semicolon", sql: ";\n/\nSELECT 1 FROM dual", want: []seg{{0, 0, true}, {4, 22, false}}},
+		{name: "semicolon after a SQL*Plus command", sql: "PROMPT hi\n;\n", want: []seg{{0, 9, false}, {10, 10, true}, {11, 12, true}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Split(tt.sql)
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %d segments %#v, want %d", len(got), got, len(tt.want))
+			}
+			for i, w := range tt.want {
+				g := got[i]
+				if g.ByteStart != w.start || g.ByteEnd != w.end || g.Empty() != w.empty {
+					t.Fatalf("segment[%d] = [%d,%d) empty=%v %q, want [%d,%d) empty=%v", i, g.ByteStart, g.ByteEnd, g.Empty(), g.Text, w.start, w.end, w.empty)
+				}
+				if g.Text != tt.sql[g.ByteStart:g.ByteEnd] {
+					t.Fatalf("segment[%d] text %q, want %q", i, g.Text, tt.sql[g.ByteStart:g.ByteEnd])
+				}
+			}
 		})
 	}
 }

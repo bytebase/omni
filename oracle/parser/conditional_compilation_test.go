@@ -478,7 +478,7 @@ END;
 /
 SELECT 1 FROM dual;
 `
-	got := splitTexts(Split(sql))
+	got := splitTexts(statementSegments(Split(sql)))
 	if len(got) != 2 || !strings.HasSuffix(got[0], "END;\nEND;") || strings.TrimSpace(got[1]) != "SELECT 1 FROM dual" {
 		t.Fatalf("Split = %q", got)
 	}
