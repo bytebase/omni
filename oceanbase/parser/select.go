@@ -3024,10 +3024,15 @@ func (p *Parser) parseIntoString() (string, error) {
 }
 
 // parseIntoByString parses the BY and the string of a FIELDS or LINES option. BY is
-// required: FIELDS TERMINATED ',' is a 1064 (measured).
+// required: FIELDS TERMINATED ',' is a 1064 (measured). The string is a
+// text_string (field_opt and line_opt, sql_parser_mysql_mode.y:12024 and
+// 12126), so a hex or bit literal stands for it too, as in LOAD DATA.
 func (p *Parser) parseIntoByString() (string, error) {
 	if _, err := p.expect(kwBY); err != nil {
 		return "", err
+	}
+	if p.cur.Type == tokXCONST || p.cur.Type == tokBCONST {
+		return p.parseTextString()
 	}
 	return p.parseIntoString()
 }

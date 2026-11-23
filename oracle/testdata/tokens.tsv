@@ -100,3 +100,76 @@ delete_row_pattern_clause(ASC|DESC)?	(every site)	OracleDocs.g4:4524 delete_row_
 purge(USER_ID)?	(every site)	OracleDocs.g4:5041 purge: USER ID
 select_row_pattern_clause(ASC|DESC)?	(every site)	OracleDocs.g4:5229 select_row_pattern_clause: ASC or DESC
 setRole(IDENTIFIED_BY_ID)?	(every site)	OracleDocs.g4:5396 setRole: IDENTIFIED BY ID
+# Keyword choices tried at every site that names them, and not only where
+# their own alternatives' rows reach (see grammar.EveryAlternative). A rule
+# whose body is one group names that group's rule, which is opted in too.
+alterDiskgroup_redundancy_clause	(every alternative)	OracleDocs.g4:672 alterDiskgroup_redundancy_clause: MIRROR | HIGH | UNPROTECTED | PARITY | DOUBLE
+alterIndex_index_compression	(every alternative)	OracleDocs.g4:767 alterIndex_index_compression: alterIndex_prefix_compression | alterIndex_advanced_index_compression | NOCOMPRESS
+alterIndex_index_compression(alterIndex_prefix_compression|alterI~2b40f609)	(every alternative)	OracleDocs.g4:767 alterIndex_index_compression's choice, which the rule names alone
+alterIndex_logging_clause	(every alternative)	OracleDocs.g4:749 alterIndex_logging_clause: LOGGING | NOLOGGING
+alterIndex_logging_clause(LOGGING|NOLOGGING)	(every alternative)	OracleDocs.g4:749 alterIndex_logging_clause's choice, which the rule names alone
+alterIndex_parallel_clause	(every alternative)	OracleDocs.g4:743 alterIndex_parallel_clause: NOPARALLEL | PARALLEL NUMBER?
+alterIndex_parallel_clause(NOPARALLEL|PARALLEL_NUMBER?)	(every alternative)	OracleDocs.g4:743 alterIndex_parallel_clause's choice, which the rule names alone
+alterMaterializedView_inmemory_clause	(every alternative)	OracleDocs.g4:1327 alterMaterializedView_inmemory_clause: INMEMORY alterMaterializedView_inmemory_attributes? | NO INMEMORY
+alterMaterializedView_inmemory_clause(INMEMORY_alterMaterializedView_inmem~d73d4a91)	(every alternative)	OracleDocs.g4:1327 alterMaterializedView_inmemory_clause's choice, which the rule names alone
+alterMaterializedView_logging_clause	(every alternative)	OracleDocs.g4:1174 alterMaterializedView_logging_clause: LOGGING | NOLOGGING
+alterMaterializedView_logging_clause(LOGGING|NOLOGGING)	(every alternative)	OracleDocs.g4:1174 alterMaterializedView_logging_clause's choice, which the rule names alone
+alterMaterializedView_parallel_clause	(every alternative)	OracleDocs.g4:1171 alterMaterializedView_parallel_clause: PARALLEL NUMBER? | NOPARALLEL
+alterMaterializedView_parallel_clause(PARALLEL_NUMBER?|NOPARALLEL)	(every alternative)	OracleDocs.g4:1171 alterMaterializedView_parallel_clause's choice, which the rule names alone
+alterMaterializedView_read_only_clause	(every alternative)	OracleDocs.g4:1318 alterMaterializedView_read_only_clause: READ ONLY | READ WRITE
+alterMaterializedView_read_only_clause(READ_ONLY|READ_WRITE)	(every alternative)	OracleDocs.g4:1318 alterMaterializedView_read_only_clause's choice, which the rule names alone
+alterTable_index_compression	(every alternative)	OracleDocs.g4:2240 alterTable_index_compression: COMPRESS NUMBER? | NOCOMPRESS
+alterTable_index_compression(COMPRESS_NUMBER?|NOCOMPRESS)	(every alternative)	OracleDocs.g4:2240 alterTable_index_compression's choice, which the rule names alone
+alterTable_inmemory_clause	(every alternative)	OracleDocs.g4:2009 alterTable_inmemory_clause: INMEMORY alterTable_inmemory_attributes? | NO INMEMORY
+alterTable_inmemory_clause(INMEMORY_alterTable_inmemory_attribu~17994ba0)	(every alternative)	OracleDocs.g4:2009 alterTable_inmemory_clause's choice, which the rule names alone
+alterTable_inmemory_memcompress	(every alternative)	OracleDocs.g4:1944 alterTable_inmemory_memcompress: MEMCOMPRESS FOR (DML | QUERY (LOW | HIGH)? | CAPACITY (LOW | HIGH)?) | NO MEMCOMPRESS
+alterTable_logging_clause	(every alternative)	OracleDocs.g4:1765 alterTable_logging_clause: LOGGING | NOLOGGING
+alterTable_logging_clause(LOGGING|NOLOGGING)	(every alternative)	OracleDocs.g4:1765 alterTable_logging_clause's choice, which the rule names alone
+alterTable_parallel_clause	(every alternative)	OracleDocs.g4:1789 alterTable_parallel_clause: NOPARALLEL | PARALLEL NUMBER?
+alterTable_parallel_clause(NOPARALLEL|PARALLEL_NUMBER?)	(every alternative)	OracleDocs.g4:1789 alterTable_parallel_clause's choice, which the rule names alone
+alterTable_partition_or_key_value	(every alternative)	OracleDocs.g4:2069 alterTable_partition_or_key_value: ID | FOR ( EXPR (, EXPR)* )
+alterTable_prefix_compression	(every alternative)	OracleDocs.g4:2012 alterTable_prefix_compression: COMPRESS NUMBER? | NOCOMPRESS
+alterTable_prefix_compression(COMPRESS_NUMBER?|NOCOMPRESS)	(every alternative)	OracleDocs.g4:2012 alterTable_prefix_compression's choice, which the rule names alone
+alterTable_read_only_clause	(every alternative)	OracleDocs.g4:2003 alterTable_read_only_clause: READ ONLY | READ WRITE
+alterTable_read_only_clause(READ_ONLY|READ_WRITE)	(every alternative)	OracleDocs.g4:2003 alterTable_read_only_clause's choice, which the rule names alone
+alterTable_table_compression	(every alternative)	OracleDocs.g4:1768 alterTable_table_compression: COMPRESS BASIC? | ROW STORE COMPRESS (BASIC | ADVANCED)? | COLUMN STORE COMPRESS (FOR (QUERY | ARCHIVE) (LO...
+alterTable_table_compression(COMPRESS_BASIC?|ROW_STORE_COMPRESS_(~536911e5)	(every alternative)	OracleDocs.g4:1768 alterTable_table_compression's choice, which the rule names alone
+alterTable_update_global_index_clause	(every alternative)	OracleDocs.g4:2083 alterTable_update_global_index_clause: (UPDATE | INVALIDATE) GLOBAL INDEXES
+alterTable_update_global_index_clause(UPDATE|INVALIDATE)	(every alternative)	OracleDocs.g4:2083 alterTable_update_global_index_clause's choice, which the rule names alone
+alterTable_update_index_clauses	(every alternative)	OracleDocs.g4:1926 alterTable_update_index_clauses: alterTable_update_global_index_clause | alterTable_update_all_indexes_clause
+alterTable_update_index_clauses(alterTable_update_global_index_claus~7e382453)	(every alternative)	OracleDocs.g4:1926 alterTable_update_index_clauses's choice, which the rule names alone
+createIndex_index_compression	(every alternative)	OracleDocs.g4:2993 createIndex_index_compression: createIndex_prefix_compression | createIndex_advanced_index_compression
+createIndex_index_compression(createIndex_prefix_compression|creat~7876dcbf)	(every alternative)	OracleDocs.g4:2993 createIndex_index_compression's choice, which the rule names alone
+createIndex_parallel_clause	(every alternative)	OracleDocs.g4:2999 createIndex_parallel_clause: PARALLEL NUMBER? | NOPARALLEL
+createIndex_parallel_clause(PARALLEL_NUMBER?|NOPARALLEL)	(every alternative)	OracleDocs.g4:2999 createIndex_parallel_clause's choice, which the rule names alone
+createMaterializedViewLog_logging_clause	(every alternative)	OracleDocs.g4:3127 createMaterializedViewLog_logging_clause: LOGGING | NOLOGGING
+createMaterializedViewLog_logging_clause(LOGGING|NOLOGGING)	(every alternative)	OracleDocs.g4:3127 createMaterializedViewLog_logging_clause's choice, which the rule names alone
+createMaterializedViewLog_read_only_clause	(every alternative)	OracleDocs.g4:3223 createMaterializedViewLog_read_only_clause: READ ONLY | READ WRITE
+createMaterializedViewLog_read_only_clause(READ_ONLY|READ_WRITE)	(every alternative)	OracleDocs.g4:3223 createMaterializedViewLog_read_only_clause's choice, which the rule names alone
+createMaterializedViewLog_table_compression	(every alternative)	OracleDocs.g4:3232 createMaterializedViewLog_table_compression: COMPRESS BASIC? | COMPRESS FOR (OLTP | QUERY (LOW | HIGH)? | ARCHIVE (LOW | HIGH)?) | NOCOMPRESS
+createMaterializedViewLog_table_compression(COMPRESS_BASIC?|COMPRESS_FOR_(OLTP|Q~e159a79e)	(every alternative)	OracleDocs.g4:3232 createMaterializedViewLog_table_compression's choice, which the rule names alone
+createMaterializedView_logging_clause	(every alternative)	OracleDocs.g4:3362 createMaterializedView_logging_clause: LOGGING | NOLOGGING
+createMaterializedView_logging_clause(LOGGING|NOLOGGING)	(every alternative)	OracleDocs.g4:3362 createMaterializedView_logging_clause's choice, which the rule names alone
+createMaterializedView_read_only_clause	(every alternative)	OracleDocs.g4:3520 createMaterializedView_read_only_clause: READ ONLY | READ WRITE
+createMaterializedView_read_only_clause(READ_ONLY|READ_WRITE)	(every alternative)	OracleDocs.g4:3520 createMaterializedView_read_only_clause's choice, which the rule names alone
+createMaterializedView_table_compression	(every alternative)	OracleDocs.g4:3338 createMaterializedView_table_compression: COMPRESS (BASIC | FOR OLTP | FOR QUERY ((LOW | HIGH))? | FOR ARCHIVE ((LOW | HIGH))?)? | NOCOMPRESS
+createMaterializedView_table_compression(COMPRESS_(BASIC|FOR_OLTP|FOR_QUERY_(~94fcb7e4)	(every alternative)	OracleDocs.g4:3338 createMaterializedView_table_compression's choice, which the rule names alone
+createPluggableDatabase_create_file_dest_clause	(every alternative)	OracleDocs.g4:3715 createPluggableDatabase_create_file_dest_clause: CREATE_FILE_DEST = (STRING | ID) | CREATE_FILE_DEST = NONE
+createPluggableDatabase_logging_clause	(every alternative)	OracleDocs.g4:3712 createPluggableDatabase_logging_clause: LOGGING | NOLOGGING
+createPluggableDatabase_logging_clause(LOGGING|NOLOGGING)	(every alternative)	OracleDocs.g4:3712 createPluggableDatabase_logging_clause's choice, which the rule names alone
+createPluggableDatabase_path_prefix_clause	(every alternative)	OracleDocs.g4:3693 createPluggableDatabase_path_prefix_clause: PATH_PREFIX = (STRING | ID) | PATH_PREFIX = NONE
+createPluggableDatabase_pdb_snapshot_clause	(every alternative)	OracleDocs.g4:3722 createPluggableDatabase_pdb_snapshot_clause: SNAPSHOT = NONE | SNAPSHOT = MANUAL | SNAPSHOT = EVERY NUMBER (MINUTES | HOURS)
+createTable_index_compression	(every alternative)	OracleDocs.g4:4152 createTable_index_compression: createTable_prefix_compression | createTable_advanced_index_compression | NOCOMPRESS
+createTable_index_compression(createTable_prefix_compression|creat~468cda78)	(every alternative)	OracleDocs.g4:4152 createTable_index_compression's choice, which the rule names alone
+createTable_inmemory_memcompress	(every alternative)	OracleDocs.g4:4086 createTable_inmemory_memcompress: MEMCOMPRESS FOR (DML | QUERY (LOW | HIGH)? | CAPACITY (LOW | HIGH)?) | NO MEMCOMPRESS
+createTable_inmemory_memcompress(MEMCOMPRESS_FOR_(DML|QUERY_(LOW|HIGH~35caf101)	(every alternative)	OracleDocs.g4:4086 createTable_inmemory_memcompress's choice, which the rule names alone
+createTable_logging_clause	(every alternative)	OracleDocs.g4:3987 createTable_logging_clause: LOGGING | NOLOGGING | FILESYSTEM_LIKE_LOGGING
+createTable_logging_clause(LOGGING|NOLOGGING|FILESYSTEM_LIKE_LOGGING)	(every alternative)	OracleDocs.g4:3987 createTable_logging_clause's choice, which the rule names alone
+createTable_parallel_clause	(every alternative)	OracleDocs.g4:3935 createTable_parallel_clause: NOPARALLEL | PARALLEL NUMBER?
+createTable_parallel_clause(NOPARALLEL|PARALLEL_NUMBER?)	(every alternative)	OracleDocs.g4:3935 createTable_parallel_clause's choice, which the rule names alone
+createTable_read_only_clause	(every alternative)	OracleDocs.g4:3923 createTable_read_only_clause: READ ONLY | READ WRITE
+createTable_read_only_clause(READ_ONLY|READ_WRITE)	(every alternative)	OracleDocs.g4:3923 createTable_read_only_clause's choice, which the rule names alone
+createTable_table_compression	(every alternative)	OracleDocs.g4:3902 createTable_table_compression: NOCOMPRESS | ROW STORE COMPRESS (BASIC | ADVANCED)? | COLUMN STORE COMPRESS FOR (QUERY | ARCHIVE) (LOW | HI...
+createTable_table_compression(NOCOMPRESS|ROW_STORE_COMPRESS_(BASIC~100c56ca)	(every alternative)	OracleDocs.g4:3902 createTable_table_compression's choice, which the rule names alone
+grant_grantee_clause	(every alternative)	OracleDocs.g4:4922 grant_grantee_clause: ID | PUBLIC
+grant_grantee_clause(ID|PUBLIC)	(every alternative)	OracleDocs.g4:4922 grant_grantee_clause's choice, which the rule names alone

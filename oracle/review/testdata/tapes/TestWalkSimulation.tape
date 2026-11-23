@@ -3266,6 +3266,11 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a COALESCE PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a DEALLOCATE UNUSED KEEP 1
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -3366,12 +3371,22 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a REBUILD PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a REBUILD COMPRESS
 < error
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
 | ALTER INDEX a REBUILD LOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a REBUILD NOLOGGING
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -3496,6 +3511,11 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a MODIFY DEFAULT ATTRIBUTES NOLOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ADD PARTITION a
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -3521,12 +3541,32 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a ADD PARTITION COMPRESS ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION NOCOMPRESS
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ADD PARTITION NOPARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
 | ALTER INDEX a ADD PARTITION NORELOCATE
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION PARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -3566,7 +3606,22 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a MODIFY PARTITION a NOLOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a MODIFY PARTITION a COMPRESS
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a MODIFY PARTITION a COMPRESS ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a MODIFY PARTITION a NOCOMPRESS
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -3606,7 +3661,17 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a COALESCE PARTITION NOPARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a COALESCE PARTITION PARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -3661,6 +3726,21 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION COMPRESS ADVANCED, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION ADVANCED, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION NOCOMPRESS, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION USABLE, PARTITION)
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -3697,6 +3777,11 @@
 |
 > exec
 | ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION LOGICAL, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION NOLOGGING, PARTITION)
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -4266,6 +4351,11 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES NO INMEMORY
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES OVERFLOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -4376,6 +4466,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -4406,6 +4501,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a COALESCE SUBPARTITION NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a REBUILD UNUSABLE LOCAL INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -4432,6 +4532,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a READ ONLY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a READ WRITE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -4486,6 +4591,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MOVE PARTITION a NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MOVE PARTITION a ALLOW CLUSTERING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -4512,6 +4622,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MOVE SUBPARTITION a PARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MOVE SUBPARTITION a NOPARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -4547,6 +4662,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a COALESCE PARTITION PARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a COALESCE PARTITION NOPARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -4621,6 +4741,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) ALLOW CLUSTERING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -4681,6 +4806,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a SPLIT SUBPARTITION a AT(1) NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a SPLIT SUBPARTITION a AT(1) ALLOW CLUSTERING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -4721,6 +4851,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, a NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, a ALLOW CLUSTERING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -4747,6 +4882,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a PARALLEL
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a NOPARALLEL
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
@@ -4926,6 +5066,11 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a OVERFLOW NOLOGGING
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a ADD PARTITION INMEMORY
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -4971,6 +5116,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -4987,6 +5137,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ ONLY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ WRITE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -5016,6 +5171,16 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -5027,6 +5192,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOGGING
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -5061,12 +5231,22 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a NO INMEMORY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW LOGGING
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -5142,6 +5322,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION PARAMETERS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION NOPARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -5352,6 +5537,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a ADD PARTITION PARAMETERS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a ADD PARTITION NOPARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -6310,12 +6500,42 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MOVE ROW STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE ROW STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE COLUMN STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE COLUMN STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE NOCOMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MOVE NOMAPPING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER TABLE a MOVE NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -6341,6 +6561,21 @@
 |
 > exec
 | ALTER TABLE a MODIFY UPDATED INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY INVALIDATE GLOBAL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -7125,6 +7360,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY DEFAULT ATTRIBUTES INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -7140,7 +7380,37 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES ROW STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES ROW STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES COLUMN STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES COLUMN STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES NOCOMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY DEFAULT ATTRIBUTES INMEMORY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES NO INMEMORY
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -7240,6 +7510,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -7265,7 +7540,27 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -7296,6 +7591,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY SUBPARTITION a READ ONLY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY SUBPARTITION a READ WRITE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -7345,7 +7645,27 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MOVE PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MOVE PARTITION a NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -7370,12 +7690,32 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MOVE SUBPARTITION a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MOVE SUBPARTITION a INCLUDING ROWS WHERE 1 = 1
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER TABLE a MOVE SUBPARTITION a NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -7410,7 +7750,27 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a COALESCE PARTITION UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a COALESCE PARTITION NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -7445,6 +7805,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a DROP PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP PARTITION a INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a DROP SUBPARTITION FOR(1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -7466,6 +7841,21 @@
 |
 > exec
 | ALTER TABLE a DROP SUBPARTITION a UPDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a INVALIDATE INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -7521,6 +7911,21 @@
 |
 > exec
 | ALTER TABLE a TRUNCATE PARTITION a UPDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a INVALIDATE INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -7585,7 +7990,27 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a SPLIT PARTITION a AT(1) NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -7645,7 +8070,27 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a SPLIT SUBPARTITION a AT(1) NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -7660,7 +8105,37 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MERGE PARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a,(1)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MERGE PARTITIONS a TO a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS(1) TO a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a TO(1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -7685,7 +8160,27 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MERGE PARTITIONS a, a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MERGE PARTITIONS a, a NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -7725,7 +8220,27 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MERGE SUBPARTITIONS a, a NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -7780,6 +8295,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a CASCADE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -7816,6 +8346,11 @@
 |
 > exec
 | ALTER TABLE a OVERFLOW PCTFREE 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a OVERFLOW NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -8026,6 +8561,11 @@
 |
 > exec
 | ALTER TABLE a INMEMORY INMEMORY NO MEMCOMPRESS(a)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a INMEMORY INMEMORY MEMCOMPRESS FOR DML(a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -8424,6 +8964,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY VARRAY a(CACHE NOLOGGING)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY VARRAY a(SHRINK SPACE CASCADE)
 < ok 0 0
 > exec
@@ -8528,6 +9073,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -8544,6 +9094,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ ONLY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ WRITE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -8573,6 +9128,16 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -8589,6 +9154,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a LOGGING
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -8618,7 +9188,37 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ROW STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ROW STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COLUMN STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COLUMN STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NOCOMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a INMEMORY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NO INMEMORY
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -8639,6 +9239,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW PCTFREE 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -8678,6 +9283,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION, SUBPARTITION
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -8708,12 +9328,32 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION NOPARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION NORELOCATE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -8729,6 +9369,21 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) UPDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) INVALIDATE INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -8848,6 +9503,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ADD PARTITION zzz VALUES(1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -8903,6 +9573,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD PARTITION VALUES(1) UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES(1) INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES(1) INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ADD PARTITION a
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -8918,12 +9603,32 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD PARTITION UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ADD PARTITION NOPARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER TABLE a ADD PARTITION NORELOCATE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -9443,12 +10148,22 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ILM ADD POLICY MODIFY INMEMORY MEMCOMPRESS FOR DML SEGMENT AFTER 1 DAY OF CREATION
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ILM ADD POLICY NO INMEMORY SEGMENT AFTER 1 DAY OF CREATION
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER TABLE a ILM ADD POLICY SET INMEMORY NO MEMCOMPRESS SEGMENT AFTER 1 DAY OF CREATION
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ILM ADD POLICY SET INMEMORY MEMCOMPRESS FOR DML SEGMENT AFTER 1 DAY OF CREATION
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -9704,6 +10419,11 @@
 |
 > exec
 | ALTER TABLE a ADD PARTITION INMEMORY NO MEMCOMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION INMEMORY MEMCOMPRESS FOR DML
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -10128,6 +10848,46 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW STORE COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) STORE COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW STORE)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN STORE COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN STORE)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) NOCOMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) INMEMORY)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -10284,6 +11044,11 @@
 |
 > exec
 | ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(CACHE LOGGING)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(CACHE NOLOGGING)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -11203,6 +11968,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| CREATE INDEX a ON a(a) INDEXTYPE IS a NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | CREATE INDEX a ON a(a) INDEXTYPE IS a PARAMETERS('s')
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -11214,6 +11984,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) INDEXTYPE IS XDB.XMLINDEX PARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| CREATE INDEX a ON a(a) INDEXTYPE IS XDB.XMLINDEX NOPARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -11239,6 +12014,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) LOCAL(PARTITION COMPUTATION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| CREATE INDEX a ON a(a) LOCAL(PARTITION NOCOMPRESS)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -11534,6 +12314,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) GLOBAL PARTITION BY HASH(a)(PARTITION COMPUTATION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| CREATE INDEX a ON a(a) GLOBAL PARTITION BY HASH(a)(PARTITION NOCOMPRESS)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -12823,6 +13608,11 @@
 | 904 ORA-00904: "A": invalid identifier
 |
 > exec
+| CREATE MATERIALIZED VIEW a VARRAY a STORE AS LOB(CACHE NOLOGGING) AS SELECT 1 FROM dual
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
 | CREATE MATERIALIZED VIEW a XMLTYPE a STORE AS SECUREFILE CLOB AS SELECT 1 FROM dual
 < error
 | 904 ORA-00904: "A": invalid identifier
@@ -12949,6 +13739,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1) READ ONLY) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 14605 ORA-14605: Name missing for subpartition / lob segment in template
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1) READ WRITE) PARTITIONS 1 AS SELECT 1 FROM dual
 < error
 | 14605 ORA-14605: Name missing for subpartition / lob segment in template
 |
@@ -13728,6 +14523,11 @@
 | 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION NOCOMPRESS) AS SELECT 1 FROM dual
+< error
+| 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION INMEMORY) AS SELECT 1 FROM dual
 < error
 | 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
@@ -14239,6 +15039,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((a NULL USING INDEX LOGICAL)) AS SELECT 1 FROM dual
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((a NULL USING INDEX NOLOGGING)) AS SELECT 1 FROM dual
 < error
 | 904 ORA-00904: "A": invalid identifier
 |
@@ -15614,6 +16419,11 @@
 |
 > exec
 | CREATE TABLE a(PARTITION READ)
+< error
+| 902 ORA-00902: invalid datatype
+|
+> exec
+| CREATE TABLE a(PARTITION WRITE)
 < error
 | 902 ORA-00902: invalid datatype
 |
@@ -20268,6 +21078,11 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a COALESCE PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a DEALLOCATE UNUSED KEEP 1
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -20368,12 +21183,22 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a REBUILD PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a REBUILD COMPRESS
 < error
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
 | ALTER INDEX a REBUILD LOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a REBUILD NOLOGGING
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -20498,6 +21323,11 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a MODIFY DEFAULT ATTRIBUTES NOLOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ADD PARTITION a
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -20523,12 +21353,32 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a ADD PARTITION COMPRESS ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION NOCOMPRESS
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ADD PARTITION NOPARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
 | ALTER INDEX a ADD PARTITION NORELOCATE
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION PARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -20568,7 +21418,22 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a MODIFY PARTITION a NOLOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a MODIFY PARTITION a COMPRESS
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a MODIFY PARTITION a COMPRESS ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a MODIFY PARTITION a NOCOMPRESS
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -20608,7 +21473,17 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a COALESCE PARTITION NOPARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a COALESCE PARTITION PARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -20663,6 +21538,21 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION COMPRESS ADVANCED, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION ADVANCED, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION NOCOMPRESS, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION USABLE, PARTITION)
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -20699,6 +21589,11 @@
 |
 > exec
 | ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION LOGICAL, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION NOLOGGING, PARTITION)
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -21268,6 +22163,11 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES NO INMEMORY
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES OVERFLOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -21378,6 +22278,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -21408,6 +22313,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a COALESCE SUBPARTITION NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a REBUILD UNUSABLE LOCAL INDEXES
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -21434,6 +22344,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a READ ONLY
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a READ WRITE
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -21488,6 +22403,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MOVE PARTITION a NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MOVE PARTITION a ALLOW CLUSTERING
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -21514,6 +22434,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MOVE SUBPARTITION a PARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MOVE SUBPARTITION a NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -21549,6 +22474,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a COALESCE PARTITION PARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a COALESCE PARTITION NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -21623,6 +22553,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) ALLOW CLUSTERING
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -21683,6 +22618,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a SPLIT SUBPARTITION a AT(1) NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a SPLIT SUBPARTITION a AT(1) ALLOW CLUSTERING
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -21723,6 +22663,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, a NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, a ALLOW CLUSTERING
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -21749,6 +22694,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a PARALLEL
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a NOPARALLEL
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
@@ -21928,6 +22878,11 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a OVERFLOW NOLOGGING
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a ADD PARTITION INMEMORY
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -21973,6 +22928,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -21989,6 +22949,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ ONLY
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ WRITE
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -22018,6 +22983,16 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -22029,6 +23004,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOGGING
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a NOLOGGING
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -22063,12 +23043,22 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a NO INMEMORY
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW LOGGING
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW NOLOGGING
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
@@ -22144,6 +23134,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION PARAMETERS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -22354,6 +23349,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a ADD PARTITION PARAMETERS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a ADD PARTITION NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -23638,12 +24638,102 @@
 | CREATE INDEX a_c_idx ON a (c)
 < ok 0 0
 > exec
+| ALTER TABLE a MOVE ROW STORE COMPRESS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT pk_a PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_c_idx ON a (c)
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE ROW STORE
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT pk_a PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_c_idx ON a (c)
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE COLUMN STORE COMPRESS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT pk_a PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_c_idx ON a (c)
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE COLUMN STORE
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT pk_a PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_c_idx ON a (c)
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE NOCOMPRESS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT pk_a PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_c_idx ON a (c)
+< ok 0 0
+> exec
 | ALTER TABLE a MOVE NOMAPPING
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
 | ALTER TABLE a MOVE NOPARALLEL
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT pk_a PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_c_idx ON a (c)
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE PARALLEL
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -23701,6 +24791,21 @@
 | ALTER TABLE a MODIFY UPDATED INDEXES
 < error
 | 904 ORA-00904: "UPDATED": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY GLOBAL INDEXES
+< error
+| 904 ORA-00904: "GLOBAL": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY INVALIDATE INDEXES
+< error
+| 904 ORA-00904: "INVALIDATE": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY INVALIDATE GLOBAL
+< error
+| 904 ORA-00904: "INVALIDATE": invalid identifier
 |
 > exec
 | ALTER TABLE a NO DELETE
@@ -24963,6 +26068,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY DEFAULT ATTRIBUTES INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -24978,7 +26088,37 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES ROW STORE COMPRESS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES ROW STORE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES COLUMN STORE COMPRESS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES COLUMN STORE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES NOCOMPRESS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY DEFAULT ATTRIBUTES INMEMORY
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES NO INMEMORY
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -25078,6 +26218,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -25103,7 +26248,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -25134,6 +26299,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY SUBPARTITION a READ ONLY
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY SUBPARTITION a READ WRITE
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -25183,7 +26353,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MOVE PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MOVE PARTITION a NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -25208,12 +26398,32 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MOVE SUBPARTITION a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MOVE SUBPARTITION a INCLUDING ROWS WHERE 1 = 1
 < error
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
 | ALTER TABLE a MOVE SUBPARTITION a NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -25248,7 +26458,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a COALESCE PARTITION UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a COALESCE PARTITION NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -25283,6 +26513,21 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a DROP PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a DROP PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a DROP PARTITION a INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a DROP SUBPARTITION FOR(1)
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -25304,6 +26549,21 @@
 |
 > exec
 | ALTER TABLE a DROP SUBPARTITION a UPDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a INVALIDATE INDEXES
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -25359,6 +26619,21 @@
 |
 > exec
 | ALTER TABLE a TRUNCATE PARTITION a UPDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a INVALIDATE INDEXES
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -25423,7 +26698,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a SPLIT PARTITION a AT(1) NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -25483,7 +26778,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a SPLIT SUBPARTITION a AT(1) NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -25498,7 +26813,37 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MERGE PARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a,(1)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MERGE PARTITIONS a TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS(1) TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a TO(1)
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -25523,7 +26868,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MERGE PARTITIONS a, a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MERGE PARTITIONS a, a NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -25563,7 +26928,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MERGE SUBPARTITIONS a, a NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -25618,6 +27003,21 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a CASCADE
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -25654,6 +27054,11 @@
 |
 > exec
 | ALTER TABLE a OVERFLOW PCTFREE 1
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a OVERFLOW NOLOGGING
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
@@ -26074,6 +27479,11 @@
 |
 > exec
 | ALTER TABLE a INMEMORY INMEMORY NO MEMCOMPRESS(a)
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| ALTER TABLE a INMEMORY INMEMORY MEMCOMPRESS FOR DML(a)
 < error
 | 904 ORA-00904: "A": invalid identifier
 |
@@ -26748,6 +28158,11 @@
 | 904 ORA-00904: "A": invalid identifier
 |
 > exec
+| ALTER TABLE a MODIFY VARRAY a(CACHE NOLOGGING)
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
 | ALTER TABLE a MODIFY VARRAY a(SHRINK SPACE CASCADE)
 < ok 0 0
 > exec
@@ -26868,6 +28283,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -26884,6 +28304,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ ONLY
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ WRITE
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -26913,6 +28338,16 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -26929,6 +28364,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a LOGGING
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NOLOGGING
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -26958,7 +28398,37 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ROW STORE COMPRESS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ROW STORE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COLUMN STORE COMPRESS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COLUMN STORE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NOCOMPRESS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a INMEMORY
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NO INMEMORY
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -26979,6 +28449,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW PCTFREE 1
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW NOLOGGING
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
@@ -27018,6 +28493,21 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION, SUBPARTITION
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -27048,12 +28538,32 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION NORELOCATE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -27069,6 +28579,21 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) UPDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) INVALIDATE INDEXES
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -27188,6 +28713,21 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a ADD PARTITION zzz VALUES(1)
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -27243,6 +28783,21 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a ADD PARTITION VALUES(1) UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES(1) INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a ADD PARTITION a
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -27258,12 +28813,32 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a ADD PARTITION UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a ADD PARTITION NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
 | ALTER TABLE a ADD PARTITION NORELOCATE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -27913,12 +29488,32 @@
 | 38345 ORA-38345: object not enabled for in-memory column store
 |
 > exec
+| ALTER TABLE a ILM ADD POLICY MODIFY INMEMORY MEMCOMPRESS FOR DML SEGMENT AFTER 1 DAY OF CREATION
+< error
+| 38345 ORA-38345: object not enabled for in-memory column store
+|
+> exec
 | ALTER TABLE a ILM ADD POLICY NO INMEMORY SEGMENT AFTER 1 DAY OF CREATION
 < error
 | 38345 ORA-38345: object not enabled for in-memory column store
 |
 > exec
 | ALTER TABLE a ILM ADD POLICY SET INMEMORY NO MEMCOMPRESS SEGMENT AFTER 1 DAY OF CREATION
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT pk_a PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_c_idx ON a (c)
+< ok 0 0
+> exec
+| ALTER TABLE a ILM ADD POLICY SET INMEMORY MEMCOMPRESS FOR DML SEGMENT AFTER 1 DAY OF CREATION
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -28304,6 +29899,11 @@
 |
 > exec
 | ALTER TABLE a ADD PARTITION INMEMORY NO MEMCOMPRESS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION INMEMORY MEMCOMPRESS FOR DML
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -28728,6 +30328,46 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW STORE COMPRESS)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) STORE COMPRESS)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW COMPRESS)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW STORE)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN STORE COMPRESS)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN COMPRESS)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN STORE)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) NOCOMPRESS)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) INMEMORY)
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
@@ -28884,6 +30524,11 @@
 |
 > exec
 | ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(CACHE LOGGING)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(CACHE NOLOGGING)
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
@@ -29903,6 +31548,11 @@
 | 904 ORA-00904: "A": invalid identifier
 |
 > exec
+| CREATE INDEX a ON a(a) INDEXTYPE IS a NOPARALLEL
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
 | CREATE INDEX a ON a(a) INDEXTYPE IS a PARAMETERS('s')
 < error
 | 904 ORA-00904: "A": invalid identifier
@@ -29914,6 +31564,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) INDEXTYPE IS XDB.XMLINDEX PARALLEL
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| CREATE INDEX a ON a(a) INDEXTYPE IS XDB.XMLINDEX NOPARALLEL
 < error
 | 904 ORA-00904: "A": invalid identifier
 |
@@ -29939,6 +31594,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) LOCAL(PARTITION COMPUTATION)
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| CREATE INDEX a ON a(a) LOCAL(PARTITION NOCOMPRESS)
 < error
 | 904 ORA-00904: "A": invalid identifier
 |
@@ -30234,6 +31894,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) GLOBAL PARTITION BY HASH(a)(PARTITION COMPUTATION)
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| CREATE INDEX a ON a(a) GLOBAL PARTITION BY HASH(a)(PARTITION NOCOMPRESS)
 < error
 | 904 ORA-00904: "A": invalid identifier
 |
@@ -31303,6 +32968,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a VARRAY a STORE AS LOB(CACHE NOLOGGING) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a XMLTYPE a STORE AS SECUREFILE CLOB AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -31429,6 +33099,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1) READ ONLY) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1) READ WRITE) PARTITIONS 1 AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -32208,6 +33883,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION NOCOMPRESS) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION INMEMORY) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -32719,6 +34399,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((a NULL USING INDEX LOGICAL)) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((a NULL USING INDEX NOLOGGING)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -33934,6 +35619,11 @@
 |
 > exec
 | CREATE TABLE a(PARTITION READ)
+< error
+| 902 ORA-00902: invalid datatype
+|
+> exec
+| CREATE TABLE a(PARTITION WRITE)
 < error
 | 902 ORA-00902: invalid datatype
 |
@@ -39712,6 +41402,11 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a COALESCE PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a DEALLOCATE UNUSED KEEP 1
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -39812,12 +41507,22 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a REBUILD PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a REBUILD COMPRESS
 < error
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
 | ALTER INDEX a REBUILD LOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a REBUILD NOLOGGING
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -39942,6 +41647,11 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a MODIFY DEFAULT ATTRIBUTES NOLOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ADD PARTITION a
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -39967,12 +41677,32 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a ADD PARTITION COMPRESS ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION NOCOMPRESS
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ADD PARTITION NOPARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
 | ALTER INDEX a ADD PARTITION NORELOCATE
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION PARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -40012,7 +41742,22 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a MODIFY PARTITION a NOLOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a MODIFY PARTITION a COMPRESS
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a MODIFY PARTITION a COMPRESS ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a MODIFY PARTITION a NOCOMPRESS
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -40052,7 +41797,17 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a COALESCE PARTITION NOPARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a COALESCE PARTITION PARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -40107,6 +41862,21 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION COMPRESS ADVANCED, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION ADVANCED, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION NOCOMPRESS, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION USABLE, PARTITION)
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -40143,6 +41913,11 @@
 |
 > exec
 | ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION LOGICAL, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION NOLOGGING, PARTITION)
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -40712,6 +42487,11 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES NO INMEMORY
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES OVERFLOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -40822,6 +42602,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -40852,6 +42637,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a COALESCE SUBPARTITION NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a REBUILD UNUSABLE LOCAL INDEXES
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -40878,6 +42668,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a READ ONLY
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a READ WRITE
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -40932,6 +42727,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MOVE PARTITION a NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MOVE PARTITION a ALLOW CLUSTERING
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -40958,6 +42758,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MOVE SUBPARTITION a PARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MOVE SUBPARTITION a NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -40993,6 +42798,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a COALESCE PARTITION PARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a COALESCE PARTITION NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -41067,6 +42877,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) ALLOW CLUSTERING
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -41127,6 +42942,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a SPLIT SUBPARTITION a AT(1) NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a SPLIT SUBPARTITION a AT(1) ALLOW CLUSTERING
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -41167,6 +42987,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, a NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, a ALLOW CLUSTERING
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -41193,6 +43018,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a PARALLEL
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a NOPARALLEL
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
@@ -41372,6 +43202,11 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a OVERFLOW NOLOGGING
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a ADD PARTITION INMEMORY
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -41417,6 +43252,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -41433,6 +43273,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ ONLY
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ WRITE
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -41462,6 +43307,16 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -41473,6 +43328,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOGGING
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a NOLOGGING
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -41507,12 +43367,22 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a NO INMEMORY
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW LOGGING
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW NOLOGGING
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
@@ -41588,6 +43458,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION PARAMETERS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -41798,6 +43673,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a ADD PARTITION PARAMETERS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a ADD PARTITION NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -42983,12 +44863,84 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
 < ok 0 0
 > exec
+| ALTER TABLE a MOVE ROW STORE COMPRESS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE ROW STORE
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE COLUMN STORE COMPRESS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE COLUMN STORE
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE NOCOMPRESS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
+< ok 0 0
+> exec
 | ALTER TABLE a MOVE NOMAPPING
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
 | ALTER TABLE a MOVE NOPARALLEL
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE PARALLEL
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -43037,6 +44989,21 @@
 | ALTER TABLE a MODIFY UPDATED INDEXES
 < error
 | 904 ORA-00904: "UPDATED": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY GLOBAL INDEXES
+< error
+| 904 ORA-00904: "GLOBAL": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY INVALIDATE INDEXES
+< error
+| 904 ORA-00904: "INVALIDATE": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY INVALIDATE GLOBAL
+< error
+| 904 ORA-00904: "INVALIDATE": invalid identifier
 |
 > exec
 | ALTER TABLE a NO DELETE
@@ -44197,6 +46164,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY DEFAULT ATTRIBUTES INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -44212,7 +46184,37 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES ROW STORE COMPRESS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES ROW STORE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES COLUMN STORE COMPRESS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES COLUMN STORE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES NOCOMPRESS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY DEFAULT ATTRIBUTES INMEMORY
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES NO INMEMORY
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -44312,6 +46314,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -44337,7 +46344,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -44368,6 +46395,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY SUBPARTITION a READ ONLY
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY SUBPARTITION a READ WRITE
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -44417,7 +46449,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MOVE PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MOVE PARTITION a NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -44442,12 +46494,32 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MOVE SUBPARTITION a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MOVE SUBPARTITION a INCLUDING ROWS WHERE 1 = 1
 < error
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
 | ALTER TABLE a MOVE SUBPARTITION a NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -44482,7 +46554,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a COALESCE PARTITION UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a COALESCE PARTITION NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -44517,6 +46609,21 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a DROP PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a DROP PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a DROP PARTITION a INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a DROP SUBPARTITION FOR(1)
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -44538,6 +46645,21 @@
 |
 > exec
 | ALTER TABLE a DROP SUBPARTITION a UPDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a INVALIDATE INDEXES
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -44593,6 +46715,21 @@
 |
 > exec
 | ALTER TABLE a TRUNCATE PARTITION a UPDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a INVALIDATE INDEXES
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -44657,7 +46794,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a SPLIT PARTITION a AT(1) NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -44717,7 +46874,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a SPLIT SUBPARTITION a AT(1) NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -44732,7 +46909,37 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MERGE PARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a,(1)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MERGE PARTITIONS a TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS(1) TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a TO(1)
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -44757,7 +46964,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MERGE PARTITIONS a, a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MERGE PARTITIONS a, a NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -44797,7 +47024,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MERGE SUBPARTITIONS a, a NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -44852,6 +47099,21 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a CASCADE
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -44888,6 +47150,11 @@
 |
 > exec
 | ALTER TABLE a OVERFLOW PCTFREE 1
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a OVERFLOW NOLOGGING
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
@@ -45294,6 +47561,18 @@
 < ok 0 0
 > exec
 | ALTER TABLE a INMEMORY INMEMORY NO MEMCOMPRESS(a)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a INMEMORY INMEMORY MEMCOMPRESS FOR DML(a)
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -45814,6 +48093,11 @@
 | 22912 ORA-22912: Column or attribute A is not a nested table type.
 |
 > exec
+| ALTER TABLE a MODIFY VARRAY a(CACHE NOLOGGING)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a MODIFY VARRAY a(SHRINK SPACE CASCADE)
 < ok 0 0
 > exec
@@ -45928,6 +48212,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -45944,6 +48233,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ ONLY
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ WRITE
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -45973,6 +48267,16 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -45989,6 +48293,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a LOGGING
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NOLOGGING
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -46018,7 +48327,37 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ROW STORE COMPRESS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ROW STORE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COLUMN STORE COMPRESS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COLUMN STORE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NOCOMPRESS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a INMEMORY
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NO INMEMORY
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -46039,6 +48378,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW PCTFREE 1
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW NOLOGGING
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
@@ -46078,6 +48422,21 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION, SUBPARTITION
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -46108,12 +48467,32 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION NORELOCATE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -46129,6 +48508,21 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) UPDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) INVALIDATE INDEXES
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -46248,6 +48642,21 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a ADD PARTITION zzz VALUES(1)
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -46303,6 +48712,21 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a ADD PARTITION VALUES(1) UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES(1) INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a ADD PARTITION a
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -46318,12 +48742,32 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a ADD PARTITION UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a ADD PARTITION NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
 | ALTER TABLE a ADD PARTITION NORELOCATE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -47074,12 +49518,29 @@
 | 38345 ORA-38345: object not enabled for in-memory column store
 |
 > exec
+| ALTER TABLE a ILM ADD POLICY MODIFY INMEMORY MEMCOMPRESS FOR DML SEGMENT AFTER 1 DAY OF CREATION
+< error
+| 38345 ORA-38345: object not enabled for in-memory column store
+|
+> exec
 | ALTER TABLE a ILM ADD POLICY NO INMEMORY SEGMENT AFTER 1 DAY OF CREATION
 < error
 | 38345 ORA-38345: object not enabled for in-memory column store
 |
 > exec
 | ALTER TABLE a ILM ADD POLICY SET INMEMORY NO MEMCOMPRESS SEGMENT AFTER 1 DAY OF CREATION
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a ILM ADD POLICY SET INMEMORY MEMCOMPRESS FOR DML SEGMENT AFTER 1 DAY OF CREATION
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -47391,6 +49852,11 @@
 |
 > exec
 | ALTER TABLE a ADD PARTITION INMEMORY NO MEMCOMPRESS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION INMEMORY MEMCOMPRESS FOR DML
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -47864,6 +50330,46 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW STORE COMPRESS)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) STORE COMPRESS)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW COMPRESS)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW STORE)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN STORE COMPRESS)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN COMPRESS)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN STORE)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) NOCOMPRESS)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) INMEMORY)
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
@@ -48020,6 +50526,11 @@
 |
 > exec
 | ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(CACHE LOGGING)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(CACHE NOLOGGING)
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
@@ -49061,6 +51572,11 @@
 | 29833 ORA-29833: The indextype does not exist.
 |
 > exec
+| CREATE INDEX a ON a(a) INDEXTYPE IS a NOPARALLEL
+< error
+| 29833 ORA-29833: The indextype does not exist.
+|
+> exec
 | CREATE INDEX a ON a(a) INDEXTYPE IS a PARAMETERS('s')
 < error
 | 29833 ORA-29833: The indextype does not exist.
@@ -49072,6 +51588,12 @@
 |
 > exec
 | CREATE INDEX a ON a(a) INDEXTYPE IS XDB.XMLINDEX PARALLEL
+< error
+| 29958 ORA-29958: ODCI_FATAL returned by the implementation of the ODCIINDEXCREATE routine for index "SIMSHOP"."A".
+| ORA-30963: The indexed column is not of XMLTYPE.
+|
+> exec
+| CREATE INDEX a ON a(a) INDEXTYPE IS XDB.XMLINDEX NOPARALLEL
 < error
 | 29958 ORA-29958: ODCI_FATAL returned by the implementation of the ODCIINDEXCREATE routine for index "SIMSHOP"."A".
 | ORA-30963: The indexed column is not of XMLTYPE.
@@ -49099,6 +51621,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) LOCAL(PARTITION COMPUTATION)
+< error
+| 14016 ORA-14016: underlying table of a LOCAL partitioned index must be partitioned
+|
+> exec
+| CREATE INDEX a ON a(a) LOCAL(PARTITION NOCOMPRESS)
 < error
 | 14016 ORA-14016: underlying table of a LOCAL partitioned index must be partitioned
 |
@@ -49436,6 +51963,18 @@
 |
 > exec
 | CREATE INDEX a ON a(a) GLOBAL PARTITION BY HASH(a)(PARTITION COMPUTATION)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
+< ok 0 0
+> exec
+| CREATE INDEX a ON a(a) GLOBAL PARTITION BY HASH(a)(PARTITION NOCOMPRESS)
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -50509,6 +53048,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a VARRAY a STORE AS LOB(CACHE NOLOGGING) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a XMLTYPE a STORE AS SECUREFILE CLOB AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -50635,6 +53179,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1) READ ONLY) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1) READ WRITE) PARTITIONS 1 AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -51414,6 +53963,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION NOCOMPRESS) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION INMEMORY) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -51925,6 +54479,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((a NULL USING INDEX LOGICAL)) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((a NULL USING INDEX NOLOGGING)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -53128,6 +55687,11 @@
 |
 > exec
 | CREATE TABLE a(PARTITION READ)
+< error
+| 902 ORA-00902: invalid datatype
+|
+> exec
+| CREATE TABLE a(PARTITION WRITE)
 < error
 | 902 ORA-00902: invalid datatype
 |
@@ -58408,6 +60972,11 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a COALESCE PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a DEALLOCATE UNUSED KEEP 1
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -58508,12 +61077,22 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a REBUILD PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a REBUILD COMPRESS
 < error
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
 | ALTER INDEX a REBUILD LOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a REBUILD NOLOGGING
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -58638,6 +61217,11 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a MODIFY DEFAULT ATTRIBUTES NOLOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ADD PARTITION a
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -58663,12 +61247,32 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a ADD PARTITION COMPRESS ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION NOCOMPRESS
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ADD PARTITION NOPARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
 | ALTER INDEX a ADD PARTITION NORELOCATE
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION PARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -58708,7 +61312,22 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a MODIFY PARTITION a NOLOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a MODIFY PARTITION a COMPRESS
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a MODIFY PARTITION a COMPRESS ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a MODIFY PARTITION a NOCOMPRESS
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -58748,7 +61367,17 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a COALESCE PARTITION NOPARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a COALESCE PARTITION PARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -58803,6 +61432,21 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION COMPRESS ADVANCED, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION ADVANCED, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION NOCOMPRESS, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION USABLE, PARTITION)
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -58839,6 +61483,11 @@
 |
 > exec
 | ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION LOGICAL, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION NOLOGGING, PARTITION)
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -59422,6 +62071,11 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES NO INMEMORY
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES OVERFLOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -59546,6 +62200,18 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a READ WRITE
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a INDEXING ON
 < ok 0 0
 > exec
@@ -59583,6 +62249,11 @@
 | 14253 ORA-14253: table is not partitioned by composite partition method
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a COALESCE SUBPARTITION NOPARALLEL
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a REBUILD UNUSABLE LOCAL INDEXES
 < ok 0 0
 > exec
@@ -59616,6 +62287,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a READ ONLY
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a READ WRITE
 < error
 | 14253 ORA-14253: table is not partitioned by composite partition method
 |
@@ -59691,6 +62367,18 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER MATERIALIZED VIEW a MOVE PARTITION a NOPARALLEL
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER MATERIALIZED VIEW a MOVE PARTITION a ALLOW CLUSTERING
 < ok 0 0
 > exec
@@ -59735,6 +62423,11 @@
 | 14251 ORA-14251: Specified subpartition does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MOVE SUBPARTITION a NOPARALLEL
+< error
+| 14251 ORA-14251: Specified subpartition does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MOVE SUBPARTITION a ALLOW CLUSTERING
 < error
 | 14251 ORA-14251: Specified subpartition does not exist
@@ -59766,6 +62459,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a COALESCE PARTITION PARALLEL
+< error
+| 14259 ORA-14259: table is not partitioned by Hash method
+|
+> exec
+| ALTER MATERIALIZED VIEW a COALESCE PARTITION NOPARALLEL
 < error
 | 14259 ORA-14259: table is not partitioned by Hash method
 |
@@ -59840,6 +62538,11 @@
 | 14080 ORA-14080: partition cannot be split along the specified high bound
 |
 > exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NOPARALLEL
+< error
+| 14080 ORA-14080: partition cannot be split along the specified high bound
+|
+> exec
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) ALLOW CLUSTERING
 < error
 | 14080 ORA-14080: partition cannot be split along the specified high bound
@@ -59900,6 +62603,11 @@
 | 14251 ORA-14251: Specified subpartition does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a SPLIT SUBPARTITION a AT(1) NOPARALLEL
+< error
+| 14251 ORA-14251: Specified subpartition does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a SPLIT SUBPARTITION a AT(1) ALLOW CLUSTERING
 < error
 | 14251 ORA-14251: Specified subpartition does not exist
@@ -59940,6 +62648,11 @@
 | 14315 ORA-14315: cannot merge a partition with itself
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, a NOPARALLEL
+< error
+| 14315 ORA-14315: cannot merge a partition with itself
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, a ALLOW CLUSTERING
 < error
 | 14315 ORA-14315: cannot merge a partition with itself
@@ -59966,6 +62679,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a PARALLEL
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a NOPARALLEL
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
@@ -60145,6 +62863,11 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a OVERFLOW NOLOGGING
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a ADD PARTITION INMEMORY
 < error
 | 14018 ORA-14018: partition bound list contains too few elements
@@ -60190,6 +62913,11 @@
 | 14253 ORA-14253: table is not partitioned by composite partition method
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) READ WRITE
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INDEXING ON
 < error
 | 14253 ORA-14253: table is not partitioned by composite partition method
@@ -60206,6 +62934,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ ONLY
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ WRITE
 < error
 | 14253 ORA-14253: table is not partitioned by composite partition method
 |
@@ -60235,6 +62968,16 @@
 | 14253 ORA-14253: table is not partitioned by composite partition method
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION READ WRITE
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION WRITE
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION INDEXING ON
 < error
 | 14253 ORA-14253: table is not partitioned by composite partition method
@@ -60246,6 +62989,18 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOGGING
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a NOLOGGING
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -60329,12 +63084,29 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a NO INMEMORY
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW LOGGING
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW NOLOGGING
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
@@ -60410,6 +63182,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION PARAMETERS
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION NOPARALLEL
 < error
 | 14253 ORA-14253: table is not partitioned by composite partition method
 |
@@ -60622,6 +63399,11 @@
 | ALTER MATERIALIZED VIEW a ADD PARTITION PARAMETERS
 < error
 | 14018 ORA-14018: partition bound list contains too few elements
+|
+> exec
+| ALTER MATERIALIZED VIEW a ADD PARTITION NOPARALLEL
+< error
+| 14267 ORA-14267: cannot specify PARALLEL clause when adding a (composite) partition
 |
 > exec
 | ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, a INTO PARTITION a
@@ -61826,12 +64608,70 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a MOVE ROW STORE COMPRESS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE ROW STORE
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE COLUMN STORE COMPRESS
+< error
+| 64307 ORA-64307:  Exadata Hybrid Columnar Compression is not supported for tablespaces on this storage type
+|
+> exec
+| ALTER TABLE a MOVE COLUMN STORE
+< error
+| 64307 ORA-64307:  Exadata Hybrid Columnar Compression is not supported for tablespaces on this storage type
+|
+> exec
+| ALTER TABLE a MOVE NOCOMPRESS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a MOVE NOMAPPING
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
 | ALTER TABLE a MOVE NOPARALLEL
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE PARALLEL
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -61873,6 +64713,21 @@
 | ALTER TABLE a MODIFY UPDATED INDEXES
 < error
 | 904 ORA-00904: "UPDATED": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY GLOBAL INDEXES
+< error
+| 904 ORA-00904: "GLOBAL": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY INVALIDATE INDEXES
+< error
+| 904 ORA-00904: "INVALIDATE": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY INVALIDATE GLOBAL
+< error
+| 904 ORA-00904: "INVALIDATE": invalid identifier
 |
 > exec
 | ALTER TABLE a NO DELETE
@@ -62970,6 +65825,18 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES READ WRITE
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a MODIFY DEFAULT ATTRIBUTES INDEXING ON
 < ok 0 0
 > exec
@@ -63006,7 +65873,79 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES ROW STORE COMPRESS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES ROW STORE
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES COLUMN STORE COMPRESS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES COLUMN STORE
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES NOCOMPRESS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a MODIFY DEFAULT ATTRIBUTES INMEMORY
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES NO INMEMORY
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -63134,6 +66073,18 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a MODIFY PARTITION a READ WRITE
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a MODIFY PARTITION a INDEXING ON
 < ok 0 0
 > exec
@@ -63166,7 +66117,27 @@
 | 14253 ORA-14253: table is not partitioned by composite partition method
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION UPDATE GLOBAL INDEXES
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION INVALIDATE INDEXES
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION NOPARALLEL
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION PARALLEL
 < error
 | 14253 ORA-14253: table is not partitioned by composite partition method
 |
@@ -63204,6 +66175,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY SUBPARTITION a READ ONLY
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
+| ALTER TABLE a MODIFY SUBPARTITION a READ WRITE
 < error
 | 14253 ORA-14253: table is not partitioned by composite partition method
 |
@@ -63267,7 +66243,55 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a MOVE PARTITION a UPDATE GLOBAL INDEXES
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE PARTITION a INVALIDATE GLOBAL INDEXES
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE PARTITION a INVALIDATE INDEXES
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a MOVE PARTITION a NOPARALLEL
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE PARTITION a PARALLEL
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -63313,12 +66337,32 @@
 | 14251 ORA-14251: Specified subpartition does not exist
 |
 > exec
+| ALTER TABLE a MOVE SUBPARTITION a UPDATE GLOBAL INDEXES
+< error
+| 14251 ORA-14251: Specified subpartition does not exist
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 14251 ORA-14251: Specified subpartition does not exist
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a INVALIDATE INDEXES
+< error
+| 14251 ORA-14251: Specified subpartition does not exist
+|
+> exec
 | ALTER TABLE a MOVE SUBPARTITION a INCLUDING ROWS WHERE 1 = 1
 < error
 | 14251 ORA-14251: Specified subpartition does not exist
 |
 > exec
 | ALTER TABLE a MOVE SUBPARTITION a NOPARALLEL
+< error
+| 14251 ORA-14251: Specified subpartition does not exist
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a PARALLEL
 < error
 | 14251 ORA-14251: Specified subpartition does not exist
 |
@@ -63353,7 +66397,27 @@
 | 14259 ORA-14259: table is not partitioned by Hash method
 |
 > exec
+| ALTER TABLE a COALESCE PARTITION UPDATE GLOBAL INDEXES
+< error
+| 14259 ORA-14259: table is not partitioned by Hash method
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 14259 ORA-14259: table is not partitioned by Hash method
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION INVALIDATE INDEXES
+< error
+| 14259 ORA-14259: table is not partitioned by Hash method
+|
+> exec
 | ALTER TABLE a COALESCE PARTITION NOPARALLEL
+< error
+| 14259 ORA-14259: table is not partitioned by Hash method
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION PARALLEL
 < error
 | 14259 ORA-14259: table is not partitioned by Hash method
 |
@@ -63402,6 +66466,42 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a DROP PARTITION a UPDATE GLOBAL INDEXES
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a DROP PARTITION a INVALIDATE GLOBAL INDEXES
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a DROP PARTITION a INVALIDATE INDEXES
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a DROP SUBPARTITION FOR(1)
 < error
 | 14702 ORA-14702: The partition number is invalid or out-of-range
@@ -63423,6 +66523,21 @@
 |
 > exec
 | ALTER TABLE a DROP SUBPARTITION a UPDATE INDEXES
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a UPDATE GLOBAL INDEXES
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a INVALIDATE INDEXES
 < error
 | 14253 ORA-14253: table is not partitioned by composite partition method
 |
@@ -63524,6 +66639,42 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a TRUNCATE PARTITION a UPDATE GLOBAL INDEXES
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a INVALIDATE GLOBAL INDEXES
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a INVALIDATE INDEXES
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a TRUNCATE PARTITION a CASCADE
 < ok 0 0
 > exec
@@ -63591,7 +66742,27 @@
 | 14080 ORA-14080: partition cannot be split along the specified high bound
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) UPDATE GLOBAL INDEXES
+< error
+| 14080 ORA-14080: partition cannot be split along the specified high bound
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14080 ORA-14080: partition cannot be split along the specified high bound
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) INVALIDATE INDEXES
+< error
+| 14080 ORA-14080: partition cannot be split along the specified high bound
+|
+> exec
 | ALTER TABLE a SPLIT PARTITION a AT(1) NOPARALLEL
+< error
+| 14080 ORA-14080: partition cannot be split along the specified high bound
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) PARALLEL
 < error
 | 14080 ORA-14080: partition cannot be split along the specified high bound
 |
@@ -63651,7 +66822,27 @@
 | 14251 ORA-14251: Specified subpartition does not exist
 |
 > exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) UPDATE GLOBAL INDEXES
+< error
+| 14251 ORA-14251: Specified subpartition does not exist
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14251 ORA-14251: Specified subpartition does not exist
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) INVALIDATE INDEXES
+< error
+| 14251 ORA-14251: Specified subpartition does not exist
+|
+> exec
 | ALTER TABLE a SPLIT SUBPARTITION a AT(1) NOPARALLEL
+< error
+| 14251 ORA-14251: Specified subpartition does not exist
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) PARALLEL
 < error
 | 14251 ORA-14251: Specified subpartition does not exist
 |
@@ -63666,9 +66857,39 @@
 | 14251 ORA-14251: Specified subpartition does not exist
 |
 > exec
+| ALTER TABLE a MERGE PARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a,(1)
+< error
+| 2149 ORA-02149: Specified partition does not exist 
+|
+> exec
 | ALTER TABLE a MERGE PARTITIONS a TO a
 < error
 | 14315 ORA-14315: cannot merge a partition with itself
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS(1) TO a
+< error
+| 14108 ORA-14108: illegal partition-extended table name syntax
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a TO(1)
+< error
+| 2149 ORA-02149: Specified partition does not exist 
 |
 > exec
 | ALTER TABLE a MERGE PARTITIONS a, a INTO PARTITION
@@ -63691,7 +66912,27 @@
 | 14315 ORA-14315: cannot merge a partition with itself
 |
 > exec
+| ALTER TABLE a MERGE PARTITIONS a, a UPDATE GLOBAL INDEXES
+< error
+| 14315 ORA-14315: cannot merge a partition with itself
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a INVALIDATE GLOBAL INDEXES
+< error
+| 14315 ORA-14315: cannot merge a partition with itself
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a INVALIDATE INDEXES
+< error
+| 14315 ORA-14315: cannot merge a partition with itself
+|
+> exec
 | ALTER TABLE a MERGE PARTITIONS a, a NOPARALLEL
+< error
+| 14315 ORA-14315: cannot merge a partition with itself
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a PARALLEL
 < error
 | 14315 ORA-14315: cannot merge a partition with itself
 |
@@ -63731,7 +66972,27 @@
 | 14251 ORA-14251: Specified subpartition does not exist
 |
 > exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a UPDATE GLOBAL INDEXES
+< error
+| 14251 ORA-14251: Specified subpartition does not exist
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a INVALIDATE GLOBAL INDEXES
+< error
+| 14251 ORA-14251: Specified subpartition does not exist
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a INVALIDATE INDEXES
+< error
+| 14251 ORA-14251: Specified subpartition does not exist
+|
+> exec
 | ALTER TABLE a MERGE SUBPARTITIONS a, a NOPARALLEL
+< error
+| 14251 ORA-14251: Specified subpartition does not exist
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a PARALLEL
 < error
 | 14251 ORA-14251: Specified subpartition does not exist
 |
@@ -63786,6 +67047,21 @@
 | 14095 ORA-14095: ALTER TABLE EXCHANGE requires a non-partitioned, non-clustered table
 |
 > exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a UPDATE GLOBAL INDEXES
+< error
+| 14095 ORA-14095: ALTER TABLE EXCHANGE requires a non-partitioned, non-clustered table
+|
+> exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a INVALIDATE GLOBAL INDEXES
+< error
+| 14095 ORA-14095: ALTER TABLE EXCHANGE requires a non-partitioned, non-clustered table
+|
+> exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a INVALIDATE INDEXES
+< error
+| 14095 ORA-14095: ALTER TABLE EXCHANGE requires a non-partitioned, non-clustered table
+|
+> exec
 | ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a CASCADE
 < error
 | 14095 ORA-14095: ALTER TABLE EXCHANGE requires a non-partitioned, non-clustered table
@@ -63822,6 +67098,11 @@
 |
 > exec
 | ALTER TABLE a OVERFLOW PCTFREE 1
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a OVERFLOW NOLOGGING
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
@@ -64228,6 +67509,18 @@
 < ok 0 0
 > exec
 | ALTER TABLE a INMEMORY INMEMORY NO MEMCOMPRESS(a)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a INMEMORY INMEMORY MEMCOMPRESS FOR DML(a)
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -64748,6 +68041,11 @@
 | 22912 ORA-22912: Column or attribute A is not a nested table type.
 |
 > exec
+| ALTER TABLE a MODIFY VARRAY a(CACHE NOLOGGING)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a MODIFY VARRAY a(SHRINK SPACE CASCADE)
 < ok 0 0
 > exec
@@ -64862,6 +68160,11 @@
 | 14253 ORA-14253: table is not partitioned by composite partition method
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) READ WRITE
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INDEXING ON
 < error
 | 14253 ORA-14253: table is not partitioned by composite partition method
@@ -64878,6 +68181,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ ONLY
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ WRITE
 < error
 | 14253 ORA-14253: table is not partitioned by composite partition method
 |
@@ -64907,6 +68215,16 @@
 | 14253 ORA-14253: table is not partitioned by composite partition method
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION READ WRITE
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION WRITE
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INDEXING ON
 < error
 | 14253 ORA-14253: table is not partitioned by composite partition method
@@ -64930,6 +68248,18 @@
 < ok 0 0
 > exec
 | ALTER TABLE a MODIFY PARTITION a LOGGING
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a MODIFY PARTITION a NOLOGGING
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -65001,7 +68331,65 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a MODIFY PARTITION a ROW STORE COMPRESS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a MODIFY PARTITION a ROW STORE
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a MODIFY PARTITION a COLUMN STORE COMPRESS
+< error
+| 64307 ORA-64307:  Exadata Hybrid Columnar Compression is not supported for tablespaces on this storage type
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COLUMN STORE
+< error
+| 64307 ORA-64307:  Exadata Hybrid Columnar Compression is not supported for tablespaces on this storage type
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NOCOMPRESS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a MODIFY PARTITION a INMEMORY
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a MODIFY PARTITION a NO INMEMORY
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -65029,6 +68417,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW PCTFREE 1
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW NOLOGGING
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
@@ -65068,6 +68461,21 @@
 | 14253 ORA-14253: table is not partitioned by composite partition method
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) UPDATE GLOBAL INDEXES
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INVALIDATE INDEXES
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION, SUBPARTITION
 < error
 | 14253 ORA-14253: table is not partitioned by composite partition method
@@ -65098,12 +68506,32 @@
 | 14253 ORA-14253: table is not partitioned by composite partition method
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION UPDATE GLOBAL INDEXES
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INVALIDATE INDEXES
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION NOPARALLEL
 < error
 | 14253 ORA-14253: table is not partitioned by composite partition method
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION NORELOCATE
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION PARALLEL
 < error
 | 14253 ORA-14253: table is not partitioned by composite partition method
 |
@@ -65119,6 +68547,21 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) UPDATE INDEXES
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) UPDATE GLOBAL INDEXES
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14253 ORA-14253: table is not partitioned by composite partition method
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) INVALIDATE INDEXES
 < error
 | 14253 ORA-14253: table is not partitioned by composite partition method
 |
@@ -65238,6 +68681,21 @@
 | 14074 ORA-14074: partition bound must collate higher than that of the last partition
 |
 > exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) UPDATE GLOBAL INDEXES
+< error
+| 14074 ORA-14074: partition bound must collate higher than that of the last partition
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) INVALIDATE GLOBAL INDEXES
+< error
+| 30564 ORA-30564: index maintenance clause not allowed for ADD partition to RANGE partitioned tables
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) INVALIDATE INDEXES
+< error
+| 30564 ORA-30564: index maintenance clause not allowed for ADD partition to RANGE partitioned tables
+|
+> exec
 | ALTER TABLE a ADD PARTITION zzz VALUES(1)
 < error
 | 14311 ORA-14311: Expecting VALUES LESS THAN  or AT clause
@@ -65293,6 +68751,21 @@
 | 14311 ORA-14311: Expecting VALUES LESS THAN  or AT clause
 |
 > exec
+| ALTER TABLE a ADD PARTITION VALUES(1) UPDATE GLOBAL INDEXES
+< error
+| 14311 ORA-14311: Expecting VALUES LESS THAN  or AT clause
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14311 ORA-14311: Expecting VALUES LESS THAN  or AT clause
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES(1) INVALIDATE INDEXES
+< error
+| 14311 ORA-14311: Expecting VALUES LESS THAN  or AT clause
+|
+> exec
 | ALTER TABLE a ADD PARTITION a
 < error
 | 14018 ORA-14018: partition bound list contains too few elements
@@ -65308,6 +68781,21 @@
 | 14018 ORA-14018: partition bound list contains too few elements
 |
 > exec
+| ALTER TABLE a ADD PARTITION UPDATE GLOBAL INDEXES
+< error
+| 14018 ORA-14018: partition bound list contains too few elements
+|
+> exec
+| ALTER TABLE a ADD PARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 30564 ORA-30564: index maintenance clause not allowed for ADD partition to RANGE partitioned tables
+|
+> exec
+| ALTER TABLE a ADD PARTITION INVALIDATE INDEXES
+< error
+| 30564 ORA-30564: index maintenance clause not allowed for ADD partition to RANGE partitioned tables
+|
+> exec
 | ALTER TABLE a ADD PARTITION NOPARALLEL
 < error
 | 14267 ORA-14267: cannot specify PARALLEL clause when adding a (composite) partition
@@ -65316,6 +68804,11 @@
 | ALTER TABLE a ADD PARTITION NORELOCATE
 < error
 | 14018 ORA-14018: partition bound list contains too few elements
+|
+> exec
+| ALTER TABLE a ADD PARTITION PARALLEL
+< error
+| 14267 ORA-14267: cannot specify PARALLEL clause when adding a (composite) partition
 |
 > exec
 | ALTER TABLE a MERGE PARTITIONS a, a INTO PARTITION a
@@ -66064,12 +69557,29 @@
 | 38345 ORA-38345: object not enabled for in-memory column store
 |
 > exec
+| ALTER TABLE a ILM ADD POLICY MODIFY INMEMORY MEMCOMPRESS FOR DML SEGMENT AFTER 1 DAY OF CREATION
+< error
+| 38345 ORA-38345: object not enabled for in-memory column store
+|
+> exec
 | ALTER TABLE a ILM ADD POLICY NO INMEMORY SEGMENT AFTER 1 DAY OF CREATION
 < error
 | 38345 ORA-38345: object not enabled for in-memory column store
 |
 > exec
 | ALTER TABLE a ILM ADD POLICY SET INMEMORY NO MEMCOMPRESS SEGMENT AFTER 1 DAY OF CREATION
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a ILM ADD POLICY SET INMEMORY MEMCOMPRESS FOR DML SEGMENT AFTER 1 DAY OF CREATION
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -66381,6 +69891,11 @@
 |
 > exec
 | ALTER TABLE a ADD PARTITION INMEMORY NO MEMCOMPRESS
+< error
+| 14018 ORA-14018: partition bound list contains too few elements
+|
+> exec
+| ALTER TABLE a ADD PARTITION INMEMORY MEMCOMPRESS FOR DML
 < error
 | 14018 ORA-14018: partition bound list contains too few elements
 |
@@ -66861,6 +70376,46 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW STORE COMPRESS)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) STORE COMPRESS)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW COMPRESS)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW STORE)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN STORE COMPRESS)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN COMPRESS)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN STORE)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) NOCOMPRESS)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) INMEMORY)
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
@@ -67017,6 +70572,11 @@
 |
 > exec
 | ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(CACHE LOGGING)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(CACHE NOLOGGING)
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
@@ -68065,6 +71625,11 @@
 | 29833 ORA-29833: The indextype does not exist.
 |
 > exec
+| CREATE INDEX a ON a(a) INDEXTYPE IS a NOPARALLEL
+< error
+| 29833 ORA-29833: The indextype does not exist.
+|
+> exec
 | CREATE INDEX a ON a(a) INDEXTYPE IS a PARAMETERS('s')
 < error
 | 29833 ORA-29833: The indextype does not exist.
@@ -68077,6 +71642,12 @@
 |
 > exec
 | CREATE INDEX a ON a(a) INDEXTYPE IS XDB.XMLINDEX PARALLEL
+< error
+| 29958 ORA-29958: ODCI_FATAL returned by the implementation of the ODCIINDEXCREATE routine for index "SIMSHOP"."A".
+| ORA-30963: The indexed column is not of XMLTYPE.
+|
+> exec
+| CREATE INDEX a ON a(a) INDEXTYPE IS XDB.XMLINDEX NOPARALLEL
 < error
 | 29958 ORA-29958: ODCI_FATAL returned by the implementation of the ODCIINDEXCREATE routine for index "SIMSHOP"."A".
 | ORA-30963: The indexed column is not of XMLTYPE.
@@ -68104,6 +71675,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) LOCAL(PARTITION COMPUTATION)
+< error
+| 14024 ORA-14024: number of partitions of LOCAL index must equal that of the underlying table
+|
+> exec
+| CREATE INDEX a ON a(a) LOCAL(PARTITION NOCOMPRESS)
 < error
 | 14024 ORA-14024: number of partitions of LOCAL index must equal that of the underlying table
 |
@@ -68457,6 +72033,18 @@
 |
 > exec
 | CREATE INDEX a ON a(a) GLOBAL PARTITION BY HASH(a)(PARTITION COMPUTATION)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE INDEX a ON a(a) GLOBAL PARTITION BY HASH(a)(PARTITION NOCOMPRESS)
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -69530,6 +73118,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a VARRAY a STORE AS LOB(CACHE NOLOGGING) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a XMLTYPE a STORE AS SECUREFILE CLOB AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -69656,6 +73249,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1) READ ONLY) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1) READ WRITE) PARTITIONS 1 AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -70435,6 +74033,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION NOCOMPRESS) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION INMEMORY) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -70946,6 +74549,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((a NULL USING INDEX LOGICAL)) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((a NULL USING INDEX NOLOGGING)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -72149,6 +75757,11 @@
 |
 > exec
 | CREATE TABLE a(PARTITION READ)
+< error
+| 902 ORA-00902: invalid datatype
+|
+> exec
+| CREATE TABLE a(PARTITION WRITE)
 < error
 | 902 ORA-00902: invalid datatype
 |
@@ -77651,6 +81264,21 @@
 | CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW BEGIN NULL; END;
 < ok 0 0
 > exec
+| ALTER INDEX a COALESCE PARALLEL
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, c NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a ON t (c)
+< ok 0 0
+> exec
+| CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW BEGIN NULL; END;
+< ok 0 0
+> exec
 | ALTER INDEX a DEALLOCATE UNUSED KEEP 1
 < ok 0 0
 > exec
@@ -77871,6 +81499,21 @@
 | CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW BEGIN NULL; END;
 < ok 0 0
 > exec
+| ALTER INDEX a REBUILD PARALLEL
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, c NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a ON t (c)
+< ok 0 0
+> exec
+| CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW BEGIN NULL; END;
+< ok 0 0
+> exec
 | ALTER INDEX a REBUILD COMPRESS
 < ok 0 0
 > exec
@@ -77887,6 +81530,21 @@
 < ok 0 0
 > exec
 | ALTER INDEX a REBUILD LOGGING
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, c NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a ON t (c)
+< ok 0 0
+> exec
+| CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW BEGIN NULL; END;
+< ok 0 0
+> exec
+| ALTER INDEX a REBUILD NOLOGGING
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -78111,6 +81769,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER INDEX a MODIFY DEFAULT ATTRIBUTES NOLOGGING
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER INDEX a ADD PARTITION a
 < error
 | 14075 ORA-14075: partition maintenance operations may only be performed on partitioned indices
@@ -78136,12 +81799,32 @@
 | 14075 ORA-14075: partition maintenance operations may only be performed on partitioned indices
 |
 > exec
+| ALTER INDEX a ADD PARTITION COMPRESS ADVANCED
+< error
+| 14075 ORA-14075: partition maintenance operations may only be performed on partitioned indices
+|
+> exec
+| ALTER INDEX a ADD PARTITION ADVANCED
+< error
+| 14075 ORA-14075: partition maintenance operations may only be performed on partitioned indices
+|
+> exec
+| ALTER INDEX a ADD PARTITION NOCOMPRESS
+< error
+| 14075 ORA-14075: partition maintenance operations may only be performed on partitioned indices
+|
+> exec
 | ALTER INDEX a ADD PARTITION NOPARALLEL
 < error
 | 14075 ORA-14075: partition maintenance operations may only be performed on partitioned indices
 |
 > exec
 | ALTER INDEX a ADD PARTITION NORELOCATE
+< error
+| 14075 ORA-14075: partition maintenance operations may only be performed on partitioned indices
+|
+> exec
+| ALTER INDEX a ADD PARTITION PARALLEL
 < error
 | 14075 ORA-14075: partition maintenance operations may only be performed on partitioned indices
 |
@@ -78181,7 +81864,22 @@
 | 14075 ORA-14075: partition maintenance operations may only be performed on partitioned indices
 |
 > exec
+| ALTER INDEX a MODIFY PARTITION a NOLOGGING
+< error
+| 14075 ORA-14075: partition maintenance operations may only be performed on partitioned indices
+|
+> exec
 | ALTER INDEX a MODIFY PARTITION a COMPRESS
+< error
+| 14075 ORA-14075: partition maintenance operations may only be performed on partitioned indices
+|
+> exec
+| ALTER INDEX a MODIFY PARTITION a COMPRESS ADVANCED
+< error
+| 14075 ORA-14075: partition maintenance operations may only be performed on partitioned indices
+|
+> exec
+| ALTER INDEX a MODIFY PARTITION a NOCOMPRESS
 < error
 | 14075 ORA-14075: partition maintenance operations may only be performed on partitioned indices
 |
@@ -78221,7 +81919,17 @@
 | 14075 ORA-14075: partition maintenance operations may only be performed on partitioned indices
 |
 > exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) PARALLEL
+< error
+| 14075 ORA-14075: partition maintenance operations may only be performed on partitioned indices
+|
+> exec
 | ALTER INDEX a COALESCE PARTITION NOPARALLEL
+< error
+| 14075 ORA-14075: partition maintenance operations may only be performed on partitioned indices
+|
+> exec
+| ALTER INDEX a COALESCE PARTITION PARALLEL
 < error
 | 14075 ORA-14075: partition maintenance operations may only be performed on partitioned indices
 |
@@ -78316,6 +82024,21 @@
 | 14075 ORA-14075: partition maintenance operations may only be performed on partitioned indices
 |
 > exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION COMPRESS ADVANCED, PARTITION)
+< error
+| 14075 ORA-14075: partition maintenance operations may only be performed on partitioned indices
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION ADVANCED, PARTITION)
+< error
+| 14075 ORA-14075: partition maintenance operations may only be performed on partitioned indices
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION NOCOMPRESS, PARTITION)
+< error
+| 14075 ORA-14075: partition maintenance operations may only be performed on partitioned indices
+|
+> exec
 | ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION USABLE, PARTITION)
 < error
 | 14075 ORA-14075: partition maintenance operations may only be performed on partitioned indices
@@ -78352,6 +82075,11 @@
 |
 > exec
 | ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION LOGICAL, PARTITION)
+< error
+| 14075 ORA-14075: partition maintenance operations may only be performed on partitioned indices
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION NOLOGGING, PARTITION)
 < error
 | 14075 ORA-14075: partition maintenance operations may only be performed on partitioned indices
 |
@@ -78921,6 +82649,11 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES NO INMEMORY
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES OVERFLOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -79031,6 +82764,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -79061,6 +82799,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a COALESCE SUBPARTITION NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a REBUILD UNUSABLE LOCAL INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -79087,6 +82830,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a READ ONLY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a READ WRITE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -79141,6 +82889,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MOVE PARTITION a NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MOVE PARTITION a ALLOW CLUSTERING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -79167,6 +82920,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MOVE SUBPARTITION a PARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MOVE SUBPARTITION a NOPARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -79202,6 +82960,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a COALESCE PARTITION PARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a COALESCE PARTITION NOPARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -79276,6 +83039,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) ALLOW CLUSTERING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -79336,6 +83104,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a SPLIT SUBPARTITION a AT(1) NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a SPLIT SUBPARTITION a AT(1) ALLOW CLUSTERING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -79376,6 +83149,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, a NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, a ALLOW CLUSTERING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -79402,6 +83180,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a PARALLEL
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a NOPARALLEL
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
@@ -79581,6 +83364,11 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a OVERFLOW NOLOGGING
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a ADD PARTITION INMEMORY
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -79626,6 +83414,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -79642,6 +83435,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ ONLY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ WRITE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -79671,6 +83469,16 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -79682,6 +83490,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOGGING
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -79716,12 +83529,22 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a NO INMEMORY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW LOGGING
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -79797,6 +83620,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION PARAMETERS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION NOPARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -80007,6 +83835,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a ADD PARTITION PARAMETERS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a ADD PARTITION NOPARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -80971,12 +84804,42 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MOVE ROW STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE ROW STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE COLUMN STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE COLUMN STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE NOCOMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MOVE NOMAPPING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER TABLE a MOVE NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -81002,6 +84865,21 @@
 |
 > exec
 | ALTER TABLE a MODIFY UPDATED INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY INVALIDATE GLOBAL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -81786,6 +85664,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY DEFAULT ATTRIBUTES INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -81801,7 +85684,37 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES ROW STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES ROW STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES COLUMN STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES COLUMN STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES NOCOMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY DEFAULT ATTRIBUTES INMEMORY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES NO INMEMORY
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -81901,6 +85814,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -81926,7 +85844,27 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -81957,6 +85895,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY SUBPARTITION a READ ONLY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY SUBPARTITION a READ WRITE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -82006,7 +85949,27 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MOVE PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MOVE PARTITION a NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -82031,12 +85994,32 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MOVE SUBPARTITION a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MOVE SUBPARTITION a INCLUDING ROWS WHERE 1 = 1
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER TABLE a MOVE SUBPARTITION a NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -82071,7 +86054,27 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a COALESCE PARTITION UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a COALESCE PARTITION NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -82106,6 +86109,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a DROP PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP PARTITION a INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a DROP SUBPARTITION FOR(1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -82127,6 +86145,21 @@
 |
 > exec
 | ALTER TABLE a DROP SUBPARTITION a UPDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a INVALIDATE INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -82182,6 +86215,21 @@
 |
 > exec
 | ALTER TABLE a TRUNCATE PARTITION a UPDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a INVALIDATE INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -82246,7 +86294,27 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a SPLIT PARTITION a AT(1) NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -82306,7 +86374,27 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a SPLIT SUBPARTITION a AT(1) NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -82321,7 +86409,37 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MERGE PARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a,(1)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MERGE PARTITIONS a TO a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS(1) TO a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a TO(1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -82346,7 +86464,27 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MERGE PARTITIONS a, a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MERGE PARTITIONS a, a NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -82386,7 +86524,27 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MERGE SUBPARTITIONS a, a NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -82441,6 +86599,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a CASCADE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -82477,6 +86650,11 @@
 |
 > exec
 | ALTER TABLE a OVERFLOW PCTFREE 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a OVERFLOW NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -82687,6 +86865,11 @@
 |
 > exec
 | ALTER TABLE a INMEMORY INMEMORY NO MEMCOMPRESS(a)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a INMEMORY INMEMORY MEMCOMPRESS FOR DML(a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -83091,6 +87274,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY VARRAY a(CACHE NOLOGGING)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY VARRAY a(SHRINK SPACE CASCADE)
 < ok 0 0
 > exec
@@ -83201,6 +87389,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -83217,6 +87410,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ ONLY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ WRITE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -83246,6 +87444,16 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -83262,6 +87470,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a LOGGING
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -83291,7 +87504,37 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ROW STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ROW STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COLUMN STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COLUMN STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NOCOMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a INMEMORY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NO INMEMORY
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -83312,6 +87555,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW PCTFREE 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -83351,6 +87599,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION, SUBPARTITION
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -83381,12 +87644,32 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION NOPARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION NORELOCATE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -83402,6 +87685,21 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) UPDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) INVALIDATE INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -83521,6 +87819,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ADD PARTITION zzz VALUES(1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -83576,6 +87889,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD PARTITION VALUES(1) UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES(1) INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES(1) INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ADD PARTITION a
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -83591,12 +87919,32 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ADD PARTITION UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ADD PARTITION NOPARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER TABLE a ADD PARTITION NORELOCATE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -84116,12 +88464,22 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ILM ADD POLICY MODIFY INMEMORY MEMCOMPRESS FOR DML SEGMENT AFTER 1 DAY OF CREATION
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ILM ADD POLICY NO INMEMORY SEGMENT AFTER 1 DAY OF CREATION
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER TABLE a ILM ADD POLICY SET INMEMORY NO MEMCOMPRESS SEGMENT AFTER 1 DAY OF CREATION
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ILM ADD POLICY SET INMEMORY MEMCOMPRESS FOR DML SEGMENT AFTER 1 DAY OF CREATION
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -84377,6 +88735,11 @@
 |
 > exec
 | ALTER TABLE a ADD PARTITION INMEMORY NO MEMCOMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION INMEMORY MEMCOMPRESS FOR DML
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -84801,6 +89164,46 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW STORE COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) STORE COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW STORE)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN STORE COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN STORE)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) NOCOMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) INMEMORY)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -84957,6 +89360,11 @@
 |
 > exec
 | ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(CACHE LOGGING)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(CACHE NOLOGGING)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -85996,6 +90404,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| CREATE INDEX a ON a(a) INDEXTYPE IS a NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | CREATE INDEX a ON a(a) INDEXTYPE IS a PARAMETERS('s')
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -86007,6 +90420,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) INDEXTYPE IS XDB.XMLINDEX PARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| CREATE INDEX a ON a(a) INDEXTYPE IS XDB.XMLINDEX NOPARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -86032,6 +90450,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) LOCAL(PARTITION COMPUTATION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| CREATE INDEX a ON a(a) LOCAL(PARTITION NOCOMPRESS)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -86327,6 +90750,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) GLOBAL PARTITION BY HASH(a)(PARTITION COMPUTATION)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| CREATE INDEX a ON a(a) GLOBAL PARTITION BY HASH(a)(PARTITION NOCOMPRESS)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -87958,6 +92386,11 @@
 | 904 ORA-00904: "A": invalid identifier
 |
 > exec
+| CREATE MATERIALIZED VIEW a VARRAY a STORE AS LOB(CACHE NOLOGGING) AS SELECT 1 FROM dual
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
 | CREATE MATERIALIZED VIEW a XMLTYPE a STORE AS SECUREFILE CLOB AS SELECT 1 FROM dual
 < error
 | 904 ORA-00904: "A": invalid identifier
@@ -88084,6 +92517,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1) READ ONLY) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 14605 ORA-14605: Name missing for subpartition / lob segment in template
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1) READ WRITE) PARTITIONS 1 AS SELECT 1 FROM dual
 < error
 | 14605 ORA-14605: Name missing for subpartition / lob segment in template
 |
@@ -88863,6 +93301,11 @@
 | 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION NOCOMPRESS) AS SELECT 1 FROM dual
+< error
+| 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION INMEMORY) AS SELECT 1 FROM dual
 < error
 | 14030 ORA-14030: non-existent partitioning column in CREATE TABLE statement
@@ -89374,6 +93817,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((a NULL USING INDEX LOGICAL)) AS SELECT 1 FROM dual
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((a NULL USING INDEX NOLOGGING)) AS SELECT 1 FROM dual
 < error
 | 904 ORA-00904: "A": invalid identifier
 |
@@ -91049,6 +95497,11 @@
 |
 > exec
 | CREATE TABLE a(PARTITION READ)
+< error
+| 902 ORA-00902: invalid datatype
+|
+> exec
+| CREATE TABLE a(PARTITION WRITE)
 < error
 | 902 ORA-00902: invalid datatype
 |
@@ -96918,6 +101371,11 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a COALESCE PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a DEALLOCATE UNUSED KEEP 1
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -97018,12 +101476,22 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a REBUILD PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a REBUILD COMPRESS
 < error
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
 | ALTER INDEX a REBUILD LOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a REBUILD NOLOGGING
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -97148,6 +101616,11 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a MODIFY DEFAULT ATTRIBUTES NOLOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ADD PARTITION a
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -97173,12 +101646,32 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a ADD PARTITION COMPRESS ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION NOCOMPRESS
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ADD PARTITION NOPARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
 | ALTER INDEX a ADD PARTITION NORELOCATE
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION PARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -97218,7 +101711,22 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a MODIFY PARTITION a NOLOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a MODIFY PARTITION a COMPRESS
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a MODIFY PARTITION a COMPRESS ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a MODIFY PARTITION a NOCOMPRESS
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -97258,7 +101766,17 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a COALESCE PARTITION NOPARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a COALESCE PARTITION PARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -97313,6 +101831,21 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION COMPRESS ADVANCED, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION ADVANCED, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION NOCOMPRESS, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION USABLE, PARTITION)
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -97349,6 +101882,11 @@
 |
 > exec
 | ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION LOGICAL, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION NOLOGGING, PARTITION)
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -97918,6 +102456,11 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES NO INMEMORY
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES OVERFLOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -98028,6 +102571,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -98058,6 +102606,11 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a COALESCE SUBPARTITION NOPARALLEL
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a REBUILD UNUSABLE LOCAL INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -98084,6 +102637,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a READ ONLY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a READ WRITE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -98138,6 +102696,11 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MOVE PARTITION a NOPARALLEL
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER MATERIALIZED VIEW a MOVE PARTITION a ALLOW CLUSTERING
 < error
 | 1702 ORA-01702: a view is not appropriate here
@@ -98164,6 +102727,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MOVE SUBPARTITION a PARALLEL
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER MATERIALIZED VIEW a MOVE SUBPARTITION a NOPARALLEL
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -98199,6 +102767,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a COALESCE PARTITION PARALLEL
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER MATERIALIZED VIEW a COALESCE PARTITION NOPARALLEL
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -98273,6 +102846,11 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NOPARALLEL
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) ALLOW CLUSTERING
 < error
 | 1702 ORA-01702: a view is not appropriate here
@@ -98333,6 +102911,11 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER MATERIALIZED VIEW a SPLIT SUBPARTITION a AT(1) NOPARALLEL
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER MATERIALIZED VIEW a SPLIT SUBPARTITION a AT(1) ALLOW CLUSTERING
 < error
 | 1702 ORA-01702: a view is not appropriate here
@@ -98373,6 +102956,11 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, a NOPARALLEL
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, a ALLOW CLUSTERING
 < error
 | 1702 ORA-01702: a view is not appropriate here
@@ -98399,6 +102987,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a PARALLEL
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a NOPARALLEL
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
@@ -98578,6 +103171,11 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a OVERFLOW NOLOGGING
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a ADD PARTITION INMEMORY
 < error
 | 1702 ORA-01702: a view is not appropriate here
@@ -98623,6 +103221,11 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) READ WRITE
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INDEXING ON
 < error
 | 1702 ORA-01702: a view is not appropriate here
@@ -98639,6 +103242,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ ONLY
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ WRITE
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -98668,6 +103276,16 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION READ WRITE
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION WRITE
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION INDEXING ON
 < error
 | 1702 ORA-01702: a view is not appropriate here
@@ -98679,6 +103297,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOGGING
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -98713,12 +103336,22 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a NO INMEMORY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW LOGGING
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -98794,6 +103427,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION PARAMETERS
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION NOPARALLEL
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -99004,6 +103642,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a ADD PARTITION PARAMETERS
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER MATERIALIZED VIEW a ADD PARTITION NOPARALLEL
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -99965,12 +104608,42 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MOVE ROW STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE ROW STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE COLUMN STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE COLUMN STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE NOCOMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MOVE NOMAPPING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER TABLE a MOVE NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -99996,6 +104669,21 @@
 |
 > exec
 | ALTER TABLE a MODIFY UPDATED INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY INVALIDATE GLOBAL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -100780,6 +105468,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY DEFAULT ATTRIBUTES INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -100795,7 +105488,37 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES ROW STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES ROW STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES COLUMN STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES COLUMN STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES NOCOMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY DEFAULT ATTRIBUTES INMEMORY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES NO INMEMORY
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -100895,6 +105618,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -100920,7 +105648,27 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION UPDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION INVALIDATE INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION NOPARALLEL
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION PARALLEL
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -100951,6 +105699,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY SUBPARTITION a READ ONLY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY SUBPARTITION a READ WRITE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -101000,7 +105753,27 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER TABLE a MOVE PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a INVALIDATE INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER TABLE a MOVE PARTITION a NOPARALLEL
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a PARALLEL
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -101025,12 +105798,32 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER TABLE a MOVE SUBPARTITION a UPDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a INVALIDATE INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER TABLE a MOVE SUBPARTITION a INCLUDING ROWS WHERE 1 = 1
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
 | ALTER TABLE a MOVE SUBPARTITION a NOPARALLEL
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a PARALLEL
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -101065,7 +105858,27 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER TABLE a COALESCE PARTITION UPDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION INVALIDATE INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER TABLE a COALESCE PARTITION NOPARALLEL
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION PARALLEL
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -101100,6 +105913,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a DROP PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP PARTITION a INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a DROP SUBPARTITION FOR(1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -101121,6 +105949,21 @@
 |
 > exec
 | ALTER TABLE a DROP SUBPARTITION a UPDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a INVALIDATE INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -101176,6 +106019,21 @@
 |
 > exec
 | ALTER TABLE a TRUNCATE PARTITION a UPDATE INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a INVALIDATE INDEXES
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -101240,7 +106098,27 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) UPDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) INVALIDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) INVALIDATE INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER TABLE a SPLIT PARTITION a AT(1) NOPARALLEL
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) PARALLEL
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -101300,7 +106178,27 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) UPDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) INVALIDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) INVALIDATE INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER TABLE a SPLIT SUBPARTITION a AT(1) NOPARALLEL
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) PARALLEL
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -101315,7 +106213,37 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER TABLE a MERGE PARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a,(1)
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER TABLE a MERGE PARTITIONS a TO a
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS(1) TO a
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a TO(1)
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -101340,7 +106268,27 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER TABLE a MERGE PARTITIONS a, a UPDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a INVALIDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a INVALIDATE INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER TABLE a MERGE PARTITIONS a, a NOPARALLEL
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a PARALLEL
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -101380,7 +106328,27 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a UPDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a INVALIDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a INVALIDATE INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER TABLE a MERGE SUBPARTITIONS a, a NOPARALLEL
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a PARALLEL
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -101435,6 +106403,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a CASCADE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -101471,6 +106454,11 @@
 |
 > exec
 | ALTER TABLE a OVERFLOW PCTFREE 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a OVERFLOW NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -101681,6 +106669,11 @@
 |
 > exec
 | ALTER TABLE a INMEMORY INMEMORY NO MEMCOMPRESS(a)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a INMEMORY INMEMORY MEMCOMPRESS FOR DML(a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -102082,6 +107075,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY VARRAY a(CACHE NOLOGGING)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY VARRAY a(SHRINK SPACE CASCADE)
 < ok 0 0
 > exec
@@ -102189,6 +107187,11 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) READ WRITE
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INDEXING ON
 < error
 | 1702 ORA-01702: a view is not appropriate here
@@ -102205,6 +107208,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ ONLY
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ WRITE
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -102234,6 +107242,16 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION READ WRITE
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION WRITE
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INDEXING ON
 < error
 | 1702 ORA-01702: a view is not appropriate here
@@ -102250,6 +107268,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a LOGGING
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -102279,7 +107302,37 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ROW STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ROW STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COLUMN STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COLUMN STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NOCOMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a INMEMORY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NO INMEMORY
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -102300,6 +107353,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW PCTFREE 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -102339,6 +107397,21 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) UPDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INVALIDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INVALIDATE INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION, SUBPARTITION
 < error
 | 1702 ORA-01702: a view is not appropriate here
@@ -102369,12 +107442,32 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION UPDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INVALIDATE INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION NOPARALLEL
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION NORELOCATE
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION PARALLEL
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -102390,6 +107483,21 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) UPDATE INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) UPDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) INVALIDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) INVALIDATE INDEXES
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -102509,6 +107617,21 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) UPDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) INVALIDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) INVALIDATE INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER TABLE a ADD PARTITION zzz VALUES(1)
 < error
 | 1702 ORA-01702: a view is not appropriate here
@@ -102564,6 +107687,21 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER TABLE a ADD PARTITION VALUES(1) UPDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES(1) INVALIDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES(1) INVALIDATE INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER TABLE a ADD PARTITION a
 < error
 | 1702 ORA-01702: a view is not appropriate here
@@ -102579,12 +107717,32 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| ALTER TABLE a ADD PARTITION UPDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a ADD PARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a ADD PARTITION INVALIDATE INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | ALTER TABLE a ADD PARTITION NOPARALLEL
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
 | ALTER TABLE a ADD PARTITION NORELOCATE
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a ADD PARTITION PARALLEL
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -103104,12 +108262,22 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ILM ADD POLICY MODIFY INMEMORY MEMCOMPRESS FOR DML SEGMENT AFTER 1 DAY OF CREATION
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ILM ADD POLICY NO INMEMORY SEGMENT AFTER 1 DAY OF CREATION
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER TABLE a ILM ADD POLICY SET INMEMORY NO MEMCOMPRESS SEGMENT AFTER 1 DAY OF CREATION
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ILM ADD POLICY SET INMEMORY MEMCOMPRESS FOR DML SEGMENT AFTER 1 DAY OF CREATION
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -103365,6 +108533,11 @@
 |
 > exec
 | ALTER TABLE a ADD PARTITION INMEMORY NO MEMCOMPRESS
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a ADD PARTITION INMEMORY MEMCOMPRESS FOR DML
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -103789,6 +108962,46 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW STORE COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) STORE COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW STORE)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN STORE COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN STORE)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) NOCOMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) INMEMORY)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -103945,6 +109158,11 @@
 |
 > exec
 | ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(CACHE LOGGING)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(CACHE NOLOGGING)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -104894,6 +110112,11 @@
 | 1702 ORA-01702: a view is not appropriate here
 |
 > exec
+| CREATE INDEX a ON a(a) INDEXTYPE IS a NOPARALLEL
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
 | CREATE INDEX a ON a(a) INDEXTYPE IS a PARAMETERS('s')
 < error
 | 1702 ORA-01702: a view is not appropriate here
@@ -104905,6 +110128,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) INDEXTYPE IS XDB.XMLINDEX PARALLEL
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| CREATE INDEX a ON a(a) INDEXTYPE IS XDB.XMLINDEX NOPARALLEL
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -104930,6 +110158,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) LOCAL(PARTITION COMPUTATION)
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| CREATE INDEX a ON a(a) LOCAL(PARTITION NOCOMPRESS)
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -105225,6 +110458,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) GLOBAL PARTITION BY HASH(a)(PARTITION COMPUTATION)
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| CREATE INDEX a ON a(a) GLOBAL PARTITION BY HASH(a)(PARTITION NOCOMPRESS)
 < error
 | 1702 ORA-01702: a view is not appropriate here
 |
@@ -106291,6 +111529,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a VARRAY a STORE AS LOB(CACHE NOLOGGING) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a XMLTYPE a STORE AS SECUREFILE CLOB AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -106417,6 +111660,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1) READ ONLY) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1) READ WRITE) PARTITIONS 1 AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -107196,6 +112444,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION NOCOMPRESS) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION INMEMORY) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -107707,6 +112960,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((a NULL USING INDEX LOGICAL)) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((a NULL USING INDEX NOLOGGING)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -108910,6 +114168,11 @@
 |
 > exec
 | CREATE TABLE a(PARTITION READ)
+< error
+| 902 ORA-00902: invalid datatype
+|
+> exec
+| CREATE TABLE a(PARTITION WRITE)
 < error
 | 902 ORA-00902: invalid datatype
 |
@@ -114228,6 +119491,11 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a COALESCE PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a DEALLOCATE UNUSED KEEP 1
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -114328,12 +119596,22 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a REBUILD PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a REBUILD COMPRESS
 < error
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
 | ALTER INDEX a REBUILD LOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a REBUILD NOLOGGING
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -114458,6 +119736,11 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a MODIFY DEFAULT ATTRIBUTES NOLOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ADD PARTITION a
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -114483,12 +119766,32 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a ADD PARTITION COMPRESS ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION NOCOMPRESS
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ADD PARTITION NOPARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
 | ALTER INDEX a ADD PARTITION NORELOCATE
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION PARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -114528,7 +119831,22 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a MODIFY PARTITION a NOLOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a MODIFY PARTITION a COMPRESS
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a MODIFY PARTITION a COMPRESS ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a MODIFY PARTITION a NOCOMPRESS
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -114568,7 +119886,17 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a COALESCE PARTITION NOPARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a COALESCE PARTITION PARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -114623,6 +119951,21 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION COMPRESS ADVANCED, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION ADVANCED, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION NOCOMPRESS, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION USABLE, PARTITION)
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -114659,6 +120002,11 @@
 |
 > exec
 | ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION LOGICAL, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION NOLOGGING, PARTITION)
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -115638,6 +120986,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES NO INMEMORY
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES OVERFLOW
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
@@ -115748,6 +121101,11 @@
 | 31966 ORA-31966: invalid option specified to alter "SIMSHOP"."A"
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -115774,6 +121132,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a COALESCE SUBPARTITION PARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a COALESCE SUBPARTITION NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -115806,6 +121169,11 @@
 | ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a READ ONLY
 < error
 | 31966 ORA-31966: invalid option specified to alter "SIMSHOP"."A"
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a INDEXING ON
@@ -115858,6 +121226,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MOVE PARTITION a NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MOVE PARTITION a ALLOW CLUSTERING
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -115884,6 +121257,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MOVE SUBPARTITION a PARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MOVE SUBPARTITION a NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -115919,6 +121297,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a COALESCE PARTITION PARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a COALESCE PARTITION NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -115993,6 +121376,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) ALLOW CLUSTERING
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -116053,6 +121441,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a SPLIT SUBPARTITION a AT(1) NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a SPLIT SUBPARTITION a AT(1) ALLOW CLUSTERING
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -116093,6 +121486,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, a NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, a ALLOW CLUSTERING
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -116119,6 +121517,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a PARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -116408,6 +121811,11 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
+| ALTER MATERIALIZED VIEW a OVERFLOW NOLOGGING
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
 | ALTER MATERIALIZED VIEW a ADD PARTITION INMEMORY
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -116463,6 +121871,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -116479,6 +121892,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ ONLY
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ WRITE
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -116508,6 +121926,16 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -116519,6 +121947,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOGGING
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a NOLOGGING
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -116553,12 +121986,22 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a NO INMEMORY
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW LOGGING
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW NOLOGGING
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
@@ -116634,6 +122077,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION PARAMETERS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -116844,6 +122292,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a ADD PARTITION PARAMETERS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a ADD PARTITION NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -118138,12 +123591,102 @@
 | CREATE INDEX a_d_idx ON a (d)
 < ok 0 0
 > exec
+| ALTER TABLE a MOVE ROW STORE COMPRESS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE ROW STORE
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE COLUMN STORE COMPRESS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE COLUMN STORE
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE NOCOMPRESS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
 | ALTER TABLE a MOVE NOMAPPING
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
 | ALTER TABLE a MOVE NOPARALLEL
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE PARALLEL
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -118201,6 +123744,21 @@
 | ALTER TABLE a MODIFY UPDATED INDEXES
 < error
 | 904 ORA-00904: "UPDATED": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY GLOBAL INDEXES
+< error
+| 904 ORA-00904: "GLOBAL": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY INVALIDATE INDEXES
+< error
+| 904 ORA-00904: "INVALIDATE": invalid identifier
+|
+> exec
+| ALTER TABLE a MODIFY INVALIDATE GLOBAL
+< error
+| 904 ORA-00904: "INVALIDATE": invalid identifier
 |
 > exec
 | ALTER TABLE a NO DELETE
@@ -119613,6 +125171,11 @@
 | 31966 ORA-31966: invalid option specified to alter "SIMSHOP"."A"
 |
 > exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY DEFAULT ATTRIBUTES INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -119628,7 +125191,37 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES ROW STORE COMPRESS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES ROW STORE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES COLUMN STORE COMPRESS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES COLUMN STORE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES NOCOMPRESS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY DEFAULT ATTRIBUTES INMEMORY
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES NO INMEMORY
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -119728,6 +125321,11 @@
 | 31966 ORA-31966: invalid option specified to alter "SIMSHOP"."A"
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -119753,7 +125351,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -119786,6 +125404,11 @@
 | ALTER TABLE a MODIFY SUBPARTITION a READ ONLY
 < error
 | 31966 ORA-31966: invalid option specified to alter "SIMSHOP"."A"
+|
+> exec
+| ALTER TABLE a MODIFY SUBPARTITION a READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
 |
 > exec
 | ALTER TABLE a MODIFY SUBPARTITION a INDEXING ON
@@ -119833,7 +125456,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MOVE PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MOVE PARTITION a NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -119858,12 +125501,32 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MOVE SUBPARTITION a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MOVE SUBPARTITION a INCLUDING ROWS WHERE 1 = 1
 < error
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
 | ALTER TABLE a MOVE SUBPARTITION a NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -119898,7 +125561,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a COALESCE PARTITION UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a COALESCE PARTITION NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -119933,6 +125616,21 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a DROP PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a DROP PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a DROP PARTITION a INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a DROP SUBPARTITION FOR(1)
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -119954,6 +125652,21 @@
 |
 > exec
 | ALTER TABLE a DROP SUBPARTITION a UPDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a INVALIDATE INDEXES
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -120009,6 +125722,21 @@
 |
 > exec
 | ALTER TABLE a TRUNCATE PARTITION a UPDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a INVALIDATE INDEXES
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -120073,7 +125801,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a SPLIT PARTITION a AT(1) NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -120133,7 +125881,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a SPLIT SUBPARTITION a AT(1) NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -120148,7 +125916,37 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MERGE PARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a,(1)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MERGE PARTITIONS a TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS(1) TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a TO(1)
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -120173,7 +125971,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MERGE PARTITIONS a, a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MERGE PARTITIONS a, a NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -120213,7 +126031,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MERGE SUBPARTITIONS a, a NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -120268,6 +126106,21 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a CASCADE
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -120304,6 +126157,11 @@
 |
 > exec
 | ALTER TABLE a OVERFLOW PCTFREE 1
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a OVERFLOW NOLOGGING
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
@@ -120734,6 +126592,21 @@
 < ok 0 0
 > exec
 | ALTER TABLE a INMEMORY INMEMORY NO MEMCOMPRESS(a)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| ALTER TABLE a INMEMORY INMEMORY MEMCOMPRESS FOR DML(a)
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -121298,6 +127171,11 @@
 | 22912 ORA-22912: Column or attribute A is not a nested table type.
 |
 > exec
+| ALTER TABLE a MODIFY VARRAY a(CACHE NOLOGGING)
+< error
+| 22912 ORA-22912: Column or attribute A is not a nested table type.
+|
+> exec
 | ALTER TABLE a MODIFY VARRAY a(SHRINK SPACE CASCADE)
 < ok 0 0
 > exec
@@ -121418,6 +127296,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -121434,6 +127317,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ ONLY
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ WRITE
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -121463,6 +127351,16 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -121479,6 +127377,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a LOGGING
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NOLOGGING
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -121508,7 +127411,37 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ROW STORE COMPRESS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ROW STORE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COLUMN STORE COMPRESS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COLUMN STORE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NOCOMPRESS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a INMEMORY
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NO INMEMORY
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -121529,6 +127462,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW PCTFREE 1
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW NOLOGGING
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
@@ -121568,6 +127506,21 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION, SUBPARTITION
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -121598,12 +127551,32 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION NORELOCATE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -121619,6 +127592,21 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) UPDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) INVALIDATE INDEXES
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -121738,6 +127726,21 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a ADD PARTITION zzz VALUES(1)
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -121793,6 +127796,21 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a ADD PARTITION VALUES(1) UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES(1) INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a ADD PARTITION a
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -121808,12 +127826,32 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a ADD PARTITION UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a ADD PARTITION NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
 | ALTER TABLE a ADD PARTITION NORELOCATE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -122463,12 +128501,32 @@
 | 38345 ORA-38345: object not enabled for in-memory column store
 |
 > exec
+| ALTER TABLE a ILM ADD POLICY MODIFY INMEMORY MEMCOMPRESS FOR DML SEGMENT AFTER 1 DAY OF CREATION
+< error
+| 38345 ORA-38345: object not enabled for in-memory column store
+|
+> exec
 | ALTER TABLE a ILM ADD POLICY NO INMEMORY SEGMENT AFTER 1 DAY OF CREATION
 < error
 | 38345 ORA-38345: object not enabled for in-memory column store
 |
 > exec
 | ALTER TABLE a ILM ADD POLICY SET INMEMORY NO MEMCOMPRESS SEGMENT AFTER 1 DAY OF CREATION
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| ALTER TABLE a ILM ADD POLICY SET INMEMORY MEMCOMPRESS FOR DML SEGMENT AFTER 1 DAY OF CREATION
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -122824,6 +128882,11 @@
 |
 > exec
 | ALTER TABLE a ADD PARTITION INMEMORY NO MEMCOMPRESS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION INMEMORY MEMCOMPRESS FOR DML
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -123248,6 +129311,46 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW STORE COMPRESS)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) STORE COMPRESS)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW COMPRESS)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW STORE)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN STORE COMPRESS)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN COMPRESS)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN STORE)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) NOCOMPRESS)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) INMEMORY)
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
@@ -123404,6 +129507,11 @@
 |
 > exec
 | ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(CACHE LOGGING)
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(CACHE NOLOGGING)
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
@@ -124494,6 +130602,11 @@
 | 29833 ORA-29833: The indextype does not exist.
 |
 > exec
+| CREATE INDEX a ON a(a) INDEXTYPE IS a NOPARALLEL
+< error
+| 29833 ORA-29833: The indextype does not exist.
+|
+> exec
 | CREATE INDEX a ON a(a) INDEXTYPE IS a PARAMETERS('s')
 < error
 | 29833 ORA-29833: The indextype does not exist.
@@ -124505,6 +130618,12 @@
 |
 > exec
 | CREATE INDEX a ON a(a) INDEXTYPE IS XDB.XMLINDEX PARALLEL
+< error
+| 29958 ORA-29958: ODCI_FATAL returned by the implementation of the ODCIINDEXCREATE routine for index "SIMSHOP"."A".
+| ORA-30963: The indexed column is not of XMLTYPE.
+|
+> exec
+| CREATE INDEX a ON a(a) INDEXTYPE IS XDB.XMLINDEX NOPARALLEL
 < error
 | 29958 ORA-29958: ODCI_FATAL returned by the implementation of the ODCIINDEXCREATE routine for index "SIMSHOP"."A".
 | ORA-30963: The indexed column is not of XMLTYPE.
@@ -124532,6 +130651,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) LOCAL(PARTITION COMPUTATION)
+< error
+| 14016 ORA-14016: underlying table of a LOCAL partitioned index must be partitioned
+|
+> exec
+| CREATE INDEX a ON a(a) LOCAL(PARTITION NOCOMPRESS)
 < error
 | 14016 ORA-14016: underlying table of a LOCAL partitioned index must be partitioned
 |
@@ -124887,6 +131011,21 @@
 |
 > exec
 | CREATE INDEX a ON a(a) GLOBAL PARTITION BY HASH(a)(PARTITION COMPUTATION)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| CREATE INDEX a ON a(a) GLOBAL PARTITION BY HASH(a)(PARTITION NOCOMPRESS)
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -125966,6 +132105,11 @@
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
 |
 > exec
+| CREATE MATERIALIZED VIEW a VARRAY a STORE AS LOB(CACHE NOLOGGING) AS SELECT 1 FROM dual
+< error
+| 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
+|
+> exec
 | CREATE MATERIALIZED VIEW a XMLTYPE a STORE AS SECUREFILE CLOB AS SELECT 1 FROM dual
 < error
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
@@ -126092,6 +132236,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1) READ ONLY) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1) READ WRITE) PARTITIONS 1 AS SELECT 1 FROM dual
 < error
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
 |
@@ -126871,6 +133020,11 @@
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION NOCOMPRESS) AS SELECT 1 FROM dual
+< error
+| 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION INMEMORY) AS SELECT 1 FROM dual
 < error
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
@@ -127382,6 +133536,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((a NULL USING INDEX LOGICAL)) AS SELECT 1 FROM dual
+< error
+| 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((a NULL USING INDEX NOLOGGING)) AS SELECT 1 FROM dual
 < error
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
 |
@@ -128597,6 +134756,11 @@
 |
 > exec
 | CREATE TABLE a(PARTITION READ)
+< error
+| 902 ORA-00902: invalid datatype
+|
+> exec
+| CREATE TABLE a(PARTITION WRITE)
 < error
 | 902 ORA-00902: invalid datatype
 |
@@ -134362,6 +140526,11 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a COALESCE PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a DEALLOCATE UNUSED KEEP 1
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -134462,12 +140631,22 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a REBUILD PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a REBUILD COMPRESS
 < error
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
 | ALTER INDEX a REBUILD LOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a REBUILD NOLOGGING
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -134592,6 +140771,11 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a MODIFY DEFAULT ATTRIBUTES NOLOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ADD PARTITION a
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -134617,12 +140801,32 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a ADD PARTITION COMPRESS ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION NOCOMPRESS
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ADD PARTITION NOPARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
 | ALTER INDEX a ADD PARTITION NORELOCATE
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION PARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -134662,7 +140866,22 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a MODIFY PARTITION a NOLOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a MODIFY PARTITION a COMPRESS
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a MODIFY PARTITION a COMPRESS ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a MODIFY PARTITION a NOCOMPRESS
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -134702,7 +140921,17 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a COALESCE PARTITION NOPARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a COALESCE PARTITION PARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -134757,6 +140986,21 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION COMPRESS ADVANCED, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION ADVANCED, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION NOCOMPRESS, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION USABLE, PARTITION)
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -134793,6 +141037,11 @@
 |
 > exec
 | ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION LOGICAL, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION NOLOGGING, PARTITION)
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -135362,6 +141611,11 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES NO INMEMORY
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES OVERFLOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -135472,6 +141726,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -135502,6 +141761,11 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a COALESCE SUBPARTITION NOPARALLEL
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a REBUILD UNUSABLE LOCAL INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -135528,6 +141792,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a READ ONLY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a READ WRITE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -135582,6 +141851,11 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MOVE PARTITION a NOPARALLEL
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER MATERIALIZED VIEW a MOVE PARTITION a ALLOW CLUSTERING
 < error
 | 2201 ORA-02201: sequence not allowed here
@@ -135608,6 +141882,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MOVE SUBPARTITION a PARALLEL
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER MATERIALIZED VIEW a MOVE SUBPARTITION a NOPARALLEL
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -135643,6 +141922,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a COALESCE PARTITION PARALLEL
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER MATERIALIZED VIEW a COALESCE PARTITION NOPARALLEL
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -135717,6 +142001,11 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NOPARALLEL
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) ALLOW CLUSTERING
 < error
 | 2201 ORA-02201: sequence not allowed here
@@ -135777,6 +142066,11 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a SPLIT SUBPARTITION a AT(1) NOPARALLEL
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER MATERIALIZED VIEW a SPLIT SUBPARTITION a AT(1) ALLOW CLUSTERING
 < error
 | 2201 ORA-02201: sequence not allowed here
@@ -135817,6 +142111,11 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, a NOPARALLEL
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, a ALLOW CLUSTERING
 < error
 | 2201 ORA-02201: sequence not allowed here
@@ -135843,6 +142142,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a PARALLEL
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a NOPARALLEL
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
@@ -136022,6 +142326,11 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a OVERFLOW NOLOGGING
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a ADD PARTITION INMEMORY
 < error
 | 2201 ORA-02201: sequence not allowed here
@@ -136067,6 +142376,11 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) READ WRITE
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INDEXING ON
 < error
 | 2201 ORA-02201: sequence not allowed here
@@ -136083,6 +142397,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ ONLY
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ WRITE
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -136112,6 +142431,16 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION READ WRITE
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION WRITE
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION INDEXING ON
 < error
 | 2201 ORA-02201: sequence not allowed here
@@ -136123,6 +142452,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOGGING
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -136157,12 +142491,22 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a NO INMEMORY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW LOGGING
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -136238,6 +142582,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION PARAMETERS
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION NOPARALLEL
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -136448,6 +142797,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a ADD PARTITION PARAMETERS
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER MATERIALIZED VIEW a ADD PARTITION NOPARALLEL
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -137507,12 +143861,42 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MOVE ROW STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE ROW STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE COLUMN STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE COLUMN STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE NOCOMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MOVE NOMAPPING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER TABLE a MOVE NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -137538,6 +143922,21 @@
 |
 > exec
 | ALTER TABLE a MODIFY UPDATED INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY INVALIDATE GLOBAL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -138322,6 +144721,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY DEFAULT ATTRIBUTES INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -138337,7 +144741,37 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES ROW STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES ROW STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES COLUMN STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES COLUMN STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES NOCOMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY DEFAULT ATTRIBUTES INMEMORY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES NO INMEMORY
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -138437,6 +144871,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -138462,7 +144901,27 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION UPDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION INVALIDATE INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION NOPARALLEL
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION PARALLEL
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -138493,6 +144952,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY SUBPARTITION a READ ONLY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY SUBPARTITION a READ WRITE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -138542,7 +145006,27 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER TABLE a MOVE PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a INVALIDATE INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER TABLE a MOVE PARTITION a NOPARALLEL
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a PARALLEL
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -138567,12 +145051,32 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER TABLE a MOVE SUBPARTITION a UPDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a INVALIDATE INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER TABLE a MOVE SUBPARTITION a INCLUDING ROWS WHERE 1 = 1
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
 | ALTER TABLE a MOVE SUBPARTITION a NOPARALLEL
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a PARALLEL
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -138607,7 +145111,27 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER TABLE a COALESCE PARTITION UPDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION INVALIDATE INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER TABLE a COALESCE PARTITION NOPARALLEL
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION PARALLEL
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -138642,6 +145166,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a DROP PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP PARTITION a INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a DROP SUBPARTITION FOR(1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -138663,6 +145202,21 @@
 |
 > exec
 | ALTER TABLE a DROP SUBPARTITION a UPDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a INVALIDATE INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -138718,6 +145272,21 @@
 |
 > exec
 | ALTER TABLE a TRUNCATE PARTITION a UPDATE INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a INVALIDATE INDEXES
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -138782,7 +145351,27 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) UPDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) INVALIDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) INVALIDATE INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER TABLE a SPLIT PARTITION a AT(1) NOPARALLEL
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) PARALLEL
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -138842,7 +145431,27 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) UPDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) INVALIDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) INVALIDATE INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER TABLE a SPLIT SUBPARTITION a AT(1) NOPARALLEL
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) PARALLEL
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -138857,7 +145466,37 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER TABLE a MERGE PARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a,(1)
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER TABLE a MERGE PARTITIONS a TO a
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS(1) TO a
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a TO(1)
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -138882,7 +145521,27 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER TABLE a MERGE PARTITIONS a, a UPDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a INVALIDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a INVALIDATE INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER TABLE a MERGE PARTITIONS a, a NOPARALLEL
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a PARALLEL
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -138922,7 +145581,27 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a UPDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a INVALIDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a INVALIDATE INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER TABLE a MERGE SUBPARTITIONS a, a NOPARALLEL
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a PARALLEL
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -138977,6 +145656,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a CASCADE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -139013,6 +145707,11 @@
 |
 > exec
 | ALTER TABLE a OVERFLOW PCTFREE 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a OVERFLOW NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -139223,6 +145922,11 @@
 |
 > exec
 | ALTER TABLE a INMEMORY INMEMORY NO MEMCOMPRESS(a)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a INMEMORY INMEMORY MEMCOMPRESS FOR DML(a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -139624,6 +146328,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY VARRAY a(CACHE NOLOGGING)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY VARRAY a(SHRINK SPACE CASCADE)
 < ok 0 0
 > exec
@@ -139731,6 +146440,11 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) READ WRITE
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INDEXING ON
 < error
 | 2201 ORA-02201: sequence not allowed here
@@ -139747,6 +146461,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ ONLY
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ WRITE
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -139776,6 +146495,16 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION READ WRITE
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION WRITE
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INDEXING ON
 < error
 | 2201 ORA-02201: sequence not allowed here
@@ -139792,6 +146521,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a LOGGING
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -139821,7 +146555,37 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ROW STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ROW STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COLUMN STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COLUMN STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NOCOMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a INMEMORY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NO INMEMORY
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -139842,6 +146606,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW PCTFREE 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -139881,6 +146650,21 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) UPDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INVALIDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INVALIDATE INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION, SUBPARTITION
 < error
 | 2201 ORA-02201: sequence not allowed here
@@ -139911,12 +146695,32 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION UPDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INVALIDATE INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION NOPARALLEL
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION NORELOCATE
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION PARALLEL
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -139932,6 +146736,21 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) UPDATE INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) UPDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) INVALIDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) INVALIDATE INDEXES
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -140051,6 +146870,21 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) UPDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) INVALIDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) INVALIDATE INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER TABLE a ADD PARTITION zzz VALUES(1)
 < error
 | 2201 ORA-02201: sequence not allowed here
@@ -140106,6 +146940,21 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER TABLE a ADD PARTITION VALUES(1) UPDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES(1) INVALIDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES(1) INVALIDATE INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER TABLE a ADD PARTITION a
 < error
 | 2201 ORA-02201: sequence not allowed here
@@ -140121,12 +146970,32 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| ALTER TABLE a ADD PARTITION UPDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION INVALIDATE INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | ALTER TABLE a ADD PARTITION NOPARALLEL
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
 | ALTER TABLE a ADD PARTITION NORELOCATE
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION PARALLEL
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -140646,12 +147515,22 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ILM ADD POLICY MODIFY INMEMORY MEMCOMPRESS FOR DML SEGMENT AFTER 1 DAY OF CREATION
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ILM ADD POLICY NO INMEMORY SEGMENT AFTER 1 DAY OF CREATION
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER TABLE a ILM ADD POLICY SET INMEMORY NO MEMCOMPRESS SEGMENT AFTER 1 DAY OF CREATION
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ILM ADD POLICY SET INMEMORY MEMCOMPRESS FOR DML SEGMENT AFTER 1 DAY OF CREATION
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -140907,6 +147786,11 @@
 |
 > exec
 | ALTER TABLE a ADD PARTITION INMEMORY NO MEMCOMPRESS
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION INMEMORY MEMCOMPRESS FOR DML
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -141331,6 +148215,46 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW STORE COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) STORE COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW STORE)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN STORE COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN STORE)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) NOCOMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) INMEMORY)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -141487,6 +148411,11 @@
 |
 > exec
 | ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(CACHE LOGGING)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(CACHE NOLOGGING)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -142394,6 +149323,11 @@
 | 2201 ORA-02201: sequence not allowed here
 |
 > exec
+| CREATE INDEX a ON a(a) INDEXTYPE IS a NOPARALLEL
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
 | CREATE INDEX a ON a(a) INDEXTYPE IS a PARAMETERS('s')
 < error
 | 2201 ORA-02201: sequence not allowed here
@@ -142405,6 +149339,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) INDEXTYPE IS XDB.XMLINDEX PARALLEL
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| CREATE INDEX a ON a(a) INDEXTYPE IS XDB.XMLINDEX NOPARALLEL
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -142430,6 +149369,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) LOCAL(PARTITION COMPUTATION)
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| CREATE INDEX a ON a(a) LOCAL(PARTITION NOCOMPRESS)
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -142725,6 +149669,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) GLOBAL PARTITION BY HASH(a)(PARTITION COMPUTATION)
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| CREATE INDEX a ON a(a) GLOBAL PARTITION BY HASH(a)(PARTITION NOCOMPRESS)
 < error
 | 2201 ORA-02201: sequence not allowed here
 |
@@ -143791,6 +150740,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a VARRAY a STORE AS LOB(CACHE NOLOGGING) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a XMLTYPE a STORE AS SECUREFILE CLOB AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -143917,6 +150871,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1) READ ONLY) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1) READ WRITE) PARTITIONS 1 AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -144696,6 +151655,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION NOCOMPRESS) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION INMEMORY) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -145207,6 +152171,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((a NULL USING INDEX LOGICAL)) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((a NULL USING INDEX NOLOGGING)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -146410,6 +153379,11 @@
 |
 > exec
 | CREATE TABLE a(PARTITION READ)
+< error
+| 902 ORA-00902: invalid datatype
+|
+> exec
+| CREATE TABLE a(PARTITION WRITE)
 < error
 | 902 ORA-00902: invalid datatype
 |
@@ -151509,6 +158483,11 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a COALESCE PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a DEALLOCATE UNUSED KEEP 1
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -151609,12 +158588,22 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a REBUILD PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a REBUILD COMPRESS
 < error
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
 | ALTER INDEX a REBUILD LOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a REBUILD NOLOGGING
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -151739,6 +158728,11 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a MODIFY DEFAULT ATTRIBUTES NOLOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ADD PARTITION a
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -151764,12 +158758,32 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a ADD PARTITION COMPRESS ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION NOCOMPRESS
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ADD PARTITION NOPARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
 | ALTER INDEX a ADD PARTITION NORELOCATE
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION PARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -151809,7 +158823,22 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a MODIFY PARTITION a NOLOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a MODIFY PARTITION a COMPRESS
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a MODIFY PARTITION a COMPRESS ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a MODIFY PARTITION a NOCOMPRESS
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -151849,7 +158878,17 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a COALESCE PARTITION NOPARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a COALESCE PARTITION PARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -151904,6 +158943,21 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION COMPRESS ADVANCED, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION ADVANCED, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION NOCOMPRESS, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION USABLE, PARTITION)
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -151940,6 +158994,11 @@
 |
 > exec
 | ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION LOGICAL, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION NOLOGGING, PARTITION)
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -152509,6 +159568,11 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES NO INMEMORY
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES OVERFLOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -152619,6 +159683,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -152649,6 +159718,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a COALESCE SUBPARTITION NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a REBUILD UNUSABLE LOCAL INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -152675,6 +159749,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a READ ONLY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a READ WRITE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -152729,6 +159808,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MOVE PARTITION a NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MOVE PARTITION a ALLOW CLUSTERING
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -152755,6 +159839,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MOVE SUBPARTITION a PARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MOVE SUBPARTITION a NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -152790,6 +159879,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a COALESCE PARTITION PARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a COALESCE PARTITION NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -152864,6 +159958,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) ALLOW CLUSTERING
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -152924,6 +160023,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a SPLIT SUBPARTITION a AT(1) NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a SPLIT SUBPARTITION a AT(1) ALLOW CLUSTERING
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -152964,6 +160068,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, a NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, a ALLOW CLUSTERING
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -152990,6 +160099,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a PARALLEL
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a NOPARALLEL
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
@@ -153169,6 +160283,11 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a OVERFLOW NOLOGGING
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a ADD PARTITION INMEMORY
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -153214,6 +160333,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -153230,6 +160354,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ ONLY
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ WRITE
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -153259,6 +160388,16 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -153270,6 +160409,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOGGING
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -153304,12 +160448,22 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a NO INMEMORY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW LOGGING
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -153385,6 +160539,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION PARAMETERS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -153595,6 +160754,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a ADD PARTITION PARAMETERS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER MATERIALIZED VIEW a ADD PARTITION NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -154598,12 +161762,84 @@
 | CREATE SYNONYM a FOR t
 < ok 0 0
 > exec
+| ALTER TABLE a MOVE ROW STORE COMPRESS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE SYNONYM a FOR t
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE ROW STORE
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE SYNONYM a FOR t
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE COLUMN STORE COMPRESS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE SYNONYM a FOR t
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE COLUMN STORE
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE SYNONYM a FOR t
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE NOCOMPRESS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE SYNONYM a FOR t
+< ok 0 0
+> exec
 | ALTER TABLE a MOVE NOMAPPING
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
 | ALTER TABLE a MOVE NOPARALLEL
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE SYNONYM a FOR t
+< ok 0 0
+> exec
+| ALTER TABLE a MOVE PARALLEL
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -154650,6 +161886,21 @@
 |
 > exec
 | ALTER TABLE a MODIFY UPDATED INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY INVALIDATE GLOBAL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -155434,6 +162685,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY DEFAULT ATTRIBUTES INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -155449,7 +162705,37 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES ROW STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES ROW STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES COLUMN STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES COLUMN STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES NOCOMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY DEFAULT ATTRIBUTES INMEMORY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES NO INMEMORY
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -155549,6 +162835,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -155574,7 +162865,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -155605,6 +162916,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY SUBPARTITION a READ ONLY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY SUBPARTITION a READ WRITE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -155654,7 +162970,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MOVE PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MOVE PARTITION a NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -155679,12 +163015,32 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MOVE SUBPARTITION a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MOVE SUBPARTITION a INCLUDING ROWS WHERE 1 = 1
 < error
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
 | ALTER TABLE a MOVE SUBPARTITION a NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -155719,7 +163075,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a COALESCE PARTITION UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a COALESCE PARTITION NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -155754,6 +163130,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a DROP PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP PARTITION a INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a DROP SUBPARTITION FOR(1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -155775,6 +163166,21 @@
 |
 > exec
 | ALTER TABLE a DROP SUBPARTITION a UPDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a INVALIDATE INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -155830,6 +163236,21 @@
 |
 > exec
 | ALTER TABLE a TRUNCATE PARTITION a UPDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a INVALIDATE INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -155894,7 +163315,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a SPLIT PARTITION a AT(1) NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -155954,7 +163395,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a SPLIT SUBPARTITION a AT(1) NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -155969,7 +163430,37 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MERGE PARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a,(1)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MERGE PARTITIONS a TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS(1) TO a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a TO(1)
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -155994,7 +163485,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MERGE PARTITIONS a, a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MERGE PARTITIONS a, a NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -156034,7 +163545,27 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MERGE SUBPARTITIONS a, a NOPARALLEL
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -156089,6 +163620,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a CASCADE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -156125,6 +163671,11 @@
 |
 > exec
 | ALTER TABLE a OVERFLOW PCTFREE 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a OVERFLOW NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -156391,6 +163942,11 @@
 |
 > exec
 | ALTER TABLE a INMEMORY INMEMORY NO MEMCOMPRESS(a)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a INMEMORY INMEMORY MEMCOMPRESS FOR DML(a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -156792,6 +164348,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY VARRAY a(CACHE NOLOGGING)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY VARRAY a(SHRINK SPACE CASCADE)
 < ok 0 0
 > exec
@@ -156899,6 +164460,11 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -156915,6 +164481,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ ONLY
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ WRITE
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -156944,6 +164515,16 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION READ WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION WRITE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INDEXING ON
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -156960,6 +164541,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a LOGGING
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -156989,7 +164575,37 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ROW STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ROW STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COLUMN STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COLUMN STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NOCOMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a INMEMORY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NO INMEMORY
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -157010,6 +164626,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW PCTFREE 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -157049,6 +164670,21 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION, SUBPARTITION
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -157079,12 +164715,32 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION NORELOCATE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -157100,6 +164756,21 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) UPDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) INVALIDATE INDEXES
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -157219,6 +164890,21 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a ADD PARTITION zzz VALUES(1)
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -157274,6 +164960,21 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a ADD PARTITION VALUES(1) UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES(1) INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES(1) INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a ADD PARTITION a
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -157289,12 +164990,32 @@
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
+| ALTER TABLE a ADD PARTITION UPDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION INVALIDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | ALTER TABLE a ADD PARTITION NOPARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
 > exec
 | ALTER TABLE a ADD PARTITION NORELOCATE
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION PARALLEL
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -157954,12 +165675,22 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ILM ADD POLICY MODIFY INMEMORY MEMCOMPRESS FOR DML SEGMENT AFTER 1 DAY OF CREATION
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ILM ADD POLICY NO INMEMORY SEGMENT AFTER 1 DAY OF CREATION
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER TABLE a ILM ADD POLICY SET INMEMORY NO MEMCOMPRESS SEGMENT AFTER 1 DAY OF CREATION
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ILM ADD POLICY SET INMEMORY MEMCOMPRESS FOR DML SEGMENT AFTER 1 DAY OF CREATION
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -158215,6 +165946,11 @@
 |
 > exec
 | ALTER TABLE a ADD PARTITION INMEMORY NO MEMCOMPRESS
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION INMEMORY MEMCOMPRESS FOR DML
 < error
 | 14501 ORA-14501: object is not partitioned
 |
@@ -158688,6 +166424,46 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW STORE COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) STORE COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW STORE)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN STORE COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN STORE)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) NOCOMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) INMEMORY)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -158844,6 +166620,11 @@
 |
 > exec
 | ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(CACHE LOGGING)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(CACHE NOLOGGING)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -159836,6 +167617,11 @@
 | 29833 ORA-29833: The indextype does not exist.
 |
 > exec
+| CREATE INDEX a ON a(a) INDEXTYPE IS a NOPARALLEL
+< error
+| 29833 ORA-29833: The indextype does not exist.
+|
+> exec
 | CREATE INDEX a ON a(a) INDEXTYPE IS a PARAMETERS('s')
 < error
 | 29833 ORA-29833: The indextype does not exist.
@@ -159847,6 +167633,12 @@
 |
 > exec
 | CREATE INDEX a ON a(a) INDEXTYPE IS XDB.XMLINDEX PARALLEL
+< error
+| 29958 ORA-29958: ODCI_FATAL returned by the implementation of the ODCIINDEXCREATE routine for index "SIMSHOP"."A".
+| ORA-30963: The indexed column is not of XMLTYPE.
+|
+> exec
+| CREATE INDEX a ON a(a) INDEXTYPE IS XDB.XMLINDEX NOPARALLEL
 < error
 | 29958 ORA-29958: ODCI_FATAL returned by the implementation of the ODCIINDEXCREATE routine for index "SIMSHOP"."A".
 | ORA-30963: The indexed column is not of XMLTYPE.
@@ -159874,6 +167666,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) LOCAL(PARTITION COMPUTATION)
+< error
+| 14016 ORA-14016: underlying table of a LOCAL partitioned index must be partitioned
+|
+> exec
+| CREATE INDEX a ON a(a) LOCAL(PARTITION NOCOMPRESS)
 < error
 | 14016 ORA-14016: underlying table of a LOCAL partitioned index must be partitioned
 |
@@ -160211,6 +168008,18 @@
 |
 > exec
 | CREATE INDEX a ON a(a) GLOBAL PARTITION BY HASH(a)(PARTITION COMPUTATION)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE SYNONYM a FOR t
+< ok 0 0
+> exec
+| CREATE INDEX a ON a(a) GLOBAL PARTITION BY HASH(a)(PARTITION NOCOMPRESS)
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -161284,6 +169093,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a VARRAY a STORE AS LOB(CACHE NOLOGGING) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a XMLTYPE a STORE AS SECUREFILE CLOB AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -161410,6 +169224,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1) READ ONLY) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1) READ WRITE) PARTITIONS 1 AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -162189,6 +170008,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION NOCOMPRESS) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION INMEMORY) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -162700,6 +170524,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((a NULL USING INDEX LOGICAL)) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((a NULL USING INDEX NOLOGGING)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -163903,6 +171732,11 @@
 |
 > exec
 | CREATE TABLE a(PARTITION READ)
+< error
+| 902 ORA-00902: invalid datatype
+|
+> exec
+| CREATE TABLE a(PARTITION WRITE)
 < error
 | 902 ORA-00902: invalid datatype
 |
@@ -169114,6 +176948,11 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a COALESCE PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a DEALLOCATE UNUSED KEEP 1
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -169214,12 +177053,22 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a REBUILD PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a REBUILD COMPRESS
 < error
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
 | ALTER INDEX a REBUILD LOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a REBUILD NOLOGGING
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -169344,6 +177193,11 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a MODIFY DEFAULT ATTRIBUTES NOLOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ADD PARTITION a
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -169369,12 +177223,32 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a ADD PARTITION COMPRESS ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION NOCOMPRESS
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ADD PARTITION NOPARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
 | ALTER INDEX a ADD PARTITION NORELOCATE
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION PARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -169414,7 +177288,22 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a MODIFY PARTITION a NOLOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a MODIFY PARTITION a COMPRESS
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a MODIFY PARTITION a COMPRESS ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a MODIFY PARTITION a NOCOMPRESS
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -169454,7 +177343,17 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a COALESCE PARTITION NOPARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a COALESCE PARTITION PARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -169509,6 +177408,21 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION COMPRESS ADVANCED, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION ADVANCED, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION NOCOMPRESS, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION USABLE, PARTITION)
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -169545,6 +177459,11 @@
 |
 > exec
 | ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION LOGICAL, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION NOLOGGING, PARTITION)
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -170114,6 +178033,11 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES NO INMEMORY
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES OVERFLOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -170224,6 +178148,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -170254,6 +178183,11 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a COALESCE SUBPARTITION NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a REBUILD UNUSABLE LOCAL INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -170280,6 +178214,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a READ ONLY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a READ WRITE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -170334,6 +178273,11 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MOVE PARTITION a NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER MATERIALIZED VIEW a MOVE PARTITION a ALLOW CLUSTERING
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -170360,6 +178304,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MOVE SUBPARTITION a PARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER MATERIALIZED VIEW a MOVE SUBPARTITION a NOPARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -170395,6 +178344,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a COALESCE PARTITION PARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER MATERIALIZED VIEW a COALESCE PARTITION NOPARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -170469,6 +178423,11 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) ALLOW CLUSTERING
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -170529,6 +178488,11 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a SPLIT SUBPARTITION a AT(1) NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER MATERIALIZED VIEW a SPLIT SUBPARTITION a AT(1) ALLOW CLUSTERING
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -170569,6 +178533,11 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, a NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, a ALLOW CLUSTERING
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -170595,6 +178564,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a PARALLEL
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a NOPARALLEL
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
@@ -170774,6 +178748,11 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a OVERFLOW NOLOGGING
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a ADD PARTITION INMEMORY
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -170819,6 +178798,11 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) READ WRITE
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INDEXING ON
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -170835,6 +178819,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ ONLY
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ WRITE
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -170864,6 +178853,16 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION READ WRITE
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION WRITE
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION INDEXING ON
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -170875,6 +178874,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOGGING
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -170909,12 +178913,22 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a NO INMEMORY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW LOGGING
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -170990,6 +179004,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION PARAMETERS
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION NOPARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -171200,6 +179219,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a ADD PARTITION PARAMETERS
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER MATERIALIZED VIEW a ADD PARTITION NOPARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -172161,12 +180185,42 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MOVE ROW STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE ROW STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE COLUMN STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE COLUMN STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE NOCOMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MOVE NOMAPPING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER TABLE a MOVE NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -172192,6 +180246,21 @@
 |
 > exec
 | ALTER TABLE a MODIFY UPDATED INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY INVALIDATE GLOBAL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -172976,6 +181045,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY DEFAULT ATTRIBUTES INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -172991,7 +181065,37 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES ROW STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES ROW STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES COLUMN STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES COLUMN STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES NOCOMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY DEFAULT ATTRIBUTES INMEMORY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES NO INMEMORY
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -173091,6 +181195,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -173116,7 +181225,27 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION PARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -173147,6 +181276,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY SUBPARTITION a READ ONLY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY SUBPARTITION a READ WRITE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -173196,7 +181330,27 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a MOVE PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a MOVE PARTITION a NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a PARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -173221,12 +181375,32 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a MOVE SUBPARTITION a UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a MOVE SUBPARTITION a INCLUDING ROWS WHERE 1 = 1
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
 | ALTER TABLE a MOVE SUBPARTITION a NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a PARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -173261,7 +181435,27 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a COALESCE PARTITION UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a COALESCE PARTITION NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION PARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -173296,6 +181490,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a DROP PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP PARTITION a INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a DROP SUBPARTITION FOR(1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -173317,6 +181526,21 @@
 |
 > exec
 | ALTER TABLE a DROP SUBPARTITION a UPDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a INVALIDATE INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -173372,6 +181596,21 @@
 |
 > exec
 | ALTER TABLE a TRUNCATE PARTITION a UPDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a INVALIDATE INDEXES
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -173436,7 +181675,27 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a SPLIT PARTITION a AT(1) NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) PARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -173496,7 +181755,27 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a SPLIT SUBPARTITION a AT(1) NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) PARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -173511,7 +181790,37 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a MERGE PARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a,(1)
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a MERGE PARTITIONS a TO a
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS(1) TO a
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a TO(1)
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -173536,7 +181845,27 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a MERGE PARTITIONS a, a UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a MERGE PARTITIONS a, a NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a PARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -173576,7 +181905,27 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a MERGE SUBPARTITIONS a, a NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a PARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -173631,6 +181980,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a CASCADE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -173667,6 +182031,11 @@
 |
 > exec
 | ALTER TABLE a OVERFLOW PCTFREE 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a OVERFLOW NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -173877,6 +182246,11 @@
 |
 > exec
 | ALTER TABLE a INMEMORY INMEMORY NO MEMCOMPRESS(a)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a INMEMORY INMEMORY MEMCOMPRESS FOR DML(a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -174278,6 +182652,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY VARRAY a(CACHE NOLOGGING)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY VARRAY a(SHRINK SPACE CASCADE)
 < ok 0 0
 > exec
@@ -174385,6 +182764,11 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) READ WRITE
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INDEXING ON
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -174401,6 +182785,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ ONLY
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ WRITE
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -174430,6 +182819,16 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION READ WRITE
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION WRITE
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INDEXING ON
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -174446,6 +182845,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a LOGGING
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -174475,7 +182879,37 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ROW STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ROW STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COLUMN STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COLUMN STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NOCOMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a INMEMORY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NO INMEMORY
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -174496,6 +182930,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW PCTFREE 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -174535,6 +182974,21 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION, SUBPARTITION
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -174565,12 +183019,32 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION NOPARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION NORELOCATE
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION PARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -174586,6 +183060,21 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) UPDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) INVALIDATE INDEXES
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -174705,6 +183194,21 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a ADD PARTITION zzz VALUES(1)
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -174760,6 +183264,21 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a ADD PARTITION VALUES(1) UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES(1) INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES(1) INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a ADD PARTITION a
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -174775,12 +183294,32 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a ADD PARTITION UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a ADD PARTITION NOPARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
 | ALTER TABLE a ADD PARTITION NORELOCATE
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION PARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -175300,12 +183839,22 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ILM ADD POLICY MODIFY INMEMORY MEMCOMPRESS FOR DML SEGMENT AFTER 1 DAY OF CREATION
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ILM ADD POLICY NO INMEMORY SEGMENT AFTER 1 DAY OF CREATION
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER TABLE a ILM ADD POLICY SET INMEMORY NO MEMCOMPRESS SEGMENT AFTER 1 DAY OF CREATION
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ILM ADD POLICY SET INMEMORY MEMCOMPRESS FOR DML SEGMENT AFTER 1 DAY OF CREATION
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -175561,6 +184110,11 @@
 |
 > exec
 | ALTER TABLE a ADD PARTITION INMEMORY NO MEMCOMPRESS
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION INMEMORY MEMCOMPRESS FOR DML
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -175985,6 +184539,46 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW STORE COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) STORE COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW STORE)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN STORE COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN STORE)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) NOCOMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) INMEMORY)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -176141,6 +184735,11 @@
 |
 > exec
 | ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(CACHE LOGGING)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(CACHE NOLOGGING)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -177055,6 +185654,11 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| CREATE INDEX a ON a(a) INDEXTYPE IS a NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | CREATE INDEX a ON a(a) INDEXTYPE IS a PARAMETERS('s')
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -177066,6 +185670,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) INDEXTYPE IS XDB.XMLINDEX PARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| CREATE INDEX a ON a(a) INDEXTYPE IS XDB.XMLINDEX NOPARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -177091,6 +185700,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) LOCAL(PARTITION COMPUTATION)
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| CREATE INDEX a ON a(a) LOCAL(PARTITION NOCOMPRESS)
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -177386,6 +186000,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) GLOBAL PARTITION BY HASH(a)(PARTITION COMPUTATION)
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| CREATE INDEX a ON a(a) GLOBAL PARTITION BY HASH(a)(PARTITION NOCOMPRESS)
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -178452,6 +187071,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a VARRAY a STORE AS LOB(CACHE NOLOGGING) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a XMLTYPE a STORE AS SECUREFILE CLOB AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -178578,6 +187202,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1) READ ONLY) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1) READ WRITE) PARTITIONS 1 AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -179357,6 +187986,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION NOCOMPRESS) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION INMEMORY) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -179868,6 +188502,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((a NULL USING INDEX LOGICAL)) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((a NULL USING INDEX NOLOGGING)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -181071,6 +189710,11 @@
 |
 > exec
 | CREATE TABLE a(PARTITION READ)
+< error
+| 902 ORA-00902: invalid datatype
+|
+> exec
+| CREATE TABLE a(PARTITION WRITE)
 < error
 | 902 ORA-00902: invalid datatype
 |
@@ -186149,6 +194793,11 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a COALESCE PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a DEALLOCATE UNUSED KEEP 1
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -186249,12 +194898,22 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a REBUILD PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a REBUILD COMPRESS
 < error
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
 | ALTER INDEX a REBUILD LOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a REBUILD NOLOGGING
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -186379,6 +195038,11 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a MODIFY DEFAULT ATTRIBUTES NOLOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ADD PARTITION a
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -186404,12 +195068,32 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a ADD PARTITION COMPRESS ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION NOCOMPRESS
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a ADD PARTITION NOPARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
 | ALTER INDEX a ADD PARTITION NORELOCATE
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a ADD PARTITION PARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -186449,7 +195133,22 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a MODIFY PARTITION a NOLOGGING
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a MODIFY PARTITION a COMPRESS
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a MODIFY PARTITION a COMPRESS ADVANCED
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a MODIFY PARTITION a NOCOMPRESS
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -186489,7 +195188,17 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) PARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a COALESCE PARTITION NOPARALLEL
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a COALESCE PARTITION PARALLEL
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -186544,6 +195253,21 @@
 | 1418 ORA-01418: specified index does not exist
 |
 > exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION COMPRESS ADVANCED, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION ADVANCED, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION NOCOMPRESS, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
 | ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION USABLE, PARTITION)
 < error
 | 1418 ORA-01418: specified index does not exist
@@ -186580,6 +195304,11 @@
 |
 > exec
 | ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION LOGICAL, PARTITION)
+< error
+| 1418 ORA-01418: specified index does not exist
+|
+> exec
+| ALTER INDEX a SPLIT PARTITION a AT(1) INTO(PARTITION NOLOGGING, PARTITION)
 < error
 | 1418 ORA-01418: specified index does not exist
 |
@@ -187149,6 +195878,11 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES NO INMEMORY
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY DEFAULT ATTRIBUTES OVERFLOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -187259,6 +195993,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -187289,6 +196028,11 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a COALESCE SUBPARTITION NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a REBUILD UNUSABLE LOCAL INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -187315,6 +196059,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a READ ONLY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY SUBPARTITION a READ WRITE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -187369,6 +196118,11 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MOVE PARTITION a NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER MATERIALIZED VIEW a MOVE PARTITION a ALLOW CLUSTERING
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -187395,6 +196149,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MOVE SUBPARTITION a PARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER MATERIALIZED VIEW a MOVE SUBPARTITION a NOPARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -187430,6 +196189,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a COALESCE PARTITION PARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER MATERIALIZED VIEW a COALESCE PARTITION NOPARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -187504,6 +196268,11 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER MATERIALIZED VIEW a SPLIT PARTITION a AT(1) ALLOW CLUSTERING
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -187564,6 +196333,11 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a SPLIT SUBPARTITION a AT(1) NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER MATERIALIZED VIEW a SPLIT SUBPARTITION a AT(1) ALLOW CLUSTERING
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -187604,6 +196378,11 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, a NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER MATERIALIZED VIEW a MERGE PARTITIONS a, a ALLOW CLUSTERING
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -187630,6 +196409,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a PARALLEL
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MERGE SUBPARTITIONS a, a NOPARALLEL
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
@@ -187809,6 +196593,11 @@
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a OVERFLOW NOLOGGING
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a ADD PARTITION INMEMORY
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -187854,6 +196643,11 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) READ WRITE
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INDEXING ON
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -187870,6 +196664,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ ONLY
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ WRITE
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -187899,6 +196698,16 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION READ WRITE
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION WRITE
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION INDEXING ON
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -187910,6 +196719,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a LOGGING
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -187944,12 +196758,22 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a NO INMEMORY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW LOGGING
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -188025,6 +196849,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION PARAMETERS
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION NOPARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -188235,6 +197064,11 @@
 |
 > exec
 | ALTER MATERIALIZED VIEW a ADD PARTITION PARAMETERS
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER MATERIALIZED VIEW a ADD PARTITION NOPARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -189196,12 +198030,42 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MOVE ROW STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE ROW STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE COLUMN STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE COLUMN STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE NOCOMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MOVE NOMAPPING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER TABLE a MOVE NOPARALLEL
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MOVE PARALLEL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -189227,6 +198091,21 @@
 |
 > exec
 | ALTER TABLE a MODIFY UPDATED INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY INVALIDATE GLOBAL
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -190011,6 +198890,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY DEFAULT ATTRIBUTES INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -190026,7 +198910,37 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES ROW STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES ROW STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES COLUMN STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES COLUMN STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES NOCOMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY DEFAULT ATTRIBUTES INMEMORY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY DEFAULT ATTRIBUTES NO INMEMORY
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -190126,6 +199040,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a READ WRITE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a INDEXING ON
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -190151,7 +199070,27 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COALESCE SUBPARTITION PARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -190182,6 +199121,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY SUBPARTITION a READ ONLY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY SUBPARTITION a READ WRITE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -190231,7 +199175,27 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a MOVE PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a MOVE PARTITION a NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MOVE PARTITION a PARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -190256,12 +199220,32 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a MOVE SUBPARTITION a UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a MOVE SUBPARTITION a INCLUDING ROWS WHERE 1 = 1
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
 | ALTER TABLE a MOVE SUBPARTITION a NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MOVE SUBPARTITION a PARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -190296,7 +199280,27 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a COALESCE PARTITION UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a COALESCE PARTITION NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a COALESCE PARTITION PARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -190331,6 +199335,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a DROP PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP PARTITION a INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a DROP SUBPARTITION FOR(1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -190352,6 +199371,21 @@
 |
 > exec
 | ALTER TABLE a DROP SUBPARTITION a UPDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP SUBPARTITION a INVALIDATE INDEXES
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -190407,6 +199441,21 @@
 |
 > exec
 | ALTER TABLE a TRUNCATE PARTITION a UPDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a TRUNCATE PARTITION a INVALIDATE INDEXES
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -190471,7 +199520,27 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a SPLIT PARTITION a AT(1) NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a SPLIT PARTITION a AT(1) PARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -190531,7 +199600,27 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a SPLIT SUBPARTITION a AT(1) NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a SPLIT SUBPARTITION a AT(1) PARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -190546,7 +199635,37 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a MERGE PARTITIONS a, FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a,(1)
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a MERGE PARTITIONS a TO a
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS FOR(1) TO a
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS(1) TO a
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a TO FOR(1)
+< error
+| 14764 ORA-14764: Partitions cannot be truncated, dropped or merged with mixed syntax.
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a TO(1)
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -190571,7 +199690,27 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a MERGE PARTITIONS a, a UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a MERGE PARTITIONS a, a NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MERGE PARTITIONS a, a PARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -190611,7 +199750,27 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a MERGE SUBPARTITIONS a, a NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MERGE SUBPARTITIONS a, a PARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -190666,6 +199825,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a UPDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a INVALIDATE GLOBAL INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a INVALIDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a EXCHANGE PARTITION a WITH TABLE a CASCADE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -190702,6 +199876,11 @@
 |
 > exec
 | ALTER TABLE a OVERFLOW PCTFREE 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a OVERFLOW NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -190912,6 +200091,11 @@
 |
 > exec
 | ALTER TABLE a INMEMORY INMEMORY NO MEMCOMPRESS(a)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a INMEMORY INMEMORY MEMCOMPRESS FOR DML(a)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -191313,6 +200497,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY VARRAY a(CACHE NOLOGGING)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY VARRAY a(SHRINK SPACE CASCADE)
 < ok 0 0
 > exec
@@ -191420,6 +200609,11 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) READ WRITE
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INDEXING ON
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -191436,6 +200630,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ ONLY
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) READ WRITE
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -191465,6 +200664,16 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION READ WRITE
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION WRITE
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INDEXING ON
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -191481,6 +200690,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a LOGGING
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -191510,7 +200724,37 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ROW STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ROW STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COLUMN STORE COMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a COLUMN STORE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NOCOMPRESS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a INMEMORY
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a NO INMEMORY
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -191531,6 +200775,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW PCTFREE 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW NOLOGGING
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -191570,6 +200819,21 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1) INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION, SUBPARTITION
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -191600,12 +200864,32 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION NOPARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION NORELOCATE
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION PARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -191621,6 +200905,21 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) UPDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES(1) INVALIDATE INDEXES
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -191740,6 +201039,21 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES LESS THAN(1) INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a ADD PARTITION zzz VALUES(1)
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -191795,6 +201109,21 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a ADD PARTITION VALUES(1) UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES(1) INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION VALUES(1) INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a ADD PARTITION a
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -191810,12 +201139,32 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| ALTER TABLE a ADD PARTITION UPDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION INVALIDATE GLOBAL INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION INVALIDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | ALTER TABLE a ADD PARTITION NOPARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
 | ALTER TABLE a ADD PARTITION NORELOCATE
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION PARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -192335,12 +201684,22 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a ILM ADD POLICY MODIFY INMEMORY MEMCOMPRESS FOR DML SEGMENT AFTER 1 DAY OF CREATION
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a ILM ADD POLICY NO INMEMORY SEGMENT AFTER 1 DAY OF CREATION
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
 | ALTER TABLE a ILM ADD POLICY SET INMEMORY NO MEMCOMPRESS SEGMENT AFTER 1 DAY OF CREATION
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ILM ADD POLICY SET INMEMORY MEMCOMPRESS FOR DML SEGMENT AFTER 1 DAY OF CREATION
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -192596,6 +201955,11 @@
 |
 > exec
 | ALTER TABLE a ADD PARTITION INMEMORY NO MEMCOMPRESS
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION INMEMORY MEMCOMPRESS FOR DML
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -193020,6 +202384,46 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW STORE COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) STORE COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) ROW STORE)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN STORE COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN COMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) COLUMN STORE)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) NOCOMPRESS)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) INMEMORY)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -193176,6 +202580,11 @@
 |
 > exec
 | ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(CACHE LOGGING)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(CACHE NOLOGGING)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -194176,6 +203585,11 @@
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
+| CREATE INDEX a ON a(a) INDEXTYPE IS a NOPARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
 | CREATE INDEX a ON a(a) INDEXTYPE IS a PARAMETERS('s')
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -194187,6 +203601,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) INDEXTYPE IS XDB.XMLINDEX PARALLEL
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| CREATE INDEX a ON a(a) INDEXTYPE IS XDB.XMLINDEX NOPARALLEL
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -194212,6 +203631,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) LOCAL(PARTITION COMPUTATION)
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| CREATE INDEX a ON a(a) LOCAL(PARTITION NOCOMPRESS)
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -194507,6 +203931,11 @@
 |
 > exec
 | CREATE INDEX a ON a(a) GLOBAL PARTITION BY HASH(a)(PARTITION COMPUTATION)
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| CREATE INDEX a ON a(a) GLOBAL PARTITION BY HASH(a)(PARTITION NOCOMPRESS)
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
@@ -195573,6 +205002,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a VARRAY a STORE AS LOB(CACHE NOLOGGING) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a XMLTYPE a STORE AS SECUREFILE CLOB AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -195699,6 +205133,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1) READ ONLY) PARTITIONS 1 AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1) READ WRITE) PARTITIONS 1 AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -196478,6 +205917,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION NOCOMPRESS) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a PARTITION BY HASH(a)(PARTITION INMEMORY) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -196989,6 +206433,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((a NULL USING INDEX LOGICAL)) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((a NULL USING INDEX NOLOGGING)) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -198192,6 +207641,11 @@
 |
 > exec
 | CREATE TABLE a(PARTITION READ)
+< error
+| 902 ORA-00902: invalid datatype
+|
+> exec
+| CREATE TABLE a(PARTITION WRITE)
 < error
 | 902 ORA-00902: invalid datatype
 |

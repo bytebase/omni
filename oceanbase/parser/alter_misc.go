@@ -117,11 +117,14 @@ func (p *Parser) parseAlterViewStmt(start int) (*nodes.AlterViewStmt, error) {
 			checkOption = "LOCAL"
 			p.advance()
 		}
-		if p.cur.Type == kwCHECK {
-			p.advance()
-			if p.cur.Type == kwOPTION {
-				p.advance()
-			}
+		// opt_check_option (sql_parser_mysql_mode.y:10162) writes CHECK and
+		// OPTION both: `WITH CHECK`, `WITH CASCADED CHECK` and `WITH LOCAL
+		// CHECK` are 1064s, as in CREATE VIEW.
+		if _, err := p.expect(kwCHECK); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwOPTION); err != nil {
+			return nil, err
 		}
 		stmt.CheckOption = checkOption
 	}

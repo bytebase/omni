@@ -9,7 +9,8 @@ import (
 
 // The name checks MariaDB's parser runs. A database or table name that is empty, ends in a
 // space or runs past 64 characters is 1102, 1103 or 1059 from check_db_name and
-// check_table_name, and a routine, trigger or event name is 1458 from check_routine_name. The
+// check_table_name, and a routine, trigger or event name is 1458 from check_routine_name, or
+// 1059 from its check_ident_length when it runs past 64 characters. The
 // action for table_ident calls the first two for a table named anywhere, in a query as well
 // as DDL, so the answer does not change with a syntax error after the statement.
 //
@@ -30,8 +31,11 @@ func refuseDatabaseName(name string, pos int) error {
 }
 
 func refuseRoutineName(name string, pos int) error {
+	if utf8.RuneCountInString(name) > maxIdentifierChars && !strings.HasSuffix(name, " ") {
+		return &ParseError{Message: "Identifier name '" + name + "' is too long", Position: pos, Code: 1059}
+	}
 	if identifierNameRefused(name) {
-		return &ParseError{Message: "Incorrect routine name '" + name + "'", Position: pos}
+		return &ParseError{Message: "Incorrect routine name '" + name + "'", Position: pos, Code: 1458}
 	}
 	return nil
 }

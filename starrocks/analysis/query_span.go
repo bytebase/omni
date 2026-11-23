@@ -43,6 +43,9 @@ type ColumnInfo struct {
 	// ColumnRef, "*" for star items, or empty when we cannot produce one).
 	Name string
 
+	// Star marks a * or t.* item.
+	Star bool
+
 	// SourceColumns is a best-effort list of underlying column references that
 	// feed this output column. For the current scope we record every ColumnRef
 	// we encounter while walking the expression tree; full field-level lineage
@@ -822,7 +825,7 @@ func (v *exprVisitor) Visit(node ast.Node) ast.Visitor {
 // (column name for a bare ColumnRef, "*" for star). SourceColumns is the set
 // of ColumnRefs the item directly references.
 func (w *spanWalker) makeColumnInfo(item *ast.SelectItem) ColumnInfo {
-	info := ColumnInfo{}
+	info := ColumnInfo{Star: item.Star}
 	if item.Star {
 		if item.TableName != nil {
 			info.Name = item.TableName.String() + ".*"

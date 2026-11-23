@@ -283,6 +283,10 @@ func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answe
 	if err != nil {
 		return simulate.Omni{Why: fmt.Sprintf("the catalog does not initialize want database: %v", err)}
 	}
+	// What MariaDB stores is a schema it already took, which the catalog loads
+	// as it loads a declarative one: a trigger whose table has since lost a
+	// column it reads stays, as the server keeps it.
+	want.loadingSDL = true
 	for _, kind := range []string{"TABLE", "SEQUENCE", "VIEW", "PROCEDURE", "FUNCTION", "TRIGGER", "EVENT"} {
 		for _, f := range engine.Forms {
 			if f.Kind != kind {

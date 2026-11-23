@@ -13,6 +13,55 @@
 opt_if_not_exists	(every site)	IF NOT EXISTS
 opt_if_exists	(every site)	IF EXISTS
 
+# Keyword choices tried in each of their forms at every site that names
+# them, and not only where the rule's own alternatives are reached (see
+# grammar.EveryAlternative).
+explain_or_desc	(every alternative)	sql_parser_mysql_mode.y:15783 EXPLAIN, DESCRIBE or DESC
+special_table_type	(every alternative)	sql_parser_mysql_mode.y:5520 TEMPORARY or EXTERNAL
+text_string	(every alternative)	sql_parser_mysql_mode.y:7134 a string, hex or bit literal
+opt_distinct_or_all	(every alternative)	sql_parser_mysql_mode.y:3956 ALL, DISTINCT or UNIQUE
+key_or_index	(every alternative)	sql_parser_mysql_mode.y:14765 KEY or INDEX
+opt_config_scope	(every alternative)	sql_parser_mysql_mode.y:22990 SCOPE = MEMORY, SPFILE or BOTH
+mview_enable_disable	(every alternative)	sql_parser_mysql_mode.y:9845 DISABLE or ENABLE
+charset_name	(every alternative)	sql_parser_mysql_mode.y:7442 a name, a string, BINARY or ASCII
+date_unit	(every alternative)	sql_parser_mysql_mode.y:24527 an interval unit
+charset_key	(every alternative)	sql_parser_mysql_mode.y:5079 CHARSET or CHARACTER SET
+transaction_access_mode	(every alternative)	sql_parser_mysql_mode.y:24019 READ ONLY or READ WRITE
+table_or_tables	(every alternative)	sql_parser_mysql_mode.y:10949 TABLE or TABLES
+sub_query_flag	(every alternative)	sql_parser_mysql_mode.y:2141 ALL, ANY or SOME
+opt_unsigned_i	(every alternative)	sql_parser_mysql_mode.y:7379 UNSIGNED or SIGNED
+opt_drop_behavior	(every alternative)	sql_parser_mysql_mode.y:20113 CASCADE or RESTRICT
+opt_distinct	(every alternative)	sql_parser_mysql_mode.y:3941 DISTINCT or UNIQUE
+from_or_in	(every alternative)	sql_parser_mysql_mode.y:16531 FROM or IN
+to_or_eq	(every alternative)	sql_parser_mysql_mode.y:18714 TO, = or :=
+respect_or_ignore	(every alternative)	sql_parser_mysql_mode.y:2416 RESPECT or IGNORE
+opt_check_option	(every alternative)	sql_parser_mysql_mode.y:10162 WITH [CASCADED | LOCAL] CHECK OPTION
+opt_asc_desc	(every alternative)	sql_parser_mysql_mode.y:13703 ASC or DESC
+geometry_collection	(every alternative)	sql_parser_mysql_mode.y:2668 GEOMETRYCOLLECTION or GEOMCOLLECTION
+check_state	(every alternative)	sql_parser_mysql_mode.y:10388 [NOT] ENFORCED
+ts_wait	(every alternative)	sql_parser_mysql_mode.y:23758 WAIT or NO_WAIT
+read_only_or_write	(every alternative)	sql_parser_mysql_mode.y:5132 READ ONLY or READ WRITE
+isolation_level	(every alternative)	sql_parser_mysql_mode.y:24031 an isolation level
+database_key	(every alternative)	sql_parser_mysql_mode.y:5004 DATABASE or SCHEMA
+ws_level_flag_desc	(every alternative)	sql_parser_mysql_mode.y:4120 ASC or DESC
+win_rows_or_range	(every alternative)	sql_parser_mysql_mode.y:2538 ROWS or RANGE
+visibility_option	(every alternative)	sql_parser_mysql_mode.y:19956 VISIBLE or INVISIBLE
+opt_scope	(every alternative)	sql_parser_mysql_mode.y:16501 GLOBAL, SESSION or LOCAL
+opt_priority	(every alternative)	sql_parser_mysql_mode.y:11209 HIGH_PRIORITY or LOW_PRIORITY
+opt_extended_or_full	(every alternative)	sql_parser_mysql_mode.y:22979 FULL, EXTENDED or EXTENDED FULL
+opt_duplicate	(every alternative)	sql_parser_mysql_mode.y:5358 IGNORE or REPLACE
+ignore_or_replace	(every alternative)	sql_parser_mysql_mode.y:5805 IGNORE or REPLACE
+columns_or_fields	(every alternative)	sql_parser_mysql_mode.y:16508 COLUMNS or FIELDS
+lines_or_rows	(every alternative)	sql_parser_mysql_mode.y:5386 LINES or ROWS
+reference_action	(every alternative)	sql_parser_mysql_mode.y:6093 a foreign key's referential action
+index_using_algorithm	(every alternative)	sql_parser_mysql_mode.y:10701 USING BTREE or USING HASH
+set_type	(every alternative)	sql_parser_mysql_mode.y:11673 a set operator
+mv_refresh_method	(every alternative)	sql_parser_mysql_mode.y:9920 FAST, COMPLETE or FORCE
+repair_option	(every alternative)	sql_parser_mysql_mode.y:21548 QUICK, EXTENDED or USE_FRM
+check_table_option	(every alternative)	sql_parser_mysql_mode.y:16418 a CHECK TABLE option
+opt_sql_security	(every alternative)	sql_parser_mysql_mode.y:10150 SQL SECURITY DEFINER or INVOKER
+suspend_or_resume	(every alternative)	sql_parser_mysql_mode.y:22551 SUSPEND or RESUME
+
 # Literals, operators and the tokens the lexer forms from other text.
 NAME_OB	a
 .	(spaced)	the lexer reads a word, a dot and a word as one token ({start_identifier}"."{identifier}), so a dot that is a token of its own stands apart

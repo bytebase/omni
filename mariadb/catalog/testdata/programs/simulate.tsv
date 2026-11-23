@@ -1,0 +1,1282 @@
+# pin: default mariadb:11.8.8 sha256:24e76fcec8c003a0362d0dd53f4806e7e79458d7fdeaf47437760e19496f5a9c mariadb-11.8.8
+# columns: omni, expected, source, fixture, rule, statement
+ok:c0b508a8c204	ok:c0b508a8c204	engine	one_table@missing	procedure:create	CREATE PROCEDURE a() COMMIT
+ok:c0b508a8c204	ok:c0b508a8c204	engine	one_table@missing	procedure:create	CREATE PROCEDURE IF NOT EXISTS a() COMMIT
+ok:c0b508a8c204	ok:c0b508a8c204	engine	one_table@missing	procedure:create	CREATE OR REPLACE PROCEDURE a() COMMIT
+1221	1221	engine	one_table@missing	procedure:create	CREATE OR REPLACE PROCEDURE IF NOT EXISTS a() COMMIT
+ok:f1072bd4faa3	ok:f1072bd4faa3	engine	one_table@missing	procedure:create	CREATE OR REPLACE DEFINER = `root`@`%` PROCEDURE a() SELECT 1
+ok:c0b508a8c204	ok:c0b508a8c204	engine	one_table@missing	procedure:create	CREATE DEFINER = `root`@`%` PROCEDURE a() COMMIT
+ok:c0b508a8c204	ok:c0b508a8c204	engine	one_table@missing	procedure:create	CREATE DEFINER = CURRENT_USER PROCEDURE a() COMMIT
+ok:e05ad03eec6d	ok:e05ad03eec6d	engine	one_table@missing	procedure:create	CREATE PROCEDURE p2() COMMIT
+ok:e05ad03eec6d	ok:e05ad03eec6d	engine	one_table@missing	procedure:create	CREATE PROCEDURE omni_simulation.p2() COMMIT
+1049	1049	engine	one_table@missing	procedure:create	CREATE PROCEDURE nosuch.p2() COMMIT
+1059	1059	engine	one_table@missing	procedure:create	CREATE PROCEDURE a23456789012345678901234567890123456789012345678901234567890abcde() COMMIT
+ok:af2f0c365a6e	ok:af2f0c365a6e	engine	one_table@missing	procedure:params	CREATE PROCEDURE a(x INT) COMMIT
+ok:e7f9b39844dc	ok:e7f9b39844dc	engine	one_table@missing	procedure:params	CREATE PROCEDURE a(IN x INT) COMMIT
+ok:8002ae799a1e	ok:8002ae799a1e	engine	one_table@missing	procedure:params	CREATE PROCEDURE a(OUT x INT) COMMIT
+ok:4b0437d9ed72	ok:4b0437d9ed72	engine	one_table@missing	procedure:params	CREATE PROCEDURE a(INOUT x INT) COMMIT
+ok:e3ca96c4196d	ok:e3ca96c4196d	engine	one_table@missing	procedure:params	CREATE PROCEDURE a(IN s VARCHAR(20), OUT n DECIMAL(10,2), INOUT e ENUM('x','y')) COMMIT
+ok:59e3a5f38172	ok:59e3a5f38172	engine	one_table@missing	procedure:params	CREATE PROCEDURE a(s VARCHAR(20) CHARSET latin1, b BLOB, d DATETIME(3)) COMMIT
+1330	1330	engine	one_table@missing	procedure:params	CREATE PROCEDURE a(x INT, x INT) COMMIT
+ok:e74361f0d6f8	ok:e74361f0d6f8	engine	one_table@missing	procedure:params	CREATE PROCEDURE a(x INT DEFAULT 1) SELECT x
+ok:fd7700ff63c4	ok:fd7700ff63c4	engine	one_table@missing	procedure:params	CREATE PROCEDURE a(x INT, y INT DEFAULT 2) SELECT x + y
+4032	4032	engine	one_table@missing	procedure:params	CREATE PROCEDURE a(OUT x INT DEFAULT 1) COMMIT
+4032	4032	engine	one_table@missing	procedure:params	CREATE PROCEDURE a(INOUT x INT DEFAULT 1) COMMIT
+ok:45951fb34be4	ok:45951fb34be4	engine	one_table@missing	procedure:params	CREATE PROCEDURE a(x INT, y INT DEFAULT x) SELECT y
+1327	1327	engine	one_table@missing	procedure:params	CREATE PROCEDURE a(x INT DEFAULT x) COMMIT
+ok:e1397dfda8f4	ok:e1397dfda8f4	engine	one_table@missing	procedure:params	CREATE PROCEDURE a(x INT DEFAULT (SELECT COUNT(*) FROM t)) SELECT x
+ok:f44cf188b777	ok:f44cf188b777	engine	one_table@missing	procedure:params	CREATE PROCEDURE a(x ROW(y INT, z VARCHAR(10))) SELECT x.y
+ok:c4bd611d96cc	ok:c4bd611d96cc	engine	one_table@missing	procedure:params	CREATE PROCEDURE a(x TYPE OF t.c) SELECT x
+ok:d7e88fa32623	ok:d7e88fa32623	engine	one_table@missing	procedure:params	CREATE PROCEDURE a(x ROW TYPE OF t) SELECT x.c
+ok:32b227c5d415	ok:32b227c5d415	engine	one_table@missing	procedure:characteristics	CREATE PROCEDURE a() DETERMINISTIC COMMIT
+ok:c0b508a8c204	ok:c0b508a8c204	engine	one_table@missing	procedure:characteristics	CREATE PROCEDURE a() NOT DETERMINISTIC COMMIT
+ok:40e803284ab5	ok:40e803284ab5	engine	one_table@missing	procedure:characteristics	CREATE PROCEDURE a() NO SQL BEGIN END
+ok:c0b508a8c204	ok:c0b508a8c204	engine	one_table@missing	procedure:characteristics	CREATE PROCEDURE a() CONTAINS SQL COMMIT
+ok:eae921941a6c	ok:eae921941a6c	engine	one_table@missing	procedure:characteristics	CREATE PROCEDURE a() READS SQL DATA SELECT 1
+ok:da43f0fa742a	ok:da43f0fa742a	engine	one_table@missing	procedure:characteristics	CREATE PROCEDURE a() MODIFIES SQL DATA DELETE FROM t
+ok:982174c7d726	ok:982174c7d726	engine	one_table@missing	procedure:characteristics	CREATE PROCEDURE a() SQL SECURITY INVOKER COMMIT
+ok:c0b508a8c204	ok:c0b508a8c204	engine	one_table@missing	procedure:characteristics	CREATE PROCEDURE a() SQL SECURITY DEFINER COMMIT
+ok:f5685bcaa6c2	ok:f5685bcaa6c2	engine	one_table@missing	procedure:characteristics	CREATE PROCEDURE a() COMMENT 'it''s a test' COMMIT
+ok:c0b508a8c204	ok:c0b508a8c204	engine	one_table@missing	procedure:characteristics	CREATE PROCEDURE a() LANGUAGE SQL COMMIT
+ok:9a7e9946133a	ok:9a7e9946133a	engine	one_table@missing	procedure:characteristics	CREATE PROCEDURE a() COMMENT 's' DETERMINISTIC READS SQL DATA SQL SECURITY INVOKER SELECT 1
+ok:dc00d4a236ac	ok:dc00d4a236ac	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() BEGIN END
+ok:0c10eaea5cdc	ok:0c10eaea5cdc	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() BEGIN NOT ATOMIC COMMIT; END
+ok:cecda04e8dda	ok:cecda04e8dda	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE x INT DEFAULT 1; SET x = x + 1; SELECT x; END
+ok:36fcbbbc701b	ok:36fcbbbc701b	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE c CONDITION FOR 1062; DECLARE EXIT HANDLER FOR c ROLLBACK; INSERT INTO t VALUES (1, 1, 1); END
+ok:dd1721c1de5e	ok:dd1721c1de5e	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE c CONDITION FOR SQLSTATE '23000'; DECLARE CONTINUE HANDLER FOR c BEGIN END; END
+ok:983e197b2aba	ok:983e197b2aba	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE CONTINUE HANDLER FOR SQLWARNING, NOT FOUND, SQLEXCEPTION COMMIT; END
+ok:756e3d6807f8	ok:756e3d6807f8	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE done INT DEFAULT 0; DECLARE v INT; DECLARE cur CURSOR FOR SELECT b FROM t; DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1; OPEN cur; l: LOOP FETCH cur INTO v; IF done THEN LEAVE l; END IF; END LOOP; CLOSE cur; END
+ok:8140158a3576	ok:8140158a3576	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE cur CURSOR FOR SELECT b FROM t; FOR r IN cur DO SELECT r.b; END FOR; END
+ok:bbc3b99b42b1	ok:bbc3b99b42b1	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() FOR i IN 1..3 DO SELECT i; END FOR
+ok:ad20e6d59c1e	ok:ad20e6d59c1e	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() FOR i IN REVERSE 1..3 DO SELECT i; END FOR
+ok:60eb56b5a878	ok:60eb56b5a878	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() IF 1 THEN COMMIT; ELSEIF 0 THEN ROLLBACK; ELSE COMMIT; END IF
+ok:b1372c271a33	ok:b1372c271a33	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() CASE WHEN 1 THEN COMMIT; ELSE ROLLBACK; END CASE
+ok:0fb283193964	ok:0fb283193964	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() CASE 1 WHEN 1 THEN COMMIT; WHEN 2 THEN ROLLBACK; END CASE
+ok:0d8977b6fed0	ok:0d8977b6fed0	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() l: BEGIN LEAVE l; END l
+ok:8b6022899e83	ok:8b6022899e83	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() l: LOOP LEAVE l; END LOOP l
+ok:6411bacb160d	ok:6411bacb160d	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() l: LOOP ITERATE l; END LOOP
+ok:9011befa8d28	ok:9011befa8d28	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() WHILE 0 DO COMMIT; END WHILE
+ok:724d6bb811e3	ok:724d6bb811e3	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() REPEAT COMMIT; UNTIL 1 END REPEAT
+ok:fa640f0c28cd	ok:fa640f0c28cd	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() BEGIN INSERT INTO t VALUES (1, 2, 3); UPDATE t SET c = c + 1 WHERE b = 1; DELETE FROM t WHERE b = 1; END
+ok:b7f0e1e681ee	ok:b7f0e1e681ee	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() BEGIN CREATE TABLE p (x INT); DROP TABLE p; END
+ok:129d27589f2a	ok:129d27589f2a	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() SELECT zzz FROM nosuch
+ok:124a29863bb7	ok:124a29863bb7	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() CALL nosuch()
+ok:d3ffb9341cba	ok:d3ffb9341cba	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() CALL a()
+ok:6bb2c649e917	ok:6bb2c649e917	engine	one_table@missing	procedure:body	CREATE PROCEDURE a(OUT x INT) SELECT COUNT(*) INTO x FROM t
+ok:a6d696cd564e	ok:a6d696cd564e	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() BEGIN PREPARE s FROM 'SELECT 1'; EXECUTE s; DEALLOCATE PREPARE s; END
+1310	1310	engine	one_table@missing	procedure:refused	CREATE PROCEDURE a() l1: BEGIN END l2
+1308	1308	engine	one_table@missing	procedure:refused	CREATE PROCEDURE a() BEGIN LEAVE nope; END
+ok	1193	engine	one_table@missing	procedure:refused	CREATE PROCEDURE a() SET zzz = 1
+1313	1313	engine	one_table@missing	procedure:refused	CREATE PROCEDURE a() RETURN 1
+1331	1331	engine	one_table@missing	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE x INT; DECLARE x INT; END
+1319	1319	engine	one_table@missing	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE EXIT HANDLER FOR nope COMMIT; END
+1324	1324	engine	one_table@missing	procedure:refused	CREATE PROCEDURE a() BEGIN OPEN nope; END
+1064	1064	engine	one_table@missing	procedure:refused	CREATE PROCEDURE a() BEGIN SELECT 1; DECLARE x INT; END
+1337	1337	engine	one_table@missing	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE c CURSOR FOR SELECT 1; DECLARE x INT; END
+1525	1525	engine	one_table@missing	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE c CONDITION FOR 0; END
+1407	1407	engine	one_table@missing	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE c CONDITION FOR SQLSTATE '00000'; END
+1327	1327	engine	one_table@missing	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE c CURSOR FOR SELECT 1; FOR r IN nope DO SELECT 1; END FOR; END
+4105	4105	engine	one_table@missing	procedure:refused	CREATE PROCEDURE a() FETCH GROUP NEXT ROW
+1305	1305	engine	one_table@missing	procedure:alter	ALTER PROCEDURE a
+1305	1305	engine	one_table@missing	procedure:alter	ALTER PROCEDURE a COMMENT 's'
+1305	1305	engine	one_table@missing	procedure:alter	ALTER PROCEDURE a LANGUAGE SQL
+1305	1305	engine	one_table@missing	procedure:alter	ALTER PROCEDURE a NO SQL
+1305	1305	engine	one_table@missing	procedure:alter	ALTER PROCEDURE a CONTAINS SQL
+1305	1305	engine	one_table@missing	procedure:alter	ALTER PROCEDURE a READS SQL DATA
+1305	1305	engine	one_table@missing	procedure:alter	ALTER PROCEDURE a MODIFIES SQL DATA
+1305	1305	engine	one_table@missing	procedure:alter	ALTER PROCEDURE a SQL SECURITY DEFINER
+1305	1305	engine	one_table@missing	procedure:alter	ALTER PROCEDURE a SQL SECURITY INVOKER
+1305	1305	engine	one_table@missing	procedure:alter	ALTER PROCEDURE a COMMENT 'x' NO SQL SQL SECURITY INVOKER
+1305	1305	engine	one_table@missing	procedure:alter	ALTER PROCEDURE omni_simulation.a COMMENT 's'
+1305	1305	engine	one_table@missing	procedure:alter	ALTER PROCEDURE nosuch.a COMMENT 's'
+1305	1305	engine	one_table@missing	procedure:drop	DROP PROCEDURE a
+ok:ddcba5e24503	ok:ddcba5e24503	engine	one_table@missing	procedure:drop	DROP PROCEDURE IF EXISTS a
+1305	1305	engine	one_table@missing	procedure:drop	DROP PROCEDURE A
+1305	1305	engine	one_table@missing	procedure:drop	DROP PROCEDURE omni_simulation.a
+1305	1305	engine	one_table@missing	procedure:drop	DROP PROCEDURE nosuch.a
+ok:ddcba5e24503	ok:ddcba5e24503	engine	one_table@missing	procedure:drop	DROP PROCEDURE IF EXISTS nosuch.a
+ok:9637191a6e8c	ok:9637191a6e8c	engine	one_table@missing	function:create	CREATE FUNCTION a() RETURNS INT RETURN 1
+ok:ad27d2588321	ok:ad27d2588321	engine	one_table@missing	function:create	CREATE FUNCTION a() RETURNS INT DETERMINISTIC RETURN 1
+ok:9637191a6e8c	ok:9637191a6e8c	engine	one_table@missing	function:create	CREATE FUNCTION IF NOT EXISTS a() RETURNS INT RETURN 1
+ok:2670675b2464	ok:2670675b2464	engine	one_table@missing	function:create	CREATE OR REPLACE FUNCTION a() RETURNS INT RETURN 2
+1221	1221	engine	one_table@missing	function:create	CREATE OR REPLACE FUNCTION IF NOT EXISTS a() RETURNS INT RETURN 2
+ok:2670675b2464	ok:2670675b2464	engine	one_table@missing	function:create	CREATE OR REPLACE DEFINER = `root`@`%` FUNCTION a() RETURNS INT RETURN 2
+ok:ad27d2588321	ok:ad27d2588321	engine	one_table@missing	function:create	CREATE DEFINER = `root`@`%` FUNCTION a() RETURNS INT DETERMINISTIC RETURN 1
+ok:6f5d3aec4185	ok:6f5d3aec4185	engine	one_table@missing	function:create	CREATE FUNCTION f2() RETURNS INT RETURN 1
+1049	1049	engine	one_table@missing	function:create	CREATE FUNCTION nosuch.f2() RETURNS INT RETURN 1
+ok:fbd415e59ac2	ok:fbd415e59ac2	engine	one_table@missing	function:create	CREATE FUNCTION a(x INT) RETURNS INT DETERMINISTIC RETURN x
+ok:4465b63b6ec4	ok:4465b63b6ec4	engine	one_table@missing	function:create	CREATE FUNCTION a(s VARCHAR(20)) RETURNS VARCHAR(40) DETERMINISTIC RETURN CONCAT(s, s)
+ok:c22f351395a7	ok:c22f351395a7	engine	one_table@missing	function:create	CREATE FUNCTION a(x DECIMAL(10,2)) RETURNS DECIMAL(12,4) DETERMINISTIC RETURN x
+ok:ccf30c9f1a05	ok:ccf30c9f1a05	engine	one_table@missing	function:create	CREATE FUNCTION a() RETURNS ENUM('x','y') DETERMINISTIC RETURN 'x'
+ok:564058c5652e	ok:564058c5652e	engine	one_table@missing	function:create	CREATE FUNCTION a() RETURNS VARCHAR(10) CHARSET latin1 RETURN 'x'
+ok:22b8a6dd3503	ok:22b8a6dd3503	engine	one_table@missing	function:create	CREATE FUNCTION a() RETURNS VARCHAR(10) COLLATE utf8mb4_bin RETURN 'x'
+ok:1bb98c0bee7a	ok:1bb98c0bee7a	engine	one_table@missing	function:create	CREATE FUNCTION a() RETURNS DATETIME(6) RETURN NOW(6)
+ok:2c75bc399018	ok:2c75bc399018	engine	one_table@missing	function:create	CREATE FUNCTION a() RETURNS TEXT RETURN 'x'
+ok:20d76730e983	ok:20d76730e983	engine	one_table@missing	function:create	CREATE FUNCTION a() RETURNS BOOLEAN RETURN TRUE
+ok:1359723832d0	ok:1359723832d0	engine	one_table@missing	function:create	CREATE FUNCTION a() RETURNS TYPE OF t.c RETURN 1
+ok:3003049fae33	ok:3003049fae33	engine	one_table@missing	function:create	CREATE FUNCTION a() RETURNS INT NOT DETERMINISTIC NO SQL RETURN 1
+ok:9637191a6e8c	ok:9637191a6e8c	engine	one_table@missing	function:create	CREATE FUNCTION a() RETURNS INT CONTAINS SQL RETURN 1
+ok:de8fcfd35354	ok:de8fcfd35354	engine	one_table@missing	function:create	CREATE FUNCTION a() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FROM t)
+ok:e28d9c285452	ok:e28d9c285452	engine	one_table@missing	function:create	CREATE FUNCTION a() RETURNS INT MODIFIES SQL DATA RETURN 1
+ok:f025c25be2c3	ok:f025c25be2c3	engine	one_table@missing	function:create	CREATE FUNCTION a() RETURNS INT SQL SECURITY INVOKER RETURN 1
+ok:f2a59e50b5bb	ok:f2a59e50b5bb	engine	one_table@missing	function:create	CREATE FUNCTION a() RETURNS INT COMMENT 's' RETURN 1
+ok:c9f9586f150b	ok:c9f9586f150b	engine	one_table@missing	function:create	CREATE FUNCTION a(x INT) RETURNS INT BEGIN DECLARE r INT DEFAULT 1; SET r = x + r; RETURN r; END
+ok:347221019820	ok:347221019820	engine	one_table@missing	function:create	CREATE FUNCTION a(x INT) RETURNS INT BEGIN IF x > 0 THEN RETURN 1; END IF; RETURN 0; END
+ok:416576349a7e	ok:416576349a7e	engine	one_table@missing	function:params	CREATE FUNCTION a(IN x INT) RETURNS INT RETURN x
+ok:3407f5b63473	ok:3407f5b63473	engine	one_table@missing	function:params	CREATE FUNCTION a(OUT x INT) RETURNS INT RETURN 1
+ok:c8e83bda466a	ok:c8e83bda466a	engine	one_table@missing	function:params	CREATE FUNCTION a(INOUT x INT) RETURNS INT RETURN x
+ok:be67ec13fb27	ok:be67ec13fb27	engine	one_table@missing	function:params	CREATE FUNCTION a(x INT DEFAULT 1) RETURNS INT RETURN x
+1330	1330	engine	one_table@missing	function:params	CREATE FUNCTION a(x INT, x INT) RETURNS INT RETURN 1
+ok:e74656caaf9c	ok:e74656caaf9c	engine	one_table@missing	function:params	CREATE FUNCTION a(x ROW(y INT)) RETURNS INT RETURN x.y
+1320	1320	engine	one_table@missing	function:refused	CREATE FUNCTION a() RETURNS INT BEGIN END
+1064	1064	engine	one_table@missing	function:refused	CREATE FUNCTION a() RETURNS INT SELECT 1
+1422	1422	engine	one_table@missing	function:refused	CREATE FUNCTION a() RETURNS INT BEGIN COMMIT; RETURN 1; END
+1415	1415	engine	one_table@missing	function:refused	CREATE FUNCTION a() RETURNS INT BEGIN SELECT 1; RETURN 1; END
+4105	4105	engine	one_table@missing	function:refused	CREATE FUNCTION a() RETURNS INT BEGIN FETCH GROUP NEXT ROW; RETURN 1; END
+ok:02f3fcbc5e2a	ok:02f3fcbc5e2a	engine	one_table@missing	function:aggregate	CREATE AGGREGATE FUNCTION a(x INT) RETURNS INT BEGIN DECLARE s INT DEFAULT 0; DECLARE CONTINUE HANDLER FOR NOT FOUND RETURN s; LOOP FETCH GROUP NEXT ROW; SET s = s + x; END LOOP; END
+ok:02f3fcbc5e2a	ok:02f3fcbc5e2a	engine	one_table@missing	function:aggregate	CREATE OR REPLACE AGGREGATE FUNCTION a(x INT) RETURNS INT BEGIN DECLARE s INT DEFAULT 0; DECLARE CONTINUE HANDLER FOR NOT FOUND RETURN s; LOOP FETCH GROUP NEXT ROW; SET s = s + x; END LOOP; END
+ok:02f3fcbc5e2a	ok:02f3fcbc5e2a	engine	one_table@missing	function:aggregate	CREATE AGGREGATE FUNCTION IF NOT EXISTS a(x INT) RETURNS INT BEGIN DECLARE s INT DEFAULT 0; DECLARE CONTINUE HANDLER FOR NOT FOUND RETURN s; LOOP FETCH GROUP NEXT ROW; SET s = s + x; END LOOP; END
+4106	4106	engine	one_table@missing	function:aggregate	CREATE AGGREGATE FUNCTION a(x INT) RETURNS INT RETURN 1
+1305	1305	engine	one_table@missing	function:alter	ALTER FUNCTION a
+1305	1305	engine	one_table@missing	function:alter	ALTER FUNCTION a COMMENT 's'
+1305	1305	engine	one_table@missing	function:alter	ALTER FUNCTION a LANGUAGE SQL
+1305	1305	engine	one_table@missing	function:alter	ALTER FUNCTION a NO SQL
+1305	1305	engine	one_table@missing	function:alter	ALTER FUNCTION a CONTAINS SQL
+1305	1305	engine	one_table@missing	function:alter	ALTER FUNCTION a READS SQL DATA
+1305	1305	engine	one_table@missing	function:alter	ALTER FUNCTION a MODIFIES SQL DATA
+1305	1305	engine	one_table@missing	function:alter	ALTER FUNCTION a SQL SECURITY DEFINER
+1305	1305	engine	one_table@missing	function:alter	ALTER FUNCTION a SQL SECURITY INVOKER
+1305	1305	engine	one_table@missing	function:alter	ALTER FUNCTION nosuch.a COMMENT 's'
+1305	1305	engine	one_table@missing	function:drop	DROP FUNCTION a
+ok:ddcba5e24503	ok:ddcba5e24503	engine	one_table@missing	function:drop	DROP FUNCTION IF EXISTS a
+1305	1305	engine	one_table@missing	function:drop	DROP FUNCTION omni_simulation.a
+1305	1305	engine	one_table@missing	function:drop	DROP FUNCTION nosuch.a
+ok:ddcba5e24503	ok:ddcba5e24503	engine	one_table@missing	function:drop	DROP FUNCTION IF EXISTS nosuch.a
+ok:9376e376a040	ok:9376e376a040	engine	one_table@missing	trigger:create	CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+1146	1146	engine	one_table@missing	trigger:create	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW SET NEW.c = 1
+1146	1146	engine	one_table@missing	trigger:create	CREATE TRIGGER a AFTER INSERT ON a FOR EACH ROW SET @x = NEW.c
+1146	1146	engine	one_table@missing	trigger:create	CREATE TRIGGER a BEFORE UPDATE ON a FOR EACH ROW SET NEW.c = OLD.c + 1
+1146	1146	engine	one_table@missing	trigger:create	CREATE TRIGGER a AFTER UPDATE ON a FOR EACH ROW SET @x = NEW.c
+1146	1146	engine	one_table@missing	trigger:create	CREATE TRIGGER a BEFORE DELETE ON a FOR EACH ROW SET @x = OLD.c
+1146	1146	engine	one_table@missing	trigger:create	CREATE TRIGGER a AFTER DELETE ON a FOR EACH ROW SET @x = OLD.c
+ok:a657f86d3c52	ok:a657f86d3c52	engine	one_table@missing	trigger:create	CREATE TRIGGER tr2 AFTER INSERT ON t FOR EACH ROW BEGIN IF NEW.c > 0 THEN SET @x = 1; END IF; END
+ok:0482f1b774d8	ok:0482f1b774d8	engine	one_table@missing	trigger:create	CREATE TRIGGER IF NOT EXISTS a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+ok:d88f4e1d8539	ok:d88f4e1d8539	engine	one_table@missing	trigger:create	CREATE OR REPLACE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+ok:85fc42535010	ok:85fc42535010	engine	one_table@missing	trigger:create	CREATE OR REPLACE TRIGGER a AFTER DELETE ON t FOR EACH ROW SET @x = OLD.c
+1221	1221	engine	one_table@missing	trigger:create	CREATE OR REPLACE TRIGGER IF NOT EXISTS a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+ok:9376e376a040	ok:9376e376a040	engine	one_table@missing	trigger:create	CREATE DEFINER = `root`@`%` TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+ok:9376e376a040	ok:9376e376a040	engine	one_table@missing	trigger:create	CREATE OR REPLACE DEFINER = `root`@`%` TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+4031	4031	engine	one_table@missing	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW FOLLOWS a SET NEW.c = 2
+4031	4031	engine	one_table@missing	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW PRECEDES a SET NEW.c = 2
+4031	4031	engine	one_table@missing	trigger:create	CREATE TRIGGER tr2 AFTER UPDATE ON t FOR EACH ROW FOLLOWS a SET @x = 1
+4031	4031	engine	one_table@missing	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW FOLLOWS nope SET NEW.c = 2
+ok:82a4b8aa5c08	ok:82a4b8aa5c08	engine	one_table@missing	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+ok:5ddd6aeac0e8	ok:5ddd6aeac0e8	engine	one_table@missing	trigger:create	CREATE TRIGGER omni_simulation.tr2 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	one_table@missing	trigger:create	CREATE TRIGGER nosuch.tr2 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	one_table@missing	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON nosuch.t FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	one_table@missing	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON nope FOR EACH ROW SET NEW.c = 2
+ok:c100fd61f2d4	ok:c100fd61f2d4	engine	one_table@missing	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW INSERT INTO nope VALUES (NEW.b)
+1363	1363	engine	one_table@missing	trigger:refused	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW SET @x = OLD.c
+1363	1363	engine	one_table@missing	trigger:refused	CREATE TRIGGER tr2 BEFORE DELETE ON t FOR EACH ROW SET @x = NEW.c
+1362	1362	engine	one_table@missing	trigger:refused	CREATE TRIGGER tr2 AFTER INSERT ON t FOR EACH ROW SET NEW.c = 1
+1362	1362	engine	one_table@missing	trigger:refused	CREATE TRIGGER tr2 BEFORE UPDATE ON t FOR EACH ROW SET OLD.c = 1
+1054	1054	engine	one_table@missing	trigger:refused	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW SET NEW.zzz = 1
+1313	1313	engine	one_table@missing	trigger:refused	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW RETURN 1
+1422	1422	engine	one_table@missing	trigger:refused	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW COMMIT
+1360	1360	engine	one_table@missing	trigger:drop	DROP TRIGGER a
+ok:ddcba5e24503	ok:ddcba5e24503	engine	one_table@missing	trigger:drop	DROP TRIGGER IF EXISTS a
+1360	1360	engine	one_table@missing	trigger:drop	DROP TRIGGER omni_simulation.a
+1360	1360	engine	one_table@missing	trigger:drop	DROP TRIGGER nosuch.a
+ok:ddcba5e24503	ok:ddcba5e24503	engine	one_table@missing	trigger:drop	DROP TRIGGER IF EXISTS nosuch.a
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@missing	trigger:table	DROP TABLE t
+ok:6a7cf95be18d	ok:6a7cf95be18d	engine	one_table@missing	trigger:table	RENAME TABLE t TO t2
+ok:6a7cf95be18d	ok:6a7cf95be18d	engine	one_table@missing	trigger:table	ALTER TABLE t RENAME TO t2
+ok:06441f52ede5	ok:06441f52ede5	engine	one_table@missing	trigger:table	ALTER TABLE t DROP COLUMN c
+ok:4c9c88ca622e	ok:4c9c88ca622e	engine	one_table@missing	trigger:table	ALTER TABLE t ADD COLUMN e INT
+ok:86b9a95b562d	ok:86b9a95b562d	engine	one_table@missing	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:86b9a95b562d	ok:86b9a95b562d	engine	one_table@missing	event:create	CREATE EVENT IF NOT EXISTS a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:4a564317862e	ok:4a564317862e	engine	one_table@missing	event:create	CREATE OR REPLACE EVENT a ON SCHEDULE EVERY 2 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1221	1221	engine	one_table@missing	event:create	CREATE OR REPLACE EVENT IF NOT EXISTS a ON SCHEDULE EVERY 2 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:86b9a95b562d	ok:86b9a95b562d	engine	one_table@missing	event:create	CREATE DEFINER = `root`@`%` EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:4a2182b72c21	ok:4a2182b72c21	engine	one_table@missing	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ENDS '2031-01-01 00:00:00' DO COMMIT
+ok:a7b2756cfba4	ok:a7b2756cfba4	engine	one_table@missing	event:create	CREATE EVENT a ON SCHEDULE AT '2030-01-01 00:00:00' DO COMMIT
+ok:8aef61eea51d	ok:8aef61eea51d	engine	one_table@missing	event:create	CREATE EVENT a ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION PRESERVE DO COMMIT
+ok:a7b2756cfba4	ok:a7b2756cfba4	engine	one_table@missing	event:create	CREATE EVENT a ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE DO COMMIT
+ok:9c3f9ee451ca	ok:9c3f9ee451ca	engine	one_table@missing	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT
+ok:5d660fc61e60	ok:5d660fc61e60	engine	one_table@missing	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE DO COMMIT
+ok:5fc1413312c1	ok:5fc1413312c1	engine	one_table@missing	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE ON SLAVE DO COMMIT
+ok:886b877c61ef	ok:886b877c61ef	engine	one_table@missing	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' COMMENT 'it''s nightly' DO COMMIT
+ok:ec598c83b1d5	ok:ec598c83b1d5	engine	one_table@missing	event:create	CREATE EVENT a ON SCHEDULE EVERY 90 MINUTE STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:7cc414a0cdfa	ok:7cc414a0cdfa	engine	one_table@missing	event:create	CREATE EVENT a ON SCHEDULE EVERY '1:30' HOUR_MINUTE STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:4c0e2a635ad0	ok:4c0e2a635ad0	engine	one_table@missing	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 WEEK STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:67f43fb9b8e4	ok:67f43fb9b8e4	engine	one_table@missing	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 QUARTER STARTS '2030-01-01 00:00:00' DO COMMIT
+1235	1235	engine	one_table@missing	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 MICROSECOND STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:30b7a7b948eb	ok:30b7a7b948eb	engine	one_table@missing	event:create	CREATE EVENT a ON SCHEDULE AT '2030-01-01 00:00:00' + INTERVAL 1 DAY DO COMMIT
+ok:ec6bfa66708e	ok:ec6bfa66708e	engine	one_table@missing	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO BEGIN DELETE FROM t WHERE c < 0; INSERT INTO t VALUES (1, 1, 1); END
+ok:0516922c1e9a	ok:0516922c1e9a	engine	one_table@missing	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO CALL a()
+ok:9437faf0bd28	ok:9437faf0bd28	engine	one_table@missing	event:create	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1049	1049	engine	one_table@missing	event:create	CREATE EVENT nosuch.ev2 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1543	1543	engine	one_table@missing	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS '2031-01-01 00:00:00' ENDS '2030-01-01 00:00:00' DO COMMIT
+1542	1542	engine	one_table@missing	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 0 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1542	1542	engine	one_table@missing	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY -1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1525	1525	engine	one_table@missing	event:refused	CREATE EVENT ev2 ON SCHEDULE AT 'zzz' DO COMMIT
+1525	1525	engine	one_table@missing	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS 'zzz' DO COMMIT
+1543	1543	engine	one_table@missing	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ENDS 'zzz' DO COMMIT
+ok:ddcba5e24503	ok:ddcba5e24503	engine	one_table@missing	event:refused	CREATE EVENT ev2 ON SCHEDULE AT '2000-01-01 00:00:00' DO COMMIT
+1576	1576	engine	one_table@missing	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO CREATE EVENT ev3 ON SCHEDULE EVERY 1 DAY DO COMMIT
+1539	1539	engine	one_table@missing	event:alter	ALTER EVENT a ON SCHEDULE EVERY 2 DAY STARTS '2030-01-01 00:00:00'
+1539	1539	engine	one_table@missing	event:alter	ALTER EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ENDS '2031-01-01 00:00:00'
+1539	1539	engine	one_table@missing	event:alter	ALTER EVENT a ON SCHEDULE AT '2030-06-01 00:00:00'
+1539	1539	engine	one_table@missing	event:alter	ALTER EVENT a ON SCHEDULE AT '2000-01-01 00:00:00'
+1539	1539	engine	one_table@missing	event:alter	ALTER EVENT a ON SCHEDULE AT '2000-01-01 00:00:00' ON COMPLETION PRESERVE
+1539	1539	engine	one_table@missing	event:alter	ALTER EVENT a ON COMPLETION PRESERVE
+1539	1539	engine	one_table@missing	event:alter	ALTER EVENT a ON COMPLETION NOT PRESERVE
+1539	1539	engine	one_table@missing	event:alter	ALTER EVENT a ENABLE
+1539	1539	engine	one_table@missing	event:alter	ALTER EVENT a DISABLE
+1539	1539	engine	one_table@missing	event:alter	ALTER EVENT a DISABLE ON SLAVE
+1539	1539	engine	one_table@missing	event:alter	ALTER EVENT a COMMENT 's'
+1539	1539	engine	one_table@missing	event:alter	ALTER EVENT a DO COMMIT
+1539	1539	engine	one_table@missing	event:alter	ALTER EVENT a DO BEGIN SET @x = 1; COMMIT; END
+1539	1539	engine	one_table@missing	event:alter	ALTER EVENT a DO IF @x THEN COMMIT; END IF
+1539	1539	engine	one_table@missing	event:alter	ALTER EVENT a DO l: LOOP LEAVE l; END LOOP
+1539	1539	engine	one_table@missing	event:alter	ALTER EVENT a DO WHILE 0 DO COMMIT; END WHILE
+1539	1539	engine	one_table@missing	event:alter	ALTER EVENT a DO REPEAT COMMIT; UNTIL 1 END REPEAT
+1539	1539	engine	one_table@missing	event:alter	ALTER EVENT a DO BEGIN DECLARE x INT DEFAULT 1; SET @x = x; END
+1539	1539	engine	one_table@missing	event:alter	ALTER EVENT a DO BEGIN DECLARE EXIT HANDLER FOR SQLEXCEPTION COMMIT; END
+1551	1551	engine	one_table@missing	event:alter	ALTER EVENT a RENAME TO a
+1539	1539	engine	one_table@missing	event:alter	ALTER EVENT a RENAME TO ev2
+1539	1539	engine	one_table@missing	event:alter	ALTER EVENT a RENAME TO omni_simulation.ev2
+1049	1049	engine	one_table@missing	event:alter	ALTER EVENT a RENAME TO nosuch.ev2
+1543	1543	engine	one_table@missing	event:alter	ALTER EVENT a ON SCHEDULE EVERY 1 HOUR STARTS '2031-01-01 00:00:00' ENDS '2030-01-01 00:00:00'
+1064	1064	engine	one_table@missing	event:alter	ALTER EVENT a ON COMPLETION PRESERVE DISABLE COMMENT 'off' RENAME TO ev2 DO COMMIT
+1539	1539	engine	one_table@missing	event:alter	ALTER DEFINER = `root`@`%` EVENT a COMMENT 's'
+1049	1049	engine	one_table@missing	event:alter	ALTER EVENT nosuch.a ENABLE
+1539	1539	engine	one_table@missing	event:drop	DROP EVENT a
+ok:ddcba5e24503	ok:ddcba5e24503	engine	one_table@missing	event:drop	DROP EVENT IF EXISTS a
+1539	1539	engine	one_table@missing	event:drop	DROP EVENT omni_simulation.a
+1539	1539	engine	one_table@missing	event:drop	DROP EVENT nosuch.a
+ok:ddcba5e24503	ok:ddcba5e24503	engine	one_table@missing	event:drop	DROP EVENT IF EXISTS nosuch.a
+ok:6b4cb2d26790	ok:6b4cb2d26790	engine	one_table@table	procedure:create	CREATE PROCEDURE a() COMMIT
+ok:6b4cb2d26790	ok:6b4cb2d26790	engine	one_table@table	procedure:create	CREATE PROCEDURE IF NOT EXISTS a() COMMIT
+ok:6b4cb2d26790	ok:6b4cb2d26790	engine	one_table@table	procedure:create	CREATE OR REPLACE PROCEDURE a() COMMIT
+1221	1221	engine	one_table@table	procedure:create	CREATE OR REPLACE PROCEDURE IF NOT EXISTS a() COMMIT
+ok:21dbeebc6239	ok:21dbeebc6239	engine	one_table@table	procedure:create	CREATE OR REPLACE DEFINER = `root`@`%` PROCEDURE a() SELECT 1
+ok:6b4cb2d26790	ok:6b4cb2d26790	engine	one_table@table	procedure:create	CREATE DEFINER = `root`@`%` PROCEDURE a() COMMIT
+ok:6b4cb2d26790	ok:6b4cb2d26790	engine	one_table@table	procedure:create	CREATE DEFINER = CURRENT_USER PROCEDURE a() COMMIT
+ok:54a2e3e5c49e	ok:54a2e3e5c49e	engine	one_table@table	procedure:create	CREATE PROCEDURE p2() COMMIT
+ok:54a2e3e5c49e	ok:54a2e3e5c49e	engine	one_table@table	procedure:create	CREATE PROCEDURE omni_simulation.p2() COMMIT
+1049	1049	engine	one_table@table	procedure:create	CREATE PROCEDURE nosuch.p2() COMMIT
+1059	1059	engine	one_table@table	procedure:create	CREATE PROCEDURE a23456789012345678901234567890123456789012345678901234567890abcde() COMMIT
+ok:e63ce252a617	ok:e63ce252a617	engine	one_table@table	procedure:params	CREATE PROCEDURE a(x INT) COMMIT
+ok:d9d1edd5a6d6	ok:d9d1edd5a6d6	engine	one_table@table	procedure:params	CREATE PROCEDURE a(IN x INT) COMMIT
+ok:9c7e325c1032	ok:9c7e325c1032	engine	one_table@table	procedure:params	CREATE PROCEDURE a(OUT x INT) COMMIT
+ok:90e4a76d179b	ok:90e4a76d179b	engine	one_table@table	procedure:params	CREATE PROCEDURE a(INOUT x INT) COMMIT
+ok:6b55650a8666	ok:6b55650a8666	engine	one_table@table	procedure:params	CREATE PROCEDURE a(IN s VARCHAR(20), OUT n DECIMAL(10,2), INOUT e ENUM('x','y')) COMMIT
+ok:3d01ff7fbc90	ok:3d01ff7fbc90	engine	one_table@table	procedure:params	CREATE PROCEDURE a(s VARCHAR(20) CHARSET latin1, b BLOB, d DATETIME(3)) COMMIT
+1330	1330	engine	one_table@table	procedure:params	CREATE PROCEDURE a(x INT, x INT) COMMIT
+ok:7fb9bb79deba	ok:7fb9bb79deba	engine	one_table@table	procedure:params	CREATE PROCEDURE a(x INT DEFAULT 1) SELECT x
+ok:082ea8e3fecf	ok:082ea8e3fecf	engine	one_table@table	procedure:params	CREATE PROCEDURE a(x INT, y INT DEFAULT 2) SELECT x + y
+4032	4032	engine	one_table@table	procedure:params	CREATE PROCEDURE a(OUT x INT DEFAULT 1) COMMIT
+4032	4032	engine	one_table@table	procedure:params	CREATE PROCEDURE a(INOUT x INT DEFAULT 1) COMMIT
+ok:a8c625e76e98	ok:a8c625e76e98	engine	one_table@table	procedure:params	CREATE PROCEDURE a(x INT, y INT DEFAULT x) SELECT y
+1327	1327	engine	one_table@table	procedure:params	CREATE PROCEDURE a(x INT DEFAULT x) COMMIT
+ok:5e3d5a0db2a2	ok:5e3d5a0db2a2	engine	one_table@table	procedure:params	CREATE PROCEDURE a(x INT DEFAULT (SELECT COUNT(*) FROM t)) SELECT x
+ok:b5c0fa241225	ok:b5c0fa241225	engine	one_table@table	procedure:params	CREATE PROCEDURE a(x ROW(y INT, z VARCHAR(10))) SELECT x.y
+ok:e04e0c87da39	ok:e04e0c87da39	engine	one_table@table	procedure:params	CREATE PROCEDURE a(x TYPE OF t.c) SELECT x
+ok:4fd69f372a19	ok:4fd69f372a19	engine	one_table@table	procedure:params	CREATE PROCEDURE a(x ROW TYPE OF t) SELECT x.c
+ok:5622a1b79d95	ok:5622a1b79d95	engine	one_table@table	procedure:characteristics	CREATE PROCEDURE a() DETERMINISTIC COMMIT
+ok:6b4cb2d26790	ok:6b4cb2d26790	engine	one_table@table	procedure:characteristics	CREATE PROCEDURE a() NOT DETERMINISTIC COMMIT
+ok:4844f339f809	ok:4844f339f809	engine	one_table@table	procedure:characteristics	CREATE PROCEDURE a() NO SQL BEGIN END
+ok:6b4cb2d26790	ok:6b4cb2d26790	engine	one_table@table	procedure:characteristics	CREATE PROCEDURE a() CONTAINS SQL COMMIT
+ok:5b1ad632112a	ok:5b1ad632112a	engine	one_table@table	procedure:characteristics	CREATE PROCEDURE a() READS SQL DATA SELECT 1
+ok:cd722044c8b8	ok:cd722044c8b8	engine	one_table@table	procedure:characteristics	CREATE PROCEDURE a() MODIFIES SQL DATA DELETE FROM t
+ok:110860e4b2ef	ok:110860e4b2ef	engine	one_table@table	procedure:characteristics	CREATE PROCEDURE a() SQL SECURITY INVOKER COMMIT
+ok:6b4cb2d26790	ok:6b4cb2d26790	engine	one_table@table	procedure:characteristics	CREATE PROCEDURE a() SQL SECURITY DEFINER COMMIT
+ok:df0a28267cc0	ok:df0a28267cc0	engine	one_table@table	procedure:characteristics	CREATE PROCEDURE a() COMMENT 'it''s a test' COMMIT
+ok:6b4cb2d26790	ok:6b4cb2d26790	engine	one_table@table	procedure:characteristics	CREATE PROCEDURE a() LANGUAGE SQL COMMIT
+ok:a44d298e7588	ok:a44d298e7588	engine	one_table@table	procedure:characteristics	CREATE PROCEDURE a() COMMENT 's' DETERMINISTIC READS SQL DATA SQL SECURITY INVOKER SELECT 1
+ok:b3070c45bae9	ok:b3070c45bae9	engine	one_table@table	procedure:body	CREATE PROCEDURE a() BEGIN END
+ok:43b98adad6c2	ok:43b98adad6c2	engine	one_table@table	procedure:body	CREATE PROCEDURE a() BEGIN NOT ATOMIC COMMIT; END
+ok:427445dffdb0	ok:427445dffdb0	engine	one_table@table	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE x INT DEFAULT 1; SET x = x + 1; SELECT x; END
+ok:fb51e650f55d	ok:fb51e650f55d	engine	one_table@table	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE c CONDITION FOR 1062; DECLARE EXIT HANDLER FOR c ROLLBACK; INSERT INTO t VALUES (1, 1, 1); END
+ok:cdb426127efa	ok:cdb426127efa	engine	one_table@table	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE c CONDITION FOR SQLSTATE '23000'; DECLARE CONTINUE HANDLER FOR c BEGIN END; END
+ok:0aef2968a0b2	ok:0aef2968a0b2	engine	one_table@table	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE CONTINUE HANDLER FOR SQLWARNING, NOT FOUND, SQLEXCEPTION COMMIT; END
+ok:10a2a046c0bf	ok:10a2a046c0bf	engine	one_table@table	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE done INT DEFAULT 0; DECLARE v INT; DECLARE cur CURSOR FOR SELECT b FROM t; DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1; OPEN cur; l: LOOP FETCH cur INTO v; IF done THEN LEAVE l; END IF; END LOOP; CLOSE cur; END
+ok:cae00b6f2293	ok:cae00b6f2293	engine	one_table@table	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE cur CURSOR FOR SELECT b FROM t; FOR r IN cur DO SELECT r.b; END FOR; END
+ok:9c825c832230	ok:9c825c832230	engine	one_table@table	procedure:body	CREATE PROCEDURE a() FOR i IN 1..3 DO SELECT i; END FOR
+ok:f5ede9b405a7	ok:f5ede9b405a7	engine	one_table@table	procedure:body	CREATE PROCEDURE a() FOR i IN REVERSE 1..3 DO SELECT i; END FOR
+ok:b217a3679a9d	ok:b217a3679a9d	engine	one_table@table	procedure:body	CREATE PROCEDURE a() IF 1 THEN COMMIT; ELSEIF 0 THEN ROLLBACK; ELSE COMMIT; END IF
+ok:77b99794c898	ok:77b99794c898	engine	one_table@table	procedure:body	CREATE PROCEDURE a() CASE WHEN 1 THEN COMMIT; ELSE ROLLBACK; END CASE
+ok:2afd8db4cb7c	ok:2afd8db4cb7c	engine	one_table@table	procedure:body	CREATE PROCEDURE a() CASE 1 WHEN 1 THEN COMMIT; WHEN 2 THEN ROLLBACK; END CASE
+ok:88fcf62a2172	ok:88fcf62a2172	engine	one_table@table	procedure:body	CREATE PROCEDURE a() l: BEGIN LEAVE l; END l
+ok:4b9b2da15fba	ok:4b9b2da15fba	engine	one_table@table	procedure:body	CREATE PROCEDURE a() l: LOOP LEAVE l; END LOOP l
+ok:660026fcf54f	ok:660026fcf54f	engine	one_table@table	procedure:body	CREATE PROCEDURE a() l: LOOP ITERATE l; END LOOP
+ok:ab2bb9d99a14	ok:ab2bb9d99a14	engine	one_table@table	procedure:body	CREATE PROCEDURE a() WHILE 0 DO COMMIT; END WHILE
+ok:386c5afa9b39	ok:386c5afa9b39	engine	one_table@table	procedure:body	CREATE PROCEDURE a() REPEAT COMMIT; UNTIL 1 END REPEAT
+ok:36b215b1f3e2	ok:36b215b1f3e2	engine	one_table@table	procedure:body	CREATE PROCEDURE a() BEGIN INSERT INTO t VALUES (1, 2, 3); UPDATE t SET c = c + 1 WHERE b = 1; DELETE FROM t WHERE b = 1; END
+ok:0f72aff1bdeb	ok:0f72aff1bdeb	engine	one_table@table	procedure:body	CREATE PROCEDURE a() BEGIN CREATE TABLE p (x INT); DROP TABLE p; END
+ok:0eb144586ce0	ok:0eb144586ce0	engine	one_table@table	procedure:body	CREATE PROCEDURE a() SELECT zzz FROM nosuch
+ok:8c19214b6b63	ok:8c19214b6b63	engine	one_table@table	procedure:body	CREATE PROCEDURE a() CALL nosuch()
+ok:046bc7f1b197	ok:046bc7f1b197	engine	one_table@table	procedure:body	CREATE PROCEDURE a() CALL a()
+ok:7a22671482d5	ok:7a22671482d5	engine	one_table@table	procedure:body	CREATE PROCEDURE a(OUT x INT) SELECT COUNT(*) INTO x FROM t
+ok:4a105bbf9f96	ok:4a105bbf9f96	engine	one_table@table	procedure:body	CREATE PROCEDURE a() BEGIN PREPARE s FROM 'SELECT 1'; EXECUTE s; DEALLOCATE PREPARE s; END
+1310	1310	engine	one_table@table	procedure:refused	CREATE PROCEDURE a() l1: BEGIN END l2
+1308	1308	engine	one_table@table	procedure:refused	CREATE PROCEDURE a() BEGIN LEAVE nope; END
+ok	1193	engine	one_table@table	procedure:refused	CREATE PROCEDURE a() SET zzz = 1
+1313	1313	engine	one_table@table	procedure:refused	CREATE PROCEDURE a() RETURN 1
+1331	1331	engine	one_table@table	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE x INT; DECLARE x INT; END
+1319	1319	engine	one_table@table	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE EXIT HANDLER FOR nope COMMIT; END
+1324	1324	engine	one_table@table	procedure:refused	CREATE PROCEDURE a() BEGIN OPEN nope; END
+1064	1064	engine	one_table@table	procedure:refused	CREATE PROCEDURE a() BEGIN SELECT 1; DECLARE x INT; END
+1337	1337	engine	one_table@table	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE c CURSOR FOR SELECT 1; DECLARE x INT; END
+1525	1525	engine	one_table@table	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE c CONDITION FOR 0; END
+1407	1407	engine	one_table@table	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE c CONDITION FOR SQLSTATE '00000'; END
+1327	1327	engine	one_table@table	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE c CURSOR FOR SELECT 1; FOR r IN nope DO SELECT 1; END FOR; END
+4105	4105	engine	one_table@table	procedure:refused	CREATE PROCEDURE a() FETCH GROUP NEXT ROW
+1305	1305	engine	one_table@table	procedure:alter	ALTER PROCEDURE a
+1305	1305	engine	one_table@table	procedure:alter	ALTER PROCEDURE a COMMENT 's'
+1305	1305	engine	one_table@table	procedure:alter	ALTER PROCEDURE a LANGUAGE SQL
+1305	1305	engine	one_table@table	procedure:alter	ALTER PROCEDURE a NO SQL
+1305	1305	engine	one_table@table	procedure:alter	ALTER PROCEDURE a CONTAINS SQL
+1305	1305	engine	one_table@table	procedure:alter	ALTER PROCEDURE a READS SQL DATA
+1305	1305	engine	one_table@table	procedure:alter	ALTER PROCEDURE a MODIFIES SQL DATA
+1305	1305	engine	one_table@table	procedure:alter	ALTER PROCEDURE a SQL SECURITY DEFINER
+1305	1305	engine	one_table@table	procedure:alter	ALTER PROCEDURE a SQL SECURITY INVOKER
+1305	1305	engine	one_table@table	procedure:alter	ALTER PROCEDURE a COMMENT 'x' NO SQL SQL SECURITY INVOKER
+1305	1305	engine	one_table@table	procedure:alter	ALTER PROCEDURE omni_simulation.a COMMENT 's'
+1305	1305	engine	one_table@table	procedure:alter	ALTER PROCEDURE nosuch.a COMMENT 's'
+1305	1305	engine	one_table@table	procedure:drop	DROP PROCEDURE a
+ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	procedure:drop	DROP PROCEDURE IF EXISTS a
+1305	1305	engine	one_table@table	procedure:drop	DROP PROCEDURE A
+1305	1305	engine	one_table@table	procedure:drop	DROP PROCEDURE omni_simulation.a
+1305	1305	engine	one_table@table	procedure:drop	DROP PROCEDURE nosuch.a
+ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	procedure:drop	DROP PROCEDURE IF EXISTS nosuch.a
+ok:dcf69736a468	ok:dcf69736a468	engine	one_table@table	function:create	CREATE FUNCTION a() RETURNS INT RETURN 1
+ok:1d7e2a46f2f1	ok:1d7e2a46f2f1	engine	one_table@table	function:create	CREATE FUNCTION a() RETURNS INT DETERMINISTIC RETURN 1
+ok:dcf69736a468	ok:dcf69736a468	engine	one_table@table	function:create	CREATE FUNCTION IF NOT EXISTS a() RETURNS INT RETURN 1
+ok:1f13442465dd	ok:1f13442465dd	engine	one_table@table	function:create	CREATE OR REPLACE FUNCTION a() RETURNS INT RETURN 2
+1221	1221	engine	one_table@table	function:create	CREATE OR REPLACE FUNCTION IF NOT EXISTS a() RETURNS INT RETURN 2
+ok:1f13442465dd	ok:1f13442465dd	engine	one_table@table	function:create	CREATE OR REPLACE DEFINER = `root`@`%` FUNCTION a() RETURNS INT RETURN 2
+ok:1d7e2a46f2f1	ok:1d7e2a46f2f1	engine	one_table@table	function:create	CREATE DEFINER = `root`@`%` FUNCTION a() RETURNS INT DETERMINISTIC RETURN 1
+ok:9dd1077e9714	ok:9dd1077e9714	engine	one_table@table	function:create	CREATE FUNCTION f2() RETURNS INT RETURN 1
+1049	1049	engine	one_table@table	function:create	CREATE FUNCTION nosuch.f2() RETURNS INT RETURN 1
+ok:a09794c43576	ok:a09794c43576	engine	one_table@table	function:create	CREATE FUNCTION a(x INT) RETURNS INT DETERMINISTIC RETURN x
+ok:480d138cccea	ok:480d138cccea	engine	one_table@table	function:create	CREATE FUNCTION a(s VARCHAR(20)) RETURNS VARCHAR(40) DETERMINISTIC RETURN CONCAT(s, s)
+ok:12f3745e3b10	ok:12f3745e3b10	engine	one_table@table	function:create	CREATE FUNCTION a(x DECIMAL(10,2)) RETURNS DECIMAL(12,4) DETERMINISTIC RETURN x
+ok:31ffa7171015	ok:31ffa7171015	engine	one_table@table	function:create	CREATE FUNCTION a() RETURNS ENUM('x','y') DETERMINISTIC RETURN 'x'
+ok:8950ffb7a203	ok:8950ffb7a203	engine	one_table@table	function:create	CREATE FUNCTION a() RETURNS VARCHAR(10) CHARSET latin1 RETURN 'x'
+ok:e2de0d453477	ok:e2de0d453477	engine	one_table@table	function:create	CREATE FUNCTION a() RETURNS VARCHAR(10) COLLATE utf8mb4_bin RETURN 'x'
+ok:65b46d18f284	ok:65b46d18f284	engine	one_table@table	function:create	CREATE FUNCTION a() RETURNS DATETIME(6) RETURN NOW(6)
+ok:be8464bcff9e	ok:be8464bcff9e	engine	one_table@table	function:create	CREATE FUNCTION a() RETURNS TEXT RETURN 'x'
+ok:d3ae943b8d2d	ok:d3ae943b8d2d	engine	one_table@table	function:create	CREATE FUNCTION a() RETURNS BOOLEAN RETURN TRUE
+ok:a371cb6c36ac	ok:a371cb6c36ac	engine	one_table@table	function:create	CREATE FUNCTION a() RETURNS TYPE OF t.c RETURN 1
+ok:856c86ade729	ok:856c86ade729	engine	one_table@table	function:create	CREATE FUNCTION a() RETURNS INT NOT DETERMINISTIC NO SQL RETURN 1
+ok:dcf69736a468	ok:dcf69736a468	engine	one_table@table	function:create	CREATE FUNCTION a() RETURNS INT CONTAINS SQL RETURN 1
+ok:d768fa5fdc3e	ok:d768fa5fdc3e	engine	one_table@table	function:create	CREATE FUNCTION a() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FROM t)
+ok:ae7157814961	ok:ae7157814961	engine	one_table@table	function:create	CREATE FUNCTION a() RETURNS INT MODIFIES SQL DATA RETURN 1
+ok:2411e0d9ebac	ok:2411e0d9ebac	engine	one_table@table	function:create	CREATE FUNCTION a() RETURNS INT SQL SECURITY INVOKER RETURN 1
+ok:d67444715f88	ok:d67444715f88	engine	one_table@table	function:create	CREATE FUNCTION a() RETURNS INT COMMENT 's' RETURN 1
+ok:dfc4ab989800	ok:dfc4ab989800	engine	one_table@table	function:create	CREATE FUNCTION a(x INT) RETURNS INT BEGIN DECLARE r INT DEFAULT 1; SET r = x + r; RETURN r; END
+ok:a8d564ea8350	ok:a8d564ea8350	engine	one_table@table	function:create	CREATE FUNCTION a(x INT) RETURNS INT BEGIN IF x > 0 THEN RETURN 1; END IF; RETURN 0; END
+ok:8e43bcff7f6e	ok:8e43bcff7f6e	engine	one_table@table	function:params	CREATE FUNCTION a(IN x INT) RETURNS INT RETURN x
+ok:d6b44927b77d	ok:d6b44927b77d	engine	one_table@table	function:params	CREATE FUNCTION a(OUT x INT) RETURNS INT RETURN 1
+ok:21a17f2f0e14	ok:21a17f2f0e14	engine	one_table@table	function:params	CREATE FUNCTION a(INOUT x INT) RETURNS INT RETURN x
+ok:7941b25b0aab	ok:7941b25b0aab	engine	one_table@table	function:params	CREATE FUNCTION a(x INT DEFAULT 1) RETURNS INT RETURN x
+1330	1330	engine	one_table@table	function:params	CREATE FUNCTION a(x INT, x INT) RETURNS INT RETURN 1
+ok:9ae3df48bee5	ok:9ae3df48bee5	engine	one_table@table	function:params	CREATE FUNCTION a(x ROW(y INT)) RETURNS INT RETURN x.y
+1320	1320	engine	one_table@table	function:refused	CREATE FUNCTION a() RETURNS INT BEGIN END
+1064	1064	engine	one_table@table	function:refused	CREATE FUNCTION a() RETURNS INT SELECT 1
+1422	1422	engine	one_table@table	function:refused	CREATE FUNCTION a() RETURNS INT BEGIN COMMIT; RETURN 1; END
+1415	1415	engine	one_table@table	function:refused	CREATE FUNCTION a() RETURNS INT BEGIN SELECT 1; RETURN 1; END
+4105	4105	engine	one_table@table	function:refused	CREATE FUNCTION a() RETURNS INT BEGIN FETCH GROUP NEXT ROW; RETURN 1; END
+ok:907a4bbf9935	ok:907a4bbf9935	engine	one_table@table	function:aggregate	CREATE AGGREGATE FUNCTION a(x INT) RETURNS INT BEGIN DECLARE s INT DEFAULT 0; DECLARE CONTINUE HANDLER FOR NOT FOUND RETURN s; LOOP FETCH GROUP NEXT ROW; SET s = s + x; END LOOP; END
+ok:907a4bbf9935	ok:907a4bbf9935	engine	one_table@table	function:aggregate	CREATE OR REPLACE AGGREGATE FUNCTION a(x INT) RETURNS INT BEGIN DECLARE s INT DEFAULT 0; DECLARE CONTINUE HANDLER FOR NOT FOUND RETURN s; LOOP FETCH GROUP NEXT ROW; SET s = s + x; END LOOP; END
+ok:907a4bbf9935	ok:907a4bbf9935	engine	one_table@table	function:aggregate	CREATE AGGREGATE FUNCTION IF NOT EXISTS a(x INT) RETURNS INT BEGIN DECLARE s INT DEFAULT 0; DECLARE CONTINUE HANDLER FOR NOT FOUND RETURN s; LOOP FETCH GROUP NEXT ROW; SET s = s + x; END LOOP; END
+4106	4106	engine	one_table@table	function:aggregate	CREATE AGGREGATE FUNCTION a(x INT) RETURNS INT RETURN 1
+1305	1305	engine	one_table@table	function:alter	ALTER FUNCTION a
+1305	1305	engine	one_table@table	function:alter	ALTER FUNCTION a COMMENT 's'
+1305	1305	engine	one_table@table	function:alter	ALTER FUNCTION a LANGUAGE SQL
+1305	1305	engine	one_table@table	function:alter	ALTER FUNCTION a NO SQL
+1305	1305	engine	one_table@table	function:alter	ALTER FUNCTION a CONTAINS SQL
+1305	1305	engine	one_table@table	function:alter	ALTER FUNCTION a READS SQL DATA
+1305	1305	engine	one_table@table	function:alter	ALTER FUNCTION a MODIFIES SQL DATA
+1305	1305	engine	one_table@table	function:alter	ALTER FUNCTION a SQL SECURITY DEFINER
+1305	1305	engine	one_table@table	function:alter	ALTER FUNCTION a SQL SECURITY INVOKER
+1305	1305	engine	one_table@table	function:alter	ALTER FUNCTION nosuch.a COMMENT 's'
+1305	1305	engine	one_table@table	function:drop	DROP FUNCTION a
+ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	function:drop	DROP FUNCTION IF EXISTS a
+1305	1305	engine	one_table@table	function:drop	DROP FUNCTION omni_simulation.a
+1305	1305	engine	one_table@table	function:drop	DROP FUNCTION nosuch.a
+ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	function:drop	DROP FUNCTION IF EXISTS nosuch.a
+1146	1146	engine	one_table@table	trigger:create	CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+ok:410ef038db3c	ok:410ef038db3c	engine	one_table@table	trigger:create	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW SET NEW.c = 1
+ok:7d930365ef2b	ok:7d930365ef2b	engine	one_table@table	trigger:create	CREATE TRIGGER a AFTER INSERT ON a FOR EACH ROW SET @x = NEW.c
+ok:508fac3890b3	ok:508fac3890b3	engine	one_table@table	trigger:create	CREATE TRIGGER a BEFORE UPDATE ON a FOR EACH ROW SET NEW.c = OLD.c + 1
+ok:62727e6077d8	ok:62727e6077d8	engine	one_table@table	trigger:create	CREATE TRIGGER a AFTER UPDATE ON a FOR EACH ROW SET @x = NEW.c
+ok:68676a8605c1	ok:68676a8605c1	engine	one_table@table	trigger:create	CREATE TRIGGER a BEFORE DELETE ON a FOR EACH ROW SET @x = OLD.c
+ok:68981ddcda17	ok:68981ddcda17	engine	one_table@table	trigger:create	CREATE TRIGGER a AFTER DELETE ON a FOR EACH ROW SET @x = OLD.c
+1146	1146	engine	one_table@table	trigger:create	CREATE TRIGGER tr2 AFTER INSERT ON t FOR EACH ROW BEGIN IF NEW.c > 0 THEN SET @x = 1; END IF; END
+1146	1146	engine	one_table@table	trigger:create	CREATE TRIGGER IF NOT EXISTS a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+1146	1146	engine	one_table@table	trigger:create	CREATE OR REPLACE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	one_table@table	trigger:create	CREATE OR REPLACE TRIGGER a AFTER DELETE ON t FOR EACH ROW SET @x = OLD.c
+1221	1221	engine	one_table@table	trigger:create	CREATE OR REPLACE TRIGGER IF NOT EXISTS a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	one_table@table	trigger:create	CREATE DEFINER = `root`@`%` TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+1146	1146	engine	one_table@table	trigger:create	CREATE OR REPLACE DEFINER = `root`@`%` TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+1146	1146	engine	one_table@table	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW FOLLOWS a SET NEW.c = 2
+1146	1146	engine	one_table@table	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW PRECEDES a SET NEW.c = 2
+1146	1146	engine	one_table@table	trigger:create	CREATE TRIGGER tr2 AFTER UPDATE ON t FOR EACH ROW FOLLOWS a SET @x = 1
+1146	1146	engine	one_table@table	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW FOLLOWS nope SET NEW.c = 2
+1146	1146	engine	one_table@table	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	one_table@table	trigger:create	CREATE TRIGGER omni_simulation.tr2 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	one_table@table	trigger:create	CREATE TRIGGER nosuch.tr2 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	one_table@table	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON nosuch.t FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	one_table@table	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON nope FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	one_table@table	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW INSERT INTO nope VALUES (NEW.b)
+1363	1363	engine	one_table@table	trigger:refused	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW SET @x = OLD.c
+1363	1363	engine	one_table@table	trigger:refused	CREATE TRIGGER tr2 BEFORE DELETE ON t FOR EACH ROW SET @x = NEW.c
+1362	1362	engine	one_table@table	trigger:refused	CREATE TRIGGER tr2 AFTER INSERT ON t FOR EACH ROW SET NEW.c = 1
+1362	1362	engine	one_table@table	trigger:refused	CREATE TRIGGER tr2 BEFORE UPDATE ON t FOR EACH ROW SET OLD.c = 1
+1146	1146	engine	one_table@table	trigger:refused	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW SET NEW.zzz = 1
+1313	1313	engine	one_table@table	trigger:refused	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW RETURN 1
+1422	1422	engine	one_table@table	trigger:refused	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW COMMIT
+1360	1360	engine	one_table@table	trigger:drop	DROP TRIGGER a
+ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	trigger:drop	DROP TRIGGER IF EXISTS a
+1360	1360	engine	one_table@table	trigger:drop	DROP TRIGGER omni_simulation.a
+1360	1360	engine	one_table@table	trigger:drop	DROP TRIGGER nosuch.a
+ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	trigger:drop	DROP TRIGGER IF EXISTS nosuch.a
+1051	1051	engine	one_table@table	trigger:table	DROP TABLE t
+1146	1146	engine	one_table@table	trigger:table	RENAME TABLE t TO t2
+1146	1146	engine	one_table@table	trigger:table	ALTER TABLE t RENAME TO t2
+1146	1146	engine	one_table@table	trigger:table	ALTER TABLE t DROP COLUMN c
+1146	1146	engine	one_table@table	trigger:table	ALTER TABLE t ADD COLUMN e INT
+ok:956b853c048e	ok:956b853c048e	engine	one_table@table	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:956b853c048e	ok:956b853c048e	engine	one_table@table	event:create	CREATE EVENT IF NOT EXISTS a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:b3828aa487ac	ok:b3828aa487ac	engine	one_table@table	event:create	CREATE OR REPLACE EVENT a ON SCHEDULE EVERY 2 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1221	1221	engine	one_table@table	event:create	CREATE OR REPLACE EVENT IF NOT EXISTS a ON SCHEDULE EVERY 2 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:956b853c048e	ok:956b853c048e	engine	one_table@table	event:create	CREATE DEFINER = `root`@`%` EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:71a349393994	ok:71a349393994	engine	one_table@table	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ENDS '2031-01-01 00:00:00' DO COMMIT
+ok:f4e23684d575	ok:f4e23684d575	engine	one_table@table	event:create	CREATE EVENT a ON SCHEDULE AT '2030-01-01 00:00:00' DO COMMIT
+ok:b00ceb777cb6	ok:b00ceb777cb6	engine	one_table@table	event:create	CREATE EVENT a ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION PRESERVE DO COMMIT
+ok:f4e23684d575	ok:f4e23684d575	engine	one_table@table	event:create	CREATE EVENT a ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE DO COMMIT
+ok:a99aea7cdd0e	ok:a99aea7cdd0e	engine	one_table@table	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT
+ok:6fa98c750603	ok:6fa98c750603	engine	one_table@table	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE DO COMMIT
+ok:9c418345963c	ok:9c418345963c	engine	one_table@table	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE ON SLAVE DO COMMIT
+ok:7d30d0a707a7	ok:7d30d0a707a7	engine	one_table@table	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' COMMENT 'it''s nightly' DO COMMIT
+ok:6fad9a186d2a	ok:6fad9a186d2a	engine	one_table@table	event:create	CREATE EVENT a ON SCHEDULE EVERY 90 MINUTE STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:45754d8d3163	ok:45754d8d3163	engine	one_table@table	event:create	CREATE EVENT a ON SCHEDULE EVERY '1:30' HOUR_MINUTE STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:3c68e97265c8	ok:3c68e97265c8	engine	one_table@table	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 WEEK STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:3044988f711a	ok:3044988f711a	engine	one_table@table	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 QUARTER STARTS '2030-01-01 00:00:00' DO COMMIT
+1235	1235	engine	one_table@table	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 MICROSECOND STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:d8d9bbf1d48b	ok:d8d9bbf1d48b	engine	one_table@table	event:create	CREATE EVENT a ON SCHEDULE AT '2030-01-01 00:00:00' + INTERVAL 1 DAY DO COMMIT
+ok:43fb3cb0e399	ok:43fb3cb0e399	engine	one_table@table	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO BEGIN DELETE FROM t WHERE c < 0; INSERT INTO t VALUES (1, 1, 1); END
+ok:18260f763ca5	ok:18260f763ca5	engine	one_table@table	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO CALL a()
+ok:8f21963f9516	ok:8f21963f9516	engine	one_table@table	event:create	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1049	1049	engine	one_table@table	event:create	CREATE EVENT nosuch.ev2 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1543	1543	engine	one_table@table	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS '2031-01-01 00:00:00' ENDS '2030-01-01 00:00:00' DO COMMIT
+1542	1542	engine	one_table@table	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 0 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1542	1542	engine	one_table@table	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY -1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1525	1525	engine	one_table@table	event:refused	CREATE EVENT ev2 ON SCHEDULE AT 'zzz' DO COMMIT
+1525	1525	engine	one_table@table	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS 'zzz' DO COMMIT
+1543	1543	engine	one_table@table	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ENDS 'zzz' DO COMMIT
+ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	event:refused	CREATE EVENT ev2 ON SCHEDULE AT '2000-01-01 00:00:00' DO COMMIT
+1576	1576	engine	one_table@table	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO CREATE EVENT ev3 ON SCHEDULE EVERY 1 DAY DO COMMIT
+1539	1539	engine	one_table@table	event:alter	ALTER EVENT a ON SCHEDULE EVERY 2 DAY STARTS '2030-01-01 00:00:00'
+1539	1539	engine	one_table@table	event:alter	ALTER EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ENDS '2031-01-01 00:00:00'
+1539	1539	engine	one_table@table	event:alter	ALTER EVENT a ON SCHEDULE AT '2030-06-01 00:00:00'
+1539	1539	engine	one_table@table	event:alter	ALTER EVENT a ON SCHEDULE AT '2000-01-01 00:00:00'
+1539	1539	engine	one_table@table	event:alter	ALTER EVENT a ON SCHEDULE AT '2000-01-01 00:00:00' ON COMPLETION PRESERVE
+1539	1539	engine	one_table@table	event:alter	ALTER EVENT a ON COMPLETION PRESERVE
+1539	1539	engine	one_table@table	event:alter	ALTER EVENT a ON COMPLETION NOT PRESERVE
+1539	1539	engine	one_table@table	event:alter	ALTER EVENT a ENABLE
+1539	1539	engine	one_table@table	event:alter	ALTER EVENT a DISABLE
+1539	1539	engine	one_table@table	event:alter	ALTER EVENT a DISABLE ON SLAVE
+1539	1539	engine	one_table@table	event:alter	ALTER EVENT a COMMENT 's'
+1539	1539	engine	one_table@table	event:alter	ALTER EVENT a DO COMMIT
+1539	1539	engine	one_table@table	event:alter	ALTER EVENT a DO BEGIN SET @x = 1; COMMIT; END
+1539	1539	engine	one_table@table	event:alter	ALTER EVENT a DO IF @x THEN COMMIT; END IF
+1539	1539	engine	one_table@table	event:alter	ALTER EVENT a DO l: LOOP LEAVE l; END LOOP
+1539	1539	engine	one_table@table	event:alter	ALTER EVENT a DO WHILE 0 DO COMMIT; END WHILE
+1539	1539	engine	one_table@table	event:alter	ALTER EVENT a DO REPEAT COMMIT; UNTIL 1 END REPEAT
+1539	1539	engine	one_table@table	event:alter	ALTER EVENT a DO BEGIN DECLARE x INT DEFAULT 1; SET @x = x; END
+1539	1539	engine	one_table@table	event:alter	ALTER EVENT a DO BEGIN DECLARE EXIT HANDLER FOR SQLEXCEPTION COMMIT; END
+1551	1551	engine	one_table@table	event:alter	ALTER EVENT a RENAME TO a
+1539	1539	engine	one_table@table	event:alter	ALTER EVENT a RENAME TO ev2
+1539	1539	engine	one_table@table	event:alter	ALTER EVENT a RENAME TO omni_simulation.ev2
+1049	1049	engine	one_table@table	event:alter	ALTER EVENT a RENAME TO nosuch.ev2
+1543	1543	engine	one_table@table	event:alter	ALTER EVENT a ON SCHEDULE EVERY 1 HOUR STARTS '2031-01-01 00:00:00' ENDS '2030-01-01 00:00:00'
+1064	1064	engine	one_table@table	event:alter	ALTER EVENT a ON COMPLETION PRESERVE DISABLE COMMENT 'off' RENAME TO ev2 DO COMMIT
+1539	1539	engine	one_table@table	event:alter	ALTER DEFINER = `root`@`%` EVENT a COMMENT 's'
+1049	1049	engine	one_table@table	event:alter	ALTER EVENT nosuch.a ENABLE
+1539	1539	engine	one_table@table	event:drop	DROP EVENT a
+ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	event:drop	DROP EVENT IF EXISTS a
+1539	1539	engine	one_table@table	event:drop	DROP EVENT omni_simulation.a
+1539	1539	engine	one_table@table	event:drop	DROP EVENT nosuch.a
+ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	event:drop	DROP EVENT IF EXISTS nosuch.a
+1304	1304	engine	objects@routine	procedure:create	CREATE PROCEDURE a() COMMIT
+ok:0e91ac90aef4	ok:0e91ac90aef4	engine	objects@routine	procedure:create	CREATE PROCEDURE IF NOT EXISTS a() COMMIT
+ok:0e91ac90aef4	ok:0e91ac90aef4	engine	objects@routine	procedure:create	CREATE OR REPLACE PROCEDURE a() COMMIT
+1221	1221	engine	objects@routine	procedure:create	CREATE OR REPLACE PROCEDURE IF NOT EXISTS a() COMMIT
+ok:f13dab650f03	ok:f13dab650f03	engine	objects@routine	procedure:create	CREATE OR REPLACE DEFINER = `root`@`%` PROCEDURE a() SELECT 1
+1304	1304	engine	objects@routine	procedure:create	CREATE DEFINER = `root`@`%` PROCEDURE a() COMMIT
+1304	1304	engine	objects@routine	procedure:create	CREATE DEFINER = CURRENT_USER PROCEDURE a() COMMIT
+ok:77451905bfec	ok:77451905bfec	engine	objects@routine	procedure:create	CREATE PROCEDURE p2() COMMIT
+ok:77451905bfec	ok:77451905bfec	engine	objects@routine	procedure:create	CREATE PROCEDURE omni_simulation.p2() COMMIT
+1049	1049	engine	objects@routine	procedure:create	CREATE PROCEDURE nosuch.p2() COMMIT
+1059	1059	engine	objects@routine	procedure:create	CREATE PROCEDURE a23456789012345678901234567890123456789012345678901234567890abcde() COMMIT
+1304	1304	engine	objects@routine	procedure:params	CREATE PROCEDURE a(x INT) COMMIT
+1304	1304	engine	objects@routine	procedure:params	CREATE PROCEDURE a(IN x INT) COMMIT
+1304	1304	engine	objects@routine	procedure:params	CREATE PROCEDURE a(OUT x INT) COMMIT
+1304	1304	engine	objects@routine	procedure:params	CREATE PROCEDURE a(INOUT x INT) COMMIT
+1304	1304	engine	objects@routine	procedure:params	CREATE PROCEDURE a(IN s VARCHAR(20), OUT n DECIMAL(10,2), INOUT e ENUM('x','y')) COMMIT
+1304	1304	engine	objects@routine	procedure:params	CREATE PROCEDURE a(s VARCHAR(20) CHARSET latin1, b BLOB, d DATETIME(3)) COMMIT
+1330	1330	engine	objects@routine	procedure:params	CREATE PROCEDURE a(x INT, x INT) COMMIT
+1304	1304	engine	objects@routine	procedure:params	CREATE PROCEDURE a(x INT DEFAULT 1) SELECT x
+1304	1304	engine	objects@routine	procedure:params	CREATE PROCEDURE a(x INT, y INT DEFAULT 2) SELECT x + y
+4032	4032	engine	objects@routine	procedure:params	CREATE PROCEDURE a(OUT x INT DEFAULT 1) COMMIT
+4032	4032	engine	objects@routine	procedure:params	CREATE PROCEDURE a(INOUT x INT DEFAULT 1) COMMIT
+1304	1304	engine	objects@routine	procedure:params	CREATE PROCEDURE a(x INT, y INT DEFAULT x) SELECT y
+1327	1327	engine	objects@routine	procedure:params	CREATE PROCEDURE a(x INT DEFAULT x) COMMIT
+1304	1304	engine	objects@routine	procedure:params	CREATE PROCEDURE a(x INT DEFAULT (SELECT COUNT(*) FROM t)) SELECT x
+1304	1304	engine	objects@routine	procedure:params	CREATE PROCEDURE a(x ROW(y INT, z VARCHAR(10))) SELECT x.y
+1304	1304	engine	objects@routine	procedure:params	CREATE PROCEDURE a(x TYPE OF t.c) SELECT x
+1304	1304	engine	objects@routine	procedure:params	CREATE PROCEDURE a(x ROW TYPE OF t) SELECT x.c
+1304	1304	engine	objects@routine	procedure:characteristics	CREATE PROCEDURE a() DETERMINISTIC COMMIT
+1304	1304	engine	objects@routine	procedure:characteristics	CREATE PROCEDURE a() NOT DETERMINISTIC COMMIT
+1304	1304	engine	objects@routine	procedure:characteristics	CREATE PROCEDURE a() NO SQL BEGIN END
+1304	1304	engine	objects@routine	procedure:characteristics	CREATE PROCEDURE a() CONTAINS SQL COMMIT
+1304	1304	engine	objects@routine	procedure:characteristics	CREATE PROCEDURE a() READS SQL DATA SELECT 1
+1304	1304	engine	objects@routine	procedure:characteristics	CREATE PROCEDURE a() MODIFIES SQL DATA DELETE FROM t
+1304	1304	engine	objects@routine	procedure:characteristics	CREATE PROCEDURE a() SQL SECURITY INVOKER COMMIT
+1304	1304	engine	objects@routine	procedure:characteristics	CREATE PROCEDURE a() SQL SECURITY DEFINER COMMIT
+1304	1304	engine	objects@routine	procedure:characteristics	CREATE PROCEDURE a() COMMENT 'it''s a test' COMMIT
+1304	1304	engine	objects@routine	procedure:characteristics	CREATE PROCEDURE a() LANGUAGE SQL COMMIT
+1304	1304	engine	objects@routine	procedure:characteristics	CREATE PROCEDURE a() COMMENT 's' DETERMINISTIC READS SQL DATA SQL SECURITY INVOKER SELECT 1
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() BEGIN END
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() BEGIN NOT ATOMIC COMMIT; END
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE x INT DEFAULT 1; SET x = x + 1; SELECT x; END
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE c CONDITION FOR 1062; DECLARE EXIT HANDLER FOR c ROLLBACK; INSERT INTO t VALUES (1, 1, 1); END
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE c CONDITION FOR SQLSTATE '23000'; DECLARE CONTINUE HANDLER FOR c BEGIN END; END
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE CONTINUE HANDLER FOR SQLWARNING, NOT FOUND, SQLEXCEPTION COMMIT; END
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE done INT DEFAULT 0; DECLARE v INT; DECLARE cur CURSOR FOR SELECT b FROM t; DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1; OPEN cur; l: LOOP FETCH cur INTO v; IF done THEN LEAVE l; END IF; END LOOP; CLOSE cur; END
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE cur CURSOR FOR SELECT b FROM t; FOR r IN cur DO SELECT r.b; END FOR; END
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() FOR i IN 1..3 DO SELECT i; END FOR
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() FOR i IN REVERSE 1..3 DO SELECT i; END FOR
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() IF 1 THEN COMMIT; ELSEIF 0 THEN ROLLBACK; ELSE COMMIT; END IF
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() CASE WHEN 1 THEN COMMIT; ELSE ROLLBACK; END CASE
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() CASE 1 WHEN 1 THEN COMMIT; WHEN 2 THEN ROLLBACK; END CASE
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() l: BEGIN LEAVE l; END l
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() l: LOOP LEAVE l; END LOOP l
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() l: LOOP ITERATE l; END LOOP
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() WHILE 0 DO COMMIT; END WHILE
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() REPEAT COMMIT; UNTIL 1 END REPEAT
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() BEGIN INSERT INTO t VALUES (1, 2, 3); UPDATE t SET c = c + 1 WHERE b = 1; DELETE FROM t WHERE b = 1; END
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() BEGIN CREATE TABLE p (x INT); DROP TABLE p; END
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() SELECT zzz FROM nosuch
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() CALL nosuch()
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() CALL a()
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a(OUT x INT) SELECT COUNT(*) INTO x FROM t
+1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() BEGIN PREPARE s FROM 'SELECT 1'; EXECUTE s; DEALLOCATE PREPARE s; END
+1310	1310	engine	objects@routine	procedure:refused	CREATE PROCEDURE a() l1: BEGIN END l2
+1308	1308	engine	objects@routine	procedure:refused	CREATE PROCEDURE a() BEGIN LEAVE nope; END
+1304	1193	engine	objects@routine	procedure:refused	CREATE PROCEDURE a() SET zzz = 1
+1313	1313	engine	objects@routine	procedure:refused	CREATE PROCEDURE a() RETURN 1
+1331	1331	engine	objects@routine	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE x INT; DECLARE x INT; END
+1319	1319	engine	objects@routine	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE EXIT HANDLER FOR nope COMMIT; END
+1324	1324	engine	objects@routine	procedure:refused	CREATE PROCEDURE a() BEGIN OPEN nope; END
+1064	1064	engine	objects@routine	procedure:refused	CREATE PROCEDURE a() BEGIN SELECT 1; DECLARE x INT; END
+1337	1337	engine	objects@routine	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE c CURSOR FOR SELECT 1; DECLARE x INT; END
+1525	1525	engine	objects@routine	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE c CONDITION FOR 0; END
+1407	1407	engine	objects@routine	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE c CONDITION FOR SQLSTATE '00000'; END
+1327	1327	engine	objects@routine	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE c CURSOR FOR SELECT 1; FOR r IN nope DO SELECT 1; END FOR; END
+4105	4105	engine	objects@routine	procedure:refused	CREATE PROCEDURE a() FETCH GROUP NEXT ROW
+ok:0e91ac90aef4	ok:0e91ac90aef4	engine	objects@routine	procedure:alter	ALTER PROCEDURE a
+ok:d8b06f6f398f	ok:d8b06f6f398f	engine	objects@routine	procedure:alter	ALTER PROCEDURE a COMMENT 's'
+ok:0e91ac90aef4	ok:0e91ac90aef4	engine	objects@routine	procedure:alter	ALTER PROCEDURE a LANGUAGE SQL
+ok:4d02401767f3	ok:4d02401767f3	engine	objects@routine	procedure:alter	ALTER PROCEDURE a NO SQL
+ok:0e91ac90aef4	ok:0e91ac90aef4	engine	objects@routine	procedure:alter	ALTER PROCEDURE a CONTAINS SQL
+ok:6ff7d89edcac	ok:6ff7d89edcac	engine	objects@routine	procedure:alter	ALTER PROCEDURE a READS SQL DATA
+ok:293a3f5f9f4f	ok:293a3f5f9f4f	engine	objects@routine	procedure:alter	ALTER PROCEDURE a MODIFIES SQL DATA
+ok:0e91ac90aef4	ok:0e91ac90aef4	engine	objects@routine	procedure:alter	ALTER PROCEDURE a SQL SECURITY DEFINER
+ok:045da1caec38	ok:045da1caec38	engine	objects@routine	procedure:alter	ALTER PROCEDURE a SQL SECURITY INVOKER
+ok:42484cc3c96f	ok:42484cc3c96f	engine	objects@routine	procedure:alter	ALTER PROCEDURE a COMMENT 'x' NO SQL SQL SECURITY INVOKER
+ok:d8b06f6f398f	ok:d8b06f6f398f	engine	objects@routine	procedure:alter	ALTER PROCEDURE omni_simulation.a COMMENT 's'
+1305	1305	engine	objects@routine	procedure:alter	ALTER PROCEDURE nosuch.a COMMENT 's'
+ok:5461ad5d6974	ok:5461ad5d6974	engine	objects@routine	procedure:drop	DROP PROCEDURE a
+ok:5461ad5d6974	ok:5461ad5d6974	engine	objects@routine	procedure:drop	DROP PROCEDURE IF EXISTS a
+ok:5461ad5d6974	ok:5461ad5d6974	engine	objects@routine	procedure:drop	DROP PROCEDURE A
+ok:5461ad5d6974	ok:5461ad5d6974	engine	objects@routine	procedure:drop	DROP PROCEDURE omni_simulation.a
+1305	1305	engine	objects@routine	procedure:drop	DROP PROCEDURE nosuch.a
+ok:0e91ac90aef4	ok:0e91ac90aef4	engine	objects@routine	procedure:drop	DROP PROCEDURE IF EXISTS nosuch.a
+1304	1304	engine	objects@routine	function:create	CREATE FUNCTION a() RETURNS INT RETURN 1
+1304	1304	engine	objects@routine	function:create	CREATE FUNCTION a() RETURNS INT DETERMINISTIC RETURN 1
+ok:0e91ac90aef4	ok:0e91ac90aef4	engine	objects@routine	function:create	CREATE FUNCTION IF NOT EXISTS a() RETURNS INT RETURN 1
+ok:dc6942973937	ok:dc6942973937	engine	objects@routine	function:create	CREATE OR REPLACE FUNCTION a() RETURNS INT RETURN 2
+1221	1221	engine	objects@routine	function:create	CREATE OR REPLACE FUNCTION IF NOT EXISTS a() RETURNS INT RETURN 2
+ok:dc6942973937	ok:dc6942973937	engine	objects@routine	function:create	CREATE OR REPLACE DEFINER = `root`@`%` FUNCTION a() RETURNS INT RETURN 2
+1304	1304	engine	objects@routine	function:create	CREATE DEFINER = `root`@`%` FUNCTION a() RETURNS INT DETERMINISTIC RETURN 1
+ok:ed9086b4f068	ok:ed9086b4f068	engine	objects@routine	function:create	CREATE FUNCTION f2() RETURNS INT RETURN 1
+1049	1049	engine	objects@routine	function:create	CREATE FUNCTION nosuch.f2() RETURNS INT RETURN 1
+1304	1304	engine	objects@routine	function:create	CREATE FUNCTION a(x INT) RETURNS INT DETERMINISTIC RETURN x
+1304	1304	engine	objects@routine	function:create	CREATE FUNCTION a(s VARCHAR(20)) RETURNS VARCHAR(40) DETERMINISTIC RETURN CONCAT(s, s)
+1304	1304	engine	objects@routine	function:create	CREATE FUNCTION a(x DECIMAL(10,2)) RETURNS DECIMAL(12,4) DETERMINISTIC RETURN x
+1304	1304	engine	objects@routine	function:create	CREATE FUNCTION a() RETURNS ENUM('x','y') DETERMINISTIC RETURN 'x'
+1304	1304	engine	objects@routine	function:create	CREATE FUNCTION a() RETURNS VARCHAR(10) CHARSET latin1 RETURN 'x'
+1304	1304	engine	objects@routine	function:create	CREATE FUNCTION a() RETURNS VARCHAR(10) COLLATE utf8mb4_bin RETURN 'x'
+1304	1304	engine	objects@routine	function:create	CREATE FUNCTION a() RETURNS DATETIME(6) RETURN NOW(6)
+1304	1304	engine	objects@routine	function:create	CREATE FUNCTION a() RETURNS TEXT RETURN 'x'
+1304	1304	engine	objects@routine	function:create	CREATE FUNCTION a() RETURNS BOOLEAN RETURN TRUE
+1304	1304	engine	objects@routine	function:create	CREATE FUNCTION a() RETURNS TYPE OF t.c RETURN 1
+1304	1304	engine	objects@routine	function:create	CREATE FUNCTION a() RETURNS INT NOT DETERMINISTIC NO SQL RETURN 1
+1304	1304	engine	objects@routine	function:create	CREATE FUNCTION a() RETURNS INT CONTAINS SQL RETURN 1
+1304	1304	engine	objects@routine	function:create	CREATE FUNCTION a() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FROM t)
+1304	1304	engine	objects@routine	function:create	CREATE FUNCTION a() RETURNS INT MODIFIES SQL DATA RETURN 1
+1304	1304	engine	objects@routine	function:create	CREATE FUNCTION a() RETURNS INT SQL SECURITY INVOKER RETURN 1
+1304	1304	engine	objects@routine	function:create	CREATE FUNCTION a() RETURNS INT COMMENT 's' RETURN 1
+1304	1304	engine	objects@routine	function:create	CREATE FUNCTION a(x INT) RETURNS INT BEGIN DECLARE r INT DEFAULT 1; SET r = x + r; RETURN r; END
+1304	1304	engine	objects@routine	function:create	CREATE FUNCTION a(x INT) RETURNS INT BEGIN IF x > 0 THEN RETURN 1; END IF; RETURN 0; END
+1304	1304	engine	objects@routine	function:params	CREATE FUNCTION a(IN x INT) RETURNS INT RETURN x
+1304	1304	engine	objects@routine	function:params	CREATE FUNCTION a(OUT x INT) RETURNS INT RETURN 1
+1304	1304	engine	objects@routine	function:params	CREATE FUNCTION a(INOUT x INT) RETURNS INT RETURN x
+1304	1304	engine	objects@routine	function:params	CREATE FUNCTION a(x INT DEFAULT 1) RETURNS INT RETURN x
+1330	1330	engine	objects@routine	function:params	CREATE FUNCTION a(x INT, x INT) RETURNS INT RETURN 1
+1304	1304	engine	objects@routine	function:params	CREATE FUNCTION a(x ROW(y INT)) RETURNS INT RETURN x.y
+1320	1320	engine	objects@routine	function:refused	CREATE FUNCTION a() RETURNS INT BEGIN END
+1064	1064	engine	objects@routine	function:refused	CREATE FUNCTION a() RETURNS INT SELECT 1
+1422	1422	engine	objects@routine	function:refused	CREATE FUNCTION a() RETURNS INT BEGIN COMMIT; RETURN 1; END
+1415	1415	engine	objects@routine	function:refused	CREATE FUNCTION a() RETURNS INT BEGIN SELECT 1; RETURN 1; END
+4105	4105	engine	objects@routine	function:refused	CREATE FUNCTION a() RETURNS INT BEGIN FETCH GROUP NEXT ROW; RETURN 1; END
+1304	1304	engine	objects@routine	function:aggregate	CREATE AGGREGATE FUNCTION a(x INT) RETURNS INT BEGIN DECLARE s INT DEFAULT 0; DECLARE CONTINUE HANDLER FOR NOT FOUND RETURN s; LOOP FETCH GROUP NEXT ROW; SET s = s + x; END LOOP; END
+ok:4b0d42a76994	ok:4b0d42a76994	engine	objects@routine	function:aggregate	CREATE OR REPLACE AGGREGATE FUNCTION a(x INT) RETURNS INT BEGIN DECLARE s INT DEFAULT 0; DECLARE CONTINUE HANDLER FOR NOT FOUND RETURN s; LOOP FETCH GROUP NEXT ROW; SET s = s + x; END LOOP; END
+ok:0e91ac90aef4	ok:0e91ac90aef4	engine	objects@routine	function:aggregate	CREATE AGGREGATE FUNCTION IF NOT EXISTS a(x INT) RETURNS INT BEGIN DECLARE s INT DEFAULT 0; DECLARE CONTINUE HANDLER FOR NOT FOUND RETURN s; LOOP FETCH GROUP NEXT ROW; SET s = s + x; END LOOP; END
+4106	4106	engine	objects@routine	function:aggregate	CREATE AGGREGATE FUNCTION a(x INT) RETURNS INT RETURN 1
+ok:0e91ac90aef4	ok:0e91ac90aef4	engine	objects@routine	function:alter	ALTER FUNCTION a
+ok:dcbf5df96797	ok:dcbf5df96797	engine	objects@routine	function:alter	ALTER FUNCTION a COMMENT 's'
+ok:0e91ac90aef4	ok:0e91ac90aef4	engine	objects@routine	function:alter	ALTER FUNCTION a LANGUAGE SQL
+ok:58da8e043f21	ok:58da8e043f21	engine	objects@routine	function:alter	ALTER FUNCTION a NO SQL
+ok:0e91ac90aef4	ok:0e91ac90aef4	engine	objects@routine	function:alter	ALTER FUNCTION a CONTAINS SQL
+ok:315f16017b75	ok:315f16017b75	engine	objects@routine	function:alter	ALTER FUNCTION a READS SQL DATA
+ok:1fd6caf3a6a3	ok:1fd6caf3a6a3	engine	objects@routine	function:alter	ALTER FUNCTION a MODIFIES SQL DATA
+ok:0e91ac90aef4	ok:0e91ac90aef4	engine	objects@routine	function:alter	ALTER FUNCTION a SQL SECURITY DEFINER
+ok:ce40c5852e4f	ok:ce40c5852e4f	engine	objects@routine	function:alter	ALTER FUNCTION a SQL SECURITY INVOKER
+1305	1305	engine	objects@routine	function:alter	ALTER FUNCTION nosuch.a COMMENT 's'
+ok:0ec3b1e542cf	ok:0ec3b1e542cf	engine	objects@routine	function:drop	DROP FUNCTION a
+ok:0ec3b1e542cf	ok:0ec3b1e542cf	engine	objects@routine	function:drop	DROP FUNCTION IF EXISTS a
+ok:0ec3b1e542cf	ok:0ec3b1e542cf	engine	objects@routine	function:drop	DROP FUNCTION omni_simulation.a
+1305	1305	engine	objects@routine	function:drop	DROP FUNCTION nosuch.a
+ok:0e91ac90aef4	ok:0e91ac90aef4	engine	objects@routine	function:drop	DROP FUNCTION IF EXISTS nosuch.a
+1146	1146	engine	objects@routine	trigger:create	CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+1146	1146	engine	objects@routine	trigger:create	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW SET NEW.c = 1
+1146	1146	engine	objects@routine	trigger:create	CREATE TRIGGER a AFTER INSERT ON a FOR EACH ROW SET @x = NEW.c
+1146	1146	engine	objects@routine	trigger:create	CREATE TRIGGER a BEFORE UPDATE ON a FOR EACH ROW SET NEW.c = OLD.c + 1
+1146	1146	engine	objects@routine	trigger:create	CREATE TRIGGER a AFTER UPDATE ON a FOR EACH ROW SET @x = NEW.c
+1146	1146	engine	objects@routine	trigger:create	CREATE TRIGGER a BEFORE DELETE ON a FOR EACH ROW SET @x = OLD.c
+1146	1146	engine	objects@routine	trigger:create	CREATE TRIGGER a AFTER DELETE ON a FOR EACH ROW SET @x = OLD.c
+1146	1146	engine	objects@routine	trigger:create	CREATE TRIGGER tr2 AFTER INSERT ON t FOR EACH ROW BEGIN IF NEW.c > 0 THEN SET @x = 1; END IF; END
+1146	1146	engine	objects@routine	trigger:create	CREATE TRIGGER IF NOT EXISTS a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+1146	1146	engine	objects@routine	trigger:create	CREATE OR REPLACE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	objects@routine	trigger:create	CREATE OR REPLACE TRIGGER a AFTER DELETE ON t FOR EACH ROW SET @x = OLD.c
+1221	1221	engine	objects@routine	trigger:create	CREATE OR REPLACE TRIGGER IF NOT EXISTS a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	objects@routine	trigger:create	CREATE DEFINER = `root`@`%` TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+1146	1146	engine	objects@routine	trigger:create	CREATE OR REPLACE DEFINER = `root`@`%` TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+1146	1146	engine	objects@routine	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW FOLLOWS a SET NEW.c = 2
+1146	1146	engine	objects@routine	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW PRECEDES a SET NEW.c = 2
+1146	1146	engine	objects@routine	trigger:create	CREATE TRIGGER tr2 AFTER UPDATE ON t FOR EACH ROW FOLLOWS a SET @x = 1
+1146	1146	engine	objects@routine	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW FOLLOWS nope SET NEW.c = 2
+1146	1146	engine	objects@routine	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	objects@routine	trigger:create	CREATE TRIGGER omni_simulation.tr2 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	objects@routine	trigger:create	CREATE TRIGGER nosuch.tr2 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	objects@routine	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON nosuch.t FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	objects@routine	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON nope FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	objects@routine	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW INSERT INTO nope VALUES (NEW.b)
+1363	1363	engine	objects@routine	trigger:refused	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW SET @x = OLD.c
+1363	1363	engine	objects@routine	trigger:refused	CREATE TRIGGER tr2 BEFORE DELETE ON t FOR EACH ROW SET @x = NEW.c
+1362	1362	engine	objects@routine	trigger:refused	CREATE TRIGGER tr2 AFTER INSERT ON t FOR EACH ROW SET NEW.c = 1
+1362	1362	engine	objects@routine	trigger:refused	CREATE TRIGGER tr2 BEFORE UPDATE ON t FOR EACH ROW SET OLD.c = 1
+1146	1146	engine	objects@routine	trigger:refused	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW SET NEW.zzz = 1
+1313	1313	engine	objects@routine	trigger:refused	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW RETURN 1
+1422	1422	engine	objects@routine	trigger:refused	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW COMMIT
+1360	1360	engine	objects@routine	trigger:drop	DROP TRIGGER a
+ok:0e91ac90aef4	ok:0e91ac90aef4	engine	objects@routine	trigger:drop	DROP TRIGGER IF EXISTS a
+1360	1360	engine	objects@routine	trigger:drop	DROP TRIGGER omni_simulation.a
+1360	1360	engine	objects@routine	trigger:drop	DROP TRIGGER nosuch.a
+ok:0e91ac90aef4	ok:0e91ac90aef4	engine	objects@routine	trigger:drop	DROP TRIGGER IF EXISTS nosuch.a
+1051	1051	engine	objects@routine	trigger:table	DROP TABLE t
+1146	1146	engine	objects@routine	trigger:table	RENAME TABLE t TO t2
+1146	1146	engine	objects@routine	trigger:table	ALTER TABLE t RENAME TO t2
+1146	1146	engine	objects@routine	trigger:table	ALTER TABLE t DROP COLUMN c
+1146	1146	engine	objects@routine	trigger:table	ALTER TABLE t ADD COLUMN e INT
+ok:7d3ca76171ad	ok:7d3ca76171ad	engine	objects@routine	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:7d3ca76171ad	ok:7d3ca76171ad	engine	objects@routine	event:create	CREATE EVENT IF NOT EXISTS a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:e1bd758b541f	ok:e1bd758b541f	engine	objects@routine	event:create	CREATE OR REPLACE EVENT a ON SCHEDULE EVERY 2 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1221	1221	engine	objects@routine	event:create	CREATE OR REPLACE EVENT IF NOT EXISTS a ON SCHEDULE EVERY 2 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:7d3ca76171ad	ok:7d3ca76171ad	engine	objects@routine	event:create	CREATE DEFINER = `root`@`%` EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:bc17e70f8499	ok:bc17e70f8499	engine	objects@routine	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ENDS '2031-01-01 00:00:00' DO COMMIT
+ok:d6a4439899f2	ok:d6a4439899f2	engine	objects@routine	event:create	CREATE EVENT a ON SCHEDULE AT '2030-01-01 00:00:00' DO COMMIT
+ok:c594263e42fb	ok:c594263e42fb	engine	objects@routine	event:create	CREATE EVENT a ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION PRESERVE DO COMMIT
+ok:d6a4439899f2	ok:d6a4439899f2	engine	objects@routine	event:create	CREATE EVENT a ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE DO COMMIT
+ok:963cf6ab34e0	ok:963cf6ab34e0	engine	objects@routine	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT
+ok:dbbe30f5dfe4	ok:dbbe30f5dfe4	engine	objects@routine	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE DO COMMIT
+ok:6430a88068aa	ok:6430a88068aa	engine	objects@routine	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE ON SLAVE DO COMMIT
+ok:4252039abfcb	ok:4252039abfcb	engine	objects@routine	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' COMMENT 'it''s nightly' DO COMMIT
+ok:1cc3fe59cd9d	ok:1cc3fe59cd9d	engine	objects@routine	event:create	CREATE EVENT a ON SCHEDULE EVERY 90 MINUTE STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:ea3a8d47ed9e	ok:ea3a8d47ed9e	engine	objects@routine	event:create	CREATE EVENT a ON SCHEDULE EVERY '1:30' HOUR_MINUTE STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:af31e8507d22	ok:af31e8507d22	engine	objects@routine	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 WEEK STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:5441ef408405	ok:5441ef408405	engine	objects@routine	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 QUARTER STARTS '2030-01-01 00:00:00' DO COMMIT
+1235	1235	engine	objects@routine	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 MICROSECOND STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:18b876b8c174	ok:18b876b8c174	engine	objects@routine	event:create	CREATE EVENT a ON SCHEDULE AT '2030-01-01 00:00:00' + INTERVAL 1 DAY DO COMMIT
+ok:581360720c2d	ok:581360720c2d	engine	objects@routine	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO BEGIN DELETE FROM t WHERE c < 0; INSERT INTO t VALUES (1, 1, 1); END
+ok:f2f77314d094	ok:f2f77314d094	engine	objects@routine	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO CALL a()
+ok:218ab4633df7	ok:218ab4633df7	engine	objects@routine	event:create	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1049	1049	engine	objects@routine	event:create	CREATE EVENT nosuch.ev2 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1543	1543	engine	objects@routine	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS '2031-01-01 00:00:00' ENDS '2030-01-01 00:00:00' DO COMMIT
+1542	1542	engine	objects@routine	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 0 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1542	1542	engine	objects@routine	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY -1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1525	1525	engine	objects@routine	event:refused	CREATE EVENT ev2 ON SCHEDULE AT 'zzz' DO COMMIT
+1525	1525	engine	objects@routine	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS 'zzz' DO COMMIT
+1543	1543	engine	objects@routine	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ENDS 'zzz' DO COMMIT
+ok:0e91ac90aef4	ok:0e91ac90aef4	engine	objects@routine	event:refused	CREATE EVENT ev2 ON SCHEDULE AT '2000-01-01 00:00:00' DO COMMIT
+1576	1576	engine	objects@routine	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO CREATE EVENT ev3 ON SCHEDULE EVERY 1 DAY DO COMMIT
+1539	1539	engine	objects@routine	event:alter	ALTER EVENT a ON SCHEDULE EVERY 2 DAY STARTS '2030-01-01 00:00:00'
+1539	1539	engine	objects@routine	event:alter	ALTER EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ENDS '2031-01-01 00:00:00'
+1539	1539	engine	objects@routine	event:alter	ALTER EVENT a ON SCHEDULE AT '2030-06-01 00:00:00'
+1539	1539	engine	objects@routine	event:alter	ALTER EVENT a ON SCHEDULE AT '2000-01-01 00:00:00'
+1539	1539	engine	objects@routine	event:alter	ALTER EVENT a ON SCHEDULE AT '2000-01-01 00:00:00' ON COMPLETION PRESERVE
+1539	1539	engine	objects@routine	event:alter	ALTER EVENT a ON COMPLETION PRESERVE
+1539	1539	engine	objects@routine	event:alter	ALTER EVENT a ON COMPLETION NOT PRESERVE
+1539	1539	engine	objects@routine	event:alter	ALTER EVENT a ENABLE
+1539	1539	engine	objects@routine	event:alter	ALTER EVENT a DISABLE
+1539	1539	engine	objects@routine	event:alter	ALTER EVENT a DISABLE ON SLAVE
+1539	1539	engine	objects@routine	event:alter	ALTER EVENT a COMMENT 's'
+1539	1539	engine	objects@routine	event:alter	ALTER EVENT a DO COMMIT
+1539	1539	engine	objects@routine	event:alter	ALTER EVENT a DO BEGIN SET @x = 1; COMMIT; END
+1539	1539	engine	objects@routine	event:alter	ALTER EVENT a DO IF @x THEN COMMIT; END IF
+1539	1539	engine	objects@routine	event:alter	ALTER EVENT a DO l: LOOP LEAVE l; END LOOP
+1539	1539	engine	objects@routine	event:alter	ALTER EVENT a DO WHILE 0 DO COMMIT; END WHILE
+1539	1539	engine	objects@routine	event:alter	ALTER EVENT a DO REPEAT COMMIT; UNTIL 1 END REPEAT
+1539	1539	engine	objects@routine	event:alter	ALTER EVENT a DO BEGIN DECLARE x INT DEFAULT 1; SET @x = x; END
+1539	1539	engine	objects@routine	event:alter	ALTER EVENT a DO BEGIN DECLARE EXIT HANDLER FOR SQLEXCEPTION COMMIT; END
+1551	1551	engine	objects@routine	event:alter	ALTER EVENT a RENAME TO a
+1539	1539	engine	objects@routine	event:alter	ALTER EVENT a RENAME TO ev2
+1539	1539	engine	objects@routine	event:alter	ALTER EVENT a RENAME TO omni_simulation.ev2
+1049	1049	engine	objects@routine	event:alter	ALTER EVENT a RENAME TO nosuch.ev2
+1543	1543	engine	objects@routine	event:alter	ALTER EVENT a ON SCHEDULE EVERY 1 HOUR STARTS '2031-01-01 00:00:00' ENDS '2030-01-01 00:00:00'
+1064	1064	engine	objects@routine	event:alter	ALTER EVENT a ON COMPLETION PRESERVE DISABLE COMMENT 'off' RENAME TO ev2 DO COMMIT
+1539	1539	engine	objects@routine	event:alter	ALTER DEFINER = `root`@`%` EVENT a COMMENT 's'
+1049	1049	engine	objects@routine	event:alter	ALTER EVENT nosuch.a ENABLE
+1539	1539	engine	objects@routine	event:drop	DROP EVENT a
+ok:0e91ac90aef4	ok:0e91ac90aef4	engine	objects@routine	event:drop	DROP EVENT IF EXISTS a
+1539	1539	engine	objects@routine	event:drop	DROP EVENT omni_simulation.a
+1539	1539	engine	objects@routine	event:drop	DROP EVENT nosuch.a
+ok:0e91ac90aef4	ok:0e91ac90aef4	engine	objects@routine	event:drop	DROP EVENT IF EXISTS nosuch.a
+ok:c992ef143e8d	ok:c992ef143e8d	engine	objects@trigger	procedure:create	CREATE PROCEDURE a() COMMIT
+ok:c992ef143e8d	ok:c992ef143e8d	engine	objects@trigger	procedure:create	CREATE PROCEDURE IF NOT EXISTS a() COMMIT
+ok:c992ef143e8d	ok:c992ef143e8d	engine	objects@trigger	procedure:create	CREATE OR REPLACE PROCEDURE a() COMMIT
+1221	1221	engine	objects@trigger	procedure:create	CREATE OR REPLACE PROCEDURE IF NOT EXISTS a() COMMIT
+ok:b3eccef6877f	ok:b3eccef6877f	engine	objects@trigger	procedure:create	CREATE OR REPLACE DEFINER = `root`@`%` PROCEDURE a() SELECT 1
+ok:c992ef143e8d	ok:c992ef143e8d	engine	objects@trigger	procedure:create	CREATE DEFINER = `root`@`%` PROCEDURE a() COMMIT
+ok:c992ef143e8d	ok:c992ef143e8d	engine	objects@trigger	procedure:create	CREATE DEFINER = CURRENT_USER PROCEDURE a() COMMIT
+ok:c73cb3edc813	ok:c73cb3edc813	engine	objects@trigger	procedure:create	CREATE PROCEDURE p2() COMMIT
+ok:c73cb3edc813	ok:c73cb3edc813	engine	objects@trigger	procedure:create	CREATE PROCEDURE omni_simulation.p2() COMMIT
+1049	1049	engine	objects@trigger	procedure:create	CREATE PROCEDURE nosuch.p2() COMMIT
+1059	1059	engine	objects@trigger	procedure:create	CREATE PROCEDURE a23456789012345678901234567890123456789012345678901234567890abcde() COMMIT
+ok:c152433a01ed	ok:c152433a01ed	engine	objects@trigger	procedure:params	CREATE PROCEDURE a(x INT) COMMIT
+ok:8de563fcf4ed	ok:8de563fcf4ed	engine	objects@trigger	procedure:params	CREATE PROCEDURE a(IN x INT) COMMIT
+ok:7d42e34e5819	ok:7d42e34e5819	engine	objects@trigger	procedure:params	CREATE PROCEDURE a(OUT x INT) COMMIT
+ok:3aaf89c6097c	ok:3aaf89c6097c	engine	objects@trigger	procedure:params	CREATE PROCEDURE a(INOUT x INT) COMMIT
+ok:8c7fed252641	ok:8c7fed252641	engine	objects@trigger	procedure:params	CREATE PROCEDURE a(IN s VARCHAR(20), OUT n DECIMAL(10,2), INOUT e ENUM('x','y')) COMMIT
+ok:d132d0a0808a	ok:d132d0a0808a	engine	objects@trigger	procedure:params	CREATE PROCEDURE a(s VARCHAR(20) CHARSET latin1, b BLOB, d DATETIME(3)) COMMIT
+1330	1330	engine	objects@trigger	procedure:params	CREATE PROCEDURE a(x INT, x INT) COMMIT
+ok:65518678d000	ok:65518678d000	engine	objects@trigger	procedure:params	CREATE PROCEDURE a(x INT DEFAULT 1) SELECT x
+ok:9fdbdc50a7a5	ok:9fdbdc50a7a5	engine	objects@trigger	procedure:params	CREATE PROCEDURE a(x INT, y INT DEFAULT 2) SELECT x + y
+4032	4032	engine	objects@trigger	procedure:params	CREATE PROCEDURE a(OUT x INT DEFAULT 1) COMMIT
+4032	4032	engine	objects@trigger	procedure:params	CREATE PROCEDURE a(INOUT x INT DEFAULT 1) COMMIT
+ok:2e773c0ebce5	ok:2e773c0ebce5	engine	objects@trigger	procedure:params	CREATE PROCEDURE a(x INT, y INT DEFAULT x) SELECT y
+1327	1327	engine	objects@trigger	procedure:params	CREATE PROCEDURE a(x INT DEFAULT x) COMMIT
+ok:f3bd11cad389	ok:f3bd11cad389	engine	objects@trigger	procedure:params	CREATE PROCEDURE a(x INT DEFAULT (SELECT COUNT(*) FROM t)) SELECT x
+ok:9c935b5af178	ok:9c935b5af178	engine	objects@trigger	procedure:params	CREATE PROCEDURE a(x ROW(y INT, z VARCHAR(10))) SELECT x.y
+ok:f6fdae23c979	ok:f6fdae23c979	engine	objects@trigger	procedure:params	CREATE PROCEDURE a(x TYPE OF t.c) SELECT x
+ok:4a3f9f97af4d	ok:4a3f9f97af4d	engine	objects@trigger	procedure:params	CREATE PROCEDURE a(x ROW TYPE OF t) SELECT x.c
+ok:8bf8fd6c650e	ok:8bf8fd6c650e	engine	objects@trigger	procedure:characteristics	CREATE PROCEDURE a() DETERMINISTIC COMMIT
+ok:c992ef143e8d	ok:c992ef143e8d	engine	objects@trigger	procedure:characteristics	CREATE PROCEDURE a() NOT DETERMINISTIC COMMIT
+ok:ac6e7b6b1c66	ok:ac6e7b6b1c66	engine	objects@trigger	procedure:characteristics	CREATE PROCEDURE a() NO SQL BEGIN END
+ok:c992ef143e8d	ok:c992ef143e8d	engine	objects@trigger	procedure:characteristics	CREATE PROCEDURE a() CONTAINS SQL COMMIT
+ok:492319b4a240	ok:492319b4a240	engine	objects@trigger	procedure:characteristics	CREATE PROCEDURE a() READS SQL DATA SELECT 1
+ok:cb97efe69f08	ok:cb97efe69f08	engine	objects@trigger	procedure:characteristics	CREATE PROCEDURE a() MODIFIES SQL DATA DELETE FROM t
+ok:5413dae9466b	ok:5413dae9466b	engine	objects@trigger	procedure:characteristics	CREATE PROCEDURE a() SQL SECURITY INVOKER COMMIT
+ok:c992ef143e8d	ok:c992ef143e8d	engine	objects@trigger	procedure:characteristics	CREATE PROCEDURE a() SQL SECURITY DEFINER COMMIT
+ok:fb6e5d5eff5c	ok:fb6e5d5eff5c	engine	objects@trigger	procedure:characteristics	CREATE PROCEDURE a() COMMENT 'it''s a test' COMMIT
+ok:c992ef143e8d	ok:c992ef143e8d	engine	objects@trigger	procedure:characteristics	CREATE PROCEDURE a() LANGUAGE SQL COMMIT
+ok:a0c48539e0a4	ok:a0c48539e0a4	engine	objects@trigger	procedure:characteristics	CREATE PROCEDURE a() COMMENT 's' DETERMINISTIC READS SQL DATA SQL SECURITY INVOKER SELECT 1
+ok:8e71a61841c4	ok:8e71a61841c4	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() BEGIN END
+ok:e3449973874c	ok:e3449973874c	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() BEGIN NOT ATOMIC COMMIT; END
+ok:b4440ec7b80b	ok:b4440ec7b80b	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE x INT DEFAULT 1; SET x = x + 1; SELECT x; END
+ok:ce8119d7c09e	ok:ce8119d7c09e	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE c CONDITION FOR 1062; DECLARE EXIT HANDLER FOR c ROLLBACK; INSERT INTO t VALUES (1, 1, 1); END
+ok:0a1d629a3957	ok:0a1d629a3957	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE c CONDITION FOR SQLSTATE '23000'; DECLARE CONTINUE HANDLER FOR c BEGIN END; END
+ok:48d2314cfe4c	ok:48d2314cfe4c	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE CONTINUE HANDLER FOR SQLWARNING, NOT FOUND, SQLEXCEPTION COMMIT; END
+ok:47f656c9aea2	ok:47f656c9aea2	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE done INT DEFAULT 0; DECLARE v INT; DECLARE cur CURSOR FOR SELECT b FROM t; DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1; OPEN cur; l: LOOP FETCH cur INTO v; IF done THEN LEAVE l; END IF; END LOOP; CLOSE cur; END
+ok:5c0eda2a710c	ok:5c0eda2a710c	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE cur CURSOR FOR SELECT b FROM t; FOR r IN cur DO SELECT r.b; END FOR; END
+ok:0021ecab69ed	ok:0021ecab69ed	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() FOR i IN 1..3 DO SELECT i; END FOR
+ok:f1dd451d503f	ok:f1dd451d503f	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() FOR i IN REVERSE 1..3 DO SELECT i; END FOR
+ok:268cf4cb2526	ok:268cf4cb2526	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() IF 1 THEN COMMIT; ELSEIF 0 THEN ROLLBACK; ELSE COMMIT; END IF
+ok:6340acd802cb	ok:6340acd802cb	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() CASE WHEN 1 THEN COMMIT; ELSE ROLLBACK; END CASE
+ok:e58f219fadcf	ok:e58f219fadcf	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() CASE 1 WHEN 1 THEN COMMIT; WHEN 2 THEN ROLLBACK; END CASE
+ok:9c39ed7e5fb7	ok:9c39ed7e5fb7	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() l: BEGIN LEAVE l; END l
+ok:5de1c3b9f0d2	ok:5de1c3b9f0d2	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() l: LOOP LEAVE l; END LOOP l
+ok:fa3b8a73a5fd	ok:fa3b8a73a5fd	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() l: LOOP ITERATE l; END LOOP
+ok:2c365c2db2a6	ok:2c365c2db2a6	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() WHILE 0 DO COMMIT; END WHILE
+ok:f393d3ec16cd	ok:f393d3ec16cd	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() REPEAT COMMIT; UNTIL 1 END REPEAT
+ok:0b987a5cf830	ok:0b987a5cf830	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() BEGIN INSERT INTO t VALUES (1, 2, 3); UPDATE t SET c = c + 1 WHERE b = 1; DELETE FROM t WHERE b = 1; END
+ok:f1eda5fe92c5	ok:f1eda5fe92c5	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() BEGIN CREATE TABLE p (x INT); DROP TABLE p; END
+ok:153c60ec23d0	ok:153c60ec23d0	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() SELECT zzz FROM nosuch
+ok:9b489a0799c0	ok:9b489a0799c0	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() CALL nosuch()
+ok:b76746f821ee	ok:b76746f821ee	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() CALL a()
+ok:ae2e96f0d82e	ok:ae2e96f0d82e	engine	objects@trigger	procedure:body	CREATE PROCEDURE a(OUT x INT) SELECT COUNT(*) INTO x FROM t
+ok:64e9134af86c	ok:64e9134af86c	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() BEGIN PREPARE s FROM 'SELECT 1'; EXECUTE s; DEALLOCATE PREPARE s; END
+1310	1310	engine	objects@trigger	procedure:refused	CREATE PROCEDURE a() l1: BEGIN END l2
+1308	1308	engine	objects@trigger	procedure:refused	CREATE PROCEDURE a() BEGIN LEAVE nope; END
+ok	1193	engine	objects@trigger	procedure:refused	CREATE PROCEDURE a() SET zzz = 1
+1313	1313	engine	objects@trigger	procedure:refused	CREATE PROCEDURE a() RETURN 1
+1331	1331	engine	objects@trigger	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE x INT; DECLARE x INT; END
+1319	1319	engine	objects@trigger	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE EXIT HANDLER FOR nope COMMIT; END
+1324	1324	engine	objects@trigger	procedure:refused	CREATE PROCEDURE a() BEGIN OPEN nope; END
+1064	1064	engine	objects@trigger	procedure:refused	CREATE PROCEDURE a() BEGIN SELECT 1; DECLARE x INT; END
+1337	1337	engine	objects@trigger	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE c CURSOR FOR SELECT 1; DECLARE x INT; END
+1525	1525	engine	objects@trigger	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE c CONDITION FOR 0; END
+1407	1407	engine	objects@trigger	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE c CONDITION FOR SQLSTATE '00000'; END
+1327	1327	engine	objects@trigger	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE c CURSOR FOR SELECT 1; FOR r IN nope DO SELECT 1; END FOR; END
+4105	4105	engine	objects@trigger	procedure:refused	CREATE PROCEDURE a() FETCH GROUP NEXT ROW
+1305	1305	engine	objects@trigger	procedure:alter	ALTER PROCEDURE a
+1305	1305	engine	objects@trigger	procedure:alter	ALTER PROCEDURE a COMMENT 's'
+1305	1305	engine	objects@trigger	procedure:alter	ALTER PROCEDURE a LANGUAGE SQL
+1305	1305	engine	objects@trigger	procedure:alter	ALTER PROCEDURE a NO SQL
+1305	1305	engine	objects@trigger	procedure:alter	ALTER PROCEDURE a CONTAINS SQL
+1305	1305	engine	objects@trigger	procedure:alter	ALTER PROCEDURE a READS SQL DATA
+1305	1305	engine	objects@trigger	procedure:alter	ALTER PROCEDURE a MODIFIES SQL DATA
+1305	1305	engine	objects@trigger	procedure:alter	ALTER PROCEDURE a SQL SECURITY DEFINER
+1305	1305	engine	objects@trigger	procedure:alter	ALTER PROCEDURE a SQL SECURITY INVOKER
+1305	1305	engine	objects@trigger	procedure:alter	ALTER PROCEDURE a COMMENT 'x' NO SQL SQL SECURITY INVOKER
+1305	1305	engine	objects@trigger	procedure:alter	ALTER PROCEDURE omni_simulation.a COMMENT 's'
+1305	1305	engine	objects@trigger	procedure:alter	ALTER PROCEDURE nosuch.a COMMENT 's'
+1305	1305	engine	objects@trigger	procedure:drop	DROP PROCEDURE a
+ok:9376e376a040	ok:9376e376a040	engine	objects@trigger	procedure:drop	DROP PROCEDURE IF EXISTS a
+1305	1305	engine	objects@trigger	procedure:drop	DROP PROCEDURE A
+1305	1305	engine	objects@trigger	procedure:drop	DROP PROCEDURE omni_simulation.a
+1305	1305	engine	objects@trigger	procedure:drop	DROP PROCEDURE nosuch.a
+ok:9376e376a040	ok:9376e376a040	engine	objects@trigger	procedure:drop	DROP PROCEDURE IF EXISTS nosuch.a
+ok:3fdb4d1e96b2	ok:3fdb4d1e96b2	engine	objects@trigger	function:create	CREATE FUNCTION a() RETURNS INT RETURN 1
+ok:d96ff53773d1	ok:d96ff53773d1	engine	objects@trigger	function:create	CREATE FUNCTION a() RETURNS INT DETERMINISTIC RETURN 1
+ok:3fdb4d1e96b2	ok:3fdb4d1e96b2	engine	objects@trigger	function:create	CREATE FUNCTION IF NOT EXISTS a() RETURNS INT RETURN 1
+ok:2e7be18a7d81	ok:2e7be18a7d81	engine	objects@trigger	function:create	CREATE OR REPLACE FUNCTION a() RETURNS INT RETURN 2
+1221	1221	engine	objects@trigger	function:create	CREATE OR REPLACE FUNCTION IF NOT EXISTS a() RETURNS INT RETURN 2
+ok:2e7be18a7d81	ok:2e7be18a7d81	engine	objects@trigger	function:create	CREATE OR REPLACE DEFINER = `root`@`%` FUNCTION a() RETURNS INT RETURN 2
+ok:d96ff53773d1	ok:d96ff53773d1	engine	objects@trigger	function:create	CREATE DEFINER = `root`@`%` FUNCTION a() RETURNS INT DETERMINISTIC RETURN 1
+ok:d295e4f2ddd4	ok:d295e4f2ddd4	engine	objects@trigger	function:create	CREATE FUNCTION f2() RETURNS INT RETURN 1
+1049	1049	engine	objects@trigger	function:create	CREATE FUNCTION nosuch.f2() RETURNS INT RETURN 1
+ok:f40723b20b42	ok:f40723b20b42	engine	objects@trigger	function:create	CREATE FUNCTION a(x INT) RETURNS INT DETERMINISTIC RETURN x
+ok:6c1af0f40ca2	ok:6c1af0f40ca2	engine	objects@trigger	function:create	CREATE FUNCTION a(s VARCHAR(20)) RETURNS VARCHAR(40) DETERMINISTIC RETURN CONCAT(s, s)
+ok:97a140b24399	ok:97a140b24399	engine	objects@trigger	function:create	CREATE FUNCTION a(x DECIMAL(10,2)) RETURNS DECIMAL(12,4) DETERMINISTIC RETURN x
+ok:49c3155248c1	ok:49c3155248c1	engine	objects@trigger	function:create	CREATE FUNCTION a() RETURNS ENUM('x','y') DETERMINISTIC RETURN 'x'
+ok:9e658d44c9d7	ok:9e658d44c9d7	engine	objects@trigger	function:create	CREATE FUNCTION a() RETURNS VARCHAR(10) CHARSET latin1 RETURN 'x'
+ok:2225397c6d43	ok:2225397c6d43	engine	objects@trigger	function:create	CREATE FUNCTION a() RETURNS VARCHAR(10) COLLATE utf8mb4_bin RETURN 'x'
+ok:0c4e40063304	ok:0c4e40063304	engine	objects@trigger	function:create	CREATE FUNCTION a() RETURNS DATETIME(6) RETURN NOW(6)
+ok:3876f29268b1	ok:3876f29268b1	engine	objects@trigger	function:create	CREATE FUNCTION a() RETURNS TEXT RETURN 'x'
+ok:1a21aab3e971	ok:1a21aab3e971	engine	objects@trigger	function:create	CREATE FUNCTION a() RETURNS BOOLEAN RETURN TRUE
+ok:40c0307cebba	ok:40c0307cebba	engine	objects@trigger	function:create	CREATE FUNCTION a() RETURNS TYPE OF t.c RETURN 1
+ok:34a74d06a63c	ok:34a74d06a63c	engine	objects@trigger	function:create	CREATE FUNCTION a() RETURNS INT NOT DETERMINISTIC NO SQL RETURN 1
+ok:3fdb4d1e96b2	ok:3fdb4d1e96b2	engine	objects@trigger	function:create	CREATE FUNCTION a() RETURNS INT CONTAINS SQL RETURN 1
+ok:83e07d3bd621	ok:83e07d3bd621	engine	objects@trigger	function:create	CREATE FUNCTION a() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FROM t)
+ok:0eb6a1ce376d	ok:0eb6a1ce376d	engine	objects@trigger	function:create	CREATE FUNCTION a() RETURNS INT MODIFIES SQL DATA RETURN 1
+ok:36726a9899c4	ok:36726a9899c4	engine	objects@trigger	function:create	CREATE FUNCTION a() RETURNS INT SQL SECURITY INVOKER RETURN 1
+ok:ca013eab4828	ok:ca013eab4828	engine	objects@trigger	function:create	CREATE FUNCTION a() RETURNS INT COMMENT 's' RETURN 1
+ok:156daeba49c3	ok:156daeba49c3	engine	objects@trigger	function:create	CREATE FUNCTION a(x INT) RETURNS INT BEGIN DECLARE r INT DEFAULT 1; SET r = x + r; RETURN r; END
+ok:f2cdcfa1bb3b	ok:f2cdcfa1bb3b	engine	objects@trigger	function:create	CREATE FUNCTION a(x INT) RETURNS INT BEGIN IF x > 0 THEN RETURN 1; END IF; RETURN 0; END
+ok:4dd17da98592	ok:4dd17da98592	engine	objects@trigger	function:params	CREATE FUNCTION a(IN x INT) RETURNS INT RETURN x
+ok:3db59b70d25b	ok:3db59b70d25b	engine	objects@trigger	function:params	CREATE FUNCTION a(OUT x INT) RETURNS INT RETURN 1
+ok:a37d778a7a87	ok:a37d778a7a87	engine	objects@trigger	function:params	CREATE FUNCTION a(INOUT x INT) RETURNS INT RETURN x
+ok:022a1f0f36f4	ok:022a1f0f36f4	engine	objects@trigger	function:params	CREATE FUNCTION a(x INT DEFAULT 1) RETURNS INT RETURN x
+1330	1330	engine	objects@trigger	function:params	CREATE FUNCTION a(x INT, x INT) RETURNS INT RETURN 1
+ok:5f9d0e293885	ok:5f9d0e293885	engine	objects@trigger	function:params	CREATE FUNCTION a(x ROW(y INT)) RETURNS INT RETURN x.y
+1320	1320	engine	objects@trigger	function:refused	CREATE FUNCTION a() RETURNS INT BEGIN END
+1064	1064	engine	objects@trigger	function:refused	CREATE FUNCTION a() RETURNS INT SELECT 1
+1422	1422	engine	objects@trigger	function:refused	CREATE FUNCTION a() RETURNS INT BEGIN COMMIT; RETURN 1; END
+1415	1415	engine	objects@trigger	function:refused	CREATE FUNCTION a() RETURNS INT BEGIN SELECT 1; RETURN 1; END
+4105	4105	engine	objects@trigger	function:refused	CREATE FUNCTION a() RETURNS INT BEGIN FETCH GROUP NEXT ROW; RETURN 1; END
+ok:8aed65ae085d	ok:8aed65ae085d	engine	objects@trigger	function:aggregate	CREATE AGGREGATE FUNCTION a(x INT) RETURNS INT BEGIN DECLARE s INT DEFAULT 0; DECLARE CONTINUE HANDLER FOR NOT FOUND RETURN s; LOOP FETCH GROUP NEXT ROW; SET s = s + x; END LOOP; END
+ok:8aed65ae085d	ok:8aed65ae085d	engine	objects@trigger	function:aggregate	CREATE OR REPLACE AGGREGATE FUNCTION a(x INT) RETURNS INT BEGIN DECLARE s INT DEFAULT 0; DECLARE CONTINUE HANDLER FOR NOT FOUND RETURN s; LOOP FETCH GROUP NEXT ROW; SET s = s + x; END LOOP; END
+ok:8aed65ae085d	ok:8aed65ae085d	engine	objects@trigger	function:aggregate	CREATE AGGREGATE FUNCTION IF NOT EXISTS a(x INT) RETURNS INT BEGIN DECLARE s INT DEFAULT 0; DECLARE CONTINUE HANDLER FOR NOT FOUND RETURN s; LOOP FETCH GROUP NEXT ROW; SET s = s + x; END LOOP; END
+4106	4106	engine	objects@trigger	function:aggregate	CREATE AGGREGATE FUNCTION a(x INT) RETURNS INT RETURN 1
+1305	1305	engine	objects@trigger	function:alter	ALTER FUNCTION a
+1305	1305	engine	objects@trigger	function:alter	ALTER FUNCTION a COMMENT 's'
+1305	1305	engine	objects@trigger	function:alter	ALTER FUNCTION a LANGUAGE SQL
+1305	1305	engine	objects@trigger	function:alter	ALTER FUNCTION a NO SQL
+1305	1305	engine	objects@trigger	function:alter	ALTER FUNCTION a CONTAINS SQL
+1305	1305	engine	objects@trigger	function:alter	ALTER FUNCTION a READS SQL DATA
+1305	1305	engine	objects@trigger	function:alter	ALTER FUNCTION a MODIFIES SQL DATA
+1305	1305	engine	objects@trigger	function:alter	ALTER FUNCTION a SQL SECURITY DEFINER
+1305	1305	engine	objects@trigger	function:alter	ALTER FUNCTION a SQL SECURITY INVOKER
+1305	1305	engine	objects@trigger	function:alter	ALTER FUNCTION nosuch.a COMMENT 's'
+1305	1305	engine	objects@trigger	function:drop	DROP FUNCTION a
+ok:9376e376a040	ok:9376e376a040	engine	objects@trigger	function:drop	DROP FUNCTION IF EXISTS a
+1305	1305	engine	objects@trigger	function:drop	DROP FUNCTION omni_simulation.a
+1305	1305	engine	objects@trigger	function:drop	DROP FUNCTION nosuch.a
+ok:9376e376a040	ok:9376e376a040	engine	objects@trigger	function:drop	DROP FUNCTION IF EXISTS nosuch.a
+1359	1359	engine	objects@trigger	trigger:create	CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+1146	1146	engine	objects@trigger	trigger:create	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW SET NEW.c = 1
+1146	1146	engine	objects@trigger	trigger:create	CREATE TRIGGER a AFTER INSERT ON a FOR EACH ROW SET @x = NEW.c
+1146	1146	engine	objects@trigger	trigger:create	CREATE TRIGGER a BEFORE UPDATE ON a FOR EACH ROW SET NEW.c = OLD.c + 1
+1146	1146	engine	objects@trigger	trigger:create	CREATE TRIGGER a AFTER UPDATE ON a FOR EACH ROW SET @x = NEW.c
+1146	1146	engine	objects@trigger	trigger:create	CREATE TRIGGER a BEFORE DELETE ON a FOR EACH ROW SET @x = OLD.c
+1146	1146	engine	objects@trigger	trigger:create	CREATE TRIGGER a AFTER DELETE ON a FOR EACH ROW SET @x = OLD.c
+ok:3c2f06009870	ok:3c2f06009870	engine	objects@trigger	trigger:create	CREATE TRIGGER tr2 AFTER INSERT ON t FOR EACH ROW BEGIN IF NEW.c > 0 THEN SET @x = 1; END IF; END
+ok:9376e376a040	ok:9376e376a040	engine	objects@trigger	trigger:create	CREATE TRIGGER IF NOT EXISTS a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+ok:d88f4e1d8539	ok:d88f4e1d8539	engine	objects@trigger	trigger:create	CREATE OR REPLACE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+ok:85fc42535010	ok:85fc42535010	engine	objects@trigger	trigger:create	CREATE OR REPLACE TRIGGER a AFTER DELETE ON t FOR EACH ROW SET @x = OLD.c
+1221	1221	engine	objects@trigger	trigger:create	CREATE OR REPLACE TRIGGER IF NOT EXISTS a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+1359	1359	engine	objects@trigger	trigger:create	CREATE DEFINER = `root`@`%` TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+ok:9376e376a040	ok:9376e376a040	engine	objects@trigger	trigger:create	CREATE OR REPLACE DEFINER = `root`@`%` TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+ok:5a7c7d7a35d7	ok:5a7c7d7a35d7	engine	objects@trigger	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW FOLLOWS a SET NEW.c = 2
+ok:5a7c7d7a35d7	ok:5a7c7d7a35d7	engine	objects@trigger	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW PRECEDES a SET NEW.c = 2
+4031	4031	engine	objects@trigger	trigger:create	CREATE TRIGGER tr2 AFTER UPDATE ON t FOR EACH ROW FOLLOWS a SET @x = 1
+4031	4031	engine	objects@trigger	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW FOLLOWS nope SET NEW.c = 2
+ok:5a7c7d7a35d7	ok:5a7c7d7a35d7	engine	objects@trigger	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+ok:74cc191404f8	ok:74cc191404f8	engine	objects@trigger	trigger:create	CREATE TRIGGER omni_simulation.tr2 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	objects@trigger	trigger:create	CREATE TRIGGER nosuch.tr2 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	objects@trigger	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON nosuch.t FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	objects@trigger	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON nope FOR EACH ROW SET NEW.c = 2
+ok:16cff3fd7d7b	ok:16cff3fd7d7b	engine	objects@trigger	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW INSERT INTO nope VALUES (NEW.b)
+1363	1363	engine	objects@trigger	trigger:refused	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW SET @x = OLD.c
+1363	1363	engine	objects@trigger	trigger:refused	CREATE TRIGGER tr2 BEFORE DELETE ON t FOR EACH ROW SET @x = NEW.c
+1362	1362	engine	objects@trigger	trigger:refused	CREATE TRIGGER tr2 AFTER INSERT ON t FOR EACH ROW SET NEW.c = 1
+1362	1362	engine	objects@trigger	trigger:refused	CREATE TRIGGER tr2 BEFORE UPDATE ON t FOR EACH ROW SET OLD.c = 1
+1054	1054	engine	objects@trigger	trigger:refused	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW SET NEW.zzz = 1
+1313	1313	engine	objects@trigger	trigger:refused	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW RETURN 1
+1422	1422	engine	objects@trigger	trigger:refused	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW COMMIT
+ok:ddcba5e24503	ok:ddcba5e24503	engine	objects@trigger	trigger:drop	DROP TRIGGER a
+ok:ddcba5e24503	ok:ddcba5e24503	engine	objects@trigger	trigger:drop	DROP TRIGGER IF EXISTS a
+ok:ddcba5e24503	ok:ddcba5e24503	engine	objects@trigger	trigger:drop	DROP TRIGGER omni_simulation.a
+1360	1360	engine	objects@trigger	trigger:drop	DROP TRIGGER nosuch.a
+ok:9376e376a040	ok:9376e376a040	engine	objects@trigger	trigger:drop	DROP TRIGGER IF EXISTS nosuch.a
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@trigger	trigger:table	DROP TABLE t
+ok:649a2fdda3f5	ok:649a2fdda3f5	engine	objects@trigger	trigger:table	RENAME TABLE t TO t2
+ok:649a2fdda3f5	ok:649a2fdda3f5	engine	objects@trigger	trigger:table	ALTER TABLE t RENAME TO t2
+ok:12eccb5d9766	ok:12eccb5d9766	engine	objects@trigger	trigger:table	ALTER TABLE t DROP COLUMN c
+ok:9b3d295de9fe	ok:9b3d295de9fe	engine	objects@trigger	trigger:table	ALTER TABLE t ADD COLUMN e INT
+ok:d73f81146c07	ok:d73f81146c07	engine	objects@trigger	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:d73f81146c07	ok:d73f81146c07	engine	objects@trigger	event:create	CREATE EVENT IF NOT EXISTS a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:2f05be8bd99c	ok:2f05be8bd99c	engine	objects@trigger	event:create	CREATE OR REPLACE EVENT a ON SCHEDULE EVERY 2 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1221	1221	engine	objects@trigger	event:create	CREATE OR REPLACE EVENT IF NOT EXISTS a ON SCHEDULE EVERY 2 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:d73f81146c07	ok:d73f81146c07	engine	objects@trigger	event:create	CREATE DEFINER = `root`@`%` EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:2847dcab0aef	ok:2847dcab0aef	engine	objects@trigger	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ENDS '2031-01-01 00:00:00' DO COMMIT
+ok:82b6898a2a03	ok:82b6898a2a03	engine	objects@trigger	event:create	CREATE EVENT a ON SCHEDULE AT '2030-01-01 00:00:00' DO COMMIT
+ok:674291e2c1bb	ok:674291e2c1bb	engine	objects@trigger	event:create	CREATE EVENT a ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION PRESERVE DO COMMIT
+ok:82b6898a2a03	ok:82b6898a2a03	engine	objects@trigger	event:create	CREATE EVENT a ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE DO COMMIT
+ok:1bd8297dba52	ok:1bd8297dba52	engine	objects@trigger	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT
+ok:6d4cc5756364	ok:6d4cc5756364	engine	objects@trigger	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE DO COMMIT
+ok:d1e7cd64be71	ok:d1e7cd64be71	engine	objects@trigger	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE ON SLAVE DO COMMIT
+ok:f57ea95cdd38	ok:f57ea95cdd38	engine	objects@trigger	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' COMMENT 'it''s nightly' DO COMMIT
+ok:e2117596568f	ok:e2117596568f	engine	objects@trigger	event:create	CREATE EVENT a ON SCHEDULE EVERY 90 MINUTE STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:73a2827528df	ok:73a2827528df	engine	objects@trigger	event:create	CREATE EVENT a ON SCHEDULE EVERY '1:30' HOUR_MINUTE STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:cc1f9c84f05e	ok:cc1f9c84f05e	engine	objects@trigger	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 WEEK STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:98eee82b79d1	ok:98eee82b79d1	engine	objects@trigger	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 QUARTER STARTS '2030-01-01 00:00:00' DO COMMIT
+1235	1235	engine	objects@trigger	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 MICROSECOND STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:40b540bfefd4	ok:40b540bfefd4	engine	objects@trigger	event:create	CREATE EVENT a ON SCHEDULE AT '2030-01-01 00:00:00' + INTERVAL 1 DAY DO COMMIT
+ok:6c577da31dc7	ok:6c577da31dc7	engine	objects@trigger	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO BEGIN DELETE FROM t WHERE c < 0; INSERT INTO t VALUES (1, 1, 1); END
+ok:95d0ad9c118d	ok:95d0ad9c118d	engine	objects@trigger	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO CALL a()
+ok:94f052e2ddf2	ok:94f052e2ddf2	engine	objects@trigger	event:create	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1049	1049	engine	objects@trigger	event:create	CREATE EVENT nosuch.ev2 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1543	1543	engine	objects@trigger	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS '2031-01-01 00:00:00' ENDS '2030-01-01 00:00:00' DO COMMIT
+1542	1542	engine	objects@trigger	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 0 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1542	1542	engine	objects@trigger	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY -1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1525	1525	engine	objects@trigger	event:refused	CREATE EVENT ev2 ON SCHEDULE AT 'zzz' DO COMMIT
+1525	1525	engine	objects@trigger	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS 'zzz' DO COMMIT
+1543	1543	engine	objects@trigger	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ENDS 'zzz' DO COMMIT
+ok:9376e376a040	ok:9376e376a040	engine	objects@trigger	event:refused	CREATE EVENT ev2 ON SCHEDULE AT '2000-01-01 00:00:00' DO COMMIT
+1576	1576	engine	objects@trigger	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO CREATE EVENT ev3 ON SCHEDULE EVERY 1 DAY DO COMMIT
+1539	1539	engine	objects@trigger	event:alter	ALTER EVENT a ON SCHEDULE EVERY 2 DAY STARTS '2030-01-01 00:00:00'
+1539	1539	engine	objects@trigger	event:alter	ALTER EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ENDS '2031-01-01 00:00:00'
+1539	1539	engine	objects@trigger	event:alter	ALTER EVENT a ON SCHEDULE AT '2030-06-01 00:00:00'
+1539	1539	engine	objects@trigger	event:alter	ALTER EVENT a ON SCHEDULE AT '2000-01-01 00:00:00'
+1539	1539	engine	objects@trigger	event:alter	ALTER EVENT a ON SCHEDULE AT '2000-01-01 00:00:00' ON COMPLETION PRESERVE
+1539	1539	engine	objects@trigger	event:alter	ALTER EVENT a ON COMPLETION PRESERVE
+1539	1539	engine	objects@trigger	event:alter	ALTER EVENT a ON COMPLETION NOT PRESERVE
+1539	1539	engine	objects@trigger	event:alter	ALTER EVENT a ENABLE
+1539	1539	engine	objects@trigger	event:alter	ALTER EVENT a DISABLE
+1539	1539	engine	objects@trigger	event:alter	ALTER EVENT a DISABLE ON SLAVE
+1539	1539	engine	objects@trigger	event:alter	ALTER EVENT a COMMENT 's'
+1539	1539	engine	objects@trigger	event:alter	ALTER EVENT a DO COMMIT
+1539	1539	engine	objects@trigger	event:alter	ALTER EVENT a DO BEGIN SET @x = 1; COMMIT; END
+1539	1539	engine	objects@trigger	event:alter	ALTER EVENT a DO IF @x THEN COMMIT; END IF
+1539	1539	engine	objects@trigger	event:alter	ALTER EVENT a DO l: LOOP LEAVE l; END LOOP
+1539	1539	engine	objects@trigger	event:alter	ALTER EVENT a DO WHILE 0 DO COMMIT; END WHILE
+1539	1539	engine	objects@trigger	event:alter	ALTER EVENT a DO REPEAT COMMIT; UNTIL 1 END REPEAT
+1539	1539	engine	objects@trigger	event:alter	ALTER EVENT a DO BEGIN DECLARE x INT DEFAULT 1; SET @x = x; END
+1539	1539	engine	objects@trigger	event:alter	ALTER EVENT a DO BEGIN DECLARE EXIT HANDLER FOR SQLEXCEPTION COMMIT; END
+1551	1551	engine	objects@trigger	event:alter	ALTER EVENT a RENAME TO a
+1539	1539	engine	objects@trigger	event:alter	ALTER EVENT a RENAME TO ev2
+1539	1539	engine	objects@trigger	event:alter	ALTER EVENT a RENAME TO omni_simulation.ev2
+1049	1049	engine	objects@trigger	event:alter	ALTER EVENT a RENAME TO nosuch.ev2
+1543	1543	engine	objects@trigger	event:alter	ALTER EVENT a ON SCHEDULE EVERY 1 HOUR STARTS '2031-01-01 00:00:00' ENDS '2030-01-01 00:00:00'
+1064	1064	engine	objects@trigger	event:alter	ALTER EVENT a ON COMPLETION PRESERVE DISABLE COMMENT 'off' RENAME TO ev2 DO COMMIT
+1539	1539	engine	objects@trigger	event:alter	ALTER DEFINER = `root`@`%` EVENT a COMMENT 's'
+1049	1049	engine	objects@trigger	event:alter	ALTER EVENT nosuch.a ENABLE
+1539	1539	engine	objects@trigger	event:drop	DROP EVENT a
+ok:9376e376a040	ok:9376e376a040	engine	objects@trigger	event:drop	DROP EVENT IF EXISTS a
+1539	1539	engine	objects@trigger	event:drop	DROP EVENT omni_simulation.a
+1539	1539	engine	objects@trigger	event:drop	DROP EVENT nosuch.a
+ok:9376e376a040	ok:9376e376a040	engine	objects@trigger	event:drop	DROP EVENT IF EXISTS nosuch.a
+ok:dc7a484472e5	ok:dc7a484472e5	engine	objects@event	procedure:create	CREATE PROCEDURE a() COMMIT
+ok:dc7a484472e5	ok:dc7a484472e5	engine	objects@event	procedure:create	CREATE PROCEDURE IF NOT EXISTS a() COMMIT
+ok:dc7a484472e5	ok:dc7a484472e5	engine	objects@event	procedure:create	CREATE OR REPLACE PROCEDURE a() COMMIT
+1221	1221	engine	objects@event	procedure:create	CREATE OR REPLACE PROCEDURE IF NOT EXISTS a() COMMIT
+ok:38a3a1f0e4fe	ok:38a3a1f0e4fe	engine	objects@event	procedure:create	CREATE OR REPLACE DEFINER = `root`@`%` PROCEDURE a() SELECT 1
+ok:dc7a484472e5	ok:dc7a484472e5	engine	objects@event	procedure:create	CREATE DEFINER = `root`@`%` PROCEDURE a() COMMIT
+ok:dc7a484472e5	ok:dc7a484472e5	engine	objects@event	procedure:create	CREATE DEFINER = CURRENT_USER PROCEDURE a() COMMIT
+ok:c7c1c24f5b72	ok:c7c1c24f5b72	engine	objects@event	procedure:create	CREATE PROCEDURE p2() COMMIT
+ok:c7c1c24f5b72	ok:c7c1c24f5b72	engine	objects@event	procedure:create	CREATE PROCEDURE omni_simulation.p2() COMMIT
+1049	1049	engine	objects@event	procedure:create	CREATE PROCEDURE nosuch.p2() COMMIT
+1059	1059	engine	objects@event	procedure:create	CREATE PROCEDURE a23456789012345678901234567890123456789012345678901234567890abcde() COMMIT
+ok:92fcaeab0128	ok:92fcaeab0128	engine	objects@event	procedure:params	CREATE PROCEDURE a(x INT) COMMIT
+ok:4261eedc8b7f	ok:4261eedc8b7f	engine	objects@event	procedure:params	CREATE PROCEDURE a(IN x INT) COMMIT
+ok:ecaf5dc34a0d	ok:ecaf5dc34a0d	engine	objects@event	procedure:params	CREATE PROCEDURE a(OUT x INT) COMMIT
+ok:0dfa5b3ac0d1	ok:0dfa5b3ac0d1	engine	objects@event	procedure:params	CREATE PROCEDURE a(INOUT x INT) COMMIT
+ok:b3238e3f5fa0	ok:b3238e3f5fa0	engine	objects@event	procedure:params	CREATE PROCEDURE a(IN s VARCHAR(20), OUT n DECIMAL(10,2), INOUT e ENUM('x','y')) COMMIT
+ok:210a8a80fff0	ok:210a8a80fff0	engine	objects@event	procedure:params	CREATE PROCEDURE a(s VARCHAR(20) CHARSET latin1, b BLOB, d DATETIME(3)) COMMIT
+1330	1330	engine	objects@event	procedure:params	CREATE PROCEDURE a(x INT, x INT) COMMIT
+ok:b79918790940	ok:b79918790940	engine	objects@event	procedure:params	CREATE PROCEDURE a(x INT DEFAULT 1) SELECT x
+ok:387b2957d7b6	ok:387b2957d7b6	engine	objects@event	procedure:params	CREATE PROCEDURE a(x INT, y INT DEFAULT 2) SELECT x + y
+4032	4032	engine	objects@event	procedure:params	CREATE PROCEDURE a(OUT x INT DEFAULT 1) COMMIT
+4032	4032	engine	objects@event	procedure:params	CREATE PROCEDURE a(INOUT x INT DEFAULT 1) COMMIT
+ok:c55b5c0265c0	ok:c55b5c0265c0	engine	objects@event	procedure:params	CREATE PROCEDURE a(x INT, y INT DEFAULT x) SELECT y
+1327	1327	engine	objects@event	procedure:params	CREATE PROCEDURE a(x INT DEFAULT x) COMMIT
+ok:cfc732acf559	ok:cfc732acf559	engine	objects@event	procedure:params	CREATE PROCEDURE a(x INT DEFAULT (SELECT COUNT(*) FROM t)) SELECT x
+ok:2494493b6689	ok:2494493b6689	engine	objects@event	procedure:params	CREATE PROCEDURE a(x ROW(y INT, z VARCHAR(10))) SELECT x.y
+ok:9dd7275d213d	ok:9dd7275d213d	engine	objects@event	procedure:params	CREATE PROCEDURE a(x TYPE OF t.c) SELECT x
+ok:b48940b58b3b	ok:b48940b58b3b	engine	objects@event	procedure:params	CREATE PROCEDURE a(x ROW TYPE OF t) SELECT x.c
+ok:297b59dd9f1d	ok:297b59dd9f1d	engine	objects@event	procedure:characteristics	CREATE PROCEDURE a() DETERMINISTIC COMMIT
+ok:dc7a484472e5	ok:dc7a484472e5	engine	objects@event	procedure:characteristics	CREATE PROCEDURE a() NOT DETERMINISTIC COMMIT
+ok:9cb5081f34e8	ok:9cb5081f34e8	engine	objects@event	procedure:characteristics	CREATE PROCEDURE a() NO SQL BEGIN END
+ok:dc7a484472e5	ok:dc7a484472e5	engine	objects@event	procedure:characteristics	CREATE PROCEDURE a() CONTAINS SQL COMMIT
+ok:43daf7b484b1	ok:43daf7b484b1	engine	objects@event	procedure:characteristics	CREATE PROCEDURE a() READS SQL DATA SELECT 1
+ok:67aa1107c09e	ok:67aa1107c09e	engine	objects@event	procedure:characteristics	CREATE PROCEDURE a() MODIFIES SQL DATA DELETE FROM t
+ok:96e72574289b	ok:96e72574289b	engine	objects@event	procedure:characteristics	CREATE PROCEDURE a() SQL SECURITY INVOKER COMMIT
+ok:dc7a484472e5	ok:dc7a484472e5	engine	objects@event	procedure:characteristics	CREATE PROCEDURE a() SQL SECURITY DEFINER COMMIT
+ok:2a996cc11b2a	ok:2a996cc11b2a	engine	objects@event	procedure:characteristics	CREATE PROCEDURE a() COMMENT 'it''s a test' COMMIT
+ok:dc7a484472e5	ok:dc7a484472e5	engine	objects@event	procedure:characteristics	CREATE PROCEDURE a() LANGUAGE SQL COMMIT
+ok:d39840284c5c	ok:d39840284c5c	engine	objects@event	procedure:characteristics	CREATE PROCEDURE a() COMMENT 's' DETERMINISTIC READS SQL DATA SQL SECURITY INVOKER SELECT 1
+ok:c161597a6562	ok:c161597a6562	engine	objects@event	procedure:body	CREATE PROCEDURE a() BEGIN END
+ok:f55ee977753e	ok:f55ee977753e	engine	objects@event	procedure:body	CREATE PROCEDURE a() BEGIN NOT ATOMIC COMMIT; END
+ok:e558b0a5798e	ok:e558b0a5798e	engine	objects@event	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE x INT DEFAULT 1; SET x = x + 1; SELECT x; END
+ok:a208a92ece69	ok:a208a92ece69	engine	objects@event	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE c CONDITION FOR 1062; DECLARE EXIT HANDLER FOR c ROLLBACK; INSERT INTO t VALUES (1, 1, 1); END
+ok:099b4b021124	ok:099b4b021124	engine	objects@event	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE c CONDITION FOR SQLSTATE '23000'; DECLARE CONTINUE HANDLER FOR c BEGIN END; END
+ok:cb60d9bb0b2a	ok:cb60d9bb0b2a	engine	objects@event	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE CONTINUE HANDLER FOR SQLWARNING, NOT FOUND, SQLEXCEPTION COMMIT; END
+ok:e53e064938f2	ok:e53e064938f2	engine	objects@event	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE done INT DEFAULT 0; DECLARE v INT; DECLARE cur CURSOR FOR SELECT b FROM t; DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1; OPEN cur; l: LOOP FETCH cur INTO v; IF done THEN LEAVE l; END IF; END LOOP; CLOSE cur; END
+ok:0d9fe1ae8be0	ok:0d9fe1ae8be0	engine	objects@event	procedure:body	CREATE PROCEDURE a() BEGIN DECLARE cur CURSOR FOR SELECT b FROM t; FOR r IN cur DO SELECT r.b; END FOR; END
+ok:bc2b988e6a5e	ok:bc2b988e6a5e	engine	objects@event	procedure:body	CREATE PROCEDURE a() FOR i IN 1..3 DO SELECT i; END FOR
+ok:0d3a086d68db	ok:0d3a086d68db	engine	objects@event	procedure:body	CREATE PROCEDURE a() FOR i IN REVERSE 1..3 DO SELECT i; END FOR
+ok:cfa8800965dd	ok:cfa8800965dd	engine	objects@event	procedure:body	CREATE PROCEDURE a() IF 1 THEN COMMIT; ELSEIF 0 THEN ROLLBACK; ELSE COMMIT; END IF
+ok:870ab27b8857	ok:870ab27b8857	engine	objects@event	procedure:body	CREATE PROCEDURE a() CASE WHEN 1 THEN COMMIT; ELSE ROLLBACK; END CASE
+ok:965b3fa198bc	ok:965b3fa198bc	engine	objects@event	procedure:body	CREATE PROCEDURE a() CASE 1 WHEN 1 THEN COMMIT; WHEN 2 THEN ROLLBACK; END CASE
+ok:c0c80c439e4b	ok:c0c80c439e4b	engine	objects@event	procedure:body	CREATE PROCEDURE a() l: BEGIN LEAVE l; END l
+ok:5c76ef51d7a3	ok:5c76ef51d7a3	engine	objects@event	procedure:body	CREATE PROCEDURE a() l: LOOP LEAVE l; END LOOP l
+ok:7e3dfc633b03	ok:7e3dfc633b03	engine	objects@event	procedure:body	CREATE PROCEDURE a() l: LOOP ITERATE l; END LOOP
+ok:09a2a0eb077e	ok:09a2a0eb077e	engine	objects@event	procedure:body	CREATE PROCEDURE a() WHILE 0 DO COMMIT; END WHILE
+ok:edf503094c69	ok:edf503094c69	engine	objects@event	procedure:body	CREATE PROCEDURE a() REPEAT COMMIT; UNTIL 1 END REPEAT
+ok:75dd7626cc8e	ok:75dd7626cc8e	engine	objects@event	procedure:body	CREATE PROCEDURE a() BEGIN INSERT INTO t VALUES (1, 2, 3); UPDATE t SET c = c + 1 WHERE b = 1; DELETE FROM t WHERE b = 1; END
+ok:ab4919ed0d32	ok:ab4919ed0d32	engine	objects@event	procedure:body	CREATE PROCEDURE a() BEGIN CREATE TABLE p (x INT); DROP TABLE p; END
+ok:d633fd06650e	ok:d633fd06650e	engine	objects@event	procedure:body	CREATE PROCEDURE a() SELECT zzz FROM nosuch
+ok:061a9f6d643c	ok:061a9f6d643c	engine	objects@event	procedure:body	CREATE PROCEDURE a() CALL nosuch()
+ok:a0803471c5f7	ok:a0803471c5f7	engine	objects@event	procedure:body	CREATE PROCEDURE a() CALL a()
+ok:d33222ae069b	ok:d33222ae069b	engine	objects@event	procedure:body	CREATE PROCEDURE a(OUT x INT) SELECT COUNT(*) INTO x FROM t
+ok:fe28ce7a7150	ok:fe28ce7a7150	engine	objects@event	procedure:body	CREATE PROCEDURE a() BEGIN PREPARE s FROM 'SELECT 1'; EXECUTE s; DEALLOCATE PREPARE s; END
+1310	1310	engine	objects@event	procedure:refused	CREATE PROCEDURE a() l1: BEGIN END l2
+1308	1308	engine	objects@event	procedure:refused	CREATE PROCEDURE a() BEGIN LEAVE nope; END
+ok	1193	engine	objects@event	procedure:refused	CREATE PROCEDURE a() SET zzz = 1
+1313	1313	engine	objects@event	procedure:refused	CREATE PROCEDURE a() RETURN 1
+1331	1331	engine	objects@event	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE x INT; DECLARE x INT; END
+1319	1319	engine	objects@event	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE EXIT HANDLER FOR nope COMMIT; END
+1324	1324	engine	objects@event	procedure:refused	CREATE PROCEDURE a() BEGIN OPEN nope; END
+1064	1064	engine	objects@event	procedure:refused	CREATE PROCEDURE a() BEGIN SELECT 1; DECLARE x INT; END
+1337	1337	engine	objects@event	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE c CURSOR FOR SELECT 1; DECLARE x INT; END
+1525	1525	engine	objects@event	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE c CONDITION FOR 0; END
+1407	1407	engine	objects@event	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE c CONDITION FOR SQLSTATE '00000'; END
+1327	1327	engine	objects@event	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE c CURSOR FOR SELECT 1; FOR r IN nope DO SELECT 1; END FOR; END
+4105	4105	engine	objects@event	procedure:refused	CREATE PROCEDURE a() FETCH GROUP NEXT ROW
+1305	1305	engine	objects@event	procedure:alter	ALTER PROCEDURE a
+1305	1305	engine	objects@event	procedure:alter	ALTER PROCEDURE a COMMENT 's'
+1305	1305	engine	objects@event	procedure:alter	ALTER PROCEDURE a LANGUAGE SQL
+1305	1305	engine	objects@event	procedure:alter	ALTER PROCEDURE a NO SQL
+1305	1305	engine	objects@event	procedure:alter	ALTER PROCEDURE a CONTAINS SQL
+1305	1305	engine	objects@event	procedure:alter	ALTER PROCEDURE a READS SQL DATA
+1305	1305	engine	objects@event	procedure:alter	ALTER PROCEDURE a MODIFIES SQL DATA
+1305	1305	engine	objects@event	procedure:alter	ALTER PROCEDURE a SQL SECURITY DEFINER
+1305	1305	engine	objects@event	procedure:alter	ALTER PROCEDURE a SQL SECURITY INVOKER
+1305	1305	engine	objects@event	procedure:alter	ALTER PROCEDURE a COMMENT 'x' NO SQL SQL SECURITY INVOKER
+1305	1305	engine	objects@event	procedure:alter	ALTER PROCEDURE omni_simulation.a COMMENT 's'
+1305	1305	engine	objects@event	procedure:alter	ALTER PROCEDURE nosuch.a COMMENT 's'
+1305	1305	engine	objects@event	procedure:drop	DROP PROCEDURE a
+ok:849a3d53ff62	ok:849a3d53ff62	engine	objects@event	procedure:drop	DROP PROCEDURE IF EXISTS a
+1305	1305	engine	objects@event	procedure:drop	DROP PROCEDURE A
+1305	1305	engine	objects@event	procedure:drop	DROP PROCEDURE omni_simulation.a
+1305	1305	engine	objects@event	procedure:drop	DROP PROCEDURE nosuch.a
+ok:849a3d53ff62	ok:849a3d53ff62	engine	objects@event	procedure:drop	DROP PROCEDURE IF EXISTS nosuch.a
+ok:26b323f7159c	ok:26b323f7159c	engine	objects@event	function:create	CREATE FUNCTION a() RETURNS INT RETURN 1
+ok:bc704aca7e75	ok:bc704aca7e75	engine	objects@event	function:create	CREATE FUNCTION a() RETURNS INT DETERMINISTIC RETURN 1
+ok:26b323f7159c	ok:26b323f7159c	engine	objects@event	function:create	CREATE FUNCTION IF NOT EXISTS a() RETURNS INT RETURN 1
+ok:62fcde01ee13	ok:62fcde01ee13	engine	objects@event	function:create	CREATE OR REPLACE FUNCTION a() RETURNS INT RETURN 2
+1221	1221	engine	objects@event	function:create	CREATE OR REPLACE FUNCTION IF NOT EXISTS a() RETURNS INT RETURN 2
+ok:62fcde01ee13	ok:62fcde01ee13	engine	objects@event	function:create	CREATE OR REPLACE DEFINER = `root`@`%` FUNCTION a() RETURNS INT RETURN 2
+ok:bc704aca7e75	ok:bc704aca7e75	engine	objects@event	function:create	CREATE DEFINER = `root`@`%` FUNCTION a() RETURNS INT DETERMINISTIC RETURN 1
+ok:865733816399	ok:865733816399	engine	objects@event	function:create	CREATE FUNCTION f2() RETURNS INT RETURN 1
+1049	1049	engine	objects@event	function:create	CREATE FUNCTION nosuch.f2() RETURNS INT RETURN 1
+ok:c8616f86e748	ok:c8616f86e748	engine	objects@event	function:create	CREATE FUNCTION a(x INT) RETURNS INT DETERMINISTIC RETURN x
+ok:b2b32ed66860	ok:b2b32ed66860	engine	objects@event	function:create	CREATE FUNCTION a(s VARCHAR(20)) RETURNS VARCHAR(40) DETERMINISTIC RETURN CONCAT(s, s)
+ok:a116d0822fca	ok:a116d0822fca	engine	objects@event	function:create	CREATE FUNCTION a(x DECIMAL(10,2)) RETURNS DECIMAL(12,4) DETERMINISTIC RETURN x
+ok:f1a109c88f47	ok:f1a109c88f47	engine	objects@event	function:create	CREATE FUNCTION a() RETURNS ENUM('x','y') DETERMINISTIC RETURN 'x'
+ok:2428aa68c9b0	ok:2428aa68c9b0	engine	objects@event	function:create	CREATE FUNCTION a() RETURNS VARCHAR(10) CHARSET latin1 RETURN 'x'
+ok:f33b73a05e8b	ok:f33b73a05e8b	engine	objects@event	function:create	CREATE FUNCTION a() RETURNS VARCHAR(10) COLLATE utf8mb4_bin RETURN 'x'
+ok:26d8c267c22d	ok:26d8c267c22d	engine	objects@event	function:create	CREATE FUNCTION a() RETURNS DATETIME(6) RETURN NOW(6)
+ok:54fd8c66f2be	ok:54fd8c66f2be	engine	objects@event	function:create	CREATE FUNCTION a() RETURNS TEXT RETURN 'x'
+ok:aa1e8c5eaf6a	ok:aa1e8c5eaf6a	engine	objects@event	function:create	CREATE FUNCTION a() RETURNS BOOLEAN RETURN TRUE
+ok:0e82fd468fcc	ok:0e82fd468fcc	engine	objects@event	function:create	CREATE FUNCTION a() RETURNS TYPE OF t.c RETURN 1
+ok:ec80ecb665a2	ok:ec80ecb665a2	engine	objects@event	function:create	CREATE FUNCTION a() RETURNS INT NOT DETERMINISTIC NO SQL RETURN 1
+ok:26b323f7159c	ok:26b323f7159c	engine	objects@event	function:create	CREATE FUNCTION a() RETURNS INT CONTAINS SQL RETURN 1
+ok:174f179b0784	ok:174f179b0784	engine	objects@event	function:create	CREATE FUNCTION a() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FROM t)
+ok:0f8dd8947d76	ok:0f8dd8947d76	engine	objects@event	function:create	CREATE FUNCTION a() RETURNS INT MODIFIES SQL DATA RETURN 1
+ok:d0f0e25c6262	ok:d0f0e25c6262	engine	objects@event	function:create	CREATE FUNCTION a() RETURNS INT SQL SECURITY INVOKER RETURN 1
+ok:4c20b68a2522	ok:4c20b68a2522	engine	objects@event	function:create	CREATE FUNCTION a() RETURNS INT COMMENT 's' RETURN 1
+ok:e3ce59e728b0	ok:e3ce59e728b0	engine	objects@event	function:create	CREATE FUNCTION a(x INT) RETURNS INT BEGIN DECLARE r INT DEFAULT 1; SET r = x + r; RETURN r; END
+ok:dc85067b8235	ok:dc85067b8235	engine	objects@event	function:create	CREATE FUNCTION a(x INT) RETURNS INT BEGIN IF x > 0 THEN RETURN 1; END IF; RETURN 0; END
+ok:b0959e40cf68	ok:b0959e40cf68	engine	objects@event	function:params	CREATE FUNCTION a(IN x INT) RETURNS INT RETURN x
+ok:5b3d51e98b45	ok:5b3d51e98b45	engine	objects@event	function:params	CREATE FUNCTION a(OUT x INT) RETURNS INT RETURN 1
+ok:4418786c77b8	ok:4418786c77b8	engine	objects@event	function:params	CREATE FUNCTION a(INOUT x INT) RETURNS INT RETURN x
+ok:b9f4046d3762	ok:b9f4046d3762	engine	objects@event	function:params	CREATE FUNCTION a(x INT DEFAULT 1) RETURNS INT RETURN x
+1330	1330	engine	objects@event	function:params	CREATE FUNCTION a(x INT, x INT) RETURNS INT RETURN 1
+ok:0961581cfb43	ok:0961581cfb43	engine	objects@event	function:params	CREATE FUNCTION a(x ROW(y INT)) RETURNS INT RETURN x.y
+1320	1320	engine	objects@event	function:refused	CREATE FUNCTION a() RETURNS INT BEGIN END
+1064	1064	engine	objects@event	function:refused	CREATE FUNCTION a() RETURNS INT SELECT 1
+1422	1422	engine	objects@event	function:refused	CREATE FUNCTION a() RETURNS INT BEGIN COMMIT; RETURN 1; END
+1415	1415	engine	objects@event	function:refused	CREATE FUNCTION a() RETURNS INT BEGIN SELECT 1; RETURN 1; END
+4105	4105	engine	objects@event	function:refused	CREATE FUNCTION a() RETURNS INT BEGIN FETCH GROUP NEXT ROW; RETURN 1; END
+ok:9bb0e38c64fb	ok:9bb0e38c64fb	engine	objects@event	function:aggregate	CREATE AGGREGATE FUNCTION a(x INT) RETURNS INT BEGIN DECLARE s INT DEFAULT 0; DECLARE CONTINUE HANDLER FOR NOT FOUND RETURN s; LOOP FETCH GROUP NEXT ROW; SET s = s + x; END LOOP; END
+ok:9bb0e38c64fb	ok:9bb0e38c64fb	engine	objects@event	function:aggregate	CREATE OR REPLACE AGGREGATE FUNCTION a(x INT) RETURNS INT BEGIN DECLARE s INT DEFAULT 0; DECLARE CONTINUE HANDLER FOR NOT FOUND RETURN s; LOOP FETCH GROUP NEXT ROW; SET s = s + x; END LOOP; END
+ok:9bb0e38c64fb	ok:9bb0e38c64fb	engine	objects@event	function:aggregate	CREATE AGGREGATE FUNCTION IF NOT EXISTS a(x INT) RETURNS INT BEGIN DECLARE s INT DEFAULT 0; DECLARE CONTINUE HANDLER FOR NOT FOUND RETURN s; LOOP FETCH GROUP NEXT ROW; SET s = s + x; END LOOP; END
+4106	4106	engine	objects@event	function:aggregate	CREATE AGGREGATE FUNCTION a(x INT) RETURNS INT RETURN 1
+1305	1305	engine	objects@event	function:alter	ALTER FUNCTION a
+1305	1305	engine	objects@event	function:alter	ALTER FUNCTION a COMMENT 's'
+1305	1305	engine	objects@event	function:alter	ALTER FUNCTION a LANGUAGE SQL
+1305	1305	engine	objects@event	function:alter	ALTER FUNCTION a NO SQL
+1305	1305	engine	objects@event	function:alter	ALTER FUNCTION a CONTAINS SQL
+1305	1305	engine	objects@event	function:alter	ALTER FUNCTION a READS SQL DATA
+1305	1305	engine	objects@event	function:alter	ALTER FUNCTION a MODIFIES SQL DATA
+1305	1305	engine	objects@event	function:alter	ALTER FUNCTION a SQL SECURITY DEFINER
+1305	1305	engine	objects@event	function:alter	ALTER FUNCTION a SQL SECURITY INVOKER
+1305	1305	engine	objects@event	function:alter	ALTER FUNCTION nosuch.a COMMENT 's'
+1305	1305	engine	objects@event	function:drop	DROP FUNCTION a
+ok:849a3d53ff62	ok:849a3d53ff62	engine	objects@event	function:drop	DROP FUNCTION IF EXISTS a
+1305	1305	engine	objects@event	function:drop	DROP FUNCTION omni_simulation.a
+1305	1305	engine	objects@event	function:drop	DROP FUNCTION nosuch.a
+ok:849a3d53ff62	ok:849a3d53ff62	engine	objects@event	function:drop	DROP FUNCTION IF EXISTS nosuch.a
+1146	1146	engine	objects@event	trigger:create	CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+1146	1146	engine	objects@event	trigger:create	CREATE TRIGGER a BEFORE INSERT ON a FOR EACH ROW SET NEW.c = 1
+1146	1146	engine	objects@event	trigger:create	CREATE TRIGGER a AFTER INSERT ON a FOR EACH ROW SET @x = NEW.c
+1146	1146	engine	objects@event	trigger:create	CREATE TRIGGER a BEFORE UPDATE ON a FOR EACH ROW SET NEW.c = OLD.c + 1
+1146	1146	engine	objects@event	trigger:create	CREATE TRIGGER a AFTER UPDATE ON a FOR EACH ROW SET @x = NEW.c
+1146	1146	engine	objects@event	trigger:create	CREATE TRIGGER a BEFORE DELETE ON a FOR EACH ROW SET @x = OLD.c
+1146	1146	engine	objects@event	trigger:create	CREATE TRIGGER a AFTER DELETE ON a FOR EACH ROW SET @x = OLD.c
+1146	1146	engine	objects@event	trigger:create	CREATE TRIGGER tr2 AFTER INSERT ON t FOR EACH ROW BEGIN IF NEW.c > 0 THEN SET @x = 1; END IF; END
+1146	1146	engine	objects@event	trigger:create	CREATE TRIGGER IF NOT EXISTS a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+1146	1146	engine	objects@event	trigger:create	CREATE OR REPLACE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	objects@event	trigger:create	CREATE OR REPLACE TRIGGER a AFTER DELETE ON t FOR EACH ROW SET @x = OLD.c
+1221	1221	engine	objects@event	trigger:create	CREATE OR REPLACE TRIGGER IF NOT EXISTS a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	objects@event	trigger:create	CREATE DEFINER = `root`@`%` TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+1146	1146	engine	objects@event	trigger:create	CREATE OR REPLACE DEFINER = `root`@`%` TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+1146	1146	engine	objects@event	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW FOLLOWS a SET NEW.c = 2
+1146	1146	engine	objects@event	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW PRECEDES a SET NEW.c = 2
+1146	1146	engine	objects@event	trigger:create	CREATE TRIGGER tr2 AFTER UPDATE ON t FOR EACH ROW FOLLOWS a SET @x = 1
+1146	1146	engine	objects@event	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW FOLLOWS nope SET NEW.c = 2
+1146	1146	engine	objects@event	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	objects@event	trigger:create	CREATE TRIGGER omni_simulation.tr2 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	objects@event	trigger:create	CREATE TRIGGER nosuch.tr2 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	objects@event	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON nosuch.t FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	objects@event	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON nope FOR EACH ROW SET NEW.c = 2
+1146	1146	engine	objects@event	trigger:create	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW INSERT INTO nope VALUES (NEW.b)
+1363	1363	engine	objects@event	trigger:refused	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW SET @x = OLD.c
+1363	1363	engine	objects@event	trigger:refused	CREATE TRIGGER tr2 BEFORE DELETE ON t FOR EACH ROW SET @x = NEW.c
+1362	1362	engine	objects@event	trigger:refused	CREATE TRIGGER tr2 AFTER INSERT ON t FOR EACH ROW SET NEW.c = 1
+1362	1362	engine	objects@event	trigger:refused	CREATE TRIGGER tr2 BEFORE UPDATE ON t FOR EACH ROW SET OLD.c = 1
+1146	1146	engine	objects@event	trigger:refused	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW SET NEW.zzz = 1
+1313	1313	engine	objects@event	trigger:refused	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW RETURN 1
+1422	1422	engine	objects@event	trigger:refused	CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW COMMIT
+1360	1360	engine	objects@event	trigger:drop	DROP TRIGGER a
+ok:849a3d53ff62	ok:849a3d53ff62	engine	objects@event	trigger:drop	DROP TRIGGER IF EXISTS a
+1360	1360	engine	objects@event	trigger:drop	DROP TRIGGER omni_simulation.a
+1360	1360	engine	objects@event	trigger:drop	DROP TRIGGER nosuch.a
+ok:849a3d53ff62	ok:849a3d53ff62	engine	objects@event	trigger:drop	DROP TRIGGER IF EXISTS nosuch.a
+1051	1051	engine	objects@event	trigger:table	DROP TABLE t
+1146	1146	engine	objects@event	trigger:table	RENAME TABLE t TO t2
+1146	1146	engine	objects@event	trigger:table	ALTER TABLE t RENAME TO t2
+1146	1146	engine	objects@event	trigger:table	ALTER TABLE t DROP COLUMN c
+1146	1146	engine	objects@event	trigger:table	ALTER TABLE t ADD COLUMN e INT
+1537	1537	engine	objects@event	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:849a3d53ff62	ok:849a3d53ff62	engine	objects@event	event:create	CREATE EVENT IF NOT EXISTS a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:6b18f20c1fa8	ok:6b18f20c1fa8	engine	objects@event	event:create	CREATE OR REPLACE EVENT a ON SCHEDULE EVERY 2 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1221	1221	engine	objects@event	event:create	CREATE OR REPLACE EVENT IF NOT EXISTS a ON SCHEDULE EVERY 2 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1537	1537	engine	objects@event	event:create	CREATE DEFINER = `root`@`%` EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1537	1537	engine	objects@event	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ENDS '2031-01-01 00:00:00' DO COMMIT
+1537	1537	engine	objects@event	event:create	CREATE EVENT a ON SCHEDULE AT '2030-01-01 00:00:00' DO COMMIT
+1537	1537	engine	objects@event	event:create	CREATE EVENT a ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION PRESERVE DO COMMIT
+1537	1537	engine	objects@event	event:create	CREATE EVENT a ON SCHEDULE AT '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE DO COMMIT
+1537	1537	engine	objects@event	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT
+1537	1537	engine	objects@event	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE DO COMMIT
+1537	1537	engine	objects@event	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE ON SLAVE DO COMMIT
+1537	1537	engine	objects@event	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' COMMENT 'it''s nightly' DO COMMIT
+1537	1537	engine	objects@event	event:create	CREATE EVENT a ON SCHEDULE EVERY 90 MINUTE STARTS '2030-01-01 00:00:00' DO COMMIT
+1537	1537	engine	objects@event	event:create	CREATE EVENT a ON SCHEDULE EVERY '1:30' HOUR_MINUTE STARTS '2030-01-01 00:00:00' DO COMMIT
+1537	1537	engine	objects@event	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 WEEK STARTS '2030-01-01 00:00:00' DO COMMIT
+1537	1537	engine	objects@event	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 QUARTER STARTS '2030-01-01 00:00:00' DO COMMIT
+1235	1235	engine	objects@event	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 MICROSECOND STARTS '2030-01-01 00:00:00' DO COMMIT
+1537	1537	engine	objects@event	event:create	CREATE EVENT a ON SCHEDULE AT '2030-01-01 00:00:00' + INTERVAL 1 DAY DO COMMIT
+1537	1537	engine	objects@event	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO BEGIN DELETE FROM t WHERE c < 0; INSERT INTO t VALUES (1, 1, 1); END
+1537	1537	engine	objects@event	event:create	CREATE EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO CALL a()
+ok:7f4f05c59b78	ok:7f4f05c59b78	engine	objects@event	event:create	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1049	1049	engine	objects@event	event:create	CREATE EVENT nosuch.ev2 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1543	1543	engine	objects@event	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS '2031-01-01 00:00:00' ENDS '2030-01-01 00:00:00' DO COMMIT
+1542	1542	engine	objects@event	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 0 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1542	1542	engine	objects@event	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY -1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+1525	1525	engine	objects@event	event:refused	CREATE EVENT ev2 ON SCHEDULE AT 'zzz' DO COMMIT
+1525	1525	engine	objects@event	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS 'zzz' DO COMMIT
+1543	1543	engine	objects@event	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ENDS 'zzz' DO COMMIT
+ok:849a3d53ff62	ok:849a3d53ff62	engine	objects@event	event:refused	CREATE EVENT ev2 ON SCHEDULE AT '2000-01-01 00:00:00' DO COMMIT
+1576	1576	engine	objects@event	event:refused	CREATE EVENT ev2 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO CREATE EVENT ev3 ON SCHEDULE EVERY 1 DAY DO COMMIT
+ok:05c3f7bb6643	ok:05c3f7bb6643	engine	objects@event	event:alter	ALTER EVENT a ON SCHEDULE EVERY 2 DAY STARTS '2030-01-01 00:00:00'
+ok:73e08096010c	ok:73e08096010c	engine	objects@event	event:alter	ALTER EVENT a ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ENDS '2031-01-01 00:00:00'
+ok:2002c2a84d50	ok:2002c2a84d50	engine	objects@event	event:alter	ALTER EVENT a ON SCHEDULE AT '2030-06-01 00:00:00'
+1589	1589	engine	objects@event	event:alter	ALTER EVENT a ON SCHEDULE AT '2000-01-01 00:00:00'
+ok:562e789a3941	ok:562e789a3941	engine	objects@event	event:alter	ALTER EVENT a ON SCHEDULE AT '2000-01-01 00:00:00' ON COMPLETION PRESERVE
+ok:b510e3cd5c40	ok:b510e3cd5c40	engine	objects@event	event:alter	ALTER EVENT a ON COMPLETION PRESERVE
+ok:849a3d53ff62	ok:849a3d53ff62	engine	objects@event	event:alter	ALTER EVENT a ON COMPLETION NOT PRESERVE
+ok:849a3d53ff62	ok:849a3d53ff62	engine	objects@event	event:alter	ALTER EVENT a ENABLE
+ok:f11905eea642	ok:f11905eea642	engine	objects@event	event:alter	ALTER EVENT a DISABLE
+ok:4b7060463dc6	ok:4b7060463dc6	engine	objects@event	event:alter	ALTER EVENT a DISABLE ON SLAVE
+ok:a0d6dc3b58f7	ok:a0d6dc3b58f7	engine	objects@event	event:alter	ALTER EVENT a COMMENT 's'
+ok:7c1a3313dc15	ok:7c1a3313dc15	engine	objects@event	event:alter	ALTER EVENT a DO COMMIT
+ok:6ebee057c71c	ok:6ebee057c71c	engine	objects@event	event:alter	ALTER EVENT a DO BEGIN SET @x = 1; COMMIT; END
+ok:e630b36e644c	ok:e630b36e644c	engine	objects@event	event:alter	ALTER EVENT a DO IF @x THEN COMMIT; END IF
+ok:ad23f1cefe29	ok:ad23f1cefe29	engine	objects@event	event:alter	ALTER EVENT a DO l: LOOP LEAVE l; END LOOP
+ok:44f3821d10d9	ok:44f3821d10d9	engine	objects@event	event:alter	ALTER EVENT a DO WHILE 0 DO COMMIT; END WHILE
+ok:9311cd187e8b	ok:9311cd187e8b	engine	objects@event	event:alter	ALTER EVENT a DO REPEAT COMMIT; UNTIL 1 END REPEAT
+ok:9061be12ccdc	ok:9061be12ccdc	engine	objects@event	event:alter	ALTER EVENT a DO BEGIN DECLARE x INT DEFAULT 1; SET @x = x; END
+ok:d2e6f3b631f0	ok:d2e6f3b631f0	engine	objects@event	event:alter	ALTER EVENT a DO BEGIN DECLARE EXIT HANDLER FOR SQLEXCEPTION COMMIT; END
+1551	1551	engine	objects@event	event:alter	ALTER EVENT a RENAME TO a
+ok:53ebe1ecb129	ok:53ebe1ecb129	engine	objects@event	event:alter	ALTER EVENT a RENAME TO ev2
+ok:53ebe1ecb129	ok:53ebe1ecb129	engine	objects@event	event:alter	ALTER EVENT a RENAME TO omni_simulation.ev2
+1049	1049	engine	objects@event	event:alter	ALTER EVENT a RENAME TO nosuch.ev2
+1543	1543	engine	objects@event	event:alter	ALTER EVENT a ON SCHEDULE EVERY 1 HOUR STARTS '2031-01-01 00:00:00' ENDS '2030-01-01 00:00:00'
+1064	1064	engine	objects@event	event:alter	ALTER EVENT a ON COMPLETION PRESERVE DISABLE COMMENT 'off' RENAME TO ev2 DO COMMIT
+ok:a0d6dc3b58f7	ok:a0d6dc3b58f7	engine	objects@event	event:alter	ALTER DEFINER = `root`@`%` EVENT a COMMENT 's'
+1049	1049	engine	objects@event	event:alter	ALTER EVENT nosuch.a ENABLE
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@event	event:drop	DROP EVENT a
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@event	event:drop	DROP EVENT IF EXISTS a
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@event	event:drop	DROP EVENT omni_simulation.a
+1539	1539	engine	objects@event	event:drop	DROP EVENT nosuch.a
+ok:849a3d53ff62	ok:849a3d53ff62	engine	objects@event	event:drop	DROP EVENT IF EXISTS nosuch.a

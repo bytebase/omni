@@ -679,7 +679,8 @@ func (p *Parser) parseATIlmClause() error {
 //	    { SET INMEMORY [ inmemory_attributes ] | MODIFY INMEMORY inmemory_memcompress
 //	    | NO INMEMORY } [ SEGMENT ] AFTER ilm_time_period OF ...
 //
-// Oracle reads ROW STORE and COLUMN STORE without COMPRESS here.
+// Oracle reads ROW STORE and COLUMN STORE without COMPRESS here, and
+// refuses NOCOMPRESS (ORA-38339).
 func (p *Parser) parseATIlmPolicy() error {
 	switch {
 	case p.atWord("TIER"):
@@ -768,7 +769,9 @@ func (p *Parser) parseATIlmPolicy() error {
 			}
 		}
 		return p.parseATIlmCondition(rowLevel, false)
-	case p.cur.Type == kwCOMPRESS, p.cur.Type == kwNOCOMPRESS:
+	case p.cur.Type == kwCOMPRESS:
+		// Oracle refuses NOCOMPRESS as a compression policy's action
+		// (ORA-38339 at NOCOMPRESS), as CREATE TABLE's ILM clause does.
 		if err := p.parseATTableCompression(false); err != nil {
 			return err
 		}
@@ -2179,7 +2182,7 @@ func (p *Parser) parseATDependentTables() error {
 }
 
 // isATUpdateIndexStart reports update_index_clauses: UPDATE GLOBAL INDEXES,
-// INVALIDATE GLOBAL INDEXES or UPDATE INDEXES.
+// INVALIDATE [ GLOBAL ] INDEXES or UPDATE INDEXES.
 func (p *Parser) isATUpdateIndexStart() bool {
 	return p.cur.Type == kwUPDATE || p.atWord("INVALIDATE")
 }
@@ -2192,14 +2195,22 @@ func (p *Parser) isATUpdateIndexStart() bool {
 //
 // Oracle's parser takes only index_partition_description in the list: an
 // index_subpartition_clause there is refused with ORA-14004 (missing
-// PARTITION keyword) wherever the clause stands.
+// PARTITION keyword) wherever the clause stands. It also takes INVALIDATE
+// INDEXES, which update_global_index_clause (OracleDocs.g4:2083) does not
+// write, without the list: on the pinned server MOVE PARTITION a INVALIDATE
+// INDEXES parses, and INVALIDATE INDEXES ( i ( PARTITION x ) ) is ORA-14020
+// at the parenthesis.
 func (p *Parser) parseATUpdateIndexClauses() error {
 	invalidate := p.atWord("INVALIDATE")
 	p.advance()
-	if invalidate || p.atWord("GLOBAL") {
-		if err := p.atExpectWord("GLOBAL"); err != nil {
-			return err
+	if invalidate {
+		if p.atWord("GLOBAL") {
+			p.advance()
 		}
+		return p.atExpectWord("INDEXES")
+	}
+	if p.atWord("GLOBAL") {
+		p.advance()
 		return p.atExpectWord("INDEXES")
 	}
 	if err := p.atExpectWord("INDEXES"); err != nil {

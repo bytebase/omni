@@ -501,9 +501,16 @@ func (p *Parser) parseATAddPartition(cmd *nodes.AlterTableCmd) error {
 		atcIndexMaintenance | atcParallel
 	for {
 		p.advance() // PARTITION
-		// Oracle refuses COMPRESS and NOCOMPRESS straight after PARTITION
-		// (ORA-00902); after a name or VALUES they parse.
-		if p.cur.Type == kwCOMPRESS || p.cur.Type == kwNOCOMPRESS {
+		// Oracle refuses COMPRESS, NOCOMPRESS, ROW and COLUMN straight after
+		// PARTITION (ORA-00902), so table_compression (OracleDocs.g4:1768)
+		// needs a name or VALUES before it. It reads STORE there as the
+		// head of STORE IN unless VALUES follows, the partition's name
+		// (ORA-01738 at the next word: ADD PARTITION STORE COMPRESS).
+		switch {
+		case p.cur.Type == kwCOMPRESS, p.cur.Type == kwNOCOMPRESS, p.cur.Type == kwROW, p.cur.Type == kwCOLUMN:
+			return p.syntaxErrorAtCur()
+		case p.atWord("STORE") && p.peekNext().Type != kwVALUES && !p.atNextWord("IN"):
+			p.advance()
 			return p.syntaxErrorAtCur()
 		}
 		var nameTok Token
