@@ -258,6 +258,16 @@
 | {"columns":["n"],"tables":[{"name":"memory.sales.customers"},{"name":"memory.hr.depts"}],"lineage":[["memory.hr.depts.name"]]}
 > raw
 | span memory.sales
+| SELECT (SELECT name FROM hr.customers) AS n FROM hr.customers AS o(name, id, vip)
+< raw
+| {"columns":["n"],"tables":[{"name":"memory.hr.customers"},{"name":"memory.hr.customers"}],"lineage":[["memory.hr.customers.name"]]}
+> raw
+| span memory.sales
+| SELECT (SELECT name FROM hr.customers) AS n FROM hr.customers
+< raw
+| {"columns":["n"],"tables":[{"name":"memory.hr.customers"},{"name":"memory.hr.customers"}],"lineage":[["memory.hr.customers.name"]]}
+> raw
+| span memory.sales
 | WITH big AS (SELECT id, amount FROM orders WHERE amount > 10) SELECT id, amount FROM big
 < raw
 | {"columns":["id","amount"],"tables":[{"name":"memory.sales.orders"}],"lineage":[["memory.sales.orders.id"],["memory.sales.orders.amount"]]}

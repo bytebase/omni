@@ -141,6 +141,12 @@ memory.hr.employees, memory.sales.big_orders, memory.sales.orders	memory.hr.empl
 n	n	engine	base	memory.sales	results	SELECT (SELECT name FROM hr.depts) AS n FROM customers AS depts
 memory.hr.depts.name	memory.hr.depts.name	engine	base	memory.sales	lineage	SELECT (SELECT name FROM hr.depts) AS n FROM customers AS depts
 memory.hr.depts, memory.sales.customers	memory.hr.depts, memory.sales.customers	engine	base	memory.sales	tables	SELECT (SELECT name FROM hr.depts) AS n FROM customers AS depts
+n	n	engine	base	memory.sales	results	SELECT (SELECT name FROM hr.customers) AS n FROM hr.customers AS o(name, id, vip)
+memory.hr.customers.name	memory.hr.customers.name	engine	base	memory.sales	lineage	SELECT (SELECT name FROM hr.customers) AS n FROM hr.customers AS o(name, id, vip)
+memory.hr.customers	memory.hr.customers	engine	base	memory.sales	tables	SELECT (SELECT name FROM hr.customers) AS n FROM hr.customers AS o(name, id, vip)
+n	n	engine	base	memory.sales	results	SELECT (SELECT name FROM hr.customers) AS n FROM hr.customers
+memory.hr.customers.name	memory.hr.customers.name	engine	base	memory.sales	lineage	SELECT (SELECT name FROM hr.customers) AS n FROM hr.customers
+memory.hr.customers	memory.hr.customers	engine	base	memory.sales	tables	SELECT (SELECT name FROM hr.customers) AS n FROM hr.customers
 id, amount	id, amount	engine	base	memory.sales	results	WITH big AS (SELECT id, amount FROM orders WHERE amount > 10) SELECT id, amount FROM big
 memory.sales.orders.id | memory.sales.orders.amount	memory.sales.orders.id | memory.sales.orders.amount	engine	base	memory.sales	lineage	WITH big AS (SELECT id, amount FROM orders WHERE amount > 10) SELECT id, amount FROM big
 memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	WITH big AS (SELECT id, amount FROM orders WHERE amount > 10) SELECT id, amount FROM big

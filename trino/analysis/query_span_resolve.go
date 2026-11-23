@@ -837,8 +837,22 @@ type rbind struct {
 	derived bool
 	cols    []outCol
 	// ident is the catalog table or view the relation reads, when the
-	// catalog knows it: what a ref qualified by a schema names.
+	// catalog knows it and the query names it by its own name: what a ref
+	// qualified by a schema names (see identOf).
 	ident viewKey
+}
+
+// identOf is the identity a relation reading catalog object key binds: key,
+// unless an alias or a column alias list renames it. Trino then knows the
+// relation by the alias alone (memory.sales.orders.id does not resolve
+// through FROM orders o), and a column alias list gives a physical column's
+// name to another column, so a qualified ref, written or already resolved in
+// an inner scope, must not be matched against it.
+func identOf(key viewKey, alias string, colAliases []*ast.Identifier) viewKey {
+	if alias != "" || len(colAliases) > 0 {
+		return viewKey{}
+	}
+	return key
 }
 
 // starProjection is a relation's output columns, kept as a concatenation tree
@@ -989,7 +1003,7 @@ func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identi
 					if proj := vs.projectionFor(key, view); proj != nil {
 						vs.collectTables(proj.tables)
 						cols := applyColumnAliases(viewColumns(key, proj.cols), colAliases)
-						s.rels = append(s.rels, rbind{name: name, derived: true, cols: cols, ident: key})
+						s.rels = append(s.rels, rbind{name: name, derived: true, cols: cols, ident: identOf(key, alias, colAliases)})
 						return columnProjection(cols)
 					}
 					// Unresolvable view (no/unanalyzable definition, cycle):
@@ -998,7 +1012,7 @@ func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identi
 					return nil
 				}
 				cols := applyColumnAliases(tableCols(key, table), colAliases)
-				s.rels = append(s.rels, rbind{name: name, derived: false, cols: cols, ident: key})
+				s.rels = append(s.rels, rbind{name: name, derived: false, cols: cols, ident: identOf(key, alias, colAliases)})
 				return columnProjection(cols)
 			}
 		}
