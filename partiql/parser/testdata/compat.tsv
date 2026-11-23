@@ -136,6 +136,15 @@ reject	reject	grammar	tableDef(COMMA_tableDefPart)*/COMMA_tableDefPart_(COMMA_ta
 reject	reject	grammar	tableDef(COMMA_tableDefPart)*/COMMA_tableDefPart_(COMMA_tableDefPart)*!insert	CREATE TABLE a(a NULL, a NULL zzz)
 reject	reject	grammar	tableDef(COMMA_tableDefPart)*/COMMA_tableDefPart_(COMMA_tableDefPart)*!swap	CREATE TABLE a(a NULL, a NULLIF)
 accept	accept	grammar	tableDefPart/columnName_type_(columnConstraint)*	CREATE TABLE a(a NULL)
+accept	accept	grammar	tableDefPart/columnName_type_(columnConstraint)*+type/DOUBLE_PRECISION	CREATE TABLE a(a DOUBLE PRECISION)
+reject	reject	grammar	tableDefPart/columnName_type_(columnConstraint)*+type/DOUBLE_PRECISION!drop-2	CREATE TABLE a(a PRECISION)
+reject	reject	grammar	tableDefPart/columnName_type_(columnConstraint)*+type/DOUBLE_PRECISION!drop-3	CREATE TABLE a(a DOUBLE)
+accept	accept	grammar	tableDefPart/columnName_type_(columnConstraint)*+type/(CHARACTER|CHAR|FLOAT|VARCHAR)_(PAREN_LEFT_LITERAL_INTE~027e62b1	CREATE TABLE a(a CHARACTER)
+accept	accept	grammar	tableDefPart/columnName_type_(columnConstraint)*+type/CHARACTER_VARYING_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?	CREATE TABLE a(a CHARACTER VARYING)
+reject	reject	grammar	tableDefPart/columnName_type_(columnConstraint)*+type/CHARACTER_VARYING_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?!drop-2	CREATE TABLE a(a VARYING)
+accept	accept	grammar	tableDefPart/columnName_type_(columnConstraint)*+type/(DECIMAL|DEC|NUMERIC)_(PAREN_LEFT_LITERAL_INTEGER_(COMM~b40369fd	CREATE TABLE a(a DECIMAL)
+accept	accept	grammar	tableDefPart/columnName_type_(columnConstraint)*+type/(TIME|TIMESTAMP)_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGH~78b51835	CREATE TABLE a(a TIME)
+accept	accept	grammar	tableDefPart/columnName_type_(columnConstraint)*+type/symbolPrimitive	CREATE TABLE a(a a)
 accept	accept	grammar	tableDefPart(columnConstraint)*/%empty	CREATE TABLE a(a NULL)
 accept	accept	grammar	tableDefPart(columnConstraint)*/columnConstraint_(columnConstraint)*	CREATE TABLE a(a NULL NULL)
 reject	reject	grammar	tableDefPart(columnConstraint)*/columnConstraint_(columnConstraint)*!insert	CREATE TABLE a(a NULL NULL zzz)
@@ -188,6 +197,26 @@ reject	reject	grammar	dml/insertCommandReturning!swap	INT INTO a VALUE a
 accept	accept	grammar	dml/dmlBaseCommand	REMOVE a
 accept	accept	grammar	dml(dmlBaseCommand)+/dmlBaseCommand	UPDATE a REMOVE a
 reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand!swap	UPDATE a REPLACE a
+accept	accept	grammar	dml(dmlBaseCommand)+/dmlBaseCommand+dmlBaseCommand/insertStatement	UPDATE a INSERT INTO a a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand+dmlBaseCommand/insertStatement!drop-1	UPDATE a INTO a a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand+dmlBaseCommand/insertStatement!drop-2	UPDATE a INSERT a a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand+dmlBaseCommand/insertStatement!drop-3	UPDATE a INSERT INTO a
+accept	accept	grammar	dml(dmlBaseCommand)+/dmlBaseCommand+dmlBaseCommand/insertStatementLegacy	UPDATE a INSERT INTO a VALUE a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand+dmlBaseCommand/insertStatementLegacy!drop-1	UPDATE a INTO a VALUE a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand+dmlBaseCommand/insertStatementLegacy!drop-2	UPDATE a INSERT a VALUE a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand+dmlBaseCommand/insertStatementLegacy!drop-3	UPDATE a INSERT INTO VALUE a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand+dmlBaseCommand/insertStatementLegacy!drop-5	UPDATE a INSERT INTO a VALUE
+accept	accept	grammar	dml(dmlBaseCommand)+/dmlBaseCommand+dmlBaseCommand/setCommand	UPDATE a SET a = a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand+dmlBaseCommand/setCommand!drop-1	UPDATE a a = a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand+dmlBaseCommand/setCommand!drop-2	UPDATE a SET = a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand+dmlBaseCommand/setCommand!drop-3	UPDATE a SET a a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand+dmlBaseCommand/setCommand!drop-4	UPDATE a SET a =
+accept	accept	grammar	dml(dmlBaseCommand)+/dmlBaseCommand+dmlBaseCommand/replaceCommand	UPDATE a REPLACE INTO a a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand+dmlBaseCommand/replaceCommand!drop-2	UPDATE a REPLACE a a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand+dmlBaseCommand/replaceCommand!drop-3	UPDATE a REPLACE INTO a
+accept	accept	grammar	dml(dmlBaseCommand)+/dmlBaseCommand+dmlBaseCommand/upsertCommand	UPDATE a UPSERT INTO a a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand+dmlBaseCommand/upsertCommand!drop-2	UPDATE a UPSERT a a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand+dmlBaseCommand/upsertCommand!drop-3	UPDATE a UPSERT INTO a
 accept	accept	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)+	UPDATE a REMOVE a REMOVE a
 accept	accept	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)+!drop-1	UPDATE a a REMOVE a
 reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)+!drop-2	UPDATE a REMOVE REMOVE a
@@ -195,6 +224,26 @@ reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)+!drop
 reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)+!drop-4	UPDATE a REMOVE a REMOVE
 reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)+!insert	UPDATE a REMOVE a REMOVE a zzz
 reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)+!swap	UPDATE a REPLACE a REMOVE a
+accept	accept	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)++dmlBaseCommand/insertStatement	UPDATE a INSERT INTO a a REMOVE a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)++dmlBaseCommand/insertStatement!drop-1	UPDATE a INTO a a REMOVE a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)++dmlBaseCommand/insertStatement!drop-2	UPDATE a INSERT a a REMOVE a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)++dmlBaseCommand/insertStatement!drop-3	UPDATE a INSERT INTO a REMOVE a
+accept	accept	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)++dmlBaseCommand/insertStatementLegacy	UPDATE a INSERT INTO a VALUE a REMOVE a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)++dmlBaseCommand/insertStatementLegacy!drop-1	UPDATE a INTO a VALUE a REMOVE a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)++dmlBaseCommand/insertStatementLegacy!drop-2	UPDATE a INSERT a VALUE a REMOVE a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)++dmlBaseCommand/insertStatementLegacy!drop-3	UPDATE a INSERT INTO VALUE a REMOVE a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)++dmlBaseCommand/insertStatementLegacy!drop-5	UPDATE a INSERT INTO a VALUE REMOVE a
+accept	accept	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)++dmlBaseCommand/setCommand	UPDATE a SET a = a REMOVE a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)++dmlBaseCommand/setCommand!drop-1	UPDATE a a = a REMOVE a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)++dmlBaseCommand/setCommand!drop-2	UPDATE a SET = a REMOVE a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)++dmlBaseCommand/setCommand!drop-3	UPDATE a SET a a REMOVE a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)++dmlBaseCommand/setCommand!drop-4	UPDATE a SET a = REMOVE a
+accept	accept	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)++dmlBaseCommand/replaceCommand	UPDATE a REPLACE INTO a a REMOVE a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)++dmlBaseCommand/replaceCommand!drop-2	UPDATE a REPLACE a a REMOVE a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)++dmlBaseCommand/replaceCommand!drop-3	UPDATE a REPLACE INTO a REMOVE a
+accept	accept	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)++dmlBaseCommand/upsertCommand	UPDATE a UPSERT INTO a a REMOVE a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)++dmlBaseCommand/upsertCommand!drop-2	UPDATE a UPSERT a a REMOVE a
+reject	reject	grammar	dml(dmlBaseCommand)+/dmlBaseCommand_(dmlBaseCommand)++dmlBaseCommand/upsertCommand!drop-3	UPDATE a UPSERT INTO a REMOVE a
 accept	accept	grammar	dml(whereClause)?/%empty	UPDATE a REMOVE a
 accept	accept	grammar	dml(whereClause)?/whereClause	UPDATE a REMOVE a WHERE a
 reject	reject	grammar	dml(whereClause)?/whereClause!drop-2	UPDATE a REMOVE a WHERE
@@ -244,6 +293,19 @@ reject	reject	grammar	pathSimpleSteps/BRACKET_LEFT_literal_BRACKET_RIGHT!drop-2	
 reject	reject	grammar	pathSimpleSteps/BRACKET_LEFT_literal_BRACKET_RIGHT!drop-3	REMOVE a [ NULL
 reject	reject	grammar	pathSimpleSteps/BRACKET_LEFT_literal_BRACKET_RIGHT!insert	REMOVE a [ NULL ] zzz
 reject	reject	grammar	pathSimpleSteps/BRACKET_LEFT_literal_BRACKET_RIGHT!swap	REMOVE a [ NULLIF ]
+reject	reject	grammar	pathSimpleSteps/BRACKET_LEFT_literal_BRACKET_RIGHT+literal/MISSING	REMOVE a [ MISSING ]
+reject	reject	grammar	pathSimpleSteps/BRACKET_LEFT_literal_BRACKET_RIGHT+literal/TRUE	REMOVE a [ TRUE ]
+reject	reject	grammar	pathSimpleSteps/BRACKET_LEFT_literal_BRACKET_RIGHT+literal/FALSE	REMOVE a [ FALSE ]
+accept	accept	grammar	pathSimpleSteps/BRACKET_LEFT_literal_BRACKET_RIGHT+literal/LITERAL_STRING	REMOVE a [ 's' ]
+accept	accept	grammar	pathSimpleSteps/BRACKET_LEFT_literal_BRACKET_RIGHT+literal/LITERAL_INTEGER	REMOVE a [ 1 ]
+accept	accept	grammar	pathSimpleSteps/BRACKET_LEFT_literal_BRACKET_RIGHT+literal/LITERAL_DECIMAL	REMOVE a [ 1.5 ]
+reject	reject	grammar	pathSimpleSteps/BRACKET_LEFT_literal_BRACKET_RIGHT+literal/ION_CLOSURE	REMOVE a [ `1` ]
+reject	reject	grammar	pathSimpleSteps/BRACKET_LEFT_literal_BRACKET_RIGHT+literal/DATE_LITERAL_STRING	REMOVE a [ DATE 's' ]
+reject	reject	grammar	pathSimpleSteps/BRACKET_LEFT_literal_BRACKET_RIGHT+literal/DATE_LITERAL_STRING!drop-3	REMOVE a [ DATE ]
+reject	reject	grammar	pathSimpleSteps/BRACKET_LEFT_literal_BRACKET_RIGHT+literal/TIME_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?_(WITH_TI~9e6ce2ac	REMOVE a [ TIME 's' ]
+reject	reject	grammar	pathSimpleSteps/BRACKET_LEFT_literal_BRACKET_RIGHT+literal/TIME_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?_(WITH_TI~9e6ce2ac!drop-3	REMOVE a [ TIME ]
+reject	reject	grammar	pathSimpleSteps/BRACKET_LEFT_literal_BRACKET_RIGHT+literal/TIMESTAMP_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?_(WI~ff8da6a1	REMOVE a [ TIMESTAMP 's' ]
+reject	reject	grammar	pathSimpleSteps/BRACKET_LEFT_literal_BRACKET_RIGHT+literal/TIMESTAMP_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?_(WI~ff8da6a1!drop-3	REMOVE a [ TIMESTAMP ]
 accept	accept	grammar	pathSimpleSteps/BRACKET_LEFT_symbolPrimitive_BRACKET_RIGHT	REMOVE a [ a ]
 reject	reject	grammar	pathSimpleSteps/BRACKET_LEFT_symbolPrimitive_BRACKET_RIGHT!drop-1	REMOVE a a ]
 reject	reject	grammar	pathSimpleSteps/BRACKET_LEFT_symbolPrimitive_BRACKET_RIGHT!drop-3	REMOVE a [ a
@@ -672,6 +734,10 @@ accept	accept	grammar	gpmlPattern(matchSelector)?/%empty	SELECT * FROM a MATCH
 accept	accept	grammar	gpmlPattern(matchSelector)?/matchSelector	SELECT * FROM a MATCH ANY
 reject	reject	grammar	gpmlPattern(matchSelector)?/matchSelector!insert	SELECT * FROM a MATCH ANY zzz
 reject	reject	grammar	gpmlPattern(matchSelector)?/matchSelector!swap	SELECT * FROM a MATCH ARE
+accept	accept	grammar	gpmlPattern(matchSelector)?/matchSelector+matchSelector/(ANY|ALL)_SHORTEST	SELECT * FROM a MATCH ANY SHORTEST
+reject	reject	grammar	gpmlPattern(matchSelector)?/matchSelector+matchSelector/(ANY|ALL)_SHORTEST!drop-1	SELECT * FROM a MATCH SHORTEST
+accept	accept	grammar	gpmlPattern(matchSelector)?/matchSelector+matchSelector/SHORTEST_LITERAL_INTEGER_(GROUP)?	SELECT * FROM a MATCH SHORTEST 1
+reject	reject	grammar	gpmlPattern(matchSelector)?/matchSelector+matchSelector/SHORTEST_LITERAL_INTEGER_(GROUP)?!drop-1	SELECT * FROM a MATCH 1
 accept	accept	grammar	gpmlPatternList/(matchSelector)?_matchPattern_(COMMA_matchPattern)*	(a MATCH)
 reject	reject	grammar	gpmlPatternList/(matchSelector)?_matchPattern_(COMMA_matchPattern)*!insert	(a MATCH zzz)
 accept	accept	grammar	gpmlPatternList(matchSelector)?/%empty	(a MATCH)
@@ -1550,6 +1616,7 @@ accept	accept	grammar	aggregate(setQuantifierStrategy)?/setQuantifierStrategy	CO
 reject	reject	grammar	aggregate(setQuantifierStrategy)?/setQuantifierStrategy!truncate	COUNT(
 reject	reject	grammar	aggregate(setQuantifierStrategy)?/setQuantifierStrategy!insert	COUNT(DISTINCT zzz a)
 reject	reject	grammar	aggregate(setQuantifierStrategy)?/setQuantifierStrategy!swap	COUNT(DO a)
+accept	accept	grammar	aggregate(setQuantifierStrategy)?/setQuantifierStrategy+setQuantifierStrategy/ALL	COUNT(ALL a)
 reject	reject	grammar	windowFunction/(LAG|LEAD)_PAREN_LEFT_expr_(COMMA_expr_(COMMA_expr)?)?_~8cf8f6aa	LAG(a) OVER()
 reject	reject	grammar	windowFunction(LAG|LEAD)/LAG	LAG(a) OVER()
 reject	reject	grammar	windowFunction(LAG|LEAD)/LAG!insert	LAG zzz(a) OVER()
@@ -1570,8 +1637,35 @@ reject	reject	grammar	windowFunction(COMMA_expr)?/COMMA_expr!drop-2	LAG(a, a,) O
 reject	reject	grammar	windowFunction(COMMA_expr)?/COMMA_expr!truncate	LAG(a, a,
 reject	reject	grammar	windowFunction(COMMA_expr)?/COMMA_expr!insert	LAG(a, a, a zzz) OVER()
 accept	accept	grammar	cast/CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT	CAST(a AS NULL)
+accept	accept	grammar	cast/CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/DOUBLE_PRECISION	CAST(a AS DOUBLE PRECISION)
+reject	reject	grammar	cast/CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/DOUBLE_PRECISION!drop-5	CAST(a AS PRECISION)
+reject	reject	grammar	cast/CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/DOUBLE_PRECISION!drop-6	CAST(a AS DOUBLE)
+accept	accept	grammar	cast/CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/(CHARACTER|CHAR|FLOAT|VARCHAR)_(PAREN_LEFT_LITERAL_INTE~027e62b1	CAST(a AS CHARACTER)
+accept	accept	grammar	cast/CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/CHARACTER_VARYING_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?	CAST(a AS CHARACTER VARYING)
+reject	reject	grammar	cast/CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/CHARACTER_VARYING_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?!drop-5	CAST(a AS VARYING)
+accept	accept	grammar	cast/CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/(DECIMAL|DEC|NUMERIC)_(PAREN_LEFT_LITERAL_INTEGER_(COMM~b40369fd	CAST(a AS DECIMAL)
+accept	accept	grammar	cast/CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/(TIME|TIMESTAMP)_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGH~78b51835	CAST(a AS TIME)
+accept	accept	grammar	cast/CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/symbolPrimitive	CAST(a AS a)
 accept	accept	grammar	canLosslessCast/CAN_LOSSLESS_CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT	CAN_LOSSLESS_CAST(a AS NULL)
+accept	accept	grammar	canLosslessCast/CAN_LOSSLESS_CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/DOUBLE_PRECISION	CAN_LOSSLESS_CAST(a AS DOUBLE PRECISION)
+reject	reject	grammar	canLosslessCast/CAN_LOSSLESS_CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/DOUBLE_PRECISION!drop-5	CAN_LOSSLESS_CAST(a AS PRECISION)
+reject	reject	grammar	canLosslessCast/CAN_LOSSLESS_CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/DOUBLE_PRECISION!drop-6	CAN_LOSSLESS_CAST(a AS DOUBLE)
+accept	accept	grammar	canLosslessCast/CAN_LOSSLESS_CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/(CHARACTER|CHAR|FLOAT|VARCHAR)_(PAREN_LEFT_LITERAL_INTE~027e62b1	CAN_LOSSLESS_CAST(a AS CHARACTER)
+accept	accept	grammar	canLosslessCast/CAN_LOSSLESS_CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/CHARACTER_VARYING_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?	CAN_LOSSLESS_CAST(a AS CHARACTER VARYING)
+reject	reject	grammar	canLosslessCast/CAN_LOSSLESS_CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/CHARACTER_VARYING_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?!drop-5	CAN_LOSSLESS_CAST(a AS VARYING)
+accept	accept	grammar	canLosslessCast/CAN_LOSSLESS_CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/(DECIMAL|DEC|NUMERIC)_(PAREN_LEFT_LITERAL_INTEGER_(COMM~b40369fd	CAN_LOSSLESS_CAST(a AS DECIMAL)
+accept	accept	grammar	canLosslessCast/CAN_LOSSLESS_CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/(TIME|TIMESTAMP)_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGH~78b51835	CAN_LOSSLESS_CAST(a AS TIME)
+accept	accept	grammar	canLosslessCast/CAN_LOSSLESS_CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/symbolPrimitive	CAN_LOSSLESS_CAST(a AS a)
 accept	accept	grammar	canCast/CAN_CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT	CAN_CAST(a AS NULL)
+accept	accept	grammar	canCast/CAN_CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/DOUBLE_PRECISION	CAN_CAST(a AS DOUBLE PRECISION)
+reject	reject	grammar	canCast/CAN_CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/DOUBLE_PRECISION!drop-5	CAN_CAST(a AS PRECISION)
+reject	reject	grammar	canCast/CAN_CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/DOUBLE_PRECISION!drop-6	CAN_CAST(a AS DOUBLE)
+accept	accept	grammar	canCast/CAN_CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/(CHARACTER|CHAR|FLOAT|VARCHAR)_(PAREN_LEFT_LITERAL_INTE~027e62b1	CAN_CAST(a AS CHARACTER)
+accept	accept	grammar	canCast/CAN_CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/CHARACTER_VARYING_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?	CAN_CAST(a AS CHARACTER VARYING)
+reject	reject	grammar	canCast/CAN_CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/CHARACTER_VARYING_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?!drop-5	CAN_CAST(a AS VARYING)
+accept	accept	grammar	canCast/CAN_CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/(DECIMAL|DEC|NUMERIC)_(PAREN_LEFT_LITERAL_INTEGER_(COMM~b40369fd	CAN_CAST(a AS DECIMAL)
+accept	accept	grammar	canCast/CAN_CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/(TIME|TIMESTAMP)_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGH~78b51835	CAN_CAST(a AS TIME)
+accept	accept	grammar	canCast/CAN_CAST_PAREN_LEFT_expr_AS_type_PAREN_RIGHT+type/symbolPrimitive	CAN_CAST(a AS a)
 reject	reject	grammar	extract/EXTRACT_PAREN_LEFT_IDENTIFIER_FROM_expr_PAREN_RIGHT	EXTRACT(a FROM a)
 accept	accept	grammar	trimFunction/TRIM_PAREN_LEFT_(IDENTIFIER?_expr?_FROM)?_expr_PAREN_RIGHT	TRIM(a)
 accept	accept	grammar	trimFunction(IDENTIFIER?_expr?_FROM)?/%empty	TRIM(a)
