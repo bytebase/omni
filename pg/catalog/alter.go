@@ -3654,11 +3654,10 @@ func (c *Catalog) atExecAttachPartition(schema *Schema, parent *Relation, pc *no
 	// Record auto-dependency (partition auto-dropped with parent).
 	c.recordDependency('r', part.OID, 0, 'r', parent.OID, 0, DepAuto)
 
-	// Clone parent's indexes, triggers, and FK constraints to the attached partition.
-	// pg: src/backend/commands/tablecmds.c — ATExecAttachPartition
-	c.cloneIndexesToPartition(schema, parent, part)
-	c.cloneRowTriggersToPartition(parent, part)
-	c.cloneForeignKeyConstraints(schema, parent, part)
+	// Merge parent's PG 18 cataloged NOT NULL constraints before cloning PK
+	// indexes so a partition column inherits the parent relationship once
+	// (ConIsLocal=false, ConInhCount=1).
+	// pg: src/backend/commands/tablecmds.c — MergeConstraintsIntoExisting (partition merge)
 	if c.Version() >= PG18 {
 		for _, pcol := range parent.Columns {
 			if !pcol.NotNull {
@@ -3675,9 +3674,8 @@ func (c *Catalog) atExecAttachPartition(schema *Schema, parent *Relation, pc *no
 					}
 				}
 				if existing != nil {
-					// pg: src/backend/commands/tablecmds.c — MergeConstraintsIntoExisting (partition merge)
 					existing.ConIsLocal = false
-					existing.ConInhCount++
+					existing.ConInhCount = 1
 				} else {
 					conName := ""
 					if parentName := c.notNullConstraintName(parent, pcol.AttNum); parentName != "" && c.checkConstraintNameFree(part.OID, parentName) == nil {
@@ -3688,6 +3686,12 @@ func (c *Catalog) atExecAttachPartition(schema *Schema, parent *Relation, pc *no
 			}
 		}
 	}
+
+	// Clone parent's indexes, triggers, and FK constraints to the attached partition.
+	// pg: src/backend/commands/tablecmds.c — ATExecAttachPartition
+	c.cloneIndexesToPartition(schema, parent, part)
+	c.cloneRowTriggersToPartition(parent, part)
+	c.cloneForeignKeyConstraints(schema, parent, part)
 
 	return nil
 }

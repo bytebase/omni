@@ -104,7 +104,11 @@ func columnAddOps(to *Catalog, tableName, schemaName, relName string, col Column
 	}
 
 	if c.NotNull {
-		ddl += " NOT NULL"
+		var toRel *Relation
+		if to != nil {
+			toRel = to.GetRelation(schemaName, relName)
+		}
+		ddl += " " + formatColumnNotNullClause(to, toRel, c)
 	}
 	if c.Generated == 's' {
 		// Generated stored column — use GENERATED ALWAYS AS syntax, not DEFAULT.
@@ -314,6 +318,30 @@ func columnModifyOpsForStmt(from, to *Catalog, alterStmt, tableName, schemaName,
 				SQL:           fmt.Sprintf("%s SET NOT NULL", colRef),
 				Transactional: true,
 			})
+			if alterStmt == "ALTER TABLE" && to != nil && to.Version() >= PG18 {
+				toRel := to.GetRelation(schemaName, relName)
+				var fromRel *Relation
+				if from != nil {
+					fromRel = from.GetRelation(schemaName, relName)
+				}
+				if toRel != nil {
+					if targetNN := to.notNullConstraintName(toRel, newCol.AttNum); targetNN != "" {
+						defaultNN := makePGObjectName(relName, newCol.Name, "not_null")
+						if from != nil && fromRel != nil {
+							defaultNN = from.chooseNotNullConstraintName(fromRel, newCol.Name)
+						}
+						if targetNN != defaultNN {
+							ops = append(ops, MigrationOp{
+								Type:          OpAlterColumn,
+								SchemaName:    schemaName,
+								ObjectName:    relName,
+								SQL:           fmt.Sprintf("%s %s RENAME CONSTRAINT %s TO %s", alterStmt, tableName, quoteIdentifier(defaultNN), quoteIdentifier(targetNN)),
+								Transactional: true,
+							})
+						}
+					}
+				}
+			}
 		} else {
 			ops = append(ops, MigrationOp{
 				Type:          OpAlterColumn,

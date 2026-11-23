@@ -974,6 +974,56 @@ ALTER TABLE ONLY c_ic ALTER COLUMN x SET NOT NULL;
 			t.Fatalf("expected failed INHERIT not to attach p_ic as parent, got %v", ch.InhParents)
 		}
 	}
+
+	// Attaching a partition to a parent with a PRIMARY KEY counts NOT NULL inheritance only once,
+	// so dropping the PK and then dropping NOT NULL on the parent makes the partition nullable.
+	attachPKDropSetup := `
+CREATE TABLE p_apk (x int PRIMARY KEY) PARTITION BY RANGE (x);
+CREATE TABLE c_apk (x int NOT NULL);
+ALTER TABLE p_apk ATTACH PARTITION c_apk FOR VALUES FROM (0) TO (100);
+ALTER TABLE p_apk DROP CONSTRAINT p_apk_pkey;
+`
+	if got, c := execCodeVersion(t, PG18, attachPKDropSetup, "ALTER TABLE p_apk ALTER COLUMN x DROP NOT NULL"); got != "" {
+		t.Fatalf("PG18 DROP NOT NULL after ATTACH PARTITION with PK: got %q, want ok", got)
+	} else {
+		p := c.GetRelation("public", "p_apk")
+		part := c.GetRelation("public", "c_apk")
+		if p.Columns[0].NotNull || part.Columns[0].NotNull {
+			t.Fatalf("expected both p_apk.x and c_apk.x to become nullable (p=%v, part=%v)", p.Columns[0].NotNull, part.Columns[0].NotNull)
+		}
+	}
+
+	// Migrating a PG 18 nullable column to a named NOT NULL constraint with a comment
+	// emits SET NOT NULL + RENAME CONSTRAINT before COMMENT ON CONSTRAINT, and executes cleanly.
+	fromNamedNN, err := LoadSQLWithVersion(`CREATE TABLE t_nnn (x int);`, PG18)
+	if err != nil {
+		t.Fatalf("LoadSQLWithVersion fromNamedNN: %v", err)
+	}
+	toNamedNN, err := LoadSQLWithVersion(`
+CREATE TABLE t_nnn (x int CONSTRAINT nn NOT NULL);
+COMMENT ON CONSTRAINT nn ON t_nnn IS 'required';
+`, PG18)
+	if err != nil {
+		t.Fatalf("LoadSQLWithVersion toNamedNN: %v", err)
+	}
+	planNamedNN := GenerateMigration(fromNamedNN, toNamedNN, Diff(fromNamedNN, toNamedNN))
+	if len(planNamedNN.Ops) == 0 {
+		t.Fatalf("expected non-empty migration plan for named NOT NULL + comment")
+	}
+	for _, op := range planNamedNN.Ops {
+		res, err := fromNamedNN.Exec(op.SQL, nil)
+		if err != nil {
+			t.Fatalf("exec migration op %q: %v", op.SQL, err)
+		}
+		for _, r := range res {
+			if r.Error != nil {
+				t.Fatalf("migration op %q failed: %v", op.SQL, r.Error)
+			}
+		}
+	}
+	if rem := GenerateMigration(fromNamedNN, toNamedNN, Diff(fromNamedNN, toNamedNN)); len(rem.Ops) != 0 {
+		t.Fatalf("expected empty diff after applying named NOT NULL migration, still have: %+v", rem.Ops)
+	}
 }
 
 func TestPG18PartitionDetachPKNameAndJsonExpr(t *testing.T) {

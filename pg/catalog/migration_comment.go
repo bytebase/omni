@@ -13,6 +13,9 @@ func generateCommentDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	for _, entry := range diff.Comments {
 		switch entry.Action {
 		case DiffAdd, DiffModify:
+			if renameOp, ok := renameNotNullForComment(from, to, entry); ok {
+				ops = append(ops, renameOp)
+			}
 			sql := formatCommentEntrySQL(to, entry, entry.To)
 			if sql != "" {
 				ops = append(ops, MigrationOp{
@@ -174,6 +177,56 @@ func commentDroppedWithNotNullConstraint(from, to *Catalog, entry CommentDiffEnt
 		}
 	}
 	return true
+}
+
+// renameNotNullForComment returns an ALTER TABLE ... RENAME CONSTRAINT op when
+// a comment targets a PG 18 cataloged NOT NULL constraint whose column was
+// already NOT NULL in from under a different constraint name.
+func renameNotNullForComment(from, to *Catalog, entry CommentDiffEntry) (MigrationOp, bool) {
+	if from == nil || to == nil || from.Version() < PG18 || to.Version() < PG18 || entry.ObjType != 'c' || len(entry.objParts) < 3 {
+		return MigrationOp{}, false
+	}
+	schemaName, relName, conName := entry.objParts[0], entry.objParts[1], entry.objParts[2]
+	toRel := to.GetRelation(schemaName, relName)
+	fromRel := from.GetRelation(schemaName, relName)
+	if toRel == nil || fromRel == nil || (toRel.RelKind != 'r' && toRel.RelKind != 'p') {
+		return MigrationOp{}, false
+	}
+	var toColName string
+	for _, con := range to.consByRel[toRel.OID] {
+		if con.Name == conName && con.Type == ConstraintNotNull && len(con.Columns) == 1 {
+			if ci := indexOfAttNum(toRel, con.Columns[0]); ci >= 0 {
+				toColName = toRel.Columns[ci].Name
+			}
+			break
+		}
+	}
+	if toColName == "" {
+		return MigrationOp{}, false
+	}
+	fi, ok := fromRel.colByName[toColName]
+	if !ok || !fromRel.Columns[fi].NotNull {
+		return MigrationOp{}, false
+	}
+	fromNN := from.notNullConstraintName(fromRel, fromRel.Columns[fi].AttNum)
+	if fromNN == "" || fromNN == conName {
+		return MigrationOp{}, false
+	}
+	tableName := fmt.Sprintf("%s.%s", quoteIdentifier(schemaName), quoteIdentifier(relName))
+	if toRel.Persistence == 't' || isTempSchemaName(schemaName) {
+		tableName = quoteIdentifier(relName)
+	}
+	return MigrationOp{
+		Type:          OpAlterColumn,
+		SchemaName:    schemaName,
+		ObjectName:    relName,
+		SQL:           fmt.Sprintf("ALTER TABLE %s RENAME CONSTRAINT %s TO %s", tableName, quoteIdentifier(fromNN), quoteIdentifier(conName)),
+		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'r',
+		ObjOID:        toRel.OID,
+		Priority:      PriorityColumn,
+	}, true
 }
 
 // formatCommentSQL generates a COMMENT ON ... IS '...' or COMMENT ON ... IS NULL statement.

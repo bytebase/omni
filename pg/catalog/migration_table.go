@@ -255,6 +255,17 @@ func catalogHasNonDefaultTableAM(c *Catalog) bool {
 	return false
 }
 
+// formatColumnNotNullClause formats the NOT NULL clause for a column, preserving
+// a non-default PG 18 cataloged NOT NULL constraint name when present.
+func formatColumnNotNullClause(c *Catalog, rel *Relation, col *Column) string {
+	if c != nil && c.Version() >= PG18 && rel != nil {
+		if nnName := c.notNullConstraintName(rel, col.AttNum); nnName != "" && nnName != makePGObjectName(rel.Name, col.Name, "not_null") {
+			return "CONSTRAINT " + quoteIdentifier(nnName) + " NOT NULL"
+		}
+	}
+	return "NOT NULL"
+}
+
 // formatColumnDef formats a single column definition for CREATE TABLE.
 func formatColumnDef(c *Catalog, rel *Relation, col *Column) string {
 	var parts []string
@@ -265,7 +276,7 @@ func formatColumnDef(c *Catalog, rel *Relation, col *Column) string {
 	if serialType := detectSerialType(c, rel, col); serialType != "" {
 		parts = append(parts, serialType)
 		if col.NotNull {
-			parts = append(parts, "NOT NULL")
+			parts = append(parts, formatColumnNotNullClause(c, rel, col))
 		}
 		return strings.Join(parts, " ")
 	}
@@ -280,7 +291,7 @@ func formatColumnDef(c *Catalog, rel *Relation, col *Column) string {
 	}
 
 	if col.NotNull {
-		parts = append(parts, "NOT NULL")
+		parts = append(parts, formatColumnNotNullClause(c, rel, col))
 	}
 
 	if col.HasDefault && col.Default != "" && col.Identity == 0 && col.Generated == 0 {
