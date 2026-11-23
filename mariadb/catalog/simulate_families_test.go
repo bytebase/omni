@@ -62,6 +62,37 @@ var familyRows = families(map[string][]familyRow{
 		{"exists:partition", "ALTER TABLE a ADD PARTITION IF NOT EXISTS (PARTITION p3 VALUES LESS THAN (300), PARTITION a VALUES LESS THAN (400))"},
 		{"exists:partition", "ALTER TABLE a DROP PARTITION IF EXISTS zzz"},
 		{"exists:partition", "ALTER TABLE a DROP PARTITION IF EXISTS zzz, p0"},
+		// A partitioned table holds no foreign key, so DROP FOREIGN KEY IF
+		// EXISTS is always dropped as a note before 1506 is checked.
+		{"exists:foreign_key", "ALTER TABLE a DROP FOREIGN KEY IF EXISTS a, ADD COLUMN e INT"},
+		{"exists:foreign_key", "ALTER TABLE a DROP FOREIGN KEY IF EXISTS a, DROP FOREIGN KEY zzz"},
+		{"exists:foreign_key", "ALTER TABLE a DROP FOREIGN KEY IF EXISTS a, DROP COLUMN zzz"},
+		{"exists:foreign_key", "ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (a) REFERENCES a (b)"},
+	},
+	// ADD FOREIGN KEY IF NOT EXISTS looks for a foreign key named after the
+	// name after FOREIGN KEY, the symbol or the first column; the fixture's is
+	// CONSTRAINT a FOREIGN KEY (a).
+	"objects@fk": {
+		{"exists:foreign_key", "ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (d) REFERENCES parent (b)"},
+		{"exists:foreign_key", "ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (A) REFERENCES parent (b)"},
+		{"exists:foreign_key", "ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (a, d) REFERENCES a (b, a)"},
+		{"exists:foreign_key", "ALTER TABLE a ADD CONSTRAINT zz FOREIGN KEY IF NOT EXISTS (a) REFERENCES parent (b)"},
+		{"exists:foreign_key", "ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS zz (a) REFERENCES parent (b)"},
+		{"exists:foreign_key", "ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (a) REFERENCES parent (b), ADD COLUMN e INT"},
+		{"exists:foreign_key", "ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (d) REFERENCES parent (b), ADD FOREIGN KEY IF NOT EXISTS (d) REFERENCES parent (b)"},
+		{"exists:foreign_key", "ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (d) REFERENCES parent (b), ADD CONSTRAINT d FOREIGN KEY IF NOT EXISTS (b) REFERENCES parent (b)"},
+		{"exists:foreign_key", "ALTER TABLE a ADD FOREIGN KEY (d) REFERENCES parent (b), ADD FOREIGN KEY IF NOT EXISTS (d) REFERENCES parent (b)"},
+		{"exists:foreign_key", "ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (d) REFERENCES parent (b), ADD FOREIGN KEY (d) REFERENCES parent (b)"},
+		{"exists:foreign_key", "ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (b) REFERENCES parent (b), ADD FOREIGN KEY IF NOT EXISTS (d) REFERENCES parent (b)"},
+		{"exists:foreign_key", "ALTER TABLE a ADD FOREIGN KEY (b) REFERENCES parent (b), ADD KEY IF NOT EXISTS (b)"},
+		{"exists:foreign_key", "ALTER TABLE a ADD FOREIGN KEY (b) REFERENCES parent (b), ADD UNIQUE IF NOT EXISTS (b)"},
+		{"exists:foreign_key", "ALTER TABLE a ADD CONSTRAINT zz FOREIGN KEY (b) REFERENCES parent (b), ADD KEY IF NOT EXISTS (b)"},
+		{"exists:foreign_key", "ALTER TABLE a ADD CONSTRAINT zz FOREIGN KEY yy (b) REFERENCES parent (b), ADD KEY IF NOT EXISTS yy (b)"},
+		{"exists:foreign_key", "ALTER TABLE a ADD CONSTRAINT zz FOREIGN KEY yy (b) REFERENCES parent (b), ADD KEY IF NOT EXISTS zz (b)"},
+		// The fixture's KEY a came with its foreign key, and a second foreign
+		// key over a replaces it with its own.
+		{"fk:generated_key", "ALTER TABLE a ADD CONSTRAINT zz FOREIGN KEY (a) REFERENCES parent (b)"},
+		{"fk:generated_key", "ALTER TABLE a ADD FOREIGN KEY (a) REFERENCES parent (b)"},
 	},
 })
 

@@ -2877,7 +2877,7 @@ ok:71b367f0c86d	ok:71b367f0c86d	engine	objects@partitioned	alter_list_item/MODIF
 1091	1091	engine	objects@partitioned	alter_list_item/DROP_CONSTRAINT_opt_if_exists_table_element_field_ident	ALTER TABLE a DROP CONSTRAINT a;
 ok:71b367f0c86d	ok:71b367f0c86d	engine	objects@partitioned	alter_list_item/DROP_CONSTRAINT_opt_if_exists_table_element_field_ident+opt_if_exists_table_element	ALTER TABLE a DROP CONSTRAINT IF EXISTS a;
 1506	1506	engine	objects@partitioned	alter_list_item/DROP_FOREIGN_KEY_SYM_opt_if_exists_table_element_field_ident	ALTER TABLE a DROP FOREIGN KEY a;
-1506	ok:71b367f0c86d	engine	objects@partitioned	alter_list_item/DROP_FOREIGN_KEY_SYM_opt_if_exists_table_element_field_ident+opt_if_exists_table_element	ALTER TABLE a DROP FOREIGN KEY IF EXISTS a;
+ok:71b367f0c86d	ok:71b367f0c86d	engine	objects@partitioned	alter_list_item/DROP_FOREIGN_KEY_SYM_opt_if_exists_table_element_field_ident+opt_if_exists_table_element	ALTER TABLE a DROP FOREIGN KEY IF EXISTS a;
 ok:71b367f0c86d	ok:71b367f0c86d	engine	objects@partitioned	alter_list_item/DROP_key_or_index_opt_if_exists_table_element_field_ident+opt_if_exists_table_element	ALTER TABLE a DROP KEY IF EXISTS a;
 ok:71b367f0c86d	ok:71b367f0c86d	engine	objects@partitioned	alter_list_item/DISABLE_SYM_KEYS	ALTER TABLE a DISABLE KEYS;
 ok:71b367f0c86d	ok:71b367f0c86d	engine	objects@partitioned	alter_list_item/ENABLE_SYM_KEYS	ALTER TABLE a ENABLE KEYS;
@@ -3155,7 +3155,7 @@ ok:5d49c7807648	ok:5d49c7807648	engine	objects@fk	key_def/opt_constraint_constra
 ok:f06dcec50043	ok:f06dcec50043	engine	objects@fk	key_def/opt_constraint_constraint_key_type_opt_if_not_exists_ident_TYPE_SYM_btree_or_rtree_(_key_list_opt_without_overlaps_)_normal_key_options	ALTER TABLE a ADD UNIQUE a TYPE BTREE(a);
 ok:5d49c7807648	ok:5d49c7807648	engine	objects@fk	key_def/opt_constraint_constraint_key_type_opt_if_not_exists_ident_TYPE_SYM_btree_or_rtree_(_key_list_opt_without_overlaps_)_normal_key_options+opt_if_not_exists	ALTER TABLE a ADD UNIQUE IF NOT EXISTS a TYPE BTREE(a);
 ok:890209533f8f	ok:890209533f8f	engine	objects@fk	key_def/opt_constraint_FOREIGN_KEY_SYM_opt_if_not_exists_opt_ident_(_key_list_)_references	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a;
-ok	ok:5d49c7807648	engine	objects@fk	key_def/opt_constraint_FOREIGN_KEY_SYM_opt_if_not_exists_opt_ident_(_key_list_)_references+opt_if_not_exists	ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS(a) REFERENCES a;
+ok:5d49c7807648	ok:5d49c7807648	engine	objects@fk	key_def/opt_constraint_FOREIGN_KEY_SYM_opt_if_not_exists_opt_ident_(_key_list_)_references+opt_if_not_exists	ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS(a) REFERENCES a;
 ok:f184e60d9bd4	ok:f184e60d9bd4	engine	objects@fk	constraint_def/opt_constraint_check_constraint	ALTER TABLE a ADD CHECK(a);
 ok:5d49c7807648	ok:5d49c7807648	engine	objects@fk	period_for_system_time/PERIOD_SYM_FOR_SYSTEM_TIME_SYM_(_ident_,_ident_)	ALTER TABLE a ADD PERIOD FOR SYSTEM_TIME(a, a);
 1060	1060	engine	objects@fk	opt_check_constraint/check_constraint	ALTER TABLE a ADD a INT CHECK(a);
@@ -5498,6 +5498,24 @@ ok:e73f08093c12	ok:e73f08093c12	engine	features@check	check:drop	ALTER TABLE boo
 ok:ebda42c9961b	ok:ebda42c9961b	engine	features@check	check:drop	ALTER TABLE bookings RENAME COLUMN starts TO begins, DROP COLUMN note
 ok:a5c40f112f70	ok:a5c40f112f70	engine	features@check	check:drop	ALTER TABLE rooms DROP COLUMN beds
 ok:5410703c689b	ok:5410703c689b	engine	features@check	check:drop	ALTER TABLE rooms ADD COLUMN floor INT
+ok:186783f59718	ok:186783f59718	engine	objects@fk	exists:foreign_key	ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (d) REFERENCES parent (b)
+ok:5d49c7807648	ok:5d49c7807648	engine	objects@fk	exists:foreign_key	ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (A) REFERENCES parent (b)
+ok:5d49c7807648	ok:5d49c7807648	engine	objects@fk	exists:foreign_key	ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (a, d) REFERENCES a (b, a)
+ok:ca7e1d51d848	ok:ca7e1d51d848	engine	objects@fk	exists:foreign_key	ALTER TABLE a ADD CONSTRAINT zz FOREIGN KEY IF NOT EXISTS (a) REFERENCES parent (b)
+ok:ca7e1d51d848	ok:ca7e1d51d848	engine	objects@fk	exists:foreign_key	ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS zz (a) REFERENCES parent (b)
+ok:1a5dfae8840c	ok:1a5dfae8840c	engine	objects@fk	exists:foreign_key	ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (a) REFERENCES parent (b), ADD COLUMN e INT
+ok:186783f59718	ok:186783f59718	engine	objects@fk	exists:foreign_key	ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (d) REFERENCES parent (b), ADD FOREIGN KEY IF NOT EXISTS (d) REFERENCES parent (b)
+ok:186783f59718	ok:186783f59718	engine	objects@fk	exists:foreign_key	ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (d) REFERENCES parent (b), ADD CONSTRAINT d FOREIGN KEY IF NOT EXISTS (b) REFERENCES parent (b)
+ok:186783f59718	ok:186783f59718	engine	objects@fk	exists:foreign_key	ALTER TABLE a ADD FOREIGN KEY (d) REFERENCES parent (b), ADD FOREIGN KEY IF NOT EXISTS (d) REFERENCES parent (b)
+ok:a45dbeff327a	ok:a45dbeff327a	engine	objects@fk	exists:foreign_key	ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (d) REFERENCES parent (b), ADD FOREIGN KEY (d) REFERENCES parent (b)
+ok:f75e5e0c8dff	ok:f75e5e0c8dff	engine	objects@fk	exists:foreign_key	ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (b) REFERENCES parent (b), ADD FOREIGN KEY IF NOT EXISTS (d) REFERENCES parent (b)
+ok:a137e1e1f7ef	ok:a137e1e1f7ef	engine	objects@fk	exists:foreign_key	ALTER TABLE a ADD FOREIGN KEY (b) REFERENCES parent (b), ADD KEY IF NOT EXISTS (b)
+ok:be9a72ff0e8e	ok:be9a72ff0e8e	engine	objects@fk	exists:foreign_key	ALTER TABLE a ADD FOREIGN KEY (b) REFERENCES parent (b), ADD UNIQUE IF NOT EXISTS (b)
+ok:f2af0954cbc3	ok:f2af0954cbc3	engine	objects@fk	exists:foreign_key	ALTER TABLE a ADD CONSTRAINT zz FOREIGN KEY (b) REFERENCES parent (b), ADD KEY IF NOT EXISTS (b)
+ok:031168255a2a	ok:031168255a2a	engine	objects@fk	exists:foreign_key	ALTER TABLE a ADD CONSTRAINT zz FOREIGN KEY yy (b) REFERENCES parent (b), ADD KEY IF NOT EXISTS yy (b)
+ok:58cf624f35e6	ok:58cf624f35e6	engine	objects@fk	exists:foreign_key	ALTER TABLE a ADD CONSTRAINT zz FOREIGN KEY yy (b) REFERENCES parent (b), ADD KEY IF NOT EXISTS zz (b)
+ok:ca7e1d51d848	ok:ca7e1d51d848	engine	objects@fk	fk:generated_key	ALTER TABLE a ADD CONSTRAINT zz FOREIGN KEY (a) REFERENCES parent (b)
+ok:0902dd1e5a43	ok:0902dd1e5a43	engine	objects@fk	fk:generated_key	ALTER TABLE a ADD FOREIGN KEY (a) REFERENCES parent (b)
 ok:d643a6ee6704	ok:d643a6ee6704	engine	objects@partitioned	exists:partition	ALTER TABLE a ADD PARTITION IF NOT EXISTS (PARTITION p2 VALUES LESS THAN (300))
 ok:71b367f0c86d	ok:71b367f0c86d	engine	objects@partitioned	exists:partition	ALTER TABLE a ADD PARTITION IF NOT EXISTS (PARTITION a VALUES LESS THAN (300))
 ok:71b367f0c86d	ok:71b367f0c86d	engine	objects@partitioned	exists:partition	ALTER TABLE a ADD PARTITION IF NOT EXISTS (PARTITION a VALUES LESS THAN (200))
@@ -5506,6 +5524,10 @@ ok:71b367f0c86d	ok:71b367f0c86d	engine	objects@partitioned	exists:partition	ALTE
 ok:71b367f0c86d	ok:71b367f0c86d	engine	objects@partitioned	exists:partition	ALTER TABLE a ADD PARTITION IF NOT EXISTS (PARTITION p3 VALUES LESS THAN (300), PARTITION a VALUES LESS THAN (400))
 ok:71b367f0c86d	ok:71b367f0c86d	engine	objects@partitioned	exists:partition	ALTER TABLE a DROP PARTITION IF EXISTS zzz
 ok:4ef1faa5c4d3	ok:4ef1faa5c4d3	engine	objects@partitioned	exists:partition	ALTER TABLE a DROP PARTITION IF EXISTS zzz, p0
+ok:38de1d13c5ce	ok:38de1d13c5ce	engine	objects@partitioned	exists:foreign_key	ALTER TABLE a DROP FOREIGN KEY IF EXISTS a, ADD COLUMN e INT
+1506	1506	engine	objects@partitioned	exists:foreign_key	ALTER TABLE a DROP FOREIGN KEY IF EXISTS a, DROP FOREIGN KEY zzz
+1091	1091	engine	objects@partitioned	exists:foreign_key	ALTER TABLE a DROP FOREIGN KEY IF EXISTS a, DROP COLUMN zzz
+1506	1506	engine	objects@partitioned	exists:foreign_key	ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (a) REFERENCES a (b)
 ok:1e603ae23cd4	ok:1e603ae23cd4	engine	objects@view	exists:view	CREATE VIEW IF NOT EXISTS a AS SELECT 1
 ok:1e603ae23cd4	ok:1e603ae23cd4	engine	objects@view	exists:view	CREATE VIEW IF NOT EXISTS t AS SELECT 1
 ok:d52b5e79f075	ok:d52b5e79f075	engine	objects@view	exists:view	CREATE VIEW IF NOT EXISTS v AS SELECT 1
