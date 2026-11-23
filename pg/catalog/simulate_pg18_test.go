@@ -337,15 +337,20 @@ CREATE TABLE p_pk_1 PARTITION OF p_pk FOR VALUES FROM (0) TO (100);
 	if got, c := execCodeVersion(t, PG18, partNullableSetup, "ALTER TABLE p_pk ADD PRIMARY KEY (id, k)"); got != "" {
 		t.Fatalf("PG18 ADD PRIMARY KEY on partitioned table: got %q, want ok", got)
 	} else {
-		if res, err := c.Exec("COMMENT ON CONSTRAINT p_pk_1_id_not_null ON p_pk_1 IS 'part pk nn'", nil); err != nil {
+		if res, err := c.Exec("COMMENT ON CONSTRAINT p_pk_id_not_null ON p_pk_1 IS 'part pk nn'", nil); err != nil {
 			t.Fatal(err)
 		} else if len(res) > 0 && res[0].Error != nil {
-			t.Fatalf("PG18 COMMENT ON CONSTRAINT p_pk_1_id_not_null: %v", res[0].Error)
+			t.Fatalf("PG18 COMMENT ON CONSTRAINT p_pk_id_not_null: %v", res[0].Error)
 		}
-		if res, err := c.Exec("ALTER TABLE p_pk_1 RENAME CONSTRAINT p_pk_1_k_not_null TO p_pk_1_k_nn", nil); err != nil {
+		if res, err := c.Exec("ALTER TABLE p_pk RENAME CONSTRAINT p_pk_k_not_null TO p_pk_k_nn", nil); err != nil {
 			t.Fatal(err)
 		} else if len(res) > 0 && res[0].Error != nil {
-			t.Fatalf("PG18 RENAME CONSTRAINT p_pk_1_k_not_null: %v", res[0].Error)
+			t.Fatalf("PG18 RENAME CONSTRAINT p_pk_k_not_null on parent: %v", res[0].Error)
+		}
+		if res, err := c.Exec("COMMENT ON CONSTRAINT p_pk_k_nn ON p_pk_1 IS 'renamed part pk nn'", nil); err != nil {
+			t.Fatal(err)
+		} else if len(res) > 0 && res[0].Error != nil {
+			t.Fatalf("PG18 COMMENT ON renamed partition NOT NULL constraint p_pk_k_nn: %v", res[0].Error)
 		}
 	}
 
@@ -1081,10 +1086,12 @@ CREATE TABLE c_mig_nn PARTITION OF p_mig_nn FOR VALUES FROM (0) TO (100);
 	}
 
 	// Modifying a collation used by a NOT NULL stored generated column rebuilds the
-	// column without emitting an unsupported ADD CONSTRAINT for ConstraintNotNull.
+	// column without emitting an unsupported ADD CONSTRAINT for ConstraintNotNull,
+	// and restores any unchanged comment on the NOT NULL constraint.
 	fromCollGen, err := LoadSQLWithVersion(`
 CREATE COLLATION my_coll (locale = 'C');
 CREATE TABLE t_cg (src text, g text COLLATE my_coll GENERATED ALWAYS AS (lower(src)) STORED NOT NULL);
+COMMENT ON CONSTRAINT t_cg_g_not_null ON t_cg IS 'generated nn';
 `, PG18)
 	if err != nil {
 		t.Fatalf("LoadSQLWithVersion fromCollGen: %v", err)
@@ -1092,6 +1099,7 @@ CREATE TABLE t_cg (src text, g text COLLATE my_coll GENERATED ALWAYS AS (lower(s
 	toCollGen, err := LoadSQLWithVersion(`
 CREATE COLLATION my_coll (locale = 'POSIX');
 CREATE TABLE t_cg (src text, g text COLLATE my_coll GENERATED ALWAYS AS (lower(src)) STORED NOT NULL);
+COMMENT ON CONSTRAINT t_cg_g_not_null ON t_cg IS 'generated nn';
 `, PG18)
 	if err != nil {
 		t.Fatalf("LoadSQLWithVersion toCollGen: %v", err)
@@ -1109,6 +1117,66 @@ CREATE TABLE t_cg (src text, g text COLLATE my_coll GENERATED ALWAYS AS (lower(s
 			if r.Error != nil {
 				t.Fatalf("collation rebuild op %q failed: %v", op.SQL, r.Error)
 			}
+		}
+	}
+	if rem := GenerateMigration(fromCollGen, toCollGen, Diff(fromCollGen, toCollGen)); len(rem.Ops) != 0 {
+		t.Fatalf("expected empty diff after collation rebuild migration (comment preserved), still have: %+v", rem.Ops)
+	}
+
+	// Multiple nullable columns becoming named NOT NULL in one migration track earlier
+	// PhaseMain renames so the second column predicts its suffixed default name accurately.
+	fromMultiNN, err := LoadSQLWithVersion(`CREATE TABLE t_mnn (x int, y int);`, PG18)
+	if err != nil {
+		t.Fatalf("LoadSQLWithVersion fromMultiNN: %v", err)
+	}
+	toMultiNN, err := LoadSQLWithVersion(`
+CREATE TABLE t_mnn (x int CONSTRAINT t_mnn_y_not_null NOT NULL, y int CONSTRAINT nn NOT NULL);
+COMMENT ON CONSTRAINT t_mnn_y_not_null ON t_mnn IS 'col x';
+COMMENT ON CONSTRAINT nn ON t_mnn IS 'col y';
+`, PG18)
+	if err != nil {
+		t.Fatalf("LoadSQLWithVersion toMultiNN: %v", err)
+	}
+	planMultiNN := GenerateMigration(fromMultiNN, toMultiNN, Diff(fromMultiNN, toMultiNN))
+	for _, op := range planMultiNN.Ops {
+		res, err := fromMultiNN.Exec(op.SQL, nil)
+		if err != nil {
+			t.Fatalf("exec multi-nn op %q: %v", op.SQL, err)
+		}
+		for _, r := range res {
+			if r.Error != nil {
+				t.Fatalf("multi-nn op %q failed: %v", op.SQL, r.Error)
+			}
+		}
+	}
+	relMNN := fromMultiNN.GetRelation("public", "t_mnn")
+	if gotX := fromMultiNN.notNullConstraintName(relMNN, 1); gotX != "t_mnn_y_not_null" {
+		t.Fatalf("t_mnn.x NOT NULL name = %q, want t_mnn_y_not_null", gotX)
+	}
+	if gotY := fromMultiNN.notNullConstraintName(relMNN, 2); gotY != "nn" {
+		t.Fatalf("t_mnn.y NOT NULL name = %q, want nn", gotY)
+	}
+
+	// RENAME CONSTRAINT on an inheritable NOT NULL recurses to partitions/children,
+	// rejects direct rename of an inherited NOT NULL on a child, and rolls back on child clash.
+	renamePartSetup := `
+CREATE TABLE p_rnn (x int NOT NULL) PARTITION BY RANGE (x);
+CREATE TABLE c_rnn PARTITION OF p_rnn FOR VALUES FROM (0) TO (100);
+`
+	if got, c := execCodeVersion(t, PG18, renamePartSetup, "ALTER TABLE p_rnn RENAME CONSTRAINT p_rnn_x_not_null TO nn_part"); got != "" {
+		t.Fatalf("PG18 recursive RENAME CONSTRAINT on partitioned table: got %q, want ok", got)
+	} else {
+		if res, err := c.Exec("COMMENT ON CONSTRAINT nn_part ON c_rnn IS 'required'", nil); err != nil {
+			t.Fatal(err)
+		} else if len(res) > 0 && res[0].Error != nil {
+			t.Fatalf("COMMENT ON renamed partition NOT NULL constraint failed: %v", res[0].Error)
+		}
+		if res, err := c.Exec("ALTER TABLE c_rnn RENAME CONSTRAINT nn_part TO nn_child", nil); err != nil {
+			t.Fatal(err)
+		} else if len(res) == 0 || res[0].Error == nil {
+			t.Fatalf("expected direct rename of inherited NOT NULL on partition to fail")
+		} else {
+			assertErrorCode(t, res[0].Error, CodeInvalidTableDefinition)
 		}
 	}
 }

@@ -2044,9 +2044,64 @@ func (c *Catalog) renameConstraint(stmt *nodes.RenameStmt) error {
 		}
 	}
 
+	if target.Type == ConstraintNotNull && target.ConInhCount > 0 {
+		return &Error{
+			Code:    CodeInvalidTableDefinition,
+			Message: fmt.Sprintf("cannot rename inherited constraint %q", oldName),
+		}
+	}
+
 	if err := c.checkConstraintNameFree(rel.OID, newName); err != nil {
 		return err
 	}
+
+	// pg: src/backend/commands/tablecmds.c — rename_constraint_internal (PG 18)
+	// Inheritable NOT NULL constraints recurse to inheritance/partition children
+	// that carry the matching constraint name; validate all targets before mutating.
+	if target.Type == ConstraintNotNull && !target.ConNoInherit && len(target.Columns) == 1 {
+		var toRename []*Constraint
+		visited := make(map[uint32]bool)
+		var collect func(parentRel *Relation) error
+		collect = func(parentRel *Relation) error {
+			for _, childOID := range c.findChildRelations(parentRel.OID) {
+				if visited[childOID] {
+					continue
+				}
+				visited[childOID] = true
+				child := c.relationByOID[childOID]
+				if child == nil {
+					continue
+				}
+				var childCon *Constraint
+				for _, con := range c.consByRel[child.OID] {
+					if con.Type == ConstraintNotNull && con.Name == oldName {
+						childCon = con
+						break
+					}
+				}
+				if childCon == nil {
+					continue
+				}
+				if err := c.checkConstraintNameFree(child.OID, newName); err != nil {
+					return err
+				}
+				toRename = append(toRename, childCon)
+				if err := collect(child); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+		if err := collect(rel); err != nil {
+			return err
+		}
+		target.Name = newName
+		for _, childCon := range toRename {
+			childCon.Name = newName
+		}
+		return nil
+	}
+
 	target.Name = newName
 	return nil
 }

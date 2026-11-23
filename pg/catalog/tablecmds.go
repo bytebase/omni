@@ -2099,8 +2099,15 @@ func (c *Catalog) cloneIndexToPartition(schema *Schema, parent, partition *Relat
 	if idx.IsPrimary {
 		for _, attnum := range indexKeyAttnums(idx, partAttnums) {
 			if int(attnum) > 0 && int(attnum) <= len(partition.Columns) {
-				partition.Columns[attnum-1].NotNull = true
-				_ = c.ensureNotNullConstraintWithInh(schema, partition, partition.Columns[attnum-1], "", false, 1)
+				partCol := partition.Columns[attnum-1]
+				partCol.NotNull = true
+				conName := ""
+				if pIdx, ok := parent.colByName[partCol.Name]; ok {
+					if parentName := c.notNullConstraintName(parent, parent.Columns[pIdx].AttNum); parentName != "" && c.checkConstraintNameFree(partition.OID, parentName) == nil {
+						conName = parentName
+					}
+				}
+				_ = c.ensureNotNullConstraintWithInh(schema, partition, partCol, conName, false, 1)
 			}
 		}
 	}
