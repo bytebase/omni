@@ -2341,7 +2341,14 @@ func (e *oracleMetadataExtractor) extractDrop(n *ast.DropStmt) {
 			if !e.checkSchema(nameNode.Schema, "12003") {
 				return
 			}
+			if mv := e.materializedViews[name]; mv != nil {
+				for _, tr := range mv.Triggers {
+					delete(e.triggers, tr.Name)
+					e.forgetUnit(unitTrigger, tr.Name)
+				}
+			}
 			delete(e.materializedViews, name)
+			e.invalidateReaders(name)
 		case ast.OBJECT_SEQUENCE:
 			if !e.checkSchema(nameNode.Schema, "02289") {
 				return
@@ -3531,7 +3538,7 @@ func (e *oracleMetadataExtractor) extractAlterTrigger(n *ast.AlterTriggerStmt) {
 		if n.NewName == "" {
 			return
 		}
-		e.forgetUnit(unitTrigger, name)
+		e.renameUnit(unitTrigger, name, n.NewName)
 		delete(e.triggers, name)
 		trigger.Name = n.NewName
 		trigger.Body = renameTriggerName(trigger.Body, name, n.NewName)

@@ -329,6 +329,23 @@ func (e *oracleMetadataExtractor) findsUnit(kind string, name *ast.ObjectName, i
 	return false
 }
 
+// renameUnit moves what the book holds of a renamed unit to its new name.
+func (e *oracleMetadataExtractor) renameUnit(kind, oldName, newName string) {
+	from, to := unitKey(kind, oldName), unitKey(kind, newName)
+	if e.units.invalid[from] {
+		e.units.invalid[to] = true
+	}
+	if ce := e.units.errors[from]; ce != nil {
+		cp := *ce
+		cp.Name = newName
+		e.units.errors[to] = &cp
+	}
+	if reads := e.units.reads[from]; reads != nil {
+		e.units.reads[to] = reads
+	}
+	e.forgetUnit(kind, oldName)
+}
+
 // forgetUnit removes what the book holds of a dropped unit.
 func (e *oracleMetadataExtractor) forgetUnit(kind, name string) {
 	key := unitKey(kind, name)
@@ -532,8 +549,8 @@ func sameSignature(definition, sig string) bool {
 	return ok && signatureText(f.Parameters, f.ReturnType) == sig
 }
 
-// invalidateColumnReaders marks INVALID the units that read a column an
-// ALTER TABLE drops, renames or modifies, or read all of the table's
+// invalidateColumnReaders marks INVALID the units that read a table an
+// ALTER TABLE renames, or a column it drops, renames or modifies, or read all of the table's
 // columns (%ROWTYPE, SELECT *, INSERT without a column list). A unit that
 // reads only other columns stays VALID, as Oracle tracks what it reads.
 func (e *oracleMetadataExtractor) invalidateColumnReaders(n *ast.AlterTableStmt) {
@@ -548,6 +565,10 @@ func (e *oracleMetadataExtractor) invalidateColumnReaders(n *ast.AlterTableStmt)
 			continue
 		}
 		switch action.Action {
+		case ast.AT_RENAME:
+			// A unit that names the table by its old name no longer
+			// finds it.
+			e.invalidateReaders(table)
 		case ast.AT_DROP_COLUMN, ast.AT_SET_UNUSED, ast.AT_RENAME_COLUMN:
 			if action.Options != nil && len(action.Options.Items) > 0 {
 				columns = append(columns, stringList(action.Options)...)

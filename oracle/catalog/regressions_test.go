@@ -3204,4 +3204,24 @@ func TestUnitChangesReachTheirReaders(t *testing.T) {
 	if got := status(c, unitProcedure, "P"); got != "VALID" {
 		t.Errorf("after COMPILE: %s, want VALID", got)
 	}
+
+	c, err = LoadSQL("CREATE TABLE t (id NUMBER);\nCREATE PROCEDURE p IS v NUMBER; BEGIN SELECT id INTO v FROM t; END;\n/\nALTER TABLE t RENAME TO u;\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := status(c, unitProcedure, "P"); got != "INVALID" {
+		t.Errorf("reader of a table ALTER TABLE renamed: %s, want INVALID", got)
+	}
+
+	c, err = LoadSQL("CREATE TABLE t (id NUMBER);\nCREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW BEGIN nope; END;\n/\nALTER TRIGGER trg RENAME TO trg2;\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := status(c, unitTrigger, "TRG2"); got != "INVALID PLS-00201" {
+		t.Errorf("renamed invalid trigger: %s, want INVALID PLS-00201", got)
+	}
+
+	if _, err := GetDatabaseMetadata("CREATE TABLE t (id NUMBER PRIMARY KEY);\nCREATE MATERIALIZED VIEW mv AS SELECT id FROM t;\nCREATE TRIGGER trg BEFORE INSERT ON mv FOR EACH ROW BEGIN NULL; END;\n/\nDROP MATERIALIZED VIEW mv;\nCREATE MATERIALIZED VIEW mv AS SELECT id FROM t;\nCREATE TRIGGER trg BEFORE INSERT ON mv FOR EACH ROW BEGIN NULL; END;\n/\n"); err != nil {
+		t.Fatal(err)
+	}
 }
