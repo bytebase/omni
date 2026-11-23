@@ -14,6 +14,9 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	// rather than 1049 or 1146 (measured on v8.5.5). A charset or collation a
 	// column definition names is resolved as early: `ADD x TINYTEXT CHARACTER
 	// SET ucs2` is 1115 even with no such table (measured on v8.5.5).
+	if err := checkAlterUnsupportedTableOptions(stmt.Commands); err != nil {
+		return err
+	}
 	if err := checkAlterNowDefaults(stmt.Commands); err != nil {
 		return err
 	}
@@ -42,6 +45,9 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 			if len(stmt.Commands) == 1 && stmt.Commands[0] != nil {
 				switch stmt.Commands[0].Type {
 				case nodes.ATCompact:
+					if len(stmt.Commands[0].PartitionNames) > 0 {
+						return errCompactNonPartitionedTable(tableName, stmt.Commands[0].PartitionNames)
+					}
 					return nil
 				case nodes.ATAnalyzePartition:
 					if stmt.Commands[0].AnalyzeIndexFlag {
@@ -218,11 +224,11 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATPartitionAttributes:
 		// A partition's ATTRIBUTES is a server-side setting no field of Table
 		// or PartitionDefInfo holds; a table without partitions is still
-		// refused (1505, TiDB v8.5.5).
+		// refused (1505, TiDB v8.5.5), and the attribute format is validated (8237).
 		if tbl.Partitioning == nil {
 			return errPartitionMgmtOnNonPartitioned()
 		}
-		return nil
+		return checkAlterAttributes(cmd.Attributes)
 	case nodes.ATAddLastPartition, nodes.ATDropFirstPartition:
 		// The interval partitions FIRST and LAST name are server-side settings
 		// no field of Table or PartitionDefInfo holds; a table without
@@ -246,6 +252,13 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		// changed.
 		if cmd.Hypo {
 			return nil
+		}
+		if c.tiflashServerCount >= 0 && cmd.TiFlashReplica > c.tiflashServerCount {
+			return &Error{
+				Code:     ErrUnknownError,
+				SQLState: sqlState(ErrUnknownError),
+				Message:  fmt.Sprintf("the tiflash replica count: %d should be less than the total tiflash server count: %d", cmd.TiFlashReplica, c.tiflashServerCount),
+			}
 		}
 		tbl.TiFlashReplica = cmd.TiFlashReplica
 		// LOCATION LABELS is optional; assign (possibly empty slice)
@@ -274,26 +287,55 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		tbl.Cached = false
 		return nil
 
-	// The TiDB actions that change no schema the catalog models. Each is
-	// named rather than left to the default arm, so a reader sees the
-	// decision: READ ONLY and READ WRITE set a flag on the table that SHOW
-	// CREATE does not write, COMPACT rewrites its data, and ATTRIBUTES,
-	// STATS_OPTIONS and a partition's options are server-side settings that
-	// no field of Table or PartitionDefInfo holds. ANALYZE PARTITION and
-	// PARTITION ATTRIBUTES are above, because TiDB refuses them on a table
-	// with no partitions.
-	case nodes.ATWriteable, nodes.ATCompact,
-		nodes.ATAttributes, nodes.ATStatsOptions, nodes.ATPartitionOptions:
+	case nodes.ATWriteable:
 		return nil
-
-	// The interval-partition actions name a partition by its bound rather
-	// than by its name, which needs the INTERVAL clause this catalog does
-	// not model, so they are recorded as understood and left without effect
-	// rather than treated as unknown. TiDB answers 8200 for SPLIT and MERGE on
-	// a table with no partitions, which is the unsupported-DDL cause and not
-	// 1505.
-	case nodes.ATReorganizeLastPartition, nodes.ATReorganizeFirstPartition:
+	case nodes.ATCompact:
+		if len(cmd.PartitionNames) > 0 && tbl.Partitioning == nil {
+			return errCompactNonPartitionedTable(tbl.Name, cmd.PartitionNames)
+		}
 		return nil
+	case nodes.ATAttributes:
+		return checkAlterAttributes(cmd.Attributes)
+	case nodes.ATPartitionOptions:
+		for _, opt := range cmd.PartitionOptions {
+			if opt == nil {
+				continue
+			}
+			if toLower(opt.Name) != "placement policy" {
+				return &Error{
+					Code:     ErrUnknownError,
+					SQLState: sqlState(ErrUnknownError),
+					Message:  "unknown partition option",
+				}
+			}
+		}
+		return nil
+	case nodes.ATAddStatistics, nodes.ATDropStatistics:
+		if !c.extendedStats {
+			return &Error{
+				Code:     ErrUnknownError,
+				SQLState: sqlState(ErrUnknownError),
+				Message:  "Extended statistics feature is not generally available now, and tidb_enable_extended_stats is OFF",
+			}
+		}
+		return nil
+	case nodes.ATCheckPartition:
+		return &Error{Code: ErrUnsupportedDDL, SQLState: sqlState(ErrUnsupportedDDL), Message: "Unsupported check partition"}
+	case nodes.ATOptimizePartition:
+		return &Error{Code: ErrUnsupportedDDL, SQLState: sqlState(ErrUnsupportedDDL), Message: "Unsupported optimize partition"}
+	case nodes.ATRebuildPartition:
+		return &Error{Code: ErrUnsupportedDDL, SQLState: sqlState(ErrUnsupportedDDL), Message: "Unsupported rebuild partition"}
+	case nodes.ATRepairPartition:
+		return &Error{Code: ErrUnsupportedDDL, SQLState: sqlState(ErrUnsupportedDDL), Message: "Unsupported repair partition"}
+	case nodes.ATReorganizeLastPartition:
+		return &Error{Code: ErrUnsupportedDDL, SQLState: sqlState(ErrUnsupportedDDL), Message: "Unsupported SPLIT LAST PARTITION"}
+	case nodes.ATReorganizeFirstPartition:
+		return &Error{Code: ErrUnsupportedDDL, SQLState: sqlState(ErrUnsupportedDDL), Message: "Unsupported MERGE FIRST PARTITION"}
+	case nodes.ATDiscardPartitionTablespace, nodes.ATImportPartitionTablespace,
+		nodes.ATDiscardTablespace, nodes.ATImportTablespace,
+		nodes.ATForce, nodes.ATSecondaryLoad, nodes.ATSecondaryUnload,
+		nodes.ATStatsOptions:
+		return &Error{Code: ErrUnsupportedDDL, SQLState: sqlState(ErrUnsupportedDDL), Message: "Unsupported Unsupported/unknown ALTER TABLE specification"}
 
 	default:
 		// Unsupported alter command; silently ignore.
@@ -345,6 +387,9 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 // IF NOT EXISTS. TiDB v8.5.5 raises warning 1060 and leaves the table alone;
 // a catalog has no warnings, so the table is what it records.
 func (c *Catalog) addSingleColumnIfNotExists(tbl *Table, colDef *nodes.ColumnDef, ifNotExists, first bool, after string) error {
+	if err := checkUnsupportedAddColumnConstraint(tbl, colDef); err != nil {
+		return err
+	}
 	if ifNotExists {
 		if _, exists := tbl.colByName[toLower(colDef.Name)]; exists {
 			return nil
@@ -355,15 +400,11 @@ func (c *Catalog) addSingleColumnIfNotExists(tbl *Table, colDef *nodes.ColumnDef
 
 // addSingleColumn adds one column definition to the table.
 func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first bool, after string) error {
-	// TiDB refuses an ADD COLUMN that carries AUTO_RANDOM ahead of the column's
-	// own name check (8216, read on v8.5.5): the row handle is decided once the
-	// table exists, so no ALTER adds one.
-	if colDef.AutoRandom {
-		dbName := ""
-		if tbl.Database != nil {
-			dbName = tbl.Database.Name
-		}
-		return errAutoRandomAddColumn(colDef.Name, dbName, tbl.Name)
+	// TiDB v8.5.5 refuses inline AUTO_RANDOM (8216), AUTO_INCREMENT, PRIMARY
+	// KEY, and UNIQUE KEY constraints on ADD COLUMN (8200) ahead of
+	// duplicate-column (1060) and multiple-PK (1068) checks.
+	if err := checkUnsupportedAddColumnConstraint(tbl, colDef); err != nil {
+		return err
 	}
 	// A DEFAULT that reads a sequence resolves it first: a name that is a table
 	// but not a sequence is 1347, and nothing of the name is 1146, both ahead
@@ -667,6 +708,9 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 		if err := c.checkModifyColumnFKCompatibility(tbl, oldName, col); err != nil {
 			return err
 		}
+	}
+	if err := checkModifyPrimaryKeyColumnType(tbl, oldCol, col); err != nil {
+		return err
 	}
 	col.Position = idx + 1
 	tbl.Columns[idx] = col
@@ -1186,17 +1230,23 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	}
 
 	switch toLower(opt.Name) {
-	case "engine":
+	case "engine", "storage engine":
 		tbl.Engine = opt.Value
 	case "charset", "character set", "default charset", "default character set":
 		cs, coll, err := resolveCharsetCollation(opt.Value, "")
 		if err != nil {
 			return err
 		}
+		if err := checkAlterTableCharset(tbl.Charset, tbl.Collation, cs, coll); err != nil {
+			return err
+		}
 		tbl.Charset, tbl.Collation = cs, coll
 	case "collate", "default collate":
 		cs, coll, err := resolveCharsetCollation("", opt.Value)
 		if err != nil {
+			return err
+		}
+		if err := checkAlterTableCharset(tbl.Charset, tbl.Collation, cs, coll); err != nil {
 			return err
 		}
 		tbl.Charset, tbl.Collation = cs, coll
@@ -1208,9 +1258,27 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		tbl.RowFormat = opt.Value
 	// TiDB-specific ALTER TABLE options.
 	case "shard_row_id_bits":
-		fmt.Sscanf(opt.Value, "%d", &tbl.ShardRowIDBits)
+		var bits int
+		fmt.Sscanf(opt.Value, "%d", &bits)
+		if bits > 0 && !tableHasTiDBRowID(tbl) {
+			return &Error{
+				Code:     ErrUnsupportedDDL,
+				SQLState: sqlState(ErrUnsupportedDDL),
+				Message:  "Unsupported shard_row_id_bits for table with primary key as row id",
+			}
+		}
+		tbl.ShardRowIDBits = bits
 	case "auto_id_cache":
-		fmt.Sscanf(opt.Value, "%d", &tbl.AutoIDCache)
+		var newCache int64
+		fmt.Sscanf(opt.Value, "%d", &newCache)
+		if (newCache == 1) != (tbl.AutoIDCache == 1) {
+			return &Error{
+				Code:     ErrUnknownError,
+				SQLState: sqlState(ErrUnknownError),
+				Message:  "Can't Alter AUTO_ID_CACHE between 1 and non-1, the underlying implementation is different",
+			}
+		}
+		tbl.AutoIDCache = newCache
 	case "auto_random_base":
 		// The base is a setting on an auto-random column's table, so a table
 		// whose columns carry none is refused (8216, read on v8.5.5).
@@ -1244,6 +1312,16 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		tbl.TTLEnable = strings.EqualFold(opt.Value, "ON")
 	case "ttl_job_interval":
 		tbl.TTLJobInterval = opt.Value
+	case "affinity":
+		if err := checkAlterAffinity(opt.Value); err != nil {
+			return err
+		}
+	default:
+		return &Error{
+			Code:     ErrUnsupportedDDL,
+			SQLState: sqlState(ErrUnsupportedDDL),
+			Message:  "This type of ALTER TABLE is currently unsupported",
+		}
 	}
 	return nil
 }
@@ -1536,6 +1614,9 @@ func (c *Catalog) alterConvertCharset(tbl *Table, cmd *nodes.AlterTableCmd) erro
 	if err != nil {
 		return err
 	}
+	if err := checkAlterTableCharset(tbl.Charset, tbl.Collation, charset, collation); err != nil {
+		return err
+	}
 
 	tbl.Charset = charset
 	tbl.Collation = collation
@@ -1771,6 +1852,31 @@ func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonPartitioned()
+	}
+	// TiDB v8.5.5 (pkg/ddl/executor.go ReorganizePartitions) requires RANGE
+	// reorganization to name a non-empty contiguous slice of existing partitions.
+	if tbl.Partitioning.Type == "RANGE" || tbl.Partitioning.Type == "RANGE COLUMNS" {
+		firstIdx, lastIdx, matched := -1, -1, 0
+		nameSet := make(map[string]bool, len(cmd.PartitionNames))
+		for _, n := range cmd.PartitionNames {
+			nameSet[toLower(n)] = true
+		}
+		for i, pd := range tbl.Partitioning.Partitions {
+			if nameSet[toLower(pd.Name)] {
+				matched++
+				if firstIdx == -1 {
+					firstIdx = i
+				}
+				lastIdx = i
+			}
+		}
+		if len(cmd.PartitionNames) == 0 || (matched == len(nameSet) && matched != (lastIdx-firstIdx+1)) {
+			return &Error{
+				Code:     ErrUnsupportedDDL,
+				SQLState: sqlState(ErrUnsupportedDDL),
+				Message:  "Unsupported REORGANIZE PARTITION of RANGE; not adjacent partitions",
+			}
+		}
 	}
 	if err := refuseHistoryPartitions(tbl, cmd.PartitionDefs, false); err != nil {
 		return err

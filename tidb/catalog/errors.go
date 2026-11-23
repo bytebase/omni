@@ -73,9 +73,20 @@ const (
 	// v8.5.5 answers for an UPDATE INDEXES entry naming an index the table
 	// does not have (read on 2026-11-04).
 	ErrWrongNameForIndex = 1280
+	// ErrUnknownStorageEngine is 1286, "Unknown storage engine '<name>'", which
+	// TiDB v8.5.5 checks during DDL preprocessing.
+	ErrUnknownStorageEngine = 1286
 	// ErrUnknownError is the code TiDB gives an error with no code of its own,
 	// such as "range name is not supported" from ALTER RANGE.
 	ErrUnknownError = 1105
+	// ErrTableOptionUnionUnsupported (8232) and ErrTableOptionInsertMethodUnsupported
+	// (8233) reject MERGE-table UNION / INSERT_METHOD options during preprocessing.
+	ErrTableOptionUnionUnsupported        = 8232
+	ErrTableOptionInsertMethodUnsupported = 8233
+	// ErrInvalidAttributes is 8237 for malformed ATTRIBUTES 'key=value' specs.
+	ErrInvalidAttributes = 8237
+	// ErrInvalidTableAffinity is 8266 for invalid AFFINITY table option values.
+	ErrInvalidTableAffinity = 8266
 	// ErrSequenceInvalidData is 4136, for sequence options that conflict, and
 	// ErrUnknownSequence 4139, for DROP SEQUENCE of a missing one.
 	ErrSequenceInvalidData = 4136
@@ -216,6 +227,11 @@ var sqlStateMap = map[int]string{
 	ErrWrongDBName:                         "42000",
 	ErrWrongTableName:                      "42000",
 	ErrWrongNameForIndex:                   "42000",
+	ErrUnknownStorageEngine:                "42000",
+	ErrTableOptionUnionUnsupported:         "HY000",
+	ErrTableOptionInsertMethodUnsupported:  "HY000",
+	ErrInvalidAttributes:                   "HY000",
+	ErrInvalidTableAffinity:                "HY000",
 	ErrDupKeyName:                          "42000",
 	ErrDupEntry:                            "23000",
 	ErrMultiplePriKey:                      "42000",

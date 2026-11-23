@@ -1024,7 +1024,36 @@ func checkColumnDefaultValue(colDef *nodes.ColumnDef, dataType string, tableCons
 	if value, ok := blankStringLit(expr); ok && blankStringDefaultRefused(dataType, value, enumMembers) {
 		return errInvalidDefault(colDef.Name)
 	}
+	// CURDATE() / CURRENT_DATE evaluates to a YYYYMMDD date value (>= 19700101),
+	// which overflows TINYINT, SMALLINT, and MEDIUMINT on every date (1067).
+	if isCurDateDefaultCall(expr) {
+		switch strings.ToLower(dataType) {
+		case "tinyint", "smallint", "mediumint", "bool", "boolean":
+			return errInvalidDefault(colDef.Name)
+		}
+	}
 	return nil
+}
+
+// isCurDateDefaultCall reports whether expr is a CURDATE() / CURRENT_DATE call
+// (bare or parenthesized).
+func isCurDateDefaultCall(expr nodes.ExprNode) bool {
+	for {
+		paren, ok := expr.(*nodes.ParenExpr)
+		if !ok {
+			break
+		}
+		expr = paren.Expr
+	}
+	fn, ok := expr.(*nodes.FuncCallExpr)
+	if !ok {
+		return false
+	}
+	switch strings.ToLower(fn.Name) {
+	case "curdate", "current_date":
+		return true
+	}
+	return false
 }
 
 // checkExistingColumnNowDefault holds ALTER TABLE ... ALTER COLUMN c SET DEFAULT

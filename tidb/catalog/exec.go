@@ -116,6 +116,13 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 			case "1", "on", "true":
 				c.checkConstraints = true
 			}
+		case "tidb_enable_extended_stats":
+			switch toLower(nodeToSQLValue(asgn.Value)) {
+			case "0", "off", "false":
+				c.extendedStats = false
+			case "1", "on", "true":
+				c.extendedStats = true
+			}
 		case "names", "character set":
 			// Silently accept — these affect character encoding but
 			// the in-memory catalog doesn't need to change behavior.

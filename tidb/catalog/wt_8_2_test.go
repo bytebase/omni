@@ -13,34 +13,34 @@ func TestWalkThrough_8_2_AlterDefaultCharset(t *testing.T) {
 		id INT,
 		name VARCHAR(100),
 		bio TEXT
-	) DEFAULT CHARSET=utf8mb4`)
+	) DEFAULT CHARSET=latin1`)
 
-	// Verify initial state: columns inherit utf8mb4.
+	// Verify initial state: columns inherit latin1.
 	tbl := c.GetDatabase("testdb").GetTable("t1")
-	if tbl.Charset != "utf8mb4" {
-		t.Fatalf("expected table charset=utf8mb4, got %s", tbl.Charset)
+	if tbl.Charset != "latin1" {
+		t.Fatalf("expected table charset=latin1, got %s", tbl.Charset)
 	}
 	nameCol := tbl.GetColumn("name")
-	if nameCol.Charset != "utf8mb4" {
-		t.Fatalf("expected name charset=utf8mb4, got %s", nameCol.Charset)
+	if nameCol.Charset != "latin1" {
+		t.Fatalf("expected name charset=latin1, got %s", nameCol.Charset)
 	}
 
-	// ALTER TABLE DEFAULT CHARACTER SET latin1 — table default changes but columns unchanged.
-	wtExec(t, c, "ALTER TABLE t1 DEFAULT CHARACTER SET latin1")
+	// ALTER TABLE DEFAULT CHARACTER SET utf8mb4 — table default changes but columns unchanged.
+	wtExec(t, c, "ALTER TABLE t1 DEFAULT CHARACTER SET utf8mb4")
 
 	tbl = c.GetDatabase("testdb").GetTable("t1")
-	if tbl.Charset != "latin1" {
-		t.Errorf("expected table charset=latin1, got %s", tbl.Charset)
+	if tbl.Charset != "utf8mb4" {
+		t.Errorf("expected table charset=utf8mb4, got %s", tbl.Charset)
 	}
 
-	// Existing columns should still have utf8mb4.
+	// Existing columns should still have latin1.
 	nameCol = tbl.GetColumn("name")
-	if nameCol.Charset != "utf8mb4" {
-		t.Errorf("expected name charset=utf8mb4 (unchanged), got %s", nameCol.Charset)
+	if nameCol.Charset != "latin1" {
+		t.Errorf("expected name charset=latin1 (unchanged), got %s", nameCol.Charset)
 	}
 	bioCol := tbl.GetColumn("bio")
-	if bioCol.Charset != "utf8mb4" {
-		t.Errorf("expected bio charset=utf8mb4 (unchanged), got %s", bioCol.Charset)
+	if bioCol.Charset != "latin1" {
+		t.Errorf("expected bio charset=latin1 (unchanged), got %s", bioCol.Charset)
 	}
 }
 

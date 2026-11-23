@@ -258,10 +258,10 @@ func TestWalkThrough_4_2_ConvertCharset(t *testing.T) {
 		bio TEXT,
 		age INT,
 		tag ENUM('a','b')
-	)`)
+	) DEFAULT CHARSET=latin1`)
 
-	// Convert to latin1.
-	wtExec(t, c, "ALTER TABLE t1 CONVERT TO CHARACTER SET latin1")
+	// Convert to utf8mb4 (TiDB v8.5.5 supports latin1/utf8 -> utf8mb4).
+	wtExec(t, c, "ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb4")
 
 	tbl := c.GetDatabase("testdb").GetTable("t1")
 	if tbl == nil {
@@ -269,18 +269,18 @@ func TestWalkThrough_4_2_ConvertCharset(t *testing.T) {
 	}
 
 	// Table-level charset/collation should be updated.
-	if tbl.Charset != "latin1" {
-		t.Errorf("expected table charset=latin1, got %s", tbl.Charset)
+	if tbl.Charset != "utf8mb4" {
+		t.Errorf("expected table charset=utf8mb4, got %s", tbl.Charset)
 	}
 
-	// String columns should have latin1.
+	// String columns should have utf8mb4.
 	for _, colName := range []string{"name", "bio", "tag"} {
 		col := tbl.GetColumn(colName)
 		if col == nil {
 			t.Fatalf("column %s not found", colName)
 		}
-		if col.Charset != "latin1" {
-			t.Errorf("column %s: expected charset=latin1, got %s", colName, col.Charset)
+		if col.Charset != "utf8mb4" {
+			t.Errorf("column %s: expected charset=utf8mb4, got %s", colName, col.Charset)
 		}
 	}
 
