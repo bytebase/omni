@@ -135,26 +135,25 @@ func TestWalkThrough_5_1_ModifyFirstThenAddAfter(t *testing.T) {
 }
 
 func TestWalkThrough_5_1_DropThenReAdd(t *testing.T) {
-	// DROP COLUMN a, ADD COLUMN a INT — drop then re-add same column name
+	// DROP COLUMN a, ADD COLUMN a INT — drop then re-add same column name.
+	// TiDB v8.5.5 judges the ADD against the table the statement began with
+	// and answers 1060, leaving the table as it was.
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (a INT, b INT, c INT)")
-	wtExec(t, c, "ALTER TABLE t DROP COLUMN a, ADD COLUMN a INT")
+	results, _ := c.Exec("ALTER TABLE t DROP COLUMN a, ADD COLUMN a INT", nil)
+	assertError(t, results[0].Error, ErrDupColumn)
 
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	if tbl == nil {
 		t.Fatal("table not found")
 	}
-	// Expected order: b, c, a (dropped from front, re-added at end)
-	expected := []string{"b", "c", "a"}
+	expected := []string{"a", "b", "c"}
 	if len(tbl.Columns) != len(expected) {
 		t.Fatalf("expected %d columns, got %d", len(expected), len(tbl.Columns))
 	}
 	for i, name := range expected {
 		if tbl.Columns[i].Name != name {
 			t.Errorf("column %d: expected %q, got %q", i, name, tbl.Columns[i].Name)
-		}
-		if tbl.Columns[i].Position != i+1 {
-			t.Errorf("column %q: expected position %d, got %d", name, i+1, tbl.Columns[i].Position)
 		}
 	}
 }

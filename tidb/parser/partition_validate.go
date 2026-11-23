@@ -53,7 +53,7 @@ func (p *Parser) parsePartitionCount(what string) (int, error) {
 		return 0, p.syntaxErrorAtCur()
 	}
 	if p.cur.Ival == 0 {
-		return 0, &ParseError{Message: "Number of " + what + " = 0 is not an allowed value", Position: p.cur.Loc}
+		return 0, &ParseError{Message: "Number of " + what + " = 0 is not an allowed value", Position: p.cur.Loc, Code: 1504}
 	}
 	return int(p.advance().Ival), nil
 }
@@ -62,32 +62,32 @@ func (p *Parser) parsePartitionCount(what string) (int, error) {
 // part.Partitions.
 func validatePartitionClause(part *nodes.PartitionClause, bounds []partitionBound) error {
 	defs := part.Partitions
-	refuse := func(pos int, msg string) error {
-		return &ParseError{Message: msg, Position: pos}
+	refuse := func(pos int, msg string, code int) error {
+		return &ParseError{Message: msg, Position: pos, Code: code}
 	}
 	if part.NumParts != 0 && len(defs) != 0 && part.NumParts != len(defs) {
-		return refuse(part.Loc.Start, "Wrong number of partitions defined, mismatch with previous setting") // 1484
+		return refuse(part.Loc.Start, "Wrong number of partitions defined, mismatch with previous setting", 1484)
 	}
 	if len(defs) > 0 {
 		subs := len(defs[0].SubPartitions)
 		for _, def := range defs[1:] {
 			if len(def.SubPartitions) != subs {
-				return refuse(def.Loc.Start, "Wrong number of subpartitions defined, mismatch with previous setting") // 1485
+				return refuse(def.Loc.Start, "Wrong number of subpartitions defined, mismatch with previous setting", 1485)
 			}
 		}
 		if part.SubPartType != 0 {
 			if part.NumSubParts != 0 && subs != 0 && part.NumSubParts != subs {
-				return refuse(part.Loc.Start, "Wrong number of subpartitions defined, mismatch with previous setting") // 1485
+				return refuse(part.Loc.Start, "Wrong number of subpartitions defined, mismatch with previous setting", 1485)
 			}
 		} else if subs != 0 {
-			return refuse(defs[0].Loc.Start, "It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning") // 1500
+			return refuse(defs[0].Loc.Start, "It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning", 1500)
 		}
 	}
 	if (part.Type == nodes.PartitionRange || part.Type == nodes.PartitionList) && part.Interval == nil && len(defs) == 0 {
-		return refuse(part.Loc.Start, "For RANGE and LIST partitions each partition must be defined") // 1492
+		return refuse(part.Loc.Start, "For RANGE and LIST partitions each partition must be defined", 1492)
 	}
 	if part.Type == nodes.PartitionSystemTime && len(defs) < 2 {
-		return refuse(part.Loc.Start, "SYSTEM_TIME partitions must have at least two partitions: HISTORY and CURRENT") // 4128
+		return refuse(part.Loc.Start, "SYSTEM_TIME partitions must have at least two partitions: HISTORY and CURRENT", 4128)
 	}
 	for i, def := range defs {
 		if err := validatePartitionBound(part, def, bounds[i]); err != nil {
@@ -99,41 +99,41 @@ func validatePartitionClause(part *nodes.PartitionClause, bounds []partitionBoun
 
 // validatePartitionBound is the Validate method of the definition's clause.
 func validatePartitionBound(part *nodes.PartitionClause, def *nodes.PartitionDef, bound partitionBound) error {
-	refuse := func(msg string) error {
-		return &ParseError{Message: msg, Position: def.Loc.Start}
+	refuse := func(msg string, code int) error {
+		return &ParseError{Message: msg, Position: def.Loc.Start, Code: code}
 	}
 	columns := len(part.Columns)
 	switch bound {
 	case boundNone:
 		switch part.Type {
 		case nodes.PartitionRange:
-			return refuse("Syntax error: RANGE PARTITIONING requires definition of VALUES LESS THAN for each partition") // 1479
+			return refuse("Syntax error: RANGE PARTITIONING requires definition of VALUES LESS THAN for each partition", 1479)
 		case nodes.PartitionList:
-			return refuse("Syntax error: LIST PARTITIONING requires definition of VALUES IN for each partition") // 1479
+			return refuse("Syntax error: LIST PARTITIONING requires definition of VALUES IN for each partition", 1479)
 		case nodes.PartitionSystemTime:
-			return refuse("SYSTEM_TIME partitions must be HISTORY or CURRENT") // 4128
+			return refuse("SYSTEM_TIME partitions must be HISTORY or CURRENT", 4128)
 		}
 	case boundHistory:
 		if part.Type != nodes.PartitionSystemTime {
-			return refuse("Wrong partitioning type, expected type: SYSTEM_TIME") // 4113
+			return refuse("Wrong partitioning type, expected type: SYSTEM_TIME", 4113)
 		}
 	case boundLessThan:
 		if part.Type != nodes.PartitionRange {
-			return refuse("Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition") // 1480
+			return refuse("Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition", 1480)
 		}
 		values := 1
 		if list, ok := def.Values.(*nodes.List); ok {
 			values = len(list.Items)
 		}
 		if columns == 0 && values != 1 {
-			return refuse("Cannot have more than one value for this type of RANGE partitioning") // 1657
+			return refuse("Cannot have more than one value for this type of RANGE partitioning", 1657)
 		}
 		if columns > 0 && values != columns {
-			return refuse("Inconsistency in usage of column lists for partitioning") // 1653
+			return refuse("Inconsistency in usage of column lists for partitioning", 1653)
 		}
 	case boundIn:
 		if part.Type != nodes.PartitionList {
-			return refuse("Only LIST PARTITIONING can use VALUES IN in partition definition") // 1480
+			return refuse("Only LIST PARTITIONING can use VALUES IN in partition definition", 1480)
 		}
 		list, ok := def.Values.(*nodes.List)
 		if !ok {
@@ -147,7 +147,7 @@ func validatePartitionBound(part *nodes.PartitionClause, def *nodes.PartitionDef
 // validateInValues is PartitionDefinitionClauseIn.Validate over the values of one
 // VALUES IN. A row of values is a tuple or a lone value, and DEFAULT may stand alone in
 // place of a row of any width.
-func validateInValues(rows []nodes.Node, columns int, refuse func(string) error) error {
+func validateInValues(rows []nodes.Node, columns int, refuse func(string, int) error) error {
 	next := 1
 	expected := partitionRowWidth(rows[0])
 	if isPartitionDefault(rows[0]) && len(rows) > 1 {
@@ -156,14 +156,14 @@ func validateInValues(rows []nodes.Node, columns int, refuse func(string) error)
 	}
 	for _, row := range rows[next:] {
 		if partitionRowWidth(row) != expected && !isPartitionDefault(row) {
-			return refuse("Inconsistency in usage of column lists for partitioning") // 1653
+			return refuse("Inconsistency in usage of column lists for partitioning", 1653)
 		}
 	}
 	if columns == 0 && expected != 1 {
-		return refuse("Row expressions in VALUES IN only allowed for multi-field column partitioning") // 1658
+		return refuse("Row expressions in VALUES IN only allowed for multi-field column partitioning", 1658)
 	}
 	if columns > 0 && expected != columns && !(len(rows) == 1 && isPartitionDefault(rows[0])) {
-		return refuse("Inconsistency in usage of column lists for partitioning") // 1653
+		return refuse("Inconsistency in usage of column lists for partitioning", 1653)
 	}
 	return nil
 }

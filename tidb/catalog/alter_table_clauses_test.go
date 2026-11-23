@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -672,29 +673,23 @@ func TestAlterTableUpdateIndexes(t *testing.T) {
 	}
 }
 
-// TestAlterTableRenameLeavesItsCurrentDatabase: a second rename in the same
-// statement starts from where the first one left the table, not from the
-// database the statement began in. TiDB v8.5.5 answers 8200 to two renames in
-// one ALTER, but MySQL 8.0.46 and MariaDB 11.8.8 both run it and end with one
-// entry, and reading the starting database here left the intermediate
-// destination installed.
+// TestAlterTableRenameLeavesItsCurrentDatabase: TiDB v8.5.5 runs a RENAME TO
+// alone in an ALTER TABLE, and answers 8200 to two renames in one statement,
+// leaving the table where it was.
 func TestAlterTableRenameLeavesItsCurrentDatabase(t *testing.T) {
 	c := New()
 	execAll(t, c, "CREATE DATABASE d; CREATE DATABASE e; USE d; CREATE TABLE t (a INT);")
-	execAll(t, c, "ALTER TABLE t RENAME TO e.u, RENAME TO e.v;")
-
+	results, err := c.Exec("ALTER TABLE t RENAME TO e.u, RENAME TO e.v;", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var catErr *Error
+	if len(results) == 0 || !errors.As(results[0].Error, &catErr) || catErr.Code != ErrUnsupportedDDL {
+		t.Fatalf("got %v, want 8200", results)
+	}
 	d, e := c.databases["d"], c.databases["e"]
-	if len(d.Tables) != 0 {
-		t.Errorf("d holds %v, want nothing", d.Tables)
-	}
-	if len(e.Tables) != 1 || e.Tables["v"] == nil {
-		t.Fatalf("e holds %v, want just v", e.Tables)
-	}
-	if e.Tables["u"] != nil {
-		t.Errorf("the intermediate name u is still in e")
-	}
-	if tbl := e.Tables["v"]; tbl.Name != "v" || tbl.Database == nil || tbl.Database.Name != "e" {
-		t.Errorf("e.v = %q in %v, want v in e", tbl.Name, tbl.Database)
+	if d.Tables["t"] == nil || len(e.Tables) != 0 {
+		t.Errorf("d holds %v and e %v, want t in d alone", d.Tables, e.Tables)
 	}
 }
 

@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"strings"
 
 	nodes "github.com/bytebase/omni/tidb/ast"
 	mysqlparser "github.com/bytebase/omni/tidb/parser"
@@ -123,6 +124,10 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 			case "1", "on", "true":
 				c.extendedStats = true
 			}
+		case "sql_mode":
+			mode := strings.ToUpper(nodeToSQLValue(asgn.Value))
+			c.nonStrict = !(mode == "DEFAULT" || strings.Contains(mode, "STRICT_TRANS_TABLES") ||
+				strings.Contains(mode, "STRICT_ALL_TABLES") || strings.Contains(mode, "TRADITIONAL"))
 		case "names", "character set":
 			// Silently accept — these affect character encoding but
 			// the in-memory catalog doesn't need to change behavior.

@@ -14,7 +14,34 @@ After them come 20 hand-written `check:drop` rows
 (`../simulate_families_test.go`) on `features@check`, which turns
 `tidb_enable_check_constraint` on: dropping and renaming columns that a column
 CHECK, a one-column and a two-column table CHECK, and a CHECK reading no column
-read. 3,170 rows: 3,170 agree and 0 disagree.
+read.
+
+Then 297 rows carry mysql/catalog's DDL families to TiDB, on seven fixtures
+of their own and `one_table@missing`:
+
+| fixture | rows | families |
+| --- | ---: | --- |
+| `partitioned@range` | 54 | partition maintenance, repartitioning and bounds on RANGE and RANGE COLUMNS |
+| `partitioned@list` | 24 | the same on LIST and LIST COLUMNS |
+| `partitioned@hash` | 35 | the same on HASH, KEY and LINEAR HASH |
+| `features@generated` | 61 | generated columns, expression and invisible keys, CHECK constraints (turned on as `features@check` does) |
+| `features@charset` | 29 | CONVERT TO, table and column character sets, column lengths |
+| `features@fk` | 45 | foreign keys added, dropped, renamed and redefined across three tables |
+| `schemas@cross` | 15 | RENAME TABLE and views across two schemas |
+| `one_table@missing` | 34 | ALTER TABLE and CREATE INDEX under ALGORITHM and LOCK |
+
+TiDB has no spatial or fulltext keys, events or invisible columns, so those
+families are left out. `schemas@cross` keeps a second database,
+`simulation_other`, which the next row's build drops only after the
+simulation database. Each fixture's build turns `tidb_enable_check_constraint`
+off first, as the catalog that loads it starts, since the setting is global
+and a fixture may turn it on.
+
+3,467 rows: 3,466 agree and 1 disagrees. The one is `ALTER TABLE people ADD
+INDEX idx_tags ((CAST(doc->'$.tags' AS UNSIGNED ARRAY)))`: the catalog writes
+the key's expression as MySQL does (``json_extract(`doc`,'$.tags')``) where TiDB
+writes ``json_extract(`doc`, _utf8mb4'$.tags')``, the gap
+`TestContainerLoadMetadataMatchesTiDB` lists for key expressions.
 
 ## Commands
 

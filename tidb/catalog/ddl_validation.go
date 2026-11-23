@@ -166,6 +166,31 @@ func checkAlterTableCharset(origCharset, origCollate, toCharset, toCollate strin
 	return nil
 }
 
+// checkColumnCharsetChange holds one column's character set change to the
+// pairs checkAlterTableCharset takes: ascii to utf8mb4, utf8mb4 to latin1 and
+// latin1 to utf8 are 8200 (read on v8.5.5).
+func checkColumnCharsetChange(from, to string) error {
+	fromCS, toCS := normalizeCharsetName(from), normalizeCharsetName(to)
+	if fromCS == "" || toCS == "" || fromCS == toCS ||
+		(fromCS == "utf8" && toCS == "utf8mb4") || (fromCS == "latin1" && toCS == "utf8mb4") {
+		return nil
+	}
+	return &Error{
+		Code:     ErrUnsupportedDDL,
+		SQLState: sqlState(ErrUnsupportedDDL),
+		Message:  fmt.Sprintf("Unsupported modify charset from %s to %s", fromCS, toCS),
+	}
+}
+
+// columnCharsetOf is a column's character set, its table's where it names
+// none.
+func columnCharsetOf(tbl *Table, col *Column) string {
+	if col.Charset != "" {
+		return col.Charset
+	}
+	return tbl.Charset
+}
+
 // checkAlterAttributes validates TiDB's ATTRIBUTES = '...' specification
 // (pkg/ddl/label/attributes.go): comma-separated non-empty key=value pairs with
 // no conflicting values for the same key (8237).

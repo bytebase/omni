@@ -1,8 +1,23 @@
 package catalog
 
-import nodes "github.com/bytebase/omni/tidb/ast"
+import (
+	"fmt"
+
+	nodes "github.com/bytebase/omni/tidb/ast"
+)
 
 func (c *Catalog) dropTable(stmt *nodes.DropTableStmt) error {
+	// A foreign key of a table the statement drops too does not hold a parent
+	// back (v8.5.5: DROP TABLE p, c1, c2 runs where DROP TABLE p, c1 is 3730
+	// for c2's key).
+	dropping := map[string]bool{}
+	for _, ref := range stmt.Tables {
+		if db, err := c.resolveDatabase(ref.Schema); err == nil {
+			dropping[toLower(db.Name)+"."+toLower(ref.Name)] = true
+		}
+	}
+	c.droppingTables = dropping
+	defer func() { c.droppingTables = nil }()
 	for _, ref := range stmt.Tables {
 		dbName := ref.Schema
 		db, err := c.resolveDatabase(dbName)
@@ -44,8 +59,11 @@ func (c *Catalog) checkFKReferences(dbName, tableName string) error {
 	tblKey := toLower(tableName)
 	for _, db := range c.databases {
 		for _, tbl := range db.Tables {
-			// Skip the table itself.
+			// Skip the table itself, and the others the statement drops.
 			if toLower(db.Name) == dbKey && toLower(tbl.Name) == tblKey {
+				continue
+			}
+			if c.droppingTables[toLower(db.Name)+"."+toLower(tbl.Name)] {
 				continue
 			}
 			for _, con := range tbl.Constraints {
@@ -78,6 +96,20 @@ func (c *Catalog) truncateTable(stmt *nodes.TruncateStmt) error {
 		}
 		if tbl.Cached {
 			return errCachedTable("Truncate Table")
+		}
+		// A table another table's foreign key references is not truncated
+		// while foreign_key_checks is on (v8.5.5: TRUNCATE TABLE customers
+		// under orders' fk_customer is 1701). A key of the table to itself
+		// does not count.
+		if c.foreignKeyChecks {
+			for _, ref := range c.referencingForeignKeys(tbl) {
+				if ref.child == tbl {
+					continue
+				}
+				return &Error{Code: 1701, SQLState: "42000", Message: fmt.Sprintf(
+					"Cannot truncate a table referenced in a foreign key constraint (`%s`.`%s` CONSTRAINT `%s`)",
+					ref.child.Database.Name, ref.child.Name, ref.con.Name)}
+			}
 		}
 		tbl.AutoIncrement = 0
 	}

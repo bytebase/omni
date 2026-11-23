@@ -99,7 +99,10 @@ func simulationEngine(t testing.TB) func(simulate.Fixture, string) (simulate.Ans
 	t.Cleanup(done)
 	db, ctx := ctr.db, ctr.ctx
 	return func(fx simulate.Fixture, statement string) (simulate.Answer, error) {
-		build := fmt.Sprintf("DROP DATABASE IF EXISTS %[1]s; CREATE DATABASE %[1]s; USE %[1]s; %[2]s", simulationDatabase, fx.SQL)
+		// tidb_enable_check_constraint is global and a fixture may turn it on
+		// (features@check, features@generated): each build starts with it off,
+		// as the catalog each row loads does, so no fixture inherits another's.
+		build := fmt.Sprintf("SET GLOBAL tidb_enable_check_constraint = OFF; DROP DATABASE IF EXISTS %[1]s; CREATE DATABASE %[1]s; USE %[1]s; %[2]s", simulationDatabase, fx.SQL)
 		if _, err := db.ExecContext(ctx, build); err != nil {
 			return simulate.Answer{}, fmt.Errorf("build fixture %s: %w", fx.Name, err)
 		}
@@ -192,7 +195,11 @@ func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answe
 	var syntax *tidbparser.ParseError
 	switch {
 	case errors.As(err, &syntax):
-		return simulate.Omni{Code: "1064", Why: err.Error()}
+		code := "1064"
+		if syntax.Code != 0 {
+			code = strconv.Itoa(syntax.Code)
+		}
+		return simulate.Omni{Code: code, Why: err.Error()}
 	case err != nil:
 		return simulate.Omni{Code: simulate.NoCode, Why: err.Error()}
 	}

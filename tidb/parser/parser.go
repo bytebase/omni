@@ -254,8 +254,13 @@ func (p *Parser) inputText(start, end int) string {
 
 // ParseError represents a parse error with position information.
 type ParseError struct {
-	Message     string
-	Position    int
+	Message  string
+	Position int
+	// Code is the error number TiDB answers with where a grammar action
+	// refuses what the productions read, rather than a syntax error: 1504
+	// for PARTITIONS 0, 1492 for a RANGE or LIST clause with no partitions.
+	// 0 is a syntax error, which the server answers with 1064.
+	Code        int
 	Line        int    // 1-based line number
 	Column      int    // 1-based column number
 	RelatedText string // source text of the line where the error occurred
