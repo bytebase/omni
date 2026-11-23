@@ -182,6 +182,11 @@ func sameType(a, b qtype) bool {
 // parseColumnType reads a catalog column's type text (as normalizeDataTypeText
 // writes it, or as a synced schema holds it) into a qtype.
 func parseColumnType(text string) qtype {
+	if strings.Contains(text, `"`) {
+		// A user-defined type named by a quoted identifier keeps its case;
+		// no built-in type is spelled with quotes.
+		return simpleType(strings.TrimSpace(text))
+	}
 	s := strings.ToUpper(strings.TrimSpace(text))
 	if s == "" {
 		return simpleType("UNKNOWN")

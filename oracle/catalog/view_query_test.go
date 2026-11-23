@@ -1108,3 +1108,45 @@ func TestViewQueryIntervalConcat(t *testing.T) {
 		t.Errorf("type = %q, want unknown", got)
 	}
 }
+
+func TestViewQueryRound53(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TYPE "Address" AS OBJECT (x NUMBER);
+CREATE TABLE t (a "Address", c VARCHAR2(10000), id NUMBER);
+CREATE PUBLIC SYNONYM dual FOR t;
+CREATE VIEW q AS SELECT a FROM t;
+CREATE VIEW l AS SELECT c FROM t;
+CREATE VIEW s AS SELECT id FROM dual;
+CREATE VIEW d AS SELECT DISTINCT id FROM t;
+CREATE VIEW p AS SELECT id FROM t;
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{"Q": `"Address"`, "L": "VARCHAR2(10000 BYTE)", "S": "NUMBER"}
+	for _, v := range c.Metadata().GetSchemas()[0].GetViews() {
+		w, ok := want[v.GetName()]
+		if !ok {
+			continue
+		}
+		if cols := v.GetColumns(); len(cols) != 1 || cols[0].GetType() != w {
+			t.Errorf("%s columns = %v, want one of type %q", v.GetName(), cols, w)
+		}
+	}
+	c.SetServerConfig(StandardOracle23ServerConfig())
+	for _, tc := range []struct{ sql, code string }{
+		{`CREATE VIEW r1 AS SELECT ROWID r FROM d`, "01446"},
+		{`CREATE VIEW r2 AS SELECT d.ROWID r FROM d`, "01446"},
+		{`CREATE VIEW r3 AS SELECT ROWID r FROM p`, ""},
+	} {
+		results, err := c.Exec(tc.sql, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var refusal *Error
+		if tc.code == "" && results[0].Error != nil ||
+			tc.code != "" && (!errors.As(results[0].Error, &refusal) || refusal.Code != tc.code) {
+			t.Errorf("%s: %v, want %q", tc.sql, results[0].Error, tc.code)
+		}
+	}
+}

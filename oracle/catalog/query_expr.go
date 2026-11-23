@@ -142,6 +142,10 @@ func (a *queryAnalyzer) analyzeExpr(x ast.ExprNode, sc *qscope, clause exprClaus
 	case *ast.PseudoColumn:
 		switch n.Type {
 		case ast.PSEUDO_ROWID:
+			if sc != nil && sc.from != nil && len(sc.from.rels) == 1 && sc.from.rels[0].noRowid {
+				// The block's one item is a view whose rows have no ROWID.
+				return qtype{}, false, oraError("01446", "cannot select ROWID from, or sample, a view with DISTINCT, GROUP BY, etc.")
+			}
 			return simpleType("ROWID"), false, nil
 		case ast.PSEUDO_LEVEL:
 			if !sc.inHierarchical() {

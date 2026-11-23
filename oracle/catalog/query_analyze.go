@@ -180,7 +180,10 @@ func (e *oracleMetadataExtractor) analyzeViewQuery(query ast.StmtNode, viewName 
 		return nil, "", err
 	}
 	limit := maxVarchar2Bytes
-	if strings.EqualFold(e.serverConfig.MaxStringSize, "EXTENDED") {
+	if strings.EqualFold(e.serverConfig.MaxStringSize, "EXTENDED") ||
+		strings.TrimSpace(e.serverConfig.MaxStringSize) == "" && e.hasExtendedStrings() {
+		// An unset MAX_STRING_SIZE is EXTENDED when a table already holds
+		// a column only EXTENDED allows.
 		limit = longestVarchar2
 	}
 	res.cols = clampStringTypes(res.cols, limit)
@@ -2166,4 +2169,29 @@ func hasPlusJoin(x ast.Node) bool {
 		return !found
 	})
 	return found
+}
+
+// hasExtendedStrings reports whether a table declares a string or RAW
+// column longer than MAX_STRING_SIZE = STANDARD allows.
+func (e *oracleMetadataExtractor) hasExtendedStrings() bool {
+	for _, t := range e.tables {
+		for _, c := range t.GetColumns() {
+			typ := parseColumnType(c.GetType())
+			switch typ.kind {
+			case "VARCHAR2":
+				if typ.chars > maxVarchar2Bytes {
+					return true
+				}
+			case "NVARCHAR2":
+				if typ.bytes > maxVarchar2Bytes {
+					return true
+				}
+			case "RAW":
+				if typ.bytes > maxCharBytes {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }

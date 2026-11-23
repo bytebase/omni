@@ -5,6 +5,7 @@ import (
 	"unicode"
 
 	metadatapb "github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/oracle"
 	"github.com/bytebase/omni/oracle/ast"
 )
 
@@ -185,6 +186,11 @@ func (a *queryAnalyzer) tableRef(n *ast.TableRef, sc *qscope) (*qfrom, error) {
 		owner = e.owner
 	}
 	localDual := e.tables["DUAL"] != nil || e.views["DUAL"] != nil || e.synonyms["DUAL"] != nil
+	if !localDual && schema == "" && e.publicSynonyms["DUAL"] != nil {
+		// A public synonym DUAL that names an object of the schema.
+		target := e.resolveSynonymTarget("DUAL", "")
+		localDual = target != "DUAL" && (e.tables[target] != nil || e.views[target] != nil)
+	}
 	if name == "DUAL" && (schema == "SYS" || (schema == "" || schema == "PUBLIC") && !localDual) {
 		// SYS.DUAL, or DUAL when no object of the schema shadows it.
 		rel := &qrel{name: exposed, cols: dualColumns()}
@@ -217,6 +223,7 @@ func (a *queryAnalyzer) tableRef(n *ast.TableRef, sc *qscope) (*qfrom, error) {
 		}
 		rel.cols = tableColumns(e.views[target].Columns)
 		rel.view = true
+		rel.noRowid = !storedViewKeepsRowid(e.views[target].GetDefinition())
 	case e.materializedViews[target] != nil && e.tables[target] != nil:
 		rel.cols = tableColumns(e.tables[target].Columns)
 	case e.tables[target] != nil:
@@ -1383,6 +1390,28 @@ func (e *oracleMetadataExtractor) viewReads(view, target string, seen map[string
 		}
 	}
 	return false
+}
+
+// storedViewKeepsRowid reports whether a stored view's query keeps its rows'
+// ROWIDs, as rowidPreserving decides for an inline view. A definition that
+// does not parse is given the benefit of the doubt.
+func storedViewKeepsRowid(definition string) bool {
+	if strings.TrimSpace(definition) == "" {
+		return true
+	}
+	stmts, err := oracle.Parse("CREATE VIEW OMNI_PROBE AS " + definition)
+	if err != nil || len(stmts) == 0 {
+		return true
+	}
+	cv, ok := stmts[0].AST.(*ast.CreateViewStmt)
+	if !ok {
+		return true
+	}
+	sel, ok := cv.Query.(*ast.SelectStmt)
+	if !ok || sel == nil {
+		return true
+	}
+	return rowidPreserving(sel)
 }
 
 // rowidPreserving reports whether an inline view keeps its rows' ROWIDs:
