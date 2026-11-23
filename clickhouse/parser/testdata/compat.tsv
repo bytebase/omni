@@ -4040,3 +4040,147 @@ accept	accept	engine	suite:access-or-replace	CREATE PROFILE OR REPLACE s
 accept	accept	engine	suite:access-or-replace	CREATE PROFILE IF NOT EXISTS s
 reject	reject	engine	suite:access-or-replace	CREATE PROFILE OR REPLACE IF NOT EXISTS s
 reject	reject	engine	suite:access-or-replace	ALTER PROFILE OR REPLACE s
+accept	accept	engine	suite:type-args	CREATE TABLE t (c a(.1)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c a(-.1)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c a(+.1)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c a(.1e1)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c a(1.)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c a(1, .1)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c a(.1 = 1)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c a('a' = .1)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Decimal(.1, 2)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c a(0x1)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c a(-inf)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Dynamic) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Dynamic()) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Dynamic(max_types = 1)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Dynamic(max_types = 1,)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Dynamic(max_types = -1)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Dynamic(max_types = 1.5)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Dynamic(max_types = .5)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Dynamic(max_types = inf)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Dynamic(max_types = 0x10)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c Dynamic(max_types = 'a')) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c Dynamic(max_types = NULL)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c Dynamic(max_types = 1 + 1)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c Dynamic(max_types = (1))) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c Dynamic(max_types)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c Dynamic(1)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c Dynamic(UInt8)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c Dynamic('a' = 1)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c Dynamic(a.b = 1)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Dynamic(`max_types` = 1)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Dynamic(max_types = 1, max_types = 2)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c dynamic(max_types = 1)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c DYNAMIC(UInt8)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c JSON) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c JSON()) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c JSON(a UInt8)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c JSON(a.b UInt8)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c JSON(a.b.c Array(Nullable(String)))) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c JSON(`a b`.c UInt8)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c JSON(a.b UInt8,)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c JSON(max_dynamic_paths = 10)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c JSON(max_dynamic_paths = -1)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c JSON(max_dynamic_paths = 1.5)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c JSON(max_dynamic_paths = 'a')) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c JSON(max_dynamic_paths = 1 + 1)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c JSON(a.b = 1)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c JSON(max_dynamic_paths = 10, a.b UInt8, SKIP c.d, SKIP REGEXP 'x.*')) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c JSON(SKIP a)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c JSON(SKIP a.b.c)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c JSON(SKIP REGEXP 'a')) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c JSON(SKIP REGEXP a)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c JSON(SKIP REGEXP)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c JSON(SKIP)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c JSON(SKIP 'a')) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c JSON(SKIP a UInt8)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c JSON(a)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c JSON(a 1)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c JSON(a UInt8 = 1)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c JSON(1)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c JSON('a' = 1)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c JSON(UInt8)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c json(a.b UInt8)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Json(SKIP a)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c JSON(SKIP a, SKIP REGEXP 'b',)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Object('json')) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Nested(a UInt8)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Nested(a UInt8, b String)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Nested(a UInt8,)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Nested(a Nested(b UInt8))) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Nested()) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c Nested(UInt8)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c Nested(a 1)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c Nested('a' = 1)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c Nested(a UInt8, UInt8)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c NESTED(UInt8)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Tuple()) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Tuple(UInt8)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Tuple(UInt8,)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Tuple(a UInt8, String)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Tuple(a UInt8, b String)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Tuple(a Tuple(b UInt8))) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c Tuple(1)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c Tuple('a')) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c Tuple('a' = 1)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c Tuple(a 1)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c Tuple(a.b UInt8)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c Tuple(UInt8, 1)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c tuple(1)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c AggregateFunction(sum, UInt64)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c AggregateFunction(quantiles(0.5, 0.9), UInt64)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c AggregateFunction(sequenceMatch('(?1)(?2)'), DateTime, UInt8, UInt8)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c AggregateFunction(f(1)(2), UInt64)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c AggregateFunction(sum(1 + 1), UInt64)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c AggregateFunction(1, sum, UInt64)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c AggregateFunction(1, quantiles(0.5), UInt64)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c AggregateFunction(1, 2, UInt64)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c AggregateFunction(-1, sum, UInt64)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c AggregateFunction(1.5, sum, UInt64)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c AggregateFunction(sum)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c AggregateFunction()) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c AggregateFunction(sum, 1)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c AggregateFunction(sum, 'a')) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c AggregateFunction(sum, Array(UInt8))) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c AggregateFunction(sum, a UInt8)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c AggregateFunction(sum, UInt64,)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c AggregateFunction('sum', UInt64)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c AggregateFunction(a.b, UInt64)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c AggregateFunction(sum, UInt64, 1)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c SimpleAggregateFunction(sum, UInt64)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c SimpleAggregateFunction(anyLast, Nullable(String))) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c SimpleAggregateFunction(1, sum, UInt64)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c SimpleAggregateFunction(sum, 1)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c SimpleAggregateFunction(quantiles(0.5), UInt64)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c aggregatefunction(1, 2)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Variant(UInt8, String)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Variant()) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Variant(1)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c Variant(a UInt8)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Variant(Array(UInt8), Tuple(a UInt8), Map(String, UInt64))) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c Variant('a' = 1)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c LowCardinality(Nullable(String))) ENGINE = Memory
+reject	reject	engine	suite:type-args	SELECT .1
+accept	accept	engine	suite:type-args	SELECT (.1)
+accept	accept	engine	suite:type-args	SELECT [.1]
+accept	accept	engine	suite:type-args	SELECT 1 + .1
+accept	accept	engine	suite:type-args	SELECT -.1
+accept	accept	engine	suite:type-args	SELECT f(.1)
+accept	accept	engine	suite:type-args	SELECT f(1, .1)
+accept	accept	engine	suite:type-args	SELECT a.1
+accept	accept	engine	suite:type-args	SELECT (a).1
+accept	accept	engine	suite:type-args	SELECT 1 :: a(.1)
+accept	accept	engine	suite:type-args	SELECT CAST(1 AS Decimal(.1, 2))
+accept	accept	engine	suite:type-args	SELECT 1 :: Dynamic(max_types = 1)
+reject	reject	engine	suite:type-args	SELECT 1 :: Dynamic(max_types = 1 + 1)
+accept	accept	engine	suite:type-args	SELECT CAST(1 AS JSON(SKIP a))
+reject	reject	engine	suite:type-args	SELECT CAST(1 AS Tuple(1))
+reject	reject	engine	suite:type-args	CREATE TABLE t (c nested(a UInt8)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c tuple(a UInt8)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c JSON(skip UInt8)) ENGINE = Memory
+reject	reject	engine	suite:type-args	CREATE TABLE t (c JSON(`SKIP` a.b UInt8)) ENGINE = Memory
+accept	accept	engine	suite:type-args	CREATE TABLE t (c AggregateFunction(0, sum, UInt64)) ENGINE = Memory
+accept	accept	engine	suite:type-args	SELECT t.1.1
+accept	accept	engine	suite:type-args	SELECT a[1].1
+accept	accept	engine	suite:type-args	SELECT 1 IN (.1, .2)

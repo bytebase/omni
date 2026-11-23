@@ -18,7 +18,8 @@ the SHA-256 of the vendored grammar files against the `grammar` row of
 | One per alternative | 1,401 | 1,401 (100.0%) | 0 | 0 |
 | Near-misses | 2,604 | 2,604 (100.0%) | 0 | 0 |
 | Hand-added (`suite:access-or-replace`) | 35 | 35 (100.0%) | 0 | 0 |
-| **All** | **4,040** | **4,040 (100.0%)** | **0** | **0** |
+| Hand-added (`suite:type-args`) | 144 | 144 (100.0%) | 0 | 0 |
+| **All** | **4,184** | **4,184 (100.0%)** | **0** | **0** |
 
 An optional clause that several alternatives of one rule share, such as
 `createStmt`'s `(IF NOT EXISTS)?`, gets a row at each of them:
@@ -31,6 +32,12 @@ The hand-added rows hold where an access entity takes `OR REPLACE`: after its
 keyword (`CREATE ROW POLICY OR REPLACE`), never before it, and not beside `IF NOT
 EXISTS`. The grammar has no rule for creating an access entity, and the driver's
 dump writes `CREATE ROW POLICY OR REPLACE`.
+
+The `suite:type-args` rows hold the type arguments the grammar does not
+describe: the argument parsers `ParserDataType.cpp` keeps for `Dynamic`, `JSON`,
+`Nested`, `Tuple` and the aggregate-function types, and a number written with a
+leading dot (`.1`), which `Lexer.cpp` reads as a number wherever a dot cannot
+qualify or access what precedes it.
 
 To record or verify against the pinned ClickHouse container:
 
@@ -75,6 +82,6 @@ settings between `EXPLAIN AST` and the inner query (such as `graph = 1`),
 
 ## Remaining disagreements
 
-None — all 4,040 rows (1,401 grammar alternatives, 2,604 near-misses and 35
+None — all 4,184 rows (1,401 grammar alternatives, 2,604 near-misses and 179
 hand-added rows) agree
 with ClickHouse 26.8.38.9 (`0` ClickHouse-only, `0` omni-only).
