@@ -22,6 +22,9 @@ type tablePartitionInfo struct {
 	// single is set when each partition's bound is one value: RANGE or
 	// LIST of an expression, or of one column.
 	single bool
+	// subparts is set when the table has subpartitions, whose names
+	// TRUNCATE and EXCHANGE PARTITION take too; names holds none of them.
+	subparts bool
 	// bounds holds each partition's bound in order, as
 	// INFORMATION_SCHEMA.PARTITIONS describes it; nil if unknown.
 	bounds []string
@@ -157,6 +160,7 @@ func partitionInfoFromClause(pc *ast.PartitionClause) *tablePartitionInfo {
 		partType:    pc.Type,
 		cols:        make(map[string]bool),
 		single:      len(pc.Columns) <= 1,
+		subparts:    partitionHasSubpartitions(pc),
 	}
 	if len(pc.Partitions) > 0 {
 		info.names = make(map[string]bool, len(pc.Partitions))

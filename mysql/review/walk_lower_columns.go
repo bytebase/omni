@@ -83,8 +83,12 @@ func columnTypeFault(col *ast.ColumnDef, charset string) string {
 		width := 1
 		if base == "varchar" && !dt.Binary {
 			cs := charset
-			if dt.Charset != "" {
+			switch {
+			case dt.Charset != "":
 				cs = normalCharset(dt.Charset)
+			case dt.Collate != "":
+				// A column's collation names its character set.
+				cs = collationCharset(dt.Collate)
 			}
 			if w, ok := charsetMaxBytes[cs]; ok {
 				width = w
@@ -219,7 +223,7 @@ func (b *builder) createColumnsFail(v *ast.CreateTableStmt, r tableRef) bool {
 	if !v.Temporary {
 		names, rngs := checkNames(v)
 		for i, n := range names {
-			if b.checkNameTakenFails(r.db, n, rngs[i]) {
+			if b.checkNameTakenFails(r.db, n, walk.Key{}, rngs[i]) {
 				return true
 			}
 		}
@@ -275,6 +279,15 @@ func (b *builder) createColumnsFail(v *ast.CreateTableStmt, r tableRef) bool {
 // keyTextFault refuses, or a CHECK constraint of a name the database has
 // (3822), or making the primary key invisible (3522).
 func (b *builder) alterKeysFail(r tableRef, v *ast.AlterTableStmt) bool {
+	// A CHECK the statement drops frees its name for one it adds.
+	dropped := make(map[string]bool)
+	for _, c := range v.Commands {
+		if c != nil && c.Type == ast.ATDropConstraint {
+			if k, ok := b.key(spaceCheckConstraint, c.Name); ok {
+				dropped[k] = true
+			}
+		}
+	}
 	for _, c := range v.Commands {
 		if c == nil {
 			continue
@@ -285,8 +298,14 @@ func (b *builder) alterKeysFail(r tableRef, v *ast.AlterTableStmt) bool {
 				b.fail(rangeOf(c.Loc), nil, review.UnsupportedForm, msg)
 				return true
 			}
-			if c.Constraint != nil && c.Constraint.Type == ast.ConstrCheck && b.checkNameTakenFails(r.db, c.Constraint.Name, rangeOf(c.Loc)) {
-				return true
+			if c.Constraint != nil && c.Constraint.Type == ast.ConstrCheck {
+				var freed walk.Key
+				if k, ok := b.key(spaceCheckConstraint, c.Constraint.Name); ok && dropped[k] {
+					freed = chkKey(r.db, r.name, k)
+				}
+				if b.checkNameTakenFails(r.db, c.Constraint.Name, freed, rangeOf(c.Loc)) {
+					return true
+				}
 			}
 		case ast.ATAlterIndexInvisible:
 			if strings.EqualFold(c.Name, "PRIMARY") {
@@ -457,7 +476,7 @@ func (b *builder) forgetGenerated(r tableRef) {
 // checkNameTakenFails fails a statement adding a CHECK constraint whose
 // name a CHECK constraint the sync lists in the database already has, on
 // any table: the names are the database's (3822, verified on mysql:8.0.46).
-func (b *builder) checkNameTakenFails(db, name string, rng review.Range) bool {
+func (b *builder) checkNameTakenFails(db, name string, freed walk.Key, rng review.Range) bool {
 	if name == "" || db != b.w.snap.db {
 		return false
 	}
@@ -474,6 +493,9 @@ func (b *builder) checkNameTakenFails(db, name string, rng review.Range) bool {
 	sort.Strings(tables)
 	for _, t := range tables {
 		ck := chkKey(db, t, k)
+		if ck == freed {
+			continue
+		}
 		if f, _ := b.l.Lookup(ck); f == walk.Present {
 			b.failReferenced(rng, []walk.Key{ck}, "Check constraint "+review.Code(ident(name))+" already exists in "+review.Code(t)+".")
 			return true

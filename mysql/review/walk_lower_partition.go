@@ -315,11 +315,12 @@ func (b *builder) partitionOpFails(r tableRef, pi *tablePartitionInfo, c *ast.Al
 		}
 	case ast.ATTruncatePartition, ast.ATExchangePartition, ast.ATRebuildPartition,
 		ast.ATDiscardPartitionTablespace, ast.ATImportPartitionTablespace:
-		if c.AllPartitions {
-			break
-		}
-		if n := unknown(c.PartitionNames); n != "" {
-			return fail(notFound("partition", ident(n), r.written))
+		// A subpartition's name, which pi.names doesn't hold, works here
+		// too.
+		if !c.AllPartitions && !pi.subparts {
+			if n := unknown(c.PartitionNames); n != "" {
+				return fail(notFound("partition", ident(n), r.written))
+			}
 		}
 		if c.Type == ast.ATExchangePartition && c.ExchangeTable != nil {
 			if er, st := b.ref(c.ExchangeTable); st == refOK {

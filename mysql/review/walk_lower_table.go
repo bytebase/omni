@@ -1594,6 +1594,7 @@ func (b *builder) dropTable(v *ast.DropTableStmt) bool {
 			b.Set(tk, walk.Absent, "")
 			continue
 		case walk.Unknown:
+			known = false
 			b.Set(tk, walk.Unknown, "")
 			b.Set(k, walk.Unknown, "")
 			b.Forget(path)

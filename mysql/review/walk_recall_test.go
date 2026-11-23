@@ -70,9 +70,17 @@ func recallSchema() *metadata.DatabaseSchemaMetadata {
 					Name: "hsh", Engine: "InnoDB", Columns: []*metadata.ColumnMetadata{col("id", "int"), col("u", "int")}, Indexes: []*metadata.IndexMetadata{pk("id")},
 					Partitions: part(metadata.TablePartitionMetadata_HASH, "`id`", [2]string{"p0", ""}, [2]string{"p1", ""}, [2]string{"p2", ""}),
 				},
+				{
+					Name: "sub", Engine: "InnoDB", Columns: []*metadata.ColumnMetadata{col("id", "int")}, Indexes: []*metadata.IndexMetadata{pk("id")},
+					Partitions: []*metadata.TablePartitionMetadata{{
+						Name: "p0", Type: metadata.TablePartitionMetadata_RANGE, Expression: "`id`", Value: "10",
+						Subpartitions: []*metadata.TablePartitionMetadata{{Name: "p0sp0", Type: metadata.TablePartitionMetadata_HASH, Expression: "`id`"}},
+					}},
+				},
 				{Name: "sec", Engine: "InnoDB", Columns: []*metadata.ColumnMetadata{col("id", "int")}, Indexes: []*metadata.IndexMetadata{pk("id")}, CreateOptions: `SECONDARY_ENGINE="RAPID"`},
 			},
-			Views: []*metadata.ViewMetadata{{Name: "v"}},
+			Views:     []*metadata.ViewMetadata{{Name: "v"}},
+			Functions: []*metadata.FunctionMetadata{{Name: "f"}},
 		}},
 	}
 }
@@ -196,6 +204,7 @@ func TestWalkThroughMySQLAlgorithmAndLock(t *testing.T) {
 func TestWalkThroughMySQLForeignKeyDependents(t *testing.T) {
 	runRecallCases(t, []recallCase{
 		{sql: "DROP TABLE parent, child;"},
+		{sql: "SELECT f();\nDROP TEMPORARY TABLE IF EXISTS parent;\nDROP TABLE parent, child;"},
 		{sql: "DROP TABLE IF EXISTS parent, nosuch;", want: "Table `parent` is referenced by foreign key `fk_pid` of `child`."},
 		{sql: "TRUNCATE TABLE parent;", want: "Table `parent` is referenced by foreign key `fk_pid` of `child`."},
 		{sql: "TRUNCATE TABLE child;"},
@@ -223,6 +232,7 @@ func TestWalkThroughMySQLForeignKeyDependents(t *testing.T) {
 func TestWalkThroughMySQLPartitionOperations(t *testing.T) {
 	runRecallCases(t, []recallCase{
 		{sql: "ALTER TABLE rng DROP PARTITION nope;", want: "Partition `nope` doesn't exist in `rng`."},
+		{sql: "ALTER TABLE sub TRUNCATE PARTITION p0sp0;"},
 		{sql: "ALTER TABLE rng TRUNCATE PARTITION p0, nope;", want: "Partition `nope` doesn't exist in `rng`."},
 		{sql: "ALTER TABLE lst ADD PARTITION (PARTITION p2 VALUES IN (4, 5));", want: "The partitions' `VALUES IN` name `4` twice."},
 		{sql: "ALTER TABLE hsh DROP PARTITION p0;", want: "`DROP PARTITION` works only on `RANGE` or `LIST` partitioning."},
@@ -256,6 +266,9 @@ func TestWalkThroughMySQLColumnsAndChecks(t *testing.T) {
 	runRecallCases(t, []recallCase{
 		{sql: "ALTER TABLE chk DROP CHECK k2, DROP COLUMN b;"},
 		{sql: "ALTER TABLE chk DROP CHECK k1;\nALTER TABLE chk ADD CONSTRAINT k1 CHECK (b > 0);\nALTER TABLE chk RENAME COLUMN a TO a2;"},
+		{sql: "ALTER TABLE chk DROP CHECK k1, ADD CONSTRAINT k1 CHECK (b > 0);"},
+		{sql: "CREATE TABLE x (a VARCHAR(20000) COLLATE latin1_bin) DEFAULT CHARSET = utf8mb4;"},
+		{sql: "CREATE TABLE x (a VARCHAR(20000) COLLATE utf8mb4_bin) DEFAULT CHARSET = latin1;", want: "Column `a` is longer than 16383 characters, MySQL's limit for its type; use `TEXT` or `BLOB`."},
 		{sql: "ALTER TABLE chk DROP COLUMN b, DROP COLUMN c;", want: "Check constraint `k2` uses column `b`, which can't be dropped or renamed."},
 		{sql: "ALTER TABLE chk MODIFY b BIGINT;"},
 		{sql: "ALTER TABLE t ADD CONSTRAINT K1 CHECK (a > 0);", want: "Check constraint `K1` already exists in `chk`."},

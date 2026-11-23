@@ -342,6 +342,9 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 					}
 				}
 				for _, p := range parts {
+					if len(p.GetSubpartitions()) > 0 {
+						pinfo.subparts = true
+					}
 					if p.GetName() != "" {
 						pinfo.names[strings.ToLower(p.GetName())] = true
 					}
