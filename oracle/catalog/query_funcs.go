@@ -288,6 +288,9 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 			// A number or date is converted to characters first.
 			t = varchar2Bytes(concatLength(t))
 		}
+		if t.kind == "NCHAR" {
+			t.kind = "NVARCHAR2"
+		}
 		// A replacement no longer than what it replaces keeps the source's
 		// length; a longer or unknown one leaves the length unknown.
 		search, sok := literalString(argNode(n, 1))
@@ -519,6 +522,9 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		}
 		return widenFirst(args), false, nil
 	case "NULLIF":
+		if err := comparable(arg(0), arg(1), nil); err != nil {
+			return qtype{}, false, err
+		}
 		t := arg(0)
 		if t.isNumeric() {
 			// The higher numeric precedence of the two.

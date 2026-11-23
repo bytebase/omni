@@ -23,7 +23,7 @@ func (a *queryAnalyzer) fromItem(te ast.TableExpr, sc *qscope) (*qfrom, error) {
 		if err != nil {
 			return nil, err
 		}
-		return relFrom(&qrel{name: aliasName(n.Alias), cols: res.cols}), nil
+		return relFrom(&qrel{name: aliasName(n.Alias), cols: res.cols, noRowid: !rowidPreserving(sel)}), nil
 	case *ast.LateralRef:
 		sel, ok := n.Subquery.(*ast.SelectStmt)
 		if !ok {
@@ -827,6 +827,22 @@ func (a *queryAnalyzer) unpivot(n *ast.UnpivotClause, sc *qscope) (*qfrom, error
 			}
 		}
 		if m.Label != nil {
+			// A label is a constant; a bind is ORA-56900.
+			var bad error
+			walkExpr(m.Label, func(x ast.Node) bool {
+				switch x.(type) {
+				case *ast.BindVariable:
+					bad = oraError("56900", "bind variable is not supported inside pivot|unpivot operation")
+				case *ast.ColumnRef, *ast.SubqueryExpr:
+					if bad == nil {
+						bad = oraError("56901", "non-constant expression in pivot or unpivot values clause")
+					}
+				}
+				return bad == nil
+			})
+			if bad != nil {
+				return nil, bad
+			}
 			labels := []ast.Node{m.Label}
 			if row, ok := unparen(m.Label).(*ast.FuncCallExpr); ok && (row.FuncName == nil || row.FuncName.Name == "") {
 				labels = listItems(row.Args)
@@ -1346,4 +1362,19 @@ func (e *oracleMetadataExtractor) viewReads(view, target string, seen map[string
 		}
 	}
 	return false
+}
+
+// rowidPreserving reports whether an inline view keeps its rows' ROWIDs:
+// one block over one table, without DISTINCT, grouping or aggregates.
+func rowidPreserving(sel *ast.SelectStmt) bool {
+	if sel.Op != ast.SETOP_NONE || sel.Larg != nil || sel.Distinct || sel.UniqueKw ||
+		len(listItems(sel.GroupClause)) > 0 || sel.HavingClause != nil || sel.ModelClause != nil {
+		return false
+	}
+	for _, item := range listItems(sel.TargetList) {
+		if rt, ok := item.(*ast.ResTarget); ok && rt.Expr != nil && containsAggregate(rt.Expr, false) {
+			return false
+		}
+	}
+	return true
 }

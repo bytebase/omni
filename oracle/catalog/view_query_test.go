@@ -217,6 +217,10 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"trim_mode_grouped", `CREATE VIEW v AS SELECT TRIM(BOTH FROM dummy) x, COUNT(*) c FROM dual GROUP BY dummy`, ""},
 		{"distinct_order_keyword_column", `CREATE VIEW v AS SELECT DISTINCT id FROM t ORDER BY "CURRENT_DATE"`, "01791"},
 		{"recursive_member_reads_twice", `CREATE VIEW v AS WITH r(n) AS (SELECT 1 FROM dual UNION ALL SELECT a.n+1 FROM r a JOIN r b ON a.n=b.n WHERE a.n<2) SELECT n FROM r`, "32042"},
+		{"nullif_number_date", `CREATE VIEW v AS SELECT NULLIF(1, DATE '2020-01-01') x FROM dual`, "00932"},
+		{"unpivot_bind_label", `CREATE VIEW v AS SELECT * FROM t UNPIVOT (a FOR tag IN (id AS :x))`, "56900"},
+		{"rowid_of_distinct_view", `CREATE VIEW v AS SELECT q.ROWID rid FROM (SELECT DISTINCT id FROM t) q`, "01446"},
+		{"rowid_of_simple_view", `CREATE VIEW v AS SELECT q.ROWID rid FROM (SELECT id FROM t) q`, ""},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -1003,5 +1007,15 @@ CREATE VIEW w AS SELECT COLLECT(id) x FROM t;
 				t.Errorf("W.X type = %q, want unknown", v.GetColumns()[0].GetType())
 			}
 		}
+	}
+}
+
+func TestViewQueryReplaceNchar(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE t (n NCHAR(10)); CREATE VIEW v AS SELECT REPLACE(n, N'a', N'b') x FROM t;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns()[0].GetType(); got != "NVARCHAR2(10)" {
+		t.Errorf("type = %q, want NVARCHAR2(10)", got)
 	}
 }

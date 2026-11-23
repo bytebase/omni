@@ -50,6 +50,9 @@ type qrel struct {
 	view bool
 	// table is the catalog table the item reads, if it is one.
 	table *metadatapb.TableMetadata
+	// noRowid marks an inline view whose rows have no ROWID (DISTINCT,
+	// grouping, a compound query).
+	noRowid bool
 }
 
 func (r *qrel) col(i int) qcol {
@@ -1594,6 +1597,9 @@ func (a *queryAnalyzer) lookupQualified(from *qfrom, ref *ast.ColumnRef) (qcol, 
 	// ROWID and ORA_ROWSCN qualify by the item they read.
 	switch ref.Column {
 	case "ROWID":
+		if r.noRowid {
+			return qcol{}, true, oraError("01446", "cannot select ROWID from, or sample, a view with DISTINCT, GROUP BY, etc.")
+		}
 		return qcol{name: ref.Column, typ: simpleType("ROWID")}, true, nil
 	case "ORA_ROWSCN":
 		return qcol{name: ref.Column, typ: numberType()}, true, nil
