@@ -270,7 +270,7 @@ func indexReferencedByFK(c *Catalog, targetSchema string, targetTable *metadata.
 }
 
 func indexReferencedByFKExcluding(c *Catalog, targetSchema string, targetTable *metadata.TableMetadata, idx *metadata.IndexMetadata, excluded map[*metadata.IndexMetadata]bool) (string, string, bool) {
-	if idx == nil || (!idx.Primary && !idx.Unique) {
+	if idx == nil || (!idx.Primary && !idx.Unique) || indexWhereClause(idx.Definition) != "" {
 		return "", "", false
 	}
 	for _, s := range c.schemas {
@@ -690,6 +690,9 @@ func hasOtherMatchingUniqueIndex(table *metadata.TableMetadata, exclude *metadat
 func hasOtherMatchingUniqueIndexExcluding(table *metadata.TableMetadata, exclude *metadata.IndexMetadata, excluded map[*metadata.IndexMetadata]bool, fk *metadata.ForeignKeyMetadata) bool {
 	for _, other := range table.Indexes {
 		if other == exclude || excluded[other] || (!other.Primary && !other.Unique) {
+			continue
+		}
+		if indexWhereClause(other.Definition) != "" {
 			continue
 		}
 		if fkMatchesIndex(fk, other) {
@@ -2156,8 +2159,11 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 		if action.Column.Identity != nil && tableHasIdentityColumn(table) {
 			return mssqlErr(ErrMultipleIdentityColumns, "Multiple identity columns specified for table '%s'. Only one identity column per table is allowed.", table.Name)
 		}
-		if !c.lenientMetadataLoad && action.Column.Identity != nil && !isValidIdentityDataType(action.Column.DataType) {
-			return mssqlErr(ErrIdentityColumnType, "Identity column '%s' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, unencrypted, and constrained to be nonnullable.", action.Column.Name)
+		if !c.lenientMetadataLoad && action.Column.Identity != nil {
+			explicitNull := action.Column.Nullable != nil && !action.Column.Nullable.NotNull
+			if !isValidIdentityDataType(action.Column.DataType) || explicitNull {
+				return mssqlErr(ErrIdentityColumnType, "Identity column '%s' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, unencrypted, and constrained to be nonnullable.", action.Column.Name)
+			}
 		}
 		if action.Column.Constraints != nil {
 			schema := c.GetSchema(schemaName)
@@ -2262,6 +2268,8 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 		col.Nullable = newNullable
 		if action.Collation != "" {
 			col.Collation = action.Collation
+		} else if !isCharacterDataType(action.DataType) {
+			col.Collation = ""
 		}
 		return nil
 
@@ -2729,6 +2737,20 @@ func (c *Catalog) dropTableConstraint(schemaName string, table *metadata.TableMe
 		return true, nil
 	}
 	return false, nil
+}
+
+func isCharacterDataType(dt *ast.DataType) bool {
+	if dt == nil || dt.Schema != "" {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(dt.Name)) {
+	case "char", "character", "varchar", "character varying", "char varying",
+		"nchar", "national char", "national character",
+		"nvarchar", "national char varying", "national character varying",
+		"text", "ntext", "sysname":
+		return true
+	}
+	return false
 }
 
 func isValidIdentityDataType(dt *ast.DataType) bool {

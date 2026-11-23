@@ -1090,4 +1090,39 @@ CREATE TABLE [dbo].[t] ([a] INT);
 	require.Contains(t, c.GetSchema("dbo").Functions[0].Definition, "RETURNS INT")
 	execExpectOK(t, c, `ALTER FUNCTION [dbo].[f]() RETURNS INT AS BEGIN RETURN 2; END`)
 	require.Contains(t, c.GetSchema("dbo").Functions[0].Definition, "RETURN 2")
+
+	// 74. ALTER COLUMN clears collation when changing from a character type to a noncharacter type.
+	c, err = LoadSQL(`CREATE TABLE [dbo].[t] ([a] VARCHAR(10) COLLATE Latin1_General_100_BIN2);`)
+	require.NoError(t, err)
+	require.Equal(t, "Latin1_General_100_BIN2", columnByName(c.GetTable("dbo", "t"), "a").Collation)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] ALTER COLUMN [a] INT`)
+	require.Equal(t, "INT", columnByName(c.GetTable("dbo", "t"), "a").Type)
+	require.Empty(t, columnByName(c.GetTable("dbo", "t"), "a").Collation)
+	def, err = c.Definition(DefinitionOptions{})
+	require.NoError(t, err)
+	require.NotContains(t, def, "COLLATE")
+
+	// 75. ALTER TABLE ADD rejects explicitly nullable IDENTITY columns.
+	c, err = LoadSQL(`CREATE TABLE [dbo].[t] ([a] INT);`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ADD [id] INT IDENTITY(1,1) NULL`, ErrIdentityColumnType)
+	require.Nil(t, columnByName(c.GetTable("dbo", "t"), "id"))
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] ADD [id] INT IDENTITY(1,1) NOT NULL`)
+	require.NotNil(t, columnByName(c.GetTable("dbo", "t"), "id"))
+
+	// 76. Filtered unique indexes do not serve as surviving FK fallback keys during DROP INDEX.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[p] ([a] INT NOT NULL);
+GO
+CREATE UNIQUE INDEX [u1] ON [dbo].[p] ([a]);
+GO
+CREATE UNIQUE INDEX [u2] ON [dbo].[p] ([a]) WHERE [a] > 0;
+GO
+CREATE TABLE [dbo].[c] ([a] INT REFERENCES [dbo].[p]([a]));
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `DROP INDEX [u1] ON [dbo].[p]`, ErrDropIndexReferencedByFK)
+	require.NotNil(t, indexByName(c.GetTable("dbo", "p"), "u1"))
+	execExpectOK(t, c, `DROP INDEX [u2] ON [dbo].[p]`)
+	require.Nil(t, indexByName(c.GetTable("dbo", "p"), "u2"))
 }
