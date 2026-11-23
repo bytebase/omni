@@ -145,7 +145,9 @@ func typeNameBase(tn *ast.TypeName) string {
 }
 
 func tokWord(toks []parser.Token, i int, word string) bool {
-	return i >= 0 && i < len(toks) && toks[i].Type != tokenQuoted && strings.EqualFold(toks[i].Str, word)
+	return i >= 0 && i < len(toks) &&
+		toks[i].Type != tokenQuoted && toks[i].Type != tokenString && toks[i].Type != tokenNString &&
+		strings.EqualFold(toks[i].Str, word)
 }
 
 // checkAlterUpgrade rejects column_properties subclauses that Oracle 23ai
@@ -296,6 +298,144 @@ func (b *builder) checkPartitionTextContradictions(loc ast.Loc, tableRef objRef,
 		case tokWord(toks, i, "SUBPARTITION") && tokWord(toks, i+1, "SUBPARTITION"):
 			b.fail(rng, review.UnsupportedForm, "Missing comma between subpartition specifications.")
 			return true
+
+		// DROP / TRUNCATE [SUB]PARTITION (expr) without FOR (ORA-14108),
+		// or DROP [SUB]PARTITION p1, p1 duplicate name (ORA-14332).
+		case (tokWord(toks, i, "DROP") || tokWord(toks, i, "TRUNCATE")) &&
+			(tokWord(toks, i+1, "PARTITION") || tokWord(toks, i+1, "PARTITIONS") || tokWord(toks, i+1, "SUBPARTITION") || tokWord(toks, i+1, "SUBPARTITIONS")):
+			j := i + 2
+			if j < len(toks) && toks[j].Type == tokenOpenParen {
+				b.fail(rng, review.UnsupportedForm, "Partition specification requires a partition name or FOR (...).")
+				return true
+			}
+			if tokWord(toks, i, "DROP") {
+				seen := make(map[string]bool)
+				for k := j; k < len(toks); k++ {
+					if toks[k].Type == tokenComma {
+						continue
+					}
+					if tokWord(toks, k, "FOR") && k+1 < len(toks) && toks[k+1].Type == tokenOpenParen {
+						k = skipBalancedParens(toks, k+1) - 1
+						continue
+					}
+					if tokWord(toks, k, "UPDATE") || tokWord(toks, k, "INVALIDATE") || tokWord(toks, k, "PARALLEL") || tokWord(toks, k, "NOPARALLEL") {
+						break
+					}
+					if name, ok := tokenName(toks[k]); ok {
+						if seen[name] {
+							b.fail(rng, review.DuplicateName, twice("names", "partition", name))
+							return true
+						}
+						seen[name] = true
+					} else {
+						break
+					}
+				}
+			}
+
+		}
+	}
+	if b.checkUpdateIndexesText(loc, rng) {
+		return true
+	}
+	return false
+}
+
+// checkUpdateIndexesText checks UPDATE INDEXES (...) clauses for duplicate
+// index names (ORA-14293) and missing commas between partition specs.
+func (b *builder) checkUpdateIndexesText(loc ast.Loc, rng review.Range) bool {
+	toks := tokens(b.w.sql, loc)
+	for i := 0; i+2 < len(toks); i++ {
+		if !tokWord(toks, i, "UPDATE") || !tokWord(toks, i+1, "INDEXES") || toks[i+2].Type != tokenOpenParen {
+			continue
+		}
+		end := skipBalancedParens(toks, i+2)
+		inner := toks[i+3 : end]
+		if end > i+3 && toks[end-1].Type == tokenCloseParen {
+			inner = toks[i+3 : end-1]
+		}
+		seenIdx := make(map[string]bool)
+		depth := 0
+		for j := 0; j < len(inner); j++ {
+			if inner[j].Type == tokenOpenParen {
+				depth++
+				continue
+			}
+			if inner[j].Type == tokenCloseParen {
+				if depth > 0 {
+					depth--
+				}
+				continue
+			}
+			if depth == 0 {
+				if inner[j].Type == tokenComma {
+					continue
+				}
+				if name, ok := tokenName(inner[j]); ok && j+1 < len(inner) && inner[j+1].Type == tokenOpenParen {
+					if seenIdx[name] {
+						b.fail(rng, review.DuplicateName, twice("names", "index", name))
+						return true
+					}
+					seenIdx[name] = true
+				}
+			} else if (tokWord(inner, j, "PARTITION") && tokWord(inner, j+1, "PARTITION")) ||
+				(tokWord(inner, j, "SUBPARTITION") && tokWord(inner, j+1, "SUBPARTITION")) {
+				b.fail(rng, review.UnsupportedForm, "Missing comma between index partition specifications.")
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isIOTPropertySubtype(subtype string) bool {
+	switch subtype {
+	case "OVERFLOW", "COALESCE", "MAPPING", "ADD OVERFLOW":
+		return true
+	}
+	return false
+}
+
+// checkIOTPartitionClause rejects IOT-only partition clauses (OVERFLOW,
+// MAPPING TABLE, or bare COALESCE without SUBPARTITION) when the table is
+// known to have no primary key (an IOT must have a primary key, ORA-25175).
+func (b *builder) checkIOTPartitionClause(r objRef, pkAbsent bool, loc ast.Loc, rng review.Range) bool {
+	if !pkAbsent {
+		return false
+	}
+	toks := tokens(b.w.sql, loc)
+	for i := 0; i < len(toks); i++ {
+		if tokWord(toks, i, "OVERFLOW") {
+			b.fail(rng, review.UnsupportedForm, "OVERFLOW is only allowed on an index-organized table, not "+review.Code(r.written)+".")
+			return true
+		}
+		if tokWord(toks, i, "MAPPING") && tokWord(toks, i+1, "TABLE") {
+			b.fail(rng, review.UnsupportedForm, "MAPPING TABLE is only allowed on an index-organized table, not "+review.Code(r.written)+".")
+			return true
+		}
+		if tokWord(toks, i, "MODIFY") && tokWord(toks, i+1, "PARTITION") {
+			for k := i + 2; k < len(toks); k++ {
+				if tokWord(toks, k, "COALESCE") && !tokWord(toks, k+1, "SUBPARTITION") && !tokWord(toks, k+1, "PARTITION") {
+					b.fail(rng, review.UnsupportedForm, "MODIFY PARTITION COALESCE is only allowed on an index-organized table, not "+review.Code(r.written)+".")
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// checkIOTMoveClause rejects MOVE MAPPING TABLE / MOVE NOMAPPING on a table
+// known to have no primary key.
+func (b *builder) checkIOTMoveClause(r objRef, pkAbsent bool, loc ast.Loc, rng review.Range) bool {
+	if !pkAbsent {
+		return false
+	}
+	toks := tokens(b.w.sql, loc)
+	for i := 0; i < len(toks); i++ {
+		if tokWord(toks, i, "NOMAPPING") || (tokWord(toks, i, "MAPPING") && tokWord(toks, i+1, "TABLE")) {
+			b.fail(rng, review.UnsupportedForm, "MAPPING TABLE / NOMAPPING is only allowed on an index-organized table, not "+review.Code(r.written)+".")
+			return true
 		}
 	}
 	return false
@@ -388,14 +528,62 @@ func (b *builder) checkPartitionMeta(r objRef, st *syncedTable, loc ast.Loc, rng
 		return false
 	}
 
-	// Non-partitioned table (excluding tables with foreign keys, which could be
-	// REFERENCE-partitioned and omitted by oracle/driver/sync.go).
+	// Tables with no synced RANGE/LIST/HASH partitions may be non-partitioned,
+	// REFERENCE-partitioned (requires a foreign key), or SYSTEM-partitioned
+	// (omitted by oracle/driver/sync.go). When no foreign key exists, reject
+	// only partition clauses that are invalid on BOTH non-partitioned and
+	// SYSTEM-partitioned tables: subpartitions, SPLIT/MERGE/COALESCE,
+	// SET INTERVAL/PARTITIONING/SUBPARTITION TEMPLATE, PARTITION FOR (...),
+	// ADD/MODIFY PARTITION with VALUES, and MODIFY PARTITIONSET.
 	if st.partType == metadata.TablePartitionMetadata_TYPE_UNSPECIFIED {
 		if st.hasForeignKey {
 			return false
 		}
-		b.fail(rng, review.UnsupportedForm, "Table "+review.Code(r.written)+" is not partitioned.")
-		return true
+		for i := 0; i < len(toks); i++ {
+			if tokWord(toks, i, "SUBPARTITION") || tokWord(toks, i, "SUBPARTITIONS") {
+				b.fail(rng, review.UnsupportedForm, "Table "+review.Code(r.written)+" is not composite-partitioned.")
+				return true
+			}
+			if tokWord(toks, i, "PARTITION") && tokWord(toks, i+1, "FOR") && i+2 < len(toks) && toks[i+2].Type == tokenOpenParen {
+				b.fail(rng, review.UnsupportedForm, "PARTITION FOR (...) requires a range-, list-, or hash-partitioned table, not "+review.Code(r.written)+".")
+				return true
+			}
+			if tokWord(toks, i, "PARTITIONSET") {
+				b.fail(rng, review.UnsupportedForm, "Table "+review.Code(r.written)+" is not partitioned.")
+				return true
+			}
+		}
+		verbIdx := 0
+		for verbIdx < len(toks) && !(tokWord(toks, verbIdx, "ADD") || tokWord(toks, verbIdx, "DROP") ||
+			tokWord(toks, verbIdx, "TRUNCATE") || tokWord(toks, verbIdx, "SPLIT") ||
+			tokWord(toks, verbIdx, "MERGE") || tokWord(toks, verbIdx, "COALESCE") ||
+			tokWord(toks, verbIdx, "MODIFY") || tokWord(toks, verbIdx, "MOVE") ||
+			tokWord(toks, verbIdx, "RENAME") || tokWord(toks, verbIdx, "EXCHANGE") ||
+			tokWord(toks, verbIdx, "SET")) {
+			verbIdx++
+		}
+		if verbIdx >= len(toks) {
+			return false
+		}
+		switch {
+		case tokWord(toks, verbIdx, "SPLIT"), tokWord(toks, verbIdx, "MERGE"), tokWord(toks, verbIdx, "COALESCE"):
+			b.fail(rng, review.UnsupportedForm, "Table "+review.Code(r.written)+" is not range-, list-, or hash-partitioned.")
+			return true
+		case tokWord(toks, verbIdx, "SET") && (tokWord(toks, verbIdx+1, "INTERVAL") || tokWord(toks, verbIdx+1, "PARTITIONING") || tokWord(toks, verbIdx+1, "AUTOMATIC") || tokWord(toks, verbIdx+1, "SUBPARTITION")):
+			b.fail(rng, review.UnsupportedForm, "Table "+review.Code(r.written)+" is not range- or list-partitioned.")
+			return true
+		case (tokWord(toks, verbIdx, "ADD") || tokWord(toks, verbIdx, "MODIFY")) && tokWord(toks, verbIdx+1, "PARTITION"):
+			for k := verbIdx + 2; k < len(toks); k++ {
+				if tokWord(toks, k, "VALUES") {
+					b.fail(rng, review.UnsupportedForm, "Partition VALUES clause requires a range- or list-partitioned table, not "+review.Code(r.written)+".")
+					return true
+				}
+			}
+			if tokWord(toks, verbIdx, "ADD") && b.checkAddPartitionNonHashOpts(toks[verbIdx+2:], rng) {
+				return true
+			}
+		}
+		return false
 	}
 
 	// Subpartition operations on a non-composite partitioned table.
@@ -422,6 +610,26 @@ func (b *builder) checkPartitionMeta(r objRef, st *syncedTable, loc ast.Loc, rng
 		return false
 	}
 
+	// On known RANGE/LIST/HASH tables, check PARTITION FOR (...) arity (ORA-14092)
+	// and RANGE SPLIT PARTITION bound order (ORA-14080).
+	if st.partKeyCount > 0 {
+		for i := 0; i+2 < len(toks); i++ {
+			if tokWord(toks, i, "PARTITION") && tokWord(toks, i+1, "FOR") && toks[i+2].Type == tokenOpenParen {
+				if n := countTopLevelExprs(toks, i+2); n > 0 && n != st.partKeyCount {
+					b.fail(rng, review.UnsupportedForm, "PARTITION FOR value count does not match partitioning key count of "+review.Code(r.written)+".")
+					return true
+				}
+			}
+		}
+	}
+	if st.partType == metadata.TablePartitionMetadata_RANGE && tokWord(toks, verbIdx, "SPLIT") && tokWord(toks, verbIdx+1, "PARTITION") && verbIdx+2 < len(toks) {
+		if pname, ok := tokenName(toks[verbIdx+2]); ok {
+			if b.checkRangeSplitBound(r, st, pname, toks[verbIdx+3:], rng) {
+				return true
+			}
+		}
+	}
+
 	switch st.partType {
 	case metadata.TablePartitionMetadata_RANGE:
 		switch {
@@ -446,6 +654,9 @@ func (b *builder) checkPartitionMeta(r objRef, st *syncedTable, loc ast.Loc, rng
 				}
 			}
 		case tokWord(toks, verbIdx, "ADD") && tokWord(toks, verbIdx+1, "PARTITION"):
+			if b.checkAddPartitionNonHashOpts(toks[verbIdx+2:], rng) {
+				return true
+			}
 			return b.checkRangeAddPartition(r, st, toks[verbIdx+2:], rng)
 		}
 
@@ -458,6 +669,9 @@ func (b *builder) checkPartitionMeta(r objRef, st *syncedTable, loc ast.Loc, rng
 			b.fail(rng, review.UnsupportedForm, "SET INTERVAL requires a range-partitioned table.")
 			return true
 		case tokWord(toks, verbIdx, "ADD") && tokWord(toks, verbIdx+1, "PARTITION"):
+			if b.checkAddPartitionNonHashOpts(toks[verbIdx+2:], rng) {
+				return true
+			}
 			for k := verbIdx + 2; k+2 < len(toks); k++ {
 				if tokWord(toks, k, "VALUES") && tokWord(toks, k+1, "LESS") && tokWord(toks, k+2, "THAN") {
 					b.fail(rng, review.UnsupportedForm, "ADD PARTITION VALUES LESS THAN requires a range-partitioned table.")
@@ -587,24 +801,109 @@ func (b *builder) alterMviewRejectsSynonym(v *ast.AlterMaterializedViewStmt) boo
 	return false
 }
 
-// checkCreateIndexLocal checks CREATE INDEX ... LOCAL against the target
-// table's partition metadata (ORA-14016 on non-partitioned table, ORA-14024 on
-// mismatched explicit LOCAL (PARTITION ...) count).
-func (b *builder) checkCreateIndexLocal(v *ast.CreateIndexStmt, targetRef objRef, st *syncedTable, rng review.Range) bool {
-	if !v.Local || st == nil {
+// checkCreateIndexType validates INDEXTYPE IS <name> on CREATE INDEX:
+//   - rejects an indextype name already occupied by a non-indextype object
+//     (TABLE, VIEW, MATERIALIZED VIEW, SEQUENCE, routine, package, or synonym
+//     to a table) (ORA-29833)
+//   - rejects INDEXTYPE IS XDB.XMLINDEX on a known built-in scalar column
+//     (ORA-29958/29855)
+func (b *builder) checkCreateIndexType(v *ast.CreateIndexStmt, targetRef objRef, st *syncedTable, rng review.Range) bool {
+	if v.IndexType == nil || v.IndexType.DBLink != "" {
 		return false
 	}
-	if st.partType == metadata.TablePartitionMetadata_TYPE_UNSPECIFIED {
-		if st.hasForeignKey {
-			return false
+	if ir, ok := b.ref(v.IndexType); ok {
+		if f, kind := b.look(ir.key(spaceObject)); f == walk.Present && kind != "" && kind != "INDEXTYPE" {
+			if kind != kindSynonym {
+				b.need(ir.key(spaceObject), walk.Present, []string{"INDEXTYPE"}, ir.rng, "", wrongKind(ir.written, kind, "indextype"))
+				return true
+			}
+			if _, sst, sok := b.resolveSynonymTable(v.IndexType, ir); sok && sst != nil {
+				b.fail(ir.rng, review.WrongObjectKind, wrongKind(ir.written, kindTable, "indextype"))
+				return true
+			}
 		}
-		b.fail(rng, review.UnsupportedForm, "Cannot create a LOCAL index on non-partitioned table "+review.Code(targetRef.written)+".")
-		return true
 	}
-	if st.hasInterval || st.partCount == 0 {
+	if v.IndexType.Schema == "XDB" && v.IndexType.Name == "XMLINDEX" && st != nil && v.Columns != nil && len(v.Columns.Items) == 1 {
+		if ic, ok := v.Columns.Items[0].(*ast.IndexColumn); ok {
+			if cr, ok := ic.Expr.(*ast.ColumnRef); ok && cr.Column != "" && cr.Schema == "" {
+				if sc, ok := st.colMeta[cr.Column]; ok && isOracleScalarType(sc.typ) {
+					b.fail(rng, review.UnsupportedForm, "XMLINDEX cannot be created on scalar column "+review.Code(ident(cr.Column))+" of "+review.Code(targetRef.written)+".")
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// checkCreateIndexLocal checks CREATE INDEX ... LOCAL:
+//   - pure-text errors: PARTITION PARTITION / SUBPARTITION SUBPARTITION (missing
+//     comma), STORE IN (...,) trailing comma
+//   - SYSTEM-partition-safe checks on tables with no synced RANGE/LIST/HASH
+//     partitions (and no FK): UNIQUE LOCAL (ORA-14039), LOCAL SUBPARTITION,
+//     LOCAL STORE IN (ORA-14177)
+//   - non-composite RANGE/LIST tables: LOCAL SUBPARTITION and LOCAL STORE IN
+//   - explicit LOCAL (PARTITION ...) count mismatch on non-interval partitioned
+//     tables (ORA-14024)
+func (b *builder) checkCreateIndexLocal(v *ast.CreateIndexStmt, targetRef objRef, st *syncedTable, rng review.Range) bool {
+	if !v.Local {
 		return false
 	}
 	toks := tokens(b.w.sql, v.Loc)
+	hasSubpart := false
+	hasStoreIn := false
+	for i := 0; i < len(toks); i++ {
+		if (tokWord(toks, i, "PARTITION") && tokWord(toks, i+1, "PARTITION")) ||
+			(tokWord(toks, i, "SUBPARTITION") && tokWord(toks, i+1, "SUBPARTITION")) {
+			b.fail(rng, review.UnsupportedForm, "Missing comma between LOCAL index partition specifications.")
+			return true
+		}
+		if tokWord(toks, i, "SUBPARTITION") || tokWord(toks, i, "SUBPARTITIONS") {
+			hasSubpart = true
+		}
+		if tokWord(toks, i, "STORE") && tokWord(toks, i+1, "IN") && i+2 < len(toks) && toks[i+2].Type == tokenOpenParen {
+			hasStoreIn = true
+			end := skipBalancedParens(toks, i+2)
+			if end > i+3 && toks[end-1].Type == tokenCloseParen && toks[end-2].Type == tokenComma {
+				b.fail(rng, review.UnsupportedForm, "Trailing comma in LOCAL index STORE IN clause.")
+				return true
+			}
+		}
+	}
+	if st == nil {
+		return false
+	}
+	if st.partType == metadata.TablePartitionMetadata_TYPE_UNSPECIFIED {
+		// SYSTEM- and REFERENCE-partitioned tables are omitted by oracle/driver/sync.go
+		// and do support non-unique LOCAL indexes without subpartitions or STORE IN.
+		if st.hasForeignKey {
+			return false
+		}
+		if v.Unique {
+			b.fail(rng, review.UnsupportedForm, "Cannot create a UNIQUE LOCAL index without partitioning key columns on "+review.Code(targetRef.written)+".")
+			return true
+		}
+		if hasSubpart {
+			b.fail(rng, review.UnsupportedForm, "Table "+review.Code(targetRef.written)+" is not composite-partitioned.")
+			return true
+		}
+		if hasStoreIn {
+			b.fail(rng, review.UnsupportedForm, "LOCAL index STORE IN requires a hash- or composite-hash-partitioned table, not "+review.Code(targetRef.written)+".")
+			return true
+		}
+		return false
+	}
+	if !st.hasSubparts && hasSubpart {
+		b.fail(rng, review.UnsupportedForm, "Table "+review.Code(targetRef.written)+" is not composite-partitioned.")
+		return true
+	}
+	if !st.hasSubparts && st.partType != metadata.TablePartitionMetadata_HASH && hasStoreIn {
+		b.fail(rng, review.UnsupportedForm, "LOCAL index STORE IN requires a hash- or composite-hash-partitioned table, not "+review.Code(targetRef.written)+".")
+		return true
+	}
+	if st.hasInterval || st.partCount == 0 || st.partType == metadata.TablePartitionMetadata_LIST {
+		return false
+	}
 	for i := 0; i+1 < len(toks); i++ {
 		if tokWord(toks, i, "LOCAL") && toks[i+1].Type == tokenOpenParen {
 			end := skipBalancedParens(toks, i+1)
@@ -629,10 +928,6 @@ func (b *builder) checkCreateIndexLocal(v *ast.CreateIndexStmt, targetRef objRef
 				}
 				if depth != 0 {
 					continue
-				}
-				if tokWord(inner, j, "PARTITION") && tokWord(inner, j+1, "PARTITION") {
-					b.fail(rng, review.UnsupportedForm, "Missing comma between LOCAL index partition specifications.")
-					return true
 				}
 				if tokWord(inner, j, "PARTITION") {
 					hasPart = true
@@ -963,6 +1258,9 @@ func (b *builder) checkCreateTableExtra(v *ast.CreateTableStmt, r objRef, column
 		if b.checkColTypeKnownNonType(c.TypeName, crng) {
 			return true
 		}
+		if b.checkColTypeSelfTable(c.TypeName, r, crng) {
+			return true
+		}
 		if b.checkColCollationAndRef(c, nil, crng) {
 			return true
 		}
@@ -1199,12 +1497,33 @@ func (b *builder) checkDMLPartitionExt(o *ast.ObjectName, r objRef, pe *ast.Part
 		if st.hasForeignKey {
 			return false
 		}
-		b.fail(rng, review.UnsupportedForm, "Table "+review.Code(tr.written)+" is not partitioned.")
-		return true
+		// SYSTEM-partitioned tables (omitted by oracle/driver/sync.go) allow
+		// PARTITION (name), but never allow SUBPARTITION or PARTITION FOR (...).
+		if pe.IsSubpartition {
+			b.fail(rng, review.UnsupportedForm, "Table "+review.Code(tr.written)+" is not composite-partitioned.")
+			return true
+		}
+		if pe.IsFor {
+			b.fail(rng, review.UnsupportedForm, "PARTITION FOR (...) requires a range-, list-, or hash-partitioned table, not "+review.Code(tr.written)+".")
+			return true
+		}
+		return false
 	}
 	if pe.IsSubpartition && !st.hasSubparts {
 		b.fail(rng, review.UnsupportedForm, "Table "+review.Code(tr.written)+" is not composite-partitioned.")
 		return true
+	}
+	if pe.IsFor && !pe.IsSubpartition && st.partKeyCount > 0 {
+		toks := tokens(b.w.sql, pe.Loc)
+		for i := 0; i+1 < len(toks); i++ {
+			if tokWord(toks, i, "FOR") && toks[i+1].Type == tokenOpenParen {
+				if n := countTopLevelExprs(toks, i+1); n > 0 && n != st.partKeyCount {
+					b.fail(rng, review.UnsupportedForm, "PARTITION FOR value count does not match partitioning key count of "+review.Code(tr.written)+".")
+					return true
+				}
+				break
+			}
+		}
 	}
 	return false
 }
@@ -1506,7 +1825,33 @@ func (b *builder) checkDMLFromTree(te ast.TableExpr) bool {
 		} else {
 			addCols(v.PivotCol, pivNames)
 		}
-		// Check also FOR (col1, col2) in tokens for duplicate FOR columns.
+		// Check FOR (col1, col2) in tokens for duplicate FOR columns (ORA-00918).
+		{
+			toks := tokens(b.w.sql, v.Loc)
+			for i := 0; i+1 < len(toks); i++ {
+				if tokWord(toks, i, "FOR") && toks[i+1].Type == tokenOpenParen {
+					end := skipBalancedParens(toks, i+1)
+					inner := toks[i+2 : end]
+					if end > i+2 && toks[end-1].Type == tokenCloseParen {
+						inner = toks[i+2 : end-1]
+					}
+					seenFor := make(map[string]bool)
+					for _, tok := range inner {
+						if tok.Type == tokenComma {
+							continue
+						}
+						if name, ok := tokenName(tok); ok {
+							if seenFor[name] {
+								b.fail(rng, review.DuplicateName, twice("lists", "column", name))
+								return true
+							}
+							seenFor[name] = true
+						}
+					}
+					break
+				}
+			}
+		}
 		// Oracle 23ai accepts UNPIVOT INCLUDE NULLS(a FOR a IN(a)) in DELETE FROM,
 		// so only flag value/FOR collision when INCLUDE NULLS is not specified.
 		if !v.IncludeNulls {
@@ -1580,10 +1925,25 @@ func (b *builder) checkDMLFromTree(te ast.TableExpr) bool {
 		if expr == nil {
 			expr = v.CollectionExpr
 		}
-		switch expr.(type) {
+		switch e := expr.(type) {
 		case *ast.NumberLiteral, *ast.StringLiteral:
 			b.fail(rng, review.UnsupportedForm, "TABLE() requires a collection expression, not a scalar literal.")
 			return true
+		case *ast.FuncCallExpr:
+			if e.FuncName != nil && e.FuncName.Name != "" && e.FuncName.DBLink == "" {
+				if fr, ok := b.ref(e.FuncName); ok {
+					if f, kind := b.look(fr.key(spaceObject)); f == walk.Present && kind != "" && kind != kindFunction && kind != kindPackage && kind != kindType {
+						if kind != kindSynonym {
+							b.need(fr.key(spaceObject), walk.Present, []string{kindFunction}, fr.rng, "", wrongKind(fr.written, kind, "table function"))
+							return true
+						}
+						if _, sst, sok := b.resolveSynonymTable(e.FuncName, fr); sok && sst != nil {
+							b.fail(fr.rng, review.WrongObjectKind, wrongKind(fr.written, kindTable, "table function"))
+							return true
+						}
+					}
+				}
+			}
 		}
 
 	case *ast.JoinClause:
@@ -1631,13 +1991,18 @@ func (b *builder) checkDMLFromTree(te ast.TableExpr) bool {
 				}
 			}
 		}
-		if v.Flashback != nil && strings.EqualFold(v.Flashback.Type, "TIMESTAMP") {
-			if _, isNum := v.Flashback.Expr.(*ast.NumberLiteral); isNum {
-				rng := rangeOf(v.Flashback.Loc)
-				if rng == (review.Range{}) {
-					rng = b.anchor()
+		if v.Flashback != nil {
+			if strings.EqualFold(v.Flashback.Type, "TIMESTAMP") {
+				if _, isNum := v.Flashback.Expr.(*ast.NumberLiteral); isNum {
+					rng := rangeOf(v.Flashback.Loc)
+					if rng == (review.Range{}) {
+						rng = b.anchor()
+					}
+					b.fail(rng, review.UnsupportedForm, "AS OF TIMESTAMP requires a timestamp expression, not a number.")
+					return true
 				}
-				b.fail(rng, review.UnsupportedForm, "AS OF TIMESTAMP requires a timestamp expression, not a number.")
+			}
+			if b.checkFlashbackVersionsPeriod(v.Flashback, v.Name, v.Dblink) {
 				return true
 			}
 		}
@@ -2019,6 +2384,470 @@ func (b *builder) moveHasPartition(loc ast.Loc) bool {
 	toks := tokens(b.w.sql, loc)
 	for i := 0; i+1 < len(toks); i++ {
 		if tokWord(toks, i, "MOVE") && (tokWord(toks, i+1, "PARTITION") || tokWord(toks, i+1, "SUBPARTITION")) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasTokenWord(toks []parser.Token, word string) bool {
+	for i := range toks {
+		if tokWord(toks, i, word) {
+			return true
+		}
+	}
+	return false
+}
+
+// checkAddPartitionNonHashOpts rejects ADD PARTITION options that Oracle 23ai
+// permits only on HASH-partitioned tables (verified on Oracle 23ai Free against
+// RANGE, LIST, HASH, and SYSTEM tables): top-level PARALLEL/NOPARALLEL
+// (ORA-14267) and INVALIDATE GLOBAL INDEXES (ORA-30564).
+func (b *builder) checkAddPartitionNonHashOpts(rest []parser.Token, rng review.Range) bool {
+	depth := 0
+	for i := 0; i < len(rest); i++ {
+		if rest[i].Type == tokenOpenParen {
+			depth++
+			continue
+		}
+		if rest[i].Type == tokenCloseParen {
+			if depth > 0 {
+				depth--
+			}
+			continue
+		}
+		if depth != 0 {
+			continue
+		}
+		if tokWord(rest, i, "PARALLEL") || tokWord(rest, i, "NOPARALLEL") {
+			b.fail(rng, review.UnsupportedForm, strings.ToUpper(rest[i].Str)+" is not allowed in ADD PARTITION on a non-hash-partitioned table.")
+			return true
+		}
+		if tokWord(rest, i, "INVALIDATE") && tokWord(rest, i+1, "GLOBAL") && tokWord(rest, i+2, "INDEXES") {
+			b.fail(rng, review.UnsupportedForm, "INVALIDATE GLOBAL INDEXES is not allowed in ADD PARTITION on a non-hash-partitioned table.")
+			return true
+		}
+	}
+	return false
+}
+
+// checkObjectViewSelfRef rejects CREATE VIEW v OF v (same schema and name when
+// not OR REPLACE) and CREATE VIEW v OF ... UNDER v (a view cannot inherit
+// under itself).
+func (b *builder) checkObjectViewSelfRef(v *ast.CreateViewStmt, r objRef) bool {
+	if v.Name == nil || v.Name.Loc.End <= 0 || v.Name.Loc.End >= v.Loc.End {
+		return false
+	}
+	toks := tokens(b.w.sql, ast.Loc{Start: v.Name.Loc.End, End: v.Loc.End})
+	if len(toks) < 2 || !tokWord(toks, 0, "OF") {
+		return false
+	}
+	if !v.OrReplace {
+		if schema, name, ok := readQualifiedTokenName(toks, 1, b.w.current); ok && schema == r.schema && name == r.name {
+			b.fail(r.rng, review.UnsupportedForm, "View "+review.Code(r.written)+" cannot have the same name as its object type.")
+			return true
+		}
+	}
+	for i := 1; i+1 < len(toks); i++ {
+		if tokWord(toks, i, "AS") {
+			break
+		}
+		if tokWord(toks, i, "UNDER") {
+			if schema, name, ok := readQualifiedTokenName(toks, i+1, b.w.current); ok && schema == r.schema && name == r.name {
+				b.fail(r.rng, review.UnsupportedForm, "View "+review.Code(r.written)+" cannot be created UNDER itself.")
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// dmlCheckInsertSetNotNull checks guaranteed single-row INSERT INTO t SET ...
+// (without LOG ERRORS or triggers) for omitted NOT NULL columns without
+// defaults/identity/virtual (ORA-01400).
+func (b *builder) dmlCheckInsertSetNotNull(o *ast.ObjectName, r objRef, setClauses *ast.List, alias string, rng review.Range) bool {
+	if b.w.triggers || setClauses == nil || len(setClauses.Items) == 0 {
+		return false
+	}
+	tr := r
+	st := b.syncedColMeta(r)
+	if st == nil {
+		if sr, _, sok := b.resolveSynonymTable(o, r); sok {
+			tr = sr
+			st = b.syncedColMeta(sr)
+		}
+	}
+	if st == nil || !st.complete {
+		return false
+	}
+	listed := make(map[string]bool)
+	record := func(cr *ast.ColumnRef) {
+		if cr == nil || cr.Column == "" || cr.Schema != "" {
+			return
+		}
+		if cr.Table != "" && cr.Table != r.name && cr.Table != tr.name && (alias == "" || cr.Table != alias) {
+			return
+		}
+		listed[cr.Column] = true
+	}
+	for _, item := range setClauses.Items {
+		sc, ok := item.(*ast.SetClause)
+		if !ok {
+			continue
+		}
+		record(sc.Column)
+		if sc.Columns != nil {
+			for _, ci := range sc.Columns.Items {
+				if cr, ok := ci.(*ast.ColumnRef); ok {
+					record(cr)
+				}
+			}
+		}
+	}
+	for colName, sc := range st.colMeta {
+		if !listed[colName] && !sc.nullable && !sc.hasDefault && !sc.identity && !sc.virtual && !sc.invisible {
+			b.fail(rng, review.UnsupportedForm, "INSERT into "+review.Code(tr.written)+" omits NOT NULL column "+review.Code(ident(colName))+".")
+			return true
+		}
+	}
+	return false
+}
+
+// checkFlashbackVersionsPeriod rejects AS OF / VERSIONS PERIOD FOR <p> on a
+// synced complete table (valid-time periods add hidden *_START/*_END columns
+// and a check constraint, which makes columnsComplete return false) or with
+// numeric literal bounds (ORA-55603 / ORA-00932).
+func (b *builder) checkFlashbackVersionsPeriod(fb *ast.FlashbackClause, name *ast.ObjectName, dblink string) bool {
+	if fb == nil || !fb.IsPeriodFor {
+		return false
+	}
+	rng := rangeOf(fb.Loc)
+	if rng == (review.Range{}) {
+		rng = b.anchor()
+	}
+	if _, isNum := fb.Expr.(*ast.NumberLiteral); isNum {
+		b.fail(rng, review.UnsupportedForm, "PERIOD FOR requires a date or timestamp expression, not a number.")
+		return true
+	}
+	if _, isNum := fb.VersionsLow.(*ast.NumberLiteral); isNum {
+		b.fail(rng, review.UnsupportedForm, "VERSIONS PERIOD FOR requires date or timestamp bounds, not a number.")
+		return true
+	}
+	if _, isNum := fb.VersionsHigh.(*ast.NumberLiteral); isNum {
+		b.fail(rng, review.UnsupportedForm, "VERSIONS PERIOD FOR requires date or timestamp bounds, not a number.")
+		return true
+	}
+	if name != nil && dblink == "" {
+		if r, ok := b.ref(name); ok {
+			_, st := b.dmlResolveTable(name, r)
+			if st != nil && st.complete {
+				b.fail(rng, review.UnsupportedForm, "Table "+review.Code(r.written)+" has no valid-time period.")
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// checkAlterTableAddRefOnScalar rejects table-level ADD REF(col) WITH ROWID /
+// ADD SCOPE FOR (col) IS ... when col is a known built-in scalar column
+// (ORA-22893).
+func (b *builder) checkAlterTableAddRefOnScalar(r objRef, loc ast.Loc, rng review.Range) bool {
+	st := b.syncedColMeta(r)
+	if st == nil {
+		return false
+	}
+	toks := tokens(b.w.sql, loc)
+	for i := 0; i+3 < len(toks); i++ {
+		if tokWord(toks, i, "REF") && toks[i+1].Type == tokenOpenParen {
+			if col, ok := tokenName(toks[i+2]); ok && toks[i+3].Type == tokenCloseParen {
+				if sc, ok := st.colMeta[col]; ok && isOracleScalarType(sc.typ) {
+					b.fail(rng, review.UnsupportedForm, "REF attribute clause is not allowed on non-REF column "+review.Code(ident(col))+".")
+					return true
+				}
+			}
+		}
+		if tokWord(toks, i, "SCOPE") && tokWord(toks, i+1, "FOR") && i+4 < len(toks) && toks[i+2].Type == tokenOpenParen {
+			if col, ok := tokenName(toks[i+3]); ok && toks[i+4].Type == tokenCloseParen {
+				if sc, ok := st.colMeta[col]; ok && isOracleScalarType(sc.typ) {
+					b.fail(rng, review.UnsupportedForm, "SCOPE FOR clause is not allowed on non-REF column "+review.Code(ident(col))+".")
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// countTopLevelExprs counts comma-separated expressions inside balanced parens
+// starting at toks[openIdx].
+func countTopLevelExprs(toks []parser.Token, openIdx int) int {
+	if openIdx < 0 || openIdx >= len(toks) || toks[openIdx].Type != tokenOpenParen {
+		return 0
+	}
+	end := skipBalancedParens(toks, openIdx)
+	if end <= openIdx+2 || toks[end-1].Type != tokenCloseParen {
+		return 0
+	}
+	items := 1
+	d := 0
+	for _, t := range toks[openIdx+1 : end-1] {
+		if t.Type == tokenOpenParen {
+			d++
+		} else if t.Type == tokenCloseParen && d > 0 {
+			d--
+		} else if t.Type == tokenComma && d == 0 {
+			items++
+		}
+	}
+	return items
+}
+
+// checkRangeSplitBound rejects SPLIT PARTITION p AT (v) when v is an integer
+// literal outside the open interval (prevHigh, high) of p (ORA-14080).
+func (b *builder) checkRangeSplitBound(r objRef, st *syncedTable, pname string, rest []parser.Token, rng review.Range) bool {
+	hi, hasHi := st.partRangeHigh[pname]
+	lo := st.partRangePrev[pname]
+	hasPrev := st.partRangeHasPrev[pname]
+	if !hasHi && !hasPrev {
+		return false
+	}
+	for i := 0; i+1 < len(rest); i++ {
+		if tokWord(rest, i, "AT") && rest[i+1].Type == tokenOpenParen {
+			end := skipBalancedParens(rest, i+1)
+			if end <= i+2 || rest[end-1].Type != tokenCloseParen {
+				return false
+			}
+			inner := rest[i+2 : end-1]
+			if len(inner) == 1 && inner[0].Type != tokenQuoted && inner[0].Type != tokenString {
+				if val, err := strconv.ParseInt(inner[0].Str, 10, 64); err == nil {
+					if hasHi && val >= hi {
+						b.fail(rng, review.UnsupportedForm, "Split bound for partition "+review.Code(ident(pname))+" of "+review.Code(r.written)+" must be less than its high bound.")
+						return true
+					}
+					if hasPrev && val <= lo {
+						b.fail(rng, review.UnsupportedForm, "Split bound for partition "+review.Code(ident(pname))+" of "+review.Code(r.written)+" must be greater than the preceding partition's high bound.")
+						return true
+					}
+				}
+			}
+			break
+		}
+	}
+	return false
+}
+
+// checkColTypeSelfTable rejects a CREATE TABLE column whose non-builtin
+// datatype names the table itself in the same schema (tables and types share
+// Oracle's object namespace).
+func (b *builder) checkColTypeSelfTable(tn *ast.TypeName, r objRef, rng review.Range) bool {
+	if tn == nil || tn.Names == nil || tn.IsRef || tn.IsPercType || tn.IsPercRowtype {
+		return false
+	}
+	switch len(tn.Names.Items) {
+	case 1:
+		s, ok := tn.Names.Items[0].(*ast.String)
+		if !ok || s.Str == "" || oracleBuiltinTypeNames[strings.ToUpper(s.Str)] {
+			return false
+		}
+		if r.schema == b.w.current && s.Str == r.name {
+			b.fail(rng, review.UnsupportedForm, "Column datatype cannot have the same name as table "+review.Code(r.written)+".")
+			return true
+		}
+	case 2:
+		s0, ok0 := tn.Names.Items[0].(*ast.String)
+		s1, ok1 := tn.Names.Items[1].(*ast.String)
+		if !ok0 || !ok1 || s1.Str == "" || oracleBuiltinTypeNames[strings.ToUpper(s1.Str)] {
+			return false
+		}
+		if s0.Str == r.schema && s1.Str == r.name {
+			b.fail(rng, review.UnsupportedForm, "Column datatype cannot have the same name as table "+review.Code(r.written)+".")
+			return true
+		}
+	}
+	return false
+}
+
+// checkSelectFromTables checks that direct FROM table references in a SELECT
+// (and EXISTS/IN subqueries in its WHERE clause) exist, respecting CTE names
+// declared in WITH clauses (including recursive CTEs).
+func (b *builder) checkSelectFromTables(stmt ast.StmtNode, outerCTEs map[string]bool) {
+	sel, ok := stmt.(*ast.SelectStmt)
+	if !ok || sel == nil {
+		return
+	}
+	ctes := outerCTEs
+	if sel.WithClause != nil && sel.WithClause.CTEs != nil && len(sel.WithClause.CTEs.Items) > 0 {
+		merged := make(map[string]bool, len(outerCTEs)+len(sel.WithClause.CTEs.Items))
+		for k, v := range outerCTEs {
+			merged[k] = v
+		}
+		for _, item := range sel.WithClause.CTEs.Items {
+			if cte, ok := item.(*ast.CTE); ok && cte.Name != "" {
+				merged[cte.Name] = true
+			}
+		}
+		for _, item := range sel.WithClause.CTEs.Items {
+			if cte, ok := item.(*ast.CTE); ok && cte.Query != nil {
+				b.checkSelectFromTables(cte.Query, merged)
+			}
+		}
+		ctes = merged
+	}
+	if sel.Larg != nil {
+		b.checkSelectFromTables(sel.Larg, ctes)
+	}
+	if sel.Rarg != nil {
+		b.checkSelectFromTables(sel.Rarg, ctes)
+	}
+	if sel.FromClause != nil {
+		b.checkFromListTables(sel.FromClause, ctes)
+	}
+	if sel.WhereClause != nil {
+		b.checkWhereSubqueryTables(sel.WhereClause, ctes)
+	}
+}
+
+func (b *builder) checkFromListTables(from *ast.List, ctes map[string]bool) {
+	if from == nil {
+		return
+	}
+	for _, item := range from.Items {
+		if te, ok := item.(ast.TableExpr); ok {
+			b.checkFromExprTables(te, ctes)
+		}
+	}
+}
+
+func (b *builder) checkFromExprTables(te ast.TableExpr, ctes map[string]bool) {
+	if te == nil {
+		return
+	}
+	switch v := te.(type) {
+	case *ast.TableRef:
+		if v.Name == nil || v.Name.Name == "" || v.Dblink != "" || v.Name.DBLink != "" {
+			return
+		}
+		if v.Name.Schema == "" && ctes[v.Name.Name] {
+			return
+		}
+		if b.isSysDual(v.Name) {
+			return
+		}
+		if r, ok := b.ref(v.Name); ok {
+			b.missingTarget(v.Name, r)
+		}
+	case *ast.JoinClause:
+		b.checkFromExprTables(v.Left, ctes)
+		b.checkFromExprTables(v.Right, ctes)
+	case *ast.SubqueryRef:
+		b.checkSelectFromTables(v.Subquery, ctes)
+	case *ast.PivotClause:
+		b.checkFromExprTables(v.Source, ctes)
+	case *ast.UnpivotClause:
+		b.checkFromExprTables(v.Source, ctes)
+	}
+}
+
+func (b *builder) checkWhereSubqueryTables(where ast.ExprNode, ctes map[string]bool) {
+	if where == nil {
+		return
+	}
+	ast.Inspect(where, func(n ast.Node) bool {
+		if sel, ok := n.(*ast.SelectStmt); ok {
+			b.checkSelectFromTables(sel, ctes)
+			return false
+		}
+		return true
+	})
+}
+
+// checkDMLSetSubqueryCounts rejects multi-column SET (c1, c2) = (SELECT ...)
+// when the subquery column count does not match len(Columns) (ORA-00947/00913).
+func (b *builder) checkDMLSetSubqueryCounts(setClauses *ast.List) bool {
+	if setClauses == nil {
+		return false
+	}
+	for _, item := range setClauses.Items {
+		sc, ok := item.(*ast.SetClause)
+		if !ok || sc.Columns == nil || len(sc.Columns.Items) == 0 || sc.Value == nil {
+			continue
+		}
+		var sel *ast.SelectStmt
+		switch e := sc.Value.(type) {
+		case *ast.SubqueryExpr:
+			sel, _ = e.Subquery.(*ast.SelectStmt)
+		case *ast.ParenExpr:
+			if sub, ok := e.Expr.(*ast.SubqueryExpr); ok {
+				sel, _ = sub.Subquery.(*ast.SelectStmt)
+			}
+		}
+		if sel != nil {
+			if nSel, ok := selectColumnCount(sel); ok && nSel != len(sc.Columns.Items) {
+				rng := rangeOf(sc.Loc)
+				if rng == (review.Range{}) {
+					rng = b.anchor()
+				}
+				b.fail(rng, review.UnsupportedForm, "SET column count does not match subquery SELECT list count.")
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// checkDMLSetRhsAndSubquery checks multi-column SET subquery column counts
+// (ORA-00947) and bare-identifier RHS values on single-table UPDATE SET /
+// INSERT SET (ORA-00904 / ORA-00984).
+func (b *builder) checkDMLSetRhsAndSubquery(r objRef, st *syncedTable, setClauses *ast.List, alias string, isInsert bool) bool {
+	if b.checkDMLSetSubqueryCounts(setClauses) {
+		return true
+	}
+	if setClauses == nil || st == nil || !st.complete {
+		return false
+	}
+	for _, item := range setClauses.Items {
+		sc, ok := item.(*ast.SetClause)
+		if !ok || sc.Value == nil {
+			continue
+		}
+		cr, ok := sc.Value.(*ast.ColumnRef)
+		if !ok || cr.Column == "" || cr.Column == "*" || cr.Schema != "" {
+			continue
+		}
+		if cr.Table != "" && cr.Table != r.name && (alias == "" || cr.Table != alias) {
+			continue
+		}
+		rng := rangeOf(cr.Loc)
+		if rng == (review.Range{}) {
+			rng = r.rng
+		}
+		if isInsert {
+			// Column references are not allowed in INSERT ... SET values (ORA-00984).
+			upper := strings.ToUpper(cr.Column)
+			if oraclePseudoColumns[upper] || noParenBuiltins[upper] || sqlBuiltins[upper] || upper == "DEFAULT" {
+				continue
+			}
+			if b.w.current != "" {
+				if f, kind := b.look(walk.Key{Space: spaceObject, Parent: walk.Path(b.w.current), Name: cr.Column}); f == walk.Present && (kind == kindFunction || kind == kindSynonym || kind == kindPackage) {
+					continue
+				}
+				if f, _ := b.look(publicKey(cr.Column)); f == walk.Present {
+					continue
+				}
+			}
+			b.fail(rng, review.UnsupportedForm, "Column reference "+review.Code(ident(cr.Column))+" is not allowed in INSERT SET.")
+			return true
+		}
+		if cr.Table != "" {
+			if f, _ := b.look(r.childKey(spaceColumn, cr.Column)); f == walk.Absent && !generated(spaceColumn, cr.Column) && !oraclePseudoColumns[strings.ToUpper(cr.Column)] {
+				b.columnNeeds(r, cr.Column, rng)
+				return true
+			}
+			continue
+		}
+		if !strings.EqualFold(cr.Column, "DEFAULT") && !b.isValidBareIdentifier(r, cr.Column) {
+			b.columnNeeds(r, cr.Column, rng)
 			return true
 		}
 	}

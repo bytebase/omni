@@ -403,8 +403,14 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 			return true
 		}
 		b.Order = walk.Lookups
-		if b.claimName(r, v.IfNotExists, false, kindTable) && !v.IfNotExists && v.OfType != nil && v.OfType.Schema == "" && v.OfType.DBLink == "" {
-			b.checkColTypeKnownNonType(&ast.TypeName{Names: &ast.List{Items: []ast.Node{&ast.String{Str: v.OfType.Name}}}}, rangeOf(v.OfType.Loc))
+		if b.claimName(r, v.IfNotExists, false, kindTable) && !v.IfNotExists && v.OfType != nil && v.OfType.DBLink == "" {
+			if ofRef, ok := b.ref(v.OfType); ok && ofRef.schema == r.schema && ofRef.name == r.name {
+				b.fail(rangeOf(v.OfType.Loc), review.UnsupportedForm, "Table "+review.Code(r.written)+" cannot have the same name as its object type.")
+				return true
+			}
+			if v.OfType.Schema == "" {
+				b.checkColTypeKnownNonType(&ast.TypeName{Names: &ast.List{Items: []ast.Node{&ast.String{Str: v.OfType.Name}}}}, rangeOf(v.OfType.Loc))
+			}
 		}
 		b.Last = true
 		return true
@@ -436,10 +442,11 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 					return true
 				}
 			}
-		} else if v.AsQuery != nil && len(columns) == 0 {
-			if b.checkSelectAliases(v.AsQuery, r) {
+		} else if v.AsQuery != nil {
+			if len(columns) == 0 && b.checkSelectAliases(v.AsQuery, r) {
 				return true
 			}
+			b.checkSelectFromTables(v.AsQuery, nil)
 		}
 	}
 	if b.declTextFails(&d, r) {
@@ -837,6 +844,9 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 					}
 				}
 				if willCreateIndex {
+					if b.checkCreateIndexType(v, t, b.syncedColMeta(t), r.rng) {
+						return true
+					}
 					if b.checkCreateIndexLocal(v, t, b.syncedPartMeta(t), r.rng) {
 						return true
 					}
@@ -847,12 +857,22 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 				if !v.IfNotExists || idxFact != walk.Present {
 					b.mutateIndexes(t)
 				}
+			} else if got == kindMView && willCreateIndex {
+				if b.checkCreateIndexType(v, t, nil, r.rng) {
+					return true
+				}
+				if b.checkCreateIndexLocal(v, t, nil, r.rng) {
+					return true
+				}
 			}
 		case walk.Absent:
 			if objFact, objKind := b.look(t.key(spaceObject)); objFact == walk.Present && objKind != "" && objKind != kindSynonym {
 				b.wrongTarget(t, false)
 			} else if sr, _, sok := b.resolveSynonymTable(v.Table, t); sok {
 				if willCreateIndex {
+					if b.checkCreateIndexType(v, sr, b.syncedColMeta(sr), r.rng) {
+						return true
+					}
 					if b.checkCreateIndexLocal(v, sr, b.syncedPartMeta(sr), r.rng) {
 						return true
 					}
@@ -1024,9 +1044,25 @@ func (b *builder) alterIndex(v *ast.AlterIndexStmt) bool {
 	if b.checkDuplicateAnnotations(v.Loc, r.rng) {
 		return true
 	}
+	if !v.IfExists && v.Action == "RENAME" && v.Partition == "" && v.Subpartition == "" && v.NewName == r.name {
+		b.fail(r.rng, review.DuplicateName, "Cannot rename index "+review.Code(r.written)+" to the same name.")
+		return true
+	}
 	k := r.key(spaceIndex)
 	if !b.exists(k, nil, v.IfExists, r.rng, missingIndex(r.written), "") {
 		return true
+	}
+	if !v.IfExists && !b.w.otherSpecs && !b.w.mutatedAllIndexes && r.schema == b.w.snap.schema {
+		if b.w.snap.indexTypes[r.name] == "NORMAL" {
+			if v.Action == "ENABLE" || v.Action == "DISABLE" {
+				b.fail(r.rng, review.UnsupportedForm, v.Action+" is only allowed on a function-based index, not "+review.Code(r.written)+".")
+				return true
+			}
+			if v.Parameters != "" {
+				b.fail(r.rng, review.UnsupportedForm, "PARAMETERS is only allowed on a domain index, not "+review.Code(r.written)+".")
+				return true
+			}
+		}
 	}
 	b.mutateAllIndexes()
 	if v.Action != "RENAME" || v.Partition != "" || v.Subpartition != "" {
@@ -1088,10 +1124,15 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 			return true
 		}
 		if b.claimName(r, v.IfNotExists, false, kindMView) && !v.IfNotExists {
+			if b.isObjectView(v) && b.checkObjectViewSelfRef(v, r) {
+				b.Last = true
+				return true
+			}
 			if dup := firstDupString(stringList(v.Columns)); dup != "" {
 				b.fail(r.rng, review.DuplicateName, twice("declares", "column", dup))
 				return true
 			}
+			b.checkSelectFromTables(v.Query, nil)
 			if !b.checkCreateMviewExtra(v, r) {
 				b.checkMviewColumnRefs(v, r)
 			}
@@ -1124,8 +1165,15 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 			return true
 		}
 	}
-	if !v.IfNotExists && !v.Force && v.Columns == nil && !b.isObjectView(v) {
-		b.checkSelectAliases(v.Query, r)
+	if !v.IfNotExists && !v.Force {
+		if b.isObjectView(v) {
+			if b.checkObjectViewSelfRef(v, r) {
+				return true
+			}
+		} else if v.Columns == nil {
+			b.checkSelectAliases(v.Query, r)
+		}
+		b.checkSelectFromTables(v.Query, nil)
 	}
 	for i, n := range d.names {
 		k := r.schemaKey(spaceConstraint, n)
@@ -1401,6 +1449,30 @@ func (b *builder) comment(v *ast.CommentStmt) bool {
 		if v.Column != "" {
 			if f, kind := b.look(r.key(spaceTable)); f == walk.Present && kind == kindTable {
 				b.columnNeeds(r, v.Column, r.rng)
+			} else if sr, _, sok := b.resolveSynonymTable(v.Object, r); sok {
+				b.columnNeeds(sr, v.Column, r.rng)
+			}
+		}
+	case "INDEXTYPE", "OPERATOR":
+		r, ok := b.ref(v.Object)
+		if !ok {
+			return false
+		}
+		b.Order = walk.Lookups
+		if f, kind := b.look(r.key(spaceObject)); f == walk.Present && kind != "" && kind != cat {
+			b.need(r.key(spaceObject), walk.Present, []string{cat}, r.rng, "", wrongKind(r.written, kind, strings.ToLower(cat)))
+			return true
+		}
+	case "PROPERTY":
+		if len(toks) >= 4 && strings.EqualFold(toks[3].Str, "GRAPH") {
+			r, ok := b.ref(v.Object)
+			if !ok {
+				return false
+			}
+			b.Order = walk.Lookups
+			if f, kind := b.look(r.key(spaceObject)); f == walk.Present && kind != "" && kind != "PROPERTY GRAPH" {
+				b.need(r.key(spaceObject), walk.Present, []string{"PROPERTY GRAPH"}, r.rng, "", wrongKind(r.written, kind, "property graph"))
+				return true
 			}
 		}
 	}
@@ -1467,6 +1539,10 @@ func (b *builder) alterMaterializedView(v *ast.AlterMaterializedViewStmt) bool {
 							return true
 						}
 						if sr, _, sok := b.resolveSynonymTable(v.Name, r); sok {
+							pkFact, _ := b.look(sr.childKey(spacePrimary, ""))
+							if b.checkIOTPartitionClause(sr, pkFact == walk.Absent, partLoc, r.rng) {
+								return true
+							}
 							if b.checkPartitionMeta(sr, b.syncedPartMeta(sr), partLoc, r.rng) {
 								return true
 							}
@@ -1502,6 +1578,10 @@ func (b *builder) alterMaterializedView(v *ast.AlterMaterializedViewStmt) bool {
 					return true
 				}
 				if kind == kindTable {
+					pkFact, _ := b.look(r.childKey(spacePrimary, ""))
+					if b.checkIOTPartitionClause(r, pkFact == walk.Absent, partLoc, r.rng) {
+						return true
+					}
 					if b.checkPartitionMeta(r, b.syncedPartMeta(r), partLoc, r.rng) {
 						return true
 					}
@@ -1862,7 +1942,7 @@ func (b *builder) dmlInsert(v *ast.InsertStmt) {
 				b.need(r.key(spaceObject), walk.Present, []string{kindTable, kindMView}, r.rng, "", wrongKind(r.written, kindView, kindWord(kindTable)))
 				return
 			}
-			if b.dmlCheckColumnList(r, into.Columns, "") {
+			if b.dmlCheckColumnList(into.Table, r, into.Columns, "") {
 				return
 			}
 			if into.Columns != nil && into.Values != nil && len(into.Columns.Items) > 0 && len(into.Values.Items) > 0 && len(into.Columns.Items) != len(into.Values.Items) {
@@ -1885,14 +1965,26 @@ func (b *builder) dmlInsert(v *ast.InsertStmt) {
 	if b.checkDMLPartitionExt(v.Table, r, v.PartitionExt) {
 		return
 	}
-	if b.dmlCheckColumnList(r, v.Columns, aliasName(v.Alias)) {
+	if b.dmlCheckColumnList(v.Table, r, v.Columns, aliasName(v.Alias)) {
 		return
 	}
-	if b.checkDMLDuplicateSetAndValue(r, b.syncedTable(r), v.SetClauses, aliasName(v.Alias)) {
+	insRef, insTable := b.dmlResolveTable(v.Table, r)
+	if b.checkDMLDuplicateSetAndValue(insRef, insTable, v.SetClauses, aliasName(v.Alias)) {
 		return
 	}
-	if b.dmlCheckSetClauses(r, v.SetClauses, aliasName(v.Alias)) {
+	if b.dmlCheckSetClauses(v.Table, r, v.SetClauses, aliasName(v.Alias)) {
 		return
+	}
+	if v.SetClauses != nil && len(v.SetClauses.Items) > 0 {
+		if b.checkDMLSetRhsAndSubquery(insRef, insTable, v.SetClauses, aliasName(v.Alias), true) {
+			return
+		}
+		if v.ErrorLog == nil && b.dmlCheckInsertSetNotNull(v.Table, r, v.SetClauses, aliasName(v.Alias), b.anchor()) {
+			return
+		}
+	}
+	if v.Select != nil {
+		b.checkSelectFromTables(v.Select, nil)
 	}
 	if v.Columns != nil && len(v.Columns.Items) > 0 {
 		if v.Values != nil && len(v.Values.Items) > 0 && v.ValuesRecord == nil && v.Select == nil {
@@ -1954,11 +2046,22 @@ func (b *builder) dmlUpdate(v *ast.UpdateStmt) {
 	if b.checkDMLPartitionExt(t, r, partExt) {
 		return
 	}
-	if b.checkDMLDuplicateSetAndValue(r, b.syncedTable(r), v.SetClauses, alias) {
+	updRef, updTable := b.dmlResolveTable(t, r)
+	if b.checkDMLDuplicateSetAndValue(updRef, updTable, v.SetClauses, alias) {
 		return
 	}
-	if b.dmlCheckSetClauses(r, v.SetClauses, alias) {
+	if b.dmlCheckSetClauses(t, r, v.SetClauses, alias) {
 		return
+	}
+	if v.FromClause == nil {
+		if b.checkDMLSetRhsAndSubquery(updRef, updTable, v.SetClauses, alias, false) {
+			return
+		}
+	} else {
+		if b.checkDMLSetSubqueryCounts(v.SetClauses) {
+			return
+		}
+		b.checkFromListTables(v.FromClause, nil)
 	}
 	if b.checkDMLFromList(v.FromClause) {
 		return
@@ -1969,11 +2072,14 @@ func (b *builder) dmlUpdate(v *ast.UpdateStmt) {
 			return
 		}
 	}
-	if v.FromClause == nil {
-		if st := b.syncedTable(r); st != nil {
-			if b.checkDMLWhereColumns(r, st, alias, v.WhereClause) {
-				return
-			}
+	b.checkWhereSubqueryTables(v.WhereClause, nil)
+	if v.FromClause == nil && updTable != nil {
+		whereAlias := alias
+		if whereAlias == "" && updRef.name != r.name {
+			whereAlias = r.name
+		}
+		if b.checkDMLWhereColumns(updRef, updTable, whereAlias, v.WhereClause) {
+			return
 		}
 	}
 	b.dmlErrorLog(v.ErrorLog, r)
@@ -1998,6 +2104,10 @@ func (b *builder) dmlDelete(v *ast.DeleteStmt) {
 	if b.checkDMLFromList(v.FromClause) {
 		return
 	}
+	if v.FromClause != nil {
+		b.checkFromListTables(v.FromClause, nil)
+	}
+	b.checkWhereSubqueryTables(v.WhereClause, nil)
 	t := v.Table
 	alias := aliasName(v.Alias)
 	partExt := v.PartitionExt
@@ -2042,8 +2152,13 @@ func (b *builder) dmlDelete(v *ast.DeleteStmt) {
 		return
 	}
 	if v.FromClause == nil {
-		if st := b.syncedTable(r); st != nil {
-			if b.checkDMLWhereColumns(r, st, alias, v.WhereClause) {
+		delRef, delTable := b.dmlResolveTable(t, r)
+		if delTable != nil {
+			whereAlias := alias
+			if whereAlias == "" && delRef.name != r.name {
+				whereAlias = r.name
+			}
+			if b.checkDMLWhereColumns(delRef, delTable, whereAlias, v.WhereClause) {
 				return
 			}
 		}
@@ -2080,18 +2195,19 @@ func (b *builder) dmlMerge(v *ast.MergeStmt) {
 		return
 	}
 	if v.Clauses != nil {
+		mRef, mTable := b.dmlResolveTable(v.Target, r)
 		for _, item := range v.Clauses.Items {
 			mc, ok := item.(*ast.MergeClause)
 			if !ok {
 				continue
 			}
-			if b.checkDMLDuplicateSetAndValue(r, b.syncedTable(r), mc.UpdateSet, targetAlias) {
+			if b.checkDMLDuplicateSetAndValue(mRef, mTable, mc.UpdateSet, targetAlias) {
 				return
 			}
-			if b.dmlCheckSetClauses(r, mc.UpdateSet, targetAlias) {
+			if b.dmlCheckSetClauses(v.Target, r, mc.UpdateSet, targetAlias) {
 				return
 			}
-			if b.dmlCheckColumnList(r, mc.InsertCols, targetAlias) {
+			if b.dmlCheckColumnList(v.Target, r, mc.InsertCols, targetAlias) {
 				return
 			}
 			if mc.InsertCols != nil && mc.InsertVals != nil && len(mc.InsertCols.Items) > 0 && len(mc.InsertVals.Items) > 0 && len(mc.InsertCols.Items) != len(mc.InsertVals.Items) {
@@ -2122,22 +2238,41 @@ func (b *builder) dmlCheckReadOnlyTarget(target ast.TableExpr) bool {
 	return true
 }
 
+// dmlResolveTable returns the target table ref and syncedTable for a DML
+// target, resolving a private or unqualified public synonym when unmutated.
+func (b *builder) dmlResolveTable(o *ast.ObjectName, r objRef) (objRef, *syncedTable) {
+	if st := b.syncedTable(r); st != nil {
+		return r, st
+	}
+	if sr, sst, ok := b.resolveSynonymTable(o, r); ok {
+		return sr, sst
+	}
+	return r, nil
+}
+
 // dmlCheckColumnList verifies each target column in an INSERT column list
-// has no duplicate and, when r is a known table, exists in r (ORA-00957,
-// ORA-00904).
-func (b *builder) dmlCheckColumnList(r objRef, cols *ast.List, alias string) bool {
+// has no duplicate and, when r (or its resolved synonym target) is a known
+// table, exists in that table (ORA-00957, ORA-00904).
+func (b *builder) dmlCheckColumnList(o *ast.ObjectName, r objRef, cols *ast.List, alias string) bool {
 	if cols == nil || len(cols.Items) == 0 {
 		return false
 	}
+	tr := r
 	f, kind := b.look(r.key(spaceTable))
 	checkTable := f == walk.Present && kind == kindTable
+	if !checkTable {
+		if sr, _, sok := b.resolveSynonymTable(o, r); sok {
+			tr = sr
+			checkTable = true
+		}
+	}
 	seen := make(map[string]bool, len(cols.Items))
 	for _, item := range cols.Items {
 		cr, ok := item.(*ast.ColumnRef)
 		if !ok || cr.Column == "" || cr.Schema != "" {
 			continue
 		}
-		if cr.Table != "" && cr.Table != r.name && (alias == "" || cr.Table != alias) {
+		if cr.Table != "" && cr.Table != r.name && cr.Table != tr.name && (alias == "" || cr.Table != alias) {
 			continue
 		}
 		rng := rangeOf(cr.Loc)
@@ -2150,34 +2285,39 @@ func (b *builder) dmlCheckColumnList(r objRef, cols *ast.List, alias string) boo
 		}
 		seen[cr.Column] = true
 		if checkTable {
-			b.columnNeeds(r, cr.Column, rng)
+			b.columnNeeds(tr, cr.Column, rng)
 		}
 	}
 	return false
 }
 
 // dmlCheckSetClauses verifies target columns on the LHS of SET clauses when
-// r is a known table (ORA-00904).
-func (b *builder) dmlCheckSetClauses(r objRef, setClauses *ast.List, alias string) bool {
+// r (or its resolved synonym target) is a known table (ORA-00904).
+func (b *builder) dmlCheckSetClauses(o *ast.ObjectName, r objRef, setClauses *ast.List, alias string) bool {
 	if setClauses == nil || len(setClauses.Items) == 0 {
 		return false
 	}
+	tr := r
 	f, kind := b.look(r.key(spaceTable))
 	if f != walk.Present || kind != kindTable {
-		return false
+		sr, _, sok := b.resolveSynonymTable(o, r)
+		if !sok {
+			return false
+		}
+		tr = sr
 	}
 	checkRef := func(cr *ast.ColumnRef) {
 		if cr == nil || cr.Column == "" || cr.Schema != "" {
 			return
 		}
-		if cr.Table != "" && cr.Table != r.name && (alias == "" || cr.Table != alias) {
+		if cr.Table != "" && cr.Table != r.name && cr.Table != tr.name && (alias == "" || cr.Table != alias) {
 			return
 		}
 		rng := rangeOf(cr.Loc)
 		if rng == (review.Range{}) {
 			rng = r.rng
 		}
-		b.columnNeeds(r, cr.Column, rng)
+		b.columnNeeds(tr, cr.Column, rng)
 	}
 	for _, item := range setClauses.Items {
 		sc, ok := item.(*ast.SetClause)
@@ -2211,7 +2351,13 @@ func (b *builder) dmlErrorLog(el *ast.ErrorLogClause, target objRef) {
 				return
 			}
 			b.missingTarget(el.Into, er)
-			if st := b.syncedColMeta(er); st != nil && st.complete && !st.columns["ORA_ERR_NUMBER$"] {
+			est := b.syncedColMeta(er)
+			if est == nil {
+				if sr, _, sok := b.resolveSynonymTable(el.Into, er); sok {
+					est = b.syncedColMeta(sr)
+				}
+			}
+			if est != nil && est.complete && !est.columns["ORA_ERR_NUMBER$"] {
 				b.fail(er.rng, review.UnsupportedForm, "Error logging table "+review.Code(er.written)+" is missing mandatory error logging columns.")
 				return
 			}

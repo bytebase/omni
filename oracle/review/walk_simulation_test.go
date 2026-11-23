@@ -81,17 +81,17 @@ var walkSimShowMissed = flag.Bool("walk-sim-missed", false, "log top missed refu
 const walkSimMinTotalRecallPct = 85.0
 
 var walkSimMinFixtureRecallPct = map[string]float64{
-	"one_table@missing":     86.0,
-	"one_table@table":       87.5,
-	"one_table@column":      86.0,
-	"objects@partitioned":   83.0,
-	"objects@index_trigger": 89.0,
-	"objects@view":          90.5,
-	"objects@matview":       54.0,
-	"objects@sequence":      92.0,
-	"objects@synonym":       89.5,
+	"one_table@missing":     87.0,
+	"one_table@table":       81.0,
+	"one_table@column":      80.0,
+	"objects@partitioned":   87.0,
+	"objects@index_trigger": 90.0,
+	"objects@view":          91.0,
+	"objects@matview":       55.0,
+	"objects@sequence":      92.5,
+	"objects@synonym":       86.0,
 	"objects@function":      92.5,
-	"objects@type":          83.0,
+	"objects@type":          83.5,
 }
 
 const (

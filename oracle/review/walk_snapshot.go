@@ -101,6 +101,7 @@ type oracleSnapshot struct {
 	// constraints, whose indexes may have those names, another, or none.
 	constraints       map[string]string
 	indexes           map[string]string
+	indexTypes        map[string]string
 	constraintIndexes map[string]bool
 	triggers          map[string]string
 	// domainTables holds the tables and materialized views with a domain
@@ -141,20 +142,23 @@ type syncedTable struct {
 	// Rich metadata populated by oracle/driver/sync.go (and walkSync).
 	// hasRichSync is true when synced columns carry non-empty Type strings,
 	// distinguishing real Oracle sync output from minimal name-only test stubs.
-	hasRichSync     bool
-	colMeta         map[string]syncedCol
-	visibleInsCols  int // count of non-invisible, non-virtual columns
-	partType        metadata.TablePartitionMetadata_Type
-	hasSubparts     bool
-	hasInterval     bool
-	hasForeignKey   bool
-	partCount       int
-	partNames       map[string]bool
-	partKeyCols     map[string]bool
-	partKeyCount    int
-	allRangeInt     bool
-	maxRangeHighVal int64
-	indexedCols     [][]string
+	hasRichSync      bool
+	colMeta          map[string]syncedCol
+	visibleInsCols   int // count of non-invisible, non-virtual columns
+	partType         metadata.TablePartitionMetadata_Type
+	hasSubparts      bool
+	hasInterval      bool
+	hasForeignKey    bool
+	partCount        int
+	partNames        map[string]bool
+	partKeyCols      map[string]bool
+	partKeyCount     int
+	allRangeInt      bool
+	maxRangeHighVal  int64
+	partRangeHigh    map[string]int64
+	partRangePrev    map[string]int64
+	partRangeHasPrev map[string]bool
+	indexedCols      [][]string
 }
 
 func newOracleSnapshot(db *metadata.DatabaseSchemaMetadata) *oracleSnapshot {
@@ -164,6 +168,7 @@ func newOracleSnapshot(db *metadata.DatabaseSchemaMetadata) *oracleSnapshot {
 		tables:               make(map[string]*syncedTable),
 		constraints:          make(map[string]string),
 		indexes:              make(map[string]string),
+		indexTypes:           make(map[string]string),
 		constraintIndexes:    make(map[string]bool),
 		triggers:             make(map[string]string),
 		domainTables:         make(map[string]bool),
@@ -296,8 +301,11 @@ func (s *oracleSnapshot) partitionsOf(st *syncedTable, parts []*metadata.TablePa
 		}
 	}
 	allInt := st.partType == metadata.TablePartitionMetadata_RANGE && st.partKeyCount == 1
+	isSingleRange := allInt
 	var maxVal int64
 	first := true
+	var prevVal int64
+	hasPrev := false
 	for _, p := range parts {
 		if p.GetName() != "" {
 			st.partNames[p.GetName()] = true
@@ -308,13 +316,38 @@ func (s *oracleSnapshot) partitionsOf(st *syncedTable, parts []*metadata.TablePa
 		if p.GetIntervalClause() != "" {
 			st.hasInterval = true
 		}
-		if allInt {
+		if isSingleRange {
 			v, err := strconv.ParseInt(strings.TrimSpace(p.GetValue()), 10, 64)
-			if err != nil {
+			if err == nil {
+				if p.GetName() != "" {
+					if st.partRangeHigh == nil {
+						st.partRangeHigh = make(map[string]int64)
+						st.partRangePrev = make(map[string]int64)
+						st.partRangeHasPrev = make(map[string]bool)
+					}
+					st.partRangeHigh[p.GetName()] = v
+					if hasPrev {
+						st.partRangePrev[p.GetName()] = prevVal
+						st.partRangeHasPrev[p.GetName()] = true
+					}
+				}
+				if allInt && (first || v > maxVal) {
+					maxVal = v
+					first = false
+				}
+				prevVal = v
+				hasPrev = true
+			} else {
+				if p.GetName() != "" && hasPrev {
+					if st.partRangePrev == nil {
+						st.partRangePrev = make(map[string]int64)
+						st.partRangeHasPrev = make(map[string]bool)
+					}
+					st.partRangePrev[p.GetName()] = prevVal
+					st.partRangeHasPrev[p.GetName()] = true
+				}
 				allInt = false
-			} else if first || v > maxVal {
-				maxVal = v
-				first = false
+				hasPrev = false
 			}
 		}
 	}
@@ -368,6 +401,9 @@ func splitOracleIdentList(expr string) []string {
 // DROP CONSTRAINT gives it.
 func (s *oracleSnapshot) indexesOf(table string, st *syncedTable, indexes []*metadata.IndexMetadata) {
 	for _, idx := range indexes {
+		if idx.GetType() != "" {
+			s.indexTypes[idx.GetName()] = idx.GetType()
+		}
 		if idx.GetType() == "DOMAIN" {
 			s.domainTables[table] = true
 			s.domainIndexes[idx.GetName()] = true

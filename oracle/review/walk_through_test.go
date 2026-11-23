@@ -873,18 +873,34 @@ func TestWalkThroughOracleRichChecks(t *testing.T) {
 	oneFinding(t, "ALTER TABLE plain UPGRADE INCLUDING DATA XMLTYPE a STORE AS BASICFILE CLOB;", 0, "ALTER TABLE UPGRADE does not accept XMLTYPE STORE AS BASICFILE.", rich)
 	oneFinding(t, "ALTER TABLE plain UPGRADE INCLUDING DATA XMLTYPE a STORE AS BINARY XML;", 0, "ALTER TABLE UPGRADE does not accept XMLTYPE STORE AS BINARY.", rich)
 
-	// 2) Partition maintenance checks on non-partitioned, RANGE, HASH, composite, and FK tables.
-	oneFinding(t, "ALTER TABLE plain ADD PARTITION;", 0, "Table `PLAIN` is not partitioned.", rich)
-	oneFinding(t, "ALTER TABLE plain MOVE PARTITION p1;", 0, "Table `PLAIN` is not partitioned.", rich)
-	oneFinding(t, "ALTER MATERIALIZED VIEW syn_plain ADD PARTITION;", 0, "Table `SYN_PLAIN` is not partitioned.", rich)
-	oneFinding(t, "CREATE INDEX ix_loc ON plain (name) LOCAL;", 0, "Cannot create a LOCAL index on non-partitioned table `PLAIN`.", rich)
+	// 2) Partition maintenance checks on non-partitioned (SYSTEM-safe), RANGE, HASH, composite, and FK tables.
+	// Plain tables without synced RANGE/LIST/HASH partitions could be SYSTEM-partitioned
+	// (omitted by oracle/driver/sync.go), so SYSTEM-compatible clauses are not rejected.
+	noFinding(t, "ALTER TABLE plain ADD PARTITION;", rich)
+	noFinding(t, "ALTER TABLE plain MOVE PARTITION p1;", rich)
+	noFinding(t, "ALTER MATERIALIZED VIEW syn_plain ADD PARTITION;", rich)
+	noFinding(t, "CREATE INDEX ix_loc ON plain (name) LOCAL;", rich)
+	// Clauses invalid on BOTH non-partitioned and SYSTEM-partitioned tables ARE rejected.
+	oneFinding(t, "ALTER TABLE plain ADD PARTITION VALUES LESS THAN (10);", 0, "Partition VALUES clause requires a range- or list-partitioned table, not `PLAIN`.", rich)
+	oneFinding(t, "ALTER TABLE plain SPLIT PARTITION p1 AT (10);", 0, "Table `PLAIN` is not range-, list-, or hash-partitioned.", rich)
+	oneFinding(t, "ALTER TABLE plain DROP SUBPARTITION sp1;", 0, "Table `PLAIN` is not composite-partitioned.", rich)
+	oneFinding(t, "ALTER TABLE plain ADD PARTITION PARALLEL;", 0, "PARALLEL is not allowed in ADD PARTITION on a non-hash-partitioned table.", rich)
+	oneFinding(t, "CREATE UNIQUE INDEX ix_uloc ON plain (name) LOCAL;", 0, "Cannot create a UNIQUE LOCAL index without partitioning key columns on `PLAIN`.", rich)
+	oneFinding(t, "CREATE INDEX ix_st ON plain (name) LOCAL STORE IN (users);", 0, "LOCAL index STORE IN requires a hash- or composite-hash-partitioned table, not `PLAIN`.", rich)
+	oneFinding(t, "CREATE INDEX ix_sub ON plain (name) LOCAL (PARTITION (SUBPARTITION s1));", 0, "Table `PLAIN` is not composite-partitioned.", rich)
 	// A table with an FK could be REFERENCE-partitioned (omitted by sync): no false positive.
 	noFinding(t, "ALTER TABLE child_fk ADD PARTITION;", rich)
+	noFinding(t, "ALTER TABLE child_fk SPLIT PARTITION p1 AT (10);", rich)
 	// RANGE-partitioned non-composite table.
 	noFinding(t, "ALTER TABLE part_range ADD PARTITION p3 VALUES LESS THAN (300);", rich)
 	noFinding(t, "ALTER TABLE part_range ADD PARTITION p3 VALUES LESS THAN (MAXVALUE);", rich)
 	noFinding(t, "ALTER TABLE part_range MODIFY PARTITION p1 LOGGING;", rich)
+	noFinding(t, "ALTER TABLE part_range SPLIT PARTITION p2 AT (150);", rich)
 	noFinding(t, "CREATE INDEX ix_pr ON part_range (b) LOCAL (PARTITION p1, PARTITION p2);", rich)
+	oneFinding(t, "ALTER TABLE part_range SPLIT PARTITION p1 AT (100);", 0, "Split bound for partition `P1` of `PART_RANGE` must be less than its high bound.", rich)
+	oneFinding(t, "ALTER TABLE part_range SPLIT PARTITION p2 AT (100);", 0, "Split bound for partition `P2` of `PART_RANGE` must be greater than the preceding partition's high bound.", rich)
+	oneFinding(t, "ALTER TABLE part_range ALLOCATE EXTENT;", 0, "Cannot specify table-level ALLOCATE EXTENT on partitioned table `PART_RANGE`.", rich)
+	oneFinding(t, "ALTER TABLE part_range DROP PARTITION FOR (1, 2);", 0, "PARTITION FOR value count does not match partitioning key count of `PART_RANGE`.", rich)
 	oneFinding(t, "ALTER TABLE part_range ADD PARTITION;", 0, "ADD PARTITION on range-partitioned table `PART_RANGE` requires VALUES LESS THAN.", rich)
 	oneFinding(t, "ALTER TABLE part_range ADD PARTITION VALUES (1);", 0, "ADD PARTITION VALUES (...) requires a list-partitioned table, not range-partitioned `PART_RANGE`.", rich)
 	oneFinding(t, "ALTER TABLE part_range ADD PARTITION VALUES LESS THAN (1, 2);", 0, "Partition bound value count does not match partitioning key count of `PART_RANGE`.", rich)
@@ -968,8 +984,11 @@ func TestWalkThroughOracleRichChecks(t *testing.T) {
 	// 7) DML checks (PARTITION on view, implicit INSERT counts, NOT NULL, BY NAME, PIVOT, UNPIVOT,
 	//    RETURNING INTO, DUAL subquery, ANALYTIC VIEW, TABLE(1), WHERE missing col, LOG ERRORS).
 	oneFinding(t, "DELETE vw PARTITION (p1);", 0, "Partition-extended name is not allowed on view `VW`.", rich)
-	oneFinding(t, "DELETE plain PARTITION (p1);", 0, "Table `PLAIN` is not partitioned.", rich)
+	noFinding(t, "DELETE plain PARTITION (p1);", rich)
+	oneFinding(t, "DELETE plain SUBPARTITION (sp1);", 0, "Table `PLAIN` is not composite-partitioned.", rich)
+	oneFinding(t, "DELETE plain PARTITION FOR (1);", 0, "PARTITION FOR (...) requires a range-, list-, or hash-partitioned table, not `PLAIN`.", rich)
 	noFinding(t, "DELETE part_range PARTITION (p1);", rich)
+	oneFinding(t, "DELETE part_range PARTITION FOR (1, 2);", 0, "PARTITION FOR value count does not match partitioning key count of `PART_RANGE`.", rich)
 	oneFinding(t, "INSERT INTO nokey_rich VALUES (1);", 0, "INSERT value count does not match column count of `NOKEY_RICH`.", rich)
 	noFinding(t, "INSERT INTO nokey_rich VALUES (1, 2);", rich)
 	oneFinding(t, "INSERT INTO plain (val) VALUES (1);", 0, "INSERT into `PLAIN` omits NOT NULL column `ID`.", rich)
@@ -992,6 +1011,14 @@ func TestWalkThroughOracleRichChecks(t *testing.T) {
 	oneFinding(t, "UPDATE nokey_rich SET VALUE(a) = 1;", 0, "SET VALUE(...) is only valid on an object table, not `NOKEY_RICH`.", rich)
 	oneFinding(t, "DELETE nokey_rich RETURNING 1 INTO a;", 0, "RETURNING INTO requires bind variables in SQL.", rich)
 	noFinding(t, "DELETE nokey_rich RETURNING a INTO :out_a;", rich)
+	noFinding(t, "DELETE nokey_rich RETURNING 'INTO' INTO :out_a;", rich)
+	oneFinding(t, "CREATE TABLE self_of OF self_of;", 0, "Table `SELF_OF` cannot have the same name as its object type.", rich)
+	noFinding(t, "CREATE TABLE IF NOT EXISTS self_of OF self_of;", rich)
+	noFinding(t, "CREATE VIEW v_rec AS WITH c (x) AS (SELECT 1 FROM dual UNION ALL SELECT x + 1 FROM c WHERE x < 5) SELECT x FROM c;", rich)
+	oneFinding(t, "UPDATE nokey_rich SET (a, b) = (SELECT 1 FROM dual);", 0, "SET column count does not match subquery SELECT list count.", rich)
+	oneFinding(t, "INSERT INTO plain SET val = 1;", 0, "INSERT into `PLAIN` omits NOT NULL column `ID`.", rich)
+	oneFinding(t, "COMMENT ON INDEXTYPE plain IS 'bad';", 0, "`PLAIN` is a table, not an indextype.", rich)
+	oneFinding(t, "COMMENT ON PROPERTY GRAPH plain IS 'bad';", 0, "`PLAIN` is a table, not a property graph.", rich)
 	oneFinding(t, "UPDATE (SELECT 1 FROM dual) SET a = 1;", 0, "Data manipulation is not legal on an inline view over DUAL.", rich)
 	oneFinding(t, "DELETE (SELECT 1 FROM dual);", 0, "Data manipulation is not legal on an inline view over DUAL.", rich)
 	oneFinding(t, "DELETE nokey_rich FROM nokey_rich PIVOT (plain(1) FOR a IN (1));", 0, "`PLAIN` is a table, not an aggregate function.", rich)

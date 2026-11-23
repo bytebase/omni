@@ -110,6 +110,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		// Still check supplemental log group column lists (ORA-00904/00957) and
 		// REF/SCOPE clauses (ORA-22893) on known tables before ending the walk.
 		if v.Actions != nil {
+			pkFact, _ := b.look(r.childKey(spacePrimary, ""))
 			for _, item := range v.Actions.Items {
 				c, ok := item.(*ast.AlterTableCmd)
 				if !ok {
@@ -119,6 +120,19 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 					if b.checkSupplementalLogGroup(r, c.Loc, rangeOf(c.Loc)) {
 						return true
 					}
+				}
+				if c.Action == ast.AT_ALTER_PROPERTY && pkFact == walk.Absent && isIOTPropertySubtype(c.Subtype) {
+					b.fail(rangeOf(c.Loc), review.UnsupportedForm, "Index-organized table clause is not allowed on non-IOT table "+review.Code(r.written)+".")
+					return true
+				}
+				if c.Action == ast.AT_DROP_PERIOD {
+					if st := b.syncedColMeta(r); st != nil && st.complete {
+						b.fail(rangeOf(c.Loc), review.UnsupportedForm, "Table "+review.Code(r.written)+" has no valid-time period.")
+						return true
+					}
+				}
+				if b.checkAlterTableAddRefOnScalar(r, c.Loc, rangeOf(c.Loc)) {
+					return true
 				}
 			}
 		}
@@ -483,6 +497,9 @@ func (b *builder) alterCmd(r objRef, kind string, c *ast.AlterTableCmd, declared
 				return true
 			}
 		}
+		if b.checkAlterTableAddRefOnScalar(r, c.Loc, rng) {
+			return true
+		}
 		var d tableDecl
 		b.declareConstraint(&d, c.Constraint)
 		b.declChecks(&d, r)
@@ -551,6 +568,13 @@ func (b *builder) alterCmd(r objRef, kind string, c *ast.AlterTableCmd, declared
 		}
 	case ast.AT_ALTER_PROPERTY:
 		switch c.Subtype {
+		case "ALLOCATE EXTENT":
+			if kind == kindTable {
+				if st := b.syncedPartMeta(r); st != nil && st.partType != 0 {
+					b.fail(rng, review.UnsupportedForm, "Cannot specify table-level ALLOCATE EXTENT on partitioned table "+review.Code(r.written)+".")
+					return true
+				}
+			}
 		case "UPGRADE":
 			if b.checkAlterUpgrade(c.Loc, rng) {
 				return true
@@ -591,6 +615,10 @@ func (b *builder) alterCmd(r objRef, kind string, c *ast.AlterTableCmd, declared
 			return true
 		}
 		if kind == kindTable {
+			pkFact, _ := b.look(r.childKey(spacePrimary, ""))
+			if b.checkIOTPartitionClause(r, pkFact == walk.Absent && !addedPK, c.Loc, rng) {
+				return true
+			}
 			if b.checkPartitionMeta(r, b.syncedPartMeta(r), c.Loc, rng) {
 				return true
 			}
@@ -600,6 +628,15 @@ func (b *builder) alterCmd(r objRef, kind string, c *ast.AlterTableCmd, declared
 			b.mutatePartitions(r)
 		}
 	case ast.AT_MOVE:
+		if kind == kindTable {
+			pkFact, _ := b.look(r.childKey(spacePrimary, ""))
+			if b.checkIOTMoveClause(r, pkFact == walk.Absent && !addedPK, c.Loc, rng) {
+				return true
+			}
+		}
+		if b.checkUpdateIndexesText(c.Loc, rng) {
+			return true
+		}
 		if b.moveHasPartition(c.Loc) {
 			if b.checkPartitionTextContradictions(c.Loc, r, true, rng) {
 				return true
