@@ -289,6 +289,14 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 			}
 		}
 		switch name {
+		case "LOG":
+			// BINARY_DOUBLE when either argument is a float.
+			for _, t := range args {
+				if t.kind == "BINARY_FLOAT" || t.kind == "BINARY_DOUBLE" {
+					return simpleType("BINARY_DOUBLE"), false, nil
+				}
+			}
+			return numberType(), false, nil
 		case "SIN", "COS", "TAN", "SINH", "COSH", "TANH", "ASIN", "ACOS", "ATAN":
 			// BINARY_FLOAT promotes to BINARY_DOUBLE; others keep theirs.
 			switch arg(0).kind {

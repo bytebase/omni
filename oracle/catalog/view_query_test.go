@@ -529,3 +529,19 @@ func TestViewQueryNationalResults(t *testing.T) {
 		}
 	}
 }
+
+func TestViewQueryTypesRound23(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TABLE t (a VARCHAR2(10 CHAR), b VARCHAR2(20 CHAR));
+CREATE VIEW v AS SELECT DECODE(1, 1, NULL, 2) x, NVL(a, b) y, LOG(10, CAST(100 AS BINARY_DOUBLE)) z FROM t;
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"VARCHAR2(40 BYTE)", "VARCHAR2(20 CHAR)", "BINARY_DOUBLE"}
+	for i, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
+		if col.GetType() != want[i] {
+			t.Errorf("%s type = %q, want %q", col.GetName(), col.GetType(), want[i])
+		}
+	}
+}

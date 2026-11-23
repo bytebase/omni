@@ -696,6 +696,14 @@ func (a *queryAnalyzer) decodeExpr(n *ast.DecodeExpr, sc *qscope, clause exprCla
 		}
 		results = append(results, t)
 	}
+	if len(results) > 0 && results[0].isNull() {
+		// A NULL first result makes DECODE return VARCHAR2.
+		n := 0
+		for _, t := range results {
+			n = max(n, concatLength(t))
+		}
+		return varchar2Bytes(n), false, nil
+	}
 	return widenFirst(results), false, nil
 }
 
@@ -729,8 +737,17 @@ func widenFirst(args []qtype) qtype {
 		}
 		out := varchar2Bytes(n)
 		if first.charSem {
-			out.charSem = true
-			out.chars = n
+			// In characters: a CHAR-semantics argument's own length, any
+			// other's byte capacity (an NVARCHAR2(20) counts 80).
+			chars := 0
+			for _, t := range args {
+				if t.charSem {
+					chars = max(chars, t.chars)
+				} else {
+					chars = max(chars, t.byteLength())
+				}
+			}
+			out = characterType("VARCHAR2", chars, true)
 		}
 		return out
 	case first.isNumeric():
