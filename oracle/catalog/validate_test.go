@@ -969,4 +969,50 @@ func TestExecReviewRegressionFixes(t *testing.T) {
 		require.True(t, errors.As(results[0].Error, &oraErr))
 		require.Equal(t, "00942", oraErr.Code)
 	})
+
+	t.Run("CREATE VIEW accepts pseudocolumns and parenthesized column projections", func(t *testing.T) {
+		c, err := LoadSQL(`CREATE TABLE t (id NUMBER)`)
+		require.NoError(t, err)
+
+		results, err := c.Exec(`
+			CREATE VIEW v_paren AS SELECT (id) FROM t;
+			CREATE VIEW v_pseudo AS SELECT SYSDATE FROM dual;
+		`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		require.Nil(t, results[1].Error)
+	})
+
+	t.Run("ALTER TABLE ADD CONSTRAINT resolves dotted object-attribute paths against root column", func(t *testing.T) {
+		c, err := LoadSQL(`
+			CREATE TABLE p (id NUMBER CONSTRAINT p_pk PRIMARY KEY);
+			CREATE TABLE t (o obj_t);
+		`)
+		require.NoError(t, err)
+
+		results, err := c.Exec(`ALTER TABLE t ADD CONSTRAINT fk FOREIGN KEY (o.x) REFERENCES p (id)`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+
+		results, err = c.Exec(`ALTER TABLE t ADD CONSTRAINT fk_bad FOREIGN KEY (missing.x) REFERENCES p (id)`, nil)
+		require.NoError(t, err)
+		var oraErr *Error
+		require.True(t, errors.As(results[0].Error, &oraErr))
+		require.Equal(t, "00904", oraErr.Code)
+	})
+
+	t.Run("CREATE TABLE IF NOT EXISTS no-ops on existing table before unsupported-form checks", func(t *testing.T) {
+		c, err := LoadSQL(`CREATE TABLE t (id NUMBER)`)
+		require.NoError(t, err)
+
+		results, err := c.Exec(`
+			CREATE TABLE IF NOT EXISTS t OF obj_t;
+			CREATE TABLE IF NOT EXISTS t AS SELECT id FROM t;
+			CREATE GLOBAL TEMPORARY TABLE IF NOT EXISTS t (id NUMBER);
+		`, nil)
+		require.NoError(t, err)
+		for _, r := range results {
+			require.Nil(t, r.Error)
+		}
+	})
 }

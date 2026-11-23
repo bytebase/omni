@@ -354,26 +354,8 @@ func (e *oracleMetadataExtractor) extractCreateTable(n *ast.CreateTableStmt) {
 		return
 	}
 
-	if n.AsQuery != nil {
-		if queryHasUnaliasedExpression(n.AsQuery) {
-			e.setError(oraError("00998", "must name this expression with a column alias"))
-			return
-		}
-		if e.err == nil {
-			e.err = fmt.Errorf("CREATE TABLE AS SELECT is not supported by oracle/catalog")
-		}
-		return
-	}
-	if n.Global || n.Private {
-		if e.err == nil {
-			e.err = fmt.Errorf("temporary tables are not supported by oracle/catalog")
-		}
-		return
-	}
-	if n.OfType != nil {
-		if e.err == nil {
-			e.err = fmt.Errorf("object and XMLType tables are not supported by oracle/catalog")
-		}
+	if n.AsQuery != nil && queryHasUnaliasedExpression(n.AsQuery) {
+		e.setError(oraError("00998", "must name this expression with a column alias"))
 		return
 	}
 
@@ -424,6 +406,24 @@ func (e *oracleMetadataExtractor) extractCreateTable(n *ast.CreateTableStmt) {
 	}
 
 	if n.IfNotExists && e.tables[tableName] != nil {
+		return
+	}
+	if n.AsQuery != nil {
+		if e.err == nil {
+			e.err = fmt.Errorf("CREATE TABLE AS SELECT is not supported by oracle/catalog")
+		}
+		return
+	}
+	if n.Global || n.Private {
+		if e.err == nil {
+			e.err = fmt.Errorf("temporary tables are not supported by oracle/catalog")
+		}
+		return
+	}
+	if n.OfType != nil {
+		if e.err == nil {
+			e.err = fmt.Errorf("object and XMLType tables are not supported by oracle/catalog")
+		}
 		return
 	}
 	if !n.IfNotExists && e.objectExistsInNamespace(tableName) {
@@ -1085,7 +1085,7 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 			if action.Constraint != nil {
 				tc := action.Constraint
 				for _, colName := range stringList(tc.Columns) {
-					if tableFindColumn(table, colName) == nil {
+					if tableFindColumnOrPath(table, colName) == nil {
 						e.setError(oraError("00904", "%q: invalid identifier", colName))
 						return
 					}
@@ -1144,7 +1144,7 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 					columns = primaryKeyColumns(table)
 				case "UNIQUE":
 					for _, col := range columns {
-						if tableFindColumn(table, col) == nil {
+						if tableFindColumnOrPath(table, col) == nil {
 							e.setError(oraError("00904", "%q: invalid identifier", col))
 							return
 						}

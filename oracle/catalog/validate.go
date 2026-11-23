@@ -272,6 +272,20 @@ func tableFindColumn(table *metadatapb.TableMetadata, name string) *metadatapb.C
 	return nil
 }
 
+// tableFindColumnOrPath looks up an exact column name first; if name is a
+// dotted object-attribute path (such as O.X), it resolves against the root
+// column.
+func tableFindColumnOrPath(table *metadatapb.TableMetadata, name string) *metadatapb.ColumnMetadata {
+	if col := tableFindColumn(table, name); col != nil {
+		return col
+	}
+	if dot := strings.IndexByte(name, '.'); dot > 0 {
+		root := strings.Trim(name[:dot], `"`)
+		return tableFindColumn(table, root)
+	}
+	return nil
+}
+
 func (e *oracleMetadataExtractor) tableHasIncomingForeignKeys(tableName string) bool {
 	for _, other := range e.tables {
 		if other.Name == tableName {
@@ -520,16 +534,30 @@ func colHasInlineReferences(col *ast.ColumnDef) bool {
 
 func queryHasUnaliasedExpression(query ast.StmtNode) bool {
 	sel, ok := query.(*ast.SelectStmt)
-	if !ok || sel == nil || sel.TargetList == nil {
+	if !ok || sel == nil {
+		return false
+	}
+	for sel.Larg != nil {
+		sel = sel.Larg
+	}
+	if sel.TargetList == nil {
 		return false
 	}
 	for _, item := range listItems(sel.TargetList) {
 		target, ok := item.(*ast.ResTarget)
-		if !ok || target.Name != "" {
+		if !ok || target.Name != "" || target.Expr == nil {
 			continue
 		}
-		switch target.Expr.(type) {
-		case *ast.ColumnRef, *ast.Star:
+		expr := target.Expr
+		for {
+			p, ok := expr.(*ast.ParenExpr)
+			if !ok || p == nil {
+				break
+			}
+			expr = p.Expr
+		}
+		switch expr.(type) {
+		case *ast.ColumnRef, *ast.Star, *ast.PseudoColumn:
 			continue
 		default:
 			return true
