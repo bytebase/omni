@@ -586,11 +586,13 @@ func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answe
 		panic(fmt.Sprintf("the catalog does not load fixture %s: %v", fx.Name, err))
 	}
 	// Tag the loaded fixture with the scratch schema owner so cross-schema
-	// references (e.g. a.a) resolve against OMNI_SIM rather than adopting a.
+	// references (e.g. a.a) resolve against OMNI_SIM rather than adopting a,
+	// and configure the catalog to match the pinned Oracle 23ai Free PDB.
 	c.meta.Name = simUser
 	if len(c.meta.Schemas) > 0 {
 		c.meta.Schemas[0].Name = simUser
 	}
+	c.SetServerConfig(StandardOracle23ServerConfig())
 	results, err := c.Exec(statement, nil)
 	if err != nil {
 		var refusal *Error
@@ -650,6 +652,8 @@ func oracleErrorCode(code string) string {
 	return strconv.Itoa(n)
 }
 
+var emptyUserColumnsTable = regexp.MustCompile(`^CREATE TABLE "((?:[^"]|"")+)" \(\);$`)
+
 func loadSimulationForms(forms []simulate.Form) (*Catalog, error) {
 	// Statements in Oracle's dump_forms are grouped per object in alphabetical
 	// order, so a table's FOREIGN KEY (e.g. A -> P or A_FK before A_PK) can
@@ -659,10 +663,18 @@ func loadSimulationForms(forms []simulate.Form) (*Catalog, error) {
 	//   3. Foreign-key ALTER TABLE statements
 	//   4. Views (as CREATE FORCE VIEW, since Oracle already stored them) and synonyms
 	var phase1, phase2, phase3, phase4, phase5 []string
+	var emptyTables []string
 	for _, f := range forms {
 		for _, rawLine := range strings.Split(f.Text, "\n") {
 			line := strings.TrimSpace(rawLine)
 			if line == "" {
+				continue
+			}
+			// Oracle's dump_forms emits `CREATE TABLE "T" ();` for temporal-validity
+			// tables whose only columns are system-generated hidden columns
+			// (USER_GENERATED = 'NO', e.g. CREATE TABLE a(PERIOD FOR a)).
+			if m := emptyUserColumnsTable.FindStringSubmatch(line); m != nil {
+				emptyTables = append(emptyTables, strings.ReplaceAll(m[1], `""`, `"`))
 				continue
 			}
 			// Oracle's default ascending MAXVALUE (10^28 - 1) overflows int64
@@ -694,13 +706,33 @@ func loadSimulationForms(forms []simulate.Form) (*Catalog, error) {
 	all = append(all, phase3...)
 	all = append(all, phase4...)
 	all = append(all, phase5...)
-	if len(all) == 0 {
-		return New(), nil
+	c := New()
+	if len(emptyTables) > 0 {
+		schema := &metadatapb.SchemaMetadata{}
+		for _, name := range emptyTables {
+			schema.Tables = append(schema.Tables, &metadatapb.TableMetadata{Name: name})
+		}
+		c.SetMetadata(&metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{schema}})
 	}
-	return LoadSQL(strings.Join(all, "\n") + "\n")
+	if len(all) == 0 {
+		return c, nil
+	}
+	results, err := c.Exec(strings.Join(all, "\n")+"\n", nil)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			return nil, r.Error
+		}
+	}
+	return c, nil
 }
 
-var oracleMadeUpConstraint = regexp.MustCompile(`^SYS_C\d{6,}$`)
+var (
+	oracleMadeUpConstraint       = regexp.MustCompile(`^SYS_C\d{6,}$`)
+	oracleMadeUpPeriodConstraint = regexp.MustCompile(`^[A-Z0-9_$#]+[0-9a-f]{6}$`)
+)
 
 func normalizeForSimulation(meta *metadatapb.DatabaseSchemaMetadata) *metadatapb.DatabaseSchemaMetadata {
 	out := cloneMetadata(meta)
@@ -821,7 +853,7 @@ func alignGeneratedConstraintNames(got, want *metadatapb.DatabaseSchemaMetadata)
 		// Check constraints
 		usedGotChk := map[int]bool{}
 		for _, wchk := range wt.CheckConstraints {
-			if !oracleMadeUpConstraint.MatchString(wchk.Name) {
+			if !oracleMadeUpConstraint.MatchString(wchk.Name) && !oracleMadeUpPeriodConstraint.MatchString(wchk.Name) {
 				continue
 			}
 			for j, gchk := range gt.CheckConstraints {

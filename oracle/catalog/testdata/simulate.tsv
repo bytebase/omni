@@ -28,8 +28,8 @@ ok:f07dbe4edd7c	ok:f07dbe4edd7c	engine	one_table@missing	statement/createSequenc
 2289	2289	engine	one_table@missing	alterSequence(SCALE_(EXTEND|NOEXTEND)?|NOSCALE)/NOSCALE	ALTER SEQUENCE a NOSCALE
 2289	2289	engine	one_table@missing	alterSequence(EXTEND|NOEXTEND)?/EXTEND	ALTER SEQUENCE a SCALE EXTEND
 2289	2289	engine	one_table@missing	alterSequence(EXTEND|NOEXTEND)?/NOEXTEND	ALTER SEQUENCE a SCALE NOEXTEND
-2289	2511	engine	one_table@missing	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
-2289	2511	engine	one_table@missing	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
+2511	2511	engine	one_table@missing	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
+2511	2511	engine	one_table@missing	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
 2289	2289	engine	one_table@missing	alterSequence(RESTART_(WITH_NUMBER)?)?/RESTART_(WITH_NUMBER)?	ALTER SEQUENCE a RESTART
 942	942	engine	one_table@missing	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses	ALTER TABLE a MODIFY a VISIBLE
 942	942	engine	one_table@missing	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/RENAME_TO_ID	ALTER TABLE a RENAME TO a
@@ -66,7 +66,7 @@ ok:f07dbe4edd7c	ok:f07dbe4edd7c	engine	one_table@missing	statement/createSequenc
 942	942	engine	one_table@missing	alterTable_drop_constraint_clause((KEEP|DROP)_INDEX)?/(KEEP|DROP)_INDEX	ALTER TABLE a DROP PRIMARY KEY KEEP INDEX
 942	942	engine	one_table@missing	alterTable_drop_constraint_clause(KEEP|DROP)/DROP	ALTER TABLE a DROP PRIMARY KEY DROP INDEX
 942	942	engine	one_table@missing	alterTable_drop_constraint_clause(ONLINE)?/ONLINE	ALTER TABLE a DROP PRIMARY KEY ONLINE
-942	43929	engine	one_table@missing	alterTable_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a NUMBER COLLATE a)
+43929	43929	engine	one_table@missing	alterTable_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a NUMBER COLLATE a)
 942	942	engine	one_table@missing	alterTable_column_definition(SORT)?/SORT	ALTER TABLE a ADD(a NUMBER SORT)
 942	942	engine	one_table@missing	alterTable_column_definition(VISIBLE|INVISIBLE)?/VISIBLE	ALTER TABLE a ADD(a NUMBER VISIBLE)
 942	942	engine	one_table@missing	alterTable_column_definition(VISIBLE|INVISIBLE)?/INVISIBLE	ALTER TABLE a ADD(a NUMBER INVISIBLE)
@@ -78,7 +78,7 @@ ok:f07dbe4edd7c	ok:f07dbe4edd7c	engine	one_table@missing	statement/createSequenc
 942	942	engine	one_table@missing	alterTable_column_definition(alterTable_inline_ref_constraint)?/alterTable_inline_ref_constraint	ALTER TABLE a ADD(a NUMBER WITH ROWID)
 942	942	engine	one_table@missing	alterTable_column_definition(alterTable_annotations_clause)?/alterTable_annotations_clause	ALTER TABLE a ADD(a NUMBER ANNOTATIONS(ADD a))
 942	942	engine	one_table@missing	alterTable_virtual_column_definition(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a ADD(a NUMBER AS(1))
-942	43929	engine	one_table@missing	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a COLLATE a AS(1))
+43929	43929	engine	one_table@missing	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a COLLATE a AS(1))
 942	942	engine	one_table@missing	alterTable_virtual_column_definition(VISIBLE|INVISIBLE)?/VISIBLE	ALTER TABLE a ADD(a VISIBLE AS(1))
 942	942	engine	one_table@missing	alterTable_virtual_column_definition(VISIBLE|INVISIBLE)?/INVISIBLE	ALTER TABLE a ADD(a INVISIBLE AS(1))
 942	942	engine	one_table@missing	alterTable_virtual_column_definition(GENERATED_ALWAYS)?/GENERATED_ALWAYS	ALTER TABLE a ADD(a GENERATED ALWAYS AS(1))
@@ -86,7 +86,7 @@ ok:f07dbe4edd7c	ok:f07dbe4edd7c	engine	one_table@missing	statement/createSequenc
 942	942	engine	one_table@missing	alterTable_virtual_column_definition(alterTable_evaluation_edition_clause)?/alterTable_evaluation_edition_clause	ALTER TABLE a ADD(a AS(1) EVALUATE USING CURRENT EDITION)
 942	942	engine	one_table@missing	alterTable_virtual_column_definition(alterTable_inline_constraint)*/alterTable_inline_constraint_(alterTable_inline_constraint)*	ALTER TABLE a ADD(a AS(1) NULL)
 942	942	engine	one_table@missing	alterTable_modify_col_properties(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a MODIFY(a NUMBER)
-942	43929	engine	one_table@missing	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a)
+43929	43929	engine	one_table@missing	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a)
 942	942	engine	one_table@missing	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/DEFAULT_(ON_NULL)?_EXPR	ALTER TABLE a MODIFY(a DEFAULT 1)
 942	942	engine	one_table@missing	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/alterTable_identity_clause	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY)
 942	942	engine	one_table@missing	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/DROP_IDENTITY	ALTER TABLE a MODIFY(a DROP IDENTITY)
@@ -96,7 +96,7 @@ ok:f07dbe4edd7c	ok:f07dbe4edd7c	engine	one_table@missing	statement/createSequenc
 942	942	engine	one_table@missing	alterTable_modify_col_properties(alterTable_inline_constraint)*/alterTable_inline_constraint_(alterTable_inline_constraint)*	ALTER TABLE a MODIFY(a NULL)
 942	942	engine	one_table@missing	alterTable_modify_col_properties(alterTable_annotations_clause)?/alterTable_annotations_clause	ALTER TABLE a MODIFY(a ANNOTATIONS(ADD a))
 942	942	engine	one_table@missing	alterTable_modify_virtcol_properties(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a MODIFY(a NUMBER AS(1))
-942	43929	engine	one_table@missing	alterTable_modify_virtcol_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a AS(1))
+43929	43929	engine	one_table@missing	alterTable_modify_virtcol_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a AS(1))
 942	942	engine	one_table@missing	alterTable_modify_virtcol_properties(GENERATED_ALWAYS)?/GENERATED_ALWAYS	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS(1))
 942	942	engine	one_table@missing	alterTable_modify_virtcol_properties(VIRTUAL)?/VIRTUAL	ALTER TABLE a MODIFY(a AS(1) VIRTUAL)
 942	942	engine	one_table@missing	alterTable_modify_virtcol_properties(alterTable_evaluation_edition_clause)?/alterTable_evaluation_edition_clause	ALTER TABLE a MODIFY(a AS(1) EVALUATE USING CURRENT EDITION)
@@ -166,8 +166,8 @@ ok:8281d3c6dc70	ok:8281d3c6dc70	engine	one_table@missing	alterView(IF_EXISTS)?/I
 957	957	engine	one_table@missing	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1	CREATE INDEX a ON a(a, a)
 942	942	engine	one_table@missing	createIndex_index_expr(ID|EXPR)/EXPR	CREATE INDEX a ON a(1)
 1031	1031	engine	one_table@missing	createSequence(ID_.)?/ID_.	CREATE SEQUENCE a.a
-ok	65021	engine	one_table@missing	createSequence(SHARING_=_(METADATA|DATA|NONE))?/SHARING_=_(METADATA|DATA|NONE)	CREATE SEQUENCE a SHARING = METADATA
-ok	65021	engine	one_table@missing	createSequence(METADATA|DATA|NONE)/DATA	CREATE SEQUENCE a SHARING = DATA
+65021	65021	engine	one_table@missing	createSequence(SHARING_=_(METADATA|DATA|NONE))?/SHARING_=_(METADATA|DATA|NONE)	CREATE SEQUENCE a SHARING = METADATA
+65021	65021	engine	one_table@missing	createSequence(METADATA|DATA|NONE)/DATA	CREATE SEQUENCE a SHARING = DATA
 ok:f07dbe4edd7c	ok:f07dbe4edd7c	engine	one_table@missing	createSequence(METADATA|DATA|NONE)/NONE	CREATE SEQUENCE a SHARING = NONE
 ok:f07dbe4edd7c	ok:f07dbe4edd7c	engine	one_table@missing	createSequence(INCREMENT_BY_NUMBER)?/INCREMENT_BY_NUMBER	CREATE SEQUENCE a INCREMENT BY 1
 ok:f07dbe4edd7c	ok:f07dbe4edd7c	engine	one_table@missing	createSequence(START_WITH_NUMBER)?/START_WITH_NUMBER	CREATE SEQUENCE a START WITH 1
@@ -188,18 +188,18 @@ ok:f07dbe4edd7c	ok:f07dbe4edd7c	engine	one_table@missing	createSequence(SCALE_(E
 ok:f07dbe4edd7c	ok:f07dbe4edd7c	engine	one_table@missing	createSequence(EXTEND|NOEXTEND)/NOEXTEND	CREATE SEQUENCE a SCALE NOEXTEND
 ok:f07dbe4edd7c	ok:f07dbe4edd7c	engine	one_table@missing	createSequence((SESSION|GLOBAL))?/(SESSION|GLOBAL)	CREATE SEQUENCE a SESSION
 ok:f07dbe4edd7c	ok:f07dbe4edd7c	engine	one_table@missing	createSequence(SESSION|GLOBAL)/GLOBAL	CREATE SEQUENCE a GLOBAL
-ok	2511	engine	one_table@missing	createSequence(SHARD)?/SHARD	CREATE SEQUENCE a SHARD
+2511	2511	engine	one_table@missing	createSequence(SHARD)?/SHARD	CREATE SEQUENCE a SHARD
 1471	1471	engine	one_table@missing	createSynonym(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE	CREATE OR REPLACE SYNONYM a FOR a
 1471	1471	engine	one_table@missing	createSynonym(EDITIONABLE|NONEDITIONABLE)?/EDITIONABLE	CREATE EDITIONABLE SYNONYM a FOR a
 1471	1471	engine	one_table@missing	createSynonym(EDITIONABLE|NONEDITIONABLE)?/NONEDITIONABLE	CREATE NONEDITIONABLE SYNONYM a FOR a
 ok:1533a14c2886	ok:1533a14c2886	engine	one_table@missing	createSynonym(PUBLIC)?/PUBLIC	CREATE PUBLIC SYNONYM a FOR a
 1031	1031	engine	one_table@missing	createSynonym(ID_.)?/ID_.	CREATE SYNONYM a.a FOR a
-1471	65021	engine	one_table@missing	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE SYNONYM a SHARING = METADATA FOR a
+65021	65021	engine	one_table@missing	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE SYNONYM a SHARING = METADATA FOR a
 1471	1471	engine	one_table@missing	createSynonym(METADATA|NONE)/NONE	CREATE SYNONYM a SHARING = NONE FOR a
 ok:13bb93e33fb2	ok:13bb93e33fb2	engine	one_table@missing	createSynonym(@_ID)?/@_ID	CREATE SYNONYM a FOR a@a
 2263	2263	engine	one_table@missing	createTable_relational_table((_createTable_relational_properties_))?/(_createTable_relational_properties_)	CREATE TABLE a(a)
 54037	54037	engine	one_table@missing	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_virtual_column_definition	CREATE TABLE a(a AS(1))
-ok	ok:31ba4eae6b75	engine	one_table@missing	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_period_definition	CREATE TABLE a(PERIOD FOR a)
+ok:31ba4eae6b75	ok:31ba4eae6b75	engine	one_table@missing	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_period_definition	CREATE TABLE a(PERIOD FOR a)
 957	957	engine	one_table@missing	createTable_relational_properties(,_(createTable_column_definition|cre~ac932626)*/,_(createTable_column_definition|create~df20d44e)_(,_(c~d14542c2	CREATE TABLE a(a, a)
 998	998	engine	one_table@missing	createTable_table_properties(AS_QUERY)?/AS_QUERY	CREATE TABLE a AS SELECT 1 FROM dual
 ok:757f7e625773	ok:757f7e625773	engine	one_table@missing	createTable_column_definition(DATA_TYPE|DOMAIN_(ID_.)?_ID)?/DATA_TYPE	CREATE TABLE a(a NUMBER)
@@ -231,7 +231,7 @@ ok:757f7e625773	ok:757f7e625773	engine	one_table@missing	createTable_column_defi
 2268	2268	engine	one_table@missing	createTable_inline_constraint(NOT?_NULL|UNIQUE|PRIMARY_KEY|REFEREN~cb3df8c8)/REFERENCES_(ID_.)?_ID_((_ID_))?_(ON_DELETE_(CASCADE|SET_NULL))?	CREATE TABLE a(a REFERENCES a)
 2263	2263	engine	one_table@missing	createTable_inline_constraint(NOT?_NULL|UNIQUE|PRIMARY_KEY|REFEREN~cb3df8c8)/CHECK_(_CONDITION_)	CREATE TABLE a(a CHECK(1 = 1))
 2263	2263	engine	one_table@missing	createTable_inline_constraint(NOT)?/NOT	CREATE TABLE a(a NOT NULL)
-ok	942	engine	one_table@missing	createTable_inline_constraint(ID_.)?/ID_.	CREATE TABLE a(a REFERENCES a.a)
+942	942	engine	one_table@missing	createTable_inline_constraint(ID_.)?/ID_.	CREATE TABLE a(a REFERENCES a.a)
 2270	2270	engine	one_table@missing	createTable_inline_constraint((_ID_))?/(_ID_)	CREATE TABLE a(a REFERENCES a(a))
 2268	2268	engine	one_table@missing	createTable_inline_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)	CREATE TABLE a(a REFERENCES a ON DELETE CASCADE)
 2268	2268	engine	one_table@missing	createTable_inline_constraint(CASCADE|SET_NULL)/SET_NULL	CREATE TABLE a(a REFERENCES a ON DELETE SET NULL)
@@ -273,7 +273,7 @@ ok:1c6895cfd667	ok:1c6895cfd667	engine	one_table@missing	createView(VISIBLE|INVI
 54039	54039	engine	one_table@missing	createView(VISIBLE|INVISIBLE)?/INVISIBLE	CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 957	957	engine	one_table@missing	createView(,_ID_(VISIBLE|INVISIBLE)?_createView~acd85c3e)*/,_ID_(VISIBLE|INVISIBLE)?_(createView_inline_constraint~ed94467e	CREATE VIEW a(a, a) AS SELECT 1 FROM dual
 998	998	engine	one_table@missing	createView(createView_annotations_clause)?/createView_annotations_clause	CREATE VIEW a ANNOTATIONS(a) AS SELECT 1 FROM dual
-998	43929	engine	one_table@missing	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
+43929	43929	engine	one_table@missing	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 998	998	engine	one_table@missing	createView(BEQUEATH_(CURRENT_USER|DEFINER))?/BEQUEATH_(CURRENT_USER|DEFINER)	CREATE VIEW a BEQUEATH CURRENT_USER AS SELECT 1 FROM dual
 998	998	engine	one_table@missing	createView(CURRENT_USER|DEFINER)/DEFINER	CREATE VIEW a BEQUEATH DEFINER AS SELECT 1 FROM dual
 998	998	engine	one_table@missing	createView(createView_subquery_restriction_clause)?/createView_subquery_restriction_clause	CREATE VIEW a AS SELECT 1 FROM dual WITH READ ONLY
@@ -337,18 +337,18 @@ ok:78fd52bc93ec	ok:78fd52bc93ec	engine	one_table@table	statement/truncateTable	T
 2289	2289	engine	one_table@table	alterSequence(SCALE_(EXTEND|NOEXTEND)?|NOSCALE)/NOSCALE	ALTER SEQUENCE a NOSCALE
 2289	2289	engine	one_table@table	alterSequence(EXTEND|NOEXTEND)?/EXTEND	ALTER SEQUENCE a SCALE EXTEND
 2289	2289	engine	one_table@table	alterSequence(EXTEND|NOEXTEND)?/NOEXTEND	ALTER SEQUENCE a SCALE NOEXTEND
-2289	2511	engine	one_table@table	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
-2289	2511	engine	one_table@table	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
+2511	2511	engine	one_table@table	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
+2511	2511	engine	one_table@table	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
 2289	2289	engine	one_table@table	alterSequence(RESTART_(WITH_NUMBER)?)?/RESTART_(WITH_NUMBER)?	ALTER SEQUENCE a RESTART
 904	904	engine	one_table@table	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses	ALTER TABLE a MODIFY a VISIBLE
 955	955	engine	one_table@table	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/RENAME_TO_ID	ALTER TABLE a RENAME TO a
 ok:8d1ae0b67397	ok:8d1ae0b67397	engine	one_table@table	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_add_column_clause	ALTER TABLE a ADD(a NUMBER)
 904	904	engine	one_table@table	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_drop_column_clause	ALTER TABLE a DROP COLUMN a
-ok	ok:d2b50fcfb2de	engine	one_table@table	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_add_period_clause	ALTER TABLE a ADD(PERIOD FOR a)
+ok:d2b50fcfb2de	ok:d2b50fcfb2de	engine	one_table@table	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_add_period_clause	ALTER TABLE a ADD(PERIOD FOR a)
 904	904	engine	one_table@table	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_rename_column_clause	ALTER TABLE a RENAME COLUMN a TO a
 23292	23292	engine	one_table@table	alterTable_constraint_clauses(ADD_(alterTable_out_of_line_constrai~18b9761c)/RENAME_CONSTRAINT_ID_TO_ID	ALTER TABLE a RENAME CONSTRAINT a TO a
 ok:0474939368a1	ok:0474939368a1	engine	one_table@table	alterTable_constraint_clauses(ADD_(alterTable_out_of_line_constrai~18b9761c)/alterTable_drop_constraint_clause	ALTER TABLE a DROP PRIMARY KEY
-ok	ok:a0a27c8c4650	engine	one_table@table	alterTable_add_column_clause(alterTable_column_definition|alterTa~e292dc7c)/alterTable_virtual_column_definition	ALTER TABLE a ADD(a AS(1))
+ok:a0a27c8c4650	ok:a0a27c8c4650	engine	one_table@table	alterTable_add_column_clause(alterTable_column_definition|alterTa~e292dc7c)/alterTable_virtual_column_definition	ALTER TABLE a ADD(a AS(1))
 957	957	engine	one_table@table	alterTable_add_column_clause(,_(alterTable_column_definition|alte~139aa7ee)*/,_(alterTable_column_definition|alterTa~e292dc7c)_(,_(a~5c3cde71	ALTER TABLE a ADD(a NUMBER, a NUMBER)
 904	904	engine	one_table@table	alterTable_modify_column_clauses((_alterTable_modify_col_properties_(~824656fb)/(_alterTable_modify_col_properties_(,_alterTable_modify~180d05fa	ALTER TABLE a MODIFY(a)
 904	904	engine	one_table@table	alterTable_modify_column_clauses((_alterTable_modify_col_properties_(~824656fb)/(_alterTable_modify_virtcol_properties_(,_alterTable_mo~52c4d090	ALTER TABLE a MODIFY(a AS(1))
@@ -359,7 +359,7 @@ ok	ok:a0a27c8c4650	engine	one_table@table	alterTable_add_column_clause(alterTabl
 904	904	engine	one_table@table	alterTable_drop_column_clause(CASCADE_CONSTRAINTS|INVALIDATE)/CASCADE_CONSTRAINTS	ALTER TABLE a DROP COLUMN a CASCADE CONSTRAINTS
 904	904	engine	one_table@table	alterTable_drop_column_clause(ONLINE)?/ONLINE	ALTER TABLE a SET UNUSED COLUMN a ONLINE
 904	904	engine	one_table@table	alterTable_drop_column_clause(CHECKPOINT_NUMBER)?/CHECKPOINT_NUMBER	ALTER TABLE a DROP COLUMN a CHECKPOINT 1
-ok	ok:c661eb7227a6	engine	one_table@table	alterTable_add_period_clause((_ID_,_ID_))?/(_ID_,_ID_)	ALTER TABLE a ADD(PERIOD FOR a(a, a))
+ok:c661eb7227a6	ok:c661eb7227a6	engine	one_table@table	alterTable_add_period_clause((_ID_,_ID_))?/(_ID_,_ID_)	ALTER TABLE a ADD(PERIOD FOR a(a, a))
 904	904	engine	one_table@table	alterTable_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID	ALTER TABLE a ADD CONSTRAINT a UNIQUE(a)
 904	904	engine	one_table@table	alterTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/PRIMARY_KEY_(_ID_(,_ID)*_)	ALTER TABLE a ADD PRIMARY KEY(a)
 904	904	engine	one_table@table	alterTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/FOREIGN_KEY_(_ID_(,_ID)*_)_REFERENCES_(ID_.)?_ID_((_ID_~dd736605	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
@@ -375,27 +375,27 @@ ok:0474939368a1	ok:0474939368a1	engine	one_table@table	alterTable_drop_constrain
 ok:d5e6d5c0ab1d	ok:d5e6d5c0ab1d	engine	one_table@table	alterTable_drop_constraint_clause((KEEP|DROP)_INDEX)?/(KEEP|DROP)_INDEX	ALTER TABLE a DROP PRIMARY KEY KEEP INDEX
 ok:0474939368a1	ok:0474939368a1	engine	one_table@table	alterTable_drop_constraint_clause(KEEP|DROP)/DROP	ALTER TABLE a DROP PRIMARY KEY DROP INDEX
 ok:0474939368a1	ok:0474939368a1	engine	one_table@table	alterTable_drop_constraint_clause(ONLINE)?/ONLINE	ALTER TABLE a DROP PRIMARY KEY ONLINE
-ok	43929	engine	one_table@table	alterTable_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a NUMBER COLLATE a)
+43929	43929	engine	one_table@table	alterTable_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a NUMBER COLLATE a)
 ok:8d1ae0b67397	ok:8d1ae0b67397	engine	one_table@table	alterTable_column_definition(SORT)?/SORT	ALTER TABLE a ADD(a NUMBER SORT)
 ok:8d1ae0b67397	ok:8d1ae0b67397	engine	one_table@table	alterTable_column_definition(VISIBLE|INVISIBLE)?/VISIBLE	ALTER TABLE a ADD(a NUMBER VISIBLE)
 ok:00f6fcb4b8f6	ok:00f6fcb4b8f6	engine	one_table@table	alterTable_column_definition(VISIBLE|INVISIBLE)?/INVISIBLE	ALTER TABLE a ADD(a NUMBER INVISIBLE)
 ok:ee58f5a47aec	ok:ee58f5a47aec	engine	one_table@table	alterTable_column_definition(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~4b9f0a17)?/DEFAULT_(ON_NULL)?_EXPR	ALTER TABLE a ADD(a NUMBER DEFAULT 1)
 ok:930f5406254c	ok:930f5406254c	engine	one_table@table	alterTable_column_definition(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~4b9f0a17)?/alterTable_identity_clause	ALTER TABLE a ADD(a NUMBER GENERATED ALWAYS AS IDENTITY)
 ok:9c9b4b9ad1c8	ok:9c9b4b9ad1c8	engine	one_table@table	alterTable_column_definition(ON_NULL)?/ON_NULL	ALTER TABLE a ADD(a NUMBER DEFAULT ON NULL 1)
-ok	28365	engine	one_table@table	alterTable_column_definition(ENCRYPT_alterTable_encryption_spec)?/ENCRYPT_alterTable_encryption_spec	ALTER TABLE a ADD(a NUMBER ENCRYPT)
+28365	28365	engine	one_table@table	alterTable_column_definition(ENCRYPT_alterTable_encryption_spec)?/ENCRYPT_alterTable_encryption_spec	ALTER TABLE a ADD(a NUMBER ENCRYPT)
 ok:8d1ae0b67397	ok:8d1ae0b67397	engine	one_table@table	alterTable_column_definition(alterTable_inline_constraint)*/alterTable_inline_constraint_(alterTable_inline_constraint)*	ALTER TABLE a ADD(a NUMBER NULL)
 22893	22893	engine	one_table@table	alterTable_column_definition(alterTable_inline_ref_constraint)?/alterTable_inline_ref_constraint	ALTER TABLE a ADD(a NUMBER WITH ROWID)
 ok:8d1ae0b67397	ok:8d1ae0b67397	engine	one_table@table	alterTable_column_definition(alterTable_annotations_clause)?/alterTable_annotations_clause	ALTER TABLE a ADD(a NUMBER ANNOTATIONS(ADD a))
 ok:a0a27c8c4650	ok:a0a27c8c4650	engine	one_table@table	alterTable_virtual_column_definition(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a ADD(a NUMBER AS(1))
-ok	43929	engine	one_table@table	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a COLLATE a AS(1))
-ok	ok:a0a27c8c4650	engine	one_table@table	alterTable_virtual_column_definition(VISIBLE|INVISIBLE)?/VISIBLE	ALTER TABLE a ADD(a VISIBLE AS(1))
-ok	ok:62f5f9f194c8	engine	one_table@table	alterTable_virtual_column_definition(VISIBLE|INVISIBLE)?/INVISIBLE	ALTER TABLE a ADD(a INVISIBLE AS(1))
-ok	ok:a0a27c8c4650	engine	one_table@table	alterTable_virtual_column_definition(GENERATED_ALWAYS)?/GENERATED_ALWAYS	ALTER TABLE a ADD(a GENERATED ALWAYS AS(1))
-ok	ok:a0a27c8c4650	engine	one_table@table	alterTable_virtual_column_definition(VIRTUAL)?/VIRTUAL	ALTER TABLE a ADD(a AS(1) VIRTUAL)
-ok	ok:a0a27c8c4650	engine	one_table@table	alterTable_virtual_column_definition(alterTable_evaluation_edition_clause)?/alterTable_evaluation_edition_clause	ALTER TABLE a ADD(a AS(1) EVALUATE USING CURRENT EDITION)
-ok	ok:a0a27c8c4650	engine	one_table@table	alterTable_virtual_column_definition(alterTable_inline_constraint)*/alterTable_inline_constraint_(alterTable_inline_constraint)*	ALTER TABLE a ADD(a AS(1) NULL)
+43929	43929	engine	one_table@table	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a COLLATE a AS(1))
+ok:a0a27c8c4650	ok:a0a27c8c4650	engine	one_table@table	alterTable_virtual_column_definition(VISIBLE|INVISIBLE)?/VISIBLE	ALTER TABLE a ADD(a VISIBLE AS(1))
+ok:62f5f9f194c8	ok:62f5f9f194c8	engine	one_table@table	alterTable_virtual_column_definition(VISIBLE|INVISIBLE)?/INVISIBLE	ALTER TABLE a ADD(a INVISIBLE AS(1))
+ok:a0a27c8c4650	ok:a0a27c8c4650	engine	one_table@table	alterTable_virtual_column_definition(GENERATED_ALWAYS)?/GENERATED_ALWAYS	ALTER TABLE a ADD(a GENERATED ALWAYS AS(1))
+ok:a0a27c8c4650	ok:a0a27c8c4650	engine	one_table@table	alterTable_virtual_column_definition(VIRTUAL)?/VIRTUAL	ALTER TABLE a ADD(a AS(1) VIRTUAL)
+ok:a0a27c8c4650	ok:a0a27c8c4650	engine	one_table@table	alterTable_virtual_column_definition(alterTable_evaluation_edition_clause)?/alterTable_evaluation_edition_clause	ALTER TABLE a ADD(a AS(1) EVALUATE USING CURRENT EDITION)
+ok:a0a27c8c4650	ok:a0a27c8c4650	engine	one_table@table	alterTable_virtual_column_definition(alterTable_inline_constraint)*/alterTable_inline_constraint_(alterTable_inline_constraint)*	ALTER TABLE a ADD(a AS(1) NULL)
 904	904	engine	one_table@table	alterTable_modify_col_properties(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a MODIFY(a NUMBER)
-904	43929	engine	one_table@table	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a)
+43929	43929	engine	one_table@table	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a)
 904	904	engine	one_table@table	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/DEFAULT_(ON_NULL)?_EXPR	ALTER TABLE a MODIFY(a DEFAULT 1)
 904	904	engine	one_table@table	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/alterTable_identity_clause	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY)
 904	904	engine	one_table@table	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/DROP_IDENTITY	ALTER TABLE a MODIFY(a DROP IDENTITY)
@@ -405,7 +405,7 @@ ok	ok:a0a27c8c4650	engine	one_table@table	alterTable_virtual_column_definition(a
 904	904	engine	one_table@table	alterTable_modify_col_properties(alterTable_inline_constraint)*/alterTable_inline_constraint_(alterTable_inline_constraint)*	ALTER TABLE a MODIFY(a NULL)
 904	904	engine	one_table@table	alterTable_modify_col_properties(alterTable_annotations_clause)?/alterTable_annotations_clause	ALTER TABLE a MODIFY(a ANNOTATIONS(ADD a))
 904	904	engine	one_table@table	alterTable_modify_virtcol_properties(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a MODIFY(a NUMBER AS(1))
-904	43929	engine	one_table@table	alterTable_modify_virtcol_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a AS(1))
+43929	43929	engine	one_table@table	alterTable_modify_virtcol_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a AS(1))
 904	904	engine	one_table@table	alterTable_modify_virtcol_properties(GENERATED_ALWAYS)?/GENERATED_ALWAYS	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS(1))
 904	904	engine	one_table@table	alterTable_modify_virtcol_properties(VIRTUAL)?/VIRTUAL	ALTER TABLE a MODIFY(a AS(1) VIRTUAL)
 904	904	engine	one_table@table	alterTable_modify_virtcol_properties(alterTable_evaluation_edition_clause)?/alterTable_evaluation_edition_clause	ALTER TABLE a MODIFY(a AS(1) EVALUATE USING CURRENT EDITION)
@@ -431,18 +431,18 @@ ok	ok:a0a27c8c4650	engine	one_table@table	alterTable_virtual_column_definition(a
 904	904	engine	one_table@table	alterTable_inline_constraint(CASCADE|SET_NULL)/SET_NULL	ALTER TABLE a MODIFY(a REFERENCES a ON DELETE SET NULL)
 22893	22893	engine	one_table@table	alterTable_inline_ref_constraint(SCOPE_IS_(ID_.)?_ID|WITH_ROWID|(CONS~5eec5f08)/SCOPE_IS_(ID_.)?_ID	ALTER TABLE a ADD(a NUMBER SCOPE IS a)
 ok:3407beda8ccd	ok:3407beda8ccd	engine	one_table@table	alterTable_inline_ref_constraint(SCOPE_IS_(ID_.)?_ID|WITH_ROWID|(CONS~5eec5f08)/(CONSTRAINT_ID)?_REFERENCES_(ID_.)?_ID_((_ID_(,_ID)*_))~2057a88d	ALTER TABLE a ADD(a NUMBER REFERENCES a)
-ok	942	engine	one_table@table	alterTable_inline_ref_constraint(ID_.)?/ID_.	ALTER TABLE a ADD(a NUMBER REFERENCES a.a)
+942	942	engine	one_table@table	alterTable_inline_ref_constraint(ID_.)?/ID_.	ALTER TABLE a ADD(a NUMBER REFERENCES a.a)
 ok:7c341d4bdf4d	ok:7c341d4bdf4d	engine	one_table@table	alterTable_inline_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID	ALTER TABLE a ADD(a NUMBER CONSTRAINT a REFERENCES a)
 2270	2270	engine	one_table@table	alterTable_inline_ref_constraint((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)	ALTER TABLE a ADD(a NUMBER REFERENCES a(a))
 ok:685b0443eff2	ok:685b0443eff2	engine	one_table@table	alterTable_inline_ref_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)	ALTER TABLE a ADD(a NUMBER REFERENCES a ON DELETE CASCADE)
 ok:f7ae90fb5ac8	ok:f7ae90fb5ac8	engine	one_table@table	alterTable_inline_ref_constraint(CASCADE|SET_NULL)/SET_NULL	ALTER TABLE a ADD(a NUMBER REFERENCES a ON DELETE SET NULL)
-ok	38802	engine	one_table@table	alterTable_evaluation_edition_clause(CURRENT_EDITION|EDITION_ID|NULL_EDITION)/EDITION_ID	ALTER TABLE a ADD(a AS(1) EVALUATE USING EDITION a)
-ok	ok:a0a27c8c4650	engine	one_table@table	alterTable_evaluation_edition_clause(CURRENT_EDITION|EDITION_ID|NULL_EDITION)/NULL_EDITION	ALTER TABLE a ADD(a AS(1) EVALUATE USING NULL EDITION)
-ok	ok:a0a27c8c4650	engine	one_table@table	alterTable_unusable_editions_clause(UNUSABLE_BEFORE_(CURRENT_EDITION|EDITION_ID))?/UNUSABLE_BEFORE_(CURRENT_EDITION|EDITION_ID)	ALTER TABLE a ADD(a AS(1) UNUSABLE BEFORE CURRENT EDITION)
-ok	38802	engine	one_table@table	alterTable_unusable_editions_clause(CURRENT_EDITION|EDITION_ID)/EDITION_ID	ALTER TABLE a ADD(a AS(1) UNUSABLE BEFORE EDITION a)
-ok	ok:a0a27c8c4650	engine	one_table@table	alterTable_unusable_editions_clause(UNUSABLE_BEGINNING_WITH_(CURRENT_EDI~52e9e96f)?/UNUSABLE_BEGINNING_WITH_(CURRENT_EDITION|EDITION_ID|NUL~024cfe45	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH CURRENT EDITION)
-ok	38802	engine	one_table@table	alterTable_unusable_editions_clause(CURRENT_EDITION|EDITION_ID|NULL_EDITION)/EDITION_ID	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH EDITION a)
-ok	ok:a0a27c8c4650	engine	one_table@table	alterTable_unusable_editions_clause(CURRENT_EDITION|EDITION_ID|NULL_EDITION)/NULL_EDITION	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH NULL EDITION)
+38802	38802	engine	one_table@table	alterTable_evaluation_edition_clause(CURRENT_EDITION|EDITION_ID|NULL_EDITION)/EDITION_ID	ALTER TABLE a ADD(a AS(1) EVALUATE USING EDITION a)
+ok:a0a27c8c4650	ok:a0a27c8c4650	engine	one_table@table	alterTable_evaluation_edition_clause(CURRENT_EDITION|EDITION_ID|NULL_EDITION)/NULL_EDITION	ALTER TABLE a ADD(a AS(1) EVALUATE USING NULL EDITION)
+ok:a0a27c8c4650	ok:a0a27c8c4650	engine	one_table@table	alterTable_unusable_editions_clause(UNUSABLE_BEFORE_(CURRENT_EDITION|EDITION_ID))?/UNUSABLE_BEFORE_(CURRENT_EDITION|EDITION_ID)	ALTER TABLE a ADD(a AS(1) UNUSABLE BEFORE CURRENT EDITION)
+38802	38802	engine	one_table@table	alterTable_unusable_editions_clause(CURRENT_EDITION|EDITION_ID)/EDITION_ID	ALTER TABLE a ADD(a AS(1) UNUSABLE BEFORE EDITION a)
+ok:a0a27c8c4650	ok:a0a27c8c4650	engine	one_table@table	alterTable_unusable_editions_clause(UNUSABLE_BEGINNING_WITH_(CURRENT_EDI~52e9e96f)?/UNUSABLE_BEGINNING_WITH_(CURRENT_EDITION|EDITION_ID|NUL~024cfe45	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH CURRENT EDITION)
+38802	38802	engine	one_table@table	alterTable_unusable_editions_clause(CURRENT_EDITION|EDITION_ID|NULL_EDITION)/EDITION_ID	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH EDITION a)
+ok:a0a27c8c4650	ok:a0a27c8c4650	engine	one_table@table	alterTable_unusable_editions_clause(CURRENT_EDITION|EDITION_ID|NULL_EDITION)/NULL_EDITION	ALTER TABLE a ADD(a AS(1) UNUSABLE BEGINNING WITH NULL EDITION)
 904	904	engine	one_table@table	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/START_WITH_(NUMBER|LIMIT_VALUE)	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(START WITH 1))
 904	904	engine	one_table@table	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/INCREMENT_BY_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(INCREMENT BY 1))
 904	904	engine	one_table@table	alterTable_identity_options(START_WITH_(NUMBER|LIMIT_VALUE)|INCR~236ac0b7)/MAXVALUE_NUMBER	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(MAXVALUE 1))
@@ -475,8 +475,8 @@ ok:7bb2dc259b80	ok:7bb2dc259b80	engine	one_table@table	comment(AUDIT_POLICY_ID|C
 957	957	engine	one_table@table	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1	CREATE INDEX a ON a(a, a)
 ok:0007aad273b2	ok:0007aad273b2	engine	one_table@table	createIndex_index_expr(ID|EXPR)/EXPR	CREATE INDEX a ON a(1)
 1031	1031	engine	one_table@table	createSequence(ID_.)?/ID_.	CREATE SEQUENCE a.a
-955	65021	engine	one_table@table	createSequence(SHARING_=_(METADATA|DATA|NONE))?/SHARING_=_(METADATA|DATA|NONE)	CREATE SEQUENCE a SHARING = METADATA
-955	65021	engine	one_table@table	createSequence(METADATA|DATA|NONE)/DATA	CREATE SEQUENCE a SHARING = DATA
+65021	65021	engine	one_table@table	createSequence(SHARING_=_(METADATA|DATA|NONE))?/SHARING_=_(METADATA|DATA|NONE)	CREATE SEQUENCE a SHARING = METADATA
+65021	65021	engine	one_table@table	createSequence(METADATA|DATA|NONE)/DATA	CREATE SEQUENCE a SHARING = DATA
 955	955	engine	one_table@table	createSequence(METADATA|DATA|NONE)/NONE	CREATE SEQUENCE a SHARING = NONE
 955	955	engine	one_table@table	createSequence(INCREMENT_BY_NUMBER)?/INCREMENT_BY_NUMBER	CREATE SEQUENCE a INCREMENT BY 1
 955	955	engine	one_table@table	createSequence(START_WITH_NUMBER)?/START_WITH_NUMBER	CREATE SEQUENCE a START WITH 1
@@ -497,13 +497,13 @@ ok:0007aad273b2	ok:0007aad273b2	engine	one_table@table	createIndex_index_expr(ID
 955	955	engine	one_table@table	createSequence(EXTEND|NOEXTEND)/NOEXTEND	CREATE SEQUENCE a SCALE NOEXTEND
 955	955	engine	one_table@table	createSequence((SESSION|GLOBAL))?/(SESSION|GLOBAL)	CREATE SEQUENCE a SESSION
 955	955	engine	one_table@table	createSequence(SESSION|GLOBAL)/GLOBAL	CREATE SEQUENCE a GLOBAL
-955	2511	engine	one_table@table	createSequence(SHARD)?/SHARD	CREATE SEQUENCE a SHARD
+2511	2511	engine	one_table@table	createSequence(SHARD)?/SHARD	CREATE SEQUENCE a SHARD
 1471	1471	engine	one_table@table	createSynonym(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE	CREATE OR REPLACE SYNONYM a FOR a
 1471	1471	engine	one_table@table	createSynonym(EDITIONABLE|NONEDITIONABLE)?/EDITIONABLE	CREATE EDITIONABLE SYNONYM a FOR a
 1471	1471	engine	one_table@table	createSynonym(EDITIONABLE|NONEDITIONABLE)?/NONEDITIONABLE	CREATE NONEDITIONABLE SYNONYM a FOR a
 ok:9f584ab93c67	ok:9f584ab93c67	engine	one_table@table	createSynonym(PUBLIC)?/PUBLIC	CREATE PUBLIC SYNONYM a FOR a
 1031	1031	engine	one_table@table	createSynonym(ID_.)?/ID_.	CREATE SYNONYM a.a FOR a
-1471	65021	engine	one_table@table	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE SYNONYM a SHARING = METADATA FOR a
+65021	65021	engine	one_table@table	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE SYNONYM a SHARING = METADATA FOR a
 1471	1471	engine	one_table@table	createSynonym(METADATA|NONE)/NONE	CREATE SYNONYM a SHARING = NONE FOR a
 955	955	engine	one_table@table	createSynonym(@_ID)?/@_ID	CREATE SYNONYM a FOR a@a
 2263	2263	engine	one_table@table	createTable_relational_table((_createTable_relational_properties_))?/(_createTable_relational_properties_)	CREATE TABLE a(a)
@@ -582,7 +582,7 @@ ok:9f584ab93c67	ok:9f584ab93c67	engine	one_table@table	createSynonym(PUBLIC)?/PU
 955	955	engine	one_table@table	createView(VISIBLE|INVISIBLE)?/INVISIBLE	CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 957	957	engine	one_table@table	createView(,_ID_(VISIBLE|INVISIBLE)?_createView~acd85c3e)*/,_ID_(VISIBLE|INVISIBLE)?_(createView_inline_constraint~ed94467e	CREATE VIEW a(a, a) AS SELECT 1 FROM dual
 955	955	engine	one_table@table	createView(createView_annotations_clause)?/createView_annotations_clause	CREATE VIEW a ANNOTATIONS(a) AS SELECT 1 FROM dual
-955	43929	engine	one_table@table	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
+43929	43929	engine	one_table@table	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 955	955	engine	one_table@table	createView(BEQUEATH_(CURRENT_USER|DEFINER))?/BEQUEATH_(CURRENT_USER|DEFINER)	CREATE VIEW a BEQUEATH CURRENT_USER AS SELECT 1 FROM dual
 955	955	engine	one_table@table	createView(CURRENT_USER|DEFINER)/DEFINER	CREATE VIEW a BEQUEATH DEFINER AS SELECT 1 FROM dual
 955	955	engine	one_table@table	createView(createView_subquery_restriction_clause)?/createView_subquery_restriction_clause	CREATE VIEW a AS SELECT 1 FROM dual WITH READ ONLY
@@ -646,8 +646,8 @@ ok:c35748ae0d07	ok:c35748ae0d07	engine	one_table@column	statement/truncateTable	
 2289	2289	engine	one_table@column	alterSequence(SCALE_(EXTEND|NOEXTEND)?|NOSCALE)/NOSCALE	ALTER SEQUENCE a NOSCALE
 2289	2289	engine	one_table@column	alterSequence(EXTEND|NOEXTEND)?/EXTEND	ALTER SEQUENCE a SCALE EXTEND
 2289	2289	engine	one_table@column	alterSequence(EXTEND|NOEXTEND)?/NOEXTEND	ALTER SEQUENCE a SCALE NOEXTEND
-2289	2511	engine	one_table@column	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
-2289	2511	engine	one_table@column	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
+2511	2511	engine	one_table@column	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
+2511	2511	engine	one_table@column	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
 2289	2289	engine	one_table@column	alterSequence(RESTART_(WITH_NUMBER)?)?/RESTART_(WITH_NUMBER)?	ALTER SEQUENCE a RESTART
 ok:c35748ae0d07	ok:c35748ae0d07	engine	one_table@column	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses	ALTER TABLE a MODIFY a VISIBLE
 955	955	engine	one_table@column	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/RENAME_TO_ID	ALTER TABLE a RENAME TO a
@@ -663,16 +663,16 @@ ok:c35748ae0d07	ok:c35748ae0d07	engine	one_table@column	alterTable_modify_column
 54026	54026	engine	one_table@column	alterTable_modify_column_clauses((_alterTable_modify_col_properties_(~824656fb)/(_alterTable_modify_virtcol_properties_(,_alterTable_mo~52c4d090	ALTER TABLE a MODIFY(a AS(1))
 957	957	engine	one_table@column	alterTable_modify_column_clauses(,_alterTable_modify_col_properties)*/,_alterTable_modify_col_properties_(,_alterTable_modify~6745ba4b	ALTER TABLE a MODIFY(a, a)
 957	957	engine	one_table@column	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a	ALTER TABLE a MODIFY(a AS(1), a AS(1))
-error	ok:b9b5b31afa5c	engine	one_table@column	alterTable_drop_column_clause(SET_UNUSED_(COLUMN_ID|(_ID_(,_ID)*_)~5230dfed)/SET_UNUSED_(COLUMN_ID|(_ID_(,_ID)*_))_((CASCADE_CONSTRA~10dcaad2	ALTER TABLE a SET UNUSED COLUMN a
+ok:b9b5b31afa5c	ok:b9b5b31afa5c	engine	one_table@column	alterTable_drop_column_clause(SET_UNUSED_(COLUMN_ID|(_ID_(,_ID)*_)~5230dfed)/SET_UNUSED_(COLUMN_ID|(_ID_(,_ID)*_))_((CASCADE_CONSTRA~10dcaad2	ALTER TABLE a SET UNUSED COLUMN a
 ok:b9b5b31afa5c	ok:b9b5b31afa5c	engine	one_table@column	alterTable_drop_column_clause((CASCADE_CONSTRAINTS|INVALIDATE))*/(CASCADE_CONSTRAINTS|INVALIDATE)_((CASCADE_CONSTRAINTS|~31e4ec01	ALTER TABLE a DROP COLUMN a INVALIDATE
 ok:b9b5b31afa5c	ok:b9b5b31afa5c	engine	one_table@column	alterTable_drop_column_clause(CASCADE_CONSTRAINTS|INVALIDATE)/CASCADE_CONSTRAINTS	ALTER TABLE a DROP COLUMN a CASCADE CONSTRAINTS
-error	ok:b9b5b31afa5c	engine	one_table@column	alterTable_drop_column_clause(ONLINE)?/ONLINE	ALTER TABLE a SET UNUSED COLUMN a ONLINE
+ok:b9b5b31afa5c	ok:b9b5b31afa5c	engine	one_table@column	alterTable_drop_column_clause(ONLINE)?/ONLINE	ALTER TABLE a SET UNUSED COLUMN a ONLINE
 ok:b9b5b31afa5c	ok:b9b5b31afa5c	engine	one_table@column	alterTable_drop_column_clause(CHECKPOINT_NUMBER)?/CHECKPOINT_NUMBER	ALTER TABLE a DROP COLUMN a CHECKPOINT 1
 1430	1430	engine	one_table@column	alterTable_add_period_clause((_ID_,_ID_))?/(_ID_,_ID_)	ALTER TABLE a ADD(PERIOD FOR a(a, a))
 ok:94c56daa0720	ok:94c56daa0720	engine	one_table@column	alterTable_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID	ALTER TABLE a ADD CONSTRAINT a UNIQUE(a)
 2260	2260	engine	one_table@column	alterTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/PRIMARY_KEY_(_ID_(,_ID)*_)	ALTER TABLE a ADD PRIMARY KEY(a)
 ok:d431560da93e	ok:d431560da93e	engine	one_table@column	alterTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/FOREIGN_KEY_(_ID_(,_ID)*_)_REFERENCES_(ID_.)?_ID_((_ID_~dd736605	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
-ok	942	engine	one_table@column	alterTable_out_of_line_constraint(ID_.)?/ID_.	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a.a
+942	942	engine	one_table@column	alterTable_out_of_line_constraint(ID_.)?/ID_.	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a.a
 2270	2270	engine	one_table@column	alterTable_out_of_line_constraint((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
 ok:98c33b4d9a45	ok:98c33b4d9a45	engine	one_table@column	alterTable_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a ON DELETE CASCADE
 ok:34f917308b10	ok:34f917308b10	engine	one_table@column	alterTable_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a ON DELETE SET NULL
@@ -684,7 +684,7 @@ ok:eeb5dd09f7e7	ok:eeb5dd09f7e7	engine	one_table@column	alterTable_drop_constrai
 ok:a3b64350ed45	ok:a3b64350ed45	engine	one_table@column	alterTable_drop_constraint_clause((KEEP|DROP)_INDEX)?/(KEEP|DROP)_INDEX	ALTER TABLE a DROP PRIMARY KEY KEEP INDEX
 ok:eeb5dd09f7e7	ok:eeb5dd09f7e7	engine	one_table@column	alterTable_drop_constraint_clause(KEEP|DROP)/DROP	ALTER TABLE a DROP PRIMARY KEY DROP INDEX
 ok:eeb5dd09f7e7	ok:eeb5dd09f7e7	engine	one_table@column	alterTable_drop_constraint_clause(ONLINE)?/ONLINE	ALTER TABLE a DROP PRIMARY KEY ONLINE
-1430	43929	engine	one_table@column	alterTable_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a NUMBER COLLATE a)
+43929	43929	engine	one_table@column	alterTable_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a NUMBER COLLATE a)
 1430	1430	engine	one_table@column	alterTable_column_definition(SORT)?/SORT	ALTER TABLE a ADD(a NUMBER SORT)
 1430	1430	engine	one_table@column	alterTable_column_definition(VISIBLE|INVISIBLE)?/VISIBLE	ALTER TABLE a ADD(a NUMBER VISIBLE)
 1430	1430	engine	one_table@column	alterTable_column_definition(VISIBLE|INVISIBLE)?/INVISIBLE	ALTER TABLE a ADD(a NUMBER INVISIBLE)
@@ -696,7 +696,7 @@ ok:eeb5dd09f7e7	ok:eeb5dd09f7e7	engine	one_table@column	alterTable_drop_constrai
 1430	1430	engine	one_table@column	alterTable_column_definition(alterTable_inline_ref_constraint)?/alterTable_inline_ref_constraint	ALTER TABLE a ADD(a NUMBER WITH ROWID)
 1430	1430	engine	one_table@column	alterTable_column_definition(alterTable_annotations_clause)?/alterTable_annotations_clause	ALTER TABLE a ADD(a NUMBER ANNOTATIONS(ADD a))
 1430	1430	engine	one_table@column	alterTable_virtual_column_definition(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a ADD(a NUMBER AS(1))
-1430	43929	engine	one_table@column	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a COLLATE a AS(1))
+43929	43929	engine	one_table@column	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a COLLATE a AS(1))
 1430	1430	engine	one_table@column	alterTable_virtual_column_definition(VISIBLE|INVISIBLE)?/VISIBLE	ALTER TABLE a ADD(a VISIBLE AS(1))
 1430	1430	engine	one_table@column	alterTable_virtual_column_definition(VISIBLE|INVISIBLE)?/INVISIBLE	ALTER TABLE a ADD(a INVISIBLE AS(1))
 1430	1430	engine	one_table@column	alterTable_virtual_column_definition(GENERATED_ALWAYS)?/GENERATED_ALWAYS	ALTER TABLE a ADD(a GENERATED ALWAYS AS(1))
@@ -704,17 +704,17 @@ ok:eeb5dd09f7e7	ok:eeb5dd09f7e7	engine	one_table@column	alterTable_drop_constrai
 1430	1430	engine	one_table@column	alterTable_virtual_column_definition(alterTable_evaluation_edition_clause)?/alterTable_evaluation_edition_clause	ALTER TABLE a ADD(a AS(1) EVALUATE USING CURRENT EDITION)
 1430	1430	engine	one_table@column	alterTable_virtual_column_definition(alterTable_inline_constraint)*/alterTable_inline_constraint_(alterTable_inline_constraint)*	ALTER TABLE a ADD(a AS(1) NULL)
 ok:c35748ae0d07	ok:c35748ae0d07	engine	one_table@column	alterTable_modify_col_properties(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a MODIFY(a NUMBER)
-ok	43929	engine	one_table@column	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a)
+43929	43929	engine	one_table@column	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a)
 ok:baf09498232e	ok:baf09498232e	engine	one_table@column	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/DEFAULT_(ON_NULL)?_EXPR	ALTER TABLE a MODIFY(a DEFAULT 1)
 30673	30673	engine	one_table@column	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/alterTable_identity_clause	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY)
 30673	30673	engine	one_table@column	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/DROP_IDENTITY	ALTER TABLE a MODIFY(a DROP IDENTITY)
 ok:fa879b70e47b	ok:fa879b70e47b	engine	one_table@column	alterTable_modify_col_properties(ON_NULL)?/ON_NULL	ALTER TABLE a MODIFY(a DEFAULT ON NULL 1)
-ok	28365	engine	one_table@column	alterTable_modify_col_properties((ENCRYPT_alterTable_encryption_spec|DECRYPT))?/(ENCRYPT_alterTable_encryption_spec|DECRYPT)	ALTER TABLE a MODIFY(a ENCRYPT)
+28365	28365	engine	one_table@column	alterTable_modify_col_properties((ENCRYPT_alterTable_encryption_spec|DECRYPT))?/(ENCRYPT_alterTable_encryption_spec|DECRYPT)	ALTER TABLE a MODIFY(a ENCRYPT)
 28333	28333	engine	one_table@column	alterTable_modify_col_properties(ENCRYPT_alterTable_encryption_spec|DECRYPT)/DECRYPT	ALTER TABLE a MODIFY(a DECRYPT)
 1451	1451	engine	one_table@column	alterTable_modify_col_properties(alterTable_inline_constraint)*/alterTable_inline_constraint_(alterTable_inline_constraint)*	ALTER TABLE a MODIFY(a NULL)
 ok:c35748ae0d07	ok:c35748ae0d07	engine	one_table@column	alterTable_modify_col_properties(alterTable_annotations_clause)?/alterTable_annotations_clause	ALTER TABLE a MODIFY(a ANNOTATIONS(ADD a))
 54026	54026	engine	one_table@column	alterTable_modify_virtcol_properties(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a MODIFY(a NUMBER AS(1))
-54026	43929	engine	one_table@column	alterTable_modify_virtcol_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a AS(1))
+43929	43929	engine	one_table@column	alterTable_modify_virtcol_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a AS(1))
 54026	54026	engine	one_table@column	alterTable_modify_virtcol_properties(GENERATED_ALWAYS)?/GENERATED_ALWAYS	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS(1))
 54026	54026	engine	one_table@column	alterTable_modify_virtcol_properties(VIRTUAL)?/VIRTUAL	ALTER TABLE a MODIFY(a AS(1) VIRTUAL)
 54026	54026	engine	one_table@column	alterTable_modify_virtcol_properties(alterTable_evaluation_edition_clause)?/alterTable_evaluation_edition_clause	ALTER TABLE a MODIFY(a AS(1) EVALUATE USING CURRENT EDITION)
@@ -725,16 +725,16 @@ ok:598c69b2eb83	ok:598c69b2eb83	engine	one_table@column	alterTable_modify_col_vi
 30673	30673	engine	one_table@column	alterTable_identity_clause(ALWAYS|BY_DEFAULT_(ON_NULL)?)/BY_DEFAULT_(ON_NULL)?	ALTER TABLE a MODIFY(a GENERATED BY DEFAULT AS IDENTITY)
 30673	30673	engine	one_table@column	alterTable_identity_clause(ON_NULL)?/ON_NULL	ALTER TABLE a MODIFY(a GENERATED BY DEFAULT ON NULL AS IDENTITY)
 30673	30673	engine	one_table@column	alterTable_identity_clause((_alterTable_identity_options_))?/(_alterTable_identity_options_)	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY(NOMAXVALUE))
-ok	28365	engine	one_table@column	alterTable_encryption_spec(IDENTIFIED_BY_ID)?/IDENTIFIED_BY_ID	ALTER TABLE a MODIFY(a ENCRYPT IDENTIFIED BY a)
-ok	28365	engine	one_table@column	alterTable_encryption_spec(NO?_SALT)?/(NO)?_SALT	ALTER TABLE a MODIFY(a ENCRYPT SALT)
-ok	28365	engine	one_table@column	alterTable_encryption_spec(NO)?/NO	ALTER TABLE a MODIFY(a ENCRYPT NO SALT)
+28365	28365	engine	one_table@column	alterTable_encryption_spec(IDENTIFIED_BY_ID)?/IDENTIFIED_BY_ID	ALTER TABLE a MODIFY(a ENCRYPT IDENTIFIED BY a)
+28365	28365	engine	one_table@column	alterTable_encryption_spec(NO?_SALT)?/(NO)?_SALT	ALTER TABLE a MODIFY(a ENCRYPT SALT)
+28365	28365	engine	one_table@column	alterTable_encryption_spec(NO)?/NO	ALTER TABLE a MODIFY(a ENCRYPT NO SALT)
 1451	1451	engine	one_table@column	alterTable_inline_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID	ALTER TABLE a MODIFY(a CONSTRAINT a NULL)
 ok:cc952b6c619f	ok:cc952b6c619f	engine	one_table@column	alterTable_inline_constraint(NOT?_NULL|UNIQUE|PRIMARY_KEY|REFEREN~cb3df8c8)/UNIQUE	ALTER TABLE a MODIFY(a UNIQUE)
 2260	2260	engine	one_table@column	alterTable_inline_constraint(NOT?_NULL|UNIQUE|PRIMARY_KEY|REFEREN~cb3df8c8)/PRIMARY_KEY	ALTER TABLE a MODIFY(a PRIMARY KEY)
 ok:d431560da93e	ok:d431560da93e	engine	one_table@column	alterTable_inline_constraint(NOT?_NULL|UNIQUE|PRIMARY_KEY|REFEREN~cb3df8c8)/REFERENCES_(ID_.)?_ID_((_ID_))?_(ON_DELETE_(CASCADE|SET_NULL))?	ALTER TABLE a MODIFY(a REFERENCES a)
 ok:deeb0a31f49f	ok:deeb0a31f49f	engine	one_table@column	alterTable_inline_constraint(NOT?_NULL|UNIQUE|PRIMARY_KEY|REFEREN~cb3df8c8)/CHECK_(_CONDITION_)	ALTER TABLE a MODIFY(a CHECK(1 = 1))
 ok:2c8ec2e6f95c	ok:2c8ec2e6f95c	engine	one_table@column	alterTable_inline_constraint(NOT)?/NOT	ALTER TABLE a MODIFY(a NOT NULL)
-ok	942	engine	one_table@column	alterTable_inline_constraint(ID_.)?/ID_.	ALTER TABLE a MODIFY(a REFERENCES a.a)
+942	942	engine	one_table@column	alterTable_inline_constraint(ID_.)?/ID_.	ALTER TABLE a MODIFY(a REFERENCES a.a)
 2270	2270	engine	one_table@column	alterTable_inline_constraint((_ID_))?/(_ID_)	ALTER TABLE a MODIFY(a REFERENCES a(a))
 ok:98c33b4d9a45	ok:98c33b4d9a45	engine	one_table@column	alterTable_inline_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)	ALTER TABLE a MODIFY(a REFERENCES a ON DELETE CASCADE)
 ok:34f917308b10	ok:34f917308b10	engine	one_table@column	alterTable_inline_constraint(CASCADE|SET_NULL)/SET_NULL	ALTER TABLE a MODIFY(a REFERENCES a ON DELETE SET NULL)
@@ -784,8 +784,8 @@ ok:11bc23e43d74	ok:11bc23e43d74	engine	one_table@column	createIndex_table_index_
 957	957	engine	one_table@column	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1	CREATE INDEX a ON a(a, a)
 ok:16bf2193ec75	ok:16bf2193ec75	engine	one_table@column	createIndex_index_expr(ID|EXPR)/EXPR	CREATE INDEX a ON a(1)
 1031	1031	engine	one_table@column	createSequence(ID_.)?/ID_.	CREATE SEQUENCE a.a
-955	65021	engine	one_table@column	createSequence(SHARING_=_(METADATA|DATA|NONE))?/SHARING_=_(METADATA|DATA|NONE)	CREATE SEQUENCE a SHARING = METADATA
-955	65021	engine	one_table@column	createSequence(METADATA|DATA|NONE)/DATA	CREATE SEQUENCE a SHARING = DATA
+65021	65021	engine	one_table@column	createSequence(SHARING_=_(METADATA|DATA|NONE))?/SHARING_=_(METADATA|DATA|NONE)	CREATE SEQUENCE a SHARING = METADATA
+65021	65021	engine	one_table@column	createSequence(METADATA|DATA|NONE)/DATA	CREATE SEQUENCE a SHARING = DATA
 955	955	engine	one_table@column	createSequence(METADATA|DATA|NONE)/NONE	CREATE SEQUENCE a SHARING = NONE
 955	955	engine	one_table@column	createSequence(INCREMENT_BY_NUMBER)?/INCREMENT_BY_NUMBER	CREATE SEQUENCE a INCREMENT BY 1
 955	955	engine	one_table@column	createSequence(START_WITH_NUMBER)?/START_WITH_NUMBER	CREATE SEQUENCE a START WITH 1
@@ -806,13 +806,13 @@ ok:16bf2193ec75	ok:16bf2193ec75	engine	one_table@column	createIndex_index_expr(I
 955	955	engine	one_table@column	createSequence(EXTEND|NOEXTEND)/NOEXTEND	CREATE SEQUENCE a SCALE NOEXTEND
 955	955	engine	one_table@column	createSequence((SESSION|GLOBAL))?/(SESSION|GLOBAL)	CREATE SEQUENCE a SESSION
 955	955	engine	one_table@column	createSequence(SESSION|GLOBAL)/GLOBAL	CREATE SEQUENCE a GLOBAL
-955	2511	engine	one_table@column	createSequence(SHARD)?/SHARD	CREATE SEQUENCE a SHARD
+2511	2511	engine	one_table@column	createSequence(SHARD)?/SHARD	CREATE SEQUENCE a SHARD
 1471	1471	engine	one_table@column	createSynonym(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE	CREATE OR REPLACE SYNONYM a FOR a
 1471	1471	engine	one_table@column	createSynonym(EDITIONABLE|NONEDITIONABLE)?/EDITIONABLE	CREATE EDITIONABLE SYNONYM a FOR a
 1471	1471	engine	one_table@column	createSynonym(EDITIONABLE|NONEDITIONABLE)?/NONEDITIONABLE	CREATE NONEDITIONABLE SYNONYM a FOR a
 ok:3a8306b918a0	ok:3a8306b918a0	engine	one_table@column	createSynonym(PUBLIC)?/PUBLIC	CREATE PUBLIC SYNONYM a FOR a
 1031	1031	engine	one_table@column	createSynonym(ID_.)?/ID_.	CREATE SYNONYM a.a FOR a
-1471	65021	engine	one_table@column	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE SYNONYM a SHARING = METADATA FOR a
+65021	65021	engine	one_table@column	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE SYNONYM a SHARING = METADATA FOR a
 1471	1471	engine	one_table@column	createSynonym(METADATA|NONE)/NONE	CREATE SYNONYM a SHARING = NONE FOR a
 955	955	engine	one_table@column	createSynonym(@_ID)?/@_ID	CREATE SYNONYM a FOR a@a
 2263	2263	engine	one_table@column	createTable_relational_table((_createTable_relational_properties_))?/(_createTable_relational_properties_)	CREATE TABLE a(a)
@@ -891,7 +891,7 @@ ok:3a8306b918a0	ok:3a8306b918a0	engine	one_table@column	createSynonym(PUBLIC)?/P
 955	955	engine	one_table@column	createView(VISIBLE|INVISIBLE)?/INVISIBLE	CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 957	957	engine	one_table@column	createView(,_ID_(VISIBLE|INVISIBLE)?_createView~acd85c3e)*/,_ID_(VISIBLE|INVISIBLE)?_(createView_inline_constraint~ed94467e	CREATE VIEW a(a, a) AS SELECT 1 FROM dual
 955	955	engine	one_table@column	createView(createView_annotations_clause)?/createView_annotations_clause	CREATE VIEW a ANNOTATIONS(a) AS SELECT 1 FROM dual
-955	43929	engine	one_table@column	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
+43929	43929	engine	one_table@column	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 955	955	engine	one_table@column	createView(BEQUEATH_(CURRENT_USER|DEFINER))?/BEQUEATH_(CURRENT_USER|DEFINER)	CREATE VIEW a BEQUEATH CURRENT_USER AS SELECT 1 FROM dual
 955	955	engine	one_table@column	createView(CURRENT_USER|DEFINER)/DEFINER	CREATE VIEW a BEQUEATH DEFINER AS SELECT 1 FROM dual
 955	955	engine	one_table@column	createView(createView_subquery_restriction_clause)?/createView_subquery_restriction_clause	CREATE VIEW a AS SELECT 1 FROM dual WITH READ ONLY
@@ -955,8 +955,8 @@ ok:171984386b25	ok:171984386b25	engine	one_table@index	statement/dropIndex	DROP 
 2289	2289	engine	one_table@index	alterSequence(SCALE_(EXTEND|NOEXTEND)?|NOSCALE)/NOSCALE	ALTER SEQUENCE a NOSCALE
 2289	2289	engine	one_table@index	alterSequence(EXTEND|NOEXTEND)?/EXTEND	ALTER SEQUENCE a SCALE EXTEND
 2289	2289	engine	one_table@index	alterSequence(EXTEND|NOEXTEND)?/NOEXTEND	ALTER SEQUENCE a SCALE NOEXTEND
-2289	2511	engine	one_table@index	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
-2289	2511	engine	one_table@index	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
+2511	2511	engine	one_table@index	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
+2511	2511	engine	one_table@index	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
 2289	2289	engine	one_table@index	alterSequence(RESTART_(WITH_NUMBER)?)?/RESTART_(WITH_NUMBER)?	ALTER SEQUENCE a RESTART
 942	942	engine	one_table@index	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses	ALTER TABLE a MODIFY a VISIBLE
 942	942	engine	one_table@index	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/RENAME_TO_ID	ALTER TABLE a RENAME TO a
@@ -993,7 +993,7 @@ ok:171984386b25	ok:171984386b25	engine	one_table@index	statement/dropIndex	DROP 
 942	942	engine	one_table@index	alterTable_drop_constraint_clause((KEEP|DROP)_INDEX)?/(KEEP|DROP)_INDEX	ALTER TABLE a DROP PRIMARY KEY KEEP INDEX
 942	942	engine	one_table@index	alterTable_drop_constraint_clause(KEEP|DROP)/DROP	ALTER TABLE a DROP PRIMARY KEY DROP INDEX
 942	942	engine	one_table@index	alterTable_drop_constraint_clause(ONLINE)?/ONLINE	ALTER TABLE a DROP PRIMARY KEY ONLINE
-942	43929	engine	one_table@index	alterTable_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a NUMBER COLLATE a)
+43929	43929	engine	one_table@index	alterTable_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a NUMBER COLLATE a)
 942	942	engine	one_table@index	alterTable_column_definition(SORT)?/SORT	ALTER TABLE a ADD(a NUMBER SORT)
 942	942	engine	one_table@index	alterTable_column_definition(VISIBLE|INVISIBLE)?/VISIBLE	ALTER TABLE a ADD(a NUMBER VISIBLE)
 942	942	engine	one_table@index	alterTable_column_definition(VISIBLE|INVISIBLE)?/INVISIBLE	ALTER TABLE a ADD(a NUMBER INVISIBLE)
@@ -1005,7 +1005,7 @@ ok:171984386b25	ok:171984386b25	engine	one_table@index	statement/dropIndex	DROP 
 942	942	engine	one_table@index	alterTable_column_definition(alterTable_inline_ref_constraint)?/alterTable_inline_ref_constraint	ALTER TABLE a ADD(a NUMBER WITH ROWID)
 942	942	engine	one_table@index	alterTable_column_definition(alterTable_annotations_clause)?/alterTable_annotations_clause	ALTER TABLE a ADD(a NUMBER ANNOTATIONS(ADD a))
 942	942	engine	one_table@index	alterTable_virtual_column_definition(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a ADD(a NUMBER AS(1))
-942	43929	engine	one_table@index	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a COLLATE a AS(1))
+43929	43929	engine	one_table@index	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a COLLATE a AS(1))
 942	942	engine	one_table@index	alterTable_virtual_column_definition(VISIBLE|INVISIBLE)?/VISIBLE	ALTER TABLE a ADD(a VISIBLE AS(1))
 942	942	engine	one_table@index	alterTable_virtual_column_definition(VISIBLE|INVISIBLE)?/INVISIBLE	ALTER TABLE a ADD(a INVISIBLE AS(1))
 942	942	engine	one_table@index	alterTable_virtual_column_definition(GENERATED_ALWAYS)?/GENERATED_ALWAYS	ALTER TABLE a ADD(a GENERATED ALWAYS AS(1))
@@ -1013,7 +1013,7 @@ ok:171984386b25	ok:171984386b25	engine	one_table@index	statement/dropIndex	DROP 
 942	942	engine	one_table@index	alterTable_virtual_column_definition(alterTable_evaluation_edition_clause)?/alterTable_evaluation_edition_clause	ALTER TABLE a ADD(a AS(1) EVALUATE USING CURRENT EDITION)
 942	942	engine	one_table@index	alterTable_virtual_column_definition(alterTable_inline_constraint)*/alterTable_inline_constraint_(alterTable_inline_constraint)*	ALTER TABLE a ADD(a AS(1) NULL)
 942	942	engine	one_table@index	alterTable_modify_col_properties(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a MODIFY(a NUMBER)
-942	43929	engine	one_table@index	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a)
+43929	43929	engine	one_table@index	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a)
 942	942	engine	one_table@index	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/DEFAULT_(ON_NULL)?_EXPR	ALTER TABLE a MODIFY(a DEFAULT 1)
 942	942	engine	one_table@index	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/alterTable_identity_clause	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY)
 942	942	engine	one_table@index	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/DROP_IDENTITY	ALTER TABLE a MODIFY(a DROP IDENTITY)
@@ -1023,7 +1023,7 @@ ok:171984386b25	ok:171984386b25	engine	one_table@index	statement/dropIndex	DROP 
 942	942	engine	one_table@index	alterTable_modify_col_properties(alterTable_inline_constraint)*/alterTable_inline_constraint_(alterTable_inline_constraint)*	ALTER TABLE a MODIFY(a NULL)
 942	942	engine	one_table@index	alterTable_modify_col_properties(alterTable_annotations_clause)?/alterTable_annotations_clause	ALTER TABLE a MODIFY(a ANNOTATIONS(ADD a))
 942	942	engine	one_table@index	alterTable_modify_virtcol_properties(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a MODIFY(a NUMBER AS(1))
-942	43929	engine	one_table@index	alterTable_modify_virtcol_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a AS(1))
+43929	43929	engine	one_table@index	alterTable_modify_virtcol_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a AS(1))
 942	942	engine	one_table@index	alterTable_modify_virtcol_properties(GENERATED_ALWAYS)?/GENERATED_ALWAYS	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS(1))
 942	942	engine	one_table@index	alterTable_modify_virtcol_properties(VIRTUAL)?/VIRTUAL	ALTER TABLE a MODIFY(a AS(1) VIRTUAL)
 942	942	engine	one_table@index	alterTable_modify_virtcol_properties(alterTable_evaluation_edition_clause)?/alterTable_evaluation_edition_clause	ALTER TABLE a MODIFY(a AS(1) EVALUATE USING CURRENT EDITION)
@@ -1093,8 +1093,8 @@ ok:1ed72bda2577	ok:1ed72bda2577	engine	one_table@index	alterView(IF_EXISTS)?/IF_
 957	957	engine	one_table@index	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1	CREATE INDEX a ON a(a, a)
 942	942	engine	one_table@index	createIndex_index_expr(ID|EXPR)/EXPR	CREATE INDEX a ON a(1)
 1031	1031	engine	one_table@index	createSequence(ID_.)?/ID_.	CREATE SEQUENCE a.a
-ok	65021	engine	one_table@index	createSequence(SHARING_=_(METADATA|DATA|NONE))?/SHARING_=_(METADATA|DATA|NONE)	CREATE SEQUENCE a SHARING = METADATA
-ok	65021	engine	one_table@index	createSequence(METADATA|DATA|NONE)/DATA	CREATE SEQUENCE a SHARING = DATA
+65021	65021	engine	one_table@index	createSequence(SHARING_=_(METADATA|DATA|NONE))?/SHARING_=_(METADATA|DATA|NONE)	CREATE SEQUENCE a SHARING = METADATA
+65021	65021	engine	one_table@index	createSequence(METADATA|DATA|NONE)/DATA	CREATE SEQUENCE a SHARING = DATA
 ok:07417e64fab1	ok:07417e64fab1	engine	one_table@index	createSequence(METADATA|DATA|NONE)/NONE	CREATE SEQUENCE a SHARING = NONE
 ok:07417e64fab1	ok:07417e64fab1	engine	one_table@index	createSequence(INCREMENT_BY_NUMBER)?/INCREMENT_BY_NUMBER	CREATE SEQUENCE a INCREMENT BY 1
 ok:07417e64fab1	ok:07417e64fab1	engine	one_table@index	createSequence(START_WITH_NUMBER)?/START_WITH_NUMBER	CREATE SEQUENCE a START WITH 1
@@ -1115,18 +1115,18 @@ ok:07417e64fab1	ok:07417e64fab1	engine	one_table@index	createSequence(SCALE_(EXT
 ok:07417e64fab1	ok:07417e64fab1	engine	one_table@index	createSequence(EXTEND|NOEXTEND)/NOEXTEND	CREATE SEQUENCE a SCALE NOEXTEND
 ok:07417e64fab1	ok:07417e64fab1	engine	one_table@index	createSequence((SESSION|GLOBAL))?/(SESSION|GLOBAL)	CREATE SEQUENCE a SESSION
 ok:07417e64fab1	ok:07417e64fab1	engine	one_table@index	createSequence(SESSION|GLOBAL)/GLOBAL	CREATE SEQUENCE a GLOBAL
-ok	2511	engine	one_table@index	createSequence(SHARD)?/SHARD	CREATE SEQUENCE a SHARD
+2511	2511	engine	one_table@index	createSequence(SHARD)?/SHARD	CREATE SEQUENCE a SHARD
 1471	1471	engine	one_table@index	createSynonym(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE	CREATE OR REPLACE SYNONYM a FOR a
 1471	1471	engine	one_table@index	createSynonym(EDITIONABLE|NONEDITIONABLE)?/EDITIONABLE	CREATE EDITIONABLE SYNONYM a FOR a
 1471	1471	engine	one_table@index	createSynonym(EDITIONABLE|NONEDITIONABLE)?/NONEDITIONABLE	CREATE NONEDITIONABLE SYNONYM a FOR a
 ok:e0586b61b6dc	ok:e0586b61b6dc	engine	one_table@index	createSynonym(PUBLIC)?/PUBLIC	CREATE PUBLIC SYNONYM a FOR a
 1031	1031	engine	one_table@index	createSynonym(ID_.)?/ID_.	CREATE SYNONYM a.a FOR a
-1471	65021	engine	one_table@index	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE SYNONYM a SHARING = METADATA FOR a
+65021	65021	engine	one_table@index	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE SYNONYM a SHARING = METADATA FOR a
 1471	1471	engine	one_table@index	createSynonym(METADATA|NONE)/NONE	CREATE SYNONYM a SHARING = NONE FOR a
 ok:9e4273a3a0ec	ok:9e4273a3a0ec	engine	one_table@index	createSynonym(@_ID)?/@_ID	CREATE SYNONYM a FOR a@a
 2263	2263	engine	one_table@index	createTable_relational_table((_createTable_relational_properties_))?/(_createTable_relational_properties_)	CREATE TABLE a(a)
 54037	54037	engine	one_table@index	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_virtual_column_definition	CREATE TABLE a(a AS(1))
-ok	ok:2719d266cf7d	engine	one_table@index	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_period_definition	CREATE TABLE a(PERIOD FOR a)
+ok:2719d266cf7d	ok:2719d266cf7d	engine	one_table@index	createTable_relational_properties(createTable_column_definition|create~df20d44e)/createTable_period_definition	CREATE TABLE a(PERIOD FOR a)
 957	957	engine	one_table@index	createTable_relational_properties(,_(createTable_column_definition|cre~ac932626)*/,_(createTable_column_definition|create~df20d44e)_(,_(c~d14542c2	CREATE TABLE a(a, a)
 998	998	engine	one_table@index	createTable_table_properties(AS_QUERY)?/AS_QUERY	CREATE TABLE a AS SELECT 1 FROM dual
 ok:b221fae9589b	ok:b221fae9589b	engine	one_table@index	createTable_column_definition(DATA_TYPE|DOMAIN_(ID_.)?_ID)?/DATA_TYPE	CREATE TABLE a(a NUMBER)
@@ -1158,7 +1158,7 @@ ok:b221fae9589b	ok:b221fae9589b	engine	one_table@index	createTable_column_defini
 2268	2268	engine	one_table@index	createTable_inline_constraint(NOT?_NULL|UNIQUE|PRIMARY_KEY|REFEREN~cb3df8c8)/REFERENCES_(ID_.)?_ID_((_ID_))?_(ON_DELETE_(CASCADE|SET_NULL))?	CREATE TABLE a(a REFERENCES a)
 2263	2263	engine	one_table@index	createTable_inline_constraint(NOT?_NULL|UNIQUE|PRIMARY_KEY|REFEREN~cb3df8c8)/CHECK_(_CONDITION_)	CREATE TABLE a(a CHECK(1 = 1))
 2263	2263	engine	one_table@index	createTable_inline_constraint(NOT)?/NOT	CREATE TABLE a(a NOT NULL)
-ok	942	engine	one_table@index	createTable_inline_constraint(ID_.)?/ID_.	CREATE TABLE a(a REFERENCES a.a)
+942	942	engine	one_table@index	createTable_inline_constraint(ID_.)?/ID_.	CREATE TABLE a(a REFERENCES a.a)
 2270	2270	engine	one_table@index	createTable_inline_constraint((_ID_))?/(_ID_)	CREATE TABLE a(a REFERENCES a(a))
 2268	2268	engine	one_table@index	createTable_inline_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)	CREATE TABLE a(a REFERENCES a ON DELETE CASCADE)
 2268	2268	engine	one_table@index	createTable_inline_constraint(CASCADE|SET_NULL)/SET_NULL	CREATE TABLE a(a REFERENCES a ON DELETE SET NULL)
@@ -1200,7 +1200,7 @@ ok:79aaf6a86645	ok:79aaf6a86645	engine	one_table@index	createView(VISIBLE|INVISI
 54039	54039	engine	one_table@index	createView(VISIBLE|INVISIBLE)?/INVISIBLE	CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 957	957	engine	one_table@index	createView(,_ID_(VISIBLE|INVISIBLE)?_createView~acd85c3e)*/,_ID_(VISIBLE|INVISIBLE)?_(createView_inline_constraint~ed94467e	CREATE VIEW a(a, a) AS SELECT 1 FROM dual
 998	998	engine	one_table@index	createView(createView_annotations_clause)?/createView_annotations_clause	CREATE VIEW a ANNOTATIONS(a) AS SELECT 1 FROM dual
-998	43929	engine	one_table@index	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
+43929	43929	engine	one_table@index	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 998	998	engine	one_table@index	createView(BEQUEATH_(CURRENT_USER|DEFINER))?/BEQUEATH_(CURRENT_USER|DEFINER)	CREATE VIEW a BEQUEATH CURRENT_USER AS SELECT 1 FROM dual
 998	998	engine	one_table@index	createView(CURRENT_USER|DEFINER)/DEFINER	CREATE VIEW a BEQUEATH DEFINER AS SELECT 1 FROM dual
 998	998	engine	one_table@index	createView(createView_subquery_restriction_clause)?/createView_subquery_restriction_clause	CREATE VIEW a AS SELECT 1 FROM dual WITH READ ONLY
@@ -1264,8 +1264,8 @@ ok:171984386b25	ok:171984386b25	engine	objects@view	statement/dropView	DROP VIEW
 2289	2289	engine	objects@view	alterSequence(SCALE_(EXTEND|NOEXTEND)?|NOSCALE)/NOSCALE	ALTER SEQUENCE a NOSCALE
 2289	2289	engine	objects@view	alterSequence(EXTEND|NOEXTEND)?/EXTEND	ALTER SEQUENCE a SCALE EXTEND
 2289	2289	engine	objects@view	alterSequence(EXTEND|NOEXTEND)?/NOEXTEND	ALTER SEQUENCE a SCALE NOEXTEND
-2289	2511	engine	objects@view	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
-2289	2511	engine	objects@view	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
+2511	2511	engine	objects@view	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
+2511	2511	engine	objects@view	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
 2289	2289	engine	objects@view	alterSequence(RESTART_(WITH_NUMBER)?)?/RESTART_(WITH_NUMBER)?	ALTER SEQUENCE a RESTART
 942	942	engine	objects@view	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses	ALTER TABLE a MODIFY a VISIBLE
 942	942	engine	objects@view	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/RENAME_TO_ID	ALTER TABLE a RENAME TO a
@@ -1302,7 +1302,7 @@ ok:171984386b25	ok:171984386b25	engine	objects@view	statement/dropView	DROP VIEW
 942	942	engine	objects@view	alterTable_drop_constraint_clause((KEEP|DROP)_INDEX)?/(KEEP|DROP)_INDEX	ALTER TABLE a DROP PRIMARY KEY KEEP INDEX
 942	942	engine	objects@view	alterTable_drop_constraint_clause(KEEP|DROP)/DROP	ALTER TABLE a DROP PRIMARY KEY DROP INDEX
 942	942	engine	objects@view	alterTable_drop_constraint_clause(ONLINE)?/ONLINE	ALTER TABLE a DROP PRIMARY KEY ONLINE
-942	43929	engine	objects@view	alterTable_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a NUMBER COLLATE a)
+43929	43929	engine	objects@view	alterTable_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a NUMBER COLLATE a)
 942	942	engine	objects@view	alterTable_column_definition(SORT)?/SORT	ALTER TABLE a ADD(a NUMBER SORT)
 942	942	engine	objects@view	alterTable_column_definition(VISIBLE|INVISIBLE)?/VISIBLE	ALTER TABLE a ADD(a NUMBER VISIBLE)
 942	942	engine	objects@view	alterTable_column_definition(VISIBLE|INVISIBLE)?/INVISIBLE	ALTER TABLE a ADD(a NUMBER INVISIBLE)
@@ -1314,7 +1314,7 @@ ok:171984386b25	ok:171984386b25	engine	objects@view	statement/dropView	DROP VIEW
 942	942	engine	objects@view	alterTable_column_definition(alterTable_inline_ref_constraint)?/alterTable_inline_ref_constraint	ALTER TABLE a ADD(a NUMBER WITH ROWID)
 942	942	engine	objects@view	alterTable_column_definition(alterTable_annotations_clause)?/alterTable_annotations_clause	ALTER TABLE a ADD(a NUMBER ANNOTATIONS(ADD a))
 942	942	engine	objects@view	alterTable_virtual_column_definition(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a ADD(a NUMBER AS(1))
-942	43929	engine	objects@view	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a COLLATE a AS(1))
+43929	43929	engine	objects@view	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a COLLATE a AS(1))
 942	942	engine	objects@view	alterTable_virtual_column_definition(VISIBLE|INVISIBLE)?/VISIBLE	ALTER TABLE a ADD(a VISIBLE AS(1))
 942	942	engine	objects@view	alterTable_virtual_column_definition(VISIBLE|INVISIBLE)?/INVISIBLE	ALTER TABLE a ADD(a INVISIBLE AS(1))
 942	942	engine	objects@view	alterTable_virtual_column_definition(GENERATED_ALWAYS)?/GENERATED_ALWAYS	ALTER TABLE a ADD(a GENERATED ALWAYS AS(1))
@@ -1322,7 +1322,7 @@ ok:171984386b25	ok:171984386b25	engine	objects@view	statement/dropView	DROP VIEW
 942	942	engine	objects@view	alterTable_virtual_column_definition(alterTable_evaluation_edition_clause)?/alterTable_evaluation_edition_clause	ALTER TABLE a ADD(a AS(1) EVALUATE USING CURRENT EDITION)
 942	942	engine	objects@view	alterTable_virtual_column_definition(alterTable_inline_constraint)*/alterTable_inline_constraint_(alterTable_inline_constraint)*	ALTER TABLE a ADD(a AS(1) NULL)
 942	942	engine	objects@view	alterTable_modify_col_properties(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a MODIFY(a NUMBER)
-942	43929	engine	objects@view	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a)
+43929	43929	engine	objects@view	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a)
 942	942	engine	objects@view	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/DEFAULT_(ON_NULL)?_EXPR	ALTER TABLE a MODIFY(a DEFAULT 1)
 942	942	engine	objects@view	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/alterTable_identity_clause	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY)
 942	942	engine	objects@view	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/DROP_IDENTITY	ALTER TABLE a MODIFY(a DROP IDENTITY)
@@ -1332,7 +1332,7 @@ ok:171984386b25	ok:171984386b25	engine	objects@view	statement/dropView	DROP VIEW
 942	942	engine	objects@view	alterTable_modify_col_properties(alterTable_inline_constraint)*/alterTable_inline_constraint_(alterTable_inline_constraint)*	ALTER TABLE a MODIFY(a NULL)
 942	942	engine	objects@view	alterTable_modify_col_properties(alterTable_annotations_clause)?/alterTable_annotations_clause	ALTER TABLE a MODIFY(a ANNOTATIONS(ADD a))
 942	942	engine	objects@view	alterTable_modify_virtcol_properties(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a MODIFY(a NUMBER AS(1))
-942	43929	engine	objects@view	alterTable_modify_virtcol_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a AS(1))
+43929	43929	engine	objects@view	alterTable_modify_virtcol_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a AS(1))
 942	942	engine	objects@view	alterTable_modify_virtcol_properties(GENERATED_ALWAYS)?/GENERATED_ALWAYS	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS(1))
 942	942	engine	objects@view	alterTable_modify_virtcol_properties(VIRTUAL)?/VIRTUAL	ALTER TABLE a MODIFY(a AS(1) VIRTUAL)
 942	942	engine	objects@view	alterTable_modify_virtcol_properties(alterTable_evaluation_edition_clause)?/alterTable_evaluation_edition_clause	ALTER TABLE a MODIFY(a AS(1) EVALUATE USING CURRENT EDITION)
@@ -1402,8 +1402,8 @@ ok:53ff77332c5a	ok:53ff77332c5a	engine	objects@view	comment(AUDIT_POLICY_ID|COLU
 957	957	engine	objects@view	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1	CREATE INDEX a ON a(a, a)
 1702	1702	engine	objects@view	createIndex_index_expr(ID|EXPR)/EXPR	CREATE INDEX a ON a(1)
 1031	1031	engine	objects@view	createSequence(ID_.)?/ID_.	CREATE SEQUENCE a.a
-955	65021	engine	objects@view	createSequence(SHARING_=_(METADATA|DATA|NONE))?/SHARING_=_(METADATA|DATA|NONE)	CREATE SEQUENCE a SHARING = METADATA
-955	65021	engine	objects@view	createSequence(METADATA|DATA|NONE)/DATA	CREATE SEQUENCE a SHARING = DATA
+65021	65021	engine	objects@view	createSequence(SHARING_=_(METADATA|DATA|NONE))?/SHARING_=_(METADATA|DATA|NONE)	CREATE SEQUENCE a SHARING = METADATA
+65021	65021	engine	objects@view	createSequence(METADATA|DATA|NONE)/DATA	CREATE SEQUENCE a SHARING = DATA
 955	955	engine	objects@view	createSequence(METADATA|DATA|NONE)/NONE	CREATE SEQUENCE a SHARING = NONE
 955	955	engine	objects@view	createSequence(INCREMENT_BY_NUMBER)?/INCREMENT_BY_NUMBER	CREATE SEQUENCE a INCREMENT BY 1
 955	955	engine	objects@view	createSequence(START_WITH_NUMBER)?/START_WITH_NUMBER	CREATE SEQUENCE a START WITH 1
@@ -1424,13 +1424,13 @@ ok:53ff77332c5a	ok:53ff77332c5a	engine	objects@view	comment(AUDIT_POLICY_ID|COLU
 955	955	engine	objects@view	createSequence(EXTEND|NOEXTEND)/NOEXTEND	CREATE SEQUENCE a SCALE NOEXTEND
 955	955	engine	objects@view	createSequence((SESSION|GLOBAL))?/(SESSION|GLOBAL)	CREATE SEQUENCE a SESSION
 955	955	engine	objects@view	createSequence(SESSION|GLOBAL)/GLOBAL	CREATE SEQUENCE a GLOBAL
-955	2511	engine	objects@view	createSequence(SHARD)?/SHARD	CREATE SEQUENCE a SHARD
+2511	2511	engine	objects@view	createSequence(SHARD)?/SHARD	CREATE SEQUENCE a SHARD
 1471	1471	engine	objects@view	createSynonym(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE	CREATE OR REPLACE SYNONYM a FOR a
 1471	1471	engine	objects@view	createSynonym(EDITIONABLE|NONEDITIONABLE)?/EDITIONABLE	CREATE EDITIONABLE SYNONYM a FOR a
 1471	1471	engine	objects@view	createSynonym(EDITIONABLE|NONEDITIONABLE)?/NONEDITIONABLE	CREATE NONEDITIONABLE SYNONYM a FOR a
 ok:3820237041cf	ok:3820237041cf	engine	objects@view	createSynonym(PUBLIC)?/PUBLIC	CREATE PUBLIC SYNONYM a FOR a
 1031	1031	engine	objects@view	createSynonym(ID_.)?/ID_.	CREATE SYNONYM a.a FOR a
-1471	65021	engine	objects@view	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE SYNONYM a SHARING = METADATA FOR a
+65021	65021	engine	objects@view	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE SYNONYM a SHARING = METADATA FOR a
 1471	1471	engine	objects@view	createSynonym(METADATA|NONE)/NONE	CREATE SYNONYM a SHARING = NONE FOR a
 955	955	engine	objects@view	createSynonym(@_ID)?/@_ID	CREATE SYNONYM a FOR a@a
 2263	2263	engine	objects@view	createTable_relational_table((_createTable_relational_properties_))?/(_createTable_relational_properties_)	CREATE TABLE a(a)
@@ -1509,7 +1509,7 @@ ok:3820237041cf	ok:3820237041cf	engine	objects@view	createSynonym(PUBLIC)?/PUBLI
 54039	54039	engine	objects@view	createView(VISIBLE|INVISIBLE)?/INVISIBLE	CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 957	957	engine	objects@view	createView(,_ID_(VISIBLE|INVISIBLE)?_createView~acd85c3e)*/,_ID_(VISIBLE|INVISIBLE)?_(createView_inline_constraint~ed94467e	CREATE VIEW a(a, a) AS SELECT 1 FROM dual
 998	998	engine	objects@view	createView(createView_annotations_clause)?/createView_annotations_clause	CREATE VIEW a ANNOTATIONS(a) AS SELECT 1 FROM dual
-998	43929	engine	objects@view	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
+43929	43929	engine	objects@view	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 998	998	engine	objects@view	createView(BEQUEATH_(CURRENT_USER|DEFINER))?/BEQUEATH_(CURRENT_USER|DEFINER)	CREATE VIEW a BEQUEATH CURRENT_USER AS SELECT 1 FROM dual
 998	998	engine	objects@view	createView(CURRENT_USER|DEFINER)/DEFINER	CREATE VIEW a BEQUEATH DEFINER AS SELECT 1 FROM dual
 998	998	engine	objects@view	createView(createView_subquery_restriction_clause)?/createView_subquery_restriction_clause	CREATE VIEW a AS SELECT 1 FROM dual WITH READ ONLY
@@ -1559,8 +1559,8 @@ ok:6d15d5cb0b97	ok:6d15d5cb0b97	engine	objects@sequence	statement/dropSequence	D
 ok:6ab164dab0a2	ok:6ab164dab0a2	engine	objects@sequence	alterSequence(INCREMENT_BY_NUMBER)?/INCREMENT_BY_NUMBER	ALTER SEQUENCE a INCREMENT BY 1
 ok:6ab164dab0a2	ok:6ab164dab0a2	engine	objects@sequence	alterSequence((MAXVALUE_NUMBER|NOMAXVALUE))?/(MAXVALUE_NUMBER|NOMAXVALUE)	ALTER SEQUENCE a NOMAXVALUE
 4004	4004	engine	objects@sequence	alterSequence(MAXVALUE_NUMBER|NOMAXVALUE)/MAXVALUE_NUMBER	ALTER SEQUENCE a MAXVALUE 1
-ok	4007	engine	objects@sequence	alterSequence((MINVALUE_NUMBER|NOMINVALUE))?/(MINVALUE_NUMBER|NOMINVALUE)	ALTER SEQUENCE a NOMINVALUE
-ok	4007	engine	objects@sequence	alterSequence(MINVALUE_NUMBER|NOMINVALUE)/MINVALUE_NUMBER	ALTER SEQUENCE a MINVALUE 1
+4007	4007	engine	objects@sequence	alterSequence((MINVALUE_NUMBER|NOMINVALUE))?/(MINVALUE_NUMBER|NOMINVALUE)	ALTER SEQUENCE a NOMINVALUE
+4007	4007	engine	objects@sequence	alterSequence(MINVALUE_NUMBER|NOMINVALUE)/MINVALUE_NUMBER	ALTER SEQUENCE a MINVALUE 1
 ok:8b1d28c70217	ok:8b1d28c70217	engine	objects@sequence	alterSequence((CYCLE|NOCYCLE))?/(CYCLE|NOCYCLE)	ALTER SEQUENCE a CYCLE
 ok:6ab164dab0a2	ok:6ab164dab0a2	engine	objects@sequence	alterSequence(CYCLE|NOCYCLE)/NOCYCLE	ALTER SEQUENCE a NOCYCLE
 ok:ece8abda1247	ok:ece8abda1247	engine	objects@sequence	alterSequence((CACHE_NUMBER|NOCACHE))?/(CACHE_NUMBER|NOCACHE)	ALTER SEQUENCE a NOCACHE
@@ -1573,8 +1573,8 @@ ok:6ab164dab0a2	ok:6ab164dab0a2	engine	objects@sequence	alterSequence((SCALE_(EX
 ok:6ab164dab0a2	ok:6ab164dab0a2	engine	objects@sequence	alterSequence(SCALE_(EXTEND|NOEXTEND)?|NOSCALE)/NOSCALE	ALTER SEQUENCE a NOSCALE
 ok:6ab164dab0a2	ok:6ab164dab0a2	engine	objects@sequence	alterSequence(EXTEND|NOEXTEND)?/EXTEND	ALTER SEQUENCE a SCALE EXTEND
 ok:6ab164dab0a2	ok:6ab164dab0a2	engine	objects@sequence	alterSequence(EXTEND|NOEXTEND)?/NOEXTEND	ALTER SEQUENCE a SCALE NOEXTEND
-ok	2511	engine	objects@sequence	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
-ok	2511	engine	objects@sequence	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
+2511	2511	engine	objects@sequence	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
+2511	2511	engine	objects@sequence	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
 ok:6ab164dab0a2	ok:6ab164dab0a2	engine	objects@sequence	alterSequence(RESTART_(WITH_NUMBER)?)?/RESTART_(WITH_NUMBER)?	ALTER SEQUENCE a RESTART
 942	942	engine	objects@sequence	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses	ALTER TABLE a MODIFY a VISIBLE
 942	942	engine	objects@sequence	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/RENAME_TO_ID	ALTER TABLE a RENAME TO a
@@ -1611,7 +1611,7 @@ ok:6ab164dab0a2	ok:6ab164dab0a2	engine	objects@sequence	alterSequence(RESTART_(W
 942	942	engine	objects@sequence	alterTable_drop_constraint_clause((KEEP|DROP)_INDEX)?/(KEEP|DROP)_INDEX	ALTER TABLE a DROP PRIMARY KEY KEEP INDEX
 942	942	engine	objects@sequence	alterTable_drop_constraint_clause(KEEP|DROP)/DROP	ALTER TABLE a DROP PRIMARY KEY DROP INDEX
 942	942	engine	objects@sequence	alterTable_drop_constraint_clause(ONLINE)?/ONLINE	ALTER TABLE a DROP PRIMARY KEY ONLINE
-942	43929	engine	objects@sequence	alterTable_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a NUMBER COLLATE a)
+43929	43929	engine	objects@sequence	alterTable_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a NUMBER COLLATE a)
 942	942	engine	objects@sequence	alterTable_column_definition(SORT)?/SORT	ALTER TABLE a ADD(a NUMBER SORT)
 942	942	engine	objects@sequence	alterTable_column_definition(VISIBLE|INVISIBLE)?/VISIBLE	ALTER TABLE a ADD(a NUMBER VISIBLE)
 942	942	engine	objects@sequence	alterTable_column_definition(VISIBLE|INVISIBLE)?/INVISIBLE	ALTER TABLE a ADD(a NUMBER INVISIBLE)
@@ -1623,7 +1623,7 @@ ok:6ab164dab0a2	ok:6ab164dab0a2	engine	objects@sequence	alterSequence(RESTART_(W
 942	942	engine	objects@sequence	alterTable_column_definition(alterTable_inline_ref_constraint)?/alterTable_inline_ref_constraint	ALTER TABLE a ADD(a NUMBER WITH ROWID)
 942	942	engine	objects@sequence	alterTable_column_definition(alterTable_annotations_clause)?/alterTable_annotations_clause	ALTER TABLE a ADD(a NUMBER ANNOTATIONS(ADD a))
 942	942	engine	objects@sequence	alterTable_virtual_column_definition(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a ADD(a NUMBER AS(1))
-942	43929	engine	objects@sequence	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a COLLATE a AS(1))
+43929	43929	engine	objects@sequence	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a COLLATE a AS(1))
 942	942	engine	objects@sequence	alterTable_virtual_column_definition(VISIBLE|INVISIBLE)?/VISIBLE	ALTER TABLE a ADD(a VISIBLE AS(1))
 942	942	engine	objects@sequence	alterTable_virtual_column_definition(VISIBLE|INVISIBLE)?/INVISIBLE	ALTER TABLE a ADD(a INVISIBLE AS(1))
 942	942	engine	objects@sequence	alterTable_virtual_column_definition(GENERATED_ALWAYS)?/GENERATED_ALWAYS	ALTER TABLE a ADD(a GENERATED ALWAYS AS(1))
@@ -1631,7 +1631,7 @@ ok:6ab164dab0a2	ok:6ab164dab0a2	engine	objects@sequence	alterSequence(RESTART_(W
 942	942	engine	objects@sequence	alterTable_virtual_column_definition(alterTable_evaluation_edition_clause)?/alterTable_evaluation_edition_clause	ALTER TABLE a ADD(a AS(1) EVALUATE USING CURRENT EDITION)
 942	942	engine	objects@sequence	alterTable_virtual_column_definition(alterTable_inline_constraint)*/alterTable_inline_constraint_(alterTable_inline_constraint)*	ALTER TABLE a ADD(a AS(1) NULL)
 942	942	engine	objects@sequence	alterTable_modify_col_properties(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a MODIFY(a NUMBER)
-942	43929	engine	objects@sequence	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a)
+43929	43929	engine	objects@sequence	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a)
 942	942	engine	objects@sequence	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/DEFAULT_(ON_NULL)?_EXPR	ALTER TABLE a MODIFY(a DEFAULT 1)
 942	942	engine	objects@sequence	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/alterTable_identity_clause	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY)
 942	942	engine	objects@sequence	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/DROP_IDENTITY	ALTER TABLE a MODIFY(a DROP IDENTITY)
@@ -1641,7 +1641,7 @@ ok:6ab164dab0a2	ok:6ab164dab0a2	engine	objects@sequence	alterSequence(RESTART_(W
 942	942	engine	objects@sequence	alterTable_modify_col_properties(alterTable_inline_constraint)*/alterTable_inline_constraint_(alterTable_inline_constraint)*	ALTER TABLE a MODIFY(a NULL)
 942	942	engine	objects@sequence	alterTable_modify_col_properties(alterTable_annotations_clause)?/alterTable_annotations_clause	ALTER TABLE a MODIFY(a ANNOTATIONS(ADD a))
 942	942	engine	objects@sequence	alterTable_modify_virtcol_properties(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a MODIFY(a NUMBER AS(1))
-942	43929	engine	objects@sequence	alterTable_modify_virtcol_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a AS(1))
+43929	43929	engine	objects@sequence	alterTable_modify_virtcol_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a AS(1))
 942	942	engine	objects@sequence	alterTable_modify_virtcol_properties(GENERATED_ALWAYS)?/GENERATED_ALWAYS	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS(1))
 942	942	engine	objects@sequence	alterTable_modify_virtcol_properties(VIRTUAL)?/VIRTUAL	ALTER TABLE a MODIFY(a AS(1) VIRTUAL)
 942	942	engine	objects@sequence	alterTable_modify_virtcol_properties(alterTable_evaluation_edition_clause)?/alterTable_evaluation_edition_clause	ALTER TABLE a MODIFY(a AS(1) EVALUATE USING CURRENT EDITION)
@@ -1711,8 +1711,8 @@ ok:6ab164dab0a2	ok:6ab164dab0a2	engine	objects@sequence	alterView(IF_EXISTS)?/IF
 957	957	engine	objects@sequence	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1	CREATE INDEX a ON a(a, a)
 2201	2201	engine	objects@sequence	createIndex_index_expr(ID|EXPR)/EXPR	CREATE INDEX a ON a(1)
 1031	1031	engine	objects@sequence	createSequence(ID_.)?/ID_.	CREATE SEQUENCE a.a
-955	65021	engine	objects@sequence	createSequence(SHARING_=_(METADATA|DATA|NONE))?/SHARING_=_(METADATA|DATA|NONE)	CREATE SEQUENCE a SHARING = METADATA
-955	65021	engine	objects@sequence	createSequence(METADATA|DATA|NONE)/DATA	CREATE SEQUENCE a SHARING = DATA
+65021	65021	engine	objects@sequence	createSequence(SHARING_=_(METADATA|DATA|NONE))?/SHARING_=_(METADATA|DATA|NONE)	CREATE SEQUENCE a SHARING = METADATA
+65021	65021	engine	objects@sequence	createSequence(METADATA|DATA|NONE)/DATA	CREATE SEQUENCE a SHARING = DATA
 955	955	engine	objects@sequence	createSequence(METADATA|DATA|NONE)/NONE	CREATE SEQUENCE a SHARING = NONE
 955	955	engine	objects@sequence	createSequence(INCREMENT_BY_NUMBER)?/INCREMENT_BY_NUMBER	CREATE SEQUENCE a INCREMENT BY 1
 955	955	engine	objects@sequence	createSequence(START_WITH_NUMBER)?/START_WITH_NUMBER	CREATE SEQUENCE a START WITH 1
@@ -1733,13 +1733,13 @@ ok:6ab164dab0a2	ok:6ab164dab0a2	engine	objects@sequence	alterView(IF_EXISTS)?/IF
 955	955	engine	objects@sequence	createSequence(EXTEND|NOEXTEND)/NOEXTEND	CREATE SEQUENCE a SCALE NOEXTEND
 955	955	engine	objects@sequence	createSequence((SESSION|GLOBAL))?/(SESSION|GLOBAL)	CREATE SEQUENCE a SESSION
 955	955	engine	objects@sequence	createSequence(SESSION|GLOBAL)/GLOBAL	CREATE SEQUENCE a GLOBAL
-955	2511	engine	objects@sequence	createSequence(SHARD)?/SHARD	CREATE SEQUENCE a SHARD
+2511	2511	engine	objects@sequence	createSequence(SHARD)?/SHARD	CREATE SEQUENCE a SHARD
 1471	1471	engine	objects@sequence	createSynonym(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE	CREATE OR REPLACE SYNONYM a FOR a
 1471	1471	engine	objects@sequence	createSynonym(EDITIONABLE|NONEDITIONABLE)?/EDITIONABLE	CREATE EDITIONABLE SYNONYM a FOR a
 1471	1471	engine	objects@sequence	createSynonym(EDITIONABLE|NONEDITIONABLE)?/NONEDITIONABLE	CREATE NONEDITIONABLE SYNONYM a FOR a
 ok:43a49ffb79fb	ok:43a49ffb79fb	engine	objects@sequence	createSynonym(PUBLIC)?/PUBLIC	CREATE PUBLIC SYNONYM a FOR a
 1031	1031	engine	objects@sequence	createSynonym(ID_.)?/ID_.	CREATE SYNONYM a.a FOR a
-1471	65021	engine	objects@sequence	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE SYNONYM a SHARING = METADATA FOR a
+65021	65021	engine	objects@sequence	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE SYNONYM a SHARING = METADATA FOR a
 1471	1471	engine	objects@sequence	createSynonym(METADATA|NONE)/NONE	CREATE SYNONYM a SHARING = NONE FOR a
 955	955	engine	objects@sequence	createSynonym(@_ID)?/@_ID	CREATE SYNONYM a FOR a@a
 2263	2263	engine	objects@sequence	createTable_relational_table((_createTable_relational_properties_))?/(_createTable_relational_properties_)	CREATE TABLE a(a)
@@ -1818,7 +1818,7 @@ ok:43a49ffb79fb	ok:43a49ffb79fb	engine	objects@sequence	createSynonym(PUBLIC)?/P
 955	955	engine	objects@sequence	createView(VISIBLE|INVISIBLE)?/INVISIBLE	CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 957	957	engine	objects@sequence	createView(,_ID_(VISIBLE|INVISIBLE)?_createView~acd85c3e)*/,_ID_(VISIBLE|INVISIBLE)?_(createView_inline_constraint~ed94467e	CREATE VIEW a(a, a) AS SELECT 1 FROM dual
 955	955	engine	objects@sequence	createView(createView_annotations_clause)?/createView_annotations_clause	CREATE VIEW a ANNOTATIONS(a) AS SELECT 1 FROM dual
-955	43929	engine	objects@sequence	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
+43929	43929	engine	objects@sequence	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 955	955	engine	objects@sequence	createView(BEQUEATH_(CURRENT_USER|DEFINER))?/BEQUEATH_(CURRENT_USER|DEFINER)	CREATE VIEW a BEQUEATH CURRENT_USER AS SELECT 1 FROM dual
 955	955	engine	objects@sequence	createView(CURRENT_USER|DEFINER)/DEFINER	CREATE VIEW a BEQUEATH DEFINER AS SELECT 1 FROM dual
 955	955	engine	objects@sequence	createView(createView_subquery_restriction_clause)?/createView_subquery_restriction_clause	CREATE VIEW a AS SELECT 1 FROM dual WITH READ ONLY
@@ -1882,8 +1882,8 @@ ok:6d15d5cb0b97	ok:6d15d5cb0b97	engine	objects@synonym	statement/dropSynonym	DRO
 2289	2289	engine	objects@synonym	alterSequence(SCALE_(EXTEND|NOEXTEND)?|NOSCALE)/NOSCALE	ALTER SEQUENCE a NOSCALE
 2289	2289	engine	objects@synonym	alterSequence(EXTEND|NOEXTEND)?/EXTEND	ALTER SEQUENCE a SCALE EXTEND
 2289	2289	engine	objects@synonym	alterSequence(EXTEND|NOEXTEND)?/NOEXTEND	ALTER SEQUENCE a SCALE NOEXTEND
-2289	2511	engine	objects@synonym	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
-2289	2511	engine	objects@synonym	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
+2511	2511	engine	objects@synonym	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
+2511	2511	engine	objects@synonym	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
 2289	2289	engine	objects@synonym	alterSequence(RESTART_(WITH_NUMBER)?)?/RESTART_(WITH_NUMBER)?	ALTER SEQUENCE a RESTART
 942	942	engine	objects@synonym	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses	ALTER TABLE a MODIFY a VISIBLE
 942	942	engine	objects@synonym	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/RENAME_TO_ID	ALTER TABLE a RENAME TO a
@@ -1920,7 +1920,7 @@ ok:6d15d5cb0b97	ok:6d15d5cb0b97	engine	objects@synonym	statement/dropSynonym	DRO
 942	942	engine	objects@synonym	alterTable_drop_constraint_clause((KEEP|DROP)_INDEX)?/(KEEP|DROP)_INDEX	ALTER TABLE a DROP PRIMARY KEY KEEP INDEX
 942	942	engine	objects@synonym	alterTable_drop_constraint_clause(KEEP|DROP)/DROP	ALTER TABLE a DROP PRIMARY KEY DROP INDEX
 942	942	engine	objects@synonym	alterTable_drop_constraint_clause(ONLINE)?/ONLINE	ALTER TABLE a DROP PRIMARY KEY ONLINE
-942	43929	engine	objects@synonym	alterTable_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a NUMBER COLLATE a)
+43929	43929	engine	objects@synonym	alterTable_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a NUMBER COLLATE a)
 942	942	engine	objects@synonym	alterTable_column_definition(SORT)?/SORT	ALTER TABLE a ADD(a NUMBER SORT)
 942	942	engine	objects@synonym	alterTable_column_definition(VISIBLE|INVISIBLE)?/VISIBLE	ALTER TABLE a ADD(a NUMBER VISIBLE)
 942	942	engine	objects@synonym	alterTable_column_definition(VISIBLE|INVISIBLE)?/INVISIBLE	ALTER TABLE a ADD(a NUMBER INVISIBLE)
@@ -1932,7 +1932,7 @@ ok:6d15d5cb0b97	ok:6d15d5cb0b97	engine	objects@synonym	statement/dropSynonym	DRO
 942	942	engine	objects@synonym	alterTable_column_definition(alterTable_inline_ref_constraint)?/alterTable_inline_ref_constraint	ALTER TABLE a ADD(a NUMBER WITH ROWID)
 942	942	engine	objects@synonym	alterTable_column_definition(alterTable_annotations_clause)?/alterTable_annotations_clause	ALTER TABLE a ADD(a NUMBER ANNOTATIONS(ADD a))
 942	942	engine	objects@synonym	alterTable_virtual_column_definition(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a ADD(a NUMBER AS(1))
-942	43929	engine	objects@synonym	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a COLLATE a AS(1))
+43929	43929	engine	objects@synonym	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a COLLATE a AS(1))
 942	942	engine	objects@synonym	alterTable_virtual_column_definition(VISIBLE|INVISIBLE)?/VISIBLE	ALTER TABLE a ADD(a VISIBLE AS(1))
 942	942	engine	objects@synonym	alterTable_virtual_column_definition(VISIBLE|INVISIBLE)?/INVISIBLE	ALTER TABLE a ADD(a INVISIBLE AS(1))
 942	942	engine	objects@synonym	alterTable_virtual_column_definition(GENERATED_ALWAYS)?/GENERATED_ALWAYS	ALTER TABLE a ADD(a GENERATED ALWAYS AS(1))
@@ -1940,7 +1940,7 @@ ok:6d15d5cb0b97	ok:6d15d5cb0b97	engine	objects@synonym	statement/dropSynonym	DRO
 942	942	engine	objects@synonym	alterTable_virtual_column_definition(alterTable_evaluation_edition_clause)?/alterTable_evaluation_edition_clause	ALTER TABLE a ADD(a AS(1) EVALUATE USING CURRENT EDITION)
 942	942	engine	objects@synonym	alterTable_virtual_column_definition(alterTable_inline_constraint)*/alterTable_inline_constraint_(alterTable_inline_constraint)*	ALTER TABLE a ADD(a AS(1) NULL)
 942	942	engine	objects@synonym	alterTable_modify_col_properties(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a MODIFY(a NUMBER)
-942	43929	engine	objects@synonym	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a)
+43929	43929	engine	objects@synonym	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a)
 942	942	engine	objects@synonym	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/DEFAULT_(ON_NULL)?_EXPR	ALTER TABLE a MODIFY(a DEFAULT 1)
 942	942	engine	objects@synonym	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/alterTable_identity_clause	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY)
 942	942	engine	objects@synonym	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/DROP_IDENTITY	ALTER TABLE a MODIFY(a DROP IDENTITY)
@@ -1950,7 +1950,7 @@ ok:6d15d5cb0b97	ok:6d15d5cb0b97	engine	objects@synonym	statement/dropSynonym	DRO
 942	942	engine	objects@synonym	alterTable_modify_col_properties(alterTable_inline_constraint)*/alterTable_inline_constraint_(alterTable_inline_constraint)*	ALTER TABLE a MODIFY(a NULL)
 942	942	engine	objects@synonym	alterTable_modify_col_properties(alterTable_annotations_clause)?/alterTable_annotations_clause	ALTER TABLE a MODIFY(a ANNOTATIONS(ADD a))
 942	942	engine	objects@synonym	alterTable_modify_virtcol_properties(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a MODIFY(a NUMBER AS(1))
-942	43929	engine	objects@synonym	alterTable_modify_virtcol_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a AS(1))
+43929	43929	engine	objects@synonym	alterTable_modify_virtcol_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a AS(1))
 942	942	engine	objects@synonym	alterTable_modify_virtcol_properties(GENERATED_ALWAYS)?/GENERATED_ALWAYS	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS(1))
 942	942	engine	objects@synonym	alterTable_modify_virtcol_properties(VIRTUAL)?/VIRTUAL	ALTER TABLE a MODIFY(a AS(1) VIRTUAL)
 942	942	engine	objects@synonym	alterTable_modify_virtcol_properties(alterTable_evaluation_edition_clause)?/alterTable_evaluation_edition_clause	ALTER TABLE a MODIFY(a AS(1) EVALUATE USING CURRENT EDITION)
@@ -2020,8 +2020,8 @@ ok:9e7d1aa03905	ok:9e7d1aa03905	engine	objects@synonym	comment(AUDIT_POLICY_ID|C
 957	957	engine	objects@synonym	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1	CREATE INDEX a ON a(a, a)
 ok:c854d0556f15	ok:c854d0556f15	engine	objects@synonym	createIndex_index_expr(ID|EXPR)/EXPR	CREATE INDEX a ON a(1)
 1031	1031	engine	objects@synonym	createSequence(ID_.)?/ID_.	CREATE SEQUENCE a.a
-955	65021	engine	objects@synonym	createSequence(SHARING_=_(METADATA|DATA|NONE))?/SHARING_=_(METADATA|DATA|NONE)	CREATE SEQUENCE a SHARING = METADATA
-955	65021	engine	objects@synonym	createSequence(METADATA|DATA|NONE)/DATA	CREATE SEQUENCE a SHARING = DATA
+65021	65021	engine	objects@synonym	createSequence(SHARING_=_(METADATA|DATA|NONE))?/SHARING_=_(METADATA|DATA|NONE)	CREATE SEQUENCE a SHARING = METADATA
+65021	65021	engine	objects@synonym	createSequence(METADATA|DATA|NONE)/DATA	CREATE SEQUENCE a SHARING = DATA
 955	955	engine	objects@synonym	createSequence(METADATA|DATA|NONE)/NONE	CREATE SEQUENCE a SHARING = NONE
 955	955	engine	objects@synonym	createSequence(INCREMENT_BY_NUMBER)?/INCREMENT_BY_NUMBER	CREATE SEQUENCE a INCREMENT BY 1
 955	955	engine	objects@synonym	createSequence(START_WITH_NUMBER)?/START_WITH_NUMBER	CREATE SEQUENCE a START WITH 1
@@ -2042,13 +2042,13 @@ ok:c854d0556f15	ok:c854d0556f15	engine	objects@synonym	createIndex_index_expr(ID
 955	955	engine	objects@synonym	createSequence(EXTEND|NOEXTEND)/NOEXTEND	CREATE SEQUENCE a SCALE NOEXTEND
 955	955	engine	objects@synonym	createSequence((SESSION|GLOBAL))?/(SESSION|GLOBAL)	CREATE SEQUENCE a SESSION
 955	955	engine	objects@synonym	createSequence(SESSION|GLOBAL)/GLOBAL	CREATE SEQUENCE a GLOBAL
-955	2511	engine	objects@synonym	createSequence(SHARD)?/SHARD	CREATE SEQUENCE a SHARD
+2511	2511	engine	objects@synonym	createSequence(SHARD)?/SHARD	CREATE SEQUENCE a SHARD
 1471	1471	engine	objects@synonym	createSynonym(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE	CREATE OR REPLACE SYNONYM a FOR a
 1471	1471	engine	objects@synonym	createSynonym(EDITIONABLE|NONEDITIONABLE)?/EDITIONABLE	CREATE EDITIONABLE SYNONYM a FOR a
 1471	1471	engine	objects@synonym	createSynonym(EDITIONABLE|NONEDITIONABLE)?/NONEDITIONABLE	CREATE NONEDITIONABLE SYNONYM a FOR a
 ok:46baa5e1c2f0	ok:46baa5e1c2f0	engine	objects@synonym	createSynonym(PUBLIC)?/PUBLIC	CREATE PUBLIC SYNONYM a FOR a
 1031	1031	engine	objects@synonym	createSynonym(ID_.)?/ID_.	CREATE SYNONYM a.a FOR a
-1471	65021	engine	objects@synonym	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE SYNONYM a SHARING = METADATA FOR a
+65021	65021	engine	objects@synonym	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE SYNONYM a SHARING = METADATA FOR a
 1471	1471	engine	objects@synonym	createSynonym(METADATA|NONE)/NONE	CREATE SYNONYM a SHARING = NONE FOR a
 955	955	engine	objects@synonym	createSynonym(@_ID)?/@_ID	CREATE SYNONYM a FOR a@a
 2263	2263	engine	objects@synonym	createTable_relational_table((_createTable_relational_properties_))?/(_createTable_relational_properties_)	CREATE TABLE a(a)
@@ -2127,7 +2127,7 @@ ok:46baa5e1c2f0	ok:46baa5e1c2f0	engine	objects@synonym	createSynonym(PUBLIC)?/PU
 955	955	engine	objects@synonym	createView(VISIBLE|INVISIBLE)?/INVISIBLE	CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 957	957	engine	objects@synonym	createView(,_ID_(VISIBLE|INVISIBLE)?_createView~acd85c3e)*/,_ID_(VISIBLE|INVISIBLE)?_(createView_inline_constraint~ed94467e	CREATE VIEW a(a, a) AS SELECT 1 FROM dual
 955	955	engine	objects@synonym	createView(createView_annotations_clause)?/createView_annotations_clause	CREATE VIEW a ANNOTATIONS(a) AS SELECT 1 FROM dual
-955	43929	engine	objects@synonym	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
+43929	43929	engine	objects@synonym	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 955	955	engine	objects@synonym	createView(BEQUEATH_(CURRENT_USER|DEFINER))?/BEQUEATH_(CURRENT_USER|DEFINER)	CREATE VIEW a BEQUEATH CURRENT_USER AS SELECT 1 FROM dual
 955	955	engine	objects@synonym	createView(CURRENT_USER|DEFINER)/DEFINER	CREATE VIEW a BEQUEATH DEFINER AS SELECT 1 FROM dual
 955	955	engine	objects@synonym	createView(createView_subquery_restriction_clause)?/createView_subquery_restriction_clause	CREATE VIEW a AS SELECT 1 FROM dual WITH READ ONLY
@@ -2191,8 +2191,8 @@ ok:25361af3f6f1	ok:25361af3f6f1	engine	objects@fk	statement/truncateTable	TRUNCA
 2289	2289	engine	objects@fk	alterSequence(SCALE_(EXTEND|NOEXTEND)?|NOSCALE)/NOSCALE	ALTER SEQUENCE a NOSCALE
 2289	2289	engine	objects@fk	alterSequence(EXTEND|NOEXTEND)?/EXTEND	ALTER SEQUENCE a SCALE EXTEND
 2289	2289	engine	objects@fk	alterSequence(EXTEND|NOEXTEND)?/NOEXTEND	ALTER SEQUENCE a SCALE NOEXTEND
-2289	2511	engine	objects@fk	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
-2289	2511	engine	objects@fk	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
+2511	2511	engine	objects@fk	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
+2511	2511	engine	objects@fk	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
 2289	2289	engine	objects@fk	alterSequence(RESTART_(WITH_NUMBER)?)?/RESTART_(WITH_NUMBER)?	ALTER SEQUENCE a RESTART
 ok:25361af3f6f1	ok:25361af3f6f1	engine	objects@fk	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses	ALTER TABLE a MODIFY a VISIBLE
 955	955	engine	objects@fk	alterTable_alter_table_properties(alterTable_physical_attributes_claus~81c20294)/RENAME_TO_ID	ALTER TABLE a RENAME TO a
@@ -2208,16 +2208,16 @@ ok:25361af3f6f1	ok:25361af3f6f1	engine	objects@fk	alterTable_modify_column_claus
 54026	54026	engine	objects@fk	alterTable_modify_column_clauses((_alterTable_modify_col_properties_(~824656fb)/(_alterTable_modify_virtcol_properties_(,_alterTable_mo~52c4d090	ALTER TABLE a MODIFY(a AS(1))
 957	957	engine	objects@fk	alterTable_modify_column_clauses(,_alterTable_modify_col_properties)*/,_alterTable_modify_col_properties_(,_alterTable_modify~6745ba4b	ALTER TABLE a MODIFY(a, a)
 957	957	engine	objects@fk	alterTable_modify_column_clauses(,_alterTable_modify_virtcol_properties)*/,_alterTable_modify_virtcol_properties_(,_alterTable_mo~389a4d9a	ALTER TABLE a MODIFY(a AS(1), a AS(1))
-error	ok:817ff92a5bde	engine	objects@fk	alterTable_drop_column_clause(SET_UNUSED_(COLUMN_ID|(_ID_(,_ID)*_)~5230dfed)/SET_UNUSED_(COLUMN_ID|(_ID_(,_ID)*_))_((CASCADE_CONSTRA~10dcaad2	ALTER TABLE a SET UNUSED COLUMN a
+ok:817ff92a5bde	ok:817ff92a5bde	engine	objects@fk	alterTable_drop_column_clause(SET_UNUSED_(COLUMN_ID|(_ID_(,_ID)*_)~5230dfed)/SET_UNUSED_(COLUMN_ID|(_ID_(,_ID)*_))_((CASCADE_CONSTRA~10dcaad2	ALTER TABLE a SET UNUSED COLUMN a
 ok:817ff92a5bde	ok:817ff92a5bde	engine	objects@fk	alterTable_drop_column_clause((CASCADE_CONSTRAINTS|INVALIDATE))*/(CASCADE_CONSTRAINTS|INVALIDATE)_((CASCADE_CONSTRAINTS|~31e4ec01	ALTER TABLE a DROP COLUMN a INVALIDATE
 ok:817ff92a5bde	ok:817ff92a5bde	engine	objects@fk	alterTable_drop_column_clause(CASCADE_CONSTRAINTS|INVALIDATE)/CASCADE_CONSTRAINTS	ALTER TABLE a DROP COLUMN a CASCADE CONSTRAINTS
-error	ok:817ff92a5bde	engine	objects@fk	alterTable_drop_column_clause(ONLINE)?/ONLINE	ALTER TABLE a SET UNUSED COLUMN a ONLINE
+ok:817ff92a5bde	ok:817ff92a5bde	engine	objects@fk	alterTable_drop_column_clause(ONLINE)?/ONLINE	ALTER TABLE a SET UNUSED COLUMN a ONLINE
 ok:817ff92a5bde	ok:817ff92a5bde	engine	objects@fk	alterTable_drop_column_clause(CHECKPOINT_NUMBER)?/CHECKPOINT_NUMBER	ALTER TABLE a DROP COLUMN a CHECKPOINT 1
 1430	1430	engine	objects@fk	alterTable_add_period_clause((_ID_,_ID_))?/(_ID_,_ID_)	ALTER TABLE a ADD(PERIOD FOR a(a, a))
 2264	2264	engine	objects@fk	alterTable_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID	ALTER TABLE a ADD CONSTRAINT a UNIQUE(a)
 2260	2260	engine	objects@fk	alterTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/PRIMARY_KEY_(_ID_(,_ID)*_)	ALTER TABLE a ADD PRIMARY KEY(a)
 ok:638d34baf8e7	ok:638d34baf8e7	engine	objects@fk	alterTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/FOREIGN_KEY_(_ID_(,_ID)*_)_REFERENCES_(ID_.)?_ID_((_ID_~dd736605	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
-ok	942	engine	objects@fk	alterTable_out_of_line_constraint(ID_.)?/ID_.	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a.a
+942	942	engine	objects@fk	alterTable_out_of_line_constraint(ID_.)?/ID_.	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a.a
 2270	2270	engine	objects@fk	alterTable_out_of_line_constraint((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
 ok:bbc79878cb95	ok:bbc79878cb95	engine	objects@fk	alterTable_out_of_line_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a ON DELETE CASCADE
 ok:114e2d9e48e2	ok:114e2d9e48e2	engine	objects@fk	alterTable_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a ON DELETE SET NULL
@@ -2229,7 +2229,7 @@ ok:52657fcdf9f8	ok:52657fcdf9f8	engine	objects@fk	alterTable_drop_constraint_cla
 2273	2273	engine	objects@fk	alterTable_drop_constraint_clause((KEEP|DROP)_INDEX)?/(KEEP|DROP)_INDEX	ALTER TABLE a DROP PRIMARY KEY KEEP INDEX
 2273	2273	engine	objects@fk	alterTable_drop_constraint_clause(KEEP|DROP)/DROP	ALTER TABLE a DROP PRIMARY KEY DROP INDEX
 2297	2297	engine	objects@fk	alterTable_drop_constraint_clause(ONLINE)?/ONLINE	ALTER TABLE a DROP PRIMARY KEY ONLINE
-1430	43929	engine	objects@fk	alterTable_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a NUMBER COLLATE a)
+43929	43929	engine	objects@fk	alterTable_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a NUMBER COLLATE a)
 1430	1430	engine	objects@fk	alterTable_column_definition(SORT)?/SORT	ALTER TABLE a ADD(a NUMBER SORT)
 1430	1430	engine	objects@fk	alterTable_column_definition(VISIBLE|INVISIBLE)?/VISIBLE	ALTER TABLE a ADD(a NUMBER VISIBLE)
 1430	1430	engine	objects@fk	alterTable_column_definition(VISIBLE|INVISIBLE)?/INVISIBLE	ALTER TABLE a ADD(a NUMBER INVISIBLE)
@@ -2241,7 +2241,7 @@ ok:52657fcdf9f8	ok:52657fcdf9f8	engine	objects@fk	alterTable_drop_constraint_cla
 1430	1430	engine	objects@fk	alterTable_column_definition(alterTable_inline_ref_constraint)?/alterTable_inline_ref_constraint	ALTER TABLE a ADD(a NUMBER WITH ROWID)
 1430	1430	engine	objects@fk	alterTable_column_definition(alterTable_annotations_clause)?/alterTable_annotations_clause	ALTER TABLE a ADD(a NUMBER ANNOTATIONS(ADD a))
 1430	1430	engine	objects@fk	alterTable_virtual_column_definition(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a ADD(a NUMBER AS(1))
-1430	43929	engine	objects@fk	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a COLLATE a AS(1))
+43929	43929	engine	objects@fk	alterTable_virtual_column_definition(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a ADD(a COLLATE a AS(1))
 1430	1430	engine	objects@fk	alterTable_virtual_column_definition(VISIBLE|INVISIBLE)?/VISIBLE	ALTER TABLE a ADD(a VISIBLE AS(1))
 1430	1430	engine	objects@fk	alterTable_virtual_column_definition(VISIBLE|INVISIBLE)?/INVISIBLE	ALTER TABLE a ADD(a INVISIBLE AS(1))
 1430	1430	engine	objects@fk	alterTable_virtual_column_definition(GENERATED_ALWAYS)?/GENERATED_ALWAYS	ALTER TABLE a ADD(a GENERATED ALWAYS AS(1))
@@ -2249,7 +2249,7 @@ ok:52657fcdf9f8	ok:52657fcdf9f8	engine	objects@fk	alterTable_drop_constraint_cla
 1430	1430	engine	objects@fk	alterTable_virtual_column_definition(alterTable_evaluation_edition_clause)?/alterTable_evaluation_edition_clause	ALTER TABLE a ADD(a AS(1) EVALUATE USING CURRENT EDITION)
 1430	1430	engine	objects@fk	alterTable_virtual_column_definition(alterTable_inline_constraint)*/alterTable_inline_constraint_(alterTable_inline_constraint)*	ALTER TABLE a ADD(a AS(1) NULL)
 ok:25361af3f6f1	ok:25361af3f6f1	engine	objects@fk	alterTable_modify_col_properties(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a MODIFY(a NUMBER)
-ok	43929	engine	objects@fk	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a)
+43929	43929	engine	objects@fk	alterTable_modify_col_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a)
 ok:5966b7bf2cf6	ok:5966b7bf2cf6	engine	objects@fk	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/DEFAULT_(ON_NULL)?_EXPR	ALTER TABLE a MODIFY(a DEFAULT 1)
 30673	30673	engine	objects@fk	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/alterTable_identity_clause	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS IDENTITY)
 30673	30673	engine	objects@fk	alterTable_modify_col_properties(DEFAULT_(ON_NULL)?_EXPR|alterTable_i~a005e8ec)?/DROP_IDENTITY	ALTER TABLE a MODIFY(a DROP IDENTITY)
@@ -2259,7 +2259,7 @@ ok:c3377a9f2c26	ok:c3377a9f2c26	engine	objects@fk	alterTable_modify_col_properti
 1451	1451	engine	objects@fk	alterTable_modify_col_properties(alterTable_inline_constraint)*/alterTable_inline_constraint_(alterTable_inline_constraint)*	ALTER TABLE a MODIFY(a NULL)
 ok:25361af3f6f1	ok:25361af3f6f1	engine	objects@fk	alterTable_modify_col_properties(alterTable_annotations_clause)?/alterTable_annotations_clause	ALTER TABLE a MODIFY(a ANNOTATIONS(ADD a))
 54026	54026	engine	objects@fk	alterTable_modify_virtcol_properties(DATA_TYPE)?/DATA_TYPE	ALTER TABLE a MODIFY(a NUMBER AS(1))
-54026	43929	engine	objects@fk	alterTable_modify_virtcol_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a AS(1))
+43929	43929	engine	objects@fk	alterTable_modify_virtcol_properties(COLLATE_ID)?/COLLATE_ID	ALTER TABLE a MODIFY(a COLLATE a AS(1))
 54026	54026	engine	objects@fk	alterTable_modify_virtcol_properties(GENERATED_ALWAYS)?/GENERATED_ALWAYS	ALTER TABLE a MODIFY(a GENERATED ALWAYS AS(1))
 54026	54026	engine	objects@fk	alterTable_modify_virtcol_properties(VIRTUAL)?/VIRTUAL	ALTER TABLE a MODIFY(a AS(1) VIRTUAL)
 54026	54026	engine	objects@fk	alterTable_modify_virtcol_properties(alterTable_evaluation_edition_clause)?/alterTable_evaluation_edition_clause	ALTER TABLE a MODIFY(a AS(1) EVALUATE USING CURRENT EDITION)
@@ -2279,7 +2279,7 @@ ok:e1d3a3d7afbc	ok:e1d3a3d7afbc	engine	objects@fk	alterTable_inline_constraint(N
 ok:638d34baf8e7	ok:638d34baf8e7	engine	objects@fk	alterTable_inline_constraint(NOT?_NULL|UNIQUE|PRIMARY_KEY|REFEREN~cb3df8c8)/REFERENCES_(ID_.)?_ID_((_ID_))?_(ON_DELETE_(CASCADE|SET_NULL))?	ALTER TABLE a MODIFY(a REFERENCES a)
 ok:9525da07ecef	ok:9525da07ecef	engine	objects@fk	alterTable_inline_constraint(NOT?_NULL|UNIQUE|PRIMARY_KEY|REFEREN~cb3df8c8)/CHECK_(_CONDITION_)	ALTER TABLE a MODIFY(a CHECK(1 = 1))
 ok:42a067620a59	ok:42a067620a59	engine	objects@fk	alterTable_inline_constraint(NOT)?/NOT	ALTER TABLE a MODIFY(a NOT NULL)
-ok	942	engine	objects@fk	alterTable_inline_constraint(ID_.)?/ID_.	ALTER TABLE a MODIFY(a REFERENCES a.a)
+942	942	engine	objects@fk	alterTable_inline_constraint(ID_.)?/ID_.	ALTER TABLE a MODIFY(a REFERENCES a.a)
 2270	2270	engine	objects@fk	alterTable_inline_constraint((_ID_))?/(_ID_)	ALTER TABLE a MODIFY(a REFERENCES a(a))
 ok:bbc79878cb95	ok:bbc79878cb95	engine	objects@fk	alterTable_inline_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)	ALTER TABLE a MODIFY(a REFERENCES a ON DELETE CASCADE)
 ok:114e2d9e48e2	ok:114e2d9e48e2	engine	objects@fk	alterTable_inline_constraint(CASCADE|SET_NULL)/SET_NULL	ALTER TABLE a MODIFY(a REFERENCES a ON DELETE SET NULL)
@@ -2329,8 +2329,8 @@ ok:0a4cd0b068a8	ok:0a4cd0b068a8	engine	objects@fk	createIndex_table_index_clause
 957	957	engine	objects@fk	createIndex_table_index_clause(,_createIndex_index_expr_(ASC|DESC)?)*/,_createIndex_index_expr_(ASC|DESC)?_(,_createIndex_ind~e0a2c8d1	CREATE INDEX a ON a(a, a)
 ok:114627c7e777	ok:114627c7e777	engine	objects@fk	createIndex_index_expr(ID|EXPR)/EXPR	CREATE INDEX a ON a(1)
 1031	1031	engine	objects@fk	createSequence(ID_.)?/ID_.	CREATE SEQUENCE a.a
-955	65021	engine	objects@fk	createSequence(SHARING_=_(METADATA|DATA|NONE))?/SHARING_=_(METADATA|DATA|NONE)	CREATE SEQUENCE a SHARING = METADATA
-955	65021	engine	objects@fk	createSequence(METADATA|DATA|NONE)/DATA	CREATE SEQUENCE a SHARING = DATA
+65021	65021	engine	objects@fk	createSequence(SHARING_=_(METADATA|DATA|NONE))?/SHARING_=_(METADATA|DATA|NONE)	CREATE SEQUENCE a SHARING = METADATA
+65021	65021	engine	objects@fk	createSequence(METADATA|DATA|NONE)/DATA	CREATE SEQUENCE a SHARING = DATA
 955	955	engine	objects@fk	createSequence(METADATA|DATA|NONE)/NONE	CREATE SEQUENCE a SHARING = NONE
 955	955	engine	objects@fk	createSequence(INCREMENT_BY_NUMBER)?/INCREMENT_BY_NUMBER	CREATE SEQUENCE a INCREMENT BY 1
 955	955	engine	objects@fk	createSequence(START_WITH_NUMBER)?/START_WITH_NUMBER	CREATE SEQUENCE a START WITH 1
@@ -2351,13 +2351,13 @@ ok:114627c7e777	ok:114627c7e777	engine	objects@fk	createIndex_index_expr(ID|EXPR
 955	955	engine	objects@fk	createSequence(EXTEND|NOEXTEND)/NOEXTEND	CREATE SEQUENCE a SCALE NOEXTEND
 955	955	engine	objects@fk	createSequence((SESSION|GLOBAL))?/(SESSION|GLOBAL)	CREATE SEQUENCE a SESSION
 955	955	engine	objects@fk	createSequence(SESSION|GLOBAL)/GLOBAL	CREATE SEQUENCE a GLOBAL
-955	2511	engine	objects@fk	createSequence(SHARD)?/SHARD	CREATE SEQUENCE a SHARD
+2511	2511	engine	objects@fk	createSequence(SHARD)?/SHARD	CREATE SEQUENCE a SHARD
 1471	1471	engine	objects@fk	createSynonym(OR_REPLACE|IF_NOT_EXISTS)?/OR_REPLACE	CREATE OR REPLACE SYNONYM a FOR a
 1471	1471	engine	objects@fk	createSynonym(EDITIONABLE|NONEDITIONABLE)?/EDITIONABLE	CREATE EDITIONABLE SYNONYM a FOR a
 1471	1471	engine	objects@fk	createSynonym(EDITIONABLE|NONEDITIONABLE)?/NONEDITIONABLE	CREATE NONEDITIONABLE SYNONYM a FOR a
 ok:6de315b0a65e	ok:6de315b0a65e	engine	objects@fk	createSynonym(PUBLIC)?/PUBLIC	CREATE PUBLIC SYNONYM a FOR a
 1031	1031	engine	objects@fk	createSynonym(ID_.)?/ID_.	CREATE SYNONYM a.a FOR a
-1471	65021	engine	objects@fk	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE SYNONYM a SHARING = METADATA FOR a
+65021	65021	engine	objects@fk	createSynonym(SHARING_=_(METADATA|NONE))?/SHARING_=_(METADATA|NONE)	CREATE SYNONYM a SHARING = METADATA FOR a
 1471	1471	engine	objects@fk	createSynonym(METADATA|NONE)/NONE	CREATE SYNONYM a SHARING = NONE FOR a
 955	955	engine	objects@fk	createSynonym(@_ID)?/@_ID	CREATE SYNONYM a FOR a@a
 2263	2263	engine	objects@fk	createTable_relational_table((_createTable_relational_properties_))?/(_createTable_relational_properties_)	CREATE TABLE a(a)
@@ -2436,7 +2436,7 @@ ok:6de315b0a65e	ok:6de315b0a65e	engine	objects@fk	createSynonym(PUBLIC)?/PUBLIC	
 955	955	engine	objects@fk	createView(VISIBLE|INVISIBLE)?/INVISIBLE	CREATE VIEW a(a INVISIBLE) AS SELECT 1 FROM dual
 957	957	engine	objects@fk	createView(,_ID_(VISIBLE|INVISIBLE)?_createView~acd85c3e)*/,_ID_(VISIBLE|INVISIBLE)?_(createView_inline_constraint~ed94467e	CREATE VIEW a(a, a) AS SELECT 1 FROM dual
 955	955	engine	objects@fk	createView(createView_annotations_clause)?/createView_annotations_clause	CREATE VIEW a ANNOTATIONS(a) AS SELECT 1 FROM dual
-955	43929	engine	objects@fk	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
+43929	43929	engine	objects@fk	createView(DEFAULT_COLLATION_ID)?/DEFAULT_COLLATION_ID	CREATE VIEW a DEFAULT COLLATION a AS SELECT 1 FROM dual
 955	955	engine	objects@fk	createView(BEQUEATH_(CURRENT_USER|DEFINER))?/BEQUEATH_(CURRENT_USER|DEFINER)	CREATE VIEW a BEQUEATH CURRENT_USER AS SELECT 1 FROM dual
 955	955	engine	objects@fk	createView(CURRENT_USER|DEFINER)/DEFINER	CREATE VIEW a BEQUEATH DEFINER AS SELECT 1 FROM dual
 955	955	engine	objects@fk	createView(createView_subquery_restriction_clause)?/createView_subquery_restriction_clause	CREATE VIEW a AS SELECT 1 FROM dual WITH READ ONLY

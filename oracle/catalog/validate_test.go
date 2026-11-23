@@ -1045,3 +1045,292 @@ func TestExecReviewRegressionFixes(t *testing.T) {
 		require.Equal(t, "P", fks[0].ReferencedTable)
 	})
 }
+
+func TestServerConfigAndOracle23SimulationFidelity(t *testing.T) {
+	requireCode := func(t *testing.T, err error, want string) {
+		t.Helper()
+		require.Error(t, err)
+		var oraErr *Error
+		require.True(t, errors.As(err, &oraErr), "expected *catalog.Error, got %T: %v", err, err)
+		require.Equal(t, want, oraErr.Code)
+	}
+
+	t.Run("MAX_STRING_SIZE=STANDARD refuses column COLLATE and view DEFAULT COLLATION with ORA-43929", func(t *testing.T) {
+		c := New()
+		c.SetServerConfig(StandardOracle23ServerConfig())
+		for _, stmt := range []string{
+			`ALTER TABLE missing ADD (a NUMBER COLLATE binary_ci)`,
+			`ALTER TABLE missing ADD (a COLLATE binary_ci AS (1))`,
+			`ALTER TABLE missing MODIFY (a COLLATE binary_ci)`,
+			`ALTER TABLE missing MODIFY (a COLLATE binary_ci AS (1))`,
+			`CREATE TABLE t (a VARCHAR2(10) COLLATE binary_ci)`,
+			`CREATE TABLE t (a VARCHAR2(10)) DEFAULT COLLATION binary_ci`,
+			`CREATE VIEW v DEFAULT COLLATION binary_ci AS SELECT 1 FROM dual`,
+		} {
+			results, err := c.Exec(stmt, nil)
+			require.NoError(t, err)
+			require.Len(t, results, 1)
+			requireCode(t, results[0].Error, "43929")
+		}
+
+		// Switching to EXTENDED allows collation clauses again.
+		cfg := c.ServerConfig()
+		cfg.MaxStringSize = "EXTENDED"
+		c.SetServerConfig(cfg)
+		results, err := c.Exec(`CREATE TABLE t (a VARCHAR2(10) COLLATE binary_ci); CREATE VIEW v DEFAULT COLLATION binary_ci AS SELECT a FROM t`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		require.Nil(t, results[1].Error)
+	})
+
+	t.Run("sequence SHARD and NOSHARD fail with ORA-02511 unless Shard DDL is enabled", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			`CREATE SEQUENCE s SHARD`,
+			`ALTER SEQUENCE missing SHARD`,
+			`ALTER SEQUENCE missing NOSHARD`,
+		} {
+			results, err := c.Exec(stmt, nil)
+			require.NoError(t, err)
+			requireCode(t, results[0].Error, "02511")
+		}
+
+		// ALTER SESSION ENABLE SHARD DDL unlocks sequence shard clauses.
+		results, err := c.Exec(`ALTER SESSION ENABLE SHARD DDL; CREATE SEQUENCE s SHARD; ALTER SEQUENCE s NOSHARD`, nil)
+		require.NoError(t, err)
+		for _, r := range results {
+			require.Nil(t, r.Error)
+		}
+
+		results, err = c.Exec(`ALTER SESSION DISABLE SHARD DDL; ALTER SEQUENCE s SHARD`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		requireCode(t, results[1].Error, "02511")
+	})
+
+	t.Run("SHARING = METADATA and DATA fail with ORA-65021 outside Application Root while SHARING = NONE succeeds", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			`CREATE SEQUENCE s SHARING = METADATA`,
+			`CREATE SEQUENCE s SHARING = DATA`,
+			`CREATE SYNONYM s SHARING = METADATA FOR s`,
+		} {
+			results, err := c.Exec(stmt, nil)
+			require.NoError(t, err)
+			requireCode(t, results[0].Error, "65021")
+		}
+
+		results, err := c.Exec(`CREATE SEQUENCE s SHARING = NONE; CREATE SYNONYM sy SHARING = NONE FOR s`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		require.Nil(t, results[1].Error)
+
+		// Inside an application root, SHARING = METADATA is accepted.
+		cfg := c.ServerConfig()
+		cfg.ApplicationRoot = true
+		c.SetServerConfig(cfg)
+		results, err = c.Exec(`CREATE SEQUENCE s2 SHARING = METADATA; CREATE SYNONYM sy2 SHARING = METADATA FOR s2`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		require.Nil(t, results[1].Error)
+	})
+
+	t.Run("TDE keystore closed fails column ENCRYPT with ORA-28365 after table, column, and FK checks", func(t *testing.T) {
+		c, err := LoadSQL(`
+			CREATE TABLE p (id NUMBER CONSTRAINT p_pk PRIMARY KEY);
+			CREATE TABLE t (id NUMBER, p_id NUMBER CONSTRAINT t_fk REFERENCES p (id));
+		`)
+		require.NoError(t, err)
+		c.SetServerConfig(StandardOracle23ServerConfig())
+
+		// Missing table -> ORA-00942 before wallet check.
+		results, err := c.Exec(`ALTER TABLE missing ADD (x NUMBER ENCRYPT)`, nil)
+		require.NoError(t, err)
+		requireCode(t, results[0].Error, "00942")
+
+		// Duplicate column -> ORA-01430 before wallet check.
+		results, err = c.Exec(`ALTER TABLE t ADD (id NUMBER ENCRYPT)`, nil)
+		require.NoError(t, err)
+		requireCode(t, results[0].Error, "01430")
+
+		// FK column -> ORA-28335 before wallet check.
+		results, err = c.Exec(`ALTER TABLE t MODIFY (p_id ENCRYPT)`, nil)
+		require.NoError(t, err)
+		requireCode(t, results[0].Error, "28335")
+
+		// Non-FK column ADD and MODIFY ENCRYPT -> ORA-28365.
+		for _, stmt := range []string{
+			`ALTER TABLE t ADD (secret NUMBER ENCRYPT)`,
+			`ALTER TABLE t MODIFY (id ENCRYPT)`,
+			`ALTER TABLE t MODIFY (id ENCRYPT SALT)`,
+			`ALTER TABLE t MODIFY (id ENCRYPT NO SALT)`,
+			`ALTER TABLE t MODIFY (id ENCRYPT IDENTIFIED BY secret_pw)`,
+		} {
+			results, err := c.Exec(stmt, nil)
+			require.NoError(t, err)
+			requireCode(t, results[0].Error, "28365")
+		}
+	})
+
+	t.Run("ValidateExternalSchemaRefs rejects cross-schema REFERENCES with ORA-00942", func(t *testing.T) {
+		c, err := LoadSQL(`CREATE TABLE app.t (id NUMBER)`)
+		require.NoError(t, err)
+		c.SetServerConfig(StandardOracle23ServerConfig())
+
+		for _, stmt := range []string{
+			`CREATE TABLE child1 (id REFERENCES other.p)`,
+			`CREATE TABLE child2 (id NUMBER REFERENCES other.p)`,
+			`CREATE TABLE child3 (id NUMBER, FOREIGN KEY (id) REFERENCES other.p)`,
+			`ALTER TABLE t ADD (p_id NUMBER REFERENCES other.p)`,
+			`ALTER TABLE t ADD FOREIGN KEY (id) REFERENCES other.p`,
+			`ALTER TABLE t MODIFY (id REFERENCES other.p)`,
+		} {
+			results, err := c.Exec(stmt, nil)
+			require.NoError(t, err)
+			requireCode(t, results[0].Error, "00942")
+		}
+	})
+
+	t.Run("untyped virtual column infers NUMBER for numeric literals and arithmetic while keeping functions untyped", func(t *testing.T) {
+		c, err := LoadSQL(`
+			CREATE TABLE t (c VARCHAR2(10));
+			ALTER TABLE t ADD (v_lit AS (1));
+			ALTER TABLE t ADD (v_neg AS (-1));
+			ALTER TABLE t ADD (v_arith AS (1 + 2 * 3));
+			ALTER TABLE t ADD (v_fn AS (UPPER(c)));
+		`)
+		require.NoError(t, err)
+		tbl := tableByName(c.Metadata().Schemas[0])["T"]
+		require.Equal(t, "NUMBER", tableFindColumn(tbl, "V_LIT").Type)
+		require.Equal(t, "NUMBER", tableFindColumn(tbl, "V_NEG").Type)
+		require.Equal(t, "NUMBER", tableFindColumn(tbl, "V_ARITH").Type)
+		require.Equal(t, "", tableFindColumn(tbl, "V_FN").Type)
+	})
+
+	t.Run("virtual column edition clauses validate against catalog editions with ORA-38802", func(t *testing.T) {
+		c, err := LoadSQL(`CREATE TABLE t (id NUMBER)`)
+		require.NoError(t, err)
+
+		for _, stmt := range []string{
+			`ALTER TABLE t ADD (v1 AS (1) EVALUATE USING EDITION missing_ed)`,
+			`ALTER TABLE t ADD (v2 AS (1) UNUSABLE BEFORE EDITION missing_ed)`,
+			`ALTER TABLE t ADD (v3 AS (1) UNUSABLE BEGINNING WITH EDITION missing_ed)`,
+		} {
+			results, err := c.Exec(stmt, nil)
+			require.NoError(t, err)
+			requireCode(t, results[0].Error, "38802")
+		}
+
+		// Built-in ORA$BASE, CURRENT EDITION, NULL EDITION, and created editions succeed.
+		results, err := c.Exec(`
+			CREATE EDITION v2;
+			ALTER TABLE t ADD (v_base AS (1) EVALUATE USING EDITION ora$base);
+			ALTER TABLE t ADD (v_cur AS (1) EVALUATE USING CURRENT EDITION);
+			ALTER TABLE t ADD (v_null AS (1) EVALUATE USING NULL EDITION);
+			ALTER TABLE t ADD (v_v2 AS (1) UNUSABLE BEFORE EDITION v2);
+			DROP EDITION v2;
+		`, nil)
+		require.NoError(t, err)
+		for _, r := range results {
+			require.Nil(t, r.Error)
+		}
+
+		// Dropping v2 revokes it.
+		results, err = c.Exec(`ALTER TABLE t ADD (v_gone AS (1) EVALUATE USING EDITION v2)`, nil)
+		require.NoError(t, err)
+		requireCode(t, results[0].Error, "38802")
+	})
+
+	t.Run("PERIOD FOR synthesizes temporal validity check constraints", func(t *testing.T) {
+		c, err := LoadSQL(`
+			CREATE TABLE p1 (PERIOD FOR valid_time);
+			CREATE TABLE p2 (id NUMBER);
+			ALTER TABLE p2 ADD (PERIOD FOR vt);
+			ALTER TABLE p2 ADD (PERIOD FOR vt2 (s_col, e_col));
+		`)
+		require.NoError(t, err)
+
+		t1 := tableByName(c.Metadata().Schemas[0])["P1"]
+		require.Len(t, t1.CheckConstraints, 1)
+		require.Equal(t, `"VALID_TIME_START" < "VALID_TIME_END"`, t1.CheckConstraints[0].Expression)
+
+		t2 := tableByName(c.Metadata().Schemas[0])["P2"]
+		require.Len(t, t2.CheckConstraints, 2)
+		require.Equal(t, `"VT_START" < "VT_END"`, t2.CheckConstraints[0].Expression)
+		require.Equal(t, `("S_COL" < "E_COL") and ("VT2" > 0)`, t2.CheckConstraints[1].Expression)
+	})
+
+	t.Run("SET UNUSED executes when ApplySetUnused is enabled and enforces column/FK/last-column checks", func(t *testing.T) {
+		c, err := LoadSQL(`
+			CREATE TABLE p (b NUMBER CONSTRAINT p_pk PRIMARY KEY);
+			CREATE TABLE t (b NUMBER CONSTRAINT t_pk PRIMARY KEY, a NUMBER CONSTRAINT t_fk REFERENCES p (b), d NUMBER);
+			CREATE TABLE ch (id NUMBER, t_b NUMBER CONSTRAINT ch_fk REFERENCES t (b));
+		`)
+		require.NoError(t, err)
+		c.SetServerConfig(StandardOracle23ServerConfig())
+
+		// Referencing FK column can be set unused, removing column and FK.
+		results, err := c.Exec(`ALTER TABLE t SET UNUSED COLUMN a ONLINE`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		tblT := tableByName(c.Metadata().Schemas[0])["T"]
+		require.Nil(t, tableFindColumn(tblT, "A"))
+		require.Empty(t, tblT.ForeignKeys)
+
+		// Parent key referenced by incoming FK without CASCADE -> ORA-12992.
+		results, err = c.Exec(`ALTER TABLE t SET UNUSED COLUMN b`, nil)
+		require.NoError(t, err)
+		requireCode(t, results[0].Error, "12992")
+
+		// Setting all remaining columns unused -> ORA-12983.
+		results, err = c.Exec(`ALTER TABLE t SET UNUSED (b, d) CASCADE CONSTRAINTS`, nil)
+		require.NoError(t, err)
+		requireCode(t, results[0].Error, "12983")
+
+		// Duplicate column in SET UNUSED list -> ORA-00957.
+		results, err = c.Exec(`ALTER TABLE t SET UNUSED (d, d)`, nil)
+		require.NoError(t, err)
+		requireCode(t, results[0].Error, "00957")
+
+		// Parent key with CASCADE CONSTRAINTS succeeds and drops incoming FK.
+		results, err = c.Exec(`ALTER TABLE t SET UNUSED COLUMN b CASCADE CONSTRAINTS`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		require.Empty(t, tableByName(c.Metadata().Schemas[0])["CH"].ForeignKeys)
+	})
+
+	t.Run("ALTER SEQUENCE enforces ORA-04007 and ORA-04009 against initial sequence current value", func(t *testing.T) {
+		c, err := LoadSQL(`CREATE SEQUENCE s START WITH 1 INCREMENT BY 1`)
+		require.NoError(t, err)
+
+		for _, stmt := range []string{
+			`ALTER SEQUENCE s MINVALUE 1`,
+			`ALTER SEQUENCE s NOMINVALUE`,
+		} {
+			results, err := c.Exec(stmt, nil)
+			require.NoError(t, err)
+			requireCode(t, results[0].Error, "04007")
+		}
+
+		// MINVALUE 0 is <= initial current value (0), so it succeeds.
+		results, err := c.Exec(`ALTER SEQUENCE s MINVALUE 0`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+
+		// RESTART START WITH 10 moves current value to 9, allowing MINVALUE 5 and rejecting MAXVALUE 8 (ORA-04009).
+		results, err = c.Exec(`ALTER SEQUENCE s RESTART START WITH 10; ALTER SEQUENCE s MINVALUE 5`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		require.Nil(t, results[1].Error)
+
+		results, err = c.Exec(`ALTER SEQUENCE s MAXVALUE 8`, nil)
+		require.NoError(t, err)
+		requireCode(t, results[0].Error, "04009")
+
+		// Descending sequence NOMAXVALUE (-1 < initial currval 0) -> ORA-04009.
+		results, err = c.Exec(`CREATE SEQUENCE sd START WITH -1 INCREMENT BY -1; ALTER SEQUENCE sd NOMAXVALUE`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		requireCode(t, results[1].Error, "04009")
+	})
+}
