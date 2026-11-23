@@ -361,6 +361,8 @@ func (e *oracleMetadataExtractor) checkTrigger(n *ast.CreateTriggerStmt) bool {
 		return false
 	}
 	switch {
+	case e.editioningViews[table]:
+		// An editioning view takes the DML triggers of a table.
 	case n.Timing == ast.TRIGGER_INSTEAD_OF && !view:
 		e.setError(oraError("25002", "cannot create INSTEAD OF triggers on tables"))
 		return false
@@ -570,4 +572,41 @@ func (e *oracleMetadataExtractor) invalidateColumnReaders(n *ast.AlterTableStmt)
 	for _, col := range columns {
 		e.invalidateReaders(table + "." + col)
 	}
+}
+
+// recompile compiles a stored unit again from its text, as ALTER ...
+// COMPILE does, refreshing its status, first error and what it reads. A
+// type, whose text the catalog does not keep, keeps its status.
+func (e *oracleMetadataExtractor) recompile(kind, name string) {
+	var text string
+	switch kind {
+	case unitProcedure:
+		text = e.procedures[name].GetDefinition()
+	case unitFunction:
+		text = e.functions[name].GetDefinition()
+	case unitPackage, unitPackageBody:
+		spec, body := splitPackageUnits(e.packages[name].GetDefinition())
+		text = spec
+		if kind == unitPackageBody {
+			text = body
+		}
+	case unitTrigger:
+		text = e.triggers[name].GetBody()
+	}
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return
+	}
+	if !strings.HasPrefix(strings.ToUpper(text), "CREATE") {
+		text = "CREATE " + text
+	}
+	n := parseSaved(text)
+	if n == nil {
+		return
+	}
+	// The checker reads names by their offsets in the text it compiles.
+	saved := e.schemaText
+	e.schemaText = text
+	defer func() { e.schemaText = saved }()
+	e.compileUnit(kind, name, n)
 }

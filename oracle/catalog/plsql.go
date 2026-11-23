@@ -120,6 +120,13 @@ func (c *plChecker) read(name string) {
 	}
 }
 
+// readVia records a name the unit reads and the object it resolves to,
+// through a synonym, so that a change to either reaches the unit.
+func (c *plChecker) readVia(name, target string) {
+	c.read(name)
+	c.read(target)
+}
+
 // unit compiles a CREATE statement's unit.
 func (c *plChecker) unit(n ast.Node) {
 	c.push()

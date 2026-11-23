@@ -3161,3 +3161,47 @@ func TestTriggerDroppedAndCreatedAgain(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// TestUnitChangesReachTheirReaders holds the units book to what Oracle does
+// around a unit's readers: a call through a synonym reads its target,
+// dropping a table drops its triggers, an editioning view takes a BEFORE
+// trigger, and ALTER ... COMPILE compiles a unit again.
+func TestUnitChangesReachTheirReaders(t *testing.T) {
+	status := func(c *Catalog, kind, name string) string {
+		for _, u := range c.unitStates() {
+			if u.kind == kind && u.name == name {
+				return strings.TrimSpace(u.status + " " + u.err)
+			}
+		}
+		return "missing"
+	}
+	c, err := LoadSQL("CREATE PROCEDURE p IS BEGIN NULL; END;\n/\nCREATE SYNONYM s FOR p;\nCREATE PROCEDURE caller IS BEGIN s; END;\n/\nDROP PROCEDURE p;\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := status(c, unitProcedure, "CALLER"); got != "INVALID" {
+		t.Errorf("caller of a dropped procedure through a synonym: %s, want INVALID", got)
+	}
+
+	if _, err := GetDatabaseMetadata("CREATE TABLE t (id NUMBER);\nCREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW BEGIN NULL; END;\n/\nDROP TABLE t;\nCREATE TABLE t (id NUMBER);\nCREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW BEGIN NULL; END;\n/\n"); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := LoadSQL("CREATE TABLE t (id NUMBER);\nCREATE EDITIONING VIEW ev AS SELECT id FROM t;\nCREATE TRIGGER trg BEFORE INSERT ON ev FOR EACH ROW BEGIN NULL; END;\n/\n"); err != nil {
+		t.Fatal(err)
+	}
+
+	c, err = LoadSQL("CREATE PROCEDURE p IS v NUMBER; BEGIN SELECT id INTO v FROM later; END;\n/\nCREATE TABLE later (id NUMBER);\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := status(c, unitProcedure, "P"); got != "INVALID ORA-00942" {
+		t.Fatalf("before COMPILE: %s, want INVALID ORA-00942", got)
+	}
+	if _, err := c.Exec("ALTER PROCEDURE p COMPILE", nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := status(c, unitProcedure, "P"); got != "VALID" {
+		t.Errorf("after COMPILE: %s, want VALID", got)
+	}
+}

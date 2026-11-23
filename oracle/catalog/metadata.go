@@ -347,11 +347,23 @@ func (e *oracleMetadataExtractor) extractStatement(stmt ast.StmtNode) {
 			e.compileUnit(kind, n.Name.Name, n)
 		}
 	case *ast.AlterProcedureStmt:
-		e.findsUnit(unitProcedure, n.Name, n.IfExists)
+		if e.findsUnit(unitProcedure, n.Name, n.IfExists) && n.Compile {
+			e.recompile(unitProcedure, n.Name.Name)
+		}
 	case *ast.AlterFunctionStmt:
-		e.findsUnit(unitFunction, n.Name, n.IfExists)
+		if e.findsUnit(unitFunction, n.Name, n.IfExists) && n.Compile {
+			e.recompile(unitFunction, n.Name.Name)
+		}
 	case *ast.AlterPackageStmt:
-		e.findsUnit(unitPackage, n.Name, n.IfExists)
+		if e.findsUnit(unitPackage, n.Name, n.IfExists) && n.Compile {
+			target := strings.ToUpper(n.CompileTarget)
+			if target != "BODY" {
+				e.recompile(unitPackage, n.Name.Name)
+			}
+			if target != "SPECIFICATION" && e.hasUnit(unitPackageBody, n.Name.Name) {
+				e.recompile(unitPackageBody, n.Name.Name)
+			}
+		}
 	case *ast.CreateSynonymStmt:
 		e.extractCreateSynonym(n)
 	case *ast.CreateDomainStmt:
@@ -2298,6 +2310,11 @@ func (e *oracleMetadataExtractor) extractDrop(n *ast.DropStmt) {
 			if n.Cascade {
 				e.dropIncomingForeignKeys(name)
 			}
+			for _, tr := range e.tables[name].Triggers {
+				// Dropping a table drops its triggers.
+				delete(e.triggers, tr.Name)
+				e.forgetUnit(unitTrigger, tr.Name)
+			}
 			e.dropTableProvenance(name)
 			delete(e.tables, name)
 			e.invalidateReaders(name)
@@ -2311,6 +2328,10 @@ func (e *oracleMetadataExtractor) extractDrop(n *ast.DropStmt) {
 				}
 				e.setError(oraError("00942", "table or view %q does not exist", name))
 				return
+			}
+			for _, tr := range e.views[name].Triggers {
+				delete(e.triggers, tr.Name)
+				e.forgetUnit(unitTrigger, tr.Name)
 			}
 			delete(e.views, name)
 			delete(e.viewConstraints, name)
@@ -3504,10 +3525,13 @@ func (e *oracleMetadataExtractor) extractAlterTrigger(n *ast.AlterTriggerStmt) {
 	name := n.Name.Name
 	trigger := e.triggers[name]
 	switch strings.ToUpper(n.Action) {
+	case "COMPILE":
+		e.recompile(unitTrigger, name)
 	case "RENAME":
 		if n.NewName == "" {
 			return
 		}
+		e.forgetUnit(unitTrigger, name)
 		delete(e.triggers, name)
 		trigger.Name = n.NewName
 		trigger.Body = renameTriggerName(trigger.Body, name, n.NewName)

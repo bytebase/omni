@@ -69,12 +69,8 @@ func (c *plChecker) columnRef(n *ast.ColumnRef) {
 		if plsqlValues[name] || c.row != nil && triggerPredicates[name] {
 			return
 		}
-		if c.e.functions[name] != nil {
-			c.read(name)
-			return
-		}
 		if c.knownObject(name) {
-			c.read(name)
+			c.readVia(name, c.e.resolveSynonymTarget(name, ""))
 			return
 		}
 		c.fail("PLS-00201", "identifier '%s' must be declared", name)
@@ -97,13 +93,13 @@ func (c *plChecker) qualifiedName(parts []string) {
 	target := c.e.resolveSynonymTarget(head, "")
 	switch {
 	case c.e.sequences[target] != nil:
-		c.read(head)
+		c.readVia(head, target)
 	case len(rest) == 1 && (rest[0] == "NEXTVAL" || rest[0] == "CURRVAL") && !c.knownObject(head):
 		// Only a sequence has NEXTVAL; another schema's would be named
 		// schema.sequence.NEXTVAL.
 		c.fail("PLS-00201", "identifier '%s.%s' must be declared", head, rest[0])
 	case c.e.packages[target] != nil:
-		c.read(head)
+		c.readVia(head, target)
 		if names := c.packageNames(target); names != nil && !names[rest[0]] {
 			c.fail("PLS-00302", "component '%s' must be declared", rest[0])
 		}
@@ -176,11 +172,11 @@ func (c *plChecker) resolveCall(parts []string) (sigs []plSignature, known bool)
 		}
 		target := c.e.resolveSynonymTarget(name, "")
 		if p := c.e.procedures[target]; p != nil {
-			c.read(name)
+			c.readVia(name, target)
 			return savedSignature(p.Definition, false), true
 		}
 		if f := c.e.functions[target]; f != nil {
-			c.read(name)
+			c.readVia(name, target)
 			return savedSignature(f.Definition, true), true
 		}
 		if c.e.hasType(target) || plsqlFunctions[name] || plsqlValues[name] || c.row != nil && triggerPredicates[name] {
@@ -202,7 +198,7 @@ func (c *plChecker) resolveCall(parts []string) (sigs []plSignature, known bool)
 	if c.e.packages[target] == nil || len(parts) != 2 {
 		return nil, false
 	}
-	c.read(head)
+	c.readVia(head, target)
 	items := c.packageItems(target)
 	if items == nil {
 		return nil, false

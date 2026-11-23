@@ -161,7 +161,7 @@ func (c *plChecker) sqlName(ref *ast.ColumnRef) bool {
 		}
 		target := c.e.resolveSynonymTarget(ref.Column, "")
 		if c.e.functions[target] != nil {
-			c.read(ref.Column)
+			c.readVia(ref.Column, target)
 			return true
 		}
 		return false
@@ -171,11 +171,11 @@ func (c *plChecker) sqlName(ref *ast.ColumnRef) bool {
 		}
 		target := c.e.resolveSynonymTarget(ref.Table, "")
 		if c.e.sequences[target] != nil && (ref.Column == "NEXTVAL" || ref.Column == "CURRVAL") {
-			c.read(ref.Table)
+			c.readVia(ref.Table, target)
 			return true
 		}
 		if c.e.packages[target] != nil {
-			c.read(ref.Table)
+			c.readVia(ref.Table, target)
 			return true
 		}
 		// A first part the catalog cannot place: another schema's
@@ -195,7 +195,7 @@ func (c *plChecker) sqlCall(n *ast.FuncCallExpr) error {
 	}
 	if n.FuncName.Schema != "" {
 		if target := c.e.resolveSynonymTarget(n.FuncName.Schema, ""); c.e.packages[target] != nil {
-			c.read(n.FuncName.Schema)
+			c.readVia(n.FuncName.Schema, target)
 		}
 		return nil
 	}
@@ -205,7 +205,7 @@ func (c *plChecker) sqlCall(n *ast.FuncCallExpr) error {
 	}
 	target := c.e.resolveSynonymTarget(name, "")
 	if c.e.functions[target] != nil || c.e.hasType(target) {
-		c.read(name)
+		c.readVia(name, target)
 		return nil
 	}
 	if c.lookup(name) != nil || c.knownObject(name) {
