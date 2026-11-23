@@ -18,6 +18,8 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.use(v)
 	case *ast.CreateSchemaStmt:
 		return b.createSchema(v)
+	case *ast.AlterSchemaStmt:
+		return b.alterSchema(v)
 	case *ast.CreateTableStmt:
 		return b.createTable(v)
 	case *ast.AlterTableStmt:
@@ -27,21 +29,25 @@ func (b *builder) statement(n ast.Node) bool {
 	case *ast.CreateIndexStmt:
 		return b.createIndex(v)
 	case *ast.CreateXmlIndexStmt:
-		return b.createSpecializedIndex(v.Name, v.Table, v.Options, kindXMLIndex)
+		return b.createSpecializedIndex(v.Name, v.Table, v.XmlColumn, v.UsingIndex, v.Options, kindXMLIndex, true, false)
 	case *ast.CreateSelectiveXmlIndexStmt:
-		return b.createSpecializedIndex(v.Name, v.Table, v.Options, kindXMLIndex)
+		return b.createSpecializedIndex(v.Name, v.Table, v.XmlColumn, "", v.Options, kindXMLIndex, true, false)
 	case *ast.CreateSpatialIndexStmt:
-		return b.createSpecializedIndex(v.Name, v.Table, v.Options, kindIndex)
+		return b.createSpecializedIndex(v.Name, v.Table, v.SpatialColumn, "", v.Options, kindIndex, false, true)
+	case *ast.CreateStatisticsStmt:
+		return b.createStatistics(v)
+	case *ast.UpdateStatisticsStmt:
+		return b.updateStatistics(v)
 	case *ast.AlterIndexStmt:
 		return b.alterIndex(v)
 	case *ast.DropStmt:
 		return b.drop(v)
 	case *ast.CreateViewStmt:
-		return b.createModule(v.Loc, v.Name, v.OrAlter, kindView, false)
+		return b.createView(v)
 	case *ast.CreateProcedureStmt:
 		return b.createModule(v.Loc, v.Name, v.OrAlter, kindProcedure, v.Number > 1)
 	case *ast.CreateFunctionStmt:
-		return b.createModule(v.Loc, v.Name, v.OrAlter, kindFunction, false)
+		return b.createFunction(v)
 	case *ast.CreateTriggerStmt:
 		return b.createTrigger(v)
 	case *ast.CreateSequenceStmt:
@@ -52,21 +58,19 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.alterSequence(v)
 	case *ast.CreateTypeStmt:
 		return b.createType(v)
+	case *ast.SecurityStmt:
+		if strings.EqualFold(v.Action, "CREATE") && (strings.EqualFold(v.ObjectType, "DEFAULT") || strings.EqualFold(v.ObjectType, "RULE")) {
+			return b.createLegacyObject(v)
+		}
+		return false
 	case *ast.ExecStmt:
 		return b.exec(v)
 	case *ast.InsertStmt:
-		if _, runs := v.Source.(*ast.ExecStmt); runs {
-			if !b.dml(v.Relation, v.WithClause, nil, false) {
-				return false
-			}
-			b.Last = true
-			return true
-		}
-		return b.dml(v.Relation, v.WithClause, nil, false)
+		return b.insertStmt(v)
 	case *ast.UpdateStmt:
-		return b.dml(v.Relation, v.WithClause, v.FromClause, true)
+		return b.updateStmt(v)
 	case *ast.DeleteStmt:
-		return b.dml(v.Relation, v.WithClause, v.FromClause, true)
+		return b.deleteStmt(v)
 	case *ast.MergeStmt:
 		return b.dml(v.Target, v.WithClause, nil, true)
 	case *ast.SelectStmt:
@@ -79,8 +83,10 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.setOption(v)
 	case *ast.SetStmt:
 		return strings.HasPrefix(v.Variable, "@")
-	case *ast.PrintStmt, *ast.DeclareStmt, *ast.BeginTransStmt, *ast.CommitTransStmt, *ast.SaveTransStmt,
-		*ast.GrantStmt, *ast.UpdateStatisticsStmt, *ast.RaiseErrorStmt, *ast.ThrowStmt, *ast.WaitForStmt:
+	case *ast.DeclareStmt:
+		return b.declareStmt(v)
+	case *ast.PrintStmt, *ast.BeginTransStmt, *ast.CommitTransStmt, *ast.SaveTransStmt,
+		*ast.GrantStmt, *ast.RaiseErrorStmt, *ast.ThrowStmt, *ast.WaitForStmt:
 		// None changes a name the walk keeps. SAVE TRAN keeps what the
 		// change did; a ROLLBACK, which undoes it, is not here.
 		return true
@@ -102,6 +108,8 @@ var kindWords = map[string]string{
 	kindFunction:  "function",
 	kindTrigger:   "trigger",
 	kindSynonym:   "synonym",
+	kindDefault:   "default",
+	kindRule:      "rule",
 	kindIndex:     "index",
 	kindXMLIndex:  "XML index",
 	kindPK:        "primary key",
@@ -217,6 +225,7 @@ func (b *builder) goStmt(v *ast.GoStmt) bool {
 		if b.w.db != dbTarget {
 			b.w.db = dbUnknown
 		}
+		b.w.declaredVars = nil
 	})
 	b.Forget(walk.Scope{Space: spaceTemp, Deep: true})
 	for _, space := range childSpaces {
@@ -330,6 +339,16 @@ func (b *builder) createSchema(v *ast.CreateSchemaStmt) bool {
 	}
 	b.lacks(spaceSchema, walk.Path(), sn, note(rng, "", text(msgExists("schema", ident(v.Name)))))
 	if v.Elements != nil && len(v.Elements.Items) > 0 {
+		if b.see(spaceSchema, walk.Path(), sn).fact != walk.Present {
+			for _, item := range v.Elements.Items {
+				if cv, ok := item.(*ast.CreateViewStmt); ok {
+					if starRng, bad := selectStarWithoutFrom(cv.Query); bad {
+						b.fail(starRng, review.UnsupportedForm, "`SELECT *` requires a `FROM` clause.")
+						break
+					}
+				}
+			}
+		}
 		b.Last = true
 		return true
 	}
@@ -464,8 +483,10 @@ func (b *builder) branch(n ast.Node) bool {
 }
 
 // enableTrigger follows ENABLE/DISABLE TRIGGER on a table or view: its
-// target must exist as a table or view (1088), and a trigger the change
-// enables may fire on DML. A database or server trigger ends the walk.
+// target must exist as a table or view (1088), each named trigger must be
+// in the target's schema and not of another object kind (1088, 2103), and
+// a trigger the change enables may fire on DML. A database or server
+// trigger ends the walk.
 func (b *builder) enableTrigger(v *ast.EnableDisableTriggerStmt) bool {
 	if v.OnDatabase || v.OnAllServer || v.OnObject == nil {
 		return false
@@ -480,6 +501,33 @@ func (b *builder) enableTrigger(v *ast.EnableDisableTriggerStmt) bool {
 	if r.where != elsewhere {
 		b.tableNeeds(r, []string{kindTable, kindView}, msgMissing("table", r.written), notKind(r.written, "table or view", kindTable, kindView))
 	}
+	if r.where == placed && !r.temp && !v.TriggerAll && v.Triggers != nil {
+		for _, item := range v.Triggers.Items {
+			s, ok := item.(*ast.String)
+			if !ok {
+				continue
+			}
+			trRef := parseObjectName(s.Str)
+			if trRef == nil {
+				continue
+			}
+			written := object(trRef)
+			if trRef.Schema != "" && differ(trRef.Schema, r.schema.spelling) && b.see(spaceRelation, r.parent, r.n).fact != walk.Absent {
+				b.fail(b.anchor(), review.TriggerSchemaMismatch, "Trigger "+review.Code(written)+" must be in the schema of "+review.Code(r.written)+".")
+				return true
+			}
+			tn, ok := keyed(trRef.Object)
+			if !ok {
+				continue
+			}
+			present := notKind(written, "trigger", kindTrigger)
+			b.ofKind(spaceObject, r.parent, tn, []string{kindTrigger}, note(b.anchor(), "", present))
+			b.ofKind(spaceRelation, r.parent, tn, []string{kindTrigger}, note(b.anchor(), "", present))
+			if b.see(spaceObject, r.parent, tn).fact == walk.Absent {
+				b.needs(spaceObject, r.parent, tn, []string{kindTrigger}, note(b.anchor(), msgMissing("trigger", written), present))
+			}
+		}
+	}
 	if v.Enable {
 		b.Session(func() { b.w.triggers = true })
 	}
@@ -487,19 +535,347 @@ func (b *builder) enableTrigger(v *ast.EnableDisableTriggerStmt) bool {
 }
 
 // exec follows EXEC of sp_rename with literal arguments and of the
-// extended-property procedures, which change no name. Any other EXEC may
-// run anything and ends the walk.
+// extended-property procedures, which change no name. Any other EXEC
+// checks that a named target isn't an existing non-executable object
+// (table, view, sequence, trigger, or constraint, 2809) before ending the
+// walk.
 func (b *builder) exec(v *ast.ExecStmt) bool {
-	if v.Name == nil || v.Name.Server != "" || v.Name.Database != "" || v.Name.Schema != "" && !sameName(v.Name.Schema, "sys") || v.ReturnVar != "" || v.AsLogin != "" || v.AsUser != "" || v.AtServer != "" || v.AtDataSource != "" {
+	if v.Name == nil {
 		return false
 	}
-	switch strings.ToLower(v.Name.Object) {
-	case "sp_rename":
-		return b.spRename(v)
-	case "sp_addextendedproperty", "sp_updateextendedproperty", "sp_dropextendedproperty":
+	if v.Name.Server == "" && v.Name.Database == "" && (v.Name.Schema == "" || sameName(v.Name.Schema, "sys")) && v.ReturnVar == "" && v.AsLogin == "" && v.AsUser == "" && v.AtServer == "" && v.AtDataSource == "" {
+		switch strings.ToLower(v.Name.Object) {
+		case "sp_rename":
+			return b.spRename(v)
+		case "sp_addextendedproperty", "sp_updateextendedproperty", "sp_dropextendedproperty":
+			return true
+		}
+	}
+	if b.optional {
+		return false
+	}
+	b.execTarget(v.Name)
+	b.Last = true
+	return true
+}
+
+// execTarget checks that an EXEC target is not certainly a non-executable
+// object (table, view, sequence, trigger, or constraint, 2809).
+func (b *builder) execTarget(tr *ast.TableRef) {
+	if tr == nil {
+		return
+	}
+	r, ok := b.ref(tr, false)
+	if !ok || r.where != placed || r.temp {
+		return
+	}
+	allowed := []string{kindProcedure, kindFunction, kindSynonym}
+	present := notKind(r.written, "procedure", allowed...)
+	b.ofKind(spaceObject, r.parent, r.n, allowed, note(r.rng, "", present))
+	b.ofKind(spaceRelation, r.parent, r.n, allowed, note(r.rng, "", present))
+}
+
+// declareStmt records batch-local @variables declared by DECLARE.
+func (b *builder) declareStmt(v *ast.DeclareStmt) bool {
+	if v.Variables == nil {
 		return true
 	}
+	var names []string
+	for _, item := range v.Variables.Items {
+		if vd, ok := item.(*ast.VariableDecl); ok && vd.Name != "" {
+			names = append(names, vd.Name)
+		}
+	}
+	if len(names) > 0 {
+		b.Session(func() {
+			b.w.declaredVars = append(b.w.declaredVars, names...)
+		})
+	}
+	return true
+}
+
+// createView follows CREATE / CREATE OR ALTER / ALTER VIEW and rejects
+// SELECT * without a FROM clause (263).
+func (b *builder) createView(v *ast.CreateViewStmt) bool {
+	if !b.createModule(v.Loc, v.Name, v.OrAlter, kindView, false) {
+		return false
+	}
+	if starRng, bad := selectStarWithoutFrom(v.Query); bad {
+		b.fail(starRng, review.UnsupportedForm, "`SELECT *` requires a `FROM` clause.")
+	}
+	return true
+}
+
+// createFunction follows CREATE / CREATE OR ALTER / ALTER FUNCTION and
+// rejects inline TVFs with SELECT * without FROM (263) and scalar or
+// multi-statement functions whose body executes a result-returning SELECT
+// (444).
+func (b *builder) createFunction(v *ast.CreateFunctionStmt) bool {
+	if !b.createModule(v.Loc, v.Name, v.OrAlter, kindFunction, false) {
+		return false
+	}
+	if v.ExternalName != "" || v.Body == nil {
+		return true
+	}
+	if v.ReturnsTable != nil && v.ReturnsTable.Variable == "" && v.ReturnsTable.Columns == nil {
+		if ret, ok := v.Body.(*ast.ReturnStmt); ok {
+			if sub, ok := ret.Value.(*ast.SubqueryExpr); ok {
+				if starRng, bad := selectStarWithoutFrom(sub.Query); bad {
+					b.fail(starRng, review.UnsupportedForm, "`SELECT *` requires a `FROM` clause.")
+				}
+			}
+		}
+		return true
+	}
+	if selRng, bad := functionBodyReturnsData(v.Body); bad {
+		b.fail(selRng, review.UnsupportedForm, "SELECT statements inside a function cannot return data to a client.")
+	}
+	return true
+}
+
+// selectStarWithoutFrom reports whether a SELECT statement (or any branch
+// of a set operation) selects * without a FROM clause (263).
+func selectStarWithoutFrom(n ast.Node) (review.Range, bool) {
+	s, ok := n.(*ast.SelectStmt)
+	if !ok || s == nil {
+		return review.Range{}, false
+	}
+	if s.Larg != nil || s.Rarg != nil {
+		if rng, bad := selectStarWithoutFrom(s.Larg); bad {
+			return rng, true
+		}
+		return selectStarWithoutFrom(s.Rarg)
+	}
+	if s.FromClause != nil && len(s.FromClause.Items) > 0 {
+		return review.Range{}, false
+	}
+	if s.TargetList == nil {
+		return review.Range{}, false
+	}
+	for _, item := range s.TargetList.Items {
+		if rt, ok := item.(*ast.ResTarget); ok {
+			if st, ok := rt.Val.(*ast.StarExpr); ok {
+				return rangeOf(st.Loc), true
+			}
+		} else if st, ok := item.(*ast.StarExpr); ok {
+			return rangeOf(st.Loc), true
+		}
+	}
+	return review.Range{}, false
+}
+
+// functionBodyReturnsData reports whether a scalar or multi-statement
+// function body contains a SELECT statement that returns a result set to
+// the client (444), rather than assigning to local variables.
+func functionBodyReturnsData(n ast.Node) (review.Range, bool) {
+	switch v := n.(type) {
+	case nil:
+		return review.Range{}, false
+	case *ast.BeginEndStmt:
+		if v.Stmts == nil {
+			return review.Range{}, false
+		}
+		for _, item := range v.Stmts.Items {
+			if rng, bad := functionBodyReturnsData(item); bad {
+				return rng, true
+			}
+		}
+	case *ast.IfStmt:
+		if rng, bad := functionBodyReturnsData(v.Then); bad {
+			return rng, true
+		}
+		return functionBodyReturnsData(v.Else)
+	case *ast.WhileStmt:
+		return functionBodyReturnsData(v.Body)
+	case *ast.SelectStmt:
+		if v.IntoTable != nil {
+			return review.Range{}, false
+		}
+		if v.Op != ast.SetOpNone {
+			return rangeOf(v.Loc), true
+		}
+		if v.TargetList != nil && len(v.TargetList.Items) > 0 {
+			for _, item := range v.TargetList.Items {
+				if !isSelectVarAssign(item) {
+					return rangeOf(v.Loc), true
+				}
+			}
+		}
+	}
+	return review.Range{}, false
+}
+
+func isSelectVarAssign(item ast.Node) bool {
+	if _, ok := item.(*ast.SelectAssign); ok {
+		return true
+	}
+	if rt, ok := item.(*ast.ResTarget); ok {
+		if _, ok := rt.Val.(*ast.SelectAssign); ok {
+			return true
+		}
+	}
 	return false
+}
+
+// insertStmt follows INSERT: checks the target relation, empty column list
+// parsed by SQL Server as a TVF call (215), missing target columns on a
+// known table (207), $IDENTITY with DEFAULT VALUES (339/207), EXEC target
+// kind (2809), and SELECT * without FROM (263).
+func (b *builder) insertStmt(v *ast.InsertStmt) bool {
+	if !b.dml(v.Relation, v.WithClause, nil, false) {
+		return false
+	}
+	if tr, ok := v.Relation.(*ast.TableRef); ok {
+		if _, isLocal := localTarget(tr, v.WithClause, nil); !isLocal {
+			if r, ok := b.ref(tr, false); ok && r.where == placed {
+				if v.Cols != nil && len(v.Cols.Items) == 0 && !r.temp {
+					present := notKind(r.written, "function", kindFunction)
+					b.ofKind(spaceObject, r.parent, r.n, []string{kindFunction}, note(r.rng, "", present))
+					b.ofKind(spaceRelation, r.parent, r.n, []string{kindFunction}, note(r.rng, "", present))
+				} else if v.Cols != nil && len(v.Cols.Items) > 0 {
+					known := b.knownTable(r)
+					path := r.tablePath()
+					for _, item := range v.Cols.Items {
+						s, ok := item.(*ast.String)
+						if !ok {
+							continue
+						}
+						if v.DefaultValues && strings.EqualFold(s.Str, "$IDENTITY") && !b.dmlTargetFails(r) && !b.hasDelimitedIdent("$IDENTITY") {
+							b.fail(b.anchor(), review.UnsupportedForm, "Cannot insert `DEFAULT VALUES` into `$IDENTITY`.")
+							return true
+						}
+						if isPseudoCol(s.Str) || !known {
+							continue
+						}
+						if cn, ok := keyed(s.Str); ok {
+							b.needs(spaceColumn, path, cn, nil, note(b.anchor(), msgMissingIn("column", ident(s.Str), r.written), nil))
+						}
+					}
+				}
+			}
+		}
+	}
+	switch src := v.Source.(type) {
+	case *ast.ExecStmt:
+		b.execTarget(src.Name)
+		b.Last = true
+	case *ast.SelectStmt:
+		if starRng, bad := selectStarWithoutFrom(src); bad {
+			b.fail(starRng, review.UnsupportedForm, "`SELECT *` requires a `FROM` clause.")
+		}
+	}
+	return true
+}
+
+// updateStmt follows UPDATE: checks the target relation, undeclared local
+// @variables in SET and WHERE CURRENT OF (137), unmodifiable $IDENTITY
+// targets (8102/207), and missing target columns when there is no FROM
+// clause (207).
+func (b *builder) updateStmt(v *ast.UpdateStmt) bool {
+	if !b.dml(v.Relation, v.WithClause, v.FromClause, true) {
+		return false
+	}
+	noFrom := v.FromClause == nil || len(v.FromClause.Items) == 0
+	var r objRef
+	var hasRef, known bool
+	if noFrom {
+		if tr, ok := v.Relation.(*ast.TableRef); ok {
+			if _, isLocal := localTarget(tr, v.WithClause, nil); !isLocal {
+				if ref, ok := b.ref(tr, false); ok {
+					r, hasRef, known = ref, true, b.knownTable(ref)
+				}
+			}
+		}
+	}
+	if v.SetClause != nil {
+		for _, item := range v.SetClause.Items {
+			se, ok := item.(*ast.SetExpr)
+			if !ok {
+				continue
+			}
+			if se.Variable != "" && !b.varDeclared(se.Variable) {
+				b.fail(rangeOf(se.Loc), review.ObjectNotFound, "Variable "+review.Code(se.Variable)+" is not declared.")
+				return true
+			}
+			if se.Column != nil && se.Column.Table == "" && se.Column.Schema == "" {
+				if strings.EqualFold(se.Column.Column, "$IDENTITY") && !b.isDelimitedAt(se.Column.Loc) && (!hasRef || !b.dmlTargetFails(r)) {
+					b.fail(rangeOf(se.Column.Loc), review.UnsupportedForm, "Cannot update `$IDENTITY` column.")
+					return true
+				}
+				if known && !isPseudoCol(se.Column.Column) {
+					if cn, ok := keyed(se.Column.Column); ok {
+						b.needs(spaceColumn, r.tablePath(), cn, nil, note(rangeOf(se.Column.Loc), msgMissingIn("column", ident(se.Column.Column), r.written), nil))
+					}
+				}
+			}
+		}
+	}
+	b.checkCurrentOfVar(v.WhereClause, v.Relation, v.WithClause, v.FromClause)
+	return true
+}
+
+// deleteStmt follows DELETE: checks the target relation and WHERE CURRENT
+// OF @cursor_variable (137).
+func (b *builder) deleteStmt(v *ast.DeleteStmt) bool {
+	if !b.dml(v.Relation, v.WithClause, v.FromClause, true) {
+		return false
+	}
+	b.checkCurrentOfVar(v.WhereClause, v.Relation, v.WithClause, v.FromClause)
+	return true
+}
+
+func (b *builder) checkCurrentOfVar(where ast.ExprNode, target ast.TableExpr, with *ast.WithClause, from *ast.List) {
+	co, ok := where.(*ast.CurrentOfExpr)
+	if !ok || !strings.HasPrefix(co.CursorName, "@") {
+		return
+	}
+	if tr, ok := target.(*ast.TableRef); ok {
+		if _, isLocal := localTarget(tr, with, from); !isLocal {
+			if r, ok := b.ref(tr, false); ok && b.dmlTargetFails(r) {
+				return
+			}
+		}
+	}
+	if !b.varDeclared(co.CursorName) {
+		b.fail(rangeOf(co.Loc), review.ObjectNotFound, "Variable "+review.Code(co.CursorName)+" is not declared.")
+	}
+}
+
+// dmlTargetFails reports whether b.dml already added a failing check on r,
+// so a subsequent text-only b.fail does not shadow the target's 208 finding.
+func (b *builder) dmlTargetFails(r objRef) bool {
+	if r.where != placed {
+		return false
+	}
+	if r.temp {
+		return b.see(spaceTemp, walk.Path(), r.n).fact == walk.Absent
+	}
+	s := b.see(spaceRelation, r.parent, r.n)
+	if s.fact == walk.Absent {
+		return true
+	}
+	return s.fact == walk.Present && s.kind != "" && s.kind != kindTable && s.kind != kindView && s.kind != kindSynonym
+}
+
+func (b *builder) hasDelimitedIdent(name string) bool {
+	if b.s.loc.Start < 0 || b.s.loc.End > len(b.w.sql) || b.s.loc.End < b.s.loc.Start {
+		return false
+	}
+	upper := strings.ToUpper(b.w.sql[b.s.loc.Start:b.s.loc.End])
+	u := strings.ToUpper(name)
+	return strings.Contains(upper, "["+u+"]") || strings.Contains(upper, `"`+u+`"`)
+}
+
+func (b *builder) isDelimitedAt(loc ast.Loc) bool {
+	if loc.Start < 0 || loc.Start >= len(b.w.sql) {
+		return false
+	}
+	c := b.w.sql[loc.Start]
+	return c == '[' || c == '"'
+}
+
+func isPseudoCol(name string) bool {
+	return strings.HasPrefix(name, "$") || strings.EqualFold(name, "IDENTITYCOL") || strings.EqualFold(name, "ROWGUIDCOL")
 }
 
 // dml follows INSERT, UPDATE, DELETE, and MERGE: the target must be a
@@ -514,6 +890,30 @@ func (b *builder) exec(v *ast.ExecStmt) bool {
 // tables it reaches, and those of a schema the sync excludes are not
 // listed (verified).
 func (b *builder) dml(target ast.TableExpr, with *ast.WithClause, from *ast.List, cascades bool) bool {
+	switch tv := target.(type) {
+	case *ast.TableVarRef:
+		if !b.varDeclared(tv.Name) {
+			b.fail(rangeOf(tv.Loc), review.ObjectNotFound, "Table variable "+review.Code(tv.Name)+" is not declared.")
+			return true
+		}
+		if b.w.triggers {
+			b.Last = true
+		}
+		return true
+	case *ast.FuncCallExpr:
+		if tv.Name != nil {
+			if r, ok := b.ref(tv.Name, false); ok && r.where == placed && !r.temp {
+				present := notKind(r.written, "function", kindFunction)
+				b.ofKind(spaceObject, r.parent, r.n, []string{kindFunction}, note(r.rng, "", present))
+				b.ofKind(spaceRelation, r.parent, r.n, []string{kindFunction}, note(r.rng, "", present))
+				if b.see(spaceObject, r.parent, r.n).fact == walk.Absent {
+					b.needs(spaceObject, r.parent, r.n, []string{kindFunction}, note(r.rng, msgMissing("function", r.written), present))
+				}
+			}
+		}
+		b.Last = true
+		return true
+	}
 	tr, ok := target.(*ast.TableRef)
 	if !ok {
 		if b.w.triggers {
@@ -586,8 +986,13 @@ func localTarget(tr *ast.TableRef, with *ast.WithClause, from *ast.List) (*ast.T
 	return nil, true
 }
 
-// selectStmt follows SELECT, which creates a table with INTO.
+// selectStmt follows SELECT, which creates a table with INTO and rejects
+// SELECT * without a FROM clause (263).
 func (b *builder) selectStmt(v *ast.SelectStmt) bool {
+	if starRng, bad := selectStarWithoutFrom(v); bad {
+		b.fail(starRng, review.UnsupportedForm, "`SELECT *` requires a `FROM` clause.")
+		return true
+	}
 	into := v
 	for into.Larg != nil {
 		into = into.Larg

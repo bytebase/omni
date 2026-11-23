@@ -29,6 +29,10 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 		return b.dropKind(v, kindSequence)
 	case ast.DropSynonym:
 		return b.dropKind(v, kindSynonym)
+	case ast.DropDefault:
+		return b.dropKind(v, kindDefault)
+	case ast.DropRule:
+		return b.dropKind(v, kindRule)
 	case ast.DropTrigger:
 		if v.OnDatabase || v.OnAllServer {
 			return false
@@ -116,8 +120,13 @@ func (b *builder) dropTypes(v *ast.DropStmt) bool {
 }
 
 // createType follows CREATE TYPE, alias or table: a type of the name must
-// not exist (219), which only the change's own facts tell.
+// not exist (219), which only the change's own facts tell, and an alias
+// type's base type must be a built-in SQL Server system type (222).
 func (b *builder) createType(v *ast.CreateTypeStmt) bool {
+	if v.BaseType != nil && !isSystemBaseType(v.BaseType) {
+		b.fail(rangeOf(v.BaseType.Loc), review.UnsupportedForm, "Base type "+review.Code(typeDisplay(v.BaseType))+" is not a system data type.")
+		return true
+	}
 	r, ok := b.ref(v.Name, true)
 	if !ok || r.temp {
 		return false
@@ -136,6 +145,51 @@ func (b *builder) createType(v *ast.CreateTypeStmt) bool {
 	b.lacks(spaceType, r.parent, r.n, note(r.rng, "", text(msgExists("type", r.written))))
 	b.arrive(spaceType, r.parent, r.n, "")
 	return true
+}
+
+// alterSchema follows ALTER SCHEMA target TRANSFER ...: the target schema
+// must exist (15151). Moving an object and its constraints across schemas
+// ends the walk afterwards.
+func (b *builder) alterSchema(v *ast.AlterSchemaStmt) bool {
+	sn, ok := keyed(v.Name)
+	if !ok {
+		return false
+	}
+	rng := b.anchor()
+	if b.tooLong(v.Name, false, rng) {
+		return true
+	}
+	switch b.w.db {
+	case dbOther:
+		return true
+	case dbUnknown:
+		b.Last = true
+		return true
+	}
+	b.needs(spaceSchema, walk.Path(), sn, nil, note(rng, msgMissing("schema", ident(v.Name)), nil))
+	b.Last = true
+	return true
+}
+
+// createLegacyObject follows CREATE DEFAULT and CREATE RULE: they must
+// begin their batch (111), their schema must exist (2760), and their name
+// must be free in the schema's object space (2714).
+func (b *builder) createLegacyObject(v *ast.SecurityStmt) bool {
+	kind := kindDefault
+	verb := "CREATE DEFAULT"
+	if strings.EqualFold(v.ObjectType, "RULE") {
+		kind = kindRule
+		verb = "CREATE RULE"
+	}
+	if !b.first(v.Loc, verb) {
+		return true
+	}
+	tr := parseObjectName(v.Name)
+	if tr == nil {
+		return false
+	}
+	tr.Loc = v.Loc
+	return b.createObject(tr, kind)
 }
 
 // createObject follows CREATE SEQUENCE and CREATE SYNONYM: the schema must
@@ -316,6 +370,7 @@ func (b *builder) renameObject(objname string, nn name) bool {
 		b.forgetObject(r)
 		b.forgetName(spaceObject, nn)
 		b.forgetName(spaceRelation, nn)
+		b.markAllTablesDirty()
 		return true
 	}
 	rng := b.anchor()
@@ -344,6 +399,10 @@ func (b *builder) renameObject(objname string, nn name) bool {
 	from, to := r.tablePath(), nr.tablePath()
 	b.leaveObject(r, kind)
 	b.arriveObject(nr, kind)
+	if kind == kindTable {
+		b.markTableDirty(from)
+		b.markTableDirty(to)
+	}
 	switch {
 	case kind != kindTable, same && known:
 	case known && freshTo == walk.Absent:
@@ -380,6 +439,7 @@ func (b *builder) renameChild(objname string, nn name, space string) bool {
 		if space == spaceIndex {
 			return false
 		}
+		b.markAllTablesDirty()
 		return true
 	}
 	rng := b.anchor()
@@ -390,6 +450,9 @@ func (b *builder) renameChild(objname string, nn name, space string) bool {
 	b.tableNeeds(r, nil, msgMissing("table", r.written), nil)
 	if !b.knownTable(r) {
 		b.forgetMeant(r, space)
+		if space == spaceColumn {
+			b.markAllTablesDirty()
+		}
 		return space != spaceIndex
 	}
 	path := r.tablePath()
@@ -407,5 +470,8 @@ func (b *builder) renameChild(objname string, nn name, space string) bool {
 	}
 	b.leave(space, path, cn)
 	b.arrive(space, path, nn, kind)
+	if space == spaceColumn {
+		b.markTableDirty(path)
+	}
 	return true
 }
