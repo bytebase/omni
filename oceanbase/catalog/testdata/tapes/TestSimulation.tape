@@ -49490,3 +49490,754 @@
 | ALTER TABLE a JSON(a) STORE AS(CHUNK 1 CHUNK 1)
 < error
 | 1210 HY000 Invalid argument
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN starts, DROP COLUMN ends
+< error
+| 3959 HY000 Check constraint 'chk_dates' uses column 'starts', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN ends, DROP COLUMN starts
+< error
+| 3959 HY000 Check constraint 'chk_dates' uses column 'ends', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN starts
+< error
+| 3959 HY000 Check constraint 'chk_dates' uses column 'starts', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN ends
+< error
+| 3959 HY000 Check constraint 'chk_dates' uses column 'ends', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN guests
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+< row
+: bytes
+| rooms
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int(11) NOT NULL,
+|   `starts` date DEFAULT NULL,
+|   `ends` date DEFAULT NULL,
+|   `nights` int(11) DEFAULT NULL,
+|   `note` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `chk_dates` CHECK ((`starts` <= `ends`)),
+|   CONSTRAINT `chk_nights` CHECK ((`nights` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `rooms`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| rooms
+: bytes
+| CREATE TABLE `rooms` (
+|   `id` int(11) NOT NULL,
+|   `beds` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `chk_always` CHECK ((1 = 1))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN nights
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+< row
+: bytes
+| rooms
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int(11) NOT NULL,
+|   `starts` date DEFAULT NULL,
+|   `ends` date DEFAULT NULL,
+|   `guests` int(11) DEFAULT NULL,
+|   `note` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `bookings_OBCHECK_0000000000000031` CHECK ((`guests` > 0)),
+|   CONSTRAINT `chk_dates` CHECK ((`starts` <= `ends`))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `rooms`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| rooms
+: bytes
+| CREATE TABLE `rooms` (
+|   `id` int(11) NOT NULL,
+|   `beds` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `chk_always` CHECK ((1 = 1))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN note
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+< row
+: bytes
+| rooms
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int(11) NOT NULL,
+|   `starts` date DEFAULT NULL,
+|   `ends` date DEFAULT NULL,
+|   `guests` int(11) DEFAULT NULL,
+|   `nights` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `bookings_OBCHECK_0000000000000032` CHECK ((`guests` > 0)),
+|   CONSTRAINT `chk_dates` CHECK ((`starts` <= `ends`)),
+|   CONSTRAINT `chk_nights` CHECK ((`nights` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `rooms`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| rooms
+: bytes
+| CREATE TABLE `rooms` (
+|   `id` int(11) NOT NULL,
+|   `beds` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `chk_always` CHECK ((1 = 1))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN guests, DROP COLUMN starts
+< error
+| 3959 HY000 Check constraint 'chk_dates' uses column 'starts', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP CHECK chk_dates, DROP COLUMN starts, DROP COLUMN ends
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+< row
+: bytes
+| rooms
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int(11) NOT NULL,
+|   `guests` int(11) DEFAULT NULL,
+|   `nights` int(11) DEFAULT NULL,
+|   `note` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `bookings_OBCHECK_0000000000000033` CHECK ((`guests` > 0)),
+|   CONSTRAINT `chk_nights` CHECK ((`nights` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `rooms`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| rooms
+: bytes
+| CREATE TABLE `rooms` (
+|   `id` int(11) NOT NULL,
+|   `beds` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `chk_always` CHECK ((1 = 1))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN starts, DROP COLUMN ends, DROP CHECK chk_dates
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+< row
+: bytes
+| rooms
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int(11) NOT NULL,
+|   `guests` int(11) DEFAULT NULL,
+|   `nights` int(11) DEFAULT NULL,
+|   `note` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `bookings_OBCHECK_0000000000000034` CHECK ((`guests` > 0)),
+|   CONSTRAINT `chk_nights` CHECK ((`nights` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `rooms`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| rooms
+: bytes
+| CREATE TABLE `rooms` (
+|   `id` int(11) NOT NULL,
+|   `beds` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `chk_always` CHECK ((1 = 1))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP CONSTRAINT chk_dates, DROP COLUMN starts, DROP COLUMN ends
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+< row
+: bytes
+| rooms
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int(11) NOT NULL,
+|   `guests` int(11) DEFAULT NULL,
+|   `nights` int(11) DEFAULT NULL,
+|   `note` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `bookings_OBCHECK_0000000000000035` CHECK ((`guests` > 0)),
+|   CONSTRAINT `chk_nights` CHECK ((`nights` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `rooms`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| rooms
+: bytes
+| CREATE TABLE `rooms` (
+|   `id` int(11) NOT NULL,
+|   `beds` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `chk_always` CHECK ((1 = 1))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP CHECK chk_dates, DROP COLUMN starts
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+< row
+: bytes
+| rooms
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int(11) NOT NULL,
+|   `ends` date DEFAULT NULL,
+|   `guests` int(11) DEFAULT NULL,
+|   `nights` int(11) DEFAULT NULL,
+|   `note` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `bookings_OBCHECK_0000000000000036` CHECK ((`guests` > 0)),
+|   CONSTRAINT `chk_nights` CHECK ((`nights` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `rooms`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| rooms
+: bytes
+| CREATE TABLE `rooms` (
+|   `id` int(11) NOT NULL,
+|   `beds` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `chk_always` CHECK ((1 = 1))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings RENAME COLUMN starts TO begins, DROP COLUMN ends
+< error
+| 3959 HY000 Check constraint 'chk_dates' uses column 'starts', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN starts, ADD COLUMN starts DATE
+< error
+| 3959 HY000 Check constraint 'chk_dates' uses column 'starts', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings RENAME COLUMN guests TO people
+< error
+| 3959 HY000 Check constraint 'bookings_OBCHECK_0000000000000037' uses column 'guests', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings RENAME COLUMN starts TO begins
+< error
+| 3959 HY000 Check constraint 'chk_dates' uses column 'starts', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings RENAME COLUMN note TO memo
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+< row
+: bytes
+| rooms
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int(11) NOT NULL,
+|   `starts` date DEFAULT NULL,
+|   `ends` date DEFAULT NULL,
+|   `guests` int(11) DEFAULT NULL,
+|   `nights` int(11) DEFAULT NULL,
+|   `memo` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `bookings_OBCHECK_0000000000000038` CHECK ((`guests` > 0)),
+|   CONSTRAINT `chk_dates` CHECK ((`starts` <= `ends`)),
+|   CONSTRAINT `chk_nights` CHECK ((`nights` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `rooms`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| rooms
+: bytes
+| CREATE TABLE `rooms` (
+|   `id` int(11) NOT NULL,
+|   `beds` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `chk_always` CHECK ((1 = 1))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings CHANGE COLUMN nights stays INT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+< row
+: bytes
+| rooms
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int(11) NOT NULL,
+|   `starts` date DEFAULT NULL,
+|   `ends` date DEFAULT NULL,
+|   `guests` int(11) DEFAULT NULL,
+|   `stays` int(11) DEFAULT NULL,
+|   `note` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `bookings_OBCHECK_0000000000000039` CHECK ((`guests` > 0)),
+|   CONSTRAINT `chk_dates` CHECK ((`starts` <= `ends`)),
+|   CONSTRAINT `chk_nights` CHECK ((`stays` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `rooms`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| rooms
+: bytes
+| CREATE TABLE `rooms` (
+|   `id` int(11) NOT NULL,
+|   `beds` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `chk_always` CHECK ((1 = 1))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings MODIFY COLUMN nights BIGINT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+< row
+: bytes
+| rooms
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int(11) NOT NULL,
+|   `starts` date DEFAULT NULL,
+|   `ends` date DEFAULT NULL,
+|   `guests` int(11) DEFAULT NULL,
+|   `nights` bigint(20) DEFAULT NULL,
+|   `note` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `bookings_OBCHECK_0000000000000040` CHECK ((`guests` > 0)),
+|   CONSTRAINT `chk_dates` CHECK ((`starts` <= `ends`)),
+|   CONSTRAINT `chk_nights` CHECK ((`nights` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `rooms`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| rooms
+: bytes
+| CREATE TABLE `rooms` (
+|   `id` int(11) NOT NULL,
+|   `beds` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `chk_always` CHECK ((1 = 1))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE rooms DROP COLUMN beds
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+< row
+: bytes
+| rooms
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int(11) NOT NULL,
+|   `starts` date DEFAULT NULL,
+|   `ends` date DEFAULT NULL,
+|   `guests` int(11) DEFAULT NULL,
+|   `nights` int(11) DEFAULT NULL,
+|   `note` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `bookings_OBCHECK_0000000000000041` CHECK ((`guests` > 0)),
+|   CONSTRAINT `chk_dates` CHECK ((`starts` <= `ends`)),
+|   CONSTRAINT `chk_nights` CHECK ((`nights` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `rooms`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| rooms
+: bytes
+| CREATE TABLE `rooms` (
+|   `id` int(11) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE rooms ADD COLUMN floor INT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "VARCHAR" "string"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+< row
+: bytes
+| rooms
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int(11) NOT NULL,
+|   `starts` date DEFAULT NULL,
+|   `ends` date DEFAULT NULL,
+|   `guests` int(11) DEFAULT NULL,
+|   `nights` int(11) DEFAULT NULL,
+|   `note` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `bookings_OBCHECK_0000000000000042` CHECK ((`guests` > 0)),
+|   CONSTRAINT `chk_dates` CHECK ((`starts` <= `ends`)),
+|   CONSTRAINT `chk_nights` CHECK ((`nights` > 0))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `rooms`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| rooms
+: bytes
+| CREATE TABLE `rooms` (
+|   `id` int(11) NOT NULL,
+|   `beds` int(11) DEFAULT NULL,
+|   `floor` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `chk_always` CHECK ((1 = 1))
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
