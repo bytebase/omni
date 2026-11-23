@@ -361,6 +361,10 @@ func (p *Parser) parseShow() (Statement, error) {
 
 	case kwTABLES:
 		p.advance()
+		// Databricks Unity Catalog: SHOW TABLES DROPPED [{FROM|IN} schema] [LIKE pattern]
+		if p.cur().Kind == tokIdent && isWord(p.cur(), "DROPPED") {
+			p.advance()
+		}
 		if p.match(kwFROM, kwIN) {
 			if _, err := p.parseIdentifierReference(); err != nil {
 				return nil, err
@@ -466,8 +470,8 @@ func (p *Parser) parseShow() (Statement, error) {
 
 	case kwCURRENT:
 		p.advance()
-		if !p.matchNamespace() {
-			return nil, p.errorf("expected NAMESPACE, DATABASE, or SCHEMA after SHOW CURRENT")
+		if !p.matchNamespace() && !p.match(kwCATALOG) {
+			return nil, p.errorf("expected NAMESPACE, DATABASE, SCHEMA, or CATALOG after SHOW CURRENT")
 		}
 
 	case kwCATALOGS:
@@ -484,22 +488,9 @@ func (p *Parser) parseShow() (Statement, error) {
 		return p.parseShowFunctionsTail(start)
 
 	default:
-		// Databricks SQL: SHOW GRANTS [principal] ON <securable>
-		if p.cur().Kind == tokIdent && isWord(p.cur(), "GRANTS") {
-			p.advance()
-			if p.cur().Kind != kwON && !p.isStatementEnd() {
-				if p.isStringLit() {
-					p.advance()
-				} else if _, err := p.parseIdentifier(); err != nil {
-					return nil, err
-				}
-			}
-			if p.match(kwON) {
-				if err := p.parseGrantSecurableObject(); err != nil {
-					return nil, err
-				}
-			}
-			return &ParsedStmt{Kind: StmtShow, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+		// Databricks SQL / Unity Catalog SHOW commands.
+		if stmt, ok, err := p.tryParseDatabricksShow(start); ok || err != nil {
+			return stmt, err
 		}
 		// SHOW (USER | SYSTEM | ALL) FUNCTIONS ...
 		if p.cur().Kind.isIdentifier() && p.peek(1).Kind == kwFUNCTIONS {
@@ -513,6 +504,117 @@ func (p *Parser) parseShow() (Statement, error) {
 	}
 
 	return &ParsedStmt{Kind: StmtShow, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+}
+
+// tryParseDatabricksShow handles Databricks SQL / Unity Catalog SHOW commands
+// beyond Apache Spark 4.0.5 (VOLUMES, PROCEDURES, EXTERNAL LOCATIONS,
+// STORAGE/SERVICE CREDENTIALS, CONNECTIONS, SHARES, ALL IN SHARE, RECIPIENTS,
+// PROVIDERS, GROUPS, USERS, and GRANTS).
+func (p *Parser) tryParseDatabricksShow(start int) (Statement, bool, error) {
+	w0 := strings.ToUpper(p.cur().Text)
+	w1 := strings.ToUpper(p.peek(1).Text)
+
+	parseOptionalLike := func() error {
+		if p.match(kwLIKE) {
+			return p.parseStringLit()
+		}
+		if p.isStringLit() {
+			p.advance()
+		}
+		return nil
+	}
+
+	switch {
+	case w0 == "GRANTS":
+		p.advance()
+		// SHOW GRANTS TO RECIPIENT <recipient_name>
+		if p.cur().Kind == kwTO && isWord(p.peek(1), "RECIPIENT") {
+			p.advance()
+			p.advance()
+			if _, err := p.parseIdentifier(); err != nil {
+				return nil, true, err
+			}
+			return &ParsedStmt{Kind: StmtShow, Loc: Loc{Start: start, End: p.prevEnd()}}, true, nil
+		}
+		if p.cur().Kind != kwON && !p.isStatementEnd() {
+			if p.isStringLit() {
+				p.advance()
+			} else if _, err := p.parseIdentifier(); err != nil {
+				return nil, true, err
+			}
+		}
+		if p.match(kwON) {
+			if err := p.parseGrantSecurableObject(); err != nil {
+				return nil, true, err
+			}
+		}
+		return &ParsedStmt{Kind: StmtShow, Loc: Loc{Start: start, End: p.prevEnd()}}, true, nil
+
+	case w0 == "VOLUMES" || w0 == "PROCEDURES":
+		p.advance()
+		if p.match(kwFROM, kwIN) {
+			if _, err := p.parseIdentifierReference(); err != nil {
+				return nil, true, err
+			}
+		}
+		if err := parseOptionalLike(); err != nil {
+			return nil, true, err
+		}
+		return &ParsedStmt{Kind: StmtShow, Loc: Loc{Start: start, End: p.prevEnd()}}, true, nil
+
+	case (w0 == "EXTERNAL" && w1 == "LOCATIONS") ||
+		((w0 == "STORAGE" || w0 == "SERVICE") && w1 == "CREDENTIALS"):
+		p.advance()
+		p.advance()
+		if err := parseOptionalLike(); err != nil {
+			return nil, true, err
+		}
+		return &ParsedStmt{Kind: StmtShow, Loc: Loc{Start: start, End: p.prevEnd()}}, true, nil
+
+	case w0 == "CONNECTIONS" || w0 == "CREDENTIALS" || w0 == "RECIPIENTS" || w0 == "PROVIDERS" || w0 == "USERS":
+		p.advance()
+		if err := parseOptionalLike(); err != nil {
+			return nil, true, err
+		}
+		return &ParsedStmt{Kind: StmtShow, Loc: Loc{Start: start, End: p.prevEnd()}}, true, nil
+
+	case w0 == "SHARES":
+		p.advance()
+		if p.cur().Kind == kwIN && isWord(p.peek(1), "PROVIDER") {
+			p.advance()
+			p.advance()
+			if _, err := p.parseIdentifier(); err != nil {
+				return nil, true, err
+			}
+		}
+		if err := parseOptionalLike(); err != nil {
+			return nil, true, err
+		}
+		return &ParsedStmt{Kind: StmtShow, Loc: Loc{Start: start, End: p.prevEnd()}}, true, nil
+
+	case p.cur().Kind == kwALL && p.peek(1).Kind == kwIN && isWord(p.peek(2), "SHARE"):
+		p.advance()
+		p.advance()
+		p.advance()
+		if _, err := p.parseIdentifier(); err != nil {
+			return nil, true, err
+		}
+		return &ParsedStmt{Kind: StmtShow, Loc: Loc{Start: start, End: p.prevEnd()}}, true, nil
+
+	case w0 == "GROUPS":
+		p.advance()
+		if p.cur().Kind == kwWITH && isWord(p.peek(1), "USER") {
+			p.advance()
+			p.advance()
+			if p.isStringLit() {
+				p.advance()
+			} else if _, err := p.parseIdentifier(); err != nil {
+				return nil, true, err
+			}
+		}
+		return &ParsedStmt{Kind: StmtShow, Loc: Loc{Start: start, End: p.prevEnd()}}, true, nil
+	}
+	return nil, false, nil
 }
 
 func (p *Parser) parseShowFunctionsTail(start int) (Statement, error) {
@@ -576,6 +678,16 @@ func (p *Parser) parseDescribe() (Statement, error) {
 		p.restore(cp)
 	}
 
+	// 2b. Databricks Unity Catalog / Delta Lake DESCRIBE forms:
+	//   DESCRIBE CATALOG [EXTENDED] <name>
+	//   DESCRIBE (VOLUME | CONNECTION | SHARE | RECIPIENT | PROVIDER | DETAIL) <name>
+	//   DESCRIBE (EXTERNAL LOCATION | (STORAGE | SERVICE) CREDENTIAL) <name>
+	//   DESCRIBE HISTORY <table_name> [LIMIT <n>]
+	if stmt, ok := p.tryParseDatabricksDescribe(start); ok {
+		return stmt, nil
+	}
+	p.restore(cp)
+
 	// 3. DESCRIBE QUERY? query
 	if p.cur().Kind == kwQUERY {
 		p.advance()
@@ -617,6 +729,48 @@ func (p *Parser) parseDescribe() (Statement, error) {
 	}
 
 	return nil, p.errorf("invalid DESCRIBE statement")
+}
+
+func (p *Parser) tryParseDatabricksDescribe(start int) (Statement, bool) {
+	if p.isStatementEndAt(1) {
+		return nil, false
+	}
+	w0 := strings.ToUpper(p.cur().Text)
+	w1 := strings.ToUpper(p.peek(1).Text)
+	switch {
+	case p.cur().Kind == kwCATALOG:
+		p.advance()
+		if p.cur().Kind == kwEXTENDED && !p.isStatementEndAt(1) {
+			p.advance()
+		}
+		if target, err := p.parseIdentifierReference(); err == nil && p.isStatementEnd() {
+			return &ParsedStmt{Kind: StmtDescribe, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, true
+		}
+	case (w0 == "EXTERNAL" && w1 == "LOCATION") || ((w0 == "STORAGE" || w0 == "SERVICE") && w1 == "CREDENTIAL"):
+		p.advance()
+		p.advance()
+		if target, err := p.parseIdentifierReference(); err == nil && p.isStatementEnd() {
+			return &ParsedStmt{Kind: StmtDescribe, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, true
+		}
+	case w0 == "VOLUME" || w0 == "CONNECTION" || w0 == "SHARE" || w0 == "RECIPIENT" || w0 == "PROVIDER" || w0 == "DETAIL":
+		p.advance()
+		if target, err := p.parseIdentifierReference(); err == nil && p.isStatementEnd() {
+			return &ParsedStmt{Kind: StmtDescribe, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, true
+		}
+	case w0 == "HISTORY":
+		p.advance()
+		if target, err := p.parseIdentifierReference(); err == nil {
+			if p.match(kwLIMIT) {
+				if err := p.parseExpression(); err != nil {
+					return nil, false
+				}
+			}
+			if p.isStatementEnd() {
+				return &ParsedStmt{Kind: StmtDescribe, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, true
+			}
+		}
+	}
+	return nil, false
 }
 
 func (p *Parser) tryParseDescribeRelationBody() (string, bool) {

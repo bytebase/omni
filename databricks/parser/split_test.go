@@ -353,6 +353,18 @@ func TestSplit(t *testing.T) {
 			empty:  []bool{false, false},
 		},
 		{
+			name:   "simple CASE expression with do and then keyword operands",
+			script: "BEGIN DECLARE do INT DEFAULT 1; DECLARE then INT DEFAULT 1; IF CASE do WHEN 1 THEN true ELSE false END AND CASE then WHEN 1 THEN true ELSE false END THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE do INT DEFAULT 1; DECLARE then INT DEFAULT 1; IF CASE do WHEN 1 THEN true ELSE false END AND CASE then WHEN 1 THEN true ELSE false END THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "simple CASE expression with arithmetic keyword operand",
+			script: "BEGIN DECLARE do INT DEFAULT 1; IF CASE 1 + do WHEN 2 THEN true ELSE false END THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE do INT DEFAULT 1; IF CASE 1 + do WHEN 2 THEN true ELSE false END THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
 			name:   "then variable inside IF condition with nested IF",
 			script: "BEGIN DECLARE then INT DEFAULT 1; IF then = 1 THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
 			want:   []string{"BEGIN DECLARE then INT DEFAULT 1; IF then = 1 THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},

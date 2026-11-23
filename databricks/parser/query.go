@@ -430,6 +430,19 @@ func (p *Parser) hasSelectListFromAhead() bool {
 				p.selectListFromPos = -2
 				return false
 			}
+		case kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
+			if depth == 0 {
+				prevK := p.toks[i-1].Kind
+				nextK := tokEOF
+				if i+1 < len(p.toks) {
+					nextK = p.toks[i+1].Kind
+				}
+				if prevK == tokPipe || nextK == kwALL || nextK == kwDISTINCT || nextK == kwBY ||
+					nextK == kwSELECT || nextK == kwFROM || nextK == kwVALUES || nextK == kwTABLE || nextK == tokLParen {
+					p.selectListFromPos = -2
+					return false
+				}
+			}
 		case kwFROM:
 			if depth == 0 {
 				p.selectListFromPos = i
@@ -480,7 +493,7 @@ func (p *Parser) isSingleBarPipeStageAt(off int) bool {
 func (p *Parser) parseOperatorPipeRightSide() error {
 	switch p.cur().Kind {
 	case kwSELECT:
-		if err := p.parseSelectClause(); err != nil {
+		if err := p.parseSelectClause(false); err != nil {
 			return err
 		}
 		if p.cur().Kind == kwWINDOW {
@@ -688,7 +701,7 @@ func (p *Parser) parseFromStatementBody() error {
 		}
 		return p.parseQueryOrganization(false, false)
 	}
-	if err := p.parseSelectClause(); err != nil {
+	if err := p.parseSelectClause(false); err != nil {
 		return err
 	}
 	for p.cur().Kind == kwLATERAL && p.peek(1).Kind == kwVIEW {
@@ -725,7 +738,7 @@ func (p *Parser) parseQuerySpecification() error {
 			return err
 		}
 	} else {
-		if err := p.parseSelectClause(); err != nil {
+		if err := p.parseSelectClause(true); err != nil {
 			return err
 		}
 	}
@@ -927,7 +940,7 @@ func (p *Parser) matchSetQuantifierIfFollowedByExpr() bool {
 	return true
 }
 
-func (p *Parser) parseSelectClause() error {
+func (p *Parser) parseSelectClause(allowFrom bool) error {
 	if _, err := p.expect(kwSELECT); err != nil {
 		return err
 	}
@@ -939,7 +952,7 @@ func (p *Parser) parseSelectClause() error {
 	p.matchSetQuantifierIfFollowedByExpr()
 	prevInSelectList := p.inSelectList
 	prevSelectFromPos := p.selectListFromPos
-	p.inSelectList = true
+	p.inSelectList = allowFrom
 	p.selectListFromPos = -1
 	err := p.parseNamedExpressionSeq()
 	p.inSelectList = prevInSelectList

@@ -268,7 +268,7 @@ func Split(script string) []Segment {
 	}
 
 	isCaseExprStart := func(prevKind TokenKind) bool {
-		if prevKind == tokDot {
+		if prevKind == tokDot || prevIsValue {
 			return false
 		}
 		first := peekTok(0).Kind
@@ -307,18 +307,24 @@ func Split(script string) []Segment {
 			}
 			return true
 		}
+		// Symbolic binary operators and delimiters cannot begin a simple-CASE operand.
+		// Non-reserved keywords (such as `do`, `then`, `else`, `end`, `case`, `from`)
+		// CAN be simple-CASE operands and are validated by the WHEN lookahead below.
 		switch first {
 		case tokEOF, tokSemicolon, tokComma, tokRParen, tokRBracket, tokDot, tokLBracket, tokDoubleColon, tokColon,
 			tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
-			tokAsterisk, tokSlash, tokPercent, kwDIV,
+			tokAsterisk, tokSlash, tokPercent,
 			tokConcatPipe, tokPipe, tokAmpersand, tokHat, tokShiftLeft, tokShiftRight, tokShiftRightU,
-			kwTHEN, kwDO, kwELSE, kwELSEIF, kwUNTIL, kwFROM, kwWHERE,
-			kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN, kwAS:
+			tokOperatorPipe:
 			return false
 		}
 		// Simple CASE expression (`CASE <operand> WHEN ...`): must reach WHEN at
-		// relative paren depth 0 before any enclosing clause boundary.
+		// relative paren depth 0 before any enclosing clause boundary. Track
+		// operand-value state (`scanVal`) so keyword operands like `CASE do WHEN`
+		// or `CASE a + then WHEN` are not mistaken for clause boundaries.
 		relDepth := 0
+		scanVal := false
+		scanPrev := kwCASE
 		for off := 0; ; off++ {
 			k := peekTok(off).Kind
 			switch k {
@@ -326,28 +332,32 @@ func Split(script string) []Segment {
 				return false
 			case tokLParen, tokLBracket:
 				relDepth++
+				scanVal = false
 			case tokRParen, tokRBracket:
 				if relDepth == 0 {
 					return false
 				}
 				relDepth--
+				scanVal = true
 			case kwWHEN:
 				if relDepth == 0 {
 					return true
 				}
+				scanVal = false
 			case kwCASE:
 				if relDepth == 0 && off > 0 {
 					return false
 				}
-			case kwEND:
-				if relDepth == 0 && off > 0 && canPrecedeCaseEnd(peekTok(off-1).Kind) {
+				scanVal = true
+			case kwTHEN, kwDO, kwELSE, kwELSEIF, kwUNTIL, kwEND:
+				if relDepth == 0 && scanVal {
 					return false
 				}
-			case kwTHEN, kwDO, kwELSE, kwELSEIF, kwUNTIL:
-				if relDepth == 0 {
-					return false
-				}
+				scanVal = true
+			default:
+				scanVal = nextPrevIsValue(k, scanPrev, scanVal, peekTok(off+1).Kind)
 			}
+			scanPrev = k
 		}
 	}
 
