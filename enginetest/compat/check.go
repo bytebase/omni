@@ -160,8 +160,9 @@ func check(t testing.TB, s Suite) {
 		if err != nil {
 			t.Fatalf("generate rows from %s: %v", s.Grammar, err)
 		}
-		// A tokens.tsv row of the form (every site) names a rule of one of
-		// the suite's grammars, not necessarily of each.
+		// A tokens.tsv row of the form (every site) or (every alternative)
+		// names a rule of one of the suite's grammars, not necessarily of
+		// each.
 		absent := map[string]int{}
 		for _, name := range g.EverySiteAbsent() {
 			absent[name]++
@@ -184,7 +185,7 @@ func check(t testing.TB, s Suite) {
 		}
 		if len(nowhere) > 0 {
 			sort.Strings(nowhere)
-			t.Fatalf("%s gives %s the form %s, which only a rule takes, and no grammar of the suite has such a rule", s.Tokens, strings.Join(nowhere, ", "), grammar.EverySite)
+			t.Fatalf("%s gives %s the form %s or %s, which only a rule takes, and no grammar of the suite has such a rule", s.Tokens, strings.Join(nowhere, ", "), grammar.EverySite, grammar.EveryAlternative)
 		}
 		if dup := repeated(generated); len(s.More) > 0 && dup != "" {
 			t.Fatalf("%s and %s generate a row twice: %s", s.Grammar, strings.Join(s.More, ", "), dup)
