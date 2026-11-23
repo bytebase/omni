@@ -55,8 +55,10 @@ func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt, authored bool) error 
 	// A one-time event whose time has passed is dropped as soon as it is
 	// created, or kept DISABLE (DISABLE ON SLAVE stays) ON COMPLETION PRESERVE:
 	// measured on mariadb:11.8.8, CREATE EVENT e ON SCHEDULE AT '2000-01-01
-	// 00:00:00' DO COMMIT leaves no event.
-	if authored && timed && at.Before(time.Now().Add(-eventZoneMargin)) {
+	// 00:00:00' DO COMMIT leaves no event. A declarative schema states what
+	// should exist rather than running it, so loading one keeps the event as
+	// written.
+	if authored && !c.loadingSDL && timed && at.Before(time.Now().Add(-eventZoneMargin)) {
 		if !strings.EqualFold(stmt.OnCompletion, "PRESERVE") {
 			return nil
 		}

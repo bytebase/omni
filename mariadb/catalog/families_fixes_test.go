@@ -157,3 +157,19 @@ func TestReviewRoundOne(t *testing.T) {
 		})
 	}
 }
+
+// TestSDLKeepsPastEvents pins that a declarative schema keeps an event whose
+// AT time has passed, as written: loading SDL runs no schedule.
+func TestSDLKeepsPastEvents(t *testing.T) {
+	c, err := LoadSDL("CREATE DATABASE d; USE d; CREATE EVENT e ON SCHEDULE AT '2000-01-01 00:00:00' DO COMMIT; CREATE EVENT f ON SCHEDULE AT '2000-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db := c.GetDatabase("d")
+	if db.Events["e"] == nil {
+		t.Fatal("event e was dropped")
+	}
+	if ev := db.Events["f"]; ev == nil || !strings.EqualFold(ev.Enable, "ENABLE") {
+		t.Fatalf("event f is %+v, want it ENABLE", ev)
+	}
+}
