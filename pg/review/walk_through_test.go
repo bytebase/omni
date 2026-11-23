@@ -1179,6 +1179,7 @@ func TestWalkThroughQueriesRulesOptionsAndExtensions(t *testing.T) {
 		"CREATE VIEW v2 AS SELECT FROM CURRENT_DATE AS (a int);":               "PostgreSQL doesn't accept a column definition list on a function that doesn't return `record`.",
 		"CREATE VIEW v2 AS SELECT FROM ROWS FROM (CURRENT_USER AS (a text));":  "PostgreSQL doesn't accept a column definition list on a function that doesn't return `record`.",
 		"CREATE VIEW v2 AS SELECT ROW(1, 2);":                                  "PostgreSQL doesn't accept a `ROW(...)` column, whose type is the pseudo-type `record`.",
+		"CREATE TABLE IF NOT EXISTS t2 AS SELECT ROW(1, 2);":                   "PostgreSQL doesn't accept a `ROW(...)` column, whose type is the pseudo-type `record`.",
 		"CREATE TABLE t2 AS SELECT (1, 2);":                                    "PostgreSQL doesn't accept a `ROW(...)` column, whose type is the pseudo-type `record`.",
 		"CREATE VIEW v2 AS SELECT JSON_ARRAY(SELECT 1, 2);":                    "PostgreSQL doesn't accept a `JSON_ARRAY` subquery of other than one column.",
 		"CREATE VIEW v2 AS SELECT count(*) OVER (GROUPS UNBOUNDED PRECEDING);": "PostgreSQL doesn't accept a `GROUPS` frame without `ORDER BY`.",
@@ -1233,6 +1234,7 @@ func TestWalkThroughQueriesRulesOptionsAndExtensions(t *testing.T) {
 		"CREATE VIEW v2 AS SELECT count(*) OVER (ORDER BY 1 GROUPS UNBOUNDED PRECEDING);",
 		"CREATE VIEW v2 AS SELECT count(*) OVER (w GROUPS UNBOUNDED PRECEDING) WINDOW w AS (ORDER BY 1);",
 		"CREATE VIEW v2 AS SELECT a FROM t FOR SHARE OF t;",
+		"CREATE TABLE IF NOT EXISTS t AS SELECT ROW(1, 2);",
 	} {
 		if got := walkFindings(t, sql, target); len(got) != 0 {
 			t.Errorf("%q: findings = %+v, want none", sql, got)

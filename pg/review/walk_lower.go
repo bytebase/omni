@@ -1077,7 +1077,7 @@ func (b *builder) createTableAs(into *ast.IntoClause, matview, ifNotExists bool,
 		b.fail(nil, walk.Absent, review.ObjectNotFound, "Query references a column with no `FROM` clause.") // 42703
 		return true
 	}
-	if !isExecute && (b.queryRefused(query) || b.recordColumn(query)) {
+	if !isExecute && b.queryRefused(query) {
 		return true
 	}
 	switch {
@@ -1093,6 +1093,11 @@ func (b *builder) createTableAs(into *ast.IntoClause, matview, ifNotExists bool,
 		b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: alreadyExists("type", relation(rv))}) // 42710
 	}
 	if prior == walk.Absent {
+		// The relation's columns meet CheckAttributeType only when it is
+		// created; IF NOT EXISTS on an existing one returns before that.
+		if !isExecute && b.recordColumn(query) {
+			return true
+		}
 		if into.AccessMethod == "" || into.AccessMethod == "heap" {
 			b.checkHeapRelOptions(into.Options, rng)
 		}
