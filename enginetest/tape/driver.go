@@ -27,6 +27,7 @@ type session struct {
 	t     testing.TB
 	name  string
 	codec Codec
+	types *types
 	mode  enginetest.Mode
 
 	// poison ends the recording of this stream's file. Recording only.
@@ -271,7 +272,9 @@ func (s *session) hideAnswer(a answer) answer {
 	for _, set := range a.sets {
 		for _, row := range set.rows {
 			for i, v := range row {
-				if v.kind == "bytes" || v.kind == "string" {
+				// A typed value's literal quotes its strings, so the
+				// names in them are replaced in place.
+				if v.kind == "bytes" || v.kind == "string" || v.kind == "go" {
 					row[i].text = s.hide(v.text)
 				}
 			}
@@ -523,7 +526,7 @@ func (c *conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 		case err != nil:
 			a = c.s.errorAnswer(err)
 		default:
-			a, err = readAll(lr)
+			a, err = readAll(lr, c.s.types)
 			if err != nil {
 				a = c.s.errorAnswer(err)
 			}
@@ -537,12 +540,12 @@ func (c *conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 	if a.kind != "rows" {
 		return nil, fmt.Errorf("tape: stream %q answers query with %q", c.s.name, a.kind)
 	}
-	return &rows{sets: a.sets}, nil
+	return &rows{sets: a.sets, types: c.s.types}, nil
 }
 
 // readAll reads every result set of a live answer, so the test then reads
 // the recorded copy exactly as a replay would.
-func readAll(lr driver.Rows) (answer, error) {
+func readAll(lr driver.Rows, ts *types) (answer, error) {
 	defer lr.Close()
 	a := answer{kind: "rows"}
 	for {
@@ -556,7 +559,7 @@ func readAll(lr driver.Rows) (answer, error) {
 				c.typ = typed.ColumnTypeDatabaseTypeName(i)
 			}
 			if scanned != nil {
-				if t := scanned.ColumnTypeScanType(i); knownScanType(t) {
+				if t := scanned.ColumnTypeScanType(i); ts.knowsScanType(t) {
 					c.scan = t.String()
 				}
 			}
@@ -579,7 +582,7 @@ func readAll(lr driver.Rows) (answer, error) {
 			}
 			row := make([]value, len(dest))
 			for i, d := range dest {
-				v, err := fromDriver(d) // copies []byte, which the driver reuses
+				v, err := ts.fromDriver(d) // copies []byte, which the driver reuses
 				if err != nil {
 					return a, fmt.Errorf("tape: column %q: %w", s.cols[i].name, err)
 				}
@@ -647,9 +650,10 @@ func namedScanType(name string) reflect.Type {
 }
 
 type rows struct {
-	sets []resultSet
-	set  int
-	row  int
+	sets  []resultSet
+	types *types
+	set   int
+	row   int
 }
 
 func (r *rows) Columns() []string {
@@ -667,7 +671,7 @@ func (r *rows) ColumnTypeDatabaseTypeName(i int) string { return r.sets[r.set].c
 // recorded without one, or with a type this package cannot name, answers the
 // default any, which is what database/sql uses when the interface is absent.
 func (r *rows) ColumnTypeScanType(i int) reflect.Type {
-	if t := namedScanType(r.sets[r.set].cols[i].scan); t != nil {
+	if t := r.types.scanType(r.sets[r.set].cols[i].scan); t != nil {
 		return t
 	}
 	return anyType
@@ -694,7 +698,7 @@ func (r *rows) Next(dest []driver.Value) error {
 		return io.EOF
 	}
 	for i, v := range s.rows[r.row] {
-		d, err := v.driver()
+		d, err := r.types.driverValue(v)
 		if err != nil {
 			return err
 		}

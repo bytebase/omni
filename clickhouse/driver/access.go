@@ -186,8 +186,8 @@ func (d *Driver) describeAccess(ctx context.Context, users []*driver.Role) ([]*d
 // assignedAccess states every entity of kind assigned to a user or role, keyed
 // by the grantee's name, in the entity's name order. An entity is assigned by
 // its TO list, or by TO ALL without an EXCEPT that names the grantee; one
-// assigned to nobody is stated for nobody. The membership is read on the
-// server, since a tape cannot hold the arrays that list it.
+// assigned to nobody is stated for nobody. The server tests the membership,
+// so one query answers every pair.
 func (d *Driver) assignedAccess(ctx context.Context, kind accessKind) (map[string][]string, error) {
 	query := `
 		SELECT

@@ -75,6 +75,11 @@ type Server struct {
 	Live func(t testing.TB, pin enginetest.Pin) driver.Connector
 	// Codec renders the driver's errors.
 	Codec Codec
+	// Types are the named types the driver's answers hold beyond those a tape
+	// knows (see Type). A Server that states any also has its scan types
+	// spelled like its values' types, so a replay hands database/sql the scan
+	// type the client stated for a Decimal, an Array or a Map.
+	Types []Type
 }
 
 // dir holds a package's tapes, relative to the package directory a test
@@ -207,7 +212,11 @@ func begin(t testing.TB, s *Server, role string) (*session, *fileState, enginete
 	if f.err != nil && !(mode == enginetest.ModeRecord && f.existed) {
 		t.Fatalf("tape: %v", f.err)
 	}
-	ses := &session{t: t, name: name, codec: s.Codec, mode: mode}
+	ts, err := newTypes(s.Types)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	ses := &session{t: t, name: name, codec: s.Codec, types: ts, mode: mode}
 	if mode == enginetest.ModeRecord {
 		ses.poison = f.poison
 	}
