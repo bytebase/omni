@@ -456,6 +456,19 @@
 < column "type" "String" "string"
 < column "expr" "String" "string"
 < column "granularity" "UInt64" "uint64"
+> query
+|
+| 		SELECT
+| 			short_name,
+| 			table
+| 		FROM system.row_policies
+| 		WHERE database = ?
+| 		ORDER BY table, short_name
+: string
+| omni_testdeparseroundtrip
+< result
+< column "short_name" "String" "string"
+< column "table" "String" "string"
 > exec
 | DROP DATABASE IF EXISTS `omni_testdeparseroundtrip`
 < ok 0 -

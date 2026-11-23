@@ -13,14 +13,16 @@
 //
 // Dialects. A database's dialect is fixed when it is created, and the two answer
 // different SQL and different INFORMATION_SCHEMA spellings. SyncInstance lists
-// both kinds; SyncDatabase reads the database's dialect from the admin API and
-// asks the matching catalog — PostgreSQL names its system schemas in lower case
-// and states SPANNER_IS_MANAGED as text, where GoogleSQL upper-cases the schemas
-// and states a boolean. A script is split, and a query's LIMIT lowered, by the
-// dialect's own grammar: googlesql/parser for GoogleSQL and pg for PostgreSQL,
-// whose dollar-quoted strings hold semicolons and whose `#>` operator GoogleSQL
-// reads as a comment. A GoogleSQL database takes the queries and the split it
-// took before PostgreSQL was supported.
+// both kinds by default, or only GoogleSQL (and unspecified-dialect) databases
+// when opened with Options.GoogleSQLOnly; SyncDatabase reads the database's
+// dialect from the admin API and asks the matching catalog — PostgreSQL names
+// its system schemas in lower case and states SPANNER_IS_MANAGED as text, where
+// GoogleSQL upper-cases the schemas and states a boolean. A script is split,
+// and a query's LIMIT lowered, by the dialect's own grammar: googlesql/parser
+// for GoogleSQL and pg for PostgreSQL, whose dollar-quoted strings hold
+// semicolons and whose `#>` operator GoogleSQL reads as a comment. A GoogleSQL
+// database takes the queries and the split it took before PostgreSQL was
+// supported.
 //
 // Reading the dialect is the one way this driver departs from the contract's
 // "Open does not reach the server": Open asks the admin API for the database,
@@ -184,6 +186,13 @@ const (
 	ParamInstance = "instance"
 )
 
+// Options are Spanner's own settings for Open.
+type Options struct {
+	// GoogleSQLOnly makes SyncInstance skip PostgreSQL-dialect databases,
+	// listing only GoogleSQL (and unspecified-dialect) databases.
+	GoogleSQLOnly bool
+}
+
 // Driver is an open Spanner driver: one database of one instance, with a client
 // for its data and one for its schema.
 type Driver struct {
@@ -193,6 +202,8 @@ type Driver struct {
 	databaseName string
 	// instancePath is projects/<project>/instances/<instance>.
 	instancePath string
+	// googleSQLOnly makes SyncInstance skip PostgreSQL-dialect databases.
+	googleSQLOnly bool
 	// dialect is the database's dialect. Open reads it, and a creation or a sync
 	// of the database refreshes it, so it is read atomically: a Driver is safe
 	// for concurrent use.
@@ -212,7 +223,11 @@ func (d *Driver) setDialect(value dialect) {
 // Open returns a driver for the instance and database cfg names. It reads the
 // database's dialect, which decides the catalog a sync reads and the grammar a
 // script is split by, and does not otherwise reach the server; Ping does.
-func Open(ctx context.Context, cfg driver.Config) (*Driver, error) {
+func Open(ctx context.Context, cfg driver.Config, opts ...Options) (*Driver, error) {
+	var opt Options
+	if len(opts) > 0 {
+		opt = opts[0]
+	}
 	if cfg.Params[ParamProject] == "" {
 		return nil, errors.New("project ID cannot be empty")
 	}
@@ -224,9 +239,10 @@ func Open(ctx context.Context, cfg driver.Config) (*Driver, error) {
 		return nil, err
 	}
 	d := &Driver{
-		client:       c,
-		databaseName: cfg.Database,
-		instancePath: InstancePath(cfg.Params[ParamProject], cfg.Params[ParamInstance]),
+		client:        c,
+		databaseName:  cfg.Database,
+		instancePath:  InstancePath(cfg.Params[ParamProject], cfg.Params[ParamInstance]),
+		googleSQLOnly: opt.GoogleSQLOnly,
 	}
 	if cfg.Database != "" {
 		database, err := c.GetDatabase(ctx, d.databasePath(""))

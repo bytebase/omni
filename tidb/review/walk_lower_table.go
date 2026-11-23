@@ -36,13 +36,31 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 			if !alterNoFacts(c) {
 				return false
 			}
+			if partitionChange(c.Type) {
+				b.Set(partitioningKey(r.db, r.name), walk.Unknown, "")
+				b.Forget(partitionScope(r.db, r.name))
+			}
 		}
+		// Whatever the table is, what the walk knows of its character set
+		// and AUTO_RANDOM column no longer holds.
+		b.Set(tableCharsetKey(r.db, r.name), walk.Unknown, "")
+		b.Set(autoRandomKey(r.db, r.name), walk.Unknown, "")
 		return true
 	}
 	// TiDB runs ALTER TABLE <view> COMPACT [TIFLASH REPLICA] without 1347
 	// (measured on v8.5.5); only a missing relation fails (1146).
 	if len(v.Commands) == 1 && v.Commands[0].Type == ast.ATCompact {
 		b.need(relKey(r.db, r.name), walk.Present, nil, r.rng, notFound("table", r.written, ""), "")
+		// COMPACT PARTITION is 1105 on a view as on a table that is not
+		// partitioned (verified on v8.5.5).
+		if c := v.Commands[0]; len(c.PartitionNames) > 0 && f == walk.Present {
+			switch {
+			case kind == relView:
+				b.needKind(relKey(r.db, r.name), []string{relTable}, r.rng, notFound("table", r.written, ""), r.written, "table")
+			case kind == relTable:
+				b.partitionFails(r, c, b.partitioning(r), rangeOf(c.Loc))
+			}
+		}
 		return true
 	}
 	// A view or a sequence fails with 1347, whatever the subcommands
@@ -53,9 +71,10 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	}
 	b.Order = walk.Lookups
 	b.fks = true
-	if b.alterTextFails(v, r) {
+	if b.alterTextFails(v, r) || b.charsetChangeFails(v, r) || b.autoRandomFails(v, r) {
 		return true
 	}
+	parted := b.partitioning(r)
 	var rename *ast.AlterTableCmd
 	for _, early := range []bool{true, false} {
 		for _, c := range v.Commands {
@@ -68,11 +87,18 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 			}
 			b.Next()
 			b.early = early
+			if b.partitionFails(r, c, parted, rangeOf(c.Loc)) {
+				return true
+			}
 			if !b.alterCmd(r, c) {
 				return false
 			}
+			b.partitionEffects(r, c)
 		}
 	}
+	b.Next()
+	b.charsetEffects(v, r)
+	b.autoRandomEffects(v, r)
 	if rename != nil {
 		b.Next()
 		return b.alterRename(r, rename)
@@ -219,7 +245,10 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 	case ast.ATRenameColumn:
 		return b.renameColumn(r, c.Name, c.NewName, rng)
 	case ast.ATAlterColumnDefault:
-		return b.columnNeeds(r, c.Name, rng)
+		if !b.columnNeeds(r, c.Name, rng) {
+			return false
+		}
+		b.columnRefDefault(c, rng)
 	case ast.ATAddConstraint, ast.ATAddIndex:
 		if c.Constraint == nil {
 			return false
@@ -273,7 +302,13 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 		}
 		b.need(idxKey(r.db, r.name, k), walk.Present, nil, rng, notFound("index", ident(c.Name), r.written), "")
 	case ast.ATTableOption:
-		b.checkTableOption(c.Option, rng, true)
+		if b.checkTableOption(c.Option, rng, true) {
+			return true
+		}
+		// TTL names a column of the table (1054, verified on v8.5.5).
+		if col := ttlColumn(c.Option); col != "" {
+			return b.columnNeeds(r, col, rng)
+		}
 	case ast.ATConvertCharset:
 		if strings.EqualFold(c.Name, "DEFAULT") {
 			b.fail(rng, nil, review.UnsupportedForm, engineName+" doesn't support "+review.Code("CONVERT TO CHARSET DEFAULT")+".")

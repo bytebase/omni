@@ -28,15 +28,15 @@ func TestWalkAlterTableClausesAreSilent(t *testing.T) {
 		"ALTER TABLE t READ WRITE;",
 		"ALTER TABLE t COMPACT;",
 		"ALTER TABLE t COMPACT TIFLASH REPLICA;",
-		"ALTER TABLE t COMPACT PARTITION p1, p2;",
+		"ALTER TABLE pt COMPACT PARTITION p1, p2;",
 		"ALTER TABLE t ATTRIBUTES = 'k1=v1,k2=v2';",
 		"ALTER TABLE t ATTRIBUTES = DEFAULT;",
-		"ALTER TABLE t ANALYZE PARTITION p0;",
-		"ALTER TABLE t ANALYZE PARTITION p0 INDEX i WITH 4 BUCKETS;",
-		"ALTER TABLE t PARTITION p0 ATTRIBUTES = 'k=v';",
+		"ALTER TABLE pt ANALYZE PARTITION p0;",
+		"ALTER TABLE pt ANALYZE PARTITION p0 INDEX i WITH 4 BUCKETS;",
+		"ALTER TABLE pt PARTITION p0 ATTRIBUTES = 'k=v';",
 		"ALTER TABLE t PARTITION p0 PLACEMENT POLICY = 'p';",
-		"ALTER TABLE t LAST PARTITION LESS THAN (1000);",
-		"ALTER TABLE t FIRST PARTITION LESS THAN (1);",
+		"ALTER TABLE pt LAST PARTITION LESS THAN (1000);",
+		"ALTER TABLE pt FIRST PARTITION LESS THAN (1);",
 		"ALTER TABLE t FORCE AUTO_INCREMENT = 3;",
 		"ALTER TABLE t ATTRIBUTES = 'k=v', ADD COLUMN c int;",
 		"ALTER TABLE t CACHE, ADD COLUMN c int, READ ONLY;",
@@ -47,7 +47,7 @@ func TestWalkAlterTableClausesAreSilent(t *testing.T) {
 	// reported instead of being treated as silent no-ops.
 	oneFinding(t, "ALTER TABLE t ATTRIBUTES = 'str1,str2';", 0, "TiDB requires `ATTRIBUTES` entries in `key=value` format without conflicts.", shop)
 	oneFinding(t, "ALTER TABLE t STATS_OPTIONS = 'str';", 0, "TiDB doesn't support `STATS_OPTIONS` in `ALTER TABLE`.", shop)
-	oneFinding(t, "ALTER TABLE t PARTITION p0 ATTRIBUTES = 'str';", 0, "TiDB requires `ATTRIBUTES` entries in `key=value` format without conflicts.", shop)
+	oneFinding(t, "ALTER TABLE pt PARTITION p0 ATTRIBUTES = 'str';", 0, "TiDB requires `ATTRIBUTES` entries in `key=value` format without conflicts.", shop)
 	oneFinding(t, "ALTER TABLE t PARTITION p0 ENGINE = InnoDB MAX_ROWS 5;", 0, "TiDB doesn't support partition option `ENGINE` in `ALTER TABLE`.", shop)
 	oneFinding(t, "ALTER TABLE t SPLIT MAXVALUE PARTITION LESS THAN (1000);", 0, "TiDB doesn't support `SPLIT MAXVALUE PARTITION` in `ALTER TABLE`.", shop)
 	oneFinding(t, "ALTER TABLE t MERGE FIRST PARTITION LESS THAN (1000);", 0, "TiDB doesn't support `MERGE FIRST PARTITION` in `ALTER TABLE`.", shop)
