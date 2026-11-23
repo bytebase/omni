@@ -576,6 +576,45 @@ CREATE TABLE c_only () INHERITS (p_only);
 			t.Fatalf("PG18 DROP CONSTRAINT t_pk_chk_a_not_null (CHECK): %v", res[0].Error)
 		}
 	}
+
+	// ALTER TABLE ONLY on a partitioned table drops parent NOT NULL while keeping partition NOT NULL local.
+	partOnlySetup := `
+CREATE TABLE p_po (x int NOT NULL, k int) PARTITION BY RANGE (k);
+CREATE TABLE p_po_1 PARTITION OF p_po FOR VALUES FROM (0) TO (100);
+`
+	if got, c := execCodeVersion(t, PG18, partOnlySetup, "ALTER TABLE ONLY p_po ALTER COLUMN x DROP NOT NULL"); got != "" {
+		t.Fatalf("PG18 ALTER TABLE ONLY partitioned DROP NOT NULL: got %q, want ok", got)
+	} else {
+		p := c.GetRelation("public", "p_po")
+		p1 := c.GetRelation("public", "p_po_1")
+		if p.Columns[0].NotNull {
+			t.Fatalf("expected parent p_po.x to become nullable")
+		}
+		if !p1.Columns[0].NotNull {
+			t.Fatalf("expected partition p_po_1.x to retain NOT NULL after ONLY drop on parent")
+		}
+		if res, err := c.Exec("ALTER TABLE p_po_1 DROP CONSTRAINT p_po_1_x_not_null", nil); err != nil {
+			t.Fatal(err)
+		} else if len(res) > 0 && res[0].Error != nil {
+			t.Fatalf("PG18 partition DROP CONSTRAINT after parent ONLY drop: %v", res[0].Error)
+		}
+		if p1.Columns[0].NotNull {
+			t.Fatalf("expected p_po_1.x to become nullable after partition drops p_po_1_x_not_null")
+		}
+	}
+
+	// Typed table (CREATE TABLE OF type) preserves explicit CONSTRAINT <name> NOT NULL.
+	typedSetup := `
+CREATE TYPE ty_nn AS (x int);
+CREATE TABLE t_ty OF ty_nn (x WITH OPTIONS CONSTRAINT nn NOT NULL);
+`
+	if got, c := execCodeVersion(t, PG18, typedSetup, "COMMENT ON CONSTRAINT nn ON t_ty IS 'typed nn'"); got != "" {
+		t.Fatalf("PG18 COMMENT ON CONSTRAINT nn on typed table: got %q, want ok", got)
+	} else if res, err := c.Exec("ALTER TABLE t_ty DROP CONSTRAINT nn", nil); err != nil {
+		t.Fatal(err)
+	} else if len(res) > 0 && res[0].Error != nil {
+		t.Fatalf("PG18 DROP CONSTRAINT nn on typed table: %v", res[0].Error)
+	}
 }
 
 func TestPG18PartitionDetachPKNameAndJsonExpr(t *testing.T) {

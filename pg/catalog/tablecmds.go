@@ -174,6 +174,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			// pg: src/backend/commands/tablecmds.c — MergeAttributes (line 2537-2547)
 			tcd := &colDefs[typeIdx]
 			tcd.NotNull = ucd.NotNull
+			tcd.NotNullConName = ucd.NotNullConName
 			tcd.Default = ucd.Default
 			tcd.RawDefault = ucd.RawDefault
 			tcd.Generated = ucd.Generated

@@ -948,7 +948,7 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 
 	case nodes.AT_DropNotNull:
 		if c.Version() >= PG18 && !recursing {
-			return c.dropNotNullConstraintTree(rel, atc.Name, recurse || rel.RelKind == 'p', false)
+			return c.dropNotNullConstraintTree(rel, atc.Name, recurse, false)
 		}
 		return c.atDropNotNull(rel, atc.Name)
 
@@ -2527,7 +2527,7 @@ func (c *Catalog) atDropConstraint(schema *Schema, rel *Relation, conName string
 		if con.Name == conName {
 			if con.Type == ConstraintNotNull && len(con.Columns) == 1 {
 				if ci := indexOfAttNum(rel, con.Columns[0]); ci >= 0 {
-					return c.dropNotNullConstraintTree(rel, rel.Columns[ci].Name, recurse || rel.RelKind == 'p', false)
+					return c.dropNotNullConstraintTree(rel, rel.Columns[ci].Name, recurse, false)
 				}
 			}
 			// Collect this constraint and all descendant partition constraints
