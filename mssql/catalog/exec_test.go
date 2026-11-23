@@ -905,4 +905,47 @@ CREATE TABLE [dbo].[t] (
 	execExpectCode(t, c, `TRUNCATE TABLE [dbo].[t]`, ErrTruncateSystemVersionedTable)
 	execExpectOK(t, c, `ALTER TABLE [dbo].[t] SET (SYSTEM_VERSIONING = OFF)`)
 	execExpectOK(t, c, `TRUNCATE TABLE [dbo].[t]`)
+
+	// 62. ALTER SCHEMA TRANSFER resolves the exact object name in case-sensitive snapshots.
+	c = New()
+	require.NoError(t, c.LoadMetadata(t.Context(), &metadata.DatabaseSchemaMetadata{
+		Schemas: []*metadata.SchemaMetadata{
+			{
+				Name: "dbo",
+				Views: []*metadata.ViewMetadata{
+					{Name: "Foo", Definition: "CREATE VIEW [dbo].[Foo] AS SELECT 1 AS a;"},
+					{Name: "foo", Definition: "CREATE VIEW [dbo].[foo] AS SELECT 2 AS a;"},
+				},
+			},
+			{Name: "app"},
+		},
+	}))
+	execExpectOK(t, c, `ALTER SCHEMA [app] TRANSFER [dbo].[foo]`)
+	require.Len(t, c.GetSchema("dbo").Views, 1)
+	require.Equal(t, "Foo", c.GetSchema("dbo").Views[0].Name)
+	require.Len(t, c.GetSchema("app").Views, 1)
+	require.Equal(t, "foo", c.GetSchema("app").Views[0].Name)
+
+	// 63. ALTER VIEW and CREATE OR ALTER VIEW reject replacing views referenced by schema-bound consumers.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[t] ([a] INT NOT NULL, [b] INT NOT NULL);
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [a], [b] FROM [dbo].[t];
+GO
+CREATE VIEW [dbo].[v2] WITH SCHEMABINDING AS SELECT [a] FROM [dbo].[v1];
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [b] FROM [dbo].[t]`, ErrDropSchemaNotEmpty)
+	execExpectCode(t, c, `CREATE OR ALTER VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [b] FROM [dbo].[t]`, ErrDropSchemaNotEmpty)
+	require.Contains(t, c.GetView("dbo", "v1").Definition, "[a]")
+
+	// 64. ALTER COLUMN defaults nullability to NULL when omitted (and rejects PK columns accordingly).
+	c, err = LoadSQL(`CREATE TABLE [dbo].[t] ([id] INT NOT NULL CONSTRAINT [PK_t] PRIMARY KEY, [a] INT NOT NULL);`)
+	require.NoError(t, err)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] ALTER COLUMN [a] BIGINT`)
+	require.Equal(t, "BIGINT", columnByName(c.GetTable("dbo", "t"), "a").Type)
+	require.True(t, columnByName(c.GetTable("dbo", "t"), "a").Nullable)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ALTER COLUMN [id] BIGINT`, ErrColumnDependentObject)
+	require.Equal(t, "INT", columnByName(c.GetTable("dbo", "t"), "id").Type)
+	require.False(t, columnByName(c.GetTable("dbo", "t"), "id").Nullable)
 }

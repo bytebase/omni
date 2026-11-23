@@ -868,68 +868,73 @@ func (c *Catalog) execAlterSchema(n *ast.AlterSchemaStmt) error {
 			}
 		}
 	case kindView:
-		for i, v := range srcSchema.Views {
-			if strings.EqualFold(v.Name, objName) {
-				if isSchemaBound(v.Definition) {
-					return mssqlErr(ErrTransferSchemaBound, "Cannot transfer a schemabound object.")
-				}
-				if _, bound := schemaBoundObjectConsumer(c, srcSchema.Name, v.Name, nil); bound {
-					return mssqlErr(ErrTransferSchemaBound, "Cannot transfer a schemabound object.")
-				}
-				for _, tr := range v.Triggers {
-					if tr.Name != "" && c.lookupSchemaObject(targetSchema, tr.Name, false) != kindNone {
-						return mssqlErr(ErrDupObject, "There is already an object named '%s' in the database.", tr.Name)
-					}
-				}
-				srcSchema.Views = append(srcSchema.Views[:i], srcSchema.Views[i+1:]...)
-				v.Definition = qualifyModuleDefinition(v.Definition, targetSchema.Name, true)
-				for _, tr := range v.Triggers {
-					tr.Body = qualifyTriggerDefinition(tr.Body, targetSchema.Name, v.Name, true)
-				}
-				targetSchema.Views = append(targetSchema.Views, v)
-				return nil
+		i, ok := resolveExactOrFoldIndex(srcSchema.Views, func(v *metadata.ViewMetadata) string { return v.Name }, objName)
+		if !ok {
+			return mssqlErr(ErrSecurableNotFound, "Cannot find the object '%s', because it does not exist or you do not have permission.", n.TransferEntity)
+		}
+		v := srcSchema.Views[i]
+		if isSchemaBound(v.Definition) {
+			return mssqlErr(ErrTransferSchemaBound, "Cannot transfer a schemabound object.")
+		}
+		if _, bound := schemaBoundObjectConsumer(c, srcSchema.Name, v.Name, nil); bound {
+			return mssqlErr(ErrTransferSchemaBound, "Cannot transfer a schemabound object.")
+		}
+		for _, tr := range v.Triggers {
+			if tr.Name != "" && c.lookupSchemaObject(targetSchema, tr.Name, false) != kindNone {
+				return mssqlErr(ErrDupObject, "There is already an object named '%s' in the database.", tr.Name)
 			}
 		}
+		srcSchema.Views = append(srcSchema.Views[:i], srcSchema.Views[i+1:]...)
+		v.Definition = qualifyModuleDefinition(v.Definition, targetSchema.Name, true)
+		for _, tr := range v.Triggers {
+			tr.Body = qualifyTriggerDefinition(tr.Body, targetSchema.Name, v.Name, true)
+		}
+		targetSchema.Views = append(targetSchema.Views, v)
+		return nil
 	case kindProcedure:
-		for i, p := range srcSchema.Procedures {
-			if strings.EqualFold(p.Name, objName) {
-				srcSchema.Procedures = append(srcSchema.Procedures[:i], srcSchema.Procedures[i+1:]...)
-				p.Definition = qualifyModuleDefinition(p.Definition, targetSchema.Name, true)
-				targetSchema.Procedures = append(targetSchema.Procedures, p)
-				return nil
-			}
+		i, ok := resolveExactOrFoldIndex(srcSchema.Procedures, func(p *metadata.ProcedureMetadata) string { return p.Name }, objName)
+		if !ok {
+			return mssqlErr(ErrSecurableNotFound, "Cannot find the object '%s', because it does not exist or you do not have permission.", n.TransferEntity)
 		}
+		p := srcSchema.Procedures[i]
+		srcSchema.Procedures = append(srcSchema.Procedures[:i], srcSchema.Procedures[i+1:]...)
+		p.Definition = qualifyModuleDefinition(p.Definition, targetSchema.Name, true)
+		targetSchema.Procedures = append(targetSchema.Procedures, p)
+		return nil
 	case kindFunction:
-		for i, fn := range srcSchema.Functions {
-			if strings.EqualFold(fn.Name, objName) {
-				if isSchemaBound(fn.Definition) {
-					return mssqlErr(ErrTransferSchemaBound, "Cannot transfer a schemabound object.")
-				}
-				if _, bound := schemaBoundFunctionConsumer(c, srcSchema.Name, fn.Name, nil); bound {
-					return mssqlErr(ErrTransferSchemaBound, "Cannot transfer a schemabound object.")
-				}
-				srcSchema.Functions = append(srcSchema.Functions[:i], srcSchema.Functions[i+1:]...)
-				fn.Definition = qualifyModuleDefinition(fn.Definition, targetSchema.Name, true)
-				targetSchema.Functions = append(targetSchema.Functions, fn)
-				return nil
-			}
+		i, ok := resolveExactOrFoldIndex(srcSchema.Functions, func(fn *metadata.FunctionMetadata) string { return fn.Name }, objName)
+		if !ok {
+			return mssqlErr(ErrSecurableNotFound, "Cannot find the object '%s', because it does not exist or you do not have permission.", n.TransferEntity)
 		}
+		fn := srcSchema.Functions[i]
+		if isSchemaBound(fn.Definition) {
+			return mssqlErr(ErrTransferSchemaBound, "Cannot transfer a schemabound object.")
+		}
+		if _, bound := schemaBoundFunctionConsumer(c, srcSchema.Name, fn.Name, nil); bound {
+			return mssqlErr(ErrTransferSchemaBound, "Cannot transfer a schemabound object.")
+		}
+		srcSchema.Functions = append(srcSchema.Functions[:i], srcSchema.Functions[i+1:]...)
+		fn.Definition = qualifyModuleDefinition(fn.Definition, targetSchema.Name, true)
+		targetSchema.Functions = append(targetSchema.Functions, fn)
+		return nil
 	case kindSequence:
-		for i, sq := range srcSchema.Sequences {
-			if strings.EqualFold(sq.Name, objName) {
-				srcSchema.Sequences = append(srcSchema.Sequences[:i], srcSchema.Sequences[i+1:]...)
-				targetSchema.Sequences = append(targetSchema.Sequences, sq)
-				return nil
-			}
+		i, ok := resolveExactOrFoldIndex(srcSchema.Sequences, func(sq *metadata.SequenceMetadata) string { return sq.Name }, objName)
+		if !ok {
+			return mssqlErr(ErrSecurableNotFound, "Cannot find the object '%s', because it does not exist or you do not have permission.", n.TransferEntity)
 		}
+		sq := srcSchema.Sequences[i]
+		srcSchema.Sequences = append(srcSchema.Sequences[:i], srcSchema.Sequences[i+1:]...)
+		targetSchema.Sequences = append(targetSchema.Sequences, sq)
+		return nil
 	case kindSynonym:
-		for i, sy := range srcSchema.Synonyms {
-			if strings.EqualFold(sy.Name, objName) {
-				srcSchema.Synonyms = append(srcSchema.Synonyms[:i], srcSchema.Synonyms[i+1:]...)
-				targetSchema.Synonyms = append(targetSchema.Synonyms, sy)
-				return nil
-			}
+		i, ok := resolveExactOrFoldIndex(srcSchema.Synonyms, func(sy *metadata.SynonymMetadata) string { return sy.Name }, objName)
+		if !ok {
+			return mssqlErr(ErrSecurableNotFound, "Cannot find the object '%s', because it does not exist or you do not have permission.", n.TransferEntity)
 		}
+		sy := srcSchema.Synonyms[i]
+		srcSchema.Synonyms = append(srcSchema.Synonyms[:i], srcSchema.Synonyms[i+1:]...)
+		targetSchema.Synonyms = append(targetSchema.Synonyms, sy)
+		return nil
 	}
 	return nil
 }
@@ -1497,11 +1502,16 @@ func (c *Catalog) execCreateOrAlterView(n *ast.CreateViewStmt, source string) er
 	schema = c.getOrCreateSchema(schemaName)
 	definition := definitionText(n, source)
 	if kind == kindView {
-		for _, v := range schema.Views {
-			if strings.EqualFold(v.Name, name) {
-				v.Definition = creationDefinition(definition)
-				return nil
+		if idx, ok := resolveExactOrFoldIndex(schema.Views, func(v *metadata.ViewMetadata) string { return v.Name }, name); ok {
+			v := schema.Views[idx]
+			if consumer, bound := schemaBoundObjectConsumer(c, schema.Name, v.Name, nil); bound {
+				return mssqlErr(ErrDropSchemaNotEmpty, "Cannot ALTER VIEW '%s' because it is being referenced by object '%s'.", v.Name, consumer)
 			}
+			v.Definition = creationDefinition(definition)
+			return nil
+		}
+		if pureAlter {
+			return mssqlErr(ErrInvalidObjectName, "Invalid object name '%s'.", name)
 		}
 	}
 	schema.Views = append(schema.Views, &metadata.ViewMetadata{Name: name, Definition: definition})
@@ -1562,11 +1572,12 @@ func (c *Catalog) execCreateOrAlterProcedure(n *ast.CreateProcedureStmt, source 
 		definition = normalizeProcDefinition(definition)
 	}
 	if kind == kindProcedure {
-		for _, p := range schema.Procedures {
-			if strings.EqualFold(p.Name, name) {
-				p.Definition = definition
-				return nil
-			}
+		if idx, ok := resolveExactOrFoldIndex(schema.Procedures, func(p *metadata.ProcedureMetadata) string { return p.Name }, name); ok {
+			schema.Procedures[idx].Definition = definition
+			return nil
+		}
+		if pureAlter {
+			return mssqlErr(ErrInvalidObjectName, "Invalid object name '%s'.", name)
 		}
 	}
 	schema.Procedures = append(schema.Procedures, &metadata.ProcedureMetadata{Name: name, Definition: definition})
@@ -1646,11 +1657,16 @@ func (c *Catalog) execCreateOrAlterFunction(n *ast.CreateFunctionStmt, source st
 	schema = c.getOrCreateSchema(schemaName)
 	definition := definitionText(n, source)
 	if kind == kindFunction {
-		for _, fn := range schema.Functions {
-			if strings.EqualFold(fn.Name, name) {
-				fn.Definition = creationDefinition(definition)
-				return nil
+		if idx, ok := resolveExactOrFoldIndex(schema.Functions, func(fn *metadata.FunctionMetadata) string { return fn.Name }, name); ok {
+			fn := schema.Functions[idx]
+			if consumer, bound := schemaBoundFunctionConsumer(c, schema.Name, fn.Name, nil); bound {
+				return mssqlErr(ErrDropSchemaNotEmpty, "Cannot ALTER FUNCTION '%s' because it is being referenced by object '%s'.", fn.Name, consumer)
 			}
+			fn.Definition = creationDefinition(definition)
+			return nil
+		}
+		if pureAlter {
+			return mssqlErr(ErrInvalidObjectName, "Invalid object name '%s'.", name)
 		}
 	}
 	schema.Functions = append(schema.Functions, &metadata.FunctionMetadata{Name: name, Definition: definition})
@@ -2122,8 +2138,14 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 			}
 			return mssqlErr(ErrUnknownColumnType, "Column, parameter, or variable #1: Cannot find data type %s.", typeName)
 		}
+		newNullable := true
+		if action.Column != nil && action.Column.Nullable != nil {
+			newNullable = !action.Column.Nullable.NotNull
+		} else if col.IsIdentity {
+			newNullable = false
+		}
 		if !c.lenientMetadataLoad && col.IsIdentity {
-			if !isValidIdentityDataType(action.DataType) || (action.Column != nil && action.Column.Nullable != nil && !action.Column.Nullable.NotNull) {
+			if !isValidIdentityDataType(action.DataType) || newNullable {
 				return mssqlErr(ErrIdentityColumnType, "Identity column '%s' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, unencrypted, and constrained to be nonnullable.", col.Name)
 			}
 		}
@@ -2134,15 +2156,13 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 				return mssqlErr(ErrColumnDependentObject, "The object '%s' is dependent on column '%s'.", dep, col.Name)
 			}
 		}
-		if action.Column != nil && action.Column.Nullable != nil && !action.Column.Nullable.NotNull {
+		if newNullable {
 			if pkName, inPK := columnInPrimaryKey(table, col.Name); inPK {
 				return mssqlErr(ErrColumnDependentObject, "The object '%s' is dependent on column '%s'.", pkName, col.Name)
 			}
 		}
 		col.Type = newType
-		if action.Column != nil && action.Column.Nullable != nil {
-			col.Nullable = !action.Column.Nullable.NotNull
-		}
+		col.Nullable = newNullable
 		if action.Collation != "" {
 			col.Collation = action.Collation
 		}
