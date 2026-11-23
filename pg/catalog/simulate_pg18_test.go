@@ -814,6 +814,27 @@ CREATE TABLE t_fkc (x int CONSTRAINT t_fkc_x_fkey NOT NULL REFERENCES p_fkc);
 			t.Fatalf("expected unnamed FK to receive name t_fkc_x_fkey1, got %q", fkName)
 		}
 	}
+
+	// LIKE INCLUDING ALL generates a fresh PK constraint name without colliding
+	// with the destination's PG 18 NOT NULL constraint or copied CHECK constraints.
+	likeCollSetup := `
+CREATE TABLE src_lc (x int CONSTRAINT t_lc_x_not_null PRIMARY KEY);
+CREATE TABLE t_lc (LIKE src_lc INCLUDING ALL);
+`
+	if got, c := execCodeVersion(t, PG18, likeCollSetup, "ALTER TABLE t_lc DROP CONSTRAINT t_lc_pkey"); got != "" {
+		t.Fatalf("PG18 LIKE INCLUDING ALL drop cloned PK t_lc_pkey: got %q, want ok", got)
+	} else {
+		rel := c.GetRelation("public", "t_lc")
+		seen := make(map[string]int)
+		for _, con := range c.ConstraintsOf(rel.OID) {
+			seen[con.Name]++
+		}
+		for name, count := range seen {
+			if count > 1 {
+				t.Fatalf("duplicate constraint name %q (%d times) on t_lc", name, count)
+			}
+		}
+	}
 }
 
 func TestPG18PartitionDetachPKNameAndJsonExpr(t *testing.T) {

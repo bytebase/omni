@@ -2274,17 +2274,27 @@ func (c *Catalog) cloneLikeIndexes(schema *Schema, src, dst *Relation) {
 			continue
 		}
 
-		// Generate index name based on new table name and column names.
+		// Generate index (and backing constraint) name based on new table name
+		// and column names, checking both relation/index and constraint namespaces.
 		var colNames []string
 		for _, attnum := range dstAttnums {
 			if int(attnum) > 0 && int(attnum) <= len(dst.Columns) {
 				colNames = append(colNames, dst.Columns[attnum-1].Name)
 			}
 		}
-		idxName := generateIndexName(dst.Name, colNames, idx.IsPrimary)
-		// Ensure uniqueness.
-		for _, exists := schema.Indexes[idxName]; exists; _, exists = schema.Indexes[idxName] {
-			idxName = idxName + "1"
+		var srcCon *Constraint
+		if idx.ConstraintOID != 0 {
+			srcCon = c.constraints[idx.ConstraintOID]
+		}
+		var idxName string
+		if srcCon != nil {
+			idxName = c.chooseConstraintAndIndexName(schema, dst, colNames, srcCon.Type)
+		} else {
+			idxName = generateIndexName(dst.Name, colNames, idx.IsPrimary)
+			// Ensure uniqueness.
+			for _, exists := schema.Indexes[idxName]; exists; _, exists = schema.Indexes[idxName] {
+				idxName = idxName + "1"
+			}
 		}
 
 		// Clone IndOption.
@@ -2340,53 +2350,48 @@ func (c *Catalog) cloneLikeIndexes(schema *Schema, src, dst *Relation) {
 		for _, d := range srcIdxExtDeps {
 			c.recordDependency('i', newIdx.OID, 0, d.RefType, d.RefOID, d.RefSubID, DepNormal)
 		}
-		if idx.ConstraintOID != 0 {
-			srcCon := c.constraints[idx.ConstraintOID]
-			if srcCon != nil {
-				conOID := c.oidGen.Next()
-				conAttnums := c.mapColumnAttnums(src, dst, srcCon.Columns)
-				if conAttnums == nil {
-					conAttnums = dstAttnums
-				}
+		if srcCon != nil {
+			conOID := c.oidGen.Next()
+			conAttnums := c.mapColumnAttnums(src, dst, srcCon.Columns)
+			if conAttnums == nil {
+				conAttnums = dstAttnums
+			}
 
-				// PG naming: replace source table prefix with destination table name.
-				// e.g. t1_pkey -> t2_pkey
-				conName := srcCon.Name
-				if strings.HasPrefix(srcCon.Name, src.Name) {
-					conName = dst.Name + srcCon.Name[len(src.Name):]
-				}
+			// PG generates a fresh index/constraint name via ChooseRelationName
+			// when cloning LIKE indexes (avoiding collisions with existing
+			// constraints such as PG 18 NOT NULL or copied CHECK constraints).
+			conName := idxName
 
-				newCon := &Constraint{
-					OID:            conOID,
-					Name:           conName,
-					Type:           srcCon.Type,
-					RelOID:         dst.OID,
-					Namespace:      schema.OID,
-					Columns:        conAttnums,
-					IncludeColumns: c.mapColumnAttnums(src, dst, srcCon.IncludeColumns),
-					IndexOID:       newIdx.OID,
-					Deferrable:     srcCon.Deferrable,
-					Deferred:       srcCon.Deferred,
-					Validated:      true,
-					ConIsLocal:     true,
-					ExclOps:        slices.Clone(srcCon.ExclOps),
-					ExclOpSchemas:  slices.Clone(srcCon.ExclOpSchemas),
-				}
+			newCon := &Constraint{
+				OID:            conOID,
+				Name:           conName,
+				Type:           srcCon.Type,
+				RelOID:         dst.OID,
+				Namespace:      schema.OID,
+				Columns:        conAttnums,
+				IncludeColumns: c.mapColumnAttnums(src, dst, srcCon.IncludeColumns),
+				IndexOID:       newIdx.OID,
+				Deferrable:     srcCon.Deferrable,
+				Deferred:       srcCon.Deferred,
+				Validated:      true,
+				ConIsLocal:     true,
+				ExclOps:        slices.Clone(srcCon.ExclOps),
+				ExclOpSchemas:  slices.Clone(srcCon.ExclOpSchemas),
+			}
 
-				newIdx.ConstraintOID = conOID
-				c.registerConstraint(dst.OID, newCon)
-				c.recordDependency('c', conOID, 0, 'r', dst.OID, 0, DepAuto)
-				c.recordColumnDependencies('c', conOID, dst.OID, conAttnums, DepAuto)
-				var srcConExtDeps []DepEntry
-				for _, d := range c.deps {
-					if d.ObjType == 'c' && d.ObjOID == srcCon.OID && d.DepType == DepNormal &&
-						!(d.RefType == 'r' && d.RefOID == src.OID) {
-						srcConExtDeps = append(srcConExtDeps, d)
-					}
+			newIdx.ConstraintOID = conOID
+			c.registerConstraint(dst.OID, newCon)
+			c.recordDependency('c', conOID, 0, 'r', dst.OID, 0, DepAuto)
+			c.recordColumnDependencies('c', conOID, dst.OID, conAttnums, DepAuto)
+			var srcConExtDeps []DepEntry
+			for _, d := range c.deps {
+				if d.ObjType == 'c' && d.ObjOID == srcCon.OID && d.DepType == DepNormal &&
+					!(d.RefType == 'r' && d.RefOID == src.OID) {
+					srcConExtDeps = append(srcConExtDeps, d)
 				}
-				for _, d := range srcConExtDeps {
-					c.recordDependency('c', conOID, 0, d.RefType, d.RefOID, d.RefSubID, DepNormal)
-				}
+			}
+			for _, d := range srcConExtDeps {
+				c.recordDependency('c', conOID, 0, d.RefType, d.RefOID, d.RefSubID, DepNormal)
 			}
 		}
 
@@ -2399,6 +2404,7 @@ func (c *Catalog) cloneLikeIndexes(schema *Schema, src, dst *Relation) {
 			for _, attnum := range indexKeyAttnums(idx, dstAttnums) {
 				if int(attnum) > 0 && int(attnum) <= len(dst.Columns) {
 					dst.Columns[attnum-1].NotNull = true
+					_ = c.ensureNotNullConstraint(schema, dst, dst.Columns[attnum-1], "")
 				}
 			}
 		}
