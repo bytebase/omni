@@ -983,72 +983,6 @@ func (b *builder) checkColumnUsedInFKOB(r tableRef, colName string, newType *ast
 	return false
 }
 
-// selectWithoutFromColRef reports the first bare column reference in the target
-// list or WHERE clause of a SELECT with no FROM clause, which always fails
-// with 1054 because no table is in scope.
-func selectWithoutFromColRef(sel *ast.SelectStmt) (string, bool) {
-	if sel == nil {
-		return "", false
-	}
-	if sel.ParenSource != nil {
-		return selectWithoutFromColRef(sel.ParenSource)
-	}
-	if sel.SetOp != ast.SetOpNone {
-		if col, ok := selectWithoutFromColRef(sel.Left); ok {
-			return col, true
-		}
-		return selectWithoutFromColRef(sel.Right)
-	}
-	if sel.ValuesSource != nil || sel.TableSource != nil || len(sel.From) > 0 {
-		return "", false
-	}
-	for _, target := range sel.TargetList {
-		if col, ok := firstNonSubqueryColumnRef(target); ok {
-			return col, true
-		}
-	}
-	if sel.Where != nil {
-		if col, ok := firstNonSubqueryColumnRef(sel.Where); ok {
-			return col, true
-		}
-	}
-	return "", false
-}
-
-func firstNonSubqueryColumnRef(root ast.Node) (string, bool) {
-	if root == nil {
-		return "", false
-	}
-	var found string
-	var walkNode func(n ast.Node)
-	walkNode = func(n ast.Node) {
-		if n == nil || found != "" {
-			return
-		}
-		switch v := n.(type) {
-		case *ast.SelectStmt, *ast.SubqueryExpr, *ast.ExistsExpr, *ast.LambdaExpr:
-			return
-		case *ast.ColumnRef:
-			if v.Column != "" {
-				found = v.Column
-			}
-			return
-		}
-		ast.Inspect(n, func(child ast.Node) bool {
-			if found != "" {
-				return false
-			}
-			if child == nil || child == n {
-				return true
-			}
-			walkNode(child)
-			return false
-		})
-	}
-	walkNode(root)
-	return found, found != ""
-}
-
 // checkCreateTriggerOB validates OceanBase trigger rules beyond table/name
 // checks: trigger schema matching its table's schema (1049/1435), FOLLOWS /
 // PRECEDES referencing an existing trigger (3011), OLD in INSERT / NEW in
@@ -1678,7 +1612,7 @@ var obCharsets = map[string]bool{
 var obCollations = map[string]string{
 	"ascii_bin": "ascii", "ascii_general_ci": "ascii",
 	"big5_bin": "big5", "big5_chinese_ci": "big5",
-	"binary":   "binary",
+	"binary":    "binary",
 	"cp850_bin": "cp850", "cp850_general_ci": "cp850",
 	"cp932_bin": "cp932", "cp932_japanese_ci": "cp932",
 	"dec8_bin": "dec8", "dec8_swedish_ci": "dec8",
@@ -1688,7 +1622,7 @@ var obCollations = map[string]string{
 	"gb18030_2022_chinese_cs": "gb18030_2022", "gb18030_2022_radical_ci": "gb18030_2022",
 	"gb18030_2022_radical_cs": "gb18030_2022", "gb18030_2022_stroke_ci": "gb18030_2022",
 	"gb18030_2022_stroke_cs": "gb18030_2022",
-	"gb18030_bin": "gb18030", "gb18030_chinese_ci": "gb18030",
+	"gb18030_bin":            "gb18030", "gb18030_chinese_ci": "gb18030",
 	"gb2312_bin": "gb2312", "gb2312_chinese_ci": "gb2312",
 	"gbk_bin": "gbk", "gbk_chinese_ci": "gbk",
 	"hkscs31_bin": "hkscs31", "hkscs_bin": "hkscs",
