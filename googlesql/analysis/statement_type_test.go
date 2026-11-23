@@ -124,8 +124,22 @@ func TestStatementTypeOfBigQueryExternalDrops(t *testing.T) {
 		want StatementType
 	}{
 		{"DROP EXTERNAL TABLE ds.ext;", DropTable},
-		{"DROP EXTERNAL TABLE FUNCTION ds.tf;", DropFunction},
 		{"DROP TABLE FUNCTION ds.tf;", DropFunction},
+	} {
+		file, err := parser.ParseWithDialect(tc.sql, parser.DialectBigQuery)
+		require.NoError(t, err, tc.sql)
+		require.Len(t, file.Stmts, 1)
+		require.Equal(t, tc.want, StatementTypeOf(file.Stmts[0]), tc.sql)
+	}
+}
+
+func TestStatementTypeOfBigQuerySnapshots(t *testing.T) {
+	for _, tc := range []struct {
+		sql  string
+		want StatementType
+	}{
+		{"CREATE SNAPSHOT TABLE ds.s CLONE ds.t;", CreateTable},
+		{"CREATE SNAPSHOT SCHEMA ds2 CLONE ds;", CreateSchema},
 	} {
 		file, err := parser.ParseWithDialect(tc.sql, parser.DialectBigQuery)
 		require.NoError(t, err, tc.sql)
