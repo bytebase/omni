@@ -6,6 +6,7 @@ package parser
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 
 	nodes "github.com/bytebase/omni/oracle/ast"
@@ -1019,9 +1020,18 @@ func lockedSubquery(stmt nodes.Node) nodes.Node {
 		}
 	}
 	iterands := map[*nodes.SubqueryExpr]bool{}
+	// A node two fields share (TABLE()'s Expr and FunctionCall) is walked
+	// once, so nested shared subtrees stay linear.
+	seen := map[nodes.Node]bool{}
 	nodes.Inspect(stmt, func(n nodes.Node) bool {
 		if lock != nil {
 			return false
+		}
+		if n != nil && reflect.ValueOf(n).Kind() == reflect.Pointer {
+			if seen[n] {
+				return false
+			}
+			seen[n] = true
 		}
 		switch n := n.(type) {
 		case *nodes.PLSQLIterationControl:

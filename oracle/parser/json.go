@@ -90,15 +90,15 @@ func (p *Parser) parseJSONAggregateOrSerialize(fc *nodes.FuncCallExpr) (nodes.Ex
 				return nil, p.syntaxErrorAtCur()
 			}
 		}
-		if err := p.parseJSONConstructorClauses(false, false); err != nil {
+		if err := p.parseJSONConstructorClauses(fc, false, false); err != nil {
 			return nil, err
 		}
 	case "JSON_OBJECTAGG":
-		if err := p.parseJSONConstructorClauses(true, false); err != nil {
+		if err := p.parseJSONConstructorClauses(fc, true, false); err != nil {
 			return nil, err
 		}
 	case "JSON_SERIALIZE":
-		if err := p.parseJSONSerializeClauses(); err != nil {
+		if err := p.parseJSONSerializeClauses(fc); err != nil {
 			return nil, err
 		}
 	}
@@ -133,7 +133,7 @@ func (p *Parser) atJSONKeyValueSeparator(tok Token) bool {
 // (ORA-48503). Which datatypes RETURNING takes, and whether one takes
 // TRUNCATE, is checked when the statement is analyzed (ORA-40449,
 // ORA-40779).
-func (p *Parser) parseJSONConstructorClauses(uniqueKeys, typename bool) error {
+func (p *Parser) parseJSONConstructorClauses(fc *nodes.FuncCallExpr, uniqueKeys, typename bool) error {
 	if (p.cur.Type == kwNULL || p.isKeywordStr("ABSENT")) && p.peekNext().Type == kwON {
 		p.advance() // consume NULL or ABSENT
 		p.advance() // consume ON
@@ -142,7 +142,7 @@ func (p *Parser) parseJSONConstructorClauses(uniqueKeys, typename bool) error {
 		}
 		p.advance()
 	}
-	if err := p.parseJSONReturningClause(); err != nil {
+	if err := p.parseJSONReturningClause(fc); err != nil {
 		return err
 	}
 	if p.isKeywordStr("TRUNCATE") {
@@ -175,13 +175,14 @@ func (p *Parser) parseJSONConstructorClauses(uniqueKeys, typename bool) error {
 	return nil
 }
 
-// parseJSONReturningClause parses an optional RETURNING datatype. A CLOB or
+// parseJSONReturningClause parses an optional RETURNING datatype into
+// fc.Returning. A CLOB or
 // BLOB may say how the LOB is returned, VALUE or REFERENCE (Oracle 23ai runs
 // JSON_OBJECT('a' VALUE 1 RETURNING CLOB VALUE); after VARCHAR2 it is
 // ORA-02000).
 //
 //	RETURNING datatype [ { VALUE | REFERENCE } ]
-func (p *Parser) parseJSONReturningClause() error {
+func (p *Parser) parseJSONReturningClause(fc *nodes.FuncCallExpr) error {
 	if p.cur.Type != kwRETURNING {
 		return nil
 	}
@@ -194,6 +195,7 @@ func (p *Parser) parseJSONReturningClause() error {
 	if tn == nil || tn.Names.Len() == 0 {
 		return p.syntaxErrorAtCur()
 	}
+	fc.Returning = tn
 	if tn.Names.Len() == 1 && start.Type != tokQIDENT && (start.Type == kwCLOB || start.Type == kwBLOB) &&
 		(p.isKeywordStr("VALUE") || p.isKeywordStr("REFERENCE")) {
 		p.advance() // consume VALUE or REFERENCE
@@ -206,8 +208,8 @@ func (p *Parser) parseJSONReturningClause() error {
 // once each (ORA-00939 for a repeat), then ORDERED, then EXTENDED, then one
 // ON ERROR clause (ORA-00907 for another order, ORA-40450 for DEFAULT or a
 // second ON ERROR).
-func (p *Parser) parseJSONSerializeClauses() error {
-	if err := p.parseJSONReturningClause(); err != nil {
+func (p *Parser) parseJSONSerializeClauses(fc *nodes.FuncCallExpr) error {
+	if err := p.parseJSONReturningClause(fc); err != nil {
 		return err
 	}
 	seen := map[string]bool{}

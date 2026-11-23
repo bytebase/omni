@@ -153,6 +153,24 @@
                   "table": "PRODUCTS",
                   "column": "*"
                 }
+              ],
+              "columns": [
+                {
+                  "name": "ID",
+                  "position": 1,
+                  "type": "NUMBER"
+                },
+                {
+                  "name": "NAME",
+                  "position": 2,
+                  "type": "VARCHAR2(100 BYTE)"
+                },
+                {
+                  "name": "PRICE",
+                  "position": 3,
+                  "nullable": true,
+                  "type": "NUMBER(10,2)"
+                }
               ]
             }
           ]
@@ -1328,6 +1346,55 @@
                   "table": "SALES_TRANSACTIONS",
                   "column": "*"
                 }
+              ],
+              "columns": [
+                {
+                  "name": "CUSTOMER_ID",
+                  "position": 1,
+                  "type": "NUMBER"
+                },
+                {
+                  "name": "TOTAL_TRANSACTIONS",
+                  "position": 2,
+                  "nullable": true,
+                  "type": "NUMBER"
+                },
+                {
+                  "name": "ACTIVE_MONTHS",
+                  "position": 3,
+                  "nullable": true,
+                  "type": "NUMBER"
+                },
+                {
+                  "name": "LIFETIME_VALUE",
+                  "position": 4,
+                  "nullable": true,
+                  "type": "NUMBER"
+                },
+                {
+                  "name": "AVG_TRANSACTION_VALUE",
+                  "position": 5,
+                  "nullable": true,
+                  "type": "NUMBER"
+                },
+                {
+                  "name": "LAST_PURCHASE_DATE",
+                  "position": 6,
+                  "nullable": true,
+                  "type": "DATE"
+                },
+                {
+                  "name": "CUSTOMER_STATUS",
+                  "position": 7,
+                  "nullable": true,
+                  "type": "VARCHAR2(8 BYTE)"
+                },
+                {
+                  "name": "MONTHLY_SPEND_RATE",
+                  "position": 8,
+                  "nullable": true,
+                  "type": "NUMBER"
+                }
               ]
             },
             {
@@ -1337,6 +1404,56 @@
                 {
                   "table": "SALES_TRANSACTIONS",
                   "column": "*"
+                }
+              ],
+              "columns": [
+                {
+                  "name": "SALES_MONTH",
+                  "position": 1,
+                  "nullable": true,
+                  "type": "VARCHAR2(7 BYTE)"
+                },
+                {
+                  "name": "REGION",
+                  "position": 2,
+                  "nullable": true,
+                  "type": "VARCHAR2(50 BYTE)"
+                },
+                {
+                  "name": "TRANSACTION_COUNT",
+                  "position": 3,
+                  "nullable": true,
+                  "type": "NUMBER"
+                },
+                {
+                  "name": "TOTAL_QUANTITY",
+                  "position": 4,
+                  "nullable": true,
+                  "type": "NUMBER"
+                },
+                {
+                  "name": "TOTAL_REVENUE",
+                  "position": 5,
+                  "nullable": true,
+                  "type": "NUMBER"
+                },
+                {
+                  "name": "AVG_TRANSACTION_VALUE",
+                  "position": 6,
+                  "nullable": true,
+                  "type": "NUMBER"
+                },
+                {
+                  "name": "FIRST_SALE_DATE",
+                  "position": 7,
+                  "nullable": true,
+                  "type": "DATE"
+                },
+                {
+                  "name": "LAST_SALE_DATE",
+                  "position": 8,
+                  "nullable": true,
+                  "type": "DATE"
                 }
               ]
             }

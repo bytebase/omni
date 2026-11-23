@@ -1,0 +1,476 @@
+# pin: default gvenzl/oracle-free:23.26.3-slim-faststart sha256:f5ff19033860d662c821cb04eb10483fa94f14f78eae252d054291ea07028093 23.26.3.0.0
+# columns: omni, expected, source, fixture, rule, statement
+54058	54058	engine	one_table@column	statement/select	CREATE VIEW v AS SELECT *
+54058	54058	engine	one_table@column	select(select_with_clause)?/select_with_clause	CREATE VIEW v AS WITH FUNCTION a RETURN NUMBER IS BEGIN RETURN 1; END; SELECT *
+3048	3048	engine	one_table@column	select(select_for_update_clause)?/select_for_update_clause	CREATE VIEW v AS SELECT * FOR UPDATE
+54058	54058	engine	one_table@column	select_with_clause(select_plsql_declarations|select_sub~9756867b)+/(select_plsql_declarations|select_sub~9756867b)_(select~4b715358	CREATE VIEW v AS WITH FUNCTION a RETURN NUMBER IS BEGIN RETURN 1; END; FUNCTION a RETURN NUMBER IS BEGIN RETURN 1; END; SELECT *
+54058	54058	engine	one_table@column	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subquery_factoring_clause	CREATE VIEW v AS WITH a AS(SELECT *) SELECT *
+18385	18385	engine	one_table@column	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause	CREATE VIEW v AS WITH a ANALYTIC VIEW AS(USING a) SELECT *
+54058	54058	engine	one_table@column	select_subquery((UNION_ALL?|INTERSECT|MINUS)_select_~dcfcd5c6)*/(UNION_ALL?|INTERSECT|MINUS)_select_query_block_((UNION~296be00b	CREATE VIEW v AS SELECT * UNION SELECT *
+54058	54058	engine	one_table@column	select_subquery(UNION_ALL?|INTERSECT|MINUS)/INTERSECT	CREATE VIEW v AS SELECT * INTERSECT SELECT *
+54058	54058	engine	one_table@column	select_subquery(UNION_ALL?|INTERSECT|MINUS)/MINUS	CREATE VIEW v AS SELECT * MINUS SELECT *
+54058	54058	engine	one_table@column	select_subquery(ALL)?/ALL	CREATE VIEW v AS SELECT * UNION ALL SELECT *
+54058	54058	engine	one_table@column	select_subquery(select_order_by_clause)?/select_order_by_clause	CREATE VIEW v AS SELECT * ORDER BY 1
+3048	3048	engine	one_table@column	select_for_update_clause(OF_((ID_.)?_ID_.)?_ID_(,_((ID_.)?_ID_.)?_ID)?)*/OF_((ID_.)?_ID_.)?_ID_(,_((ID_.)?_ID_.)?_ID)?_(OF_((ID_~0500efb9	CREATE VIEW v AS SELECT * FOR UPDATE OF a
+3048	3048	engine	one_table@column	select_for_update_clause((ID_.)?_ID_.)?/(ID_.)?_ID_.	CREATE VIEW v AS SELECT * FOR UPDATE OF a.a
+3048	3048	engine	one_table@column	select_for_update_clause(ID_.)?/ID_.	CREATE VIEW v AS SELECT * FOR UPDATE OF a.a.a
+3048	3048	engine	one_table@column	select_for_update_clause(,_((ID_.)?_ID_.)?_ID)?/,_((ID_.)?_ID_.)?_ID	CREATE VIEW v AS SELECT * FOR UPDATE OF a, a
+3048	3048	engine	one_table@column	select_for_update_clause(NOWAIT|WAIT_NUMBER|SKIP_LOCKED)?/NOWAIT	CREATE VIEW v AS SELECT * FOR UPDATE NOWAIT
+3048	3048	engine	one_table@column	select_for_update_clause(NOWAIT|WAIT_NUMBER|SKIP_LOCKED)?/WAIT_NUMBER	CREATE VIEW v AS SELECT * FOR UPDATE WAIT 1
+3048	3048	engine	one_table@column	select_for_update_clause(NOWAIT|WAIT_NUMBER|SKIP_LOCKED)?/SKIP_LOCKED	CREATE VIEW v AS SELECT * FOR UPDATE SKIP LOCKED
+54058	54058	engine	one_table@column	select_plsql_declarations(FUNCTION_DECLARATION|PROCEDURE_DECLARATION)/PROCEDURE_DECLARATION	CREATE VIEW v AS WITH PROCEDURE a IS BEGIN NULL; END; SELECT *
+54058	54058	engine	one_table@column	select_subquery_factoring_clause((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)	CREATE VIEW v AS WITH a(a) AS(SELECT *) SELECT *
+54058	54058	engine	one_table@column	select_subquery_factoring_clause(,_ID_((_ID_(,_ID)*_))?_AS_(_select_s~0896ec10)*/,_ID_((_ID_(,_ID)*_))?_AS_(_select_subquery_)_(select_s~d03acef5	CREATE VIEW v AS WITH a AS(SELECT *), a AS(SELECT *) SELECT *
+18385	18385	engine	one_table@column	select_subav_factoring_clause(,_ID_ANALYTIC_VIEW_AS_(_select_sub_a~d45be8c2)*/,_ID_ANALYTIC_VIEW_AS_(_select_sub_av_clause_)_(,_ID_AN~3708ff54	CREATE VIEW v AS WITH a ANALYTIC VIEW AS(USING a), a ANALYTIC VIEW AS(USING a) SELECT *
+54058	54058	engine	one_table@column	select_query_block(HINT)?/HINT	CREATE VIEW v AS SELECT /*+ a */ *
+54058	54058	engine	one_table@column	select_query_block(DISTINCT|UNIQUE|ALL)?/DISTINCT	CREATE VIEW v AS SELECT DISTINCT *
+54058	54058	engine	one_table@column	select_query_block(DISTINCT|UNIQUE|ALL)?/UNIQUE	CREATE VIEW v AS SELECT UNIQUE *
+54058	54058	engine	one_table@column	select_query_block(DISTINCT|UNIQUE|ALL)?/ALL	CREATE VIEW v AS SELECT ALL *
+ok:564867d12b2d	ok:564867d12b2d	engine	one_table@column	select_query_block(FROM_(select_table_reference|select_~8bd93bcd)*/FROM_(select_table_reference|select_join_clause)_(,_(se~e552ac86	CREATE VIEW v AS SELECT * FROM a
+ok:b31f5ba3a7a7	ok:b31f5ba3a7a7	engine	one_table@column	select_query_block(FROM_(select_table_reference|select_~8bd93bcd)*/FROM_(select_table_reference|select_join_clause)_(,_(se~e552ac86!insert	CREATE VIEW v AS SELECT * FROM a zzz
+918	918	engine	one_table@column	select_query_block(select_table_reference|select_join_clause)/select_join_clause	CREATE VIEW v AS SELECT * FROM a CROSS JOIN a
+957	957	engine	one_table@column	select_query_block(select_table_reference|select_join_clause)/select_join_clause!insert	CREATE VIEW v AS SELECT * FROM a CROSS JOIN a zzz
+918	918	engine	one_table@column	select_query_block(,_(select_table_reference|select_join_clause))?/,_(select_table_reference|select_join_clause)	CREATE VIEW v AS SELECT * FROM a, a
+957	957	engine	one_table@column	select_query_block(,_(select_table_reference|select_join_clause))?/,_(select_table_reference|select_join_clause)!insert	CREATE VIEW v AS SELECT * FROM a, a zzz
+54058	54058	engine	one_table@column	select_query_block(select_where_clause)?/select_where_clause	CREATE VIEW v AS SELECT * WHERE 1 = 1
+54058	54058	engine	one_table@column	select_query_block(select_hierarchical_query_clause)?/select_hierarchical_query_clause	CREATE VIEW v AS SELECT * CONNECT BY 1 = 1
+54058	54058	engine	one_table@column	select_query_block(select_group_by_clause)?/select_group_by_clause	CREATE VIEW v AS SELECT * GROUP BY 1
+54058	54058	engine	one_table@column	select_query_block(select_window_clause)?/select_window_clause	CREATE VIEW v AS SELECT * WINDOW a AS()
+54058	54058	engine	one_table@column	select_query_block(select_qualify_clause)?/select_qualify_clause	CREATE VIEW v AS SELECT * QUALIFY 1 = 1
+54058	54058	engine	one_table@column	select_order_by_clause(EXPR|NUMBER|ID)/ID	CREATE VIEW v AS SELECT * ORDER BY a
+54058	54058	engine	one_table@column	select_order_by_clause(ASC|DESC)?/ASC	CREATE VIEW v AS SELECT * ORDER BY 1 ASC
+54058	54058	engine	one_table@column	select_order_by_clause(ASC|DESC)?/DESC	CREATE VIEW v AS SELECT * ORDER BY 1 DESC
+54058	54058	engine	one_table@column	select_order_by_clause(NULLS_FIRST|NULLS_LAST)?/NULLS_FIRST	CREATE VIEW v AS SELECT * ORDER BY 1 NULLS FIRST
+54058	54058	engine	one_table@column	select_order_by_clause(NULLS_FIRST|NULLS_LAST)?/NULLS_LAST	CREATE VIEW v AS SELECT * ORDER BY 1 NULLS LAST
+54058	54058	engine	one_table@column	select_order_by_clause(,_(EXPR|NUMBER|ID)_(ASC|DESC)?_(NULL~9409409b)*/,_(EXPR|NUMBER|ID)_(ASC|DESC)?_(NULLS_FIRST|NULLS_LAST)~c78c564f	CREATE VIEW v AS SELECT * ORDER BY 1, 1
+54058	54058	engine	one_table@column	select_row_limiting_clause(OFFSET_NUMBER_(ROW|ROWS))?/OFFSET_NUMBER_(ROW|ROWS)	CREATE VIEW v AS SELECT * OFFSET 1 ROW
+54058	54058	engine	one_table@column	select_row_limiting_clause(ROW|ROWS)/ROWS	CREATE VIEW v AS SELECT * OFFSET 1 ROWS
+54058	54058	engine	one_table@column	select_row_limiting_clause(FETCH_(FIRST|NEXT)_((NUMBER|NUMBER_P~7b3d57fd)?/FETCH_(FIRST|NEXT)_((NUMBER|NUMBER_PERCENT))?_(ROW|ROWS~a2e9f4e6	CREATE VIEW v AS SELECT * FETCH FIRST ROW ONLY
+54058	54058	engine	one_table@column	select_row_limiting_clause(FIRST|NEXT)/FIRST!insert	CREATE VIEW v AS SELECT * FETCH FIRST zzz ROW ONLY
+54058	54058	engine	one_table@column	select_row_limiting_clause(FIRST|NEXT)/NEXT	CREATE VIEW v AS SELECT * FETCH NEXT ROW ONLY
+54058	54058	engine	one_table@column	select_row_limiting_clause(FIRST|NEXT)/NEXT!insert	CREATE VIEW v AS SELECT * FETCH NEXT zzz ROW ONLY
+54058	54058	engine	one_table@column	select_row_limiting_clause((NUMBER|NUMBER_PERCENT))?/(NUMBER|NUMBER_PERCENT)	CREATE VIEW v AS SELECT * FETCH FIRST 1 ROW ONLY
+54058	54058	engine	one_table@column	select_row_limiting_clause(NUMBER|NUMBER_PERCENT)/NUMBER_PERCENT	CREATE VIEW v AS SELECT * FETCH FIRST 1 PERCENT ROW ONLY
+54058	54058	engine	one_table@column	select_row_limiting_clause(NUMBER|NUMBER_PERCENT)/NUMBER_PERCENT!drop-1	CREATE VIEW v AS SELECT * FETCH FIRST PERCENT ROW ONLY
+54058	54058	engine	one_table@column	select_row_limiting_clause(ONLY|WITH_TIES)/WITH_TIES	CREATE VIEW v AS SELECT * FETCH FIRST ROW WITH TIES
+18307	18307	engine	one_table@column	select_sub_av_clause/USING_(ID_.)?_ID_(select_hierarchies_clause)?_(select_f~134cef37	CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW(USING a)
+18307	18307	engine	one_table@column	select_sub_av_clause(ID_.)?/ID_.	CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW(USING a.a)
+18370	18370	engine	one_table@column	select_sub_av_clause(select_hierarchies_clause)?/select_hierarchies_clause	CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES())
+18307	18307	engine	one_table@column	select_sub_av_clause(select_filter_clauses)?/select_filter_clauses	CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1))
+904	904	engine	one_table@column	select_select_list(*|(ID|(ID_.)?_ID)_._*|EXPR_(AS?_ID)?)/(ID|(ID_.)?_ID)_._*	CREATE VIEW v AS SELECT a.*
+998	998	engine	one_table@column	select_select_list(*|(ID|(ID_.)?_ID)_._*|EXPR_(AS?_ID)?)/EXPR_(AS?_ID)?	CREATE VIEW v AS SELECT 1
+ok:b7f121630f3d	ok:b7f121630f3d	engine	one_table@column	select_select_list(*|(ID|(ID_.)?_ID)_._*|EXPR_(AS?_ID)?)/EXPR_(AS?_ID)?!insert	CREATE VIEW v AS SELECT 1 zzz
+964	964	engine	one_table@column	select_select_list(ID_.)?/ID_.	CREATE VIEW v AS SELECT a.a.*
+904	904	engine	one_table@column	select_select_list(ID_.)?/ID_.!truncate	CREATE VIEW v AS SELECT a
+ok:9c431cc364fb	ok:9c431cc364fb	engine	one_table@column	select_select_list(AS?_ID)?/(AS)?_ID	CREATE VIEW v AS SELECT 1 a
+ok:87e12ea68388	ok:87e12ea68388	engine	one_table@column	select_select_list(AS)?/AS	CREATE VIEW v AS SELECT 1 AS a
+918	918	engine	one_table@column	select_table_reference(select_query_table_expression|(_sele~c75286c6)/(_select_join_clause_)	CREATE VIEW v AS SELECT * FROM(a CROSS JOIN a)
+ok:932ad4c66ee1	ok:932ad4c66ee1	engine	one_table@column	select_table_reference(ID)?/ID	CREATE VIEW v AS SELECT * FROM a a
+957	957	engine	one_table@column	select_join_clause(select_inner_cross_join_clause|selec~9f7da593)+/(select_inner_cross_join_clause|selec~9f7da593)_(select~b37474d0	CREATE VIEW v AS SELECT * FROM a CROSS JOIN a CROSS JOIN a
+957	957	engine	one_table@column	select_join_clause(select_inner_cross_join_clause|selec~9f7da593)+/(select_inner_cross_join_clause|selec~9f7da593)_(select~b37474d0!insert	CREATE VIEW v AS SELECT * FROM a CROSS JOIN a CROSS JOIN a zzz
+ok:a8647e04bf3f	ok:a8647e04bf3f	engine	one_table@column	select_join_clause(select_inner_cross_join_clause|selec~9f7da593)/select_outer_join_clause	CREATE VIEW v AS SELECT * FROM a NATURAL LEFT JOIN a
+ok:4a738db2570b	ok:4a738db2570b	engine	one_table@column	select_join_clause(select_inner_cross_join_clause|selec~9f7da593)/select_outer_join_clause!insert	CREATE VIEW v AS SELECT * FROM a NATURAL LEFT JOIN a zzz
+918	918	engine	one_table@column	select_join_clause(select_inner_cross_join_clause|selec~9f7da593)/select_cross_outer_apply_clause	CREATE VIEW v AS SELECT * FROM a CROSS APPLY a
+957	957	engine	one_table@column	select_join_clause(select_inner_cross_join_clause|selec~9f7da593)/select_cross_outer_apply_clause!insert	CREATE VIEW v AS SELECT * FROM a CROSS APPLY a zzz
+54058	54058	engine	one_table@column	select_hierarchical_query_clause(START_WITH_CONDITION_CONNECT_BY_NOCY~eab0fe1c)/START_WITH_CONDITION_CONNECT_BY_(NOCYCLE)?_CONDITION	CREATE VIEW v AS SELECT * START WITH 1 = 1 CONNECT BY 1 = 1
+54058	54058	engine	one_table@column	select_hierarchical_query_clause(NOCYCLE)?/NOCYCLE	CREATE VIEW v AS SELECT * CONNECT BY NOCYCLE 1 = 1
+54058	54058	engine	one_table@column	select_hierarchical_query_clause(START_WITH_CONDITION)?/START_WITH_CONDITION	CREATE VIEW v AS SELECT * CONNECT BY 1 = 1 START WITH 1 = 1
+54058	54058	engine	one_table@column	select_group_by_clause(EXPR|select_rollup_cube_clause|selec~60edfde7)/select_rollup_cube_clause	CREATE VIEW v AS SELECT * GROUP BY ROLLUP(1)
+54058	54058	engine	one_table@column	select_group_by_clause(EXPR|select_rollup_cube_clause|selec~60edfde7)/select_rollup_cube_clause!drop-1	CREATE VIEW v AS SELECT * GROUP BY(1)
+54058	54058	engine	one_table@column	select_group_by_clause(EXPR|select_rollup_cube_clause|selec~60edfde7)/select_rollup_cube_clause!swap	CREATE VIEW v AS SELECT * GROUP BY ROOT(1)
+54058	54058	engine	one_table@column	select_group_by_clause(EXPR|select_rollup_cube_clause|selec~60edfde7)/select_grouping_sets_clause	CREATE VIEW v AS SELECT * GROUP BY GROUPING SETS(1)
+54058	54058	engine	one_table@column	select_group_by_clause(EXPR|select_rollup_cube_clause|selec~60edfde7)/select_grouping_sets_clause!drop-1	CREATE VIEW v AS SELECT * GROUP BY SETS(1)
+54058	54058	engine	one_table@column	select_group_by_clause(,_(EXPR|select_rollup_cube_clause|se~d057cb85)*/,_(EXPR|select_rollup_cube_clause|selec~60edfde7)_(,_(E~5fc42efa	CREATE VIEW v AS SELECT * GROUP BY 1, 1
+54058	54058	engine	one_table@column	select_group_by_clause(HAVING_CONDITION)?/HAVING_CONDITION	CREATE VIEW v AS SELECT * GROUP BY 1 HAVING 1 = 1
+18370	18370	engine	one_table@column	select_hierarchies_clause((ID_.)?_ID_(,_ID)?)*/%empty!insert	CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(zzz))
+18370	18370	engine	one_table@column	select_hierarchies_clause((ID_.)?_ID_(,_ID)?)*/(ID_.)?_ID_(,_ID)?_((ID_.)?_ID_(,_ID)?)*	CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(a))
+18370	18370	engine	one_table@column	select_hierarchies_clause(ID_.)?/ID_.	CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(a.a))
+18370	18370	engine	one_table@column	select_hierarchies_clause(,_ID)?/,_ID	CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(a, a))
+18307	18307	engine	one_table@column	select_filter_clauses(,_select_filter_clause)*/,_select_filter_clause_(,_select_filter_clause)*	CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1, a TO 1 = 1))
+54058	54058	engine	one_table@column	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/(_select_subquery_(select_subquery_restriction_clause)?_)	CREATE VIEW v AS SELECT * FROM(SELECT *)
+54058	54058	engine	one_table@column	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/(_select_subquery_(select_subquery_restriction_clause)?_)!insert	CREATE VIEW v AS SELECT * FROM(SELECT *) zzz
+22905	22905	engine	one_table@column	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/select_table_collection_expression	CREATE VIEW v AS SELECT * FROM TABLE(1)
+22905	22905	engine	one_table@column	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/select_table_collection_expression!insert	CREATE VIEW v AS SELECT * FROM TABLE(1) zzz
+904	904	engine	one_table@column	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/select_table_collection_expression!swap	CREATE VIEW v AS SELECT * FROM TABLES(1)
+18307	18307	engine	one_table@column	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/select_inline_analytic_view!insert	CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW(USING a) zzz
+942	942	engine	one_table@column	select_query_table_expression(ID_.)?/%empty!insert	CREATE VIEW v AS SELECT * FROM zzz a
+942	942	engine	one_table@column	select_query_table_expression(ID_.)?/ID_.	CREATE VIEW v AS SELECT * FROM a.a
+942	942	engine	one_table@column	select_query_table_expression(ID_.)?/ID_.!insert	CREATE VIEW v AS SELECT * FROM a.zzz a
+14501	14501	engine	one_table@column	select_query_table_expression(select_partition_extension_clause)?/select_partition_extension_clause	CREATE VIEW v AS SELECT * FROM a PARTITION(a)
+904	904	engine	one_table@column	select_query_table_expression(select_partition_extension_clause)?/select_partition_extension_clause!drop-1	CREATE VIEW v AS SELECT * FROM a(a)
+14501	14501	engine	one_table@column	select_query_table_expression(select_partition_extension_clause)?/select_partition_extension_clause!insert	CREATE VIEW v AS SELECT * FROM a PARTITION(a) zzz
+2019	2019	engine	one_table@column	select_query_table_expression(@_ID)?/@_ID	CREATE VIEW v AS SELECT * FROM a@a
+2019	2019	engine	one_table@column	select_query_table_expression(@_ID)?/@_ID!insert	CREATE VIEW v AS SELECT * FROM a@a zzz
+8181	8181	engine	one_table@column	select_query_table_expression(select_flashback_query_clause)?/select_flashback_query_clause	CREATE VIEW v AS SELECT * FROM a AS OF SCN 1
+8181	8181	engine	one_table@column	select_query_table_expression(select_flashback_query_clause)?/select_flashback_query_clause!insert	CREATE VIEW v AS SELECT * FROM a AS OF SCN 1 zzz
+ok:f327c82e5afe	ok:f327c82e5afe	engine	one_table@column	select_query_table_expression(select_sample_clause)?/select_sample_clause	CREATE VIEW v AS SELECT * FROM a SAMPLE(1)
+904	904	engine	one_table@column	select_query_table_expression(select_sample_clause)?/select_sample_clause!drop-1	CREATE VIEW v AS SELECT * FROM a(1)
+ok:e4cb6e5f2d6c	ok:e4cb6e5f2d6c	engine	one_table@column	select_query_table_expression(select_sample_clause)?/select_sample_clause!insert	CREATE VIEW v AS SELECT * FROM a SAMPLE(1) zzz
+56902	56902	engine	one_table@column	select_query_table_expression(select_pivot_clause|select_unpivot_clause)?/select_pivot_clause	CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) FOR a IN(1))
+56902	56902	engine	one_table@column	select_query_table_expression(select_pivot_clause|select_unpivot_clause)?/select_pivot_clause!drop-3	CREATE VIEW v AS SELECT * FROM a PIVOT((1) FOR a IN(1))
+56902	56902	engine	one_table@column	select_query_table_expression(select_pivot_clause|select_unpivot_clause)?/select_pivot_clause!drop-5	CREATE VIEW v AS SELECT * FROM a PIVOT(a() FOR a IN(1))
+56902	56902	engine	one_table@column	select_query_table_expression(select_pivot_clause|select_unpivot_clause)?/select_pivot_clause!drop-11	CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) FOR a IN())
+56902	56902	engine	one_table@column	select_query_table_expression(select_pivot_clause|select_unpivot_clause)?/select_pivot_clause!insert	CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) FOR a IN(1)) zzz
+918	918	engine	one_table@column	select_query_table_expression(select_pivot_clause|select_unpivot_clause)?/select_unpivot_clause	CREATE VIEW v AS SELECT * FROM a UNPIVOT(a FOR a IN(a))
+918	918	engine	one_table@column	select_query_table_expression(select_pivot_clause|select_unpivot_clause)?/select_unpivot_clause!insert	CREATE VIEW v AS SELECT * FROM a UNPIVOT(a FOR a IN(a)) zzz
+30732	30732	engine	one_table@column	select_query_table_expression(select_row_pattern_clause)?/select_row_pattern_clause	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
+30732	30732	engine	one_table@column	select_query_table_expression(select_row_pattern_clause)?/select_row_pattern_clause!insert	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1) zzz
+918	918	engine	one_table@column	select_inner_cross_join_clause(INNER?_JOIN_select_table_reference_(~76389665)/(INNER)?_JOIN_select_table_reference_(ON_CONDITION|USIN~8de0cc42	CREATE VIEW v AS SELECT * FROM a JOIN a ON 1 = 1
+918	918	engine	one_table@column	select_inner_cross_join_clause(INNER?_JOIN_select_table_reference_(~76389665)/NATURAL_(INNER)?_JOIN_select_table_reference	CREATE VIEW v AS SELECT * FROM a NATURAL JOIN a
+ok:3af8b8f6e036	ok:3af8b8f6e036	engine	one_table@column	select_inner_cross_join_clause(INNER?_JOIN_select_table_reference_(~76389665)/NATURAL_(INNER)?_JOIN_select_table_reference!insert	CREATE VIEW v AS SELECT * FROM a NATURAL JOIN a zzz
+918	918	engine	one_table@column	select_inner_cross_join_clause(INNER)?/INNER	CREATE VIEW v AS SELECT * FROM a NATURAL INNER JOIN a
+ok:e13ded8319b0	ok:e13ded8319b0	engine	one_table@column	select_inner_cross_join_clause(INNER)?/INNER!truncate	CREATE VIEW v AS SELECT * FROM a NATURAL
+918	918	engine	one_table@column	select_inner_cross_join_clause(ON_CONDITION|USING_(_ID_(,_ID)*_))/USING_(_ID_(,_ID)*_)	CREATE VIEW v AS SELECT * FROM a JOIN a USING(a)
+918	918	engine	one_table@column	select_inner_cross_join_clause(,_ID)*/,_ID_(,_ID)*	CREATE VIEW v AS SELECT * FROM a JOIN a USING(a, a)
+957	957	engine	one_table@column	select_cross_outer_apply_clause(CROSS|OUTER)/OUTER	CREATE VIEW v AS SELECT * FROM a OUTER APPLY a
+54058	54058	engine	one_table@column	select_rollup_cube_clause(ROLLUP|CUBE)/CUBE	CREATE VIEW v AS SELECT * GROUP BY CUBE(1)
+54058	54058	engine	one_table@column	select_grouping_sets_clause(select_rollup_cube_clause|select_gro~f47814e7)/select_rollup_cube_clause	CREATE VIEW v AS SELECT * GROUP BY GROUPING SETS(ROLLUP(1))
+54058	54058	engine	one_table@column	select_grouping_sets_clause(select_rollup_cube_clause|select_gro~f47814e7)/select_rollup_cube_clause!drop-1	CREATE VIEW v AS SELECT * GROUP BY GROUPING SETS((1))
+54058	54058	engine	one_table@column	select_grouping_sets_clause(select_rollup_cube_clause|select_gro~f47814e7)/select_rollup_cube_clause!swap	CREATE VIEW v AS SELECT * GROUP BY GROUPING SETS(ROOT(1))
+54058	54058	engine	one_table@column	select_grouping_sets_clause(,_(select_rollup_cube_clause|select_~3d14bc60)*/,_(select_rollup_cube_clause|select_gro~f47814e7)_(,_(s~37e07cc8	CREATE VIEW v AS SELECT * GROUP BY GROUPING SETS(1, 1)
+54058	54058	engine	one_table@column	select_window_specification(select_query_partition_clause)?/select_query_partition_clause	CREATE VIEW v AS SELECT * WINDOW a AS(PARTITION BY 1)
+54058	54058	engine	one_table@column	select_window_specification(select_order_by_clause)?/select_order_by_clause	CREATE VIEW v AS SELECT * WINDOW a AS(ORDER BY 1)
+18307	18307	engine	one_table@column	select_cube_meas(select_base_meas_clause|select_calc_~bff5c397)/select_calc_meas_clause	CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a AS(1)))
+14501	14501	engine	one_table@column	select_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/PARTITION_FOR_(_EXPR_(,_EXPR)*_)	CREATE VIEW v AS SELECT * FROM a PARTITION FOR(1)
+14501	14501	engine	one_table@column	select_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/PARTITION_FOR_(_EXPR_(,_EXPR)*_)!drop-2	CREATE VIEW v AS SELECT * FROM a PARTITION(1)
+14501	14501	engine	one_table@column	select_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/PARTITION_FOR_(_EXPR_(,_EXPR)*_)!insert	CREATE VIEW v AS SELECT * FROM a PARTITION FOR(1) zzz
+14501	14501	engine	one_table@column	select_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/SUBPARTITION_(_ID_)	CREATE VIEW v AS SELECT * FROM a SUBPARTITION(a)
+14501	14501	engine	one_table@column	select_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/SUBPARTITION_(_ID_)!insert	CREATE VIEW v AS SELECT * FROM a SUBPARTITION(a) zzz
+14501	14501	engine	one_table@column	select_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/SUBPARTITION_FOR_(_EXPR_(,_EXPR)*_)	CREATE VIEW v AS SELECT * FROM a SUBPARTITION FOR(1)
+14501	14501	engine	one_table@column	select_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/SUBPARTITION_FOR_(_EXPR_(,_EXPR)*_)!drop-2	CREATE VIEW v AS SELECT * FROM a SUBPARTITION(1)
+14501	14501	engine	one_table@column	select_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/SUBPARTITION_FOR_(_EXPR_(,_EXPR)*_)!insert	CREATE VIEW v AS SELECT * FROM a SUBPARTITION FOR(1) zzz
+14501	14501	engine	one_table@column	select_partition_extension_clause(,_EXPR)*/,_EXPR_(,_EXPR)*	CREATE VIEW v AS SELECT * FROM a PARTITION FOR(1, 1)
+22905	22905	engine	one_table@column	select_table_collection_expression((_+_))?/(_+_)	CREATE VIEW v AS SELECT * FROM TABLE(1)(+)
+22905	22905	engine	one_table@column	select_table_collection_expression((_+_))?/(_+_)!insert	CREATE VIEW v AS SELECT * FROM TABLE(1)(+) zzz
+18307	18307	engine	one_table@column	select_inline_analytic_view(ID)?/ID	CREATE VIEW v AS SELECT * FROM ANALYTIC VIEW(USING a) a
+8181	8181	engine	one_table@column	select_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXPR_AND_EXPR	CREATE VIEW v AS SELECT * FROM a VERSIONS BETWEEN SCN 1 AND 1
+8181	8181	engine	one_table@column	select_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXPR_AND_EXPR!insert	CREATE VIEW v AS SELECT * FROM a VERSIONS BETWEEN SCN 1 AND 1 zzz
+55603	55603	engine	one_table@column	select_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/VERSIONS_PERIOD_FOR_ID_BETWEEN_EXPR_AND_EXPR	CREATE VIEW v AS SELECT * FROM a VERSIONS PERIOD FOR a BETWEEN 1 AND 1
+55603	55603	engine	one_table@column	select_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/VERSIONS_PERIOD_FOR_ID_BETWEEN_EXPR_AND_EXPR!insert	CREATE VIEW v AS SELECT * FROM a VERSIONS PERIOD FOR a BETWEEN 1 AND 1 zzz
+55603	55603	engine	one_table@column	select_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/AS_OF_PERIOD_FOR_ID_EXPR	CREATE VIEW v AS SELECT * FROM a AS OF PERIOD FOR a 1
+55603	55603	engine	one_table@column	select_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/AS_OF_PERIOD_FOR_ID_EXPR!insert	CREATE VIEW v AS SELECT * FROM a AS OF PERIOD FOR a 1 zzz
+932	932	engine	one_table@column	select_flashback_query_clause(SCN|TIMESTAMP)/TIMESTAMP	CREATE VIEW v AS SELECT * FROM a AS OF TIMESTAMP 1
+ok:48a7f1ebdb46	ok:48a7f1ebdb46	engine	one_table@column	select_sample_clause(BLOCK)?/BLOCK	CREATE VIEW v AS SELECT * FROM a SAMPLE BLOCK(1)
+ok:743685dcd940	ok:743685dcd940	engine	one_table@column	select_sample_clause(BLOCK)?/BLOCK!truncate	CREATE VIEW v AS SELECT * FROM a SAMPLE
+ok:2b7742a5abcc	ok:2b7742a5abcc	engine	one_table@column	select_sample_clause(SEED_(_NUMBER_))?/SEED_(_NUMBER_)	CREATE VIEW v AS SELECT * FROM a SAMPLE(1) SEED(1)
+ok:8920da313827	ok:8920da313827	engine	one_table@column	select_sample_clause(SEED_(_NUMBER_))?/SEED_(_NUMBER_)!insert	CREATE VIEW v AS SELECT * FROM a SAMPLE(1) SEED(1) zzz
+ok:933eafd5b0f7	ok:933eafd5b0f7	engine	one_table@column	select_pivot_clause(XML)?/XML!truncate	CREATE VIEW v AS SELECT * FROM a PIVOT
+56902	56902	engine	one_table@column	select_pivot_clause(AS?_ID)?/%empty!insert	CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) zzz FOR a IN(1))
+56902	56902	engine	one_table@column	select_pivot_clause(AS?_ID)?/(AS)?_ID	CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) a FOR a IN(1))
+56902	56902	engine	one_table@column	select_pivot_clause(AS)?/AS	CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) AS a FOR a IN(1))
+56902	56902	engine	one_table@column	select_pivot_clause(,_ID_(_EXPR_)_(AS?_ID)?)*/,_ID_(_EXPR_)_(AS?_ID)?_(,_ID_(_EXPR_)_(AS?_ID)?)*	CREATE VIEW v AS SELECT * FROM a PIVOT(a(1), a(1) FOR a IN(1))
+56902	56902	engine	one_table@column	select_pivot_clause(,_ID_(_EXPR_)_(AS?_ID)?)*/,_ID_(_EXPR_)_(AS?_ID)?_(,_ID_(_EXPR_)_(AS?_ID)?)*!drop-2	CREATE VIEW v AS SELECT * FROM a PIVOT(a(1),(1) FOR a IN(1))
+56902	56902	engine	one_table@column	select_pivot_clause(,_ID_(_EXPR_)_(AS?_ID)?)*/,_ID_(_EXPR_)_(AS?_ID)?_(,_ID_(_EXPR_)_(AS?_ID)?)*!drop-4	CREATE VIEW v AS SELECT * FROM a PIVOT(a(1), a() FOR a IN(1))
+56902	56902	engine	one_table@column	select_pivot_clause(,_ID_(_EXPR_)_(AS?_ID)?)*/,_ID_(_EXPR_)_(AS?_ID)?_(,_ID_(_EXPR_)_(AS?_ID)?)*!insert	CREATE VIEW v AS SELECT * FROM a PIVOT(a(1), a(1) zzz FOR a IN(1))
+918	918	engine	one_table@column	select_unpivot_clause((INCLUDE|EXCLUDE)_NULLS)?/(INCLUDE|EXCLUDE)_NULLS	CREATE VIEW v AS SELECT * FROM a UNPIVOT INCLUDE NULLS(a FOR a IN(a))
+ok:e800871debc0	ok:e800871debc0	engine	one_table@column	select_unpivot_clause(INCLUDE|EXCLUDE)/INCLUDE!truncate	CREATE VIEW v AS SELECT * FROM a UNPIVOT
+918	918	engine	one_table@column	select_unpivot_clause(INCLUDE|EXCLUDE)/EXCLUDE	CREATE VIEW v AS SELECT * FROM a UNPIVOT EXCLUDE NULLS(a FOR a IN(a))
+918	918	engine	one_table@column	select_unpivot_clause(ID|(_ID_(,_ID)*_))/(_ID_(,_ID)*_)	CREATE VIEW v AS SELECT * FROM a UNPIVOT((a) FOR a IN(a))
+ok:048474b03aa4	ok:048474b03aa4	engine	one_table@column	select_row_pattern_clause(PARTITION_BY_ID_(,_ID)?)*/PARTITION_BY_ID_(,_ID)?_(PARTITION_BY_ID_(,_ID)?)*	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PARTITION BY a PATTERN(a) DEFINE a AS 1 = 1)
+918	918	engine	one_table@column	select_row_pattern_clause(,_ID)?/,_ID	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PARTITION BY a, a PATTERN(a) DEFINE a AS 1 = 1)
+30732	30732	engine	one_table@column	select_row_pattern_clause(ORDER_BY_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)?)*/ORDER_BY_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)?_(ORDER_BY_I~9c32883e	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(ORDER BY a PATTERN(a) DEFINE a AS 1 = 1)
+30732	30732	engine	one_table@column	select_row_pattern_clause(ASC|DESC)?/ASC	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(ORDER BY a ASC PATTERN(a) DEFINE a AS 1 = 1)
+30732	30732	engine	one_table@column	select_row_pattern_clause(ASC|DESC)?/DESC	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(ORDER BY a DESC PATTERN(a) DEFINE a AS 1 = 1)
+30732	30732	engine	one_table@column	select_row_pattern_clause(,_ID_(ASC|DESC)?)?/,_ID_(ASC|DESC)?	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(ORDER BY a, a PATTERN(a) DEFINE a AS 1 = 1)
+ok:e6814da3cf39	ok:e6814da3cf39	engine	one_table@column	select_row_pattern_clause(MEASURES_select_row_pattern_measure_~43a3f907)*/MEASURES_select_row_pattern_measure_column_(,_select_ro~016921a9	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(MEASURES 1 AS a PATTERN(a) DEFINE a AS 1 = 1)
+ok:2aa5c7d3b57c	ok:2aa5c7d3b57c	engine	one_table@column	select_row_pattern_clause(MEASURES_select_row_pattern_measure_~43a3f907)*/MEASURES_select_row_pattern_measure_column_(,_select_ro~016921a9!drop-3	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(MEASURES 1 a PATTERN(a) DEFINE a AS 1 = 1)
+918	918	engine	one_table@column	select_row_pattern_clause(,_select_row_pattern_measure_column)?/,_select_row_pattern_measure_column	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(MEASURES 1 AS a, 1 AS a PATTERN(a) DEFINE a AS 1 = 1)
+918	918	engine	one_table@column	select_row_pattern_clause(,_select_row_pattern_measure_column)?/,_select_row_pattern_measure_column!drop-3	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(MEASURES 1 AS a, 1 a PATTERN(a) DEFINE a AS 1 = 1)
+30732	30732	engine	one_table@column	select_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ONE_ROW_PER_MATCH	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(ONE ROW PER MATCH PATTERN(a) DEFINE a AS 1 = 1)
+ok:01206983b4b1	ok:01206983b4b1	engine	one_table@column	select_row_pattern_clause(ONE_ROW_PER_MATCH|ALL_ROWS_PER_MATCH~f6d1de34)?/ALL_ROWS_PER_MATCH_((SHOW|OMIT)_EMPTY_MATCHES)?	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH PATTERN(a) DEFINE a AS 1 = 1)
+ok:41976fff1c33	ok:41976fff1c33	engine	one_table@column	select_row_pattern_clause((SHOW|OMIT)_EMPTY_MATCHES)?/(SHOW|OMIT)_EMPTY_MATCHES	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH SHOW EMPTY MATCHES PATTERN(a) DEFINE a AS 1 = 1)
+ok:170d73325232	ok:170d73325232	engine	one_table@column	select_row_pattern_clause(SHOW|OMIT)/OMIT	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(ALL ROWS PER MATCH OMIT EMPTY MATCHES PATTERN(a) DEFINE a AS 1 = 1)
+30732	30732	engine	one_table@column	select_row_pattern_clause(AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_N~dd2699a4)?/AFTER_MATCH_SKIP_(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO a PATTERN(a) DEFINE a AS 1 = 1)
+30732	30732	engine	one_table@column	select_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/PAST_LAST_ROW	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP PAST LAST ROW PATTERN(a) DEFINE a AS 1 = 1)
+30732	30732	engine	one_table@column	select_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_NEXT_ROW	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO NEXT ROW PATTERN(a) DEFINE a AS 1 = 1)
+30732	30732	engine	one_table@column	select_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_FIRST_ID	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO FIRST a PATTERN(a) DEFINE a AS 1 = 1)
+30732	30732	engine	one_table@column	select_row_pattern_clause(PAST_LAST_ROW|TO_NEXT_ROW|TO_FIRST_I~6541ba39)/TO_LAST_ID	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(AFTER MATCH SKIP TO LAST a PATTERN(a) DEFINE a AS 1 = 1)
+62503	62503	engine	one_table@column	select_row_pattern_clause(SUBSET_select_subset_item_(,_select_~4db50196)*/SUBSET_select_subset_item_(,_select_subset_item)?_(SUBS~45913c10	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a) DEFINE a AS 1 = 1)
+62503	62503	engine	one_table@column	select_row_pattern_clause(,_select_subset_item)?/,_select_subset_item	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a), a =(a) DEFINE a AS 1 = 1)
+62503	62503	engine	one_table@column	select_row_pattern_clause(,_select_row_pattern_definition)*/,_select_row_pattern_definition_(,_select_row_pattern_d~dd8aee63	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1, a AS 1 = 1)
+54058	54058	engine	one_table@column	select_query_partition_clause(EXPR_(,_EXPR)*|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)	CREATE VIEW v AS SELECT * WINDOW a AS(PARTITION BY(1))
+54058	54058	engine	one_table@column	select_query_partition_clause(,_EXPR)*/,_EXPR_(,_EXPR)*	CREATE VIEW v AS SELECT * WINDOW a AS(PARTITION BY 1, 1)
+ok:bd3f0d9d8db9	ok:bd3f0d9d8db9	engine	one_table@column	select_outer_join_type(LEFT|RIGHT|FULL)/RIGHT	CREATE VIEW v AS SELECT * FROM a NATURAL RIGHT JOIN a
+918	918	engine	one_table@column	select_outer_join_type(LEFT|RIGHT|FULL)/FULL	CREATE VIEW v AS SELECT * FROM a NATURAL FULL JOIN a
+ok:bb94bd73939c	ok:bb94bd73939c	engine	one_table@column	select_outer_join_type(OUTER)?/OUTER	CREATE VIEW v AS SELECT * FROM a NATURAL LEFT OUTER JOIN a
+54058	54058	engine	one_table@column	select_grouping_expression_list(,_select_expression_list)*/,_select_expression_list_(,_select_expression_list)*	CREATE VIEW v AS SELECT * GROUP BY ROLLUP(1, 1)
+918	918	engine	one_table@column	select_pivot_for_clause(ID|(_ID_(,_ID)*_))/(_ID_(,_ID)*_)	CREATE VIEW v AS SELECT * FROM a UNPIVOT(a FOR(a) IN(a))
+918	918	engine	one_table@column	select_pivot_for_clause(,_ID)*/,_ID_(,_ID)*	CREATE VIEW v AS SELECT * FROM a UNPIVOT(a FOR(a, a) IN(a))
+56902	56902	engine	one_table@column	select_pivot_in_clause((EXPR|(_EXPR_(,_EXPR)*_))_(AS?_ID)?_~59a8d171)/(EXPR|(_EXPR_(,_EXPR)*_))_(AS?_ID)?_(,_(EXPR|(_EXPR_(,_~2b550425!insert	CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) FOR a IN(1 zzz))
+56901	56901	engine	one_table@column	select_pivot_in_clause((EXPR|(_EXPR_(,_EXPR)*_))_(AS?_ID)?_~59a8d171)/ANY_(,_ANY)*!swap	CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) FOR a IN(ANYSCHEMA))
+56902	56902	engine	one_table@column	select_pivot_in_clause(EXPR|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)	CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) FOR a IN((1)))
+56902	56902	engine	one_table@column	select_pivot_in_clause(EXPR|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)!insert	CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) FOR a IN((1) zzz))
+56902	56902	engine	one_table@column	select_pivot_in_clause(AS?_ID)?/(AS)?_ID	CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) FOR a IN(1 a))
+56902	56902	engine	one_table@column	select_pivot_in_clause(AS)?/AS	CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) FOR a IN(1 AS a))
+56902	56902	engine	one_table@column	select_pivot_in_clause(,_(EXPR|(_EXPR_(,_EXPR)*_))_(AS?_ID)?)*/,_(EXPR|(_EXPR_(,_EXPR)*_))_(AS?_ID)?_(,_(EXPR|(_EXPR_(~bc1a57de	CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) FOR a IN(1, 1))
+56902	56902	engine	one_table@column	select_pivot_in_clause(,_(EXPR|(_EXPR_(,_EXPR)*_))_(AS?_ID)?)*/,_(EXPR|(_EXPR_(,_EXPR)*_))_(AS?_ID)?_(,_(EXPR|(_EXPR_(~bc1a57de!insert	CREATE VIEW v AS SELECT * FROM a PIVOT(a(1) FOR a IN(1, 1 zzz))
+918	918	engine	one_table@column	select_unpivot_in_clause(ID|(_ID_(,_ID)*_))/(_ID_(,_ID)*_)	CREATE VIEW v AS SELECT * FROM a UNPIVOT(a FOR a IN((a)))
+918	918	engine	one_table@column	select_unpivot_in_clause(AS_(EXPR|(_EXPR_(,_EXPR)*_)))?/AS_(EXPR|(_EXPR_(,_EXPR)*_))	CREATE VIEW v AS SELECT * FROM a UNPIVOT(a FOR a IN(a AS 1))
+918	918	engine	one_table@column	select_unpivot_in_clause(EXPR|(_EXPR_(,_EXPR)*_))/(_EXPR_(,_EXPR)*_)	CREATE VIEW v AS SELECT * FROM a UNPIVOT(a FOR a IN(a AS(1)))
+918	918	engine	one_table@column	select_unpivot_in_clause(,_(ID|(_ID_(,_ID)*_))_(AS_(EXPR|(_EX~252373e9)*/,_(ID|(_ID_(,_ID)*_))_(AS_(EXPR|(_EXPR_(,_EXPR)*_)))?_(~a02f9a00	CREATE VIEW v AS SELECT * FROM a UNPIVOT(a FOR a IN(a, a))
+30732	30732	engine	one_table@column	select_row_pattern/select_row_pattern_term_('|'_select_row_pattern_term)*!insert	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a zzz) DEFINE a AS 1 = 1)
+62503	62503	engine	one_table@column	select_subset_item(,_ID)*/,_ID_(,_ID)*	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a) SUBSET a =(a, a) DEFINE a AS 1 = 1)
+54058	54058	engine	one_table@column	select_expression_list(EXPR_(,_EXPR)?)*/%empty!insert	CREATE VIEW v AS SELECT * GROUP BY ROLLUP((zzz))
+54058	54058	engine	one_table@column	select_expression_list(EXPR_(,_EXPR)?)*/EXPR_(,_EXPR)?_(EXPR_(,_EXPR)?)*	CREATE VIEW v AS SELECT * GROUP BY ROLLUP((1))
+54058	54058	engine	one_table@column	select_expression_list(,_EXPR)?/,_EXPR	CREATE VIEW v AS SELECT * GROUP BY ROLLUP((1, 1))
+30732	30732	engine	one_table@column	select_row_pattern_term(select_row_pattern_factor)*/select_row_pattern_factor_(select_row_pattern_factor)*	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a a) DEFINE a AS 1 = 1)
+30732	30732	engine	one_table@column	select_row_pattern_term(select_row_pattern_factor)*/select_row_pattern_factor_(select_row_pattern_factor)*!insert	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a a zzz) DEFINE a AS 1 = 1)
+62503	62503	engine	one_table@column	select_row_pattern_primary/(_(select_row_pattern)?_)	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(()) DEFINE a AS 1 = 1)
+62503	62503	engine	one_table@column	select_row_pattern_primary/(_(select_row_pattern)?_)!insert	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(() zzz) DEFINE a AS 1 = 1)
+30732	30732	engine	one_table@column	select_row_pattern_primary/PERMUTE_(_select_row_pattern_(,_select_row_pattern)*_)	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE(a)) DEFINE a AS 1 = 1)
+30732	30732	engine	one_table@column	select_row_pattern_primary/PERMUTE_(_select_row_pattern_(,_select_row_pattern)*_)!insert	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE(a) zzz) DEFINE a AS 1 = 1)
+30732	30732	engine	one_table@column	select_row_pattern_primary/PERMUTE_(_select_row_pattern_(,_select_row_pattern)*_)!swap	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(PFILE(a)) DEFINE a AS 1 = 1)
+62503	62503	engine	one_table@column	select_row_pattern_primary(select_row_pattern)?/%empty!insert	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN((zzz)) DEFINE a AS 1 = 1)
+30732	30732	engine	one_table@column	select_row_pattern_primary(select_row_pattern)?/select_row_pattern	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN((a)) DEFINE a AS 1 = 1)
+30732	30732	engine	one_table@column	select_row_pattern_primary(select_row_pattern)?/select_row_pattern!insert	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN((a zzz)) DEFINE a AS 1 = 1)
+30732	30732	engine	one_table@column	select_row_pattern_primary(,_select_row_pattern)*/%empty!insert	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE(a zzz)) DEFINE a AS 1 = 1)
+30732	30732	engine	one_table@column	select_row_pattern_primary(,_select_row_pattern)*/,_select_row_pattern_(,_select_row_pattern)*	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE(a, a)) DEFINE a AS 1 = 1)
+30732	30732	engine	one_table@column	select_row_pattern_primary(,_select_row_pattern)*/,_select_row_pattern_(,_select_row_pattern)*!drop-1	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE(a a)) DEFINE a AS 1 = 1)
+30732	30732	engine	one_table@column	select_row_pattern_primary(,_select_row_pattern)*/,_select_row_pattern_(,_select_row_pattern)*!insert	CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(PATTERN(PERMUTE(a, a zzz)) DEFINE a AS 1 = 1)
+ok:84f91957744e	ok:84f91957744e	engine	queries@emp	corpus/star	CREATE VIEW v AS SELECT * FROM emp
+ok:42308041de5a	ok:42308041de5a	engine	queries@emp	corpus/qualified_star	CREATE VIEW v AS SELECT e.* FROM emp e
+957	957	engine	queries@emp	corpus/star_two_tables_dup	CREATE VIEW v AS SELECT * FROM emp, dept
+ok:2808a42578d7	ok:2808a42578d7	engine	queries@emp	corpus/star_and_column	CREATE VIEW v AS SELECT e.*, d.dname FROM emp e, dept d WHERE e.deptno = d.deptno
+ok:d4ebec0825dd	ok:d4ebec0825dd	engine	queries@emp	corpus/table_name_qualifier	CREATE VIEW v AS SELECT emp.ename, dept.dname FROM emp, dept WHERE emp.deptno = dept.deptno
+ok:e3d0ab85a684	ok:e3d0ab85a684	engine	queries@emp	corpus/schema_qualified	CREATE VIEW v AS SELECT omni_sim.emp.ename FROM omni_sim.emp
+904	904	engine	queries@emp	corpus/alias_hides_table	CREATE VIEW v AS SELECT emp.ename FROM emp e
+904	904	engine	queries@emp	corpus/alias_star_hides_table	CREATE VIEW v AS SELECT emp.* FROM emp e
+ok:6d7f717280c2	ok:6d7f717280c2	engine	queries@emp	corpus/quoted_alias	CREATE VIEW v AS SELECT ename "Name", job "job title" FROM emp
+904	904	engine	queries@emp	corpus/quoted_column_case	CREATE VIEW v AS SELECT "ename" FROM emp
+ok:0cb9c5240e31	ok:0cb9c5240e31	engine	queries@emp	corpus/as_alias	CREATE VIEW v AS SELECT ename AS name, job AS title FROM emp
+957	957	engine	queries@emp	corpus/dup_column	CREATE VIEW v AS SELECT ename, ename FROM emp
+957	957	engine	queries@emp	corpus/dup_alias	CREATE VIEW v AS SELECT ename AS a, job AS a FROM emp
+957	957	engine	queries@emp	corpus/dup_self_join	CREATE VIEW v AS SELECT e.ename, m.ename FROM emp e, emp m WHERE e.mgr = m.empno
+998	998	engine	queries@emp	corpus/unaliased_literal	CREATE VIEW v AS SELECT 1 FROM dual
+998	998	engine	queries@emp	corpus/unaliased_expression	CREATE VIEW v AS SELECT sal + 1 FROM emp
+998	998	engine	queries@emp	corpus/unaliased_function	CREATE VIEW v AS SELECT UPPER(ename) FROM emp
+904	904	engine	queries@emp	corpus/missing_column	CREATE VIEW v AS SELECT nosuch FROM emp
+942	942	engine	queries@emp	corpus/missing_table	CREATE VIEW v AS SELECT ename FROM nosuch
+904	904	engine	queries@emp	corpus/missing_qualified_column	CREATE VIEW v AS SELECT e.nosuch FROM emp e
+904	904	engine	queries@emp	corpus/missing_qualifier	CREATE VIEW v AS SELECT x.ename FROM emp e
+904	904	engine	queries@emp	corpus/missing_where_column	CREATE VIEW v AS SELECT ename FROM emp WHERE nosuch = 1
+904	904	engine	queries@emp	corpus/missing_order_column	CREATE VIEW v AS SELECT ename FROM emp ORDER BY nosuch
+904	904	engine	queries@emp	corpus/missing_group_column	CREATE VIEW v AS SELECT ename FROM emp GROUP BY nosuch
+904	904	engine	queries@emp	corpus/alias_in_where	CREATE VIEW v AS SELECT ename e1 FROM emp WHERE e1 = 'X'
+1785	1785	engine	queries@emp	corpus/order_by_position_out_of_range	CREATE VIEW v AS SELECT ename FROM emp ORDER BY 2
+918	918	engine	queries@emp	corpus/ambiguous_column	CREATE VIEW v AS SELECT deptno FROM emp, dept
+918	918	engine	queries@emp	corpus/ambiguous_self_join	CREATE VIEW v AS SELECT sal FROM emp e JOIN emp m ON e.mgr = m.empno
+ok:cc53e997163d	ok:cc53e997163d	engine	queries@emp	corpus/view_over_view	CREATE VIEW v AS SELECT ename FROM emp_v
+ok:2488ec1190be	ok:2488ec1190be	engine	queries@emp	corpus/view_star	CREATE VIEW v AS SELECT * FROM emp_v
+957	957	engine	queries@emp	corpus/view_join_dup	CREATE VIEW v AS SELECT * FROM emp_v v JOIN dept d ON v.deptno = d.deptno
+ok:89a7759f8a58	ok:89a7759f8a58	engine	queries@emp	corpus/rownum_alias	CREATE VIEW v AS SELECT ROWNUM rn, ename FROM emp
+998	998	engine	queries@emp	corpus/rownum_bare	CREATE VIEW v AS SELECT ROWNUM, ename FROM emp
+ok:ad68dfa6debd	ok:ad68dfa6debd	engine	queries@emp	corpus/rowid_alias	CREATE VIEW v AS SELECT ROWID rid, ename FROM emp
+ok:844033ef48cd	ok:844033ef48cd	engine	queries@emp	corpus/distinct	CREATE VIEW v AS SELECT DISTINCT job FROM emp
+ok:da3ca146fd48	ok:da3ca146fd48	engine	queries@emp	corpus/unique	CREATE VIEW v AS SELECT UNIQUE job FROM emp
+ok:e98772e64ae3	ok:e98772e64ae3	engine	queries@emp	corpus/all_types	CREATE VIEW v AS SELECT * FROM misc
+ok:00d4a53e7cbe	ok:00d4a53e7cbe	engine	queries@emp	corpus/all_types_listed	CREATE VIEW v AS SELECT id, code, title, name, note, ts, tz, bd, bf, r, fl, ym, ds, n, flag FROM misc
+1027	1027	engine	queries@emp	corpus/bind_variable	CREATE VIEW v AS SELECT ename FROM emp WHERE deptno = :1
+ok:5e36fea4956a	ok:5e36fea4956a	engine	queries@emp	corpus/sample	CREATE VIEW v AS SELECT ename FROM emp SAMPLE (10)
+ok:af3cd7cdcc19	ok:af3cd7cdcc19	engine	queries@emp	corpus/read_only	CREATE VIEW v AS SELECT ename FROM emp WITH READ ONLY
+ok:33c52d33fa60	ok:33c52d33fa60	engine	queries@emp	corpus/check_option	CREATE VIEW v AS SELECT ename, sal FROM emp WHERE deptno = 10 WITH CHECK OPTION
+ok:33c52d33fa60	ok:33c52d33fa60	engine	queries@emp	corpus/check_option_named	CREATE VIEW v AS SELECT ename, sal FROM emp WHERE deptno = 10 WITH CHECK OPTION CONSTRAINT v_chk
+3048	3048	engine	queries@emp	corpus/for_update	CREATE VIEW v AS SELECT ename FROM emp FOR UPDATE
+ok:04d96c4ed72e	ok:04d96c4ed72e	engine	queries@emp	corpus/order_by	CREATE VIEW v AS SELECT ename, sal FROM emp ORDER BY sal DESC, ename
+ok:c68208775660	ok:c68208775660	engine	queries@emp	corpus/join_on	CREATE VIEW v AS SELECT e.ename, d.dname FROM emp e JOIN dept d ON e.deptno = d.deptno
+ok:913af93635e2	ok:913af93635e2	engine	queries@emp	corpus/inner_join_paren	CREATE VIEW v AS SELECT e.ename FROM emp e INNER JOIN dept d ON (e.deptno = d.deptno)
+ok:5f9b077f7afc	ok:5f9b077f7afc	engine	queries@emp	corpus/join_using	CREATE VIEW v AS SELECT ename, dname FROM emp JOIN dept USING (deptno)
+ok:6404e7ebe549	ok:6404e7ebe549	engine	queries@emp	corpus/join_using_star	CREATE VIEW v AS SELECT * FROM emp JOIN dept USING (deptno)
+25154	25154	engine	queries@emp	corpus/join_using_qualified	CREATE VIEW v AS SELECT e.deptno FROM emp e JOIN dept d USING (deptno)
+904	904	engine	queries@emp	corpus/join_using_missing	CREATE VIEW v AS SELECT e.ename FROM emp e JOIN dept d USING (nosuch)
+ok:e3410202d3b4	ok:e3410202d3b4	engine	queries@emp	corpus/natural_join	CREATE VIEW v AS SELECT * FROM emp NATURAL JOIN dept
+ok:b492df79b7ee	ok:b492df79b7ee	engine	queries@emp	corpus/natural_join_view	CREATE VIEW v AS SELECT * FROM dept NATURAL JOIN emp_v
+ok:7fa72281a254	ok:7fa72281a254	engine	queries@emp	corpus/natural_join_many	CREATE VIEW v AS SELECT empno FROM emp NATURAL JOIN emp_v
+ok:fc9a14d6dd62	ok:fc9a14d6dd62	engine	queries@emp	corpus/left_join	CREATE VIEW v AS SELECT e.ename, d.dname FROM emp e LEFT OUTER JOIN dept d ON e.deptno = d.deptno
+ok:19a5bba4ab23	ok:19a5bba4ab23	engine	queries@emp	corpus/right_join	CREATE VIEW v AS SELECT e.ename, d.dname FROM emp e RIGHT JOIN dept d ON e.deptno = d.deptno
+ok:e19ecb93ac20	ok:e19ecb93ac20	engine	queries@emp	corpus/full_join	CREATE VIEW v AS SELECT e.ename, d.dname FROM emp e FULL OUTER JOIN dept d ON e.deptno = d.deptno
+ok:d6249e50f55e	ok:d6249e50f55e	engine	queries@emp	corpus/full_join_using_star	CREATE VIEW v AS SELECT * FROM emp FULL JOIN dept USING (deptno)
+ok:c1b473eb6b86	ok:c1b473eb6b86	engine	queries@emp	corpus/join_using_left_star	CREATE VIEW v AS SELECT * FROM emp LEFT JOIN dept USING (deptno)
+ok:0f4090a6f9dd	ok:0f4090a6f9dd	engine	queries@emp	corpus/join_using_right_star	CREATE VIEW v AS SELECT * FROM emp RIGHT JOIN dept USING (deptno)
+ok:30498edb9191	ok:30498edb9191	engine	queries@emp	corpus/join_using_reverse_star	CREATE VIEW v AS SELECT * FROM dept JOIN emp USING (deptno)
+ok:35d5d61cb7be	ok:35d5d61cb7be	engine	queries@emp	corpus/join_using_types	CREATE VIEW v AS SELECT * FROM (SELECT CAST(1 AS NUMBER(3)) k FROM dual) JOIN (SELECT CAST(1 AS NUMBER(5,1)) k FROM dual) USING (k)
+ok:7f7661583903	ok:7f7661583903	engine	queries@emp	corpus/join_using_left_types	CREATE VIEW v AS SELECT * FROM (SELECT CAST(1 AS NUMBER(3)) k FROM dual) LEFT JOIN (SELECT CAST(1 AS NUMBER(5,1)) k FROM dual) USING (k)
+ok:4e6349670d0b	ok:4e6349670d0b	engine	queries@emp	corpus/self_left_join	CREATE VIEW v AS SELECT e.ename, m.ename AS mgr_name FROM emp e LEFT JOIN emp m ON e.mgr = m.empno
+ok:8f5a34f1982e	ok:8f5a34f1982e	engine	queries@emp	corpus/cross_join	CREATE VIEW v AS SELECT e.deptno FROM emp e CROSS JOIN dept d
+ok:eec520cf0a7f	ok:eec520cf0a7f	engine	queries@emp	corpus/join_three	CREATE VIEW v AS SELECT e.ename, d.dname, m.job FROM emp e JOIN dept d ON e.deptno = d.deptno JOIN emp m ON m.empno = e.mgr
+ok:2990e6615f04	ok:2990e6615f04	engine	queries@emp	corpus/join_on_extra	CREATE VIEW v AS SELECT ename FROM emp e JOIN dept d ON e.deptno = d.deptno AND d.loc = 'DALLAS'
+ok:9f80bc5e1a64	ok:9f80bc5e1a64	engine	queries@emp	corpus/comma_join	CREATE VIEW v AS SELECT e.ename, d.loc FROM emp e, dept d WHERE e.deptno = d.deptno
+ok:8efbce29a652	ok:8efbce29a652	engine	queries@emp	corpus/plus_outer_join	CREATE VIEW v AS SELECT e.ename, d.dname FROM emp e, dept d WHERE e.deptno = d.deptno(+)
+ok:fcb9450a9ce8	ok:fcb9450a9ce8	engine	queries@emp	corpus/plus_outer_join_right	CREATE VIEW v AS SELECT e.ename, d.dname, d.loc FROM emp e, dept d WHERE e.deptno(+) = d.deptno
+ok:86ea79881e46	ok:86ea79881e46	engine	queries@emp	corpus/plus_outer_join_filter	CREATE VIEW v AS SELECT ename FROM emp e, dept d WHERE e.deptno = d.deptno(+) AND d.loc(+) = 'X'
+1468	1468	engine	queries@emp	corpus/plus_both_sides	CREATE VIEW v AS SELECT e.ename FROM emp e, dept d WHERE e.deptno(+) = d.deptno(+)
+ok:d4068247e20b	ok:d4068247e20b	engine	queries@emp	corpus/plus_in_ansi_join	CREATE VIEW v AS SELECT e.ename FROM emp e LEFT JOIN dept d ON e.deptno = d.deptno(+)
+ok:0e8d85fcf7b7	ok:0e8d85fcf7b7	engine	queries@emp	corpus/cross_apply	CREATE VIEW v AS SELECT d.dname, e.ename FROM dept d CROSS APPLY (SELECT ename FROM emp WHERE emp.deptno = d.deptno) e
+ok:67dfa413598b	ok:67dfa413598b	engine	queries@emp	corpus/outer_apply	CREATE VIEW v AS SELECT d.dname, x.cnt FROM dept d OUTER APPLY (SELECT COUNT(*) cnt FROM emp e WHERE e.deptno = d.deptno) x
+ok:e404cfba576b	ok:e404cfba576b	engine	queries@emp	corpus/lateral	CREATE VIEW v AS SELECT d.dname, x.cnt FROM dept d, LATERAL (SELECT COUNT(*) cnt FROM emp e WHERE e.deptno = d.deptno) x
+ok:1889facbe97a	ok:1889facbe97a	engine	queries@emp	corpus/lateral_star	CREATE VIEW v AS SELECT * FROM emp e, LATERAL (SELECT dname FROM dept d WHERE d.deptno = e.deptno)
+ok:42a1d9ffc186	ok:42a1d9ffc186	engine	queries@emp	corpus/left_join_group	CREATE VIEW v AS SELECT d.dname, COUNT(e.empno) cnt FROM dept d LEFT JOIN emp e ON e.deptno = d.deptno GROUP BY d.dname
+ok:64b04f868a43	ok:64b04f868a43	engine	queries@emp	corpus/inline_view	CREATE VIEW v AS SELECT x.ename FROM (SELECT ename, sal FROM emp WHERE sal > 1000) x
+ok:e73567b0c243	ok:e73567b0c243	engine	queries@emp	corpus/inline_view_unaliased_expr	CREATE VIEW v AS SELECT * FROM (SELECT ename, sal * 2 FROM emp)
+ok:6a4666162ef1	ok:6a4666162ef1	engine	queries@emp	corpus/inline_view_aliased_expr	CREATE VIEW v AS SELECT * FROM (SELECT ename, sal * 2 dbl FROM emp)
+ok:d63a3c603b2c	ok:d63a3c603b2c	engine	queries@emp	corpus/nested_star	CREATE VIEW v AS SELECT * FROM (SELECT * FROM dept)
+ok:e407136d0f55	ok:e407136d0f55	engine	queries@emp	corpus/nested_star_qualified	CREATE VIEW v AS SELECT x.* FROM (SELECT d.* FROM dept d) x
+ok:1690432ca8ab	ok:1690432ca8ab	engine	queries@emp	corpus/inline_view_union	CREATE VIEW v AS SELECT x FROM (SELECT 1 x FROM dual UNION ALL SELECT 2 FROM dual)
+ok:7eff7f3d973c	ok:7eff7f3d973c	engine	queries@emp	corpus/in_subquery	CREATE VIEW v AS SELECT ename FROM emp WHERE deptno IN (SELECT deptno FROM dept WHERE loc = 'DALLAS')
+ok:12828246c66f	ok:12828246c66f	engine	queries@emp	corpus/exists	CREATE VIEW v AS SELECT ename FROM emp e WHERE EXISTS (SELECT 1 FROM dept d WHERE d.deptno = e.deptno)
+ok:f47e5ba5d121	ok:f47e5ba5d121	engine	queries@emp	corpus/not_exists	CREATE VIEW v AS SELECT d.deptno, d.dname FROM dept d WHERE NOT EXISTS (SELECT NULL FROM emp e WHERE e.deptno = d.deptno)
+ok:d39de55b2f78	ok:d39de55b2f78	engine	queries@emp	corpus/scalar_subquery	CREATE VIEW v AS SELECT ename, (SELECT dname FROM dept d WHERE d.deptno = e.deptno) dname FROM emp e
+913	913	engine	queries@emp	corpus/scalar_subquery_two_columns	CREATE VIEW v AS SELECT ename, (SELECT dname, loc FROM dept d WHERE d.deptno = e.deptno) x FROM emp e
+ok:ca6b231af4bb	ok:ca6b231af4bb	engine	queries@emp	corpus/all_subquery	CREATE VIEW v AS SELECT ename FROM emp WHERE sal > ALL (SELECT sal FROM emp WHERE deptno = 30)
+ok:497d20959ba6	ok:497d20959ba6	engine	queries@emp	corpus/any_list	CREATE VIEW v AS SELECT ename FROM emp WHERE deptno = ANY (10, 20)
+ok:3ef72db732b0	ok:3ef72db732b0	engine	queries@emp	corpus/row_in_subquery	CREATE VIEW v AS SELECT ename FROM emp WHERE (deptno, job) IN (SELECT deptno, job FROM emp WHERE ename = 'SMITH')
+ok:71f17c6295ff	ok:71f17c6295ff	engine	queries@emp	corpus/correlated	CREATE VIEW v AS SELECT ename, sal FROM emp e WHERE sal > (SELECT AVG(sal) FROM emp WHERE deptno = e.deptno)
+ok:6c3358cb95ad	ok:6c3358cb95ad	engine	queries@emp	corpus/equals_subquery	CREATE VIEW v AS SELECT empno, ename FROM emp WHERE empno = (SELECT MAX(empno) FROM emp)
+913	913	engine	queries@emp	corpus/equals_subquery_two_columns	CREATE VIEW v AS SELECT ename FROM emp WHERE empno = (SELECT empno, ename FROM emp)
+ok:4b62566d6ed4	ok:4b62566d6ed4	engine	queries@emp	corpus/predicates	CREATE VIEW v AS SELECT ename FROM emp WHERE ename LIKE 'A%' AND sal BETWEEN 1000 AND 3000 AND deptno IN (10, 20) AND comm IS NOT NULL
+22902	22902	engine	queries@emp	corpus/cursor_expression	CREATE VIEW v AS SELECT d.dname, CURSOR(SELECT ename FROM emp e WHERE e.deptno = d.deptno) c FROM dept d
+ok:21abe4afc188	ok:21abe4afc188	engine	queries@emp	corpus/cte	CREATE VIEW v AS WITH d AS (SELECT deptno, dname FROM dept) SELECT * FROM d
+ok:fc959993fa8b	ok:fc959993fa8b	engine	queries@emp	corpus/cte_columns	CREATE VIEW v AS WITH d (no, name) AS (SELECT deptno, dname FROM dept) SELECT * FROM d
+32038	32038	engine	queries@emp	corpus/cte_columns_mismatch	CREATE VIEW v AS WITH d (no) AS (SELECT deptno, dname FROM dept) SELECT * FROM d
+ok:69b34426a411	ok:69b34426a411	engine	queries@emp	corpus/cte_chain	CREATE VIEW v AS WITH a AS (SELECT empno, mgr FROM emp), b AS (SELECT empno FROM a WHERE mgr IS NULL) SELECT * FROM b
+ok:b83292c9d6a5	ok:b83292c9d6a5	engine	queries@emp	corpus/cte_join	CREATE VIEW v AS WITH d AS (SELECT * FROM dept) SELECT d.dname, e.ename FROM d JOIN emp e ON e.deptno = d.deptno
+ok:951d10dff097	ok:951d10dff097	engine	queries@emp	corpus/recursive_cte	CREATE VIEW v AS WITH r (empno, ename, lvl) AS (SELECT empno, ename, 1 FROM emp WHERE mgr IS NULL UNION ALL SELECT e.empno, e.ename, r.lvl + 1 FROM emp e JOIN r ON e.mgr = r.empno) SELECT * FROM r
+ok:baa061073d80	ok:baa061073d80	engine	queries@emp	corpus/recursive_cte_counter	CREATE VIEW v AS WITH r (n) AS (SELECT 1 FROM dual UNION ALL SELECT n + 1 FROM r WHERE n < 5) SELECT n FROM r
+32039	32039	engine	queries@emp	corpus/recursive_cte_no_columns	CREATE VIEW v AS WITH r AS (SELECT 1 n FROM dual UNION ALL SELECT n + 1 FROM r WHERE n < 5) SELECT n FROM r
+ok:f0441944e4b9	ok:f0441944e4b9	engine	queries@emp	corpus/recursive_cte_search_cycle	CREATE VIEW v AS WITH r (n) AS (SELECT 1 FROM dual UNION ALL SELECT n + 1 FROM r WHERE n < 5) SEARCH DEPTH FIRST BY n SET ord CYCLE n SET is_cycle TO 'Y' DEFAULT 'N' SELECT * FROM r
+ok:c6c4d2a5400c	ok:c6c4d2a5400c	engine	queries@emp	corpus/cte_unused	CREATE VIEW v AS WITH d AS (SELECT deptno FROM dept) SELECT ename FROM emp
+904	904	engine	queries@emp	corpus/cte_missing_column	CREATE VIEW v AS WITH d AS (SELECT deptno FROM dept) SELECT dname FROM d
+ok:d85b67bcec8d	ok:d85b67bcec8d	engine	queries@emp	corpus/with_function	CREATE VIEW v AS WITH FUNCTION dbl(x NUMBER) RETURN NUMBER IS BEGIN RETURN x * 2; END; SELECT dbl(sal) d FROM emp
+ok:a921b09e2f61	ok:a921b09e2f61	engine	queries@emp	corpus/union	CREATE VIEW v AS SELECT empno, ename FROM emp UNION SELECT deptno, dname FROM dept
+ok:ced551281ce5	ok:ced551281ce5	engine	queries@emp	corpus/union_all	CREATE VIEW v AS SELECT empno FROM emp UNION ALL SELECT deptno FROM dept
+ok:357094baffd3	ok:357094baffd3	engine	queries@emp	corpus/minus	CREATE VIEW v AS SELECT deptno FROM dept MINUS SELECT deptno FROM emp
+ok:66daa691626a	ok:66daa691626a	engine	queries@emp	corpus/intersect	CREATE VIEW v AS SELECT deptno FROM dept INTERSECT SELECT deptno FROM emp
+ok:b8ffbfc6987d	ok:b8ffbfc6987d	engine	queries@emp	corpus/except	CREATE VIEW v AS SELECT deptno FROM dept EXCEPT SELECT deptno FROM emp
+ok:2952c7e6df0a	ok:2952c7e6df0a	engine	queries@emp	corpus/minus_all	CREATE VIEW v AS SELECT deptno FROM dept MINUS ALL SELECT deptno FROM emp
+ok:18adbdb2a034	ok:18adbdb2a034	engine	queries@emp	corpus/intersect_all	CREATE VIEW v AS SELECT deptno FROM dept INTERSECT ALL SELECT deptno FROM emp
+1789	1789	engine	queries@emp	corpus/union_column_count	CREATE VIEW v AS SELECT empno, ename FROM emp UNION SELECT deptno FROM dept
+1790	1790	engine	queries@emp	corpus/union_type_mismatch	CREATE VIEW v AS SELECT empno FROM emp UNION SELECT dname FROM dept
+ok:244bba4cbda2	ok:244bba4cbda2	engine	queries@emp	corpus/union_varchar_lengths	CREATE VIEW v AS SELECT ename FROM emp UNION SELECT dname FROM dept
+ok:ed02c6a99ef5	ok:ed02c6a99ef5	engine	queries@emp	corpus/union_order_by_position	CREATE VIEW v AS SELECT job FROM emp UNION SELECT loc FROM dept ORDER BY 1
+ok:86c5a75712d7	ok:86c5a75712d7	engine	queries@emp	corpus/union_order_by_name	CREATE VIEW v AS SELECT ename FROM emp UNION SELECT dname FROM dept ORDER BY ename
+904	904	engine	queries@emp	corpus/union_order_by_second_name	CREATE VIEW v AS SELECT ename FROM emp UNION SELECT dname FROM dept ORDER BY dname
+ok:5246465d278b	ok:5246465d278b	engine	queries@emp	corpus/union_parenthesized	CREATE VIEW v AS (SELECT ename FROM emp) UNION ALL (SELECT dname FROM dept)
+ok:83c222240d4e	ok:83c222240d4e	engine	queries@emp	corpus/union_numbers	CREATE VIEW v AS SELECT sal FROM emp UNION ALL SELECT comm FROM emp
+ok:8ce8956449ea	ok:8ce8956449ea	engine	queries@emp	corpus/union_number_scales	CREATE VIEW v AS SELECT sal FROM emp UNION SELECT deptno FROM dept
+ok:0de65837f908	ok:0de65837f908	engine	queries@emp	corpus/union_char_varchar	CREATE VIEW v AS SELECT code FROM misc UNION SELECT title FROM misc
+ok:2d3f96239ee2	ok:2d3f96239ee2	engine	queries@emp	corpus/union_null_first	CREATE VIEW v AS SELECT NULL x FROM dual UNION SELECT ename FROM emp
+ok:7ba80e0ff42e	ok:7ba80e0ff42e	engine	queries@emp	corpus/union_date_timestamp	CREATE VIEW v AS SELECT hiredate FROM emp UNION SELECT ts FROM misc
+ok:7287e5a2beb9	ok:7287e5a2beb9	engine	queries@emp	corpus/union_alias_first	CREATE VIEW v AS SELECT ename n FROM emp UNION SELECT dname FROM dept
+ok:30b5925f970b	ok:30b5925f970b	engine	queries@emp	corpus/union_char_literals	CREATE VIEW v AS SELECT 'a' c FROM dual UNION SELECT 'bcd' FROM dual
+ok:89241e1d715f	ok:89241e1d715f	engine	queries@emp	corpus/union_literal_column	CREATE VIEW v AS SELECT 'a' c FROM dual UNION ALL SELECT ename FROM emp
+ok:d779c118d3ce	ok:d779c118d3ce	engine	queries@emp	corpus/union_number_literals	CREATE VIEW v AS SELECT 1 n FROM dual UNION SELECT 2.5 FROM dual
+ok:c282a9b467e5	ok:c282a9b467e5	engine	queries@emp	corpus/union_star	CREATE VIEW v AS SELECT * FROM dept UNION SELECT * FROM dept
+ok:7624e2c5238d	ok:7624e2c5238d	engine	queries@emp	corpus/union_same_char	CREATE VIEW v AS SELECT code FROM misc UNION SELECT code FROM misc
+22848	22848	engine	queries@emp	corpus/union_clob	CREATE VIEW v AS SELECT note FROM misc UNION SELECT note FROM misc
+ok:6c9a3f12be06	ok:6c9a3f12be06	engine	queries@emp	corpus/union_all_clob	CREATE VIEW v AS SELECT note FROM misc UNION ALL SELECT note FROM misc
+ok:f1480a46991a	ok:f1480a46991a	engine	queries@emp	corpus/group_by	CREATE VIEW v AS SELECT deptno, COUNT(*) cnt, SUM(sal) total, AVG(sal) avg_sal, MIN(hiredate) first_hire, MAX(ename) last_name FROM emp GROUP BY deptno
+ok:7a34dcca300e	ok:7a34dcca300e	engine	queries@emp	corpus/min_max_number	CREATE VIEW v AS SELECT MAX(sal) mx, MIN(empno) mn, MAX(code) mc FROM misc, emp
+ok:f261da76d6f7	ok:f261da76d6f7	engine	queries@emp	corpus/having	CREATE VIEW v AS SELECT deptno, COUNT(*) cnt FROM emp GROUP BY deptno HAVING COUNT(*) > 3
+979	979	engine	queries@emp	corpus/not_group_by_expression	CREATE VIEW v AS SELECT deptno, ename, COUNT(*) cnt FROM emp GROUP BY deptno
+937	937	engine	queries@emp	corpus/not_single_group	CREATE VIEW v AS SELECT ename, COUNT(*) cnt FROM emp
+934	934	engine	queries@emp	corpus/aggregate_in_where	CREATE VIEW v AS SELECT deptno FROM emp WHERE SUM(sal) > 10 GROUP BY deptno
+ok:58b65f5b3475	ok:58b65f5b3475	engine	queries@emp	corpus/rollup	CREATE VIEW v AS SELECT deptno, job, SUM(sal) s FROM emp GROUP BY ROLLUP (deptno, job)
+ok:4cd5af5253ea	ok:4cd5af5253ea	engine	queries@emp	corpus/cube_grouping	CREATE VIEW v AS SELECT deptno, job, SUM(sal) s, GROUPING(job) g FROM emp GROUP BY CUBE (deptno, job)
+ok:0027ddbe3e80	ok:0027ddbe3e80	engine	queries@emp	corpus/grouping_sets	CREATE VIEW v AS SELECT deptno, job, SUM(sal) s FROM emp GROUP BY GROUPING SETS ((deptno), (job), ())
+ok:edceb0961209	ok:edceb0961209	engine	queries@emp	corpus/count_distinct	CREATE VIEW v AS SELECT COUNT(DISTINCT job) jobs FROM emp
+ok:df79212487c8	ok:df79212487c8	engine	queries@emp	corpus/statistics	CREATE VIEW v AS SELECT deptno, STDDEV(sal) sd, VARIANCE(sal) v, MEDIAN(sal) med FROM emp GROUP BY deptno
+ok:5bf6fe8100f0	ok:5bf6fe8100f0	engine	queries@emp	corpus/percentile_cont	CREATE VIEW v AS SELECT deptno, PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY sal) p50 FROM emp GROUP BY deptno
+ok:4d7b105c05b7	ok:4d7b105c05b7	engine	queries@emp	corpus/aggregate_expression	CREATE VIEW v AS SELECT 1 + COUNT(*) c FROM emp
+ok:e7fd445127e0	ok:e7fd445127e0	engine	queries@emp	corpus/group_by_alias	CREATE VIEW v AS SELECT deptno d, COUNT(*) c FROM emp GROUP BY d
+3162	3162	engine	queries@emp	corpus/group_by_position	CREATE VIEW v AS SELECT deptno, COUNT(*) c FROM emp GROUP BY 1
+ok:2a1d5442e2e5	ok:2a1d5442e2e5	engine	queries@emp	corpus/nested_aggregate	CREATE VIEW v AS SELECT MAX(AVG(sal)) m FROM emp GROUP BY deptno
+978	978	engine	queries@emp	corpus/nested_aggregate_no_group	CREATE VIEW v AS SELECT MAX(AVG(sal)) m FROM emp
+937	937	engine	queries@emp	corpus/nested_aggregate_with_column	CREATE VIEW v AS SELECT deptno, MAX(AVG(sal)) m FROM emp GROUP BY deptno
+ok:15c0a3b2f6e4	ok:15c0a3b2f6e4	engine	queries@emp	corpus/listagg	CREATE VIEW v AS SELECT deptno, LISTAGG(ename, ',') WITHIN GROUP (ORDER BY ename) names FROM emp GROUP BY deptno
+ok:d108d24707b8	ok:d108d24707b8	engine	queries@emp	corpus/keep_dense_rank	CREATE VIEW v AS SELECT deptno, MAX(sal) KEEP (DENSE_RANK LAST ORDER BY hiredate) last_sal FROM emp GROUP BY deptno
+22849	22849	engine	queries@emp	corpus/aggregate_types	CREATE VIEW v AS SELECT SUM(bd) s, AVG(bf) a, MAX(ts) m, MIN(code) mc, COUNT(note) cn FROM misc
+22848	22848	engine	queries@emp	corpus/group_by_clob	CREATE VIEW v AS SELECT COUNT(*) c FROM misc GROUP BY note
+22848	22848	engine	queries@emp	corpus/distinct_clob	CREATE VIEW v AS SELECT DISTINCT note FROM misc
+22848	22848	engine	queries@emp	corpus/order_by_clob	CREATE VIEW v AS SELECT note FROM misc ORDER BY note
+ok:94a61a6a63e7	ok:94a61a6a63e7	engine	queries@emp	corpus/row_number	CREATE VIEW v AS SELECT ename, ROW_NUMBER() OVER (ORDER BY sal DESC) rn FROM emp
+ok:c613b44346e9	ok:c613b44346e9	engine	queries@emp	corpus/rank	CREATE VIEW v AS SELECT ename, RANK() OVER (PARTITION BY deptno ORDER BY sal) rnk, DENSE_RANK() OVER (PARTITION BY deptno ORDER BY sal) drnk FROM emp
+ok:c07f8630e28f	ok:c07f8630e28f	engine	queries@emp	corpus/sum_over_partition	CREATE VIEW v AS SELECT ename, SUM(sal) OVER (PARTITION BY deptno) dept_sal FROM emp
+ok:aef32b3cd67f	ok:aef32b3cd67f	engine	queries@emp	corpus/moving_average	CREATE VIEW v AS SELECT ename, AVG(sal) OVER (ORDER BY hiredate ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) mov FROM emp
+ok:815eb17d714d	ok:815eb17d714d	engine	queries@emp	corpus/lag_lead	CREATE VIEW v AS SELECT ename, LAG(sal) OVER (ORDER BY hiredate) prev, LEAD(sal, 1, 0) OVER (ORDER BY hiredate) nxt FROM emp
+ok:32ed850f6677	ok:32ed850f6677	engine	queries@emp	corpus/first_value	CREATE VIEW v AS SELECT ename, FIRST_VALUE(ename) OVER (PARTITION BY deptno ORDER BY sal) lowest FROM emp
+ok:967c3afba218	ok:967c3afba218	engine	queries@emp	corpus/ntile	CREATE VIEW v AS SELECT ename, NTILE(4) OVER (ORDER BY sal) q FROM emp
+ok:de848471d112	ok:de848471d112	engine	queries@emp	corpus/ratio_to_report	CREATE VIEW v AS SELECT ename, RATIO_TO_REPORT(sal) OVER () pct FROM emp
+ok:e96f91f56fd8	ok:e96f91f56fd8	engine	queries@emp	corpus/count_over	CREATE VIEW v AS SELECT ename, COUNT(*) OVER () total FROM emp
+ok:833423b7fd54	ok:833423b7fd54	engine	queries@emp	corpus/percent_rank	CREATE VIEW v AS SELECT ename, PERCENT_RANK() OVER (ORDER BY sal) pr, CUME_DIST() OVER (ORDER BY sal) cd FROM emp
+30483	30483	engine	queries@emp	corpus/window_in_where	CREATE VIEW v AS SELECT ename, sal FROM emp WHERE ROW_NUMBER() OVER (ORDER BY sal) = 1
+ok:c8ddb2239feb	ok:c8ddb2239feb	engine	queries@emp	corpus/window_clause	CREATE VIEW v AS SELECT ename, SUM(sal) OVER w s FROM emp WINDOW w AS (PARTITION BY deptno)
+ok:2455f1dee835	ok:2455f1dee835	engine	queries@emp	corpus/window_arithmetic	CREATE VIEW v AS SELECT ename, sal, sal - AVG(sal) OVER (PARTITION BY deptno) diff FROM emp
+ok:774957e2986a	ok:774957e2986a	engine	queries@emp	corpus/window_over_aggregate	CREATE VIEW v AS SELECT deptno, SUM(SUM(sal)) OVER () total FROM emp GROUP BY deptno
+22848	22848	engine	queries@emp	corpus/window_order_by_clob	CREATE VIEW v AS SELECT ROW_NUMBER() OVER (ORDER BY note) r FROM misc
+ok:d5801c8bd672	ok:d5801c8bd672	engine	queries@emp	corpus/connect_by_level	CREATE VIEW v AS SELECT LEVEL lvl, ename FROM emp CONNECT BY PRIOR empno = mgr START WITH mgr IS NULL
+ok:7b1f39cb4ea3	ok:7b1f39cb4ea3	engine	queries@emp	corpus/connect_by_functions	CREATE VIEW v AS SELECT ename, SYS_CONNECT_BY_PATH(ename, '/') path, CONNECT_BY_ISLEAF leaf, CONNECT_BY_ROOT ename root FROM emp START WITH mgr IS NULL CONNECT BY NOCYCLE PRIOR empno = mgr
+998	998	engine	queries@emp	corpus/connect_by_level_bare	CREATE VIEW v AS SELECT ename, LEVEL FROM emp CONNECT BY PRIOR empno = mgr ORDER SIBLINGS BY ename
+ok:b00566cd2033	ok:b00566cd2033	engine	queries@emp	corpus/connect_by_dual	CREATE VIEW v AS SELECT LEVEL l FROM dual CONNECT BY LEVEL <= 10
+ok:c448222a21b7	ok:c448222a21b7	engine	queries@emp	corpus/connect_by_start_with	CREATE VIEW v AS SELECT ename FROM emp START WITH mgr IS NULL CONNECT BY PRIOR empno = mgr
+ok:e6ce48be5615	ok:e6ce48be5615	engine	queries@emp	corpus/connect_by_prior_column	CREATE VIEW v AS SELECT PRIOR ename p, ename FROM emp CONNECT BY PRIOR empno = mgr
+ok:698d5a3eccda	ok:698d5a3eccda	engine	queries@emp	corpus/fetch_first	CREATE VIEW v AS SELECT ename, sal FROM emp ORDER BY sal DESC FETCH FIRST 5 ROWS ONLY
+ok:074352946e08	ok:074352946e08	engine	queries@emp	corpus/offset_fetch	CREATE VIEW v AS SELECT ename FROM emp ORDER BY sal OFFSET 2 ROWS FETCH NEXT 3 ROWS ONLY
+ok:d000294e2ccb	ok:d000294e2ccb	engine	queries@emp	corpus/fetch_percent_ties	CREATE VIEW v AS SELECT ename FROM emp ORDER BY sal FETCH FIRST 10 PERCENT ROWS WITH TIES
+ok:eecc1fc633fd	ok:eecc1fc633fd	engine	queries@emp	corpus/rownum_filter	CREATE VIEW v AS SELECT ename FROM emp WHERE ROWNUM <= 5
+ok:d8cdbd2352eb	ok:d8cdbd2352eb	engine	queries@emp	corpus/rownum_order	CREATE VIEW v AS SELECT ename FROM emp WHERE ROWNUM < 3 ORDER BY ename
+ok:e05e48abb218	ok:e05e48abb218	engine	queries@emp	corpus/pivot	CREATE VIEW v AS SELECT * FROM (SELECT deptno, job, sal FROM emp) PIVOT (SUM(sal) FOR deptno IN (10 AS d10, 20 AS d20, 30 AS d30))
+ok:53a34e275c40	ok:53a34e275c40	engine	queries@emp	corpus/pivot_two_aggregates	CREATE VIEW v AS SELECT * FROM (SELECT deptno, job, sal FROM emp) PIVOT (SUM(sal) s, COUNT(*) c FOR deptno IN (10, 20))
+ok:2154ae590273	ok:2154ae590273	engine	queries@emp	corpus/pivot_multi_column	CREATE VIEW v AS SELECT * FROM (SELECT job, deptno, sal FROM emp) PIVOT (MAX(sal) FOR (job, deptno) IN (('CLERK', 10) AS c10, ('MANAGER', 20) AS m20))
+ok:3dc73ad3588f	ok:3dc73ad3588f	engine	queries@emp	corpus/pivot_string_values	CREATE VIEW v AS SELECT * FROM (SELECT deptno, job, sal FROM emp) PIVOT (SUM(sal) FOR job IN ('CLERK', 'MANAGER'))
+ok:c7daf3bf73e7	ok:c7daf3bf73e7	engine	queries@emp	corpus/pivot_table	CREATE VIEW v AS SELECT * FROM emp PIVOT (COUNT(*) FOR deptno IN (10 AS d10, 20 AS d20))
+ok:8c18e63a85af	ok:8c18e63a85af	engine	queries@emp	corpus/unpivot	CREATE VIEW v AS SELECT * FROM (SELECT empno, sal, comm FROM emp) UNPIVOT (amount FOR kind IN (sal AS 'SAL', comm AS 'COMM'))
+ok:452257bfcce2	ok:452257bfcce2	engine	queries@emp	corpus/unpivot_include_nulls	CREATE VIEW v AS SELECT * FROM (SELECT empno, sal, comm FROM emp) UNPIVOT INCLUDE NULLS (amount FOR kind IN (sal, comm))
+ok:bc1556230cca	ok:bc1556230cca	engine	queries@emp	corpus/case_searched	CREATE VIEW v AS SELECT CASE WHEN sal > 2000 THEN 'high' ELSE 'low' END band FROM emp
+ok:e6e2f434ca9e	ok:e6e2f434ca9e	engine	queries@emp	corpus/case_simple	CREATE VIEW v AS SELECT CASE deptno WHEN 10 THEN 'ACCOUNTING' WHEN 20 THEN 'RESEARCH' END dname FROM emp
+ok:f19fb0a3c4b9	ok:f19fb0a3c4b9	engine	queries@emp	corpus/case_numbers	CREATE VIEW v AS SELECT CASE WHEN sal > 2000 THEN sal ELSE comm END x FROM emp
+932	932	engine	queries@emp	corpus/case_type_mismatch	CREATE VIEW v AS SELECT CASE WHEN sal > 2000 THEN 'x' ELSE 1 END x FROM emp
+ok:e0d03743e2b7	ok:e0d03743e2b7	engine	queries@emp	corpus/case_char_varchar	CREATE VIEW v AS SELECT CASE WHEN id > 1 THEN code ELSE title END x FROM misc
+ok:9d202774e89f	ok:9d202774e89f	engine	queries@emp	corpus/case_timestamp_null	CREATE VIEW v AS SELECT CASE WHEN id > 1 THEN ts ELSE NULL END x FROM misc
+ok:f201f68986b8	ok:f201f68986b8	engine	queries@emp	corpus/decode_strings	CREATE VIEW v AS SELECT DECODE(deptno, 10, 'A', 20, 'BB', 'CCC') d FROM emp
+ok:909edb1ac502	ok:909edb1ac502	engine	queries@emp	corpus/decode_numbers	CREATE VIEW v AS SELECT DECODE(deptno, 10, sal, comm) d FROM emp
+ok:802c7271efa1	ok:802c7271efa1	engine	queries@emp	corpus/decode_number_results	CREATE VIEW v AS SELECT DECODE(job, 'CLERK', 1, 2) d FROM emp
+ok:59b2dd79f9c6	ok:59b2dd79f9c6	engine	queries@emp	corpus/decode_null_first	CREATE VIEW v AS SELECT DECODE(id, 1, NULL, code) x FROM misc
+ok:e294fabd60ff	ok:e294fabd60ff	engine	queries@emp	corpus/nvl_number	CREATE VIEW v AS SELECT NVL(comm, 0) c FROM emp
+ok:4cc1bcfbbf77	ok:4cc1bcfbbf77	engine	queries@emp	corpus/nvl_string	CREATE VIEW v AS SELECT NVL(job, 'none') j FROM emp
+ok:0e8a03bbb207	ok:0e8a03bbb207	engine	queries@emp	corpus/nvl_null_first	CREATE VIEW v AS SELECT NVL(NULL, 1) x FROM dual
+ok:3d1852e4097f	ok:3d1852e4097f	engine	queries@emp	corpus/nvl_varchar_nvarchar	CREATE VIEW v AS SELECT NVL(title, name) x FROM misc
+ok:b9cfcadb880f	ok:b9cfcadb880f	engine	queries@emp	corpus/nvl2	CREATE VIEW v AS SELECT NVL2(comm, 'Y', 'N') has_comm FROM emp
+ok:7e20f26201f0	ok:7e20f26201f0	engine	queries@emp	corpus/coalesce	CREATE VIEW v AS SELECT COALESCE(comm, sal, 0) c FROM emp
+ok:c47078440c7c	ok:c47078440c7c	engine	queries@emp	corpus/coalesce_null_first	CREATE VIEW v AS SELECT COALESCE(NULL, code) x FROM misc
+ok:049bda6eaf7e	ok:049bda6eaf7e	engine	queries@emp	corpus/nullif	CREATE VIEW v AS SELECT NULLIF(sal, comm) n FROM emp
+ok:4b18e59f2a2e	ok:4b18e59f2a2e	engine	queries@emp	corpus/greatest_least	CREATE VIEW v AS SELECT GREATEST(sal, comm) g, LEAST(ename, job) l FROM emp
+ok:aef2e7a3fd52	ok:aef2e7a3fd52	engine	queries@emp	corpus/concat_operator	CREATE VIEW v AS SELECT ename || ' ' || job label FROM emp
+ok:4cf08596119a	ok:4cf08596119a	engine	queries@emp	corpus/concat_function	CREATE VIEW v AS SELECT CONCAT(ename, job) c FROM emp
+ok:fc94f8a4f054	ok:fc94f8a4f054	engine	queries@emp	corpus/concat_number	CREATE VIEW v AS SELECT sal || 'x' x FROM emp
+ok:553f1d7a0783	ok:553f1d7a0783	engine	queries@emp	corpus/arithmetic	CREATE VIEW v AS SELECT sal * 12 + NVL(comm, 0) annual FROM emp
+ok:99ec8c21d231	ok:99ec8c21d231	engine	queries@emp	corpus/number_string_arithmetic	CREATE VIEW v AS SELECT sal + ename x FROM emp
+ok:aebc8c8717d6	ok:aebc8c8717d6	engine	queries@emp	corpus/numeric_functions	CREATE VIEW v AS SELECT sal / 3 s, MOD(empno, 2) m, ROUND(sal, 1) r, TRUNC(sal) t, ABS(sal) a, CEIL(sal) c, FLOOR(sal) f, POWER(sal, 2) p, SQRT(sal) q FROM emp
+ok:c0afdacaba0a	ok:c0afdacaba0a	engine	queries@emp	corpus/math_functions	CREATE VIEW v AS SELECT SIGN(sal) s, LN(sal) l, EXP(1) e, LOG(10, sal) lg FROM emp
+ok:ea6f747f56c7	ok:ea6f747f56c7	engine	queries@emp	corpus/string_functions	CREATE VIEW v AS SELECT UPPER(ename) u, LOWER(ename) l, INITCAP(ename) i, LENGTH(ename) n, SUBSTR(ename, 1, 3) s, INSTR(ename, 'A') p FROM emp
+ok:1060f7668dd0	ok:1060f7668dd0	engine	queries@emp	corpus/pad_trim_functions	CREATE VIEW v AS SELECT LPAD(ename, 15, '*') l, RPAD(job, 12) r, TRIM(ename) t, LTRIM(job) lt, RTRIM(job) rt, REPLACE(ename, 'A', 'a') rp, TRANSLATE(job, 'AB', 'ab') tr FROM emp
+ok:13390963ce16	ok:13390963ce16	engine	queries@emp	corpus/regexp_functions	CREATE VIEW v AS SELECT REGEXP_SUBSTR(ename, '[A-Z]+') rs, REGEXP_REPLACE(job, 'A', 'B') rr, REGEXP_INSTR(ename, 'A') ri, REGEXP_COUNT(ename, 'A') rc FROM emp
+ok:7bbc790dc1d3	ok:7bbc790dc1d3	engine	queries@emp	corpus/chr_ascii	CREATE VIEW v AS SELECT CHR(65) c, ASCII(ename) a FROM emp
+ok:b0dabd827afb	ok:b0dabd827afb	engine	queries@emp	corpus/dump_vsize	CREATE VIEW v AS SELECT DUMP(ename) d, VSIZE(ename) v FROM emp
+ok:58760e3d547d	ok:58760e3d547d	engine	queries@emp	corpus/to_char	CREATE VIEW v AS SELECT TO_CHAR(hiredate, 'YYYY-MM-DD') d, TO_CHAR(sal) s, TO_CHAR(sal, '9999.99') f FROM emp
+ok:0bd0f3c3cc88	ok:0bd0f3c3cc88	engine	queries@emp	corpus/conversions	CREATE VIEW v AS SELECT TO_NUMBER('42') n, TO_DATE('2024-01-01', 'YYYY-MM-DD') d, TO_TIMESTAMP('2024-01-01', 'YYYY-MM-DD') t FROM dual
+ok:5a04db9e00e8	ok:5a04db9e00e8	engine	queries@emp	corpus/current_time	CREATE VIEW v AS SELECT SYSDATE now, SYSTIMESTAMP ts, CURRENT_DATE cd, CURRENT_TIMESTAMP ct, LOCALTIMESTAMP lt FROM dual
+ok:99fe4843c3c9	ok:99fe4843c3c9	engine	queries@emp	corpus/session_functions	CREATE VIEW v AS SELECT USER u, UID i, SYS_GUID() g, USERENV('LANG') l FROM dual
+ok:53bc224365bc	ok:53bc224365bc	engine	queries@emp	corpus/date_functions	CREATE VIEW v AS SELECT ADD_MONTHS(hiredate, 1) a, MONTHS_BETWEEN(SYSDATE, hiredate) m, LAST_DAY(hiredate) l, NEXT_DAY(hiredate, 'MONDAY') n, TRUNC(hiredate, 'MM') t, EXTRACT(YEAR FROM hiredate) y FROM emp
+ok:8079f6c68381	ok:8079f6c68381	engine	queries@emp	corpus/date_arithmetic	CREATE VIEW v AS SELECT hiredate + 1 d, hiredate - hiredate n, SYSDATE - hiredate days FROM emp
+932	932	engine	queries@emp	corpus/date_number_compare	CREATE VIEW v AS SELECT ename FROM emp WHERE hiredate > 5
+ok:60b8b5890c53	ok:60b8b5890c53	engine	queries@emp	corpus/cast	CREATE VIEW v AS SELECT CAST(sal AS VARCHAR2(20)) s, CAST(ename AS CHAR(12)) c, CAST(empno AS NUMBER(10,2)) n, CAST(hiredate AS TIMESTAMP) t FROM emp
+ok:1c533776a554	ok:1c533776a554	engine	queries@emp	corpus/cast_literals	CREATE VIEW v AS SELECT CAST(NULL AS DATE) d, CAST('1' AS INTEGER) i, CAST(1 AS BINARY_DOUBLE) b FROM dual
+ok:dc2d363af079	ok:dc2d363af079	engine	queries@emp	corpus/literals	CREATE VIEW v AS SELECT 'abc' s, 1 n, 1.5 f, N'x' ns, DATE '2024-01-01' d, TIMESTAMP '2024-01-01 00:00:00' t, NULL z FROM dual
+ok:70c73f77fe5e	ok:70c73f77fe5e	engine	queries@emp	corpus/boolean_literal	CREATE VIEW v AS SELECT TRUE b FROM dual
+ok:b1496db3ce69	ok:b1496db3ce69	engine	queries@emp	corpus/misc_expressions	CREATE VIEW v AS SELECT UPPER(code) a, code || title b, LENGTH(note) c, SUBSTR(note, 1, 10) d, TO_CHAR(ts) e, bd + 1 f, bf * 2 g, ts + 1 h, ts - ts i, ds * 2 j FROM misc
+ok:891046fd410b	ok:891046fd410b	engine	queries@emp	corpus/lob_raw_conversions	CREATE VIEW v AS SELECT TO_CLOB(title) c, TO_NCHAR(title) nc, RAWTOHEX(r) h, HEXTORAW('AB') rr FROM misc
+ok:7ce216898d1b	ok:7ce216898d1b	engine	queries@emp	corpus/json_object	CREATE VIEW v AS SELECT JSON_OBJECT('name' VALUE ename) j FROM emp
+ok:059ca5902714	ok:059ca5902714	engine	queries@emp	corpus/json_value	CREATE VIEW v AS SELECT JSON_VALUE('{"a":1}', '$.a') j FROM dual
+ok:4507ca51dd8c	ok:4507ca51dd8c	engine	queries@emp	corpus/json_arrayagg	CREATE VIEW v AS SELECT JSON_ARRAYAGG(ename) j FROM emp
+ok:d22ded0b04f6	ok:d22ded0b04f6	engine	queries@emp	corpus/xmlelement	CREATE VIEW v AS SELECT XMLELEMENT("e", ename) x FROM emp
+ok:e9b7186719e4	ok:e9b7186719e4	engine	queries@emp	corpus/json_table	CREATE VIEW v AS SELECT empno, xt.c FROM emp, JSON_TABLE('{"a":[1,2]}', '$.a[*]' COLUMNS (c NUMBER PATH '$')) xt
+ok:5ae2d9980fa6	ok:5ae2d9980fa6	engine	queries@emp	corpus/table_collection	CREATE VIEW v AS SELECT column_value cv FROM TABLE(sys.odcinumberlist(1, 2, 3))
+ok:6dc3fa1540ed	ok:6dc3fa1540ed	engine	queries@emp	corpus/table_collection_star	CREATE VIEW v AS SELECT * FROM TABLE(sys.odcivarchar2list('a', 'b'))
+ok:0d7845972d21	ok:0d7845972d21	engine	queries@emp	corpus/model	CREATE VIEW v AS SELECT ename, sal FROM emp MODEL DIMENSION BY (empno) MEASURES (sal, ename) RULES (sal[7369] = 0)
+ok:26ab46384899	ok:26ab46384899	engine	queries@emp	corpus/match_recognize	CREATE VIEW v AS SELECT * FROM emp MATCH_RECOGNIZE (ORDER BY hiredate MEASURES FIRST(ename) AS first_name PATTERN (a b*) DEFINE b AS sal > PREV(sal))
+ok:d1a5877cb80e	ok:d1a5877cb80e	engine	queries@emp	corpus/flashback_query	CREATE VIEW v AS SELECT ename FROM emp AS OF TIMESTAMP SYSDATE - 1

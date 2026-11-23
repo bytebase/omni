@@ -430,6 +430,7 @@ type FuncCallExpr struct {
 	OrderBy    *List       // ORDER BY within aggregate
 	KeepClause *KeepClause // KEEP (DENSE_RANK ...)
 	Over       *WindowSpec // OVER clause (analytic function)
+	Returning  *TypeName   // RETURNING datatype of a SQL/JSON function
 	Loc        Loc         // start location
 }
 
@@ -705,10 +706,12 @@ func (n *NumberLiteral) exprNode() {}
 
 // IntervalExpr represents an INTERVAL expression.
 type IntervalExpr struct {
-	Value ExprNode // expression
-	From  string   // starting field (YEAR, MONTH, DAY, HOUR, MINUTE, SECOND)
-	To    string   // ending field (optional)
-	Loc   Loc
+	Value         ExprNode // expression
+	From          string   // starting field (YEAR, MONTH, DAY, HOUR, MINUTE, SECOND)
+	FromPrecision int      // the starting field's precision, -1 when absent
+	To            string   // ending field (optional)
+	ToPrecision   int      // the ending field's precision, -1 when absent
+	Loc           Loc
 }
 
 func (n *IntervalExpr) nodeTag()  {}
