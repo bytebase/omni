@@ -50,6 +50,9 @@ type binder struct {
 	// ctes are the names of every CTE the statement defines, which a
 	// table reference may mean.
 	ctes []string
+	// visible are the CTEs of the WITH clauses around the query being
+	// bound.
+	visible []*ast.CommonTableExpr
 	// noFrom reports a column with no source at all as missing: in a
 	// view, an inline function, or a body's SELECT (verified).
 	noFrom bool
@@ -64,6 +67,10 @@ type binder struct {
 	// vars are the declared types of the module's parameters and
 	// variables, for a COLLATE operand.
 	vars []typedVar
+	// types is set for a view's or an inline function's query, whose
+	// operand types SQL Server checks when it creates the module (447,
+	// 8116, 8117; measured).
+	types bool
 }
 
 func newBinder(b *builder, root ast.Node, noFrom bool) *binder {
@@ -102,6 +109,14 @@ func (q *binder) query(n ast.Node, outer *qscope) {
 		return
 	}
 	if s.WithClause != nil && s.WithClause.CTEs != nil {
+		saved := q.visible
+		q.visible = append([]*ast.CommonTableExpr{}, saved...)
+		for _, item := range s.WithClause.CTEs.Items {
+			if cte, ok := item.(*ast.CommonTableExpr); ok {
+				q.visible = append(q.visible, cte)
+			}
+		}
+		defer func() { q.visible = saved }()
 		for _, item := range s.WithClause.CTEs.Items {
 			if cte, ok := item.(*ast.CommonTableExpr); ok {
 				q.query(cte.Query, outer)
@@ -117,7 +132,7 @@ func (q *binder) query(n ast.Node, outer *qscope) {
 	var conds []ast.ExprNode
 	if s.FromClause != nil {
 		for _, item := range s.FromClause.Items {
-			q.source(item, sc, &conds)
+			q.source(item, sc, &conds, false)
 		}
 	}
 	for _, c := range conds {
@@ -156,8 +171,8 @@ func (q *binder) query(n ast.Node, outer *qscope) {
 
 // source adds a FROM item's sources to a block, binding the derived
 // tables in it, and collects the join conditions to bind once every
-// source is in.
-func (q *binder) source(n ast.Node, sc *qscope, conds *[]ast.ExprNode) {
+// source is in. apply is set for the right side of APPLY.
+func (q *binder) source(n ast.Node, sc *qscope, conds *[]ast.ExprNode, apply bool) {
 	switch v := n.(type) {
 	case *ast.TableRef:
 		q.table(v, v.Alias, sc)
@@ -176,8 +191,28 @@ func (q *binder) source(n ast.Node, sc *qscope, conds *[]ast.ExprNode) {
 			q.table(t, alias, sc)
 		case *ast.SubqueryExpr:
 			// A derived table may refer to the block's other sources
-			// under APPLY, and to the blocks around it.
-			q.query(t.Query, sc)
+			// under APPLY, and else only to the blocks around it
+			// (4104, verified).
+			outer := sc
+			if !apply {
+				outer = sc.outer
+			}
+			q.query(t.Query, outer)
+			sel, _ := t.Query.(*ast.SelectStmt)
+			q.derived(v.Alias, sel, v.Columns, sc)
+		case *ast.ValuesClause:
+			names, ok := listNames(v.Columns)
+			if !ok || v.Columns == nil {
+				sc.opaque = true
+				sc.sources = append(sc.sources, qsource{exposed: v.Alias})
+				return
+			}
+			sc.sources = append(sc.sources, qsource{exposed: v.Alias, written: v.Alias, local: true, cols: names})
+		case *ast.FuncCallExpr:
+			if v.Columns == nil {
+				// A column list fails first on the call (317).
+				q.b.tableFunction(t)
+			}
 			sc.opaque = true
 			sc.sources = append(sc.sources, qsource{exposed: v.Alias})
 		default:
@@ -202,9 +237,17 @@ func (q *binder) source(n ast.Node, sc *qscope, conds *[]ast.ExprNode) {
 			}
 		}
 		sc.sources = append(sc.sources, src)
+	case *ast.PivotExpr:
+		inner := &qscope{outer: sc.outer}
+		q.source(v.Source, inner, conds, false)
+		q.pivot(v, inner, sc)
+	case *ast.UnpivotExpr:
+		inner := &qscope{outer: sc.outer}
+		q.source(v.Source, inner, conds, false)
+		q.unpivot(v, inner, sc)
 	case *ast.JoinClause:
-		q.source(v.Left, sc, conds)
-		q.source(v.Right, sc, conds)
+		q.source(v.Left, sc, conds, apply)
+		q.source(v.Right, sc, conds, v.Type == ast.JoinCrossApply || v.Type == ast.JoinOuterApply)
 		if v.Condition != nil {
 			*conds = append(*conds, v.Condition)
 		}
@@ -230,12 +273,27 @@ func (q *binder) table(tr *ast.TableRef, alias string, sc *qscope) {
 		sc.sources = append(sc.sources, src)
 		return
 	}
+	if q.isCTE(tr) && !tr.ForPath && tr.Temporal == nil {
+		if cte := q.cte(tr); cte != nil {
+			sel, _ := cte.Query.(*ast.SelectStmt)
+			if names, ok := cteNames(sel, cte.Columns); ok {
+				src.local, src.cols = true, names
+				sc.sources = append(sc.sources, src)
+				return
+			}
+		}
+	}
 	if q.isCTE(tr) || strings.HasPrefix(tr.Object, "#") || tr.Temporal != nil || tr.ForPath {
 		sc.opaque = true
 		sc.sources = append(sc.sources, src)
 		return
 	}
 	r, ok := q.b.ref(tr, false)
+	if ok && r.where == placed && !r.temp && hasHint(tr.Hints, "NOEXPAND") {
+		// NOEXPAND reads an indexed view (8171).
+		present := notKind(r.written, "view", kindView, kindSynonym)
+		q.b.ofKind(spaceRelation, r.parent, r.n, []string{kindView, kindSynonym}, note(r.rng, "", present))
+	}
 	if !ok || !q.b.knownTable(r) {
 		sc.opaque = true
 		sc.sources = append(sc.sources, src)
@@ -263,10 +321,13 @@ func (q *binder) expr(n ast.Node, sc *qscope) {
 			// The operand is bound before the operator.
 			q.expr(v.Expr, sc)
 			if q.bound {
-				q.b.collateFail(v, func(e ast.ExprNode) bool { return q.charOperand(e, sc) })
+				q.b.collateFail(v, func(e ast.ExprNode) string { return q.operandType(e, sc) }, q.types)
 			}
 			return false
 		case *ast.FuncCallExpr:
+			if q.bound && q.types {
+				q.callTypes(v, sc)
+			}
 			if v.Name != nil && v.Name.Schema == "" && strings.EqualFold(v.Name.Object, "UPDATE") && v.Args != nil && len(v.Args.Items) == 1 {
 				// A DML trigger's UPDATE(column) names a column of its
 				// table, whatever the query around it reads.
@@ -383,6 +444,11 @@ func (q *binder) ambiguous(c *ast.ColumnRef, cn name, s *qscope) bool {
 // knows the columns of.
 func (q *binder) qualified(c *ast.ColumnRef, sc *qscope) {
 	if isPseudoCol(c.Column) {
+		// A view's query with no source at all has no table to qualify
+		// a column with (107).
+		if q.noFrom && noSources(sc) {
+			q.unbound(c, sc)
+		}
 		return
 	}
 	for s := sc; s != nil; s = s.outer {
@@ -447,6 +513,11 @@ func (q *binder) unbound(c *ast.ColumnRef, sc *qscope) {
 				continue
 			}
 			got := q.b.see(spaceColumn, src.path, qn)
+			if t := q.b.pathColType(src.path, c.Table); got.fact == walk.Present && isBuiltinSystemType(t) && !clrTypes[t] {
+				// A column of a system type that is no CLR type has
+				// no property to read (4104, verified).
+				continue
+			}
 			if got.fact != walk.Absent {
 				return
 			}
@@ -551,6 +622,9 @@ func (b *builder) viewQuery(query ast.Node, cols *ast.List, kind string, params 
 		b.fail(rng, review.UnsupportedForm, "SQL Server doesn't accept a temporary table in a "+kind+".")
 		return
 	}
+	if b.viewForms(query, kind) {
+		return
+	}
 	if rng, bad := anySelectStarWithoutFrom(query); bad {
 		b.fail(rng, review.UnsupportedForm, "`SELECT *` requires a `FROM` clause.")
 		return
@@ -570,8 +644,12 @@ func (b *builder) viewQuery(query ast.Node, cols *ast.List, kind string, params 
 		b.fail(rng, review.UnsupportedForm, "SQL Server doesn't accept a derived table or CTE column without a name.")
 		return
 	}
+	if b.queryForms(query) {
+		return
+	}
 	b.queryTables(q, query)
 	q.bound = q.resolvable(query)
+	q.types = true
 	q.query(query, nil)
 }
 
@@ -1063,7 +1141,7 @@ func (q *binder) statement(n ast.Node) {
 		}
 		sc := &qscope{}
 		var conds []ast.ExprNode
-		q.source(v.Relation, sc, &conds)
+		q.source(v.Relation, sc, &conds, false)
 		if v.Cols != nil && !sc.opaque && len(sc.sources) == 1 {
 			for _, item := range v.Cols.Items {
 				if s, ok := item.(*ast.String); ok {
@@ -1080,7 +1158,7 @@ func (q *binder) statement(n ast.Node) {
 		}
 		sc := &qscope{}
 		var conds []ast.ExprNode
-		q.source(v.Relation, sc, &conds)
+		q.source(v.Relation, sc, &conds, false)
 		if v.SetClause != nil {
 			for _, item := range v.SetClause.Items {
 				se, ok := item.(*ast.SetExpr)
@@ -1100,7 +1178,7 @@ func (q *binder) statement(n ast.Node) {
 		}
 		sc := &qscope{}
 		var conds []ast.ExprNode
-		q.source(v.Relation, sc, &conds)
+		q.source(v.Relation, sc, &conds, false)
 		q.expr(v.WhereClause, sc)
 	case *ast.MergeStmt:
 		if v.WithClause != nil {
@@ -1108,8 +1186,8 @@ func (q *binder) statement(n ast.Node) {
 		}
 		sc := &qscope{}
 		var conds []ast.ExprNode
-		q.source(v.Target, sc, &conds)
-		q.source(v.Source, sc, &conds)
+		q.source(v.Target, sc, &conds, false)
+		q.source(v.Source, sc, &conds, false)
 		for _, c := range conds {
 			q.expr(c, sc)
 		}
@@ -1291,6 +1369,9 @@ func (b *builder) schemaBound(q *binder, n ast.Node, kind string, star bool) boo
 		if msg == "" && tr.Schema == "" && tr.Database == "" && tr.Server == "" && !q.isCTE(tr) {
 			rng, msg = rangeOf(tr.Loc), "SQL Server doesn't accept the one-part name "+review.Code(object(tr))+" in a schema-bound "+kind+"."
 		}
+		if msg == "" && tr.Database == "" && tr.Server == "" && (strings.EqualFold(tr.Schema, "sys") || strings.EqualFold(tr.Schema, "INFORMATION_SCHEMA")) {
+			rng, msg = rangeOf(tr.Loc), "SQL Server doesn't accept the system object "+review.Code(object(tr))+" in a schema-bound "+kind+"."
+		}
 	})
 	if msg == "" && star {
 		ast.Inspect(n, func(m ast.Node) bool {
@@ -1440,5 +1521,41 @@ func (q *binder) ungrouped(s *ast.SelectStmt) bool {
 		q.b.fail(rangeOf(c.Loc), review.UnsupportedForm, "SQL Server doesn't accept column "+review.Code(ident(c.Column))+", which is neither grouped nor aggregated.")
 		return true
 	}
-	return false
+	// HAVING (8121) and ORDER BY (8127) hold to it too, outside an
+	// aggregate; ORDER BY may name the select list's columns instead.
+	var bad *ast.ColumnRef
+	clause := ""
+	inBlock(s.HavingClause, func(m ast.Node) bool {
+		if bad != nil || isAggregate(m) {
+			return false
+		}
+		if c, ok := m.(*ast.ColumnRef); ok && c.Schema == "" && !isPseudoCol(c.Column) && !hasName(grouped, c.Column) {
+			bad, clause = c, "HAVING"
+		}
+		return true
+	})
+	var selected []string
+	for _, item := range s.TargetList.Items {
+		if rt, ok := item.(*ast.ResTarget); ok {
+			if rt.Name != "" {
+				selected = append(selected, rt.Name)
+			} else if c, ok := rt.Val.(*ast.ColumnRef); ok {
+				selected = append(selected, c.Column)
+			}
+		}
+	}
+	for _, item := range listNodes(s.OrderByClause) {
+		o, ok := item.(*ast.OrderByItem)
+		if !ok || bad != nil {
+			continue
+		}
+		if c, ok := o.Expr.(*ast.ColumnRef); ok && c.Schema == "" && !isPseudoCol(c.Column) && !hasName(grouped, c.Column) && !hasName(selected, c.Column) {
+			bad, clause = c, "ORDER BY"
+		}
+	}
+	if bad == nil {
+		return false
+	}
+	q.b.fail(rangeOf(bad.Loc), review.UnsupportedForm, "SQL Server doesn't accept column "+review.Code(ident(bad.Column))+" in `"+clause+"`, which is neither grouped nor aggregated.")
+	return true
 }

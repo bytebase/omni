@@ -101,13 +101,17 @@ func TestWalkSimulation(t *testing.T) {
 // refusals the walk cannot see from a database's schema, such as DROP
 // TRIGGER ON ALL SERVER (3701) and OPENQUERY on a missing linked server
 // (7202): the percentages moved and the counts rose to what it finds.
+// The query forms SQL Server refuses whatever the schema holds (window,
+// aggregate, ORDER BY, derived table and PIVOT rules) raised queries from
+// 64.7% to 80.7%; what is left needs full-text, temporal, and user type
+// facts the sync does not give, or is omni's syntax error.
 var walkSimSuites = []struct {
 	name, path, database string
 	minPct               float64
 	minFound             int
 }{
 	{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), "omni_TestSimulation", 91.0, 2797},
-	{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), "omni_TestQuerySimulation", 64.7, 296},
+	{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), "omni_TestQuerySimulation", 80.7, 369},
 	{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), "omni_TestProgramSimulation", 80.8, 59},
 }
 
