@@ -68,16 +68,7 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	}
 	b.Set(ik, walk.Present, "")
 	b.onIndexAdded(r, ik, true)
-	im := &indexMeta{unique: v.Unique, fulltext: v.Fulltext, spatial: spatial}
-	for _, p := range parts {
-		if p.functional {
-			break
-		}
-		if p.length > 0 {
-			im.hasPrefix = true
-		}
-		im.cols = append(im.cols, strings.ToLower(p.name))
-	}
+	im := indexMetaFromParts(v.Unique, false, v.Fulltext, spatial, parts)
 	b.Session(func() {
 		if b.w.tableIndexes[rel] != nil {
 			b.w.tableIndexes[rel][k] = im

@@ -513,6 +513,7 @@ func TestWalkThroughMySQLRefusalFamilies(t *testing.T) {
 						{Name: "id", Type: "int"},
 						{Name: "pid", Type: "int"},
 						{Name: "other", Type: "int"},
+						{Name: "label", Type: "varchar(50)"},
 					},
 					Indexes: []*metadata.IndexMetadata{
 						{Name: "PRIMARY", Primary: true, Unique: true, Type: "BTREE", Expressions: []string{"id"}},
@@ -521,6 +522,33 @@ func TestWalkThroughMySQLRefusalFamilies(t *testing.T) {
 					},
 					ForeignKeys: []*metadata.ForeignKeyMetadata{
 						{Name: "fk_pid", Columns: []string{"pid"}, ReferencedTable: "parent", ReferencedColumns: []string{"id"}},
+					},
+				},
+				{
+					Name:   "parent2",
+					Engine: "InnoDB",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id", Type: "int"},
+					},
+					Indexes: []*metadata.IndexMetadata{
+						{Name: "PRIMARY", Primary: true, Unique: true, Type: "BTREE", Expressions: []string{"id"}},
+					},
+				},
+				{
+					Name:   "child_two_fk",
+					Engine: "InnoDB",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id", Type: "int"},
+						{Name: "pid", Type: "int"},
+					},
+					Indexes: []*metadata.IndexMetadata{
+						{Name: "PRIMARY", Primary: true, Unique: true, Type: "BTREE", Expressions: []string{"id"}},
+						{Name: "fk1", Type: "BTREE", Expressions: []string{"pid"}},
+						{Name: "i", Type: "BTREE", Expressions: []string{"pid", "id"}},
+					},
+					ForeignKeys: []*metadata.ForeignKeyMetadata{
+						{Name: "fk1", Columns: []string{"pid"}, ReferencedTable: "parent2", ReferencedColumns: []string{"id"}},
+						{Name: "fk2", Columns: []string{"pid"}, ReferencedTable: "parent2", ReferencedColumns: []string{"id"}},
 					},
 				},
 				{
@@ -724,6 +752,9 @@ func TestWalkThroughMySQLRefusalFamilies(t *testing.T) {
 		{"overridden default attribute uses last default", "CREATE TABLE x (a INT DEFAULT 'abc' DEFAULT 0);"},
 		{"modify col type and set default in same alter", "CREATE TABLE x (a INT);\nALTER TABLE x MODIFY COLUMN a VARCHAR(10), ALTER COLUMN a SET DEFAULT 'abc';"},
 		{"change col type and set default in same alter", "CREATE TABLE x (a INT);\nALTER TABLE x CHANGE COLUMN a b VARCHAR(10), ALTER COLUMN b SET DEFAULT 'abc';"},
+		{"drop fk index with replacement having trailing prefix", "ALTER TABLE child DROP INDEX fk_pid, ADD INDEX fk_pid2 (pid, label(10));"},
+		{"drop constraint on fk preserves backing index in same alter", "ALTER TABLE child_two_fk DROP CONSTRAINT fk1, DROP INDEX i;"},
+		{"drop constraint on fk preserves backing index across stmts", "ALTER TABLE child_two_fk DROP CONSTRAINT fk1;\nDROP INDEX i ON child_two_fk;"},
 		{"rename table rewrites generated check prefix", "CREATE TABLE x (a INT, CONSTRAINT x_chk_1 CHECK (a > 0));\nRENAME TABLE x TO y;\nALTER TABLE y DROP CHECK y_chk_1;"},
 		{"expr default referencing other col", "ALTER TABLE plain ADD COLUMN x INT DEFAULT (n + 1);"},
 		{"generated col referencing other col", "ALTER TABLE plain ADD COLUMN x INT AS (n + 1);"},

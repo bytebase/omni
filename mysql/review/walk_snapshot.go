@@ -220,17 +220,14 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 					fulltext: strings.EqualFold(i.GetType(), "FULLTEXT"),
 					spatial:  isSpatialIndexType(i.GetType()),
 				}
-				for _, kl := range i.GetKeyLength() {
-					if kl > 0 {
-						im.hasPrefix = true
-					}
-				}
-				for _, ex := range exprs {
+				keyLengths := i.GetKeyLength()
+				for pos, ex := range exprs {
 					trimmed := strings.TrimSpace(ex)
 					if strings.HasPrefix(trimmed, "(") {
 						break
 					}
 					im.cols = append(im.cols, strings.ToLower(strings.Trim(trimmed, "`")))
+					im.colPrefixes = append(im.colPrefixes, pos < len(keyLengths) && keyLengths[pos] > 0)
 				}
 				idxMeta[ik] = im
 			}

@@ -108,6 +108,7 @@ type alterDelta struct {
 	addedIndexes              []*indexMeta
 	droppedFKs                map[string]bool
 	addedOrRenamedConstraints map[string]bool
+	ambiguousDropConstraint   bool
 	removesPartitioning       bool
 	repartition               *ast.PartitionClause
 	finalPartitioned          bool
@@ -225,8 +226,33 @@ func (b *builder) buildAlterDelta(r tableRef, v *ast.AlterTableStmt, setEngine s
 				}
 			case dropConstraint:
 				if k, ok := b.key(spaceForeignKey, c.Name); ok {
-					d.droppedFKs[k] = true
-					d.droppedIndexes[k] = true
+					_, own := fkKeys(r, k)
+					ck := chkKey(r.db, r.name, k)
+					ik := idxKey(r.db, r.name, k)
+					ff, _ := b.l.Lookup(own)
+					cf, _ := b.l.Lookup(ck)
+					if_, _ := b.l.Lookup(ik)
+					im := b.w.tableIndexes[rel][k]
+					isKnownUniqueIdx := im != nil && (im.unique || im.primary)
+					isKnownNonUniqueIdx := im != nil && !im.unique && !im.primary
+					switch {
+					case ff == walk.Present && cf == walk.Absent && (if_ == walk.Absent || isKnownNonUniqueIdx):
+						// Drops the FK constraint only; leaves any backing index intact.
+						d.droppedFKs[k] = true
+					case ff == walk.Absent && cf == walk.Present && (if_ == walk.Absent || isKnownNonUniqueIdx):
+						// Drops the CHECK constraint only; leaves indexes and FKs intact.
+					case ff == walk.Absent && cf == walk.Absent && if_ == walk.Present && isKnownUniqueIdx:
+						// Drops the UNIQUE/PRIMARY index constraint only.
+						d.droppedIndexes[k] = true
+					default:
+						// Ambiguous or unknown constraint kind: treat any matching FK as
+						// potentially dropped, do not remove any backing index, and mark
+						// index completeness uncertain.
+						if ff != walk.Absent {
+							d.droppedFKs[k] = true
+						}
+						d.ambiguousDropConstraint = true
+					}
 				}
 			}
 		case ast.ATAddConstraint, ast.ATAddIndex:
@@ -266,22 +292,13 @@ func (d *alterDelta) recordAddedConstraint(con *ast.Constraint) {
 	if con == nil || con.Type == ast.ConstrCheck || con.Type == ast.ConstrForeignKey {
 		return
 	}
-	im := &indexMeta{
-		unique:   con.Type == ast.ConstrUnique || con.Type == ast.ConstrPrimaryKey,
-		primary:  con.Type == ast.ConstrPrimaryKey,
-		fulltext: con.Type == ast.ConstrFulltextIndex,
-		spatial:  con.Type == ast.ConstrSpatialIndex || isSpatialIndexType(con.IndexType),
-	}
-	for _, p := range constraintKeyParts(con) {
-		if p.functional {
-			break
-		}
-		if p.length > 0 {
-			im.hasPrefix = true
-		}
-		im.cols = append(im.cols, strings.ToLower(p.name))
-	}
-	d.addedIndexes = append(d.addedIndexes, im)
+	d.addedIndexes = append(d.addedIndexes, indexMetaFromParts(
+		con.Type == ast.ConstrUnique || con.Type == ast.ConstrPrimaryKey,
+		con.Type == ast.ConstrPrimaryKey,
+		con.Type == ast.ConstrFulltextIndex,
+		con.Type == ast.ConstrSpatialIndex || isSpatialIndexType(con.IndexType),
+		constraintKeyParts(con),
+	))
 }
 
 func (b *builder) alterFinalCol(r tableRef, d *alterDelta, colName string) (walk.Fact, string, bool) {
@@ -380,7 +397,7 @@ func (b *builder) applyAlterMeta(r tableRef, v *ast.AlterTableStmt, d *alterDelt
 				delete(b.w.colTypes, colKey(r.db, r.name, k))
 			}
 		}
-		if len(d.droppedCols) > 0 {
+		if len(d.droppedCols) > 0 || d.ambiguousDropConstraint {
 			b.w.tableIndexesComplete[rel] = false
 		}
 		// Snapshot source index metadata before applying drops and renames so
@@ -525,21 +542,13 @@ func (b *builder) applyAddedConstraintMeta(rel walk.Key, con *ast.Constraint) {
 		}
 		return
 	}
-	im := &indexMeta{
-		unique:   con.Type == ast.ConstrUnique || con.Type == ast.ConstrPrimaryKey,
-		primary:  con.Type == ast.ConstrPrimaryKey,
-		fulltext: con.Type == ast.ConstrFulltextIndex,
-		spatial:  con.Type == ast.ConstrSpatialIndex || isSpatialIndexType(con.IndexType),
-	}
-	for _, p := range constraintKeyParts(con) {
-		if p.functional {
-			break
-		}
-		if p.length > 0 {
-			im.hasPrefix = true
-		}
-		im.cols = append(im.cols, strings.ToLower(p.name))
-	}
+	im := indexMetaFromParts(
+		con.Type == ast.ConstrUnique || con.Type == ast.ConstrPrimaryKey,
+		con.Type == ast.ConstrPrimaryKey,
+		con.Type == ast.ConstrFulltextIndex,
+		con.Type == ast.ConstrSpatialIndex || isSpatialIndexType(con.IndexType),
+		constraintKeyParts(con),
+	)
 	if con.Type == ast.ConstrPrimaryKey {
 		if b.w.tableIndexes[rel] != nil {
 			b.w.tableIndexes[rel][primaryIndex] = im
@@ -700,7 +709,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd, d *alterDelta) bool
 		}
 		b.addConstraint(r, c.Constraint, d)
 	case ast.ATDropIndex:
-		if k, ok := b.key(spaceIndex, c.Name); ok {
+		if k, ok := b.key(spaceIndex, c.Name); ok && !d.ambiguousDropConstraint {
 			if b.dropIndexNeededByFK(r, k, d.droppedIndexes, d.droppedFKs, d.droppedCols, d.renamedFrom, d.addedIndexes) {
 				b.fail(rng, nil, review.IndexBacksConstraint, "Index "+review.Code(ident(c.Name))+" in "+review.Code(r.written)+" is needed by a foreign key constraint.")
 				return true
@@ -710,7 +719,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd, d *alterDelta) bool
 	case ast.ATDropConstraint:
 		switch dropKindOf(c) {
 		case dropPrimaryKey:
-			if b.dropIndexNeededByFK(r, primaryIndex, d.droppedIndexes, d.droppedFKs, d.droppedCols, d.renamedFrom, d.addedIndexes) {
+			if !d.ambiguousDropConstraint && b.dropIndexNeededByFK(r, primaryIndex, d.droppedIndexes, d.droppedFKs, d.droppedCols, d.renamedFrom, d.addedIndexes) {
 				b.fail(rng, nil, review.IndexBacksConstraint, "Primary key of "+review.Code(r.written)+" is needed by a foreign key constraint.")
 				return true
 			}
@@ -914,7 +923,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd, d *alterDelta) bool
 			return true
 		}
 		var uqIdxs map[string]*indexMeta
-		idxComplete := b.w.tableIndexesComplete[rel] && len(d.renamedFrom) == 0 && len(d.droppedCols) == 0
+		idxComplete := b.w.tableIndexesComplete[rel] && len(d.renamedFrom) == 0 && len(d.droppedCols) == 0 && !d.ambiguousDropConstraint
 		if idxComplete {
 			uqIdxs = make(map[string]*indexMeta)
 			for name, im := range b.w.tableIndexes[rel] {

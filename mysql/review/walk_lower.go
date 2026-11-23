@@ -641,18 +641,7 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 				if con.Type != ast.ConstrPrimaryKey && con.Type != ast.ConstrUnique {
 					continue
 				}
-				parts := constraintKeyParts(con)
-				im := &indexMeta{unique: true, primary: con.Type == ast.ConstrPrimaryKey}
-				for _, p := range parts {
-					if p.functional {
-						break
-					}
-					if p.length > 0 {
-						im.hasPrefix = true
-					}
-					im.cols = append(im.cols, strings.ToLower(p.name))
-				}
-				uqIdxs["con:"+strconv.Itoa(i)] = im
+				uqIdxs["con:"+strconv.Itoa(i)] = indexMetaFromParts(true, con.Type == ast.ConstrPrimaryKey, false, false, constraintKeyParts(con))
 			}
 		}
 		if b.partitionClauseColumnsAndUniqueFails(r, v.Partitions, r.rng, func(colName string) walk.Fact {
@@ -757,34 +746,16 @@ func (b *builder) created(v *ast.CreateTableStmt, r tableRef, optional bool) {
 				}
 			}
 		case ast.ConstrPrimaryKey:
-			im := &indexMeta{primary: true, unique: true}
-			for _, p := range constraintKeyParts(con) {
-				if p.functional {
-					break
-				}
-				if p.length > 0 {
-					im.hasPrefix = true
-				}
-				im.cols = append(im.cols, strings.ToLower(p.name))
-			}
-			idxsMap[primaryIndex] = im
+			idxsMap[primaryIndex] = indexMetaFromParts(true, true, false, false, constraintKeyParts(con))
 		default:
 			if k, ok := b.key(spaceIndex, con.Name); ok {
-				im := &indexMeta{
-					unique:   con.Type == ast.ConstrUnique,
-					fulltext: con.Type == ast.ConstrFulltextIndex,
-					spatial:  con.Type == ast.ConstrSpatialIndex || isSpatialIndexType(con.IndexType),
-				}
-				for _, p := range constraintKeyParts(con) {
-					if p.functional {
-						break
-					}
-					if p.length > 0 {
-						im.hasPrefix = true
-					}
-					im.cols = append(im.cols, strings.ToLower(p.name))
-				}
-				idxsMap[k] = im
+				idxsMap[k] = indexMetaFromParts(
+					con.Type == ast.ConstrUnique,
+					false,
+					con.Type == ast.ConstrFulltextIndex,
+					con.Type == ast.ConstrSpatialIndex || isSpatialIndexType(con.IndexType),
+					constraintKeyParts(con),
+				)
 			} else {
 				idxComplete = false
 			}

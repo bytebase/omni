@@ -43,12 +43,12 @@ func (p *tablePartitionInfo) clone() *tablePartitionInfo {
 
 // indexMeta records what the walk knows about one index on a table.
 type indexMeta struct {
-	unique    bool
-	primary   bool
-	fulltext  bool
-	spatial   bool
-	hasPrefix bool
-	cols      []string // leading non-functional column keys (lower-case)
+	unique      bool
+	primary     bool
+	fulltext    bool
+	spatial     bool
+	cols        []string // leading non-functional column keys (lower-case)
+	colPrefixes []bool   // parallel to cols: true if key part has a prefix length > 0
 }
 
 func (m *indexMeta) clone() *indexMeta {
@@ -59,7 +59,39 @@ func (m *indexMeta) clone() *indexMeta {
 	if m.cols != nil {
 		cp.cols = append([]string(nil), m.cols...)
 	}
+	if m.colPrefixes != nil {
+		cp.colPrefixes = append([]bool(nil), m.colPrefixes...)
+	}
 	return &cp
+}
+
+func (m *indexMeta) anyPrefix() bool {
+	if m == nil {
+		return false
+	}
+	for _, p := range m.colPrefixes {
+		if p {
+			return true
+		}
+	}
+	return false
+}
+
+func indexMetaFromParts(unique, primary, fulltext, spatial bool, parts []keyPartSpec) *indexMeta {
+	im := &indexMeta{
+		unique:   unique,
+		primary:  primary,
+		fulltext: fulltext,
+		spatial:  spatial,
+	}
+	for _, p := range parts {
+		if p.functional {
+			break
+		}
+		im.cols = append(im.cols, strings.ToLower(p.name))
+		im.colPrefixes = append(im.colPrefixes, p.length > 0)
+	}
+	return im
 }
 
 func partitionProtoType(t metadata.TablePartitionMetadata_Type) (ast.PartitionType, bool) {
@@ -959,7 +991,7 @@ func (b *builder) partitionClauseColumnsAndUniqueFails(
 		return false
 	}
 	for _, idx := range uniqueIndexes {
-		if idx == nil || (!idx.unique && !idx.primary) || idx.cols == nil || idx.hasPrefix {
+		if idx == nil || (!idx.unique && !idx.primary) || idx.cols == nil || idx.anyPrefix() {
 			continue
 		}
 		for _, pcCol := range partCols {
@@ -979,14 +1011,19 @@ func (b *builder) partitionClauseColumnsAndUniqueFails(
 	return false
 }
 
-// indexCoversCols reports whether idx is a BTREE/HASH index (not FULLTEXT,
-// SPATIAL, or prefixed) whose leading columns match fkCols in order.
+// indexCoversCols reports whether idx is a BTREE/HASH index (not FULLTEXT or
+// SPATIAL) whose leading whole-column (unprefixed) key parts match fkCols in
+// order. Prefix lengths on trailing columns past len(fkCols) do not disqualify
+// the index.
 func indexCoversCols(idx *indexMeta, fkCols []string) bool {
-	if idx == nil || idx.fulltext || idx.spatial || idx.hasPrefix || len(fkCols) == 0 || len(idx.cols) < len(fkCols) {
+	if idx == nil || idx.fulltext || idx.spatial || len(fkCols) == 0 || len(idx.cols) < len(fkCols) {
 		return false
 	}
 	for i, c := range fkCols {
 		if idx.cols[i] != c {
+			return false
+		}
+		if i < len(idx.colPrefixes) && idx.colPrefixes[i] {
 			return false
 		}
 	}
