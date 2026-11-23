@@ -146,7 +146,7 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 	withinGroup := simpleType("UNKNOWN")
 	for i, item := range listItems(n.OrderBy) {
 		if sb, ok := item.(*ast.SortBy); ok {
-			t, _, err := a.expr(sb.Expr, sc, clauseSelect)
+			t, _, err := a.expr(sb.Expr, sc, clauseAggArg)
 			if err != nil {
 				return qtype{}, false, err
 			}
@@ -158,7 +158,7 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 	if n.KeepClause != nil {
 		for _, item := range listItems(n.KeepClause.OrderBy) {
 			if sb, ok := item.(*ast.SortBy); ok {
-				if _, _, err := a.expr(sb.Expr, sc, clauseSelect); err != nil {
+				if _, _, err := a.expr(sb.Expr, sc, clauseAggArg); err != nil {
 					return qtype{}, false, err
 				}
 			}
@@ -178,6 +178,17 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 	if n.FuncName.Schema == "" {
 		if t, ok := a.plsqlFuncs[name]; ok {
 			return t, false, nil
+		}
+	}
+	if n.FuncName.Schema == "" && sc.inPatternMatch() {
+		switch name {
+		case "FIRST", "LAST", "PREV", "NEXT":
+			// A row pattern navigation returns its first argument's value.
+			return arg(0), false, nil
+		case "CLASSIFIER":
+			return varchar2Bytes(128), false, nil
+		case "MATCH_NUMBER":
+			return numberType(), false, nil
 		}
 	}
 	if n.Returning != nil {

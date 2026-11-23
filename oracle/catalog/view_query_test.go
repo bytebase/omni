@@ -203,6 +203,7 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"rowid_with_aggregate", `CREATE VIEW v AS SELECT ROWID rid, COUNT(*) c FROM t`, "00937"},
 		{"regexp_substr_national_union", `CREATE VIEW v AS SELECT REGEXP_SUBSTR(nv, N'.') x FROM t UNION ALL SELECT nv FROM t`, ""},
 		{"cycle_mark_bind", `CREATE VIEW v AS WITH r(n) AS (SELECT 1 FROM dual UNION ALL SELECT n + 1 FROM r WHERE n < 2) CYCLE n SET cyc TO :p DEFAULT 'N' SELECT n, cyc FROM r`, "01027"},
+		{"listagg_order_analytic", `CREATE VIEW v AS SELECT LISTAGG(dummy, ',') WITHIN GROUP (ORDER BY ROW_NUMBER() OVER (ORDER BY dummy)) x FROM dual`, "30483"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -900,5 +901,38 @@ CREATE VIEW v (a, b, c) AS SELECT * FROM t CROSS JOIN u CROSS JOIN t;
 	v := c.Metadata().GetSchemas()[0].GetViews()[0]
 	if want := "SELECT * FROM t CROSS JOIN u CROSS JOIN t"; v.GetDefinition() != want {
 		t.Errorf("definition = %q, want %q", v.GetDefinition(), want)
+	}
+}
+
+func TestViewQueryRound41(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TABLE t ("*" NUMBER, id NUMBER, name VARCHAR2(10));
+CREATE VIEW q AS SELECT t."*" a FROM t;
+CREATE VIEW m AS SELECT x FROM t MATCH_RECOGNIZE (ORDER BY id MEASURES FIRST(a.name) || 'x' AS x PATTERN (a) DEFINE a AS id > 0);
+CREATE VIEW v AS SELECT 1 x FROM dual;
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range c.Metadata().GetSchemas()[0].GetViews() {
+		switch v.GetName() {
+		case "Q":
+			if len(v.GetColumns()) != 1 || v.GetDefinition() != `SELECT t."*" a FROM t` {
+				t.Errorf("Q = %q with %d columns", v.GetDefinition(), len(v.GetColumns()))
+			}
+		case "M":
+			if got := v.GetColumns()[0].GetType(); got != "VARCHAR2(11 BYTE)" {
+				t.Errorf("M.X type = %q, want VARCHAR2(11 BYTE)", got)
+			}
+		}
+	}
+	c.SetServerConfig(StandardOracle23ServerConfig())
+	results, err := c.Exec(`CREATE OR REPLACE VIEW v AS SELECT x FROM v`, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var refusal *Error
+	if !errors.As(results[0].Error, &refusal) || refusal.Code != "01731" {
+		t.Errorf("self-reading view: %v, want ORA-01731", results[0].Error)
 	}
 }

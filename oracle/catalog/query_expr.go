@@ -971,7 +971,8 @@ func checkGrouped(x ast.Node, keys []string, keyOf func(ast.Node) string, owned 
 			return nil
 		}
 	case *ast.ColumnRef:
-		if n.Column == "*" {
+		if n.Column == "*" && !strings.HasPrefix(keyOf(n), "c:") {
+			// A t.* is checked through the columns it stands for.
 			return nil
 		}
 		key := keyOf(n)

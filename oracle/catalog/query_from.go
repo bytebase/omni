@@ -201,6 +201,10 @@ func (a *queryAnalyzer) tableRef(n *ast.TableRef, sc *qscope) (*qfrom, error) {
 	}
 	switch {
 	case e.views[target] != nil:
+		if a.defining != "" && (target == a.defining || e.viewReads(target, a.defining, map[string]bool{})) {
+			// A view that reads itself, directly or through another view.
+			return nil, oraError("01731", "circular view definition encountered")
+		}
 		if len(e.views[target].Columns) == 0 {
 			// A view whose columns the catalog could not derive: Oracle
 			// would read it only once it compiles.
@@ -933,7 +937,7 @@ func (a *queryAnalyzer) matchRecognize(n *ast.MatchRecognizeClause, sc *qscope) 
 	}
 	// A pattern variable or subset qualifies the input's columns in
 	// MEASURES and DEFINE: a.id reads id of the rows a matched.
-	inner := &qscope{parent: sc.parent, ctes: sc.ctes, from: &qfrom{items: src.items, flat: src.flat}}
+	inner := &qscope{parent: sc.parent, ctes: sc.ctes, from: &qfrom{items: src.items, flat: src.flat}, patternMatch: true}
 	var inputCols []qcol
 	for _, it := range src.items {
 		inputCols = append(inputCols, src.itemCol(it))
@@ -1313,4 +1317,27 @@ func (a *queryAnalyzer) jsonTablePaths(n *ast.JsonTableRef) error {
 		}
 	}
 	return nil
+}
+
+// viewReads reports whether a view reads target, through the views it
+// depends on.
+func (e *oracleMetadataExtractor) viewReads(view, target string, seen map[string]bool) bool {
+	if seen[view] {
+		return false
+	}
+	seen[view] = true
+	v := e.views[view]
+	if v == nil {
+		return false
+	}
+	for _, dep := range v.GetDependencyColumns() {
+		name := dep.GetTable()
+		if name == target {
+			return true
+		}
+		if e.views[name] != nil && e.viewReads(name, target, seen) {
+			return true
+		}
+	}
+	return false
 }

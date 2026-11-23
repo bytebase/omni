@@ -2913,7 +2913,7 @@ func (e *oracleMetadataExtractor) extractCreateView(n *ast.CreateViewStmt) {
 	var derivedText string
 	derivedOK := false
 	if !n.Materialized {
-		cols, text, err := e.analyzeViewQuery(n.Query)
+		cols, text, err := e.analyzeViewQuery(n.Query, viewName)
 		if err == nil {
 			err = e.checkViewColumns(n, cols)
 		}

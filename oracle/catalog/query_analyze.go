@@ -99,6 +99,9 @@ type qscope struct {
 	hierarchical bool
 	// windows are the block's WINDOW clause definitions, by name.
 	windows map[string]*ast.WindowSpec
+	// patternMatch marks a MATCH_RECOGNIZE clause's MEASURES and DEFINE,
+	// where FIRST, LAST, PREV and NEXT navigate the matched rows.
+	patternMatch bool
 }
 
 type cteDef struct {
@@ -134,6 +137,8 @@ type queryAnalyzer struct {
 	plsqlFuncs map[string]qtype
 	// owner is the FROM clause each column reference resolved in.
 	owner map[*ast.ColumnRef]*qfrom
+	// defining is the view being created, which its query may not read.
+	defining string
 	// memo holds each expression's analysis by scope and clause.
 	memo map[exprMemoKey]exprMemo
 	// queryMemo holds each subquery's analysis by scope and environment.
@@ -156,12 +161,15 @@ type queryResult struct {
 
 // analyzeViewQuery returns the columns of a view's query and the text Oracle
 // stores for it.
-func (e *oracleMetadataExtractor) analyzeViewQuery(query ast.StmtNode) ([]qcol, string, error) {
+func (e *oracleMetadataExtractor) analyzeViewQuery(query ast.StmtNode, viewName ...string) ([]qcol, string, error) {
 	sel, ok := query.(*ast.SelectStmt)
 	if !ok || sel == nil {
 		return nil, e.nodeText(query), nil
 	}
 	a := &queryAnalyzer{e: e, plsqlFuncs: map[string]qtype{}, owner: map[*ast.ColumnRef]*qfrom{}, memo: map[exprMemoKey]exprMemo{}, queryMemo: map[queryMemoKey]queryMemo{}, blockMemo: map[blockMemoKey]queryMemo{}, hashMemo: map[hashMemoKey]uint64{}}
+	if len(viewName) > 0 {
+		a.defining = viewName[0]
+	}
 	res, err := a.query(sel, nil, nil, true)
 	if err != nil {
 		return nil, "", err
@@ -1351,7 +1359,7 @@ func (a *queryAnalyzer) selectTarget(rt *ast.ResTarget, sc *qscope, top bool) ([
 		}
 		return cols, nil
 	case *ast.ColumnRef:
-		if x.Column == "*" {
+		if a.isWildcard(x) {
 			items, err := a.qualifiedStar(sc, x)
 			if err != nil {
 				return nil, err
@@ -1929,7 +1937,7 @@ func (a *queryAnalyzer) starReferences(rt *ast.ResTarget, sc *qscope) []ast.Expr
 	switch x := rt.Expr.(type) {
 	case *ast.Star:
 	case *ast.ColumnRef:
-		if x.Column != "*" {
+		if !a.isWildcard(x) {
 			return nil
 		}
 		qualifier = x.Table
@@ -2032,4 +2040,24 @@ func relColumnCount(r *qrel, name string) int {
 		}
 	}
 	return n
+}
+
+// inPatternMatch reports a scope within a MATCH_RECOGNIZE clause.
+func (s *qscope) inPatternMatch() bool {
+	for ; s != nil; s = s.parent {
+		if s.patternMatch {
+			return true
+		}
+	}
+	return false
+}
+
+// isWildcard reports whether a reference is t.* rather than a quoted "*"
+// column: the reference's text ends in the * itself.
+func (a *queryAnalyzer) isWildcard(ref *ast.ColumnRef) bool {
+	if ref.Column != "*" {
+		return false
+	}
+	text := strings.TrimSpace(a.e.nodeText(ref))
+	return text == "" || strings.HasSuffix(text, "*") && !strings.HasSuffix(text, `"*"`)
 }
