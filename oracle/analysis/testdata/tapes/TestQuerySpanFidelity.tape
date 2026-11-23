@@ -10928,6 +10928,236 @@
 | ALTER SESSION SET CURRENT_SCHEMA = "SHOP"
 < ok 0 0
 > query
+| SELECT * FROM sales PIVOT (SUM(amount) AS total FOR quarter IN ('q1', 'Q2' AS b, 3))
+< result
+< column "REGION" "NCHAR" "string"
+< column "'q1'_TOTAL" "NUMBER" "float64" precision 38 scale 255
+< column "B_TOTAL" "NUMBER" "float64" precision 38 scale 255
+< column "3_TOTAL" "NUMBER" "float64" precision 38 scale 255
+> exec
+| CREATE VIEW "SHOP".OMNI_SPAN_PROBE (C1, C2, C3, C4) AS SELECT * FROM sales PIVOT (SUM(amount) AS total FOR quarter IN ('q1', 'Q2' AS b, 3))
+< ok 0 0
+> query
+| SELECT domain_owner, domain_name FROM all_tab_cols WHERE owner = 'SHOP' AND table_name = 'OMNI_SPAN_PROBE' ORDER BY column_id
+< result
+< column "DOMAIN_OWNER" "NCHAR" "string"
+< column "DOMAIN_NAME" "NCHAR" "string"
+< row
+: string
+| SHOP
+: string
+| OMNI_SPAN_D34
+< row
+: null
+: null
+< row
+: null
+: null
+< row
+: null
+: null
+> query
+| SELECT referenced_owner, referenced_name, referenced_type, referenced_link_name
+| FROM all_dependencies WHERE owner = 'SHOP' AND name = 'OMNI_SPAN_PROBE' AND type = 'VIEW'
+| ORDER BY 1, 2, 3
+< result
+< column "REFERENCED_OWNER" "NCHAR" "string"
+< column "REFERENCED_NAME" "NCHAR" "string"
+< column "REFERENCED_TYPE" "NCHAR" "string"
+< column "REFERENCED_LINK_NAME" "NCHAR" "string"
+< row
+: string
+| SHOP
+: string
+| SALES
+: string
+| TABLE
+: null
+> exec
+| DROP VIEW "SHOP".OMNI_SPAN_PROBE
+< ok 0 0
+> exec
+| EXPLAIN PLAN SET STATEMENT_ID = 'omni_span' FOR SELECT * FROM sales PIVOT (SUM(amount) AS total FOR quarter IN ('q1', 'Q2' AS b, 3))
+< ok 0 0
+> query
+| SELECT p.operation, p.options, p.object_owner, p.object_name, p.object_type, p.object_node, i.table_owner, i.table_name,
+| 	(SELECT COUNT(*) FROM all_objects o WHERE o.owner = p.object_owner AND o.object_name = p.object_name AND o.object_type IN ('TABLE', 'VIEW', 'MATERIALIZED VIEW'))
+| FROM plan_table p LEFT JOIN all_indexes i ON i.owner = p.object_owner AND i.index_name = p.object_name
+| WHERE p.statement_id = 'omni_span' ORDER BY p.id
+< result
+< column "OPERATION" "NCHAR" "string"
+< column "OPTIONS" "NCHAR" "string"
+< column "OBJECT_OWNER" "NCHAR" "string"
+< column "OBJECT_NAME" "NCHAR" "string"
+< column "OBJECT_TYPE" "NCHAR" "string"
+< column "OBJECT_NODE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMALL_OBJECTSOWHEREO.OWNER=P.OBJECT_OWNERANDO.OBJECT_NAME=P.OBJECT_NAMEANDO.OBJECT_TYPEIN('TABLE','VIEW','MATERIALIZEDVIEW'))" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| SELECT STATEMENT
+: null
+: null
+: null
+: null
+: null
+: null
+: null
+: string
+| 0
+< row
+: string
+| HASH
+: string
+| GROUP BY PIVOT
+: null
+: null
+: null
+: null
+: null
+: null
+: string
+| 0
+< row
+: string
+| TABLE ACCESS
+: string
+| FULL
+: string
+| SHOP
+: string
+| SALES
+: string
+| TABLE
+: null
+: null
+: null
+: string
+| 1
+> exec
+| DELETE FROM plan_table WHERE statement_id = 'omni_span'
+< ok 3 0
+> exec
+| ALTER SESSION SET CURRENT_SCHEMA = SYSTEM
+< ok 0 0
+> exec
+| ALTER SESSION SET CURRENT_SCHEMA = "SHOP"
+< ok 0 0
+> query
+| SELECT * FROM sales PIVOT (SUM(amount) FOR quarter IN ('q1', 'a b'))
+< result
+< column "REGION" "NCHAR" "string"
+< column "'q1'" "NUMBER" "float64" precision 38 scale 255
+< column "'a b'" "NUMBER" "float64" precision 38 scale 255
+> exec
+| CREATE VIEW "SHOP".OMNI_SPAN_PROBE (C1, C2, C3) AS SELECT * FROM sales PIVOT (SUM(amount) FOR quarter IN ('q1', 'a b'))
+< ok 0 0
+> query
+| SELECT domain_owner, domain_name FROM all_tab_cols WHERE owner = 'SHOP' AND table_name = 'OMNI_SPAN_PROBE' ORDER BY column_id
+< result
+< column "DOMAIN_OWNER" "NCHAR" "string"
+< column "DOMAIN_NAME" "NCHAR" "string"
+< row
+: string
+| SHOP
+: string
+| OMNI_SPAN_D34
+< row
+: null
+: null
+< row
+: null
+: null
+> query
+| SELECT referenced_owner, referenced_name, referenced_type, referenced_link_name
+| FROM all_dependencies WHERE owner = 'SHOP' AND name = 'OMNI_SPAN_PROBE' AND type = 'VIEW'
+| ORDER BY 1, 2, 3
+< result
+< column "REFERENCED_OWNER" "NCHAR" "string"
+< column "REFERENCED_NAME" "NCHAR" "string"
+< column "REFERENCED_TYPE" "NCHAR" "string"
+< column "REFERENCED_LINK_NAME" "NCHAR" "string"
+< row
+: string
+| SHOP
+: string
+| SALES
+: string
+| TABLE
+: null
+> exec
+| DROP VIEW "SHOP".OMNI_SPAN_PROBE
+< ok 0 0
+> exec
+| EXPLAIN PLAN SET STATEMENT_ID = 'omni_span' FOR SELECT * FROM sales PIVOT (SUM(amount) FOR quarter IN ('q1', 'a b'))
+< ok 0 0
+> query
+| SELECT p.operation, p.options, p.object_owner, p.object_name, p.object_type, p.object_node, i.table_owner, i.table_name,
+| 	(SELECT COUNT(*) FROM all_objects o WHERE o.owner = p.object_owner AND o.object_name = p.object_name AND o.object_type IN ('TABLE', 'VIEW', 'MATERIALIZED VIEW'))
+| FROM plan_table p LEFT JOIN all_indexes i ON i.owner = p.object_owner AND i.index_name = p.object_name
+| WHERE p.statement_id = 'omni_span' ORDER BY p.id
+< result
+< column "OPERATION" "NCHAR" "string"
+< column "OPTIONS" "NCHAR" "string"
+< column "OBJECT_OWNER" "NCHAR" "string"
+< column "OBJECT_NAME" "NCHAR" "string"
+< column "OBJECT_TYPE" "NCHAR" "string"
+< column "OBJECT_NODE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMALL_OBJECTSOWHEREO.OWNER=P.OBJECT_OWNERANDO.OBJECT_NAME=P.OBJECT_NAMEANDO.OBJECT_TYPEIN('TABLE','VIEW','MATERIALIZEDVIEW'))" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| SELECT STATEMENT
+: null
+: null
+: null
+: null
+: null
+: null
+: null
+: string
+| 0
+< row
+: string
+| HASH
+: string
+| GROUP BY PIVOT
+: null
+: null
+: null
+: null
+: null
+: null
+: string
+| 0
+< row
+: string
+| TABLE ACCESS
+: string
+| FULL
+: string
+| SHOP
+: string
+| SALES
+: string
+| TABLE
+: null
+: null
+: null
+: string
+| 1
+> exec
+| DELETE FROM plan_table WHERE statement_id = 'omni_span'
+< ok 3 0
+> exec
+| ALTER SESSION SET CURRENT_SCHEMA = SYSTEM
+< ok 0 0
+> exec
+| ALTER SESSION SET CURRENT_SCHEMA = "SHOP"
+< ok 0 0
+> query
 | SELECT * FROM quarterly UNPIVOT (amount FOR quarter IN (q1 AS 'Q1', q2 AS 'Q2'))
 < result
 < column "REGION" "NCHAR" "string"

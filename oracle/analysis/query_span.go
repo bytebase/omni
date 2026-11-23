@@ -2167,11 +2167,14 @@ func pivotInItemName(q *querySpanExtractor, item *oracleast.PivotInItem) string 
 	if item.Alias != "" {
 		return item.Alias
 	}
+	// An unaliased value names its column as written, a string literal's
+	// case and spaces kept, unlike a select-list expression's name.
 	var parts []string
 	for _, expr := range exprList(item.Values) {
-		name, _, err := q.extractExpr(expr)
-		if err != nil {
-			continue
+		loc := getExprFullLoc(expr)
+		name := oracleast.NodeToString(expr)
+		if !loc.IsUnknown() && loc.Start >= 0 && loc.End <= len(q.source) && loc.Start < loc.End {
+			name = q.source[loc.Start:loc.End]
 		}
 		if name != "" {
 			parts = append(parts, name)

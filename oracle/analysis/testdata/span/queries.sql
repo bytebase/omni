@@ -108,6 +108,8 @@ SELECT region, COUNT(DISTINCT id) FROM customers GROUP BY ROLLUP (region)
 -- PIVOT, UNPIVOT, MODEL
 SELECT * FROM sales PIVOT (SUM(amount) FOR quarter IN ('Q1' AS q1, 'Q2' AS q2))
 SELECT region, q1 FROM sales PIVOT (SUM(amount) FOR quarter IN ('Q1' AS q1, 'Q2' AS q2))
+SELECT * FROM sales PIVOT (SUM(amount) AS total FOR quarter IN ('q1', 'Q2' AS b, 3))
+SELECT * FROM sales PIVOT (SUM(amount) FOR quarter IN ('q1', 'a b'))
 SELECT * FROM quarterly UNPIVOT (amount FOR quarter IN (q1 AS 'Q1', q2 AS 'Q2'))
 SELECT region, amount FROM quarterly UNPIVOT (amount FOR quarter IN (q1, q2))
 SELECT region, quarter, amount FROM sales MODEL PARTITION BY (region) DIMENSION BY (quarter) MEASURES (amount) RULES (amount['Q9'] = amount['Q1'])
