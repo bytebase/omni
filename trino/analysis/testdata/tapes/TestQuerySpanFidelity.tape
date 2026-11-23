@@ -108,6 +108,21 @@
 | {"columns":["id"],"tables":[{"name":"memory.sales.orders"}],"lineage":[["memory.sales.orders.id"]]}
 > raw
 | span memory.sales
+| SELECT sales.orders.amount, orders.status FROM sales.orders
+< raw
+| {"columns":["amount","status"],"tables":[{"name":"memory.sales.orders"}],"lineage":[["memory.sales.orders.amount"],["memory.sales.orders.status"]]}
+> raw
+| span memory.sales
+| SELECT memory.sales.big_orders.doubled FROM memory.sales.big_orders
+< raw
+| {"columns":["doubled"],"tables":[{"name":"memory.sales.orders"},{"name":"memory.sales.big_orders","view":true}],"lineage":[["memory.sales.big_orders.doubled"]]}
+> raw
+| span memory.sales
+| SELECT sales.big_orders.id FROM sales.big_orders
+< raw
+| {"columns":["id"],"tables":[{"name":"memory.sales.orders"},{"name":"memory.sales.big_orders","view":true}],"lineage":[["memory.sales.big_orders.id"]]}
+> raw
+| span memory.sales
 | SELECT orders.id, customers.name FROM sales.orders JOIN memory.sales.customers ON orders.customer_id = customers.id
 < raw
 | {"columns":["id","name"],"tables":[{"name":"memory.sales.orders"},{"name":"memory.sales.customers"}],"lineage":[["memory.sales.orders.id"],["memory.sales.customers.name"]]}

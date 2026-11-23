@@ -51,6 +51,15 @@ memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT i
 id	id	engine	base	memory.sales	results	SELECT id FROM memory.sales.orders
 memory.sales.orders.id	memory.sales.orders.id	engine	base	memory.sales	lineage	SELECT id FROM memory.sales.orders
 memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT id FROM memory.sales.orders
+amount, status	amount, status	engine	base	memory.sales	results	SELECT sales.orders.amount, orders.status FROM sales.orders
+memory.sales.orders.amount | memory.sales.orders.status	memory.sales.orders.amount | memory.sales.orders.status	engine	base	memory.sales	lineage	SELECT sales.orders.amount, orders.status FROM sales.orders
+memory.sales.orders	memory.sales.orders	engine	base	memory.sales	tables	SELECT sales.orders.amount, orders.status FROM sales.orders
+doubled	doubled	engine	base	memory.sales	results	SELECT memory.sales.big_orders.doubled FROM memory.sales.big_orders
+memory.sales.big_orders.doubled memory.sales.orders.amount	memory.sales.big_orders.doubled memory.sales.orders.amount	engine	base	memory.sales	lineage	SELECT memory.sales.big_orders.doubled FROM memory.sales.big_orders
+memory.sales.big_orders, memory.sales.orders	memory.sales.big_orders, memory.sales.orders	engine	base	memory.sales	tables	SELECT memory.sales.big_orders.doubled FROM memory.sales.big_orders
+id	id	engine	base	memory.sales	results	SELECT sales.big_orders.id FROM sales.big_orders
+memory.sales.big_orders.id memory.sales.orders.id	memory.sales.big_orders.id memory.sales.orders.id	engine	base	memory.sales	lineage	SELECT sales.big_orders.id FROM sales.big_orders
+memory.sales.big_orders, memory.sales.orders	memory.sales.big_orders, memory.sales.orders	engine	base	memory.sales	tables	SELECT sales.big_orders.id FROM sales.big_orders
 id, name	id, name	engine	base	memory.sales	results	SELECT orders.id, customers.name FROM sales.orders JOIN memory.sales.customers ON orders.customer_id = customers.id
 memory.sales.orders.id | memory.sales.customers.name	memory.sales.orders.id | memory.sales.customers.name	engine	base	memory.sales	lineage	SELECT orders.id, customers.name FROM sales.orders JOIN memory.sales.customers ON orders.customer_id = customers.id
 memory.sales.customers, memory.sales.orders	memory.sales.customers, memory.sales.orders	engine	base	memory.sales	tables	SELECT orders.id, customers.name FROM sales.orders JOIN memory.sales.customers ON orders.customer_id = customers.id

@@ -742,8 +742,9 @@ type rscope struct {
 // table, cost the product of the two. The scope only appends relations, and
 // the index catches up with them as it is used.
 type relIndex struct {
-	indexed int              // the relations indexed: rels[:indexed]
-	byName  map[string][]int // a relation name: the relations of that name, in order
+	indexed int               // the relations indexed: rels[:indexed]
+	byName  map[string][]int  // a relation name: the relations of that name, in order
+	byIdent map[viewKey][]int // a catalog relation: the relations reading it, in order
 	// byCol maps a column name to the relations exposing a column of that
 	// name, in order, each with the first such column.
 	byCol map[string][]colHit
@@ -767,13 +768,16 @@ func (s *rscope) index() *relIndex {
 		if size < scopeIndexMin {
 			return nil
 		}
-		s.idx = &relIndex{byName: make(map[string][]int), byCol: make(map[string][]colHit)}
+		s.idx = &relIndex{byName: make(map[string][]int), byIdent: make(map[viewKey][]int), byCol: make(map[string][]colHit)}
 	}
 	x := s.idx
 	for ; x.indexed < len(s.rels); x.indexed++ {
 		ri := x.indexed
 		name := foldKey(s.rels[ri].name)
 		x.byName[name] = append(x.byName[name], ri)
+		if id := s.rels[ri].ident; id.view != "" {
+			x.byIdent[id] = append(x.byIdent[id], ri)
+		}
 		for ci, c := range s.rels[ri].cols {
 			col := foldKey(c.name)
 			hits := x.byCol[col]
@@ -832,6 +836,9 @@ type rbind struct {
 	name    string
 	derived bool
 	cols    []outCol
+	// ident is the catalog table or view the relation reads, when the
+	// catalog knows it: what a ref qualified by a schema names.
+	ident viewKey
 }
 
 // starProjection is a relation's output columns, kept as a concatenation tree
@@ -982,7 +989,7 @@ func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identi
 					if proj := vs.projectionFor(key, view); proj != nil {
 						vs.collectTables(proj.tables)
 						cols := applyColumnAliases(viewColumns(key, proj.cols), colAliases)
-						s.rels = append(s.rels, rbind{name: name, derived: true, cols: cols})
+						s.rels = append(s.rels, rbind{name: name, derived: true, cols: cols, ident: key})
 						return columnProjection(cols)
 					}
 					// Unresolvable view (no/unanalyzable definition, cycle):
@@ -991,7 +998,7 @@ func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identi
 					return nil
 				}
 				cols := applyColumnAliases(tableCols(key, table), colAliases)
-				s.rels = append(s.rels, rbind{name: name, derived: false, cols: cols})
+				s.rels = append(s.rels, rbind{name: name, derived: false, cols: cols, ident: key})
 				return columnProjection(cols)
 			}
 		}
@@ -1300,15 +1307,8 @@ func (s *rscope) starExpansion(qualifier string) []outCol {
 // no derived relation (a base table or an unknown relation) is returned
 // unchanged.
 func (s *rscope) resolveRef(ref ColumnRef) []ColumnRef {
-	resolving := s.cte.viewState().resolving()
-	if resolving && allQualified([]ColumnRef{ref}) {
-		// A catalog-qualified ref is a physical column already, resolved in
-		// the scope that read it. An outer relation whose alias happens to
-		// be its table's name does not rebind it.
-		return []ColumnRef{ref}
-	}
 	out := s.recoverRef(ref)
-	if len(out) > 1 && resolving && allQualified(out[1:]) && s.known() {
+	if len(out) > 1 && s.cte.viewState().resolving() && allQualified(out[1:]) && s.known() {
 		// Every relation in scope has a known projection, so the relation the
 		// ref names is among them and the qualified columns it recovered are
 		// its whole lineage. ResolveQuerySpan matches a written ref by name
@@ -1323,6 +1323,34 @@ func (s *rscope) resolveRef(ref ColumnRef) []ColumnRef {
 // relations in scope.
 func (s *rscope) recoverRef(ref ColumnRef) []ColumnRef {
 	out := []ColumnRef{ref}
+	if vs := s.cte.viewState(); vs != nil && ref.Schema != "" {
+		// A ref qualified by a schema names a catalog relation, not an
+		// alias: one written so (memory.sales.v.c), or one an inner scope
+		// already resolved, which an outer alias of the same name as its
+		// table must not rebind.
+		catalog := strings.ToLower(ref.Catalog)
+		if catalog == "" {
+			catalog = vs.curCatalog
+		}
+		want := viewKey{catalog: catalog, schema: strings.ToLower(ref.Schema), view: strings.ToLower(ref.Table)}
+		if x := s.index(); x != nil {
+			col := foldKey(ref.Column)
+			for _, ri := range x.byIdent[want] {
+				if src, ok := x.lookupOutCol(s, ri, col); ok {
+					out = append(out, src...)
+				}
+			}
+			return out
+		}
+		for i := range s.rels {
+			if s.rels[i].ident == want {
+				if src, ok := lookupOutCol(s.rels[i].cols, ref.Column); ok {
+					out = append(out, src...)
+				}
+			}
+		}
+		return out
+	}
 	if x := s.index(); x != nil {
 		// The loops below, through the index.
 		col := foldKey(ref.Column)

@@ -27,6 +27,9 @@ SELECT * FROM (SELECT * FROM customers) c
 -- Qualified names and case.
 SELECT id FROM sales.orders
 SELECT id FROM memory.sales.orders
+SELECT sales.orders.amount, orders.status FROM sales.orders
+SELECT memory.sales.big_orders.doubled FROM memory.sales.big_orders
+SELECT sales.big_orders.id FROM sales.big_orders
 SELECT orders.id, customers.name FROM sales.orders JOIN memory.sales.customers ON orders.customer_id = customers.id
 SELECT ID, Amount FROM ORDERS
 SELECT "id", "AMOUNT" FROM "orders"
