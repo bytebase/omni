@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/mssql"
+	"github.com/bytebase/omni/mssql/ast"
 	"github.com/bytebase/omni/review/walk"
 )
 
@@ -145,6 +147,49 @@ type snapTable struct {
 	edge bool
 	// ledger is set for a table that may be a ledger table.
 	ledger bool
+	// clustered is the name of the table's clustered index, rowstore or
+	// columnstore, as the sync's index type names it.
+	clustered string
+	// noPeriod is set when no column can be a SYSTEM_TIME period column:
+	// each is computed or of a built-in type other than datetime2, which
+	// a period column must be. Such a table is not system-versioned.
+	noPeriod bool
+	// fileTable is false when the table lacks path_locator, a column of
+	// FileTable's fixed schema.
+	fileTable bool
+	// identity holds the exact spellings of the identity columns.
+	identity map[string]bool
+	// nonclustered maps an index class to whether its one synced index
+	// is a rowstore nonclustered index; a class two indexes share maps to
+	// false.
+	nonclustered map[string]bool
+	// fkColumns maps the exact spelling of a column of one of the table's
+	// foreign keys to that key's name.
+	fkColumns map[string]string
+	// referencedBy names the other synced tables whose foreign keys
+	// reference the table, by path.
+	referencedBy []fkSource
+}
+
+// fkSource is a table whose foreign key references another table.
+type fkSource struct {
+	path, written string
+}
+
+// tablePeriodless reports whether no column of t can be a period column.
+func tablePeriodless(t *metadata.TableMetadata) bool {
+	for _, c := range t.GetColumns() {
+		typ := strings.ToLower(strings.TrimSpace(c.GetType()))
+		if strings.HasPrefix(typ, "as ") {
+			continue
+		}
+		base, _, _ := strings.Cut(typ, "(")
+		base = strings.TrimSpace(base)
+		if base == "" || base == "datetime2" || !isBuiltinSystemType(base) {
+			return false
+		}
+	}
+	return true
 }
 
 // A ledger table has two or more NOT NULL ledger columns, of type bigint
@@ -204,6 +249,24 @@ type mssqlSnapshot struct {
 	// cdc is set when the sync lists cdc.change_tables: change data
 	// capture is on, and a dropped table's capture instance goes too.
 	cdc bool
+	// unbound holds the paths of views whose synced definition is not
+	// schema-bound: such a view has no index.
+	unbound map[string]bool
+	// triggerOn maps a DML trigger's path, Path(schema class, trigger
+	// class), to its table or view; "" for a path two triggers share.
+	triggerOn map[string]fkSource
+}
+
+// viewUnbound reports whether a synced view's definition is a CREATE VIEW
+// without SCHEMABINDING. It reads a definition the server accepted, so a
+// definition that does not parse is only left unjudged.
+func viewUnbound(definition string) bool {
+	stmts, err := mssql.Parse(definition)
+	if err != nil || len(stmts) != 1 {
+		return false
+	}
+	v, ok := stmts[0].AST.(*ast.CreateViewStmt)
+	return ok && !v.SchemaBinding && !hasOption(v.Options, "SCHEMABINDING")
 }
 
 func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
@@ -214,6 +277,8 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 		relations: make(map[string]*snapSpace),
 		tables:    make(map[string]*snapTable),
 		ambiguous: make(map[string]bool),
+		unbound:   make(map[string]bool),
+		triggerOn: make(map[string]fkSource),
 	}
 	for _, e := range excludedSchemas {
 		if n, ok := keyed(e); ok {
@@ -232,6 +297,11 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 			s.triggers = s.triggers || len(v.GetTriggers()) > 0
 		}
 	}
+	type fkRef struct {
+		from          fkSource
+		schema, table string
+	}
+	var refs []fkRef
 	for _, schema := range db.GetSchemas() {
 		s.schemas.add(schema.GetName(), "")
 		sn, ok := keyed(schema.GetName())
@@ -244,13 +314,14 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 			continue
 		}
 		objs, rels := &snapSpace{}, &snapSpace{}
+		views := make(map[string]bool)
 		s.objects[sc], s.relations[sc] = objs, rels
 		for _, t := range schema.GetTables() {
 			objs.add(t.GetName(), kindTable)
 			rels.add(t.GetName(), kindTable)
 			// A table on an ambiguous path keeps no children, but the
 			// names they hold in the schema count all the same.
-			st := &snapTable{ledger: ledgerTable(t)}
+			st := &snapTable{ledger: ledgerTable(t), noPeriod: tablePeriodless(t), identity: make(map[string]bool), nonclustered: make(map[string]bool), fkColumns: make(map[string]string)}
 			if tn, ok := keyed(t.GetName()); ok {
 				path := walk.Path(sc, tn.class)
 				if _, seen := s.tables[path]; seen {
@@ -272,6 +343,12 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 				}
 				if strings.HasPrefix(c.GetName(), "$edge_id") {
 					st.edge = true
+				}
+				if strings.EqualFold(c.GetName(), "path_locator") {
+					st.fileTable = true
+				}
+				if c.GetIsIdentity() {
+					st.identity[c.GetName()] = true
 				}
 				if df := c.GetDefaultConstraintName(); df != "" {
 					st.constraints.add(df, kindDF)
@@ -297,6 +374,13 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 				case i.GetUnique() && i.GetIsConstraint():
 					kind = kindUQ
 				}
+				if strings.EqualFold(i.GetType(), "CLUSTERED") || strings.EqualFold(i.GetType(), "CLUSTERED COLUMNSTORE") {
+					st.clustered = i.GetName()
+				}
+				if in, ok := keyed(i.GetName()); ok {
+					_, seen := st.nonclustered[in.class]
+					st.nonclustered[in.class] = !seen && strings.EqualFold(i.GetType(), "NONCLUSTERED")
+				}
 				st.indexes.add(i.GetName(), kind)
 				if kind == kindPK || kind == kindUQ {
 					// A key's name is also a constraint's, in the schema;
@@ -308,6 +392,12 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 			for _, fk := range t.GetForeignKeys() {
 				st.constraints.add(fk.GetName(), kindFK)
 				objs.add(fk.GetName(), kindFK)
+				for _, c := range fk.GetColumns() {
+					st.fkColumns[c] = fk.GetName()
+				}
+				if tn, ok := keyed(t.GetName()); ok {
+					refs = append(refs, fkRef{from: fkSource{walk.Path(sc, tn.class), schema.GetName() + "." + t.GetName()}, schema: fk.GetReferencedSchema(), table: fk.GetReferencedTable()})
+				}
 			}
 			for _, ck := range t.GetCheckConstraints() {
 				st.constraints.add(ck.GetName(), kindCK)
@@ -315,13 +405,25 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 			}
 			for _, tr := range t.GetTriggers() {
 				objs.add(tr.GetName(), kindTrigger)
+				s.triggerOnRelation(sc, tr.GetName(), schema.GetName(), t.GetName())
 			}
 		}
 		for _, v := range schema.GetViews() {
 			objs.add(v.GetName(), kindView)
 			rels.add(v.GetName(), kindView)
+			if vn, ok := keyed(v.GetName()); ok {
+				path := walk.Path(sc, vn.class)
+				if _, seen := s.tables[path]; seen || views[path] {
+					s.ambiguous[path] = true
+				}
+				views[path] = true
+				if viewUnbound(v.GetDefinition()) {
+					s.unbound[path] = true
+				}
+			}
 			for _, tr := range v.GetTriggers() {
 				objs.add(tr.GetName(), kindTrigger)
+				s.triggerOnRelation(sc, tr.GetName(), schema.GetName(), v.GetName())
 			}
 		}
 		for _, q := range schema.GetSequences() {
@@ -339,7 +441,37 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 			objs.add(p.GetName(), kindProcedure)
 		}
 	}
+	for _, ref := range refs {
+		sn, ok1 := keyed(ref.schema)
+		tn, ok2 := keyed(ref.table)
+		if !ok1 || !ok2 {
+			continue
+		}
+		to := walk.Path(sn.class, tn.class)
+		if t := s.tables[to]; t != nil && to != ref.from.path {
+			t.referencedBy = append(t.referencedBy, ref.from)
+		}
+	}
 	return s
+}
+
+// triggerOnRelation records that a synced trigger of schema class sc is
+// on relation schema.rel.
+func (s *mssqlSnapshot) triggerOnRelation(sc, trigger, schema, rel string) {
+	tn, ok1 := keyed(trigger)
+	sn, ok2 := keyed(schema)
+	rn, ok3 := keyed(rel)
+	if !ok1 || !ok2 || !ok3 || !sn.plain || !rn.plain {
+		// Only plain names of different classes differ under every
+		// collation.
+		return
+	}
+	path := walk.Path(sc, tn.class)
+	if _, seen := s.triggerOn[path]; seen {
+		s.triggerOn[path] = fkSource{}
+		return
+	}
+	s.triggerOn[path] = fkSource{walk.Path(sc, rn.class), schema + "." + rel}
 }
 
 // Lookup implements walk.Snapshot.
@@ -384,6 +516,9 @@ func (s *mssqlSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 		}
 		t := s.tables[k.Parent]
 		if t == nil {
+			if k.Space == spaceIndex && s.unbound[k.Parent] {
+				return walk.Absent, ""
+			}
 			return walk.Unknown, ""
 		}
 		switch k.Space {

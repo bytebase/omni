@@ -431,6 +431,7 @@ var walkCodes = []struct {
 	{regexp.MustCompile("^Trigger `.*` must be in the schema of "), []string{"2103"}},
 	{regexp.MustCompile("^The name `.*` is longer than "), []string{"103", "193"}},
 	{regexp.MustCompile(" must be the first statement of its batch\\.$"), []string{"111"}},
+	{regexp.MustCompile("^This statement drops `.*` twice\\.$"), []string{"8168"}},
 	{regexp.MustCompile("^This statement drops .*twice\\.$"), []string{"3701"}},
 	{regexp.MustCompile("^`.*` (is an? .*, not|isn't) a table or view\\.$"), []string{"1914", "8197", "3701", "1088", "2706", "1929", "208"}},
 	{regexp.MustCompile("^`.*` (is an? .*, not|isn't) a table, view, or synonym\\.$"), []string{"208"}},
@@ -500,6 +501,17 @@ var walkCodes = []struct {
 	{regexp.MustCompile("^SQL Server doesn't accept `COLLATE` on an expression of type `.*`\\.$"), []string{"447"}},
 	{regexp.MustCompile("^SQL Server's `TRIM` doesn't accept an argument of type `.*`\\.$"), []string{"8116"}},
 	{regexp.MustCompile("^SQL Server's `(SUM|AVG)` doesn't accept an argument of type `.*`\\.$"), []string{"8117"}},
+	{regexp.MustCompile("^SQL Server doesn't accept `CREATE TABLE AS SELECT`\\.$"), []string{"102", "173"}},
+	{regexp.MustCompile("^SQL Server doesn't accept an index on view `.*`, which isn't schema-bound\\.$"), []string{"1939", "1940", "35305", "10610", "1716"}},
+	{regexp.MustCompile("^Table `.*` already has clustered index `.*`\\.$"), []string{"1902", "35372"}},
+	{regexp.MustCompile("^Table `.*` has no `SYSTEM_TIME` period\\.$"), []string{"13510", "13591", "13593"}},
+	{regexp.MustCompile("^Table `.*` isn't a FileTable\\.$"), []string{"33411"}},
+	{regexp.MustCompile("^Table `.*` is referenced by a foreign key of `.*`\\.$"), []string{"3726", "4712"}},
+	{regexp.MustCompile("^Foreign key `.*` depends on column `.*`\\.$"), []string{"5074"}},
+	{regexp.MustCompile("^Column `.*` isn't an identity column\\.$"), []string{"4991"}},
+	{regexp.MustCompile("^Trigger `.*` is on `.*`, not `.*`\\.$"), []string{"2110"}},
+	{regexp.MustCompile("^SQL Server doesn't accept `RETURN` of a value in a table-valued function\\.$"), []string{"178"}},
+	{regexp.MustCompile("^Index `.*` isn't clustered, so it can't be dropped with `.*`\\.$"), []string{"3745", "3748"}},
 }
 
 func (e *walkEngine) Codes(message string) []string {
