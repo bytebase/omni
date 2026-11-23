@@ -1344,10 +1344,11 @@ func (a *Assignment) nodeTag() {}
 
 // OrderByItem represents an ORDER BY item.
 type OrderByItem struct {
-	Loc        Loc
-	Expr       ExprNode
-	Desc       bool
-	NullsFirst *bool // nil means default
+	Loc         Loc
+	Expr        ExprNode
+	Desc        bool
+	ExplicitAsc bool  // true when ASC was written explicitly (distinguishes GROUP BY a ASC from GROUP BY a)
+	NullsFirst  *bool // nil means default
 }
 
 func (o *OrderByItem) nodeTag() {}

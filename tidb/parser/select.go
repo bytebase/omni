@@ -1712,8 +1712,8 @@ func (p *Parser) parseOrderByList() ([]*nodes.OrderByItem, error) {
 
 		if _, ok := p.match(kwDESC); ok {
 			item.Desc = true
-		} else {
-			p.match(kwASC)
+		} else if _, ok := p.match(kwASC); ok {
+			item.ExplicitAsc = true
 		}
 
 		item.Loc.End = p.prev.End
@@ -1752,8 +1752,8 @@ func (p *Parser) parseGroupByList() ([]*nodes.OrderByItem, error) {
 
 		if _, ok := p.match(kwDESC); ok {
 			item.Desc = true
-		} else {
-			p.match(kwASC)
+		} else if _, ok := p.match(kwASC); ok {
+			item.ExplicitAsc = true
 		}
 
 		item.Loc.End = p.prev.End

@@ -151,8 +151,12 @@ func checkViewBodyStar(sel *nodes.SelectStmt, source string) error {
 
 // viewBlockStar reports the star of one query block that names no relation it
 // can expand from: a block with no table, or a qualified star whose qualifier is
-// not one of the block's relations.
+// not one of the block's relations. TiDB v8.5.5 also refuses every VALUES query
+// primary with the same 1051 Unknown table ''.
 func viewBlockStar(sel *nodes.SelectStmt, source string) error {
+	if sel.ValuesSource != nil {
+		return errStarNamesNoTable("")
+	}
 	if readsOnlyNoTable(sel, source) {
 		for _, field := range sel.TargetList {
 			expr := field

@@ -201,4 +201,69 @@ func TestViewValidation(t *testing.T) {
 			t.Errorf("ShowCreateView(v_quoted) = %q", got)
 		}
 	})
+
+	t.Run("values_primary_1051", func(t *testing.T) {
+		c := setup(t)
+		assertCode(t, c, "CREATE VIEW v AS VALUES ROW()", ErrUnknownTable)
+		assertCode(t, c, "CREATE VIEW v AS VALUES ROW(1)", ErrUnknownTable)
+		assertCode(t, c, "CREATE VIEW v AS VALUES ROW(a, b)", ErrUnknownTable)
+		assertCode(t, c, "CREATE VIEW v AS VALUES ROW(1), ROW(2)", ErrUnknownTable)
+	})
+
+	t.Run("noop_functions_1235", func(t *testing.T) {
+		c := setup(t)
+		// Fires before star expansion (1051).
+		assertCode(t, c, "CREATE VIEW v AS SELECT * GROUP BY a ASC", ErrNotSupportedYet)
+		assertCode(t, c, "CREATE VIEW v AS SELECT * GROUP BY a DESC", ErrNotSupportedYet)
+		assertCode(t, c, "CREATE VIEW v AS SELECT SQL_CALC_FOUND_ROWS *", ErrNotSupportedYet)
+		// Plain GROUP BY without ASC/DESC succeeds.
+		assertOK(t, c, "CREATE VIEW v_gb AS SELECT a FROM t GROUP BY a")
+	})
+
+	t.Run("match_against_1105", func(t *testing.T) {
+		c := setup(t)
+		assertCode(t, c, "CREATE VIEW v AS SELECT MATCH(s) AGAINST('foo') FROM t", ErrUnknownError)
+		assertCode(t, c, "CREATE VIEW v AS SELECT MATCH(s) AGAINST('foo' IN BOOLEAN MODE) FROM t", ErrUnknownError)
+		assertCode(t, c, "CREATE VIEW v AS SELECT MATCH(s) AGAINST('foo' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION) FROM t", ErrUnknownError)
+	})
+
+	t.Run("cast_array_and_groups_frame_1235", func(t *testing.T) {
+		c := setup(t)
+		assertCode(t, c, "CREATE VIEW v AS SELECT CAST(a AS BINARY ARRAY) FROM t", ErrNotSupportedYet)
+		assertCode(t, c, "CREATE VIEW v AS SELECT ROW_NUMBER() OVER (GROUPS UNBOUNDED PRECEDING) FROM t", ErrNotSupportedYet)
+		assertOK(t, c, "CREATE VIEW v_cast AS SELECT CAST(a AS BINARY) FROM t")
+	})
+
+	t.Run("unknown_unqualified_function_1305_and_approx_percentile_1105", func(t *testing.T) {
+		c := setup(t)
+		assertCode(t, c, "CREATE VIEW v AS SELECT unknown_fn() FROM t", ErrNoSuchFunction)
+		assertCode(t, c, "CREATE VIEW v AS SELECT unknown_fn(a) FROM t", ErrNoSuchFunction)
+		assertCode(t, c, "CREATE VIEW v AS SELECT POINT() FROM t", ErrNoSuchFunction)
+		assertCode(t, c, "CREATE VIEW v AS SELECT APPROX_PERCENTILE(a) FROM t", ErrUnknownError)
+		assertOK(t, c, "CREATE VIEW v_ok AS SELECT APPROX_PERCENTILE(a, 50), ABS(a), TIDB_VERSION() FROM t")
+	})
+
+	t.Run("temporal_literals_1292", func(t *testing.T) {
+		c := setup(t)
+		assertCode(t, c, "CREATE VIEW v AS SELECT DATE 'binary' FROM t", ErrTruncatedWrongValue)
+		assertCode(t, c, "CREATE VIEW v AS SELECT TIME 'binary' FROM t", ErrTruncatedWrongValue)
+		assertCode(t, c, "CREATE VIEW v AS SELECT TIMESTAMP 'binary' FROM t", ErrTruncatedWrongValue)
+		assertCode(t, c, "CREATE VIEW v AS SELECT DATE '2024-02-30' FROM t", ErrTruncatedWrongValue)
+		assertCode(t, c, "CREATE VIEW v AS SELECT TIME '900:00:00' FROM t", ErrTruncatedWrongValue)
+		assertOK(t, c, "CREATE VIEW v_tmp AS SELECT DATE '2024-02-29', TIME '-12:34:56.789', TIMESTAMP '2024-01-01 12:00:00', TIMESTAMP '2024-01-01' FROM t")
+	})
+
+	t.Run("json_operator_types_3146", func(t *testing.T) {
+		c := setup(t)
+		assertOK(t, c, "CREATE TABLE tj (id INT PRIMARY KEY, j JSON, s VARCHAR(100))")
+		assertCode(t, c, "CREATE VIEW v AS SELECT id -> '$.a' FROM tj", ErrInvalidTypeForJSON)
+		assertCode(t, c, "CREATE VIEW v AS SELECT id ->> '$.a' FROM tj", ErrInvalidTypeForJSON)
+		assertCode(t, c, "CREATE VIEW v AS SELECT id MEMBER OF(id) FROM tj", ErrInvalidTypeForJSON)
+		// Unknown column still fails with 1054 before 3146.
+		assertCode(t, c, "CREATE VIEW v AS SELECT missing -> '$.a' FROM tj", ErrNoSuchColumn)
+		assertCode(t, c, "CREATE VIEW v AS SELECT missing MEMBER OF(id) FROM tj", ErrNoSuchColumn)
+		assertCode(t, c, "CREATE VIEW v AS SELECT id MEMBER OF(missing) FROM tj", ErrNoSuchColumn)
+		// JSON and string columns succeed.
+		assertOK(t, c, "CREATE VIEW v_json AS SELECT j -> '$.a' AS c1, s ->> '$.a' AS c2, id MEMBER OF(j) AS c3, id MEMBER OF('[1,2]') AS c4 FROM tj")
+	})
 }
