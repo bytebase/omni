@@ -382,3 +382,46 @@ func TestWalkThroughTiDBViewTypes(t *testing.T) {
 		{sql: "ALTER TABLE t MODIFY COLUMN IF EXISTS missing INT;\nALTER TABLE t ADD COLUMN missing JSON;\nCREATE VIEW w AS SELECT JSON_EXTRACT(missing, '$') FROM t;"},
 	})
 }
+
+// TestWalkThroughTiDBCheckColumns pins the CHECK constraint checks
+// (walk_checks.go) on a sync whose CHECKs were made while
+// tidb_enable_check_constraint was on. The refusals hold with the switch on
+// or off (verified on v8.5.5); DROP CHECK beside other subcommands fails
+// with 8200 only while it is on, so the walk says nothing of a statement
+// that drops a CHECK before the column.
+func TestWalkThroughTiDBCheckColumns(t *testing.T) {
+	c, err := tidbcatalog.LoadSQL("SET tidb_enable_check_constraint = 1;\nCREATE DATABASE shop;\nUSE shop;\n" +
+		"CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), " +
+		"CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_note CHECK (note <> 'starts'), CONSTRAINT chk_always CHECK (1 = 1));")
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := review.Target{Schema: c.DatabaseMetadata("shop"), ForeignKeyChecks: review.SwitchOn}
+	for _, tc := range []shapeCase{
+		{sql: "ALTER TABLE bookings DROP COLUMN starts;", want: "Check constraint `chk_dates` uses column `starts`, which can't be dropped or renamed."},
+		{sql: "ALTER TABLE bookings DROP COLUMN ends, DROP COLUMN starts;", want: "Check constraint `chk_dates` uses column `ends`, which can't be dropped or renamed."},
+		{sql: "ALTER TABLE bookings DROP COLUMN starts, DROP CHECK chk_dates;", want: "Check constraint `chk_dates` uses column `starts`, which can't be dropped or renamed."},
+		{sql: "ALTER TABLE bookings RENAME COLUMN guests TO people;", want: "Check constraint `bookings_chk_1` uses column `guests`, which can't be dropped or renamed."},
+		{sql: "ALTER TABLE bookings RENAME COLUMN note TO memo;", want: "Check constraint `chk_note` uses column `note`, which can't be dropped or renamed."},
+		{sql: "ALTER TABLE bookings DROP COLUMN guests;"},
+		{sql: "ALTER TABLE bookings DROP COLUMN note;"},
+		{sql: "ALTER TABLE bookings DROP COLUMN nights;"},
+		{sql: "ALTER TABLE bookings RENAME COLUMN nights TO stays;"},
+		// 8200 with the switch on, 3959 with it off: the walk can't tell.
+		{sql: "ALTER TABLE bookings DROP CHECK chk_dates, DROP COLUMN starts;"},
+		{sql: "ALTER TABLE bookings DROP CONSTRAINT chk_dates, DROP COLUMN starts;"},
+		// TiDB takes CHANGE COLUMN and drops the CHECK; the walk follows the
+		// table no further.
+		{sql: "ALTER TABLE bookings CHANGE COLUMN starts begins DATE;\nALTER TABLE bookings DROP COLUMN ends;"},
+		{sql: "DROP TABLE bookings;\nCREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE);\nALTER TABLE bookings DROP COLUMN starts;"},
+		{sql: "RENAME TABLE bookings TO b2;\nALTER TABLE b2 DROP COLUMN starts;", statement: 1, want: "Check constraint `chk_dates` uses column `starts`, which can't be dropped or renamed."},
+	} {
+		t.Run(tc.sql, func(t *testing.T) {
+			if tc.want == "" {
+				noFinding(t, tc.sql, target)
+				return
+			}
+			oneFinding(t, tc.sql, tc.statement, tc.want, target)
+		})
+	}
+}

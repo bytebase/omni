@@ -112,6 +112,8 @@ type tidbSnapshot struct {
 	fkDefs    map[string]map[string]string
 	idCaches  map[string]string
 	fkRefs    []syncedFKRef
+	// checkSets holds each table's CHECK constraints (walk_checks.go).
+	checkSets map[string]string
 }
 
 func newTiDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *tidbSnapshot {
@@ -130,6 +132,7 @@ func newTiDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *tidb
 		indexSets:        make(map[string]string),
 		fkDefs:           make(map[string]map[string]string),
 		idCaches:         make(map[string]string),
+		checkSets:        make(map[string]string),
 	}
 	s.db, _ = nameKey(spaceDatabase, db.GetName(), foldTables)
 	// set lists a name of a table's space, or of the database's relations
@@ -277,7 +280,7 @@ func (s *tidbSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 			}
 		}
 		return walk.Unknown, ""
-	case spaceColumnType, spaceIndexSet, spaceFKDef, spaceOrigin, spaceIDCache:
+	case spaceColumnType, spaceIndexSet, spaceFKDef, spaceOrigin, spaceIDCache, spaceCheckSet:
 		if len(path) != 2 {
 			return walk.Unknown, ""
 		}

@@ -10,7 +10,11 @@ engine's — an error number, or `ok:` and a hash of the `SHOW CREATE` texts the
 database holds afterwards. `TestSimulation` (`../simulate_test.go`) replays it
 from `tapes/TestSimulation.tape` and starts no server. The design is
 `docs/specs/2026-11-11-engine-compatibility-without-servers-design.md` §3.
-3,150 rows: 3,150 agree and 0 disagree.
+After them come 20 hand-written `check:drop` rows
+(`../simulate_families_test.go`) on `features@check`, which turns
+`tidb_enable_check_constraint` on: dropping and renaming columns that a column
+CHECK, a one-column and a two-column table CHECK, and a CHECK reading no column
+read. 3,170 rows: 3,170 agree and 0 disagree.
 
 ## Commands
 

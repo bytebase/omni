@@ -47,7 +47,7 @@ func idCacheKey(db, table string) walk.Key {
 
 // shapeSpaces are the spaces of a table's shape, which DROP DATABASE
 // clears.
-var shapeSpaces = []string{spaceColumnType, spaceIndexSet, spaceFKDef, spaceOrigin, spaceIDCache}
+var shapeSpaces = []string{spaceColumnType, spaceIndexSet, spaceFKDef, spaceOrigin, spaceIDCache, spaceCheckSet}
 
 // AUTO_ID_CACHE kinds: 1, or anything else (TiDB keeps the two apart).
 const (
@@ -357,6 +357,9 @@ func (s *tidbSnapshot) readShape(tk string, t *metadata.TableMetadata) {
 	if ix, ok := syncedIndexes(t); ok {
 		s.indexSets[tk] = ix
 	}
+	if cs, ok := syncedChecks(t); ok {
+		s.checkSets[tk] = cs
+	}
 	defs := make(map[string]string)
 	for _, fk := range t.GetForeignKeys() {
 		name, ok := plainName(spaceTableForeignKey, fk.GetName())
@@ -398,6 +401,10 @@ func (s *tidbSnapshot) lookupShape(k walk.Key, table string) (walk.Fact, string)
 	case spaceIDCache:
 		if c, ok := s.idCaches[table]; ok && k.Name == shapeName {
 			return walk.Present, c
+		}
+	case spaceCheckSet:
+		if cs, ok := s.checkSets[table]; ok && k.Name == shapeName {
+			return walk.Present, cs
 		}
 	}
 	return walk.Unknown, ""
@@ -476,6 +483,9 @@ func idCacheKind(v string) string {
 // Unknown, the table's own and, since the walk cannot find a referencing
 // table once it moves, every other's (renamedColumns).
 func (b *builder) shapeEffects(v *ast.AlterTableStmt, r tableRef) {
+	// What the table's CHECK constraints read is followed no further than
+	// the sync.
+	b.Set(checkSetKey(r.db, r.name), walk.Unknown, "")
 	unknownIndexes := func() { b.Set(indexSetKey(r.db, r.name), walk.Unknown, "") }
 	setType := func(name string, dt *ast.DataType) {
 		if k, ok := b.key(spaceColumn, name); ok {

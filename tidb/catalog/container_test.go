@@ -102,7 +102,9 @@ func resetServer(ctx context.Context, db *sql.DB) error {
 		_ = resetExec(ctr, "DROP ROLE IF EXISTS "+resetQuoteAccount(account.user, account.host))
 		_ = resetExec(ctr, "DROP USER IF EXISTS "+resetQuoteAccount(account.user, account.host))
 	}
-	return resetExec(ctr, "CREATE DATABASE IF NOT EXISTS test")
+	// TestSimulation's features@check fixture turns the global CHECK switch
+	// on; every test starts from the server's default, off.
+	return resetExec(ctr, "SET GLOBAL tidb_enable_check_constraint = OFF", "CREATE DATABASE IF NOT EXISTS test")
 }
 
 func resetExec(ctr *mysqlContainer, stmts ...string) error {
