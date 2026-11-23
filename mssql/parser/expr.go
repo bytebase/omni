@@ -1462,7 +1462,11 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/language-elements/coalesce-transact-sql
 //
-//	COALESCE '(' expr { ',' expr } ')'
+//	COALESCE '(' expr ',' expr { ',' expr } ')'
+//
+// COALESCE takes two arguments at least (coalesceExpression, TSql160.g:
+// expression (Comma expression)+); COALESCE(1) is Msg 102 (measured,
+// mssql/catalog/testdata/queries/simulate.tsv).
 func (p *Parser) parseCoalesce() (nodes.ExprNode, error) {
 	loc := p.pos()
 	p.advance() // consume COALESCE
@@ -1486,6 +1490,9 @@ func (p *Parser) parseCoalesce() (nodes.ExprNode, error) {
 		}
 		args = append(args, arg)
 		if _, ok := p.match(','); !ok {
+			if len(args) < 2 {
+				return nil, p.unexpectedToken()
+			}
 			break
 		}
 		if p.collectMode() {

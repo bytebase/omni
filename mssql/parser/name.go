@@ -350,7 +350,7 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 		}
 		upper := strings.ToUpper(name)
 		if delimited || !builtinFunctions[upper] {
-			return nil, &ParseError{Message: fmt.Sprintf("%q is not a recognized built-in function name", name), Position: loc}
+			return nil, &ParseError{Message: fmt.Sprintf("%q is not a recognized built-in function name", name), Position: loc, Code: 195}
 		}
 		if strings.EqualFold(name, "PARSE") || strings.EqualFold(name, "TRY_PARSE") {
 			return p.parseParseExpr(name, loc)

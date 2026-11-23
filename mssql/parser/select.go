@@ -326,7 +326,7 @@ func (p *Parser) parseSelectOperand(loc int, withClause *nodes.WithClause) (*nod
 			if _, ok := p.match(kwALL); ok {
 				stmt.GroupByAll = true
 			}
-			stmt.GroupByClause, stmt.GroupByDistributedAgg, err = p.parseGroupByList()
+			stmt.GroupByClause, stmt.GroupByDistributedAgg, stmt.GroupByOption, err = p.parseGroupByList()
 			if err != nil {
 				return nil, err
 			}
@@ -484,7 +484,7 @@ func (p *Parser) parseSelectTails(stmt *nodes.SelectStmt) error {
 	// TOP ... WITH TIES needs an ORDER BY, which SQL Server checks while
 	// parsing: SELECT TOP 1 WITH TIES * is Msg 1062 (measured).
 	if stmt.Top != nil && stmt.Top.WithTies && stmt.OrderByClause == nil {
-		return p.newParseError(stmt.Top.Loc.Start, "TOP WITH TIES needs an ORDER BY")
+		return p.newCodedParseError(stmt.Top.Loc.Start, 1062, "TOP WITH TIES needs an ORDER BY")
 	}
 
 	// A subquery's ORDER BY needs TOP, OFFSET or FOR beside it, and FOR BROWSE
@@ -493,10 +493,10 @@ func (p *Parser) parseSelectTails(stmt *nodes.SelectStmt) error {
 	// BROWSE)).
 	if p.subqueryDepth > 0 {
 		if stmt.ForClause != nil && stmt.ForClause.Mode == nodes.ForBrowse {
-			return p.newParseError(stmt.ForClause.Loc.Start, "FOR BROWSE is not allowed in a subquery")
+			return p.newCodedParseError(stmt.ForClause.Loc.Start, 176, "FOR BROWSE is not allowed in a subquery")
 		}
 		if stmt.OrderByClause != nil && stmt.Top == nil && stmt.ForClause == nil && stmt.OffsetClause == nil {
-			return p.newParseError(nodes.NodeLoc(stmt.OrderByClause.Items[0]).Start, "ORDER BY is not allowed in a subquery without TOP, OFFSET or FOR")
+			return p.newCodedParseError(nodes.NodeLoc(stmt.OrderByClause.Items[0]).Start, 1033, "ORDER BY is not allowed in a subquery without TOP, OFFSET or FOR")
 		}
 	}
 
@@ -623,7 +623,7 @@ func (p *Parser) parseWithClause(statementLevel bool) (*nodes.WithClause, error)
 		_, firstComma = p.match(',')
 	} else if p.atChangeTrackingContext() {
 		if !statementLevel {
-			return nil, p.newParseError(p.pos(), "CHANGE_TRACKING_CONTEXT cannot be used with a SELECT statement")
+			return nil, p.newCodedParseError(p.pos(), 22108, "CHANGE_TRACKING_CONTEXT cannot be used with a SELECT statement")
 		}
 		var err error
 		wc.CTContext, err = p.parseChangeTrackingContext()
@@ -664,7 +664,7 @@ func (p *Parser) parseWithClause(statementLevel bool) (*nodes.WithClause, error)
 		return nil, p.unexpectedToken()
 	}
 	if wc.CTContext != nil && len(ctes) > 0 {
-		return nil, p.newParseError(nodes.NodeLoc(wc.CTContext).Start, "CHANGE_TRACKING_CONTEXT cannot be used with a SELECT statement")
+		return nil, p.newCodedParseError(nodes.NodeLoc(wc.CTContext).Start, 22108, "CHANGE_TRACKING_CONTEXT cannot be used with a SELECT statement")
 	}
 	wc.CTEs = &nodes.List{Items: ctes}
 	wc.Loc.End = p.prevEnd()
@@ -1498,6 +1498,12 @@ func (p *Parser) parseOldStyleTableHint() (*nodes.List, error) {
 		return nil, err
 	}
 	if hint == nil {
+		// Any other word is Msg 321, "id is not a recognized table hints
+		// option" for FROM t AS s (id, a) (measured,
+		// mssql/catalog/testdata/queries/simulate.tsv).
+		if p.isIdentLike() {
+			return nil, p.newCodedParseError(p.cur.Loc, 321, fmt.Sprintf("%s is not a recognized table hints option", p.cur.Str))
+		}
 		return nil, p.unexpectedToken()
 	}
 	if hint.Name == "INDEX" || hint.Name == "SPATIAL_WINDOW_MAX_CELLS" || hint.IndexValues != nil {
@@ -2509,10 +2515,12 @@ func (p *Parser) parseExprList() (*nodes.List, error) {
 
 // parseGroupByList parses a GROUP BY list which may contain GROUPING SETS, ROLLUP, CUBE.
 // distributedAgg reports a WITH ( DISTRIBUTED_AGG ) on the list or one of its
-// items, which SQL Server takes and a SelectStmt records.
-func (p *Parser) parseGroupByList() (*nodes.List, bool, error) {
+// items, which SQL Server takes and a SelectStmt records; option is ROLLUP or
+// CUBE for a trailing WITH ROLLUP or WITH CUBE.
+func (p *Parser) parseGroupByList() (*nodes.List, bool, string, error) {
 	var items []nodes.Node
 	distributedAgg := false
+	option := ""
 	for {
 		// GROUPING SETS (...)
 		if p.cur.Type == kwGROUPING {
@@ -2522,16 +2530,16 @@ func (p *Parser) parseGroupByList() (*nodes.List, bool, error) {
 				p.advance() // consume GROUPING
 				p.advance() // consume SETS
 				if _, err := p.expect('('); err != nil {
-					return nil, distributedAgg, err
+					return nil, distributedAgg, "", err
 				}
 				sets, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
 					return p.parseGroupingSet()
 				})
 				if err != nil {
-					return nil, distributedAgg, err
+					return nil, distributedAgg, "", err
 				}
 				if _, err := p.expect(')'); err != nil {
-					return nil, distributedAgg, err
+					return nil, distributedAgg, "", err
 				}
 				items = append(items, &nodes.GroupingSetsExpr{
 					Sets: &nodes.List{Items: sets},
@@ -2547,7 +2555,7 @@ func (p *Parser) parseGroupByList() (*nodes.List, bool, error) {
 		if p.cur.Type == kwROLLUP || p.cur.Type == kwCUBE {
 			item, err := p.parseRollupCube()
 			if err != nil {
-				return nil, distributedAgg, err
+				return nil, distributedAgg, "", err
 			}
 			items = append(items, item)
 			if _, ok := p.match(','); !ok {
@@ -2567,23 +2575,23 @@ func (p *Parser) parseGroupByList() (*nodes.List, bool, error) {
 		} else {
 			expr, err = p.parseExpr()
 			if err != nil {
-				return nil, distributedAgg, err
+				return nil, distributedAgg, "", err
 			}
 		}
 		// A comma in the list promises another item: SELECT * GROUP BY 1, is
 		// Msg 102 (measured).
 		if expr == nil {
-			return nil, distributedAgg, p.unexpectedToken()
+			return nil, distributedAgg, "", p.unexpectedToken()
 		}
 		items = append(items, expr)
 		if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
 			// One hint, and one only: Msg 10763, "GROUP BY clause can only
 			// contain one query hint" (measured).
 			if distributedAgg {
-				return nil, distributedAgg, p.newParseError(p.cur.Loc, "GROUP BY takes one query hint")
+				return nil, distributedAgg, "", p.newParseError(p.cur.Loc, "GROUP BY takes one query hint")
 			}
 			if err := p.parseGroupByDistributedAgg(); err != nil {
-				return nil, distributedAgg, err
+				return nil, distributedAgg, "", err
 			}
 			distributedAgg = true
 		}
@@ -2594,20 +2602,28 @@ func (p *Parser) parseGroupByList() (*nodes.List, bool, error) {
 		if p.collectMode() {
 			p.addRuleCandidate("columnref")
 			p.addRuleCandidate("func_name")
-			return nil, distributedAgg, errCollecting
+			return nil, distributedAgg, "", errCollecting
 		}
+	}
+	// The ISO-predating GROUP BY ... WITH { ROLLUP | CUBE }, which SQL Server
+	// 2022 still takes (measured, mssql/catalog/testdata/queries/simulate.tsv).
+	// Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/select-group-by-transact-sql
+	if p.cur.Type == kwWITH && (p.peekNext().Type == kwROLLUP || p.peekNext().Type == kwCUBE) {
+		p.advance() // consume WITH
+		option = strings.ToUpper(p.cur.Str)
+		p.advance() // consume ROLLUP / CUBE
 	}
 	// groupByClause's own trailing ( With Identifier )?, after the last item.
 	if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
 		if distributedAgg {
-			return nil, distributedAgg, p.newParseError(p.cur.Loc, "GROUP BY takes one query hint")
+			return nil, distributedAgg, "", p.newParseError(p.cur.Loc, "GROUP BY takes one query hint")
 		}
 		if err := p.parseGroupByDistributedAgg(); err != nil {
-			return nil, distributedAgg, err
+			return nil, distributedAgg, "", err
 		}
 		distributedAgg = true
 	}
-	return &nodes.List{Items: items}, distributedAgg, nil
+	return &nodes.List{Items: items}, distributedAgg, option, nil
 }
 
 // parseGroupByDistributedAgg parses the WITH ( DISTRIBUTED_AGG ) a GROUP BY

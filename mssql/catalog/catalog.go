@@ -43,8 +43,12 @@ type Catalog struct {
 	skipViewIndexes                   bool
 	omitUnnamedDefaultConstraintNames bool
 	lenientMetadataLoad               bool
-	systemTimeTables                  map[tableKey][2]string
-	systemVersionedTables             map[tableKey]bool
+	// loadingScript is set while LoadSQL runs a desired-state script, whose
+	// objects need not come in the order SQL Server would create them, so a
+	// view's query is not bound against what precedes it.
+	loadingScript         bool
+	systemTimeTables      map[tableKey][2]string
+	systemVersionedTables map[tableKey]bool
 }
 
 type tableKey struct {
@@ -55,10 +59,10 @@ type tableKey struct {
 // New returns an empty catalog.
 func New() *Catalog {
 	return &Catalog{
-		defaultSchema:    defaultSchema,
-		schemaByName:     make(map[string]*metadata.SchemaMetadata),
-		schemasByFold:    make(map[string][]*metadata.SchemaMetadata),
-		tableByName:      make(map[tableKey]*metadata.TableMetadata),
+		defaultSchema:         defaultSchema,
+		schemaByName:          make(map[string]*metadata.SchemaMetadata),
+		schemasByFold:         make(map[string][]*metadata.SchemaMetadata),
+		tableByName:           make(map[tableKey]*metadata.TableMetadata),
 		databaseByName:        make(map[string]*Catalog),
 		systemTimeTables:      make(map[tableKey][2]string),
 		systemVersionedTables: make(map[tableKey]bool),
@@ -389,7 +393,9 @@ func loadSQLWithOptions(sql string, skipViewIndexes, omitUnnamedDefaultConstrain
 	c.skipViewIndexes = skipViewIndexes
 	c.omitUnnamedDefaultConstraintNames = omitUnnamedDefaultConstraintNames
 	c.lenientMetadataLoad = skipViewIndexes
+	c.loadingScript = true
 	results, err := c.Exec(sql, nil)
+	c.loadingScript = false
 	if err != nil {
 		return nil, err
 	}

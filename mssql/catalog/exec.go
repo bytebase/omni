@@ -584,8 +584,8 @@ func (r *columnRefResolver) matchesColumnRef(cr *ast.ColumnRef) bool {
 }
 
 type popColScopeVisitor struct {
-	r       *columnRefResolver
-	popCTE  bool
+	r        *columnRefResolver
+	popCTE   bool
 	popScope bool
 }
 
@@ -1572,11 +1572,23 @@ func (c *Catalog) execAlterIndex(n *ast.AlterIndexStmt) error {
 // --- CREATE / ALTER VIEW, PROCEDURE, FUNCTION, TRIGGER ---
 
 func (c *Catalog) execCreateOrAlterView(n *ast.CreateViewStmt, source string) error {
-	if selectStarWithoutFrom(n.Query) {
-		return mssqlErr(ErrSelectStarWithoutFrom, "Must specify table to select from.")
-	}
 	schemaName, name := tableRefSchemaObject(n.Name, c.defaultSchema)
+	// SQL Server binds the query before it looks for the view's name:
+	// CREATE VIEW a AS SELECT * is Msg 263 whatever a names (measured,
+	// testdata/simulate.tsv). A script LoadSQL loads is not bound: it may
+	// define a view before what the view reads.
+	bind := !c.lenientMetadataLoad && !c.loadingScript
+	if !bind {
+		if selectStarWithoutFrom(n.Query) {
+			return mssqlErr(ErrSelectStarWithoutFrom, "Must specify table to select from.")
+		}
+	} else if err := c.bindView(n, source, name); err != nil {
+		return err
+	}
 	schema := c.GetSchema(schemaName)
+	if schema == nil && bind && !strings.EqualFold(schemaName, defaultSchema) {
+		return mssqlErr(ErrSchemaNotFound, "The specified schema name \"%s\" either does not exist or you do not have permission to use it.", schemaName)
+	}
 	kind := c.lookupSchemaObject(schema, name, false)
 	pureAlter := isPureAlterStmt(n, source)
 
@@ -1600,6 +1612,9 @@ func (c *Catalog) execCreateOrAlterView(n *ast.CreateViewStmt, source string) er
 
 	schema = c.getOrCreateSchema(schemaName)
 	definition := definitionText(n, source)
+	if n.OrAlter {
+		definition = dropOrAlter(definition)
+	}
 	if kind == kindView {
 		if idx, ok := resolveExactOrFoldIndex(schema.Views, func(v *metadata.ViewMetadata) string { return v.Name }, name); ok {
 			v := schema.Views[idx]

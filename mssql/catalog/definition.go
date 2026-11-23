@@ -1288,6 +1288,19 @@ func creationDefinition(definition string) string {
 	return definition[:match[0]] + "CREATE " + kind + definition[match[1]:]
 }
 
+// dropOrAlter is the text SQL Server stores for CREATE OR ALTER: the OR and
+// ALTER words go and the spaces around them stay, so CREATE OR ALTER VIEW is
+// stored as CREATE   VIEW (measured, testdata/queries/simulate.tsv).
+func dropOrAlter(definition string) string {
+	match := orAlterHeader.FindStringSubmatchIndex(definition)
+	if match == nil {
+		return definition
+	}
+	return definition[:match[3]] + definition[match[4]:match[5]] + definition[match[6]:match[7]] + definition[match[8]:match[9]] + definition[match[1]:]
+}
+
+var orAlterHeader = regexp.MustCompile(`(?is)^(\s*(?:(?:--[^\n]*\n)|(?:/\*.*?\*/)\s*)*CREATE)(\s+)OR(\s+)ALTER(\s+)`)
+
 var creationHeader = regexp.MustCompile(`(?is)^\s*(?:(?:--[^\n]*\n)|(?:/\*.*?\*/)\s*)*(?:CREATE\s+OR\s+ALTER|ALTER)\s+(VIEW|PROCEDURE|PROC|FUNCTION|TRIGGER)\b`)
 
 // hasRestorableDefinition is false for the placeholder a sync writes where an

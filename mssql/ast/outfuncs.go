@@ -574,6 +574,9 @@ func writeSelectStmt(sb *strings.Builder, n *SelectStmt) {
 	if n.GroupByDistributedAgg {
 		sb.WriteString(" :groupByDistributedAgg true")
 	}
+	if n.GroupByOption != "" {
+		sb.WriteString(" :groupByOption " + n.GroupByOption)
+	}
 	if n.HavingClause != nil {
 		sb.WriteString(" :having ")
 		writeNode(sb, n.HavingClause)

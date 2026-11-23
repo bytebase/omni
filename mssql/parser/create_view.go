@@ -101,10 +101,20 @@ func (p *Parser) parseCreateViewStmt(orAlter bool) (*nodes.CreateViewStmt, error
 		return nil, errCollecting
 	}
 
-	// SELECT query
-	query, err := p.parseSelectStmtWithCTE()
+	// SELECT query. The body is a select_statement, whose query expression
+	// may open with a parenthesis: CREATE VIEW v AS (SELECT 1) is accepted
+	// (measured, mssql/catalog/testdata/queries/simulate.tsv).
+	var query *nodes.SelectStmt
+	if p.cur.Type == '(' {
+		query, err = p.parseQueryParenthesisStmt()
+	} else {
+		query, err = p.parseSelectStmtWithCTE()
+	}
 	if err != nil {
 		return nil, err
+	}
+	if query == nil {
+		return nil, p.unexpectedToken()
 	}
 	stmt.Query = query
 
