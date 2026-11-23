@@ -471,6 +471,13 @@ func TestViewBinding(t *testing.T) {
 		{"HIDDEN columns are named", nil, "CREATE VIEW v AS SELECT id, vf FROM th", 0},
 		{"CONTAINS on a full-text indexed table", []string{"CREATE FULLTEXT INDEX ON x (name) KEY INDEX pk_x"}, "CREATE VIEW v AS SELECT id FROM x WHERE CONTAINS(name, 'a')", 0},
 		{"CONTAINS on a table with no full-text index", nil, "CREATE VIEW v AS SELECT id FROM x WHERE CONTAINS(name, 'a')", 7601},
+		{"grouped star leaves out HIDDEN columns", nil, "CREATE VIEW v AS SELECT * FROM th GROUP BY id", 0},
+		{"a recreated table's columns are not HIDDEN", []string{"DROP TABLE th", "CREATE TABLE th (id INT NOT NULL, vf DATETIME2 NOT NULL, vt DATETIME2 NOT NULL)"}, "CREATE VIEW v (id, vf, vt) AS SELECT * FROM th", 0},
+		{"string literals compare by their text", nil, "CREATE VIEW v AS SELECT CASE WHEN name = 'a b' THEN 1 ELSE 0 END AS flag FROM x GROUP BY CASE WHEN name = 'ab' THEN 1 ELSE 0 END", 8120},
+		{"delimited IDENTITYCOL is a column", []string{"CREATE TABLE ic ([IDENTITYCOL] INT NULL)"}, "CREATE VIEW v AS SELECT [IDENTITYCOL] FROM ic", 0},
+		{"IDENTITYCOL without an identity column", []string{"CREATE TABLE ic ([IDENTITYCOL] INT NULL)"}, "CREATE VIEW v AS SELECT IDENTITYCOL AS i FROM ic", ErrInvalidColumnName},
+		{"delimited star qualifier with a dot", nil, "CREATE VIEW v AS SELECT [a.b].* FROM t AS [a.b]", 0},
+		{"xml nodes as a table source", []string{"CREATE TABLE xd (id INT NOT NULL, doc XML NULL)"}, "CREATE VIEW v AS SELECT xd.id, n.x.value('.', 'int') AS v FROM xd CROSS APPLY doc.nodes('/r') AS n(x)", 0},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

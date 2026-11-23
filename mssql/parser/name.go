@@ -622,11 +622,19 @@ func (p *Parser) parseQualifiedRef(first string, loc int) (nodes.ExprNode, error
 			// Check if this part is followed by '(' -- meaning it's a function call
 			// e.g., schema.function(args)
 			if p.cur.Type == '(' {
-				schema := first
-				if len(parts) > 1 {
-					schema = parts[0]
+				// The parts before the name qualify it from the right:
+				// t.doc.value(...) is a method of column doc of table t, and
+				// db.schema.fn(...) a function of schema of db.
+				expr, err := p.parseFuncCallWithSchema(parts[len(parts)-1], partName, loc)
+				if fc, ok := expr.(*nodes.FuncCallExpr); ok && err == nil && fc.Name != nil {
+					if len(parts) >= 2 {
+						fc.Name.Database = parts[len(parts)-2]
+					}
+					if len(parts) >= 3 {
+						fc.Name.Server = parts[len(parts)-3]
+					}
 				}
-				return p.parseFuncCallWithSchema(schema, partName, loc)
+				return expr, err
 			}
 
 			// Check for :: static method call: schema.type::Method(args)

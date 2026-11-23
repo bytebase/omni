@@ -750,24 +750,38 @@ func (b *binder) normText(n ast.Node) string {
 			return true
 		}
 		if bound, ok := b.bound[ref]; ok && bound.rel != nil && ref.Loc.Start >= loc.Start && ref.Loc.End <= loc.End {
-			spans = append(spans, span{ref.Loc.Start, ref.Loc.End, fmt.Sprintf("\x00%p.%s", bound.rel, strings.ToLower(ref.Column))})
+			spans = append(spans, span{ref.Loc.Start, ref.Loc.End, fmt.Sprintf("%p.%s", bound.rel, strings.ToLower(ref.Column))})
 		}
 		return false
 	})
-	var text strings.Builder
-	at := loc.Start
-	for _, sp := range spans {
-		if sp.start < at {
+	// Compare tokens, not characters: a keyword or name folds its case and
+	// loses its brackets, a literal keeps its text, and a bound column is
+	// written as what it binds to.
+	var out []string
+	next := 0
+	for _, tok := range mssqlparser.Tokenize(b.source[loc.Start:loc.End]) {
+		at := loc.Start + tok.Loc
+		for next < len(spans) && spans[next].end <= at {
+			next++
+		}
+		if next < len(spans) && at >= spans[next].start {
+			if at == spans[next].start || len(out) == 0 || out[len(out)-1] != spans[next].text {
+				out = append(out, spans[next].text)
+			}
 			continue
 		}
-		text.WriteString(b.source[at:sp.start])
-		text.WriteString(sp.text)
-		at = sp.end
+		switch tok.Type {
+		case mssqlparser.SCONST, mssqlparser.NSCONST:
+			out = append(out, b.source[at:loc.Start+tok.End])
+		default:
+			text := tok.Str
+			if text == "" {
+				text = b.source[at : loc.Start+tok.End]
+			}
+			out = append(out, strings.ToLower(text))
+		}
 	}
-	text.WriteString(b.source[at:loc.End])
-	folded := strings.ToLower(text.String())
-	folded = strings.NewReplacer("[", "", "]", "").Replace(folded)
-	return strings.Join(strings.Fields(folded), "")
+	return strings.Join(out, " ")
 }
 
 // selectList binds the select list and returns the result's columns.
@@ -823,6 +837,22 @@ func (b *binder) selectList(sel *ast.SelectStmt, sc *qscope, blk *qblock) ([]qco
 	return cols, opaque, nil
 }
 
+// pseudoColumn reports whether ref is $IDENTITY, IDENTITYCOL, $ROWGUID or
+// ROWGUIDCOL as a keyword, not a column delimited to bear that name:
+// [IDENTITYCOL] is an ordinary column.
+func (b *binder) pseudoColumn(ref *ast.ColumnRef) bool {
+	switch strings.ToUpper(ref.Column) {
+	case "$IDENTITY", "IDENTITYCOL", "$ROWGUID", "ROWGUIDCOL":
+	default:
+		return false
+	}
+	if ref.Loc.Start < 0 || ref.Loc.End > len(b.source) || ref.Loc.Start >= ref.Loc.End {
+		return true
+	}
+	text := strings.TrimSpace(b.source[ref.Loc.Start:ref.Loc.End])
+	return !strings.HasSuffix(text, "]") && !strings.HasSuffix(text, "\"")
+}
+
 // resultName is the name a select-list expression without an alias gives
 // its column: a column's name, or none.
 func (b *binder) resultName(e ast.ExprNode, sc *qscope) string {
@@ -832,6 +862,9 @@ func (b *binder) resultName(e ast.ExprNode, sc *qscope) string {
 	case *ast.ColumnRef:
 		switch strings.ToUpper(v.Column) {
 		case "$IDENTITY", "IDENTITYCOL":
+			if !b.pseudoColumn(v) {
+				return v.Column
+			}
 			if bound, ok := b.bound[v]; ok && bound.rel != nil {
 				if c := bound.rel.identityCol(); c != nil {
 					return c.name
@@ -861,14 +894,10 @@ func (b *binder) star(star *ast.StarExpr, sc *qscope) ([]qcol, bool, error) {
 		}
 		return cols, opaque, nil
 	}
-	parts := strings.Split(star.Qualifier, ".")
-	table := parts[len(parts)-1]
-	schema := ""
-	if len(parts) > 1 {
-		schema = parts[len(parts)-2]
-	}
+	// The qualifier is one identifier, the table's or its alias, and a
+	// delimited one may hold dots: [a.b].*.
 	for _, r := range sc.rels {
-		if relMatches(r, schema, table) {
+		if relMatches(r, "", star.Qualifier) {
 			return visible(r.cols), r.opaque || r.starOpaque, nil
 		}
 	}
@@ -965,8 +994,7 @@ func (b *binder) inSelectList(sel *ast.SelectStmt, sc *qscope, e ast.ExprNode) b
 				if v.Qualifier == "" {
 					return true
 				}
-				parts := strings.Split(v.Qualifier, ".")
-				if relMatches(r, "", parts[len(parts)-1]) {
+				if relMatches(r, "", v.Qualifier) {
 					return true
 				}
 			}
@@ -1080,16 +1108,13 @@ func (b *binder) checkGrouping(sel *ast.SelectStmt, sc *qscope, blk *qblock, gro
 
 func (b *binder) starGrouped(star *ast.StarExpr, sc *qscope, groups []groupItem) error {
 	for _, r := range sc.rels {
-		if star.Qualifier != "" {
-			parts := strings.Split(star.Qualifier, ".")
-			if !strings.EqualFold(r.name, parts[len(parts)-1]) {
-				continue
-			}
+		if star.Qualifier != "" && !strings.EqualFold(r.name, star.Qualifier) {
+			continue
 		}
 		if r.opaque {
 			continue
 		}
-		for _, col := range r.cols {
+		for _, col := range visible(r.cols) {
 			ok := false
 			for _, g := range groups {
 				if gref, isRef := unparen(g.node).(*ast.ColumnRef); isRef && strings.EqualFold(gref.Column, col.name) {
@@ -1405,7 +1430,7 @@ func (b *binder) objectRel(ref *ast.TableRef, alias string, hints *ast.List, out
 		cols := tableColumns(t)
 		datetime2 := 0
 		for i := range cols {
-			cols[i].hidden = b.c.hiddenColumns[key][strings.ToUpper(cols[i].name)]
+			cols[i].hidden = b.c.hiddenColumns[t.Columns[i]]
 			if strings.HasPrefix(strings.ToLower(t.Columns[i].Type), "datetime2") {
 				datetime2++
 			}
@@ -1593,6 +1618,25 @@ func (b *binder) functionRel(f *ast.FuncCallExpr, alias string, columns *ast.Lis
 			}
 		}
 		return rel(nil, true), nil
+	}
+	// col.nodes(path) reads rows of an xml column's value: the columns are
+	// the ones its alias list names.
+	if f.Name != nil && f.Name.Server == "" && strings.EqualFold(name, "nodes") && schemaName != "" {
+		target := &ast.ColumnRef{Table: f.Name.Database, Column: schemaName, Loc: f.Name.Loc}
+		if b.resolves(target, outer) {
+			if err := bindArgs(); err != nil {
+				return nil, err
+			}
+			names := stringNodeList(columns)
+			if len(names) == 0 {
+				return rel(nil, true), nil
+			}
+			cols := make([]qcol, len(names))
+			for i, n := range names {
+				cols[i] = qcol{name: n, typ: qtXML}
+			}
+			return rel(cols, false), nil
+		}
 	}
 	if f.Name == nil || !b.localObject(f.Name) || systemSchema(schemaName) {
 		if err := bindArgs(); err != nil {
@@ -1871,11 +1915,7 @@ func (b *binder) unpivot(u *ast.UnpivotExpr, sc *qscope, lateral []*qrel) (*qrel
 
 // column binds a column reference.
 func (b *binder) column(ref *ast.ColumnRef, sc *qscope) (qtype, error) {
-	special := false
-	switch strings.ToUpper(ref.Column) {
-	case "$IDENTITY", "IDENTITYCOL", "$ROWGUID", "ROWGUIDCOL":
-		special = true
-	}
+	special := b.pseudoColumn(ref)
 	identity := special && (strings.EqualFold(ref.Column, "$IDENTITY") || strings.EqualFold(ref.Column, "IDENTITYCOL"))
 	if ref.Table != "" {
 		for s := sc; s != nil; s = s.parent {

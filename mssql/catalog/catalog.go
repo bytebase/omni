@@ -56,9 +56,9 @@ type Catalog struct {
 	// the checks that read them are inconclusive.
 	fromMetadata bool
 	// fulltextTables and hiddenColumns record what Exec ran: the tables
-	// with a full-text index, and each table's HIDDEN columns, upper-cased.
+	// with a full-text index, and the HIDDEN columns.
 	fulltextTables        map[tableKey]bool
-	hiddenColumns         map[tableKey]map[string]bool
+	hiddenColumns         map[*metadata.ColumnMetadata]bool
 	systemTimeTables      map[tableKey][2]string
 	systemVersionedTables map[tableKey]bool
 }
@@ -501,20 +501,18 @@ func (c *Catalog) execStatement(node ast.Node, source string) error {
 // table.
 
 func (c *Catalog) extractColumn(n *ast.ColumnDef, table *metadata.TableMetadata, schemaName, source string) {
-	if n.Hidden {
-		key := c.temporalKey(schemaName, table.Name)
-		if c.hiddenColumns == nil {
-			c.hiddenColumns = map[tableKey]map[string]bool{}
-		}
-		if c.hiddenColumns[key] == nil {
-			c.hiddenColumns[key] = map[string]bool{}
-		}
-		c.hiddenColumns[key][strings.ToUpper(n.Name)] = true
-	}
 	column := &metadata.ColumnMetadata{
 		Name:     n.Name,
 		Position: int32(len(table.Columns) + 1),
 		Nullable: true,
+	}
+	// HIDDEN is kept by the column itself, so it goes when the column or
+	// its table does, and follows a rename.
+	if n.Hidden {
+		if c.hiddenColumns == nil {
+			c.hiddenColumns = map[*metadata.ColumnMetadata]bool{}
+		}
+		c.hiddenColumns[column] = true
 	}
 	if n.Computed != nil {
 		expression := strings.TrimSpace(nodeText(n.Computed.Expr, source))
