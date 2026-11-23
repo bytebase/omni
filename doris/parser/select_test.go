@@ -3,6 +3,7 @@ package parser
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/bytebase/omni/doris/ast"
 )
@@ -1444,5 +1445,24 @@ func TestValuesStmtAsQueryOperand(t *testing.T) {
 		if _, err := Parse(sql); err != nil {
 			t.Errorf("Parse(%q) = %v, want an accept", sql, err)
 		}
+	}
+}
+
+// Nested set operations under * EXCEPT parse in linear time: each operand is
+// parsed once.
+func TestSelectStarExceptNestedOperands(t *testing.T) {
+	sql := "SELECT * FROM t"
+	for i := 0; i < 200; i++ {
+		sql = "SELECT * EXCEPT ((" + sql + "))"
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		parseForTest(sql)
+	}()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("200 nested * EXCEPT operands took over 10s")
 	}
 }

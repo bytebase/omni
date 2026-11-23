@@ -622,42 +622,45 @@ func (p *Parser) parseSelectList() ([]*ast.SelectItem, error) {
 
 // parseStarExcept parses selectColumnClause's second alternative, the
 // whole select list: ASTERISK EXCEPT LEFT_PAREN namedExpressionSeq
-// RIGHT_PAREN (DorisParser.g4). It is that form only when the list parses
-// and a FROM follows: Doris refuses * EXCEPT over a one-row relation, and
-// SELECT * EXCEPT (SELECT ...) is a set operation. Otherwise it reports
-// false, consuming nothing, and the list is read as the first alternative.
+// RIGHT_PAREN (DorisParser.g4), which Doris refuses over a one-row
+// relation, so a FROM must follow. It reports false, consuming nothing,
+// when the parenthesis opens a query, SELECT * EXCEPT (SELECT ...) or
+// ((WITH ...)): that is a set operation. The choice looks through the
+// leading parentheses only, so it costs one token per parenthesis and
+// never parses an operand twice.
 func (p *Parser) parseStarExcept() (*ast.SelectItem, bool, error) {
 	if p.cur.Kind != int('*') || p.peekNext().Kind != kwEXCEPT {
 		return nil, false, nil
 	}
 	cp := p.save()
-	if item, ok := p.tryStarExcept(); ok {
-		return item, true, nil
-	}
-	p.restore(cp)
-	return nil, false, nil
-}
-
-// tryStarExcept reads * EXCEPT (namedExpressionSeq) FROM, stopping before
-// FROM, and reports whether it did.
-func (p *Parser) tryStarExcept() (*ast.SelectItem, bool) {
 	start := p.cur.Loc.Start
 	p.advance() // consume '*'
 	p.advance() // consume EXCEPT
 	if p.cur.Kind != int('(') {
-		return nil, false
+		p.restore(cp)
+		return nil, false, nil
 	}
+	for p.cur.Kind == int('(') {
+		p.advance()
+	}
+	if p.cur.Kind == kwSELECT || p.cur.Kind == kwWITH {
+		p.restore(cp)
+		return nil, false, nil
+	}
+	p.restore(cp)
+	p.advance() // consume '*'
+	p.advance() // consume EXCEPT
 	p.advance() // consume '('
 	item := &ast.SelectItem{Star: true}
 	for {
 		exprStart := p.cur.Loc.Start
 		expr, err := p.parseExpr()
 		if err != nil {
-			return nil, false
+			return nil, true, err
 		}
 		// namedExpression: expression (AS? identifierOrText)?
 		if _, _, err := p.parseOptionalAlias(true); err != nil {
-			return nil, false
+			return nil, true, err
 		}
 		name := p.sourceText(ast.Loc{Start: exprStart, End: ast.NodeLoc(expr).End})
 		var written *ast.ObjectName
@@ -679,15 +682,16 @@ func (p *Parser) tryStarExcept() (*ast.SelectItem, bool) {
 		}
 		p.advance() // consume ','
 	}
-	if p.cur.Kind != int(')') {
-		return nil, false
-	}
-	p.advance() // consume ')'
-	if p.cur.Kind != kwFROM {
-		return nil, false
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, true, err
 	}
 	item.Loc = ast.Loc{Start: start, End: p.prev.Loc.End}
-	return item, true
+	if p.cur.Kind != kwFROM {
+		// LogicalPlanBuilder refuses * EXCEPT over a one-row relation:
+		// SELECT * EXCEPT(CURRENT_DATE) is a rejection at the pin.
+		return nil, true, p.syntaxErrorAtCur()
+	}
+	return item, true, nil
 }
 
 // parseSelectItem parses one item in the SELECT list:
