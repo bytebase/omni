@@ -20,6 +20,8 @@ const (
 	ErrInvalidObjectName              = 208
 	ErrUnknownType                    = 243
 	ErrSelectStarWithoutFrom          = 263
+	ErrCollateInvalidType             = 447
+	ErrInvalidCollation               = 448
 	ErrObjectNotFound                 = 1088
 	ErrDropIndexFilestreamOn          = 1716
 	ErrAddDefaultColumnNotFound       = 1752

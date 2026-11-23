@@ -457,6 +457,11 @@ func (c *Catalog) sortSchemas() {
 }
 
 func (c *Catalog) execStatement(node ast.Node, source string) error {
+	if !c.lenientMetadataLoad {
+		if err := checkDeclaredCollations(node); err != nil {
+			return err
+		}
+	}
 	switch n := node.(type) {
 	case *ast.CreateSchemaStmt:
 		return c.execCreateSchema(n, source)
@@ -551,7 +556,7 @@ func (c *Catalog) extractColumn(n *ast.ColumnDef, table *metadata.TableMetadata,
 		column.Default = nodeText(n.DefaultExpr, source)
 	}
 	if n.Collation != "" {
-		column.Collation = n.Collation
+		column.Collation = storedCollation(n.Collation)
 	}
 
 	if n.Constraints != nil {

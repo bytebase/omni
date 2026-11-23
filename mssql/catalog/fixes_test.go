@@ -181,6 +181,11 @@ func TestExpressionComparisonKeepsLiterals(t *testing.T) {
 	require.False(t, expressionsEqual("'a  b'", "'a b'"))
 	require.False(t, expressionsEqual("'pending'", "'PENDING'"))
 	require.False(t, checkExpressionsEqual("'pending'", "'PENDING'"))
+	// SQL Server stores N'x' COLLATE c as (N'x') collate c.
+	require.True(t, expressionsEqual("((N'x') collate latin1_general_ci_as)", "(N'x' COLLATE latin1_general_ci_as)"))
+	require.True(t, expressionsEqual("([c]=(N'x'))", "[c] = N'x'"))
+	require.False(t, expressionsEqual("([c]=(N'x'))", "[c] = N'X'"))
+	require.False(t, expressionsEqual("([c]=(N'x'))", "[c] = 'x'"))
 }
 
 func TestMigrationDropsSchemaObjectsBeforeSchema(t *testing.T) {

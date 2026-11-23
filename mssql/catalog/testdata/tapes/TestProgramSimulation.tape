@@ -14100,3 +14100,627 @@
 |
 < error
 | 3701 5 11 1 Cannot drop the trigger 'nope', because it does not exist or you do not have permission.
+> exec
+| DECLARE @sql NVARCHAR(MAX) = N'';
+| SELECT @sql += N'DROP ' + CASE o.type WHEN 'V' THEN N'VIEW ' ELSE N'FUNCTION ' END + QUOTENAME(SCHEMA_NAME(o.schema_id)) + N'.' + QUOTENAME(o.name) + N';' + CHAR(10)
+| FROM sys.objects o JOIN sys.sql_modules m ON m.object_id = o.object_id
+| WHERE m.is_schema_bound = 1 AND o.is_ms_shipped = 0 AND o.type IN ('FN', 'IF', 'TF', 'V')
+| ORDER BY CASE o.type WHEN 'V' THEN 0 ELSE 1 END, o.name;
+| IF @sql <> N'' EXEC sp_executesql @sql;
+< ok 1 -
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[audit] ([id] INT IDENTITY(1,1) NOT NULL, [what] NVARCHAR(100) NULL, [at] DATETIME2(3) NULL, CONSTRAINT [PK_audit] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT IDENTITY(1,1) NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[p_existing] @id INT AS SELECT [name] FROM [dbo].[customers] WHERE [id] = @id;
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[trg_existing] ON [dbo].[orders] AFTER INSERT AS SET NOCOUNT ON;
+< ok 0 -
+> exec
+| CREATE PROCEDURE p AS CREATE TABLE #t (c NVARCHAR(10) COLLATE a)
+|
+< error
+| 448 2 16 1 proc=p Invalid collation 'a'.
+> exec
+| DECLARE @sql NVARCHAR(MAX) = N'';
+| SELECT @sql += N'DROP ' + CASE o.type WHEN 'V' THEN N'VIEW ' ELSE N'FUNCTION ' END + QUOTENAME(SCHEMA_NAME(o.schema_id)) + N'.' + QUOTENAME(o.name) + N';' + CHAR(10)
+| FROM sys.objects o JOIN sys.sql_modules m ON m.object_id = o.object_id
+| WHERE m.is_schema_bound = 1 AND o.is_ms_shipped = 0 AND o.type IN ('FN', 'IF', 'TF', 'V')
+| ORDER BY CASE o.type WHEN 'V' THEN 0 ELSE 1 END, o.name;
+| IF @sql <> N'' EXEC sp_executesql @sql;
+< ok 1 -
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[audit] ([id] INT IDENTITY(1,1) NOT NULL, [what] NVARCHAR(100) NULL, [at] DATETIME2(3) NULL, CONSTRAINT [PK_audit] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT IDENTITY(1,1) NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[p_existing] @id INT AS SELECT [name] FROM [dbo].[customers] WHERE [id] = @id;
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[trg_existing] ON [dbo].[orders] AFTER INSERT AS SET NOCOUNT ON;
+< ok 0 -
+> exec
+| CREATE PROCEDURE p AS DECLARE @t TABLE (c NVARCHAR(10) COLLATE a)
+|
+< error
+| 448 2 16 1 proc=p Invalid collation 'a'.
+> exec
+| DECLARE @sql NVARCHAR(MAX) = N'';
+| SELECT @sql += N'DROP ' + CASE o.type WHEN 'V' THEN N'VIEW ' ELSE N'FUNCTION ' END + QUOTENAME(SCHEMA_NAME(o.schema_id)) + N'.' + QUOTENAME(o.name) + N';' + CHAR(10)
+| FROM sys.objects o JOIN sys.sql_modules m ON m.object_id = o.object_id
+| WHERE m.is_schema_bound = 1 AND o.is_ms_shipped = 0 AND o.type IN ('FN', 'IF', 'TF', 'V')
+| ORDER BY CASE o.type WHEN 'V' THEN 0 ELSE 1 END, o.name;
+| IF @sql <> N'' EXEC sp_executesql @sql;
+< ok 1 -
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[audit] ([id] INT IDENTITY(1,1) NOT NULL, [what] NVARCHAR(100) NULL, [at] DATETIME2(3) NULL, CONSTRAINT [PK_audit] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT IDENTITY(1,1) NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[p_existing] @id INT AS SELECT [name] FROM [dbo].[customers] WHERE [id] = @id;
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[trg_existing] ON [dbo].[orders] AFTER INSERT AS SET NOCOUNT ON;
+< ok 0 -
+> exec
+| CREATE PROCEDURE p AS ALTER TABLE missing_t ADD c NVARCHAR(10) COLLATE a
+|
+< error
+| 448 2 16 1 proc=p Invalid collation 'a'.
+> exec
+| DECLARE @sql NVARCHAR(MAX) = N'';
+| SELECT @sql += N'DROP ' + CASE o.type WHEN 'V' THEN N'VIEW ' ELSE N'FUNCTION ' END + QUOTENAME(SCHEMA_NAME(o.schema_id)) + N'.' + QUOTENAME(o.name) + N';' + CHAR(10)
+| FROM sys.objects o JOIN sys.sql_modules m ON m.object_id = o.object_id
+| WHERE m.is_schema_bound = 1 AND o.is_ms_shipped = 0 AND o.type IN ('FN', 'IF', 'TF', 'V')
+| ORDER BY CASE o.type WHEN 'V' THEN 0 ELSE 1 END, o.name;
+| IF @sql <> N'' EXEC sp_executesql @sql;
+< ok 1 -
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[audit] ([id] INT IDENTITY(1,1) NOT NULL, [what] NVARCHAR(100) NULL, [at] DATETIME2(3) NULL, CONSTRAINT [PK_audit] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT IDENTITY(1,1) NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[p_existing] @id INT AS SELECT [name] FROM [dbo].[customers] WHERE [id] = @id;
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[trg_existing] ON [dbo].[orders] AFTER INSERT AS SET NOCOUNT ON;
+< ok 0 -
+> exec
+| CREATE PROCEDURE p AS SELECT name COLLATE a FROM customers
+|
+< error
+| 448 1 16 1 proc=p Invalid collation 'a'.
+> exec
+| DECLARE @sql NVARCHAR(MAX) = N'';
+| SELECT @sql += N'DROP ' + CASE o.type WHEN 'V' THEN N'VIEW ' ELSE N'FUNCTION ' END + QUOTENAME(SCHEMA_NAME(o.schema_id)) + N'.' + QUOTENAME(o.name) + N';' + CHAR(10)
+| FROM sys.objects o JOIN sys.sql_modules m ON m.object_id = o.object_id
+| WHERE m.is_schema_bound = 1 AND o.is_ms_shipped = 0 AND o.type IN ('FN', 'IF', 'TF', 'V')
+| ORDER BY CASE o.type WHEN 'V' THEN 0 ELSE 1 END, o.name;
+| IF @sql <> N'' EXEC sp_executesql @sql;
+< ok 1 -
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[audit] ([id] INT IDENTITY(1,1) NOT NULL, [what] NVARCHAR(100) NULL, [at] DATETIME2(3) NULL, CONSTRAINT [PK_audit] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT IDENTITY(1,1) NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[p_existing] @id INT AS SELECT [name] FROM [dbo].[customers] WHERE [id] = @id;
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[trg_existing] ON [dbo].[orders] AFTER INSERT AS SET NOCOUNT ON;
+< ok 0 -
+> exec
+| CREATE PROCEDURE p AS SELECT name COLLATE latin1_general_ci_as FROM customers
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.audit
+: string
+| CREATE TABLE [dbo].[audit] ([id] int IDENTITY(1,1) NOT NULL, [what] nvarchar(100) NULL, [at] datetime2(3) NULL);
+| ALTER TABLE [dbo].[audit] ADD CONSTRAINT [PK_audit] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.customers
+: string
+| CREATE TABLE [dbo].[customers] ([id] int NOT NULL, [name] nvarchar(100) NULL, [region] varchar(10) NULL);
+| ALTER TABLE [dbo].[customers] ADD CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_double
+: string
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_orders
+: string
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.orders
+: string
+| CREATE TABLE [dbo].[orders] ([id] int IDENTITY(1,1) NOT NULL, [customer_id] int NULL, [amount] decimal(10,2) NULL, [status] nvarchar(20) NULL);
+| ALTER TABLE [dbo].[orders] ADD CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id] ASC);
+| GO
+| CREATE TRIGGER [dbo].[trg_existing] ON [dbo].[orders] AFTER INSERT AS SET NOCOUNT ON;
+|
+< row
+: string
+| PROCEDURE
+: string
+| dbo.p
+: string
+| CREATE PROCEDURE p AS SELECT name COLLATE latin1_general_ci_as FROM customers
+|
+|
+< row
+: string
+| PROCEDURE
+: string
+| dbo.p_existing
+: string
+| CREATE PROCEDURE [dbo].[p_existing] @id INT AS SELECT [name] FROM [dbo].[customers] WHERE [id] = @id;
+|
+< row
+: string
+| VIEW
+: string
+| dbo.v_customers
+: string
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+|
+< row
+: string
+| SCHEMA
+: string
+| s
+: string
+| CREATE SCHEMA [s];
+|
+> exec
+| DECLARE @sql NVARCHAR(MAX) = N'';
+| SELECT @sql += N'DROP ' + CASE o.type WHEN 'V' THEN N'VIEW ' ELSE N'FUNCTION ' END + QUOTENAME(SCHEMA_NAME(o.schema_id)) + N'.' + QUOTENAME(o.name) + N';' + CHAR(10)
+| FROM sys.objects o JOIN sys.sql_modules m ON m.object_id = o.object_id
+| WHERE m.is_schema_bound = 1 AND o.is_ms_shipped = 0 AND o.type IN ('FN', 'IF', 'TF', 'V')
+| ORDER BY CASE o.type WHEN 'V' THEN 0 ELSE 1 END, o.name;
+| IF @sql <> N'' EXEC sp_executesql @sql;
+< ok 1 -
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[audit] ([id] INT IDENTITY(1,1) NOT NULL, [what] NVARCHAR(100) NULL, [at] DATETIME2(3) NULL, CONSTRAINT [PK_audit] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT IDENTITY(1,1) NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[p_existing] @id INT AS SELECT [name] FROM [dbo].[customers] WHERE [id] = @id;
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[trg_existing] ON [dbo].[orders] AFTER INSERT AS SET NOCOUNT ON;
+< ok 0 -
+> exec
+| CREATE PROCEDURE p AS SELECT 'x' COLLATE a FROM missing_t
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.audit
+: string
+| CREATE TABLE [dbo].[audit] ([id] int IDENTITY(1,1) NOT NULL, [what] nvarchar(100) NULL, [at] datetime2(3) NULL);
+| ALTER TABLE [dbo].[audit] ADD CONSTRAINT [PK_audit] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.customers
+: string
+| CREATE TABLE [dbo].[customers] ([id] int NOT NULL, [name] nvarchar(100) NULL, [region] varchar(10) NULL);
+| ALTER TABLE [dbo].[customers] ADD CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id] ASC);
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_double
+: string
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+|
+< row
+: string
+| FUNCTION
+: string
+| dbo.f_orders
+: string
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+|
+< row
+: string
+| TABLE
+: string
+| dbo.orders
+: string
+| CREATE TABLE [dbo].[orders] ([id] int IDENTITY(1,1) NOT NULL, [customer_id] int NULL, [amount] decimal(10,2) NULL, [status] nvarchar(20) NULL);
+| ALTER TABLE [dbo].[orders] ADD CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id] ASC);
+| GO
+| CREATE TRIGGER [dbo].[trg_existing] ON [dbo].[orders] AFTER INSERT AS SET NOCOUNT ON;
+|
+< row
+: string
+| PROCEDURE
+: string
+| dbo.p
+: string
+| CREATE PROCEDURE p AS SELECT 'x' COLLATE a FROM missing_t
+|
+|
+< row
+: string
+| PROCEDURE
+: string
+| dbo.p_existing
+: string
+| CREATE PROCEDURE [dbo].[p_existing] @id INT AS SELECT [name] FROM [dbo].[customers] WHERE [id] = @id;
+|
+< row
+: string
+| VIEW
+: string
+| dbo.v_customers
+: string
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+|
+< row
+: string
+| SCHEMA
+: string
+| s
+: string
+| CREATE SCHEMA [s];
+|
+> exec
+| DECLARE @sql NVARCHAR(MAX) = N'';
+| SELECT @sql += N'DROP ' + CASE o.type WHEN 'V' THEN N'VIEW ' ELSE N'FUNCTION ' END + QUOTENAME(SCHEMA_NAME(o.schema_id)) + N'.' + QUOTENAME(o.name) + N';' + CHAR(10)
+| FROM sys.objects o JOIN sys.sql_modules m ON m.object_id = o.object_id
+| WHERE m.is_schema_bound = 1 AND o.is_ms_shipped = 0 AND o.type IN ('FN', 'IF', 'TF', 'V')
+| ORDER BY CASE o.type WHEN 'V' THEN 0 ELSE 1 END, o.name;
+| IF @sql <> N'' EXEC sp_executesql @sql;
+< ok 1 -
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[audit] ([id] INT IDENTITY(1,1) NOT NULL, [what] NVARCHAR(100) NULL, [at] DATETIME2(3) NULL, CONSTRAINT [PK_audit] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT IDENTITY(1,1) NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[p_existing] @id INT AS SELECT [name] FROM [dbo].[customers] WHERE [id] = @id;
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[trg_existing] ON [dbo].[orders] AFTER INSERT AS SET NOCOUNT ON;
+< ok 0 -
+> exec
+| CREATE PROCEDURE p @x NVARCHAR(10) AS SELECT @x COLLATE a
+|
+< error
+| 448 1 16 1 proc=p Invalid collation 'a'.
+> exec
+| DECLARE @sql NVARCHAR(MAX) = N'';
+| SELECT @sql += N'DROP ' + CASE o.type WHEN 'V' THEN N'VIEW ' ELSE N'FUNCTION ' END + QUOTENAME(SCHEMA_NAME(o.schema_id)) + N'.' + QUOTENAME(o.name) + N';' + CHAR(10)
+| FROM sys.objects o JOIN sys.sql_modules m ON m.object_id = o.object_id
+| WHERE m.is_schema_bound = 1 AND o.is_ms_shipped = 0 AND o.type IN ('FN', 'IF', 'TF', 'V')
+| ORDER BY CASE o.type WHEN 'V' THEN 0 ELSE 1 END, o.name;
+| IF @sql <> N'' EXEC sp_executesql @sql;
+< ok 1 -
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[audit] ([id] INT IDENTITY(1,1) NOT NULL, [what] NVARCHAR(100) NULL, [at] DATETIME2(3) NULL, CONSTRAINT [PK_audit] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT IDENTITY(1,1) NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[p_existing] @id INT AS SELECT [name] FROM [dbo].[customers] WHERE [id] = @id;
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[trg_existing] ON [dbo].[orders] AFTER INSERT AS SET NOCOUNT ON;
+< ok 0 -
+> exec
+| CREATE FUNCTION f() RETURNS NVARCHAR(10) AS BEGIN RETURN N'x' COLLATE a END
+|
+< error
+| 448 1 16 1 proc=f Invalid collation 'a'.
+> exec
+| DECLARE @sql NVARCHAR(MAX) = N'';
+| SELECT @sql += N'DROP ' + CASE o.type WHEN 'V' THEN N'VIEW ' ELSE N'FUNCTION ' END + QUOTENAME(SCHEMA_NAME(o.schema_id)) + N'.' + QUOTENAME(o.name) + N';' + CHAR(10)
+| FROM sys.objects o JOIN sys.sql_modules m ON m.object_id = o.object_id
+| WHERE m.is_schema_bound = 1 AND o.is_ms_shipped = 0 AND o.type IN ('FN', 'IF', 'TF', 'V')
+| ORDER BY CASE o.type WHEN 'V' THEN 0 ELSE 1 END, o.name;
+| IF @sql <> N'' EXEC sp_executesql @sql;
+< ok 1 -
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[audit] ([id] INT IDENTITY(1,1) NOT NULL, [what] NVARCHAR(100) NULL, [at] DATETIME2(3) NULL, CONSTRAINT [PK_audit] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT IDENTITY(1,1) NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[p_existing] @id INT AS SELECT [name] FROM [dbo].[customers] WHERE [id] = @id;
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[trg_existing] ON [dbo].[orders] AFTER INSERT AS SET NOCOUNT ON;
+< ok 0 -
+> exec
+| CREATE FUNCTION f() RETURNS TABLE AS RETURN SELECT name COLLATE a AS n FROM customers
+|
+< error
+| 448 1 16 1 proc=f Invalid collation 'a'.
+> exec
+| DECLARE @sql NVARCHAR(MAX) = N'';
+| SELECT @sql += N'DROP ' + CASE o.type WHEN 'V' THEN N'VIEW ' ELSE N'FUNCTION ' END + QUOTENAME(SCHEMA_NAME(o.schema_id)) + N'.' + QUOTENAME(o.name) + N';' + CHAR(10)
+| FROM sys.objects o JOIN sys.sql_modules m ON m.object_id = o.object_id
+| WHERE m.is_schema_bound = 1 AND o.is_ms_shipped = 0 AND o.type IN ('FN', 'IF', 'TF', 'V')
+| ORDER BY CASE o.type WHEN 'V' THEN 0 ELSE 1 END, o.name;
+| IF @sql <> N'' EXEC sp_executesql @sql;
+< ok 1 -
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[audit] ([id] INT IDENTITY(1,1) NOT NULL, [what] NVARCHAR(100) NULL, [at] DATETIME2(3) NULL, CONSTRAINT [PK_audit] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT IDENTITY(1,1) NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[p_existing] @id INT AS SELECT [name] FROM [dbo].[customers] WHERE [id] = @id;
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[trg_existing] ON [dbo].[orders] AFTER INSERT AS SET NOCOUNT ON;
+< ok 0 -
+> exec
+| CREATE FUNCTION f() RETURNS @r TABLE (c NVARCHAR(10) COLLATE a) AS BEGIN RETURN END
+|
+< error
+| 448 2 16 1 proc=f Invalid collation 'a'.
+> exec
+| DECLARE @sql NVARCHAR(MAX) = N'';
+| SELECT @sql += N'DROP ' + CASE o.type WHEN 'V' THEN N'VIEW ' ELSE N'FUNCTION ' END + QUOTENAME(SCHEMA_NAME(o.schema_id)) + N'.' + QUOTENAME(o.name) + N';' + CHAR(10)
+| FROM sys.objects o JOIN sys.sql_modules m ON m.object_id = o.object_id
+| WHERE m.is_schema_bound = 1 AND o.is_ms_shipped = 0 AND o.type IN ('FN', 'IF', 'TF', 'V')
+| ORDER BY CASE o.type WHEN 'V' THEN 0 ELSE 1 END, o.name;
+| IF @sql <> N'' EXEC sp_executesql @sql;
+< ok 1 -
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[audit] ([id] INT IDENTITY(1,1) NOT NULL, [what] NVARCHAR(100) NULL, [at] DATETIME2(3) NULL, CONSTRAINT [PK_audit] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[customers] ([id] INT NOT NULL, [name] NVARCHAR(100) NULL, [region] VARCHAR(10) NULL, CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id]));
+| CREATE TABLE [dbo].[orders] ([id] INT IDENTITY(1,1) NOT NULL, [customer_id] INT NULL, [amount] DECIMAL(10,2) NULL, [status] NVARCHAR(20) NULL, CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id]));
+< ok 0 -
+> exec
+| CREATE SCHEMA [s];
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[v_customers] AS SELECT [id], [name] FROM [dbo].[customers];
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_double](@x INT) RETURNS INT AS BEGIN RETURN @x * 2 END;
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[f_orders](@c INT) RETURNS TABLE AS RETURN SELECT [id], [amount] FROM [dbo].[orders] WHERE [customer_id] = @c;
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[p_existing] @id INT AS SELECT [name] FROM [dbo].[customers] WHERE [id] = @id;
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[trg_existing] ON [dbo].[orders] AFTER INSERT AS SET NOCOUNT ON;
+< ok 0 -
+> exec
+| CREATE TRIGGER tr ON customers AFTER INSERT AS SELECT name COLLATE a FROM inserted
+|
+< error
+| 448 1 16 1 proc=tr Invalid collation 'a'.

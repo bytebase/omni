@@ -435,6 +435,46 @@ var queryFeatures = []struct{ feature, query string }{
 	{"view", "CREATE VIEW _v WITH SCHEMABINDING AS SELECT id FROM dbo.f_orders(1)"},
 	{"view", "CREATE VIEW _v WITH SCHEMABINDING AS SELECT COUNT_BIG(*) AS n, customer_id FROM dbo.orders GROUP BY customer_id"},
 	{"view", "CREATE VIEW _v WITH SCHEMABINDING AS SELECT name FROM sys.objects"},
+	// COLLATE: a collation is one sys.fn_helpcollations() lists, in any
+	// case. A column's collation is checked while SQL Server parses, before
+	// any name resolves; an operator's as its expression is bound, after the
+	// operand's type. A table row names a column in brackets, as SQL Server
+	// stores it, since the diff does not equate [c] with c in an expression.
+	{"collate", "SELECT name COLLATE a AS n FROM customers"},
+	{"collate", "SELECT name COLLATE latin1_general_bin2 AS n FROM customers"},
+	{"collate", "SELECT name COLLATE database_default AS n FROM customers"},
+	{"collate", "SELECT name COLLATE Latin1_General_CI_AS_WS_KS AS n FROM customers"},
+	{"collate", "SELECT name COLLATE Latin1_General_CI_AS_KS_WS AS n FROM customers"},
+	{"collate", "SELECT 'x' COLLATE a AS c FROM nope"},
+	{"collate", "SELECT id FROM customers ORDER BY name COLLATE a OFFSET 0 ROWS"},
+	{"collate", "SELECT * FROM OPENJSON(N'[]') WITH (c NVARCHAR(10) COLLATE a)"},
+	{"collate", "CREATE TABLE t (c NVARCHAR(10) COLLATE latin1_general_100_ci_as_sc_utf8)"},
+	{"collate", "CREATE TABLE t (c NVARCHAR(10) COLLATE database_default)"},
+	{"collate", "CREATE TABLE t (c NVARCHAR(10) COLLATE a)"},
+	{"collate", "CREATE TABLE nope.t (c NVARCHAR(10) COLLATE a)"},
+	{"collate", "CREATE TABLE customers (c nope COLLATE a)"},
+	{"collate", "CREATE TABLE t (c INT, d AS (c COLLATE a))"},
+	{"collate", "CREATE TABLE t (c NVARCHAR(10), d AS ([c] COLLATE a))"},
+	{"collate", "CREATE TABLE t (c NVARCHAR(10), d AS ([c] COLLATE Latin1_General_BIN2))"},
+	{"collate", "CREATE TABLE t (c NVARCHAR(10) DEFAULT (1 COLLATE a))"},
+	{"collate", "CREATE TABLE nope.t (c NVARCHAR(10) DEFAULT (N'x' COLLATE a))"},
+	{"collate", "CREATE TABLE t (c NVARCHAR(10), CONSTRAINT q CHECK ([c] = N'x' COLLATE latin1_general_bin))"},
+	{"collate", "CREATE TABLE t (c NVARCHAR(10), CHECK (c = N'x' COLLATE a))"},
+	{"collate", "ALTER TABLE customers ALTER COLUMN name NVARCHAR(100) COLLATE sql_latin1_general_cp1_cs_as"},
+	{"collate", "ALTER TABLE customers ALTER COLUMN name NVARCHAR(100) COLLATE a"},
+	{"collate", "ALTER TABLE nope ALTER COLUMN name NVARCHAR(100) COLLATE a"},
+	{"collate", "ALTER TABLE nope ADD c NVARCHAR(10) COLLATE a"},
+	{"collate", "ALTER TABLE nope ADD c AS (N'x' COLLATE a)"},
+	{"collate", "ALTER TABLE customers ADD c NVARCHAR(10) DEFAULT (N'x' COLLATE a)"},
+	{"collate", "ALTER TABLE customers ADD c NVARCHAR(10) DEFAULT (N'x' COLLATE latin1_general_ci_as)"},
+	{"collate", "ALTER TABLE customers ADD CHECK (id COLLATE Latin1_General_CI_AS = N'x')"},
+	{"collate", "ALTER TABLE customers ADD CHECK (name = N'x' COLLATE a)"},
+	{"collate", "ALTER TABLE customers ADD CONSTRAINT k DEFAULT (N'x' COLLATE a) FOR nope"},
+	{"collate", "ALTER TABLE customers ADD CONSTRAINT k DEFAULT (N'x' COLLATE a) FOR region"},
+	{"collate", "CREATE TYPE tt AS TABLE (c NVARCHAR(10) COLLATE a)"},
+	{"collate", "CREATE PARTITION FUNCTION pf (NVARCHAR(10) COLLATE database_default) AS RANGE FOR VALUES ()"},
+	{"collate", "CREATE DATABASE zz COLLATE database_default"},
+	{"collate", "ALTER DATABASE CURRENT COLLATE a"},
 }
 
 // TestViewBinding pins view bindings SQL Server accepts or refuses beyond
