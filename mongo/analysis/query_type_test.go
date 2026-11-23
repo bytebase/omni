@@ -1,0 +1,181 @@
+package analysis
+
+import (
+	"testing"
+
+	"github.com/bytebase/omni/analysis"
+)
+
+func TestClassifyStatement(t *testing.T) {
+	tests := []struct {
+		name      string
+		statement string
+		want      QueryType
+	}{
+		// Select commands.
+		{name: "find", statement: `db.users.find({})`, want: Select},
+		{name: "findOne", statement: `db.users.findOne({name: "John"})`, want: Select},
+		{name: "count", statement: `db.users.count({})`, want: Select},
+		{name: "countDocuments", statement: `db.users.countDocuments({})`, want: Select},
+		{name: "estimatedDocumentCount", statement: `db.users.estimatedDocumentCount()`, want: Select},
+		{name: "distinct", statement: `db.users.distinct("name")`, want: Select},
+		{name: "aggregate without $out/$merge", statement: `db.users.aggregate([{$match: {}}])`, want: Select},
+		{name: "find with trailing semicolon", statement: `db.users.find({});`, want: Select},
+
+		// DML commands.
+		{name: "insertOne", statement: `db.users.insertOne({name: "John"})`, want: DML},
+		{name: "insertMany", statement: `db.users.insertMany([{a: 1}, {a: 2}])`, want: DML},
+		{name: "updateOne", statement: `db.users.updateOne({}, {$set: {a: 1}})`, want: DML},
+		{name: "updateMany", statement: `db.users.updateMany({}, {$set: {a: 1}})`, want: DML},
+		{name: "deleteOne", statement: `db.users.deleteOne({})`, want: DML},
+		{name: "deleteMany", statement: `db.users.deleteMany({})`, want: DML},
+		{name: "replaceOne", statement: `db.users.replaceOne({a: 1}, {a: 2})`, want: DML},
+		{name: "findOneAndUpdate", statement: `db.users.findOneAndUpdate({}, {$set: {a: 1}})`, want: DML},
+		{name: "findOneAndReplace", statement: `db.users.findOneAndReplace({a: 1}, {a: 2})`, want: DML},
+		{name: "findOneAndDelete", statement: `db.users.findOneAndDelete({a: 1})`, want: DML},
+		{name: "bulkWrite", statement: `db.users.bulkWrite([{insertOne: {document: {a: 1}}}])`, want: DML},
+
+		// Aggregate with $out / $merge.
+		{name: "aggregate with $out", statement: `db.users.aggregate([{$match: {}}, {$out: "output"}])`, want: DML},
+		{name: "aggregate with $merge", statement: `db.users.aggregate([{$match: {}}, {$merge: {into: "output"}}])`, want: DML},
+
+		// DDL commands.
+		{name: "createCollection", statement: `db.createCollection("test")`, want: DDL},
+		{name: "createView", statement: `db.createView("v", "users", [])`, want: DDL},
+		{name: "dropDatabase", statement: `db.dropDatabase()`, want: DDL},
+		{name: "drop collection", statement: `db.users.drop()`, want: DDL},
+		{name: "createIndex", statement: `db.users.createIndex({name: 1})`, want: DDL},
+		{name: "createIndexes", statement: `db.users.createIndexes([{key: {name: 1}}])`, want: DDL},
+		{name: "dropIndex", statement: `db.users.dropIndex("name_1")`, want: DDL},
+		{name: "dropIndexes", statement: `db.users.dropIndexes()`, want: DDL},
+		{name: "renameCollection", statement: `db.users.renameCollection("newName")`, want: DDL},
+		{name: "reIndex", statement: `db.users.reIndex()`, want: DDL},
+
+		// Info commands (SelectInfoSchema).
+		{name: "show dbs", statement: `show dbs`, want: SelectInfoSchema},
+		{name: "show collections", statement: `show collections`, want: SelectInfoSchema},
+		{name: "getCollectionNames", statement: `db.getCollectionNames()`, want: SelectInfoSchema},
+		{name: "getCollectionInfos", statement: `db.getCollectionInfos()`, want: SelectInfoSchema},
+		{name: "db.stats()", statement: `db.stats()`, want: SelectInfoSchema},
+		{name: "db.getName()", statement: `db.getName()`, want: SelectInfoSchema},
+		{name: "collection stats", statement: `db.users.stats()`, want: SelectInfoSchema},
+		{name: "serverStatus", statement: `db.serverStatus()`, want: SelectInfoSchema},
+		{name: "serverBuildInfo", statement: `db.serverBuildInfo()`, want: SelectInfoSchema},
+		{name: "db.version()", statement: `db.version()`, want: SelectInfoSchema},
+		{name: "hostInfo", statement: `db.hostInfo()`, want: SelectInfoSchema},
+		{name: "listCommands", statement: `db.listCommands()`, want: SelectInfoSchema},
+		{name: "getIndexes", statement: `db.users.getIndexes()`, want: SelectInfoSchema},
+		{name: "dataSize", statement: `db.users.dataSize()`, want: SelectInfoSchema},
+		{name: "storageSize", statement: `db.users.storageSize()`, want: SelectInfoSchema},
+		{name: "totalIndexSize", statement: `db.users.totalIndexSize()`, want: SelectInfoSchema},
+		{name: "totalSize", statement: `db.users.totalSize()`, want: SelectInfoSchema},
+		{name: "isCapped", statement: `db.users.isCapped()`, want: DML},
+		{name: "validate", statement: `db.users.validate()`, want: SelectInfoSchema},
+		{name: "latencyStats", statement: `db.users.latencyStats()`, want: SelectInfoSchema},
+		{name: "getShardDistribution", statement: `db.users.getShardDistribution()`, want: SelectInfoSchema},
+
+		// Explain.
+		{name: "find with explain suffix", statement: `db.users.find({}).explain()`, want: Explain},
+		{name: "find with sort and explain suffix", statement: `db.users.find({}).sort({a: 1}).explain()`, want: Explain},
+		{name: "explain prefix with find", statement: `db.users.explain().find({})`, want: Explain},
+
+		// Bulk operations.
+		{name: "initializeOrderedBulkOp", statement: `db.users.initializeOrderedBulkOp().insert({a: 1}).execute()`, want: DML},
+
+		// RS statements.
+		{name: "rs.status()", statement: `rs.status()`, want: SelectInfoSchema},
+		{name: "rs.conf()", statement: `rs.conf()`, want: SelectInfoSchema},
+		{name: "rs.config()", statement: `rs.config()`, want: SelectInfoSchema},
+		{name: "rs.printReplicationInfo()", statement: `rs.printReplicationInfo()`, want: SelectInfoSchema},
+		{name: "rs.printSecondaryReplicationInfo()", statement: `rs.printSecondaryReplicationInfo()`, want: SelectInfoSchema},
+		{name: "rs.initiate()", statement: `rs.initiate()`, want: DML},
+		{name: "rs.help()", statement: `rs.help()`, want: DML},
+
+		// SH statements.
+		{name: "sh.status()", statement: `sh.status()`, want: SelectInfoSchema},
+		{name: "sh.getBalancerState()", statement: `sh.getBalancerState()`, want: SelectInfoSchema},
+		{name: "sh.isBalancerRunning()", statement: `sh.isBalancerRunning()`, want: SelectInfoSchema},
+		{name: "sh.addShard()", statement: `sh.addShard("host:27017")`, want: DML},
+		{name: "sh.help()", statement: `sh.help()`, want: DML},
+
+		// runCommand and adminCommand.
+		{name: "runCommand find", statement: `db.runCommand({find: "users"})`, want: Select},
+		{name: "runCommand insert", statement: `db.runCommand({insert: "users", documents: [{a: 1}]})`, want: DML},
+		{name: "runCommand create", statement: `db.runCommand({create: "newColl"})`, want: DDL},
+		{name: "runCommand serverStatus", statement: `db.runCommand({serverStatus: 1})`, want: SelectInfoSchema},
+		{name: "adminCommand find", statement: `db.adminCommand({find: "users"})`, want: Select},
+		{name: "adminCommand insert", statement: `db.adminCommand({insert: "users", documents: [{a: 1}]})`, want: DML},
+		{name: "adminCommand create", statement: `db.adminCommand({create: "newColl"})`, want: DDL},
+		{name: "adminCommand serverStatus", statement: `db.adminCommand({serverStatus: 1})`, want: SelectInfoSchema},
+
+		// Unknown methods default to DML.
+		{name: "unknown collection method", statement: `db.users.someUnknownMethod()`, want: DML},
+		{name: "unknown db method", statement: `db.someUnknownDbMethod()`, want: DML},
+
+		// Empty, multi-statement, and parse errors default to DML.
+		{name: "empty input", statement: ``, want: DML},
+		{name: "whitespace only", statement: "   \n\t  ", want: DML},
+		{name: "semicolon only", statement: `;`, want: DML},
+		{name: "comment only", statement: `// just a comment`, want: DML},
+		{name: "multi-statement script", statement: `db.users.find({}); db.users.drop()`, want: DML},
+		{name: "incomplete find statement", statement: `db.users.find({`, want: DML},
+		{name: "completely unparseable input", statement: `@@@###`, want: DML},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := ClassifyStatement(tc.statement)
+			if got != tc.want {
+				t.Fatalf("ClassifyStatement(%q) = %v, want %v", tc.statement, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestQueryTypeOf(t *testing.T) {
+	// Ensure QueryType is an alias for omni/analysis.QueryType.
+	checkShared := func(qt analysis.QueryType) {
+		if qt != analysis.Select {
+			t.Fatalf("expected alias equality with analysis.Select, got %v", qt)
+		}
+	}
+	checkShared(Select)
+
+	tests := []struct {
+		name string
+		in   *StatementAnalysis
+		want QueryType
+	}{
+		{name: "nil analysis", in: nil, want: DML},
+		{name: "OpUnknown", in: &StatementAnalysis{Operation: OpUnknown}, want: DML},
+		{name: "OpFind", in: &StatementAnalysis{Operation: OpFind, MethodName: "find"}, want: Select},
+		{name: "OpFindOne", in: &StatementAnalysis{Operation: OpFindOne, MethodName: "findOne"}, want: Select},
+		{name: "OpCount", in: &StatementAnalysis{Operation: OpCount, MethodName: "countDocuments"}, want: Select},
+		{name: "OpDistinct", in: &StatementAnalysis{Operation: OpDistinct, MethodName: "distinct"}, want: Select},
+		{name: "OpAggregate read", in: &StatementAnalysis{Operation: OpAggregate, PipelineStages: []string{"$match", "$project"}}, want: Select},
+		{name: "OpAggregate $out", in: &StatementAnalysis{Operation: OpAggregate, PipelineStages: []string{"$match", "$out"}}, want: DML},
+		{name: "OpAggregate $merge", in: &StatementAnalysis{Operation: OpAggregate, PipelineStages: []string{"$merge"}}, want: DML},
+		{name: "OpRead collection metadata", in: &StatementAnalysis{Operation: OpRead, MethodName: "getIndexes"}, want: SelectInfoSchema},
+		{name: "OpRead runCommand", in: &StatementAnalysis{Operation: OpRead, MethodName: "runCommand"}, want: Select},
+		{name: "OpRead adminCommand", in: &StatementAnalysis{Operation: OpRead, MethodName: "adminCommand"}, want: Select},
+		{name: "OpInfo show", in: &StatementAnalysis{Operation: OpInfo, MethodName: "show"}, want: SelectInfoSchema},
+		{name: "OpInfo runCommand", in: &StatementAnalysis{Operation: OpInfo, MethodName: "runCommand"}, want: SelectInfoSchema},
+		{name: "OpInfo adminCommand", in: &StatementAnalysis{Operation: OpInfo, MethodName: "adminCommand"}, want: SelectInfoSchema},
+		{name: "OpInfo unknown method", in: &StatementAnalysis{Operation: OpInfo, MethodName: "customDbMethod"}, want: DML},
+		{name: "OpWrite", in: &StatementAnalysis{Operation: OpWrite, MethodName: "insertOne"}, want: DML},
+		{name: "OpAdmin", in: &StatementAnalysis{Operation: OpAdmin, MethodName: "createIndex"}, want: DDL},
+		{name: "OpExplain", in: &StatementAnalysis{Operation: OpExplain, MethodName: "find"}, want: Explain},
+		{name: "out of range operation", in: &StatementAnalysis{Operation: Operation(999)}, want: DML},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := QueryTypeOf(tc.in); got != tc.want {
+				t.Fatalf("QueryTypeOf(%+v) = %v, want %v", tc.in, got, tc.want)
+			}
+			if got := tc.in.QueryType(); got != tc.want {
+				t.Fatalf("(%+v).QueryType() = %v, want %v", tc.in, got, tc.want)
+			}
+		})
+	}
+}

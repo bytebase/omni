@@ -5,16 +5,27 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/partiql"
 	"github.com/bytebase/omni/partiql/catalog"
 	"github.com/bytebase/omni/partiql/parser"
 )
 
+// CandidateType classifies a completion candidate.
+type CandidateType = analysis.CandidateType
+
+const (
+	CandidateKeyword = analysis.CandidateKeyword
+	CandidateTable   = analysis.CandidateTable
+	CandidateColumn  = analysis.CandidateColumn
+)
+
 // Candidate represents one auto-complete suggestion.
 type Candidate struct {
-	Text string // the completion text
-	Kind string // "keyword", "table", "column", etc.
+	Text string        // the completion text
+	Kind string        // "keyword", "table", "column", etc.
+	Type CandidateType // structured candidate kind matching Kind
 }
 
 // Complete returns auto-complete candidates for the given input at the
@@ -46,19 +57,20 @@ func CompleteWithMetadata(input string, pos int, cat *catalog.Catalog, meta *met
 
 	var candidates []Candidate
 	seen := make(map[string]struct{})
-	addCandidate := func(text, kind string) {
+	addCandidate := func(text string, typ CandidateType) {
+		kind := typ.String()
 		key := kind + "\x00" + text
 		if _, ok := seen[key]; ok {
 			return
 		}
 		seen[key] = struct{}{}
-		candidates = append(candidates, Candidate{Text: text, Kind: kind})
+		candidates = append(candidates, Candidate{Text: text, Kind: kind, Type: typ})
 	}
 
 	if inFromContext {
 		for _, table := range collectTableNames(cat, meta) {
 			if matchesPrefix(table, prefix, prefixQuoted) {
-				addCandidate(table, "table")
+				addCandidate(table, CandidateTable)
 			}
 		}
 	}
@@ -66,14 +78,14 @@ func CompleteWithMetadata(input string, pos int, cat *catalog.Catalog, meta *met
 	if meta != nil && inColumnContext {
 		for _, col := range resolveColumnNames(stmtSQL, localOffset, meta) {
 			if matchesPrefix(col, prefix, prefixQuoted) {
-				addCandidate(col, "column")
+				addCandidate(col, CandidateColumn)
 			}
 		}
 	}
 
 	for _, kw := range keywords {
 		if matchesPrefix(kw, prefix, prefixQuoted) {
-			addCandidate(kw, "keyword")
+			addCandidate(kw, CandidateKeyword)
 		}
 	}
 
