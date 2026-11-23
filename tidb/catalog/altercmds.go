@@ -76,7 +76,11 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	}
 	if len(stmt.Commands) == 1 && !addNeedsRollback(stmt.Commands[0]) {
 		// Single command carrying one table element: no rollback needed.
-		return c.execAlterCmd(db, tbl, stmt.Commands[0])
+		if err := c.execAlterCmd(db, tbl, stmt.Commands[0]); err != nil {
+			return err
+		}
+		dropChecksOfMissingColumns(tbl)
+		return nil
 	}
 
 	// TiDB resolves every subcommand of a multi-command ALTER against the
@@ -110,12 +114,17 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 			i = end
 			continue
 		}
+		if len(stmt.Commands) > 1 && c.checkConstraints && isDropOfCheck(tbl, cmd) {
+			undoAlter(db, origKey, tbl, snapshot)
+			return errMultiSchemaDropCheck()
+		}
 		if err := c.execAlterCmd(db, tbl, cmd); err != nil {
 			undoAlter(db, origKey, tbl, snapshot)
 			return err
 		}
 		i++
 	}
+	dropChecksOfMissingColumns(tbl)
 	// Clear transient cleanup tracking after successful multi-command ALTER.
 	tbl.droppedByCleanup = nil
 	return nil
@@ -615,6 +624,9 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	// single-column secondary indexes drops cleanly — those indexes drop with
 	// it (see cleanupIndexesForDroppedColumn). Measured against the container.
 	if err := checkDropColumnCovered(tbl, cmd.Name); err != nil {
+		return err
+	}
+	if err := checkDropColumnWithCheck(tbl, cmd.Name); err != nil {
 		return err
 	}
 
@@ -1220,6 +1232,9 @@ func (c *Catalog) alterRenameColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 	idx, exists := tbl.colByName[oldKey]
 	if !exists {
 		return errNoSuchColumn(cmd.Name, tbl.Name)
+	}
+	if err := checkRenameColumnWithCheck(tbl, tbl.Columns[idx].Name); err != nil {
+		return err
 	}
 
 	newKey := toLower(cmd.NewName)

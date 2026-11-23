@@ -40122,3 +40122,577 @@
 | ALTER TABLE ident ADD ident ENUM('binary', 'binary')
 < error
 | 1060 42S21 Duplicate column name 'ident'
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; SET GLOBAL tidb_enable_check_constraint = ON;
+| CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN starts, DROP COLUMN ends
+< error
+| 3959 HY000 Check constraint 'chk_dates' uses column 'starts', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; SET GLOBAL tidb_enable_check_constraint = ON;
+| CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN ends, DROP COLUMN starts
+< error
+| 3959 HY000 Check constraint 'chk_dates' uses column 'ends', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; SET GLOBAL tidb_enable_check_constraint = ON;
+| CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN starts
+< error
+| 3959 HY000 Check constraint 'chk_dates' uses column 'starts', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; SET GLOBAL tidb_enable_check_constraint = ON;
+| CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN ends
+< error
+| 3959 HY000 Check constraint 'chk_dates' uses column 'ends', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; SET GLOBAL tidb_enable_check_constraint = ON;
+| CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN guests
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+< row
+: bytes
+| rooms
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int NOT NULL,
+|   `starts` date DEFAULT NULL,
+|   `ends` date DEFAULT NULL,
+|   `nights` int DEFAULT NULL,
+|   `note` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+|   CONSTRAINT `chk_dates` CHECK ((`starts` <= `ends`)),
+|   CONSTRAINT `chk_nights` CHECK ((`nights` > 0))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `rooms`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| rooms
+: bytes
+| CREATE TABLE `rooms` (
+|   `id` int NOT NULL,
+|   `beds` int DEFAULT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+|   CONSTRAINT `chk_always` CHECK ((1 = 1))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; SET GLOBAL tidb_enable_check_constraint = ON;
+| CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN nights
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+< row
+: bytes
+| rooms
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int NOT NULL,
+|   `starts` date DEFAULT NULL,
+|   `ends` date DEFAULT NULL,
+|   `guests` int DEFAULT NULL,
+|   `note` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+|   CONSTRAINT `chk_dates` CHECK ((`starts` <= `ends`)),
+|   CONSTRAINT `bookings_chk_1` CHECK ((`guests` > 0))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `rooms`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| rooms
+: bytes
+| CREATE TABLE `rooms` (
+|   `id` int NOT NULL,
+|   `beds` int DEFAULT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+|   CONSTRAINT `chk_always` CHECK ((1 = 1))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; SET GLOBAL tidb_enable_check_constraint = ON;
+| CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN note
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+< row
+: bytes
+| rooms
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int NOT NULL,
+|   `starts` date DEFAULT NULL,
+|   `ends` date DEFAULT NULL,
+|   `guests` int DEFAULT NULL,
+|   `nights` int DEFAULT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+|   CONSTRAINT `chk_dates` CHECK ((`starts` <= `ends`)),
+|   CONSTRAINT `chk_nights` CHECK ((`nights` > 0)),
+|   CONSTRAINT `bookings_chk_1` CHECK ((`guests` > 0))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `rooms`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| rooms
+: bytes
+| CREATE TABLE `rooms` (
+|   `id` int NOT NULL,
+|   `beds` int DEFAULT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+|   CONSTRAINT `chk_always` CHECK ((1 = 1))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; SET GLOBAL tidb_enable_check_constraint = ON;
+| CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN guests, DROP COLUMN starts
+< error
+| 3959 HY000 Check constraint 'chk_dates' uses column 'starts', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; SET GLOBAL tidb_enable_check_constraint = ON;
+| CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP CHECK chk_dates, DROP COLUMN starts, DROP COLUMN ends
+< error
+| 8200 HY000 Unsupported multi schema change for drop check constraint
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; SET GLOBAL tidb_enable_check_constraint = ON;
+| CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN starts, DROP COLUMN ends, DROP CHECK chk_dates
+< error
+| 3959 HY000 Check constraint 'chk_dates' uses column 'starts', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; SET GLOBAL tidb_enable_check_constraint = ON;
+| CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP CONSTRAINT chk_dates, DROP COLUMN starts, DROP COLUMN ends
+< error
+| 8200 HY000 Unsupported multi schema change for drop check constraint
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; SET GLOBAL tidb_enable_check_constraint = ON;
+| CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP CHECK chk_dates, DROP COLUMN starts
+< error
+| 8200 HY000 Unsupported multi schema change for drop check constraint
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; SET GLOBAL tidb_enable_check_constraint = ON;
+| CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings RENAME COLUMN starts TO begins, DROP COLUMN ends
+< error
+| 3959 HY000 Check constraint 'chk_dates' uses column 'starts', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; SET GLOBAL tidb_enable_check_constraint = ON;
+| CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings DROP COLUMN starts, ADD COLUMN starts DATE
+< error
+| 3959 HY000 Check constraint 'chk_dates' uses column 'starts', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; SET GLOBAL tidb_enable_check_constraint = ON;
+| CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings RENAME COLUMN guests TO people
+< error
+| 3959 HY000 Check constraint 'bookings_chk_1' uses column 'guests', hence column cannot be dropped or renamed.
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; SET GLOBAL tidb_enable_check_constraint = ON;
+| CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings RENAME COLUMN note TO memo
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+< row
+: bytes
+| rooms
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int NOT NULL,
+|   `starts` date DEFAULT NULL,
+|   `ends` date DEFAULT NULL,
+|   `guests` int DEFAULT NULL,
+|   `nights` int DEFAULT NULL,
+|   `memo` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+|   CONSTRAINT `chk_dates` CHECK ((`starts` <= `ends`)),
+|   CONSTRAINT `chk_nights` CHECK ((`nights` > 0)),
+|   CONSTRAINT `bookings_chk_1` CHECK ((`guests` > 0))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `rooms`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| rooms
+: bytes
+| CREATE TABLE `rooms` (
+|   `id` int NOT NULL,
+|   `beds` int DEFAULT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+|   CONSTRAINT `chk_always` CHECK ((1 = 1))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; SET GLOBAL tidb_enable_check_constraint = ON;
+| CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings CHANGE COLUMN nights stays INT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+< row
+: bytes
+| rooms
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int NOT NULL,
+|   `starts` date DEFAULT NULL,
+|   `ends` date DEFAULT NULL,
+|   `guests` int DEFAULT NULL,
+|   `stays` int DEFAULT NULL,
+|   `note` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+|   CONSTRAINT `chk_dates` CHECK ((`starts` <= `ends`)),
+|   CONSTRAINT `bookings_chk_1` CHECK ((`guests` > 0))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `rooms`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| rooms
+: bytes
+| CREATE TABLE `rooms` (
+|   `id` int NOT NULL,
+|   `beds` int DEFAULT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+|   CONSTRAINT `chk_always` CHECK ((1 = 1))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; SET GLOBAL tidb_enable_check_constraint = ON;
+| CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE bookings MODIFY COLUMN nights BIGINT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+< row
+: bytes
+| rooms
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int NOT NULL,
+|   `starts` date DEFAULT NULL,
+|   `ends` date DEFAULT NULL,
+|   `guests` int DEFAULT NULL,
+|   `nights` bigint DEFAULT NULL,
+|   `note` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+|   CONSTRAINT `chk_dates` CHECK ((`starts` <= `ends`)),
+|   CONSTRAINT `chk_nights` CHECK ((`nights` > 0)),
+|   CONSTRAINT `bookings_chk_1` CHECK ((`guests` > 0))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `rooms`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| rooms
+: bytes
+| CREATE TABLE `rooms` (
+|   `id` int NOT NULL,
+|   `beds` int DEFAULT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+|   CONSTRAINT `chk_always` CHECK ((1 = 1))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; SET GLOBAL tidb_enable_check_constraint = ON;
+| CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE rooms DROP COLUMN beds
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+< row
+: bytes
+| rooms
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int NOT NULL,
+|   `starts` date DEFAULT NULL,
+|   `ends` date DEFAULT NULL,
+|   `guests` int DEFAULT NULL,
+|   `nights` int DEFAULT NULL,
+|   `note` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+|   CONSTRAINT `chk_dates` CHECK ((`starts` <= `ends`)),
+|   CONSTRAINT `chk_nights` CHECK ((`nights` > 0)),
+|   CONSTRAINT `bookings_chk_1` CHECK ((`guests` > 0))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `rooms`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| rooms
+: bytes
+| CREATE TABLE `rooms` (
+|   `id` int NOT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+|   CONSTRAINT `chk_always` CHECK ((1 = 1))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; SET GLOBAL tidb_enable_check_constraint = ON;
+| CREATE TABLE bookings (id INT PRIMARY KEY, starts DATE, ends DATE, guests INT CHECK (guests > 0), nights INT, note VARCHAR(100), CONSTRAINT chk_dates CHECK (starts <= ends), CONSTRAINT chk_nights CHECK (nights > 0));
+| CREATE TABLE rooms (id INT PRIMARY KEY, beds INT, CONSTRAINT chk_always CHECK (1 = 1))
+< ok 0 0
+> exec
+| ALTER TABLE rooms ADD COLUMN floor INT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| bookings
+: bytes
+| BASE TABLE
+< row
+: bytes
+| rooms
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `bookings`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| bookings
+: bytes
+| CREATE TABLE `bookings` (
+|   `id` int NOT NULL,
+|   `starts` date DEFAULT NULL,
+|   `ends` date DEFAULT NULL,
+|   `guests` int DEFAULT NULL,
+|   `nights` int DEFAULT NULL,
+|   `note` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+|   CONSTRAINT `chk_dates` CHECK ((`starts` <= `ends`)),
+|   CONSTRAINT `chk_nights` CHECK ((`nights` > 0)),
+|   CONSTRAINT `bookings_chk_1` CHECK ((`guests` > 0))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `rooms`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| rooms
+: bytes
+| CREATE TABLE `rooms` (
+|   `id` int NOT NULL,
+|   `beds` int DEFAULT NULL,
+|   `floor` int DEFAULT NULL,
+|   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
+|   CONSTRAINT `chk_always` CHECK ((1 = 1))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
