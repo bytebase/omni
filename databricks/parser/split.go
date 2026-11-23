@@ -162,21 +162,101 @@ func Split(script string) []Segment {
 		return true
 	}
 
-	isExprOperatorOrClause := func(k TokenKind) bool {
+	isDelimOrInfixOp := func(k TokenKind) bool {
 		switch k {
-		case tokEOF, tokSemicolon, tokComma, tokDot, tokColon, tokDoubleColon, tokLParen, tokLBracket,
+		case tokEOF, tokSemicolon, tokComma, tokRParen, tokRBracket, tokDot, tokLBracket, tokDoubleColon, tokColon,
 			tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
-			tokPlus, tokMinus, tokAsterisk, tokSlash, tokPercent, kwDIV,
-			tokConcatPipe, tokPipe, tokAmpersand, tokHat, tokTilde, tokShiftLeft, tokShiftRight, tokShiftRightU,
-			tokArrow, tokFatArrow, tokOperatorPipe,
-			kwAND, kwOR, kwNOT, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE,
-			kwBETWEEN, kwAS, kwDISTINCT, kwALL, kwEXISTS,
-			kwSELECT, kwFROM, kwWHERE, kwHAVING, kwON, kwUSING, kwINTO,
-			kwJOIN, kwINNER, kwLEFT, kwRIGHT, kwFULL, kwCROSS, kwNATURAL, kwSEMI, kwANTI,
-			kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
+			tokAsterisk, tokSlash, tokPercent, kwDIV,
+			tokConcatPipe, tokPipe, tokAmpersand, tokHat, tokShiftLeft, tokShiftRight, tokShiftRightU,
+			tokOperatorPipe,
+			kwTHEN, kwDO, kwEND, kwELSE, kwELSEIF, kwWHEN,
+			kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN, kwAS:
 			return true
 		}
 		return false
+	}
+
+	// nextPrevIsValue determines whether tok (when not handled as a control/CASE
+	// delimiter) ends a value/identifier expression rather than expecting another
+	// operand. In operand position (prevVal == false), non-reserved keywords act as
+	// identifiers unless they are genuinely introducing a prefix/query/quantifier
+	// construct (such as `NOT <expr>`, `EXISTS (...)`, `SELECT DISTINCT`, `FOR SELECT`).
+	nextPrevIsValue := func(kind, prevKind TokenKind, prevVal bool, nextKind TokenKind) bool {
+		// Wildcard `*` in `SELECT *`, `t.*`, `COUNT(*)` ends a value; binary `*` expects an operand.
+		if kind == tokAsterisk {
+			switch prevKind {
+			case kwSELECT, tokComma, tokDot, tokLParen, kwDISTINCT, kwALL:
+				return true
+			default:
+				return false
+			}
+		}
+		// Symbolic punctuation and operators always expect a following token.
+		switch kind {
+		case tokEOF, tokSemicolon, tokComma, tokDot, tokColon, tokDoubleColon, tokLParen, tokLBracket,
+			tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
+			tokPlus, tokMinus, tokSlash, tokPercent,
+			tokConcatPipe, tokPipe, tokAmpersand, tokHat, tokTilde, tokShiftLeft, tokShiftRight, tokShiftRightU,
+			tokArrow, tokFatArrow, tokOperatorPipe:
+			return false
+		}
+		if !prevVal {
+			// Operand/value position: only prefix operators, query starters inside
+			// FOR/subqueries, set quantifiers right after SELECT/set-ops, and
+			// multi-word clause continuations (`GROUP BY`, `LEFT OUTER JOIN`) keep
+			// expecting a following operand.
+			switch kind {
+			case kwNOT:
+				return isDelimOrInfixOp(nextKind)
+			case kwEXISTS:
+				return nextKind != tokLParen
+			case kwALL, kwDISTINCT:
+				switch prevKind {
+				case kwSELECT, kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
+					return isDelimOrInfixOp(nextKind)
+				default:
+					return true
+				}
+			case kwSELECT:
+				if (stmtHead == kwFOR || parenDepth > 0) && (nextKind == tokAsterisk || !isDelimOrInfixOp(nextKind)) {
+					return false
+				}
+				return true
+			case kwFROM, kwVALUES, kwTABLE:
+				if (stmtHead == kwFOR || parenDepth > 0) && !isDelimOrInfixOp(nextKind) {
+					return false
+				}
+				return true
+			case kwBY:
+				switch prevKind {
+				case kwGROUP, kwORDER, kwSORT, kwCLUSTER, kwDISTRIBUTE, kwPARTITION:
+					return false
+				default:
+					return true
+				}
+			case kwOUTER, kwJOIN:
+				switch prevKind {
+				case kwLEFT, kwRIGHT, kwFULL, kwINNER, kwCROSS, kwNATURAL, kwSEMI, kwANTI, kwOUTER:
+					return false
+				default:
+					return true
+				}
+			default:
+				return true
+			}
+		}
+		// Post-value position (prevVal == true): binary operators and clause
+		// introducers expect a following operand/expression.
+		switch kind {
+		case kwAND, kwOR, kwNOT, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN, kwDIV,
+			kwAS, kwCOLLATE, kwESCAPE,
+			kwFROM, kwWHERE, kwHAVING, kwON, kwUSING, kwINTO,
+			kwGROUP, kwORDER, kwSORT, kwCLUSTER, kwDISTRIBUTE, kwWINDOW, kwLIMIT, kwOFFSET,
+			kwJOIN, kwINNER, kwLEFT, kwRIGHT, kwFULL, kwCROSS, kwNATURAL, kwSEMI, kwANTI,
+			kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
+			return false
+		}
+		return true
 	}
 
 	isCaseExprEnd := func() bool {
@@ -614,12 +694,8 @@ func Split(script string) []Segment {
 			} else {
 				prevIsValue = true
 			}
-		case kwALL:
-			// `GROUP BY ALL DO` and `LIMIT ALL DO` end the clause with a value,
-			// whereas `SELECT ALL <expr>` / `UNION ALL <query>` expect an operand.
-			prevIsValue = prevKind == kwBY || prevKind == kwLIMIT
 		default:
-			prevIsValue = !isExprOperatorOrClause(tok.Kind)
+			prevIsValue = nextPrevIsValue(tok.Kind, prevKind, prevIsValue, peekTok(0).Kind)
 		}
 	}
 

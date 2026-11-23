@@ -335,6 +335,24 @@ func TestSplit(t *testing.T) {
 			empty:  []bool{false, false},
 		},
 		{
+			name:   "non-reserved keyword identifiers at end of IF/WHILE/UNTIL headers",
+			script: "BEGIN DECLARE all BOOLEAN DEFAULT true; IF all THEN IF true THEN SELECT 1; END IF; END IF; WHILE all DO SELECT 2; END WHILE; REPEAT SELECT 3; UNTIL all END REPEAT; END; SELECT 4;",
+			want:   []string{"BEGIN DECLARE all BOOLEAN DEFAULT true; IF all THEN IF true THEN SELECT 1; END IF; END IF; WHILE all DO SELECT 2; END WHILE; REPEAT SELECT 3; UNTIL all END REPEAT; END;", " SELECT 4;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "keyword identifiers distinct, exists, from, select in IF and CASE headers",
+			script: "BEGIN DECLARE exists BOOLEAN DEFAULT true; DECLARE from BOOLEAN DEFAULT true; IF exists AND from THEN IF CASE WHEN true THEN exists ELSE from END THEN SELECT 1; END IF; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE exists BOOLEAN DEFAULT true; DECLARE from BOOLEAN DEFAULT true; IF exists AND from THEN IF CASE WHEN true THEN exists ELSE from END THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "FOR SELECT * FROM do and SELECT ALL do FROM t before DO",
+			script: "BEGIN FOR SELECT * FROM do DO FOR SELECT ALL do FROM t LEFT OUTER JOIN do ON true DO SELECT 1; END FOR; END FOR; END; SELECT 2;",
+			want:   []string{"BEGIN FOR SELECT * FROM do DO FOR SELECT ALL do FROM t LEFT OUTER JOIN do ON true DO SELECT 1; END FOR; END FOR; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
 			name:   "then variable inside IF condition with nested IF",
 			script: "BEGIN DECLARE then INT DEFAULT 1; IF then = 1 THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
 			want:   []string{"BEGIN DECLARE then INT DEFAULT 1; IF then = 1 THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
