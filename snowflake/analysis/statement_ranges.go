@@ -22,16 +22,20 @@ type ByteRange = analysis.ByteRange
 func StatementRanges(statement string) []ByteRange {
 	trimmed := strings.TrimRightFunc(statement, unicode.IsSpace)
 
-	segs := parser.Split(trimmed)
+	var segs []parser.Segment
+	for _, seg := range parser.Split(trimmed) {
+		if !seg.Empty() {
+			segs = append(segs, seg)
+		}
+	}
 	if len(segs) == 0 {
+		// No segment holds a statement. An editor still wants a range
+		// covering a comment.
 		return commentOnlyRanges(trimmed)
 	}
 
 	ranges := make([]ByteRange, 0, len(segs))
 	for _, seg := range segs {
-		if !hasNonWhitespace(trimmed[seg.ByteStart:seg.ByteEnd]) {
-			continue
-		}
 		start := seg.ByteStart
 		for start < seg.ByteEnd {
 			c := trimmed[start]
@@ -48,7 +52,7 @@ func StatementRanges(statement string) []ByteRange {
 		ranges = append(ranges, ByteRange{Start: start, End: end})
 	}
 
-	// parser.Split drops comment-only segments, so a comment after the last
+	// The loop above skips comment-only segments, so a comment after the last
 	// statement would otherwise have no range.
 	last := segs[len(segs)-1]
 	tailStart := last.ByteEnd
@@ -103,16 +107,6 @@ func containsCommentMarker(s string) bool {
 			if c == '/' && (s[i+1] == '*' || s[i+1] == '/') {
 				return true
 			}
-		}
-	}
-	return false
-}
-
-func hasNonWhitespace(s string) bool {
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c != ' ' && c != '\t' && c != '\n' && c != '\r' {
-			return true
 		}
 	}
 	return false

@@ -17,7 +17,8 @@ type Segment struct {
 // that is, only whitespace and comments. It works by re-lexing Text and
 // checking whether the first token is tokEOF.
 //
-// Empty segments are filtered out by Split.
+// Split returns empty segments; a caller that parses or executes statements
+// skips them.
 func (s Segment) Empty() bool {
 	return NewLexer(s.Text).NextToken().Type == tokEOF
 }
@@ -33,8 +34,11 @@ const (
 
 // Split extracts top-level SQL statements from input.
 //
-// The returned slice contains one Segment per non-empty statement. Empty
-// statements (lone semicolons, comment-only chunks) are filtered out.
+// The returned slice contains one Segment per delimiter-separated chunk,
+// including the chunks that hold no statement — a lone semicolon, whitespace,
+// a comment, or comment-only text after the last `;` — which Segment.Empty
+// reports. A caller that accounts for every delimiter (Bytebase's execution
+// log) needs them; a caller that parses or executes statements skips them.
 //
 // Split is infallible — it always returns a result, even for malformed
 // input. Lexing errors are suppressed internally; callers who need them
@@ -108,14 +112,11 @@ func Split(input string) []Segment {
 	// the byte offset BEFORE any trailing delimiter. The caller is
 	// responsible for advancing stmtStart past the delimiter.
 	emit := func(end int) {
-		seg := Segment{
+		segments = append(segments, Segment{
 			Text:      input[stmtStart:end],
 			ByteStart: stmtStart,
 			ByteEnd:   end,
-		}
-		if !seg.Empty() {
-			segments = append(segments, seg)
-		}
+		})
 	}
 
 	for {
