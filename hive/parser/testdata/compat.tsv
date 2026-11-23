@@ -634,6 +634,10 @@ reject	reject	engine	createDatabaseStatement/KW_CREATE_KW_REMOTE_(KW_DATABASE|KW
 reject	reject	engine	createDatabaseStatement/KW_CREATE_KW_REMOTE_(KW_DATABASE|KW_SCHEMA)_(ifNotExist~1f06bbc3!drop-6	CREATE REMOTE DATABASE a USING
 reject	reject	engine	createDatabaseStatement/KW_CREATE_KW_REMOTE_(KW_DATABASE|KW_SCHEMA)_(ifNotExist~1f06bbc3!insert	CREATE REMOTE DATABASE a USING a zzz
 reject	reject	engine	createDatabaseStatement/KW_CREATE_KW_REMOTE_(KW_DATABASE|KW_SCHEMA)_(ifNotExist~1f06bbc3!swap	CRON REMOTE DATABASE a USING a
+accept	accept	engine	createDatabaseStatement/KW_CREATE_KW_REMOTE_(KW_DATABASE|KW_SCHEMA)_(ifNotExist~1f06bbc3+createDatabaseStatement(ifNotExists)?	CREATE REMOTE DATABASE IF NOT EXISTS a USING a
+reject	reject	engine	createDatabaseStatement/KW_CREATE_KW_REMOTE_(KW_DATABASE|KW_SCHEMA)_(ifNotExist~1f06bbc3+createDatabaseStatement(ifNotExists)?!drop-4	CREATE REMOTE DATABASE NOT EXISTS a USING a
+reject	reject	engine	createDatabaseStatement/KW_CREATE_KW_REMOTE_(KW_DATABASE|KW_SCHEMA)_(ifNotExist~1f06bbc3+createDatabaseStatement(ifNotExists)?!drop-5	CREATE REMOTE DATABASE IF EXISTS a USING a
+reject	reject	engine	createDatabaseStatement/KW_CREATE_KW_REMOTE_(KW_DATABASE|KW_SCHEMA)_(ifNotExist~1f06bbc3+createDatabaseStatement(ifNotExists)?!drop-6	CREATE REMOTE DATABASE IF NOT a USING a
 accept	accept	engine	createDatabaseStatement(KW_DATABASE|KW_SCHEMA)/KW_DATABASE	CREATE DATABASE a
 reject	reject	engine	createDatabaseStatement(KW_DATABASE|KW_SCHEMA)/KW_DATABASE!truncate	CREATE
 reject	reject	engine	createDatabaseStatement(KW_DATABASE|KW_SCHEMA)/KW_DATABASE!insert	CREATE DATABASE zzz a
@@ -6776,6 +6780,10 @@ reject	reject	engine	createTableStatement/KW_CREATE_KW_MANAGED_KW_TABLE_(ifNotEx
 reject	reject	engine	createTableStatement/KW_CREATE_KW_MANAGED_KW_TABLE_(ifNotExists)?_tableName_~88ced152!drop-4	CREATE MANAGED TABLE
 reject	reject	engine	createTableStatement/KW_CREATE_KW_MANAGED_KW_TABLE_(ifNotExists)?_tableName_~88ced152!insert	CREATE MANAGED TABLE a zzz
 reject	reject	engine	createTableStatement/KW_CREATE_KW_MANAGED_KW_TABLE_(ifNotExists)?_tableName_~88ced152!swap	CRON MANAGED TABLE a
+accept	accept	engine	createTableStatement/KW_CREATE_KW_MANAGED_KW_TABLE_(ifNotExists)?_tableName_~88ced152+createTableStatement(ifNotExists)?	CREATE MANAGED TABLE IF NOT EXISTS a
+reject	reject	engine	createTableStatement/KW_CREATE_KW_MANAGED_KW_TABLE_(ifNotExists)?_tableName_~88ced152+createTableStatement(ifNotExists)?!drop-4	CREATE MANAGED TABLE NOT EXISTS a
+reject	reject	engine	createTableStatement/KW_CREATE_KW_MANAGED_KW_TABLE_(ifNotExists)?_tableName_~88ced152+createTableStatement(ifNotExists)?!drop-5	CREATE MANAGED TABLE IF EXISTS a
+reject	reject	engine	createTableStatement/KW_CREATE_KW_MANAGED_KW_TABLE_(ifNotExists)?_tableName_~88ced152+createTableStatement(ifNotExists)?!drop-6	CREATE MANAGED TABLE IF NOT a
 accept	accept	engine	createTableStatement(KW_TEMPORARY)?/%empty	CREATE TABLE a
 reject	reject	engine	createTableStatement(KW_TEMPORARY)?/%empty!insert	CREATE zzz TABLE a
 accept	accept	engine	createTableStatement(KW_TEMPORARY)?/KW_TEMPORARY	CREATE TEMPORARY TABLE a
