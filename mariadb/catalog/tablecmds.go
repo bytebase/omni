@@ -1694,7 +1694,7 @@ func columnDefaultValue(expr nodes.ExprNode) (string, ColumnDefaultKind) {
 
 func currentTimestampExpr(expr nodes.ExprNode) (string, bool) {
 	fn, ok := expr.(*nodes.FuncCallExpr)
-	if !ok {
+	if !ok || fn.Schema != "" || fn.SpacedParen || fn.NameQuoted {
 		return "", false
 	}
 	name := strings.ToLower(fn.Name)
@@ -1704,10 +1704,8 @@ func currentTimestampExpr(expr nodes.ExprNode) (string, bool) {
 	if len(fn.Args) == 0 {
 		return "CURRENT_TIMESTAMP", true
 	}
-	if len(fn.Args) == 1 {
-		if lit, ok := fn.Args[0].(*nodes.IntLit); ok {
-			return fmt.Sprintf("CURRENT_TIMESTAMP(%d)", lit.Value), true
-		}
+	if fsp, ok := optTimePrecisionArg(fn); ok {
+		return timestampCurrentExpr(fsp), true
 	}
 	if ts, ok := currentTimestampSQL(nodeToSQL(expr)); ok {
 		return ts, true

@@ -29,7 +29,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 			return err
 		}
 	}
-	analyzedQuery, bodyErr := c.analyzeViewBody(stmt.Select, source)
+	analyzedQuery, bodyErr := c.analyzeViewBodyFor(stmt.Select, source, db, checkBody)
 	if checkBody && bodyErr != nil {
 		return bodyErr
 	}
@@ -119,17 +119,28 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 // expressions leave the view without AnalyzedQuery rather than refusing a view
 // the engine accepts.
 func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt, source string) (*Query, error) {
+	return c.analyzeViewBodyFor(sel, source, c.GetDatabase(c.CurrentDatabase()), true)
+}
+
+func (c *Catalog) analyzeViewBodyFor(sel *nodes.SelectStmt, source string, viewDB *Database, checkFuncs bool) (*Query, error) {
 	if sel == nil {
 		return nil, nil
 	}
+	savedValidating, savedDB := c.validatingViewBody, c.validatingViewDB
+	if checkFuncs {
+		c.validatingViewBody = true
+		c.validatingViewDB = viewDB
+	}
 	q, err := c.analyzeSelectStmtWithSource(sel, source)
+	c.validatingViewBody, c.validatingViewDB = savedValidating, savedDB
 	if err == nil {
 		return q, nil
 	}
 	var refusal *Error
 	if errors.As(err, &refusal) {
 		switch refusal.Code {
-		case ErrNoTablesUsed, ErrUnknownTable, ErrOperandColumns:
+		case ErrNoTablesUsed, ErrUnknownTable, ErrOperandColumns,
+			ErrNoSuchFunction, ErrFuncInexistentNameCollision, ErrFunctionNotDefined:
 			return nil, refusal
 		case ErrNoSuchTable:
 			if !isSystemDatabaseTableErr(refusal) {
@@ -262,6 +273,10 @@ func (c *Catalog) validateViewPostAnalysis(sel *nodes.SelectStmt, defaultDB *Dat
 				checkSeqRef(x.Sequence.Schema, x.Sequence.Name)
 			}
 		case *nodes.FuncCallExpr:
+			if funcErr := c.validateViewFuncExists(x, defaultDB); funcErr != nil {
+				err = funcErr
+				return false
+			}
 			if x.Schema == "" && !x.SpacedParen && len(x.Args) >= 1 {
 				switch strings.ToUpper(x.Name) {
 				case "NEXTVAL", "LASTVAL", "SETVAL":
@@ -282,6 +297,62 @@ func (c *Catalog) validateViewPostAnalysis(sel *nodes.SelectStmt, defaultDB *Dat
 		return err == nil
 	})
 	return err
+}
+
+func (c *Catalog) validateViewFuncExists(fc *nodes.FuncCallExpr, viewDB *Database) error {
+	if fc == nil || fc.Name == "" || c.loadingSDL {
+		return nil
+	}
+	lower := toLower(fc.Name)
+	displayName := fc.RawName
+	if displayName == "" {
+		displayName = fc.Name
+	}
+	// Three-part package routine call: db.package.routine(). MariaDB always
+	// reports 1305 (ER_SP_DOES_NOT_EXIST), never 1630, when the routine is absent.
+	if fc.Schema != "" && fc.Package != "" {
+		return errNoSuchFunction(fc.Schema + "." + fc.Package + "." + displayName)
+	}
+	// Two-part schema-qualified call: schema.routine().
+	if fc.Schema != "" {
+		if strings.EqualFold(fc.Schema, "mariadb_schema") || strings.EqualFold(fc.Schema, "oracle_schema") {
+			if isMariaDBSchemaBuiltinFunction(fc, lower) {
+				return nil
+			}
+			return errFunctionNotDefined(displayName)
+		}
+		targetDB := c.GetDatabase(fc.Schema)
+		if targetDB != nil && targetDB.Functions[lower] != nil {
+			return nil
+		}
+		qualName := fc.Schema + "." + displayName
+		if isMariaDBFuncCollisionName(lower) {
+			return errFuncInexistentNameCollision(qualName)
+		}
+		return errNoSuchFunction(qualName)
+	}
+	// One-part unqualified call.
+	if fc.SpacedParen {
+		return nil
+	}
+	if isMariaDBBuiltinFunction(lower, fc.NameQuoted) {
+		return nil
+	}
+	curDB := c.GetDatabase(c.CurrentDatabase())
+	if curDB == nil {
+		curDB = viewDB
+	}
+	if curDB != nil && curDB.Functions[lower] != nil {
+		return nil
+	}
+	qualName := displayName
+	if curDB != nil && curDB.Name != "" {
+		qualName = curDB.Name + "." + displayName
+	}
+	if isMariaDBFuncCollisionName(lower) {
+		return errFuncInexistentNameCollision(qualName)
+	}
+	return errNoSuchFunction(qualName)
 }
 
 func exprContainsColumnRef(expr nodes.ExprNode) bool {
@@ -375,7 +446,7 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 	if err := validateViewPreAnalysis(stmt.Select); err != nil {
 		return err
 	}
-	analyzedQuery, err := c.analyzeViewBody(stmt.Select, source)
+	analyzedQuery, err := c.analyzeViewBodyFor(stmt.Select, source, db, true)
 	if err != nil {
 		return err
 	}

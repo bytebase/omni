@@ -89,6 +89,8 @@ func LoadSDLWithVersion(sql string, version Version) (*Catalog, error) {
 	// then reflects a fully-validated schema for any later mutation.
 	c.SetForeignKeyChecks(false)
 	defer c.SetForeignKeyChecks(true)
+	c.loadingSDL = true
+	defer func() { c.loadingSDL = false }()
 
 	// Order statements so every dependent runs after the objects it references.
 	deps := extractSDLDeps(stmts)

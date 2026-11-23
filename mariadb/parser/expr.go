@@ -903,6 +903,7 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 		RawName:     name,
 		HasParens:   true,
 		SpacedParen: spacedGeneric,
+		NameQuoted:  nameQuoted,
 	}
 
 	// Handle special function forms

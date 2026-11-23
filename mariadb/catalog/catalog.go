@@ -2,15 +2,18 @@ package catalog
 
 // Catalog is the in-memory MariaDB catalog.
 type Catalog struct {
-	databases        map[string]*Database // lowered name -> Database
-	triggersCreated  int
-	currentDB        string
-	defaultCharset   string
-	defaultCollation string
-	charsetClient    string
-	collationConn    string
-	foreignKeyChecks bool // SET foreign_key_checks (default true)
-	session          SessionState
+	databases          map[string]*Database // lowered name -> Database
+	triggersCreated    int
+	currentDB          string
+	defaultCharset     string
+	defaultCollation   string
+	charsetClient      string
+	collationConn      string
+	foreignKeyChecks   bool // SET foreign_key_checks (default true)
+	loadingSDL         bool // true while LoadSDLWithVersion executes statements
+	validatingViewBody bool // true while analyzeViewBodyFor validates a view body
+	validatingViewDB   *Database
+	session            SessionState
 }
 
 // SessionState holds the session settings the catalog follows. MariaDB has no

@@ -15,6 +15,9 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 	case *nodes.ColumnRef:
 		return analyzeColumnRef(n, scope)
 	case *nodes.IntLit:
+		if n.Text != "" {
+			return &ConstExprQ{Value: n.Text}, nil
+		}
 		return &ConstExprQ{Value: strconv.FormatInt(n.Value, 10)}, nil
 	case *nodes.StringLit:
 		return &ConstExprQ{Value: n.Value, IsString: true}, nil
@@ -178,6 +181,11 @@ func analyzeColumnRef(ref *nodes.ColumnRef, scope *analyzerScope) (AnalyzedExpr,
 
 // analyzeFuncCall resolves a function call expression.
 func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (AnalyzedExpr, error) {
+	if c != nil && c.validatingViewBody && !c.loadingSDL {
+		if err := c.validateViewFuncExists(fc, c.validatingViewDB); err != nil {
+			return nil, err
+		}
+	}
 	lower := strings.ToLower(fc.Name)
 	// Sequence functions (NEXTVAL, LASTVAL, SETVAL) take a sequence table
 	// identifier as their first argument, not a column reference. Analyze any
@@ -194,19 +202,31 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 		return nil, unsupportedAnalyzerExpr()
 	}
 	isQualifiedRoutine := fc.Schema != "" && !qualifiedBuiltin(fc, lower)
-	args := make([]AnalyzedExpr, 0, len(fc.Args))
-	for _, arg := range fc.Args {
-		a, err := analyzeExpr(c, arg, scope)
-		if err != nil {
-			if isQualifiedRoutine {
-				var ce *Error
-				if errors.As(err, &ce) && ce.Code == ErrNoSuchColumn {
-					return nil, unsupportedAnalyzerExpr()
-				}
+	var args []AnalyzedExpr
+	handledTemporalPrecision := false
+	if fc.Schema == "" && !fc.SpacedParen && !fc.NameQuoted && len(fc.Args) == 1 && isTemporalPrecisionFuncName(lower) {
+		if fsp, ok := optTimePrecisionArg(fc); ok && fsp >= 0 && fsp <= 6 {
+			handledTemporalPrecision = true
+			if fsp > 0 {
+				args = []AnalyzedExpr{&ConstExprQ{Value: strconv.Itoa(fsp)}}
 			}
-			return nil, err
 		}
-		args = append(args, a)
+	}
+	if !handledTemporalPrecision {
+		args = make([]AnalyzedExpr, 0, len(fc.Args))
+		for _, arg := range fc.Args {
+			a, err := analyzeExpr(c, arg, scope)
+			if err != nil {
+				if isQualifiedRoutine && (c == nil || !c.validatingViewBody) {
+					var ce *Error
+					if errors.As(err, &ce) && ce.Code == ErrNoSuchColumn {
+						return nil, unsupportedAnalyzerExpr()
+					}
+				}
+				return nil, err
+			}
+			args = append(args, a)
+		}
 	}
 	if lower == "coalesce" || lower == "ifnull" {
 		return &CoalesceExprQ{Args: args}, nil
@@ -651,6 +671,18 @@ func analyzeExistsSubquery(c *Catalog, expr *nodes.ExistsExpr, scope *analyzerSc
 		Kind:     SubLinkExists,
 		Subquery: innerQ,
 	}, nil
+}
+
+// isTemporalPrecisionFuncName reports whether lower is a MariaDB temporal
+// function taking an opt_time_precision argument.
+func isTemporalPrecisionFuncName(lower string) bool {
+	switch lower {
+	case "now", "current_timestamp", "localtime", "localtimestamp", "sysdate",
+		"utc_timestamp", "curtime", "current_time", "utc_time":
+		return true
+	default:
+		return false
+	}
 }
 
 // isAggregateFunc returns true if the function name is a known aggregate.

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/bytebase/omni/mariadb/parser"
 )
 
 func TestViewQueryValidation(t *testing.T) {
@@ -88,7 +90,12 @@ func TestViewQueryValidation(t *testing.T) {
 			results, parseErr := c.Exec(tc.sql, nil)
 			var gotCode int
 			if parseErr != nil {
-				gotCode = 1064
+				var pe *parser.ParseError
+				if errors.As(parseErr, &pe) && pe.Code != 0 {
+					gotCode = pe.Code
+				} else {
+					gotCode = 1064
+				}
 			} else if len(results) > 0 && results[0].Error != nil {
 				var ce *Error
 				if errors.As(results[0].Error, &ce) {
@@ -488,4 +495,198 @@ func TestCrossDBTemporalPrecisionAndHavingAliasShadowing(t *testing.T) {
 	if got := c.ShowCreateView("db1", "v_having_shadow"); !strings.Contains(got, "having `x` > 0") || strings.Contains(got, "having `t`.`x`") {
 		t.Errorf("ShowCreateView(v_having_shadow) = %q, want local alias `having `x` > 0`", got)
 	}
+}
+
+func TestViewFunctionValidationAndTemporalPrecisionWrap(t *testing.T) {
+	cases := []struct {
+		name string
+		sql  string
+		code int // 0 = expect success
+	}{
+		// Unknown identifier functions (1305 ER_SP_DOES_NOT_EXIST).
+		{"unknown_ident_0arg", "CREATE VIEW _v AS SELECT a() FROM a", 1305},
+		{"unknown_ident_quoted", "CREATE VIEW _v AS SELECT `a`() FROM a", 1305},
+		{"unknown_ident_1arg", "CREATE VIEW _v AS SELECT a(a) FROM a", 1305},
+		{"unknown_ident_2arg", "CREATE VIEW _v AS SELECT a(a, a) FROM a", 1305},
+		{"unknown_ident_bad_col_arg_1305_first", "CREATE VIEW _v AS SELECT a(zzz) FROM a", 1305},
+		{"unknown_col_before_unknown_func", "CREATE VIEW _v AS SELECT zzz, a() FROM a", 1054},
+		{"unknown_func_before_unknown_col", "CREATE VIEW _v AS SELECT a(), zzz FROM a", 1305},
+		{"missing_table_before_unknown_func", "CREATE VIEW _v AS SELECT a() FROM nonexistent", 1146},
+		{"wait_clause_before_unknown_func", "CREATE VIEW _v AS SELECT a() FOR UPDATE WAIT 1", 1350},
+		{"unknown_func_after_unsupported_expr", "CREATE VIEW _v AS SELECT 0x41, a() FROM a", 1305},
+		{"unknown_schema_ident", "CREATE VIEW _v AS SELECT a.a() FROM a", 1305},
+		{"unknown_schema_native_name", "CREATE VIEW _v AS SELECT a.ABS() FROM a", 1305},
+		{"unknown_package_3part_ident", "CREATE VIEW _v AS SELECT a.a.a() FROM a", 1305},
+		{"unknown_package_3part_keyword", "CREATE VIEW _v AS SELECT a.a.SUM() FROM a", 1305},
+		{"unknown_package_3part_action", "CREATE VIEW _v AS SELECT a.a.ACTION() FROM a", 1305},
+		{"unknown_mysql_schema_func", "CREATE VIEW _v AS SELECT mysql.foo() FROM a", 1305},
+
+		// Unknown keyword / sql_functions collision names (1630 ER_FUNC_INEXISTENT_NAME_COLLISION).
+		{"unknown_kw_action", "CREATE VIEW _v AS SELECT ACTION() FROM a", 1630},
+		{"unknown_kw_action_quoted", "CREATE VIEW _v AS SELECT `ACTION`() FROM a", 1630},
+		{"unknown_kw_avg_row_length", "CREATE VIEW _v AS SELECT AVG_ROW_LENGTH(a) FROM a", 1630},
+		{"unknown_kw_json_table_scalar", "CREATE VIEW _v AS SELECT JSON_TABLE(a, a) FROM a", 1630},
+		{"unknown_kw_found", "CREATE VIEW _v AS SELECT FOUND() FROM a", 1630},
+		{"unknown_kw_cpu", "CREATE VIEW _v AS SELECT CPU(a) FROM a", 1630},
+		{"unknown_kw_minus", "CREATE VIEW _v AS SELECT MINUS(a) FROM a", 1630},
+		{"unknown_kw_super", "CREATE VIEW _v AS SELECT SUPER(a) FROM a", 1630},
+		{"unknown_kw_system_0arg", "CREATE VIEW _v AS SELECT SYSTEM() FROM a", 1630},
+		{"unknown_kw_system_1arg", "CREATE VIEW _v AS SELECT SYSTEM(1) FROM a", 1630},
+		{"unknown_kw_bad_col_arg_1630_first", "CREATE VIEW _v AS SELECT ACTION(zzz) FROM a", 1630},
+		{"quoted_grammar_builtin_sum", "CREATE VIEW _v AS SELECT `SUM`(a) FROM a", 1630},
+		{"quoted_grammar_builtin_count", "CREATE VIEW _v AS SELECT `COUNT`(1) FROM a", 1630},
+		{"quoted_grammar_builtin_if", "CREATE VIEW _v AS SELECT `IF`(1, 2, 3) FROM a", 1630},
+		{"quoted_grammar_builtin_now", "CREATE VIEW _v AS SELECT `NOW`() FROM a", 1630},
+		{"qual_collision_sum", "CREATE VIEW _v AS SELECT a.SUM() FROM a", 1630},
+		{"qual_collision_replace", "CREATE VIEW _v AS SELECT a.REPLACE() FROM a", 1630},
+		{"qual_collision_substring", "CREATE VIEW _v AS SELECT a.SUBSTRING() FROM a", 1630},
+		{"qual_collision_trim", "CREATE VIEW _v AS SELECT a.TRIM() FROM a", 1630},
+		{"qual_collision_trim_oracle", "CREATE VIEW _v AS SELECT a.TRIM_ORACLE() FROM a", 1630},
+		{"qual_collision_action", "CREATE VIEW _v AS SELECT a.ACTION() FROM a", 1630},
+
+		// Builtin schemas mariadb_schema / oracle_schema (0 vs 1128).
+		{"mariadb_schema_native_ok", "CREATE VIEW _v AS SELECT mariadb_schema.ABS(a) FROM a", 0},
+		{"mariadb_schema_substring_ok", "CREATE VIEW _v AS SELECT mariadb_schema.SUBSTRING(a, 1) FROM a", 0},
+		{"mariadb_schema_trim_leading_ok", "CREATE VIEW _v AS SELECT mariadb_schema.TRIM(LEADING FROM a) FROM a", 0},
+		{"oracle_schema_trim_ok", "CREATE VIEW _v AS SELECT oracle_schema.TRIM(a) FROM a", 0},
+		{"oracle_schema_replace_ok", "CREATE VIEW _v AS SELECT oracle_schema.REPLACE(a, 'x', 'y') FROM a", 0},
+		{"mariadb_schema_unknown_1128", "CREATE VIEW _v AS SELECT mariadb_schema.foo() FROM a", 1128},
+		{"mariadb_schema_sum_1128", "CREATE VIEW _v AS SELECT mariadb_schema.SUM(a) FROM a", 1128},
+		{"oracle_schema_trim_0arg_1128", "CREATE VIEW _v AS SELECT oracle_schema.TRIM() FROM a", 1128},
+		{"oracle_schema_unknown_1128", "CREATE VIEW _v AS SELECT oracle_schema.foo() FROM a", 1128},
+
+		// Valid builtin function controls (plain and backtick-quoted natives).
+		{"native_abs_plain_ok", "CREATE VIEW _v AS SELECT ABS(a) FROM a", 0},
+		{"native_abs_quoted_ok", "CREATE VIEW _v AS SELECT `ABS`(a) FROM a", 0},
+		{"native_mod_quoted_ok", "CREATE VIEW _v AS SELECT `MOD`(a, b) FROM a", 0},
+		{"native_gis_ok", "CREATE VIEW _v AS SELECT ST_ASTEXT(a) FROM a", 0},
+		{"native_vec_ok", "CREATE VIEW _v AS SELECT VEC_TOTEXT(a) FROM a", 0},
+		{"grammar_sum_ok", "CREATE VIEW _v AS SELECT SUM(a) FROM a", 0},
+		{"grammar_if_ok", "CREATE VIEW _v AS SELECT IF(a, 1, 0) FROM a", 0},
+
+		// Existing stored functions (unqualified, qualified, keyword-named, and bad-arg 1054).
+		{"stored_func_local_ok", "CREATE VIEW _v AS SELECT my_fn(a) FROM a", 0},
+		{"stored_func_qual_ok", "CREATE VIEW _v AS SELECT otherdb.ext_fn(a) FROM a", 0},
+		{"stored_func_kw_name_ok", "CREATE VIEW _v AS SELECT otherdb.ACTION() FROM a", 0},
+		{"stored_func_qual_bad_arg_1054", "CREATE VIEW _v AS SELECT otherdb.ext_fn(nonexistent) FROM a", 1054},
+
+		// ALTER VIEW also validates function existence.
+		{"alter_view_unknown_ident_1305", "ALTER VIEW existing_v AS SELECT a() FROM a", 1305},
+		{"alter_view_unknown_kw_1630", "ALTER VIEW existing_v AS SELECT ACTION() FROM a", 1630},
+
+		// Temporal opt_time_precision uint16 wrap (0 vs 1426).
+		{"curtime_0_ok", "CREATE VIEW _v AS SELECT CURRENT_TIME(0) FROM a", 0},
+		{"curtime_65536_ok", "CREATE VIEW _v AS SELECT CURRENT_TIME(65536) FROM a", 0},
+		{"curtime_long_num_wrap0_ok", "CREATE VIEW _v AS SELECT CURRENT_TIME(2147483648) FROM a", 0},
+		{"curtime_long_num_wrap1_ok", "CREATE VIEW _v AS SELECT CURRENT_TIME(2147483649) FROM a", 0},
+		{"curtime_long_num_wrap6_ok", "CREATE VIEW _v AS SELECT CURRENT_TIME(2147483654) FROM a", 0},
+		{"curtime_ulonglong_wrap0_ok", "CREATE VIEW _v AS SELECT CURRENT_TIME(9223372036854775808) FROM a", 0},
+		{"curtime_hex_wrap0_ok", "CREATE VIEW _v AS SELECT CURRENT_TIME(0x10000) FROM a", 0},
+		{"curtime_7_1426", "CREATE VIEW _v AS SELECT CURRENT_TIME(7) FROM a", 1426},
+		{"curtime_65535_1426", "CREATE VIEW _v AS SELECT CURRENT_TIME(65535) FROM a", 1426},
+		{"curtime_maxint32_1426", "CREATE VIEW _v AS SELECT CURRENT_TIME(2147483647) FROM a", 1426},
+		{"curtime_long_num_wrap7_1426", "CREATE VIEW _v AS SELECT CURRENT_TIME(2147483655) FROM a", 1426},
+		{"curtime_maxuint64_1426", "CREATE VIEW _v AS SELECT CURRENT_TIME(18446744073709551615) FROM a", 1426},
+		{"curtime_hex_overflow_1426", "CREATE VIEW _v AS SELECT CURRENT_TIME(0x8000000000000000) FROM a", 1426},
+		// Column TIME(n) is rejected by parser (no uint16 wrap on column types).
+		{"col_time_65536_rejected", "CREATE TABLE t_bad_time (c TIME(65536))", 1064},
+		// Column DEFAULT CURRENT_TIMESTAMP(2147483648) wraps to precision 0.
+		{"col_default_ct_wrap0_ok", "CREATE TABLE t_wrap_ct (c DATETIME DEFAULT CURRENT_TIMESTAMP(2147483648))", 0},
+	}
+
+	const setupSQL = `
+		CREATE DATABASE otherdb;
+		CREATE FUNCTION otherdb.ext_fn(x INT) RETURNS INT DETERMINISTIC RETURN x;
+		CREATE FUNCTION otherdb.ACTION() RETURNS INT DETERMINISTIC RETURN 1;
+		CREATE DATABASE test;
+		USE test;
+		CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT);
+		CREATE FUNCTION my_fn(x INT) RETURNS INT DETERMINISTIC RETURN x;
+		CREATE VIEW existing_v AS SELECT a FROM a;
+	`
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c, err := LoadSQL(setupSQL)
+			if err != nil {
+				t.Fatalf("setup: %v", err)
+			}
+			results, parseErr := c.Exec(tc.sql, nil)
+			var gotCode int
+			if parseErr != nil {
+				var pe *parser.ParseError
+				if errors.As(parseErr, &pe) && pe.Code != 0 {
+					gotCode = pe.Code
+				} else {
+					gotCode = 1064
+				}
+			} else if len(results) > 0 && results[0].Error != nil {
+				var ce *Error
+				if errors.As(results[0].Error, &ce) {
+					gotCode = ce.Code
+				} else {
+					t.Fatalf("unexpected non-catalog error: %v", results[0].Error)
+				}
+			}
+			if gotCode != tc.code {
+				t.Errorf("Exec(%q): got code %d (parseErr=%v, results=%+v), want %d", tc.sql, gotCode, parseErr, results, tc.code)
+			}
+		})
+	}
+
+	// Verify canonical SHOW CREATE VIEW deparsing for wrapped temporal precisions.
+	deparseCases := []struct {
+		name string
+		sql  string
+		want string
+	}{
+		{"curtime_0", "CREATE VIEW _v AS SELECT CURRENT_TIME(0) FROM a", "select curtime() AS `CURRENT_TIME(0)` from `a`"},
+		{"curtime_2147483648", "CREATE VIEW _v AS SELECT CURRENT_TIME(2147483648) FROM a", "select curtime() AS `CURRENT_TIME(2147483648)` from `a`"},
+		{"curtime_9223372036854775808", "CREATE VIEW _v AS SELECT CURRENT_TIME(9223372036854775808) FROM a", "select curtime() AS `CURRENT_TIME(9223372036854775808)` from `a`"},
+		{"curtime_2147483649", "CREATE VIEW _v AS SELECT CURRENT_TIME(2147483649) FROM a", "select curtime(1) AS `CURRENT_TIME(2147483649)` from `a`"},
+		{"curtime_hex_6", "CREATE VIEW _v AS SELECT CURRENT_TIME(0x06) FROM a", "select curtime(6) AS `CURRENT_TIME(0x06)` from `a`"},
+		{"now_2147483648", "CREATE VIEW _v AS SELECT NOW(2147483648) FROM a", "select current_timestamp() AS `NOW(2147483648)` from `a`"},
+	}
+	for _, tc := range deparseCases {
+		t.Run("deparse_"+tc.name, func(t *testing.T) {
+			c, err := LoadSQL(setupSQL)
+			if err != nil {
+				t.Fatalf("setup: %v", err)
+			}
+			if results, err := c.Exec(tc.sql, nil); err != nil || results[0].Error != nil {
+				t.Fatalf("Exec(%q) failed: parse=%v results=%+v", tc.sql, err, results)
+			}
+			got := c.ShowCreateView("test", "_v")
+			if !strings.Contains(got, " AS "+tc.want) {
+				t.Errorf("ShowCreateView = %q, want substring %q", got, " AS "+tc.want)
+			}
+		})
+	}
+
+	// Verify DEFAULT CURRENT_TIMESTAMP(2147483648) normalizes to CURRENT_TIMESTAMP (fsp 0).
+	t.Run("default_current_timestamp_wrap0", func(t *testing.T) {
+		c, err := LoadSQL(setupSQL)
+		if err != nil {
+			t.Fatalf("setup: %v", err)
+		}
+		if results, err := c.Exec("CREATE TABLE t_wrap_ct (c DATETIME DEFAULT CURRENT_TIMESTAMP(2147483648))", nil); err != nil || results[0].Error != nil {
+			t.Fatalf("Exec failed: parse=%v results=%+v", err, results)
+		}
+		if got := c.ShowCreateTable("test", "t_wrap_ct"); !strings.Contains(got, "DEFAULT current_timestamp()") {
+			t.Errorf("ShowCreateTable(t_wrap_ct) = %q, want DEFAULT current_timestamp()", got)
+		}
+	})
+
+	// Verify LoadSDL exempts view function existence checks (out-of-order / external functions).
+	t.Run("load_sdl_exempts_func_check", func(t *testing.T) {
+		_, err := LoadSDL(`
+			CREATE DATABASE test;
+			USE test;
+			CREATE TABLE a (a INT);
+			CREATE VIEW v AS SELECT ext_unknown_fn(a) FROM a;
+		`)
+		if err != nil {
+			t.Fatalf("LoadSDL unexpectedly rejected external function in view: %v", err)
+		}
+	})
 }
