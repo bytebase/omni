@@ -257,7 +257,7 @@ func exprHasBareColumnRef(expr ast.ExprNode) (string, bool) {
 				found = e.Column
 			}
 			return false
-		case *ast.SubqueryExpr, *ast.ExistsExpr:
+		case *ast.SubqueryExpr, *ast.ExistsExpr, *ast.SelectStmt, *ast.TableStmt, *ast.ValuesStmt:
 			return false
 		case *ast.FuncCallExpr:
 			if e.Schema != "" {
@@ -281,7 +281,7 @@ func exprColumnNames(expr ast.ExprNode) []string {
 				names = append(names, e.Column)
 			}
 			return false
-		case *ast.SubqueryExpr, *ast.ExistsExpr:
+		case *ast.SubqueryExpr, *ast.ExistsExpr, *ast.SelectStmt, *ast.TableStmt, *ast.ValuesStmt:
 			return false
 		}
 		return true
@@ -304,7 +304,7 @@ func exprReferencesColumn(expr ast.ExprNode, colName string) bool {
 				found = true
 			}
 			return false
-		case *ast.SubqueryExpr, *ast.ExistsExpr:
+		case *ast.SubqueryExpr, *ast.ExistsExpr, *ast.SelectStmt, *ast.TableStmt, *ast.ValuesStmt:
 			return false
 		}
 		return true
@@ -479,14 +479,9 @@ func (b *builder) columnDefTextFails(col *ast.ColumnDef) bool {
 			b.fail(rng, nil, review.UnsupportedForm, "Column "+review.Code(ident(col.Name))+" cannot use "+review.Code("ON UPDATE")+" with type "+review.Code(base)+".")
 			return true
 		}
-		if b.columnDefaultFails(col.Name, base, col.DefaultValue, rng) {
-			return true
-		}
-		for _, cc := range col.Constraints {
-			if cc != nil && cc.Type == ast.ColConstrDefault && cc.Expr != nil {
-				if b.columnDefaultFails(col.Name, base, cc.Expr, rng) {
-					return true
-				}
+		if eff := columnDefEffectiveDefaultExpr(col); eff != nil {
+			if b.columnDefaultFails(col.Name, base, eff, rng) {
+				return true
 			}
 		}
 	}
@@ -505,6 +500,21 @@ func (b *builder) columnDefTextFails(col *ast.ColumnDef) bool {
 		}
 	}
 	return false
+}
+
+// columnDefEffectiveDefaultExpr returns the last DEFAULT expression declared on
+// col, matching MySQL's last-attribute-wins rule.
+func columnDefEffectiveDefaultExpr(col *ast.ColumnDef) ast.ExprNode {
+	if col == nil {
+		return nil
+	}
+	eff := col.DefaultValue
+	for _, cc := range col.Constraints {
+		if cc != nil && cc.Type == ast.ColConstrDefault && cc.Expr != nil {
+			eff = cc.Expr
+		}
+	}
+	return eff
 }
 
 // columnDefaultFails checks a DEFAULT expression against its column's name and

@@ -347,9 +347,39 @@ func (b *builder) applyAlterMeta(r tableRef, v *ast.AlterTableStmt, d *alterDelt
 		if len(d.droppedCols) > 0 {
 			b.w.tableIndexesComplete[rel] = false
 		}
+		// Snapshot source index metadata before applying drops and renames so
+		// simultaneous swaps (RENAME INDEX i TO j, RENAME INDEX j TO i) and
+		// RENAME INDEX i TO j, DROP INDEX j preserve the final index map.
+		type idxRename struct {
+			from, to string
+			meta     *indexMeta
+		}
+		var idxRenames []idxRename
+		if idxs := b.w.tableIndexes[rel]; idxs != nil {
+			for _, c := range v.Commands {
+				if c == nil || c.Type != ast.ATRenameIndex {
+					continue
+				}
+				fk, ok1 := b.key(spaceIndex, c.Name)
+				tk, ok2 := b.key(spaceIndex, c.NewName)
+				if ok1 && ok2 && fk != tk {
+					idxRenames = append(idxRenames, idxRename{from: fk, to: tk, meta: idxs[fk]})
+				}
+			}
+		}
 		for k := range d.droppedIndexes {
 			if b.w.tableIndexes[rel] != nil {
 				delete(b.w.tableIndexes[rel], k)
+			}
+		}
+		if idxs := b.w.tableIndexes[rel]; idxs != nil && len(idxRenames) > 0 {
+			for _, rn := range idxRenames {
+				delete(idxs, rn.from)
+			}
+			for _, rn := range idxRenames {
+				if rn.meta != nil {
+					idxs[rn.to] = rn.meta
+				}
 			}
 		}
 		for k := range d.droppedFKs {
@@ -390,17 +420,6 @@ func (b *builder) applyAlterMeta(r tableRef, v *ast.AlterTableStmt, d *alterDelt
 				}
 			case ast.ATAddConstraint, ast.ATAddIndex:
 				b.applyAddedConstraintMeta(rel, c.Constraint)
-			case ast.ATRenameIndex:
-				if fk, ok1 := b.key(spaceIndex, c.Name); ok1 {
-					if tk, ok2 := b.key(spaceIndex, c.NewName); ok2 && fk != tk {
-						if idxs := b.w.tableIndexes[rel]; idxs != nil {
-							if im, ok := idxs[fk]; ok {
-								delete(idxs, fk)
-								idxs[tk] = im
-							}
-						}
-					}
-				}
 			case ast.ATPartitionBy:
 				if c.PartitionBy != nil {
 					b.w.partitionState[rel] = partitionInfoFromClause(c.PartitionBy)

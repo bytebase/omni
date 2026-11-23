@@ -512,10 +512,12 @@ func TestWalkThroughMySQLRefusalFamilies(t *testing.T) {
 					Columns: []*metadata.ColumnMetadata{
 						{Name: "id", Type: "int"},
 						{Name: "pid", Type: "int"},
+						{Name: "other", Type: "int"},
 					},
 					Indexes: []*metadata.IndexMetadata{
 						{Name: "PRIMARY", Primary: true, Unique: true, Type: "BTREE", Expressions: []string{"id"}},
 						{Name: "fk_pid", Type: "BTREE", Expressions: []string{"pid"}},
+						{Name: "idx_other", Type: "BTREE", Expressions: []string{"other"}},
 					},
 					ForeignKeys: []*metadata.ForeignKeyMetadata{
 						{Name: "fk_pid", Columns: []string{"pid"}, ReferencedTable: "parent", ReferencedColumns: []string{"id"}},
@@ -717,6 +719,9 @@ func TestWalkThroughMySQLRefusalFamilies(t *testing.T) {
 		{"rename fk col drop old index add replacement index", "ALTER TABLE child RENAME COLUMN pid TO newpid, DROP INDEX fk_pid, ADD INDEX fk_pid2 (newpid);"},
 		{"set session default_storage_engine myisam with row_format fixed", "SET SESSION default_storage_engine = MyISAM;\nCREATE TABLE x (a INT) ROW_FORMAT = FIXED;"},
 		{"set session innodb_strict_mode off with row_format fixed", "SET SESSION innodb_strict_mode = 0;\nALTER TABLE plain ROW_FORMAT = FIXED;"},
+		{"swap index names then drop non-fk index", "ALTER TABLE child RENAME INDEX fk_pid TO idx_other, RENAME INDEX idx_other TO fk_pid;\nDROP INDEX fk_pid ON child;"},
+		{"view with IN subquery in from-less select", "CREATE VIEW v2 AS SELECT 1 IN (SELECT id FROM plain) AS x;"},
+		{"overridden default attribute uses last default", "CREATE TABLE x (a INT DEFAULT 'abc' DEFAULT 0);"},
 		{"expr default referencing other col", "ALTER TABLE plain ADD COLUMN x INT DEFAULT (n + 1);"},
 		{"generated col referencing other col", "ALTER TABLE plain ADD COLUMN x INT AS (n + 1);"},
 		{"auto_increment with key in same alter", "ALTER TABLE plain ADD COLUMN x INT AUTO_INCREMENT, ADD KEY (x);"},
