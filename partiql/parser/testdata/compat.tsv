@@ -164,6 +164,14 @@ reject	reject	grammar	dml/fromClause_(whereClause)?_(dmlBaseCommand)+_(returning
 reject	reject	grammar	dml/fromClause_(whereClause)?_(dmlBaseCommand)+_(returningClause)?!drop-4	FROM a REMOVE
 reject	reject	grammar	dml/fromClause_(whereClause)?_(dmlBaseCommand)+_(returningClause)?!insert	FROM a REMOVE a zzz
 reject	reject	grammar	dml/fromClause_(whereClause)?_(dmlBaseCommand)+_(returningClause)?!swap	FULL a REMOVE a
+accept	accept	grammar	dml/fromClause_(whereClause)?_(dmlBaseCommand)+_(returningClause)?+dml(whereClause)?	FROM a WHERE a REMOVE a
+accept	accept	grammar	dml/fromClause_(whereClause)?_(dmlBaseCommand)+_(returningClause)?+dml(whereClause)?!drop-3	FROM a a REMOVE a
+reject	reject	grammar	dml/fromClause_(whereClause)?_(dmlBaseCommand)+_(returningClause)?+dml(whereClause)?!drop-4	FROM a WHERE REMOVE a
+accept	accept	grammar	dml/fromClause_(whereClause)?_(dmlBaseCommand)+_(returningClause)?+dml(returningClause)?	FROM a REMOVE a RETURNING MODIFIED OLD *
+reject	reject	grammar	dml/fromClause_(whereClause)?_(dmlBaseCommand)+_(returningClause)?+dml(returningClause)?!drop-5	FROM a REMOVE a MODIFIED OLD *
+reject	reject	grammar	dml/fromClause_(whereClause)?_(dmlBaseCommand)+_(returningClause)?+dml(returningClause)?!drop-6	FROM a REMOVE a RETURNING OLD *
+reject	reject	grammar	dml/fromClause_(whereClause)?_(dmlBaseCommand)+_(returningClause)?+dml(returningClause)?!drop-7	FROM a REMOVE a RETURNING MODIFIED *
+reject	reject	grammar	dml/fromClause_(whereClause)?_(dmlBaseCommand)+_(returningClause)?+dml(returningClause)?!drop-8	FROM a REMOVE a RETURNING MODIFIED OLD
 accept	accept	grammar	dml/deleteCommand	DELETE FROM a
 reject	reject	grammar	dml/deleteCommand!drop-1	FROM a
 reject	reject	grammar	dml/deleteCommand!drop-2	DELETE a
@@ -440,12 +448,14 @@ accept	accept	grammar	selectClause/SELECT_(setQuantifierStrategy)?_projectionIte
 reject	reject	grammar	selectClause/SELECT_(setQuantifierStrategy)?_projectionItems!drop-1	a FROM a
 accept	accept	grammar	selectClause/SELECT_(setQuantifierStrategy)?_projectionItems!insert	SELECT a zzz FROM a
 reject	reject	grammar	selectClause/SELECT_(setQuantifierStrategy)?_projectionItems!swap	SESSION a FROM a
+accept	accept	grammar	selectClause/SELECT_(setQuantifierStrategy)?_projectionItems+selectClause(setQuantifierStrategy)?	SELECT DISTINCT a FROM a
 accept	accept	grammar	selectClause/SELECT_(setQuantifierStrategy)?_VALUE_expr	SELECT VALUE a FROM a
 reject	reject	grammar	selectClause/SELECT_(setQuantifierStrategy)?_VALUE_expr!drop-1	VALUE a FROM a
 reject	reject	grammar	selectClause/SELECT_(setQuantifierStrategy)?_VALUE_expr!drop-3	SELECT VALUE FROM a
 reject	reject	grammar	selectClause/SELECT_(setQuantifierStrategy)?_VALUE_expr!truncate	SELECT VALUE
 reject	reject	grammar	selectClause/SELECT_(setQuantifierStrategy)?_VALUE_expr!insert	SELECT VALUE a zzz FROM a
 reject	reject	grammar	selectClause/SELECT_(setQuantifierStrategy)?_VALUE_expr!swap	SESSION VALUE a FROM a
+accept	accept	grammar	selectClause/SELECT_(setQuantifierStrategy)?_VALUE_expr+selectClause(setQuantifierStrategy)?	SELECT DISTINCT VALUE a FROM a
 accept	accept	grammar	selectClause/PIVOT_expr_AT_expr	PIVOT a AT a FROM a
 reject	reject	grammar	selectClause/PIVOT_expr_AT_expr!drop-1	a AT a FROM a
 reject	reject	grammar	selectClause/PIVOT_expr_AT_expr!drop-2	PIVOT AT a FROM a
@@ -745,6 +755,7 @@ reject	reject	grammar	edge/edgeWSpec_(patternQuantifier)?!drop-3	(a MATCH ~ [ ~)
 reject	reject	grammar	edge/edgeWSpec_(patternQuantifier)?!drop-4	(a MATCH ~ [ ])
 reject	reject	grammar	edge/edgeWSpec_(patternQuantifier)?!truncate	(a MATCH ~ [ ]
 reject	reject	grammar	edge/edgeWSpec_(patternQuantifier)?!insert	(a MATCH ~ [ ] ~ zzz)
+accept	accept	grammar	edge/edgeWSpec_(patternQuantifier)?+edge(patternQuantifier)?	(a MATCH ~ [ ] ~ +)
 accept	accept	grammar	edge/edgeAbbrev_(patternQuantifier)?	(a MATCH ~)
 accept	accept	grammar	edge(patternQuantifier)?/%empty	(a MATCH ~)
 accept	accept	grammar	edge(patternQuantifier)?/patternQuantifier	(a MATCH ~ +)
@@ -757,6 +768,14 @@ reject	reject	grammar	pattern/BRACKET_LEFT_(patternRestrictor)?_(patternPathVari
 reject	reject	grammar	pattern/BRACKET_LEFT_(patternRestrictor)?_(patternPathVariable)~de6c16dd!drop-3	(a MATCH [ ~)
 reject	reject	grammar	pattern/BRACKET_LEFT_(patternRestrictor)?_(patternPathVariable)~de6c16dd!truncate	(a MATCH [ ~
 reject	reject	grammar	pattern/BRACKET_LEFT_(patternRestrictor)?_(patternPathVariable)~de6c16dd!insert	(a MATCH [ ~ ] zzz)
+accept	accept	grammar	pattern/BRACKET_LEFT_(patternRestrictor)?_(patternPathVariable)~de6c16dd+pattern(patternRestrictor)?	(a MATCH [ TRAIL ~ ])
+accept	accept	grammar	pattern/BRACKET_LEFT_(patternRestrictor)?_(patternPathVariable)~de6c16dd+pattern(patternPathVariable)?	(a MATCH [ a = ~ ])
+reject	reject	grammar	pattern/BRACKET_LEFT_(patternRestrictor)?_(patternPathVariable)~de6c16dd+pattern(patternPathVariable)?!drop-2	(a MATCH [ = ~ ])
+reject	reject	grammar	pattern/BRACKET_LEFT_(patternRestrictor)?_(patternPathVariable)~de6c16dd+pattern(patternPathVariable)?!drop-3	(a MATCH [ a ~ ])
+accept	accept	grammar	pattern/BRACKET_LEFT_(patternRestrictor)?_(patternPathVariable)~de6c16dd+pattern(whereClause)?	(a MATCH [ ~ WHERE a ])
+reject	reject	grammar	pattern/BRACKET_LEFT_(patternRestrictor)?_(patternPathVariable)~de6c16dd+pattern(whereClause)?!drop-3	(a MATCH [ ~ a ])
+reject	reject	grammar	pattern/BRACKET_LEFT_(patternRestrictor)?_(patternPathVariable)~de6c16dd+pattern(whereClause)?!drop-4	(a MATCH [ ~ WHERE ])
+accept	accept	grammar	pattern/BRACKET_LEFT_(patternRestrictor)?_(patternPathVariable)~de6c16dd+pattern(patternQuantifier)?	(a MATCH [ ~ ] +)
 accept	accept	grammar	pattern(patternRestrictor)?/%empty	(a MATCH(~))
 reject	reject	grammar	pattern(patternRestrictor)?/%empty!insert	(a MATCH(zzz ~))
 accept	accept	grammar	pattern(patternRestrictor)?/patternRestrictor	(a MATCH(TRAIL ~))
@@ -921,6 +940,7 @@ reject	reject	grammar	tableReference/tableReference_(joinType)?_JOIN_joinRhs_joi
 reject	reject	grammar	tableReference/tableReference_(joinType)?_JOIN_joinRhs_joinSpec!drop-5	SELECT * FROM a JOIN a ON
 reject	reject	grammar	tableReference/tableReference_(joinType)?_JOIN_joinRhs_joinSpec!insert	SELECT * FROM a JOIN a ON a zzz
 reject	reject	grammar	tableReference/tableReference_(joinType)?_JOIN_joinRhs_joinSpec!swap	SELECT * FROM a KEY a ON a
+accept	accept	grammar	tableReference/tableReference_(joinType)?_JOIN_joinRhs_joinSpec+tableReference(joinType)?	SELECT * FROM a INNER JOIN a ON a
 accept	accept	grammar	tableReference/tableNonJoin	SELECT * FROM a
 accept	accept	grammar	tableReference/PAREN_LEFT_tableReference_PAREN_RIGHT	SELECT * FROM(a)
 reject	reject	grammar	tableReference/PAREN_LEFT_tableReference_PAREN_RIGHT!drop-1	SELECT * FROM a)
@@ -943,6 +963,13 @@ accept	accept	grammar	tableBaseReference/exprSelect_(asIdent)?_(atIdent)?_(byIde
 accept	accept	grammar	tableBaseReference/exprGraphMatchOne_(asIdent)?_(atIdent)?_(byIdent)?	SELECT * FROM a MATCH
 reject	reject	grammar	tableBaseReference/exprGraphMatchOne_(asIdent)?_(atIdent)?_(byIdent)?!drop-1	SELECT * FROM MATCH
 reject	reject	grammar	tableBaseReference/exprGraphMatchOne_(asIdent)?_(atIdent)?_(byIdent)?!swap	SELECT * FROM a MAX
+accept	accept	grammar	tableBaseReference/exprGraphMatchOne_(asIdent)?_(atIdent)?_(byIdent)?+tableBaseReference(asIdent)?	SELECT * FROM a MATCH AS a
+reject	reject	grammar	tableBaseReference/exprGraphMatchOne_(asIdent)?_(atIdent)?_(byIdent)?+tableBaseReference(asIdent)?!drop-3	SELECT * FROM a MATCH a
+reject	reject	grammar	tableBaseReference/exprGraphMatchOne_(asIdent)?_(atIdent)?_(byIdent)?+tableBaseReference(asIdent)?!drop-4	SELECT * FROM a MATCH AS
+accept	accept	grammar	tableBaseReference/exprGraphMatchOne_(asIdent)?_(atIdent)?_(byIdent)?+tableBaseReference(atIdent)?	SELECT * FROM a MATCH AT a
+reject	reject	grammar	tableBaseReference/exprGraphMatchOne_(asIdent)?_(atIdent)?_(byIdent)?+tableBaseReference(atIdent)?!drop-4	SELECT * FROM a MATCH AT
+accept	accept	grammar	tableBaseReference/exprGraphMatchOne_(asIdent)?_(atIdent)?_(byIdent)?+tableBaseReference(byIdent)?	SELECT * FROM a MATCH BY a
+reject	reject	grammar	tableBaseReference/exprGraphMatchOne_(asIdent)?_(atIdent)?_(byIdent)?+tableBaseReference(byIdent)?!drop-4	SELECT * FROM a MATCH BY
 accept	accept	grammar	tableBaseReference(asIdent)?/%empty	SELECT * FROM a
 accept	accept	grammar	tableBaseReference(asIdent)?/asIdent	SELECT * FROM a AS a
 reject	reject	grammar	tableBaseReference(asIdent)?/asIdent!drop-2	SELECT * FROM a AS
@@ -990,9 +1017,11 @@ reject	reject	grammar	joinType/LEFT_(OUTER)?!swap	SELECT * FROM a LET CROSS JOIN
 accept	accept	grammar	joinType/RIGHT_(OUTER)?	SELECT * FROM a RIGHT CROSS JOIN a
 reject	reject	grammar	joinType/RIGHT_(OUTER)?!insert	SELECT * FROM a RIGHT zzz CROSS JOIN a
 reject	reject	grammar	joinType/RIGHT_(OUTER)?!swap	SELECT * FROM a ROLLBACK CROSS JOIN a
+accept	accept	grammar	joinType/RIGHT_(OUTER)?+joinType(OUTER)?	SELECT * FROM a RIGHT OUTER CROSS JOIN a
 accept	accept	grammar	joinType/FULL_(OUTER)?	SELECT * FROM a FULL CROSS JOIN a
 reject	reject	grammar	joinType/FULL_(OUTER)?!insert	SELECT * FROM a FULL zzz CROSS JOIN a
 reject	reject	grammar	joinType/FULL_(OUTER)?!swap	SELECT * FROM a GET CROSS JOIN a
+accept	accept	grammar	joinType/FULL_(OUTER)?+joinType(OUTER)?	SELECT * FROM a FULL OUTER CROSS JOIN a
 accept	accept	grammar	joinType/OUTER	SELECT * FROM a OUTER CROSS JOIN a
 reject	reject	grammar	joinType/OUTER!insert	SELECT * FROM a OUTER zzz CROSS JOIN a
 reject	reject	grammar	joinType/OUTER!swap	SELECT * FROM a OUTPUT CROSS JOIN a
@@ -1013,11 +1042,15 @@ reject	reject	grammar	exprBagOp/exprBagOp_(OUTER)?_UNION_(DISTINCT|ALL)?_exprSel
 reject	reject	grammar	exprBagOp/exprBagOp_(OUTER)?_UNION_(DISTINCT|ALL)?_exprSelect!drop-3	a UNION
 reject	reject	grammar	exprBagOp/exprBagOp_(OUTER)?_UNION_(DISTINCT|ALL)?_exprSelect!insert	a UNION a zzz
 reject	reject	grammar	exprBagOp/exprBagOp_(OUTER)?_UNION_(DISTINCT|ALL)?_exprSelect!swap	a UNIQUE a
+accept	accept	grammar	exprBagOp/exprBagOp_(OUTER)?_UNION_(DISTINCT|ALL)?_exprSelect+exprBagOp(OUTER)?	a OUTER UNION a
+accept	accept	grammar	exprBagOp/exprBagOp_(OUTER)?_UNION_(DISTINCT|ALL)?_exprSelect+exprBagOp(DISTINCT|ALL)?	a UNION DISTINCT a
 accept	accept	grammar	exprBagOp/exprBagOp_(OUTER)?_INTERSECT_(DISTINCT|ALL)?_exprSelect	a INTERSECT a
 reject	reject	grammar	exprBagOp/exprBagOp_(OUTER)?_INTERSECT_(DISTINCT|ALL)?_exprSelect!drop-1	INTERSECT a
 reject	reject	grammar	exprBagOp/exprBagOp_(OUTER)?_INTERSECT_(DISTINCT|ALL)?_exprSelect!drop-3	a INTERSECT
 reject	reject	grammar	exprBagOp/exprBagOp_(OUTER)?_INTERSECT_(DISTINCT|ALL)?_exprSelect!insert	a INTERSECT a zzz
 reject	reject	grammar	exprBagOp/exprBagOp_(OUTER)?_INTERSECT_(DISTINCT|ALL)?_exprSelect!swap	a INTERVAL a
+accept	accept	grammar	exprBagOp/exprBagOp_(OUTER)?_INTERSECT_(DISTINCT|ALL)?_exprSelect+exprBagOp(OUTER)?	a OUTER INTERSECT a
+accept	accept	grammar	exprBagOp/exprBagOp_(OUTER)?_INTERSECT_(DISTINCT|ALL)?_exprSelect+exprBagOp(DISTINCT|ALL)?	a INTERSECT DISTINCT a
 accept	accept	grammar	exprBagOp/exprSelect	a
 accept	accept	grammar	exprBagOp(OUTER)?/%empty	a EXCEPT a
 reject	reject	grammar	exprBagOp(OUTER)?/%empty!insert	a zzz EXCEPT a
@@ -1085,16 +1118,19 @@ reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_IN_PAREN_LEFT_expr_PARE
 reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_IN_PAREN_LEFT_expr_PAREN_RIGHT!drop-5	a IN(a
 reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_IN_PAREN_LEFT_expr_PAREN_RIGHT!insert	a IN(a) zzz
 reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_IN_PAREN_LEFT_expr_PAREN_RIGHT!swap	a INDEX(a)
+accept	accept	grammar	exprPredicate/exprPredicate_(NOT)?_IN_PAREN_LEFT_expr_PAREN_RIGHT+exprPredicate(NOT)?	a NOT IN(a)
 accept	accept	grammar	exprPredicate/exprPredicate_(NOT)?_IN_mathOp00	a IN a
 reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_IN_mathOp00!drop-1	IN a
 reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_IN_mathOp00!drop-3	a IN
 reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_IN_mathOp00!insert	a IN a zzz
 reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_IN_mathOp00!swap	a INDEX a
+accept	accept	grammar	exprPredicate/exprPredicate_(NOT)?_IN_mathOp00+exprPredicate(NOT)?	a NOT IN a
 accept	accept	grammar	exprPredicate/exprPredicate_(NOT)?_LIKE_mathOp00_(ESCAPE_expr)?	a LIKE a
 reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_LIKE_mathOp00_(ESCAPE_expr)?!drop-1	LIKE a
 reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_LIKE_mathOp00_(ESCAPE_expr)?!drop-3	a LIKE
 reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_LIKE_mathOp00_(ESCAPE_expr)?!insert	a LIKE a zzz
 reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_LIKE_mathOp00_(ESCAPE_expr)?!swap	a LIMIT a
+accept	accept	grammar	exprPredicate/exprPredicate_(NOT)?_LIKE_mathOp00_(ESCAPE_expr)?+exprPredicate(NOT)?	a NOT LIKE a
 accept	accept	grammar	exprPredicate/exprPredicate_(NOT)?_BETWEEN_mathOp00_AND_mathOp00	a BETWEEN a AND a
 reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_BETWEEN_mathOp00_AND_mathOp00!drop-1	BETWEEN a AND a
 reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_BETWEEN_mathOp00_AND_mathOp00!drop-2	a a AND a
@@ -1103,6 +1139,7 @@ reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_BETWEEN_mathOp00_AND_ma
 reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_BETWEEN_mathOp00_AND_mathOp00!drop-5	a BETWEEN a AND
 reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_BETWEEN_mathOp00_AND_mathOp00!insert	a BETWEEN a AND a zzz
 reject	reject	grammar	exprPredicate/exprPredicate_(NOT)?_BETWEEN_mathOp00_AND_mathOp00!swap	a BIGINT a AND a
+accept	accept	grammar	exprPredicate/exprPredicate_(NOT)?_BETWEEN_mathOp00_AND_mathOp00+exprPredicate(NOT)?	a NOT BETWEEN a AND a
 accept	accept	grammar	exprPredicate/mathOp00	a
 accept	accept	grammar	exprPredicate(LT_EQ|GT_EQ|ANGLE_LEFT|ANGLE_RIGHT|NEQ|EQ)/LT_EQ	a <= a
 reject	reject	grammar	exprPredicate(LT_EQ|GT_EQ|ANGLE_LEFT|ANGLE_RIGHT|NEQ|EQ)/LT_EQ!insert	a <= zzz a
@@ -1619,6 +1656,7 @@ accept	accept	grammar	parameter/QUESTION_MARK	?
 accept	accept	grammar	varRefExpr/(AT_SIGN)?_(IDENTIFIER|IDENTIFIER_QUOTED)	a
 accept	accept	grammar	varRefExpr/(AT_SIGN)?_nonReservedKeywords	EXCLUDED
 reject	reject	grammar	varRefExpr/(AT_SIGN)?_nonReservedKeywords!insert	EXCLUDED zzz
+accept	accept	grammar	varRefExpr/(AT_SIGN)?_nonReservedKeywords+varRefExpr(AT_SIGN)?	@ EXCLUDED
 accept	accept	grammar	varRefExpr(AT_SIGN)?/%empty	a
 accept	accept	grammar	varRefExpr(AT_SIGN)?/AT_SIGN	@ a
 reject	reject	grammar	varRefExpr(AT_SIGN)?/AT_SIGN!insert	@ zzz a
@@ -1700,6 +1738,14 @@ reject	reject	grammar	literal/TIMESTAMP_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)
 reject	reject	grammar	literal/TIMESTAMP_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?_(WI~ff8da6a1!drop-2	TIMESTAMP
 reject	reject	grammar	literal/TIMESTAMP_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?_(WI~ff8da6a1!insert	TIMESTAMP 's' zzz
 reject	reject	grammar	literal/TIMESTAMP_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?_(WI~ff8da6a1!swap	TO 's'
+reject	reject	grammar	literal/TIMESTAMP_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?_(WI~ff8da6a1+literal(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?	TIMESTAMP(1) 's'
+reject	reject	grammar	literal/TIMESTAMP_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?_(WI~ff8da6a1+literal(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?!drop-2	TIMESTAMP 1) 's'
+reject	reject	grammar	literal/TIMESTAMP_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?_(WI~ff8da6a1+literal(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?!drop-3	TIMESTAMP() 's'
+reject	reject	grammar	literal/TIMESTAMP_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?_(WI~ff8da6a1+literal(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?!drop-4	TIMESTAMP(1 's'
+reject	reject	grammar	literal/TIMESTAMP_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?_(WI~ff8da6a1+literal(WITH_TIME_ZONE)?	TIMESTAMP WITH TIME ZONE 's'
+reject	reject	grammar	literal/TIMESTAMP_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?_(WI~ff8da6a1+literal(WITH_TIME_ZONE)?!drop-2	TIMESTAMP TIME ZONE 's'
+reject	reject	grammar	literal/TIMESTAMP_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?_(WI~ff8da6a1+literal(WITH_TIME_ZONE)?!drop-3	TIMESTAMP WITH ZONE 's'
+reject	reject	grammar	literal/TIMESTAMP_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?_(WI~ff8da6a1+literal(WITH_TIME_ZONE)?!drop-4	TIMESTAMP WITH TIME 's'
 reject	reject	grammar	literal(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?/%empty	TIME 's'
 reject	reject	grammar	literal(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?/%empty!insert	TIME zzz 's'
 reject	reject	grammar	literal(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?/PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT	TIME(1) 's'
@@ -1730,11 +1776,19 @@ accept	accept	grammar	type/CHARACTER_VARYING_(PAREN_LEFT_LITERAL_INTEGER_PAREN_R
 reject	reject	grammar	type/CHARACTER_VARYING_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?!drop-1	a IS VARYING
 reject	reject	grammar	type/CHARACTER_VARYING_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?!insert	a IS CHARACTER VARYING zzz
 reject	reject	grammar	type/CHARACTER_VARYING_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?!swap	a IS CHARACTER_LENGTH VARYING
+accept	accept	grammar	type/CHARACTER_VARYING_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?+type(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?	a IS CHARACTER VARYING(1)
+reject	reject	grammar	type/CHARACTER_VARYING_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?+type(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?!drop-3	a IS CHARACTER VARYING 1)
+reject	reject	grammar	type/CHARACTER_VARYING_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?+type(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?!drop-4	a IS CHARACTER VARYING()
+reject	reject	grammar	type/CHARACTER_VARYING_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?+type(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?!drop-5	a IS CHARACTER VARYING(1
 accept	accept	grammar	type/(DECIMAL|DEC|NUMERIC)_(PAREN_LEFT_LITERAL_INTEGER_(COMM~b40369fd	a IS DECIMAL
 reject	reject	grammar	type/(DECIMAL|DEC|NUMERIC)_(PAREN_LEFT_LITERAL_INTEGER_(COMM~b40369fd!insert	a IS DECIMAL zzz
 reject	reject	grammar	type/(DECIMAL|DEC|NUMERIC)_(PAREN_LEFT_LITERAL_INTEGER_(COMM~b40369fd!swap	a IS DECLARE
 accept	accept	grammar	type/(TIME|TIMESTAMP)_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGH~78b51835	a IS TIME
 reject	reject	grammar	type/(TIME|TIMESTAMP)_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGH~78b51835!insert	a IS TIME zzz
+accept	accept	grammar	type/(TIME|TIMESTAMP)_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGH~78b51835+type(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?	a IS TIME(1)
+reject	reject	grammar	type/(TIME|TIMESTAMP)_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGH~78b51835+type(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?!drop-2	a IS TIME 1)
+reject	reject	grammar	type/(TIME|TIMESTAMP)_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGH~78b51835+type(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?!drop-3	a IS TIME()
+reject	reject	grammar	type/(TIME|TIMESTAMP)_(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGH~78b51835+type(PAREN_LEFT_LITERAL_INTEGER_PAREN_RIGHT)?!drop-4	a IS TIME(1
 accept	accept	grammar	type/symbolPrimitive	a IS a
 reject	reject	grammar	type/symbolPrimitive!insert	a IS a zzz
 accept	accept	grammar	type(NULL|BOOL|BOOLEAN|SMALLINT|INTEGER2|~26c55d65)/NULL	a IS NULL
