@@ -16,8 +16,8 @@ server wrote the same file.
 | An optional clause at every site, with near-misses | 219 | 219 | 0 | 0 |
 | Every form of a keyword choice at every site, with near-misses | 290 | 290 | 0 | 0 |
 
-Every row agrees: the 11,764 generated rows and the 914 `suite:` rows below,
-12,678 in all. #1467 closed the last 203, 202 generated rows and one `suite:`
+Every row agrees: the 11,764 generated rows and the 917 `suite:` rows below,
+12,681 in all. #1467 closed the last 203, 202 generated rows and one `suite:`
 row. The generated ones were mostly statements omni did not read at all:
 `PIPE`, resource groups, `CATALOG`, data cache rules, `TRANSLATE`, the SQL and
 backend blacklists, plan advisors, `REFRESH EXTERNAL TABLE`, `EXECUTE AS` and
@@ -53,8 +53,8 @@ agree: `suite:conformance` (281, `TestStarRocksSyntaxConformance`),
 the PRs that added those forms). The 15 `suite:characters` rows, the
 characters no rule of `StarRocksLex.g4` matches, are a group of their own; the
 one that disagreed, `SELECT 1　AS x` with an ideographic space, agrees now that
-omni reads the character as one StarRocks refuses (#1467). The other 465 rows
-are 7 `suite:comments`, 5 `suite:copy-into`, 396 `suite:keywords` and 57
+omni reads the character as one StarRocks refuses (#1467). The other 468 rows
+are 7 `suite:comments`, 5 `suite:copy-into`, 396 `suite:keywords` and 60
 `suite:doris-residue`; all agree. A statement added
 to one is a row with `?` in
 both verdict cells, judged by a recording:

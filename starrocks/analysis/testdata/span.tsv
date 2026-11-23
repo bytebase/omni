@@ -60,9 +60,9 @@ shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	
 id, name, region, email	id, name, region, email	engine	base	shop	results	SELECT * FROM (SELECT * FROM customers) c
 shop.customers.id | shop.customers.name | shop.customers.region | shop.customers.email	shop.customers.id | shop.customers.name | shop.customers.region | shop.customers.email	engine	base	shop	lineage	SELECT * FROM (SELECT * FROM customers) c
 shop.customers	shop.customers	engine	base	shop	tables	SELECT * FROM (SELECT * FROM customers) c
-id, customer_id, created_at	error:syntax	engine	base	shop	results	SELECT * EXCEPT (amount, status) FROM orders
-shop.orders.id | shop.orders.customer_id | shop.orders.created_at	error:syntax	engine	base	shop	lineage	SELECT * EXCEPT (amount, status) FROM orders
-shop.orders	error:syntax	engine	base	shop	tables	SELECT * EXCEPT (amount, status) FROM orders
+error:syntax	error:syntax	engine	base	shop	results	SELECT * EXCEPT (amount, status) FROM orders
+error:syntax	error:syntax	engine	base	shop	lineage	SELECT * EXCEPT (amount, status) FROM orders
+error:syntax	error:syntax	engine	base	shop	tables	SELECT * EXCEPT (amount, status) FROM orders
 id	id	engine	base	shop	results	SELECT id FROM shop.orders
 shop.orders.id	shop.orders.id	engine	base	shop	lineage	SELECT id FROM shop.orders
 shop.orders	shop.orders	engine	base	shop	tables	SELECT id FROM shop.orders
