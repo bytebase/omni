@@ -56,6 +56,7 @@ type qcol struct {
 	name     string
 	typ      qtype
 	identity bool
+	guid     bool // uniqueidentifier, the type a ROWGUIDCOL column has
 }
 
 // qrel is a relation in a FROM clause: a table, a view, a derived table, a
@@ -71,6 +72,18 @@ type qrel struct {
 func (r *qrel) col(name string) *qcol {
 	for i := range r.cols {
 		if strings.EqualFold(r.cols[i].name, name) {
+			return &r.cols[i]
+		}
+	}
+	return nil
+}
+
+// rowguidCol is the column $ROWGUID may name. The catalog does not record
+// ROWGUIDCOL, so it is the relation's first uniqueidentifier column, the only
+// type the property takes; with none, $ROWGUID names nothing.
+func (r *qrel) rowguidCol() *qcol {
+	for i := range r.cols {
+		if r.cols[i].guid {
 			return &r.cols[i]
 		}
 	}
@@ -155,40 +168,40 @@ func newBinder(c *Catalog, source, object string, depth int) *binder {
 // bound; past it a relation is opaque.
 const maxBindDepth = 32
 
-// bindView binds the query of CREATE VIEW or ALTER VIEW.
-func (c *Catalog) bindView(n *ast.CreateViewStmt, source, viewName string) error {
+// bindView binds the query of CREATE VIEW or ALTER VIEW and returns the
+// view's columns, nil when they are unknown.
+func (c *Catalog) bindView(n *ast.CreateViewStmt, source, viewName string) ([]qcol, error) {
 	sel, ok := n.Query.(*ast.SelectStmt)
 	if !ok || sel == nil {
-		return nil
+		return nil, nil
 	}
 	b := newBinder(c, source, viewName, 0)
 	b.inView = true
 	b.schemaBound = n.SchemaBinding || hasOptionWord(n.Options, "SCHEMABINDING")
 	if err := b.viewClauses(sel); err != nil {
-		return err
+		return nil, err
 	}
 	if err := b.variables(sel); err != nil {
-		return err
+		return nil, err
 	}
 	cols, opaque, err := b.query(sel, nil)
 	if err != nil || opaque {
-		return err
+		return nil, err
 	}
 	if n.Columns != nil && len(n.Columns.Items) > 0 {
-		_, err := renameColumns(cols, stringNodeList(n.Columns), viewName)
-		return err
+		return renameColumns(cols, stringNodeList(n.Columns), viewName)
 	}
 	for i, col := range cols {
 		if col.name == "" {
-			return mssqlErr(4511, "Create View or Function failed because no column name was specified for column %d.", i+1)
+			return nil, mssqlErr(4511, "Create View or Function failed because no column name was specified for column %d.", i+1)
 		}
 		for _, prev := range cols[:i] {
 			if strings.EqualFold(prev.name, col.name) {
-				return mssqlErr(4506, "Column names in each view or function must be unique. Column name '%s' in view or function '%s' is specified more than once.", col.name, viewName)
+				return nil, mssqlErr(4506, "Column names in each view or function must be unique. Column name '%s' in view or function '%s' is specified more than once.", col.name, viewName)
 			}
 		}
 	}
-	return nil
+	return cols, nil
 }
 
 func hasOptionWord(list *ast.List, word string) bool {
@@ -284,7 +297,10 @@ func (b *binder) query(sel *ast.SelectStmt, parent *qscope) ([]qcol, bool, error
 	if sel.Op == ast.SetOpNone {
 		return b.block(sel, scope)
 	}
+	// The last operand's ORDER BY belongs to the whole operation, so only
+	// the outermost set operation that reaches it binds it.
 	last := lastOperand(sel)
+	owner := !b.setOrder[last]
 	b.setOrder[last] = true
 	left, lopaque, err := b.query(sel.Larg, scope)
 	if err != nil {
@@ -300,7 +316,7 @@ func (b *binder) query(sel *ast.SelectStmt, parent *qscope) ([]qcol, bool, error
 	if err := b.topAndOffset(sel, scope); err != nil {
 		return nil, false, err
 	}
-	if last != nil && last.OrderByClause != nil && !lopaque {
+	if owner && last != nil && last.OrderByClause != nil && !lopaque {
 		for _, item := range last.OrderByClause.Items {
 			ob, ok := item.(*ast.OrderByItem)
 			if !ok {
@@ -814,7 +830,7 @@ func (b *binder) orderBy(sel *ast.SelectStmt, sc *qscope, blk *qblock, cols []qc
 		if _, err := b.expr(ob.Expr, sc, x); err != nil {
 			return err
 		}
-		if sel.Distinct && !opaque && !b.inSelectList(sel, ob.Expr) {
+		if sel.Distinct && !opaque && !b.inSelectList(sel, sc, ob.Expr) {
 			return mssqlErr(145, "ORDER BY items must appear in the select list if SELECT DISTINCT is specified.")
 		}
 	}
@@ -834,11 +850,44 @@ func namesResult(sel *ast.SelectStmt, name string) bool {
 	return false
 }
 
-func (b *binder) inSelectList(sel *ast.SelectStmt, e ast.ExprNode) bool {
+// inSelectList reports whether an ORDER BY item of SELECT DISTINCT is in the
+// select list: the same expression, or the same column, which a * names too.
+func (b *binder) inSelectList(sel *ast.SelectStmt, sc *qscope, e ast.ExprNode) bool {
 	want := b.normText(e)
+	ref, isRef := unparen(e).(*ast.ColumnRef)
+	var bound colBinding
+	if isRef {
+		bound, isRef = b.bound[ref]
+	}
 	for _, item := range sel.TargetList.Items {
-		if rt, ok := item.(*ast.ResTarget); ok && rt.Val != nil && b.normText(rt.Val) == want {
+		rt, ok := item.(*ast.ResTarget)
+		if !ok || rt.Val == nil {
+			continue
+		}
+		if b.normText(rt.Val) == want {
 			return true
+		}
+		if !isRef || bound.rel == nil {
+			continue
+		}
+		switch v := unparen(rt.Val).(type) {
+		case *ast.StarExpr:
+			for _, r := range sc.rels {
+				if r != bound.rel {
+					continue
+				}
+				if v.Qualifier == "" {
+					return true
+				}
+				parts := strings.Split(v.Qualifier, ".")
+				if relMatches(r, "", parts[len(parts)-1]) {
+					return true
+				}
+			}
+		case *ast.ColumnRef:
+			if vb, ok := b.bound[v]; ok && vb.rel == bound.rel && strings.EqualFold(v.Column, ref.Column) {
+				return true
+			}
 		}
 	}
 	return false
@@ -1314,7 +1363,7 @@ func (b *binder) temporal(ref *ast.TableRef, schemaName, tableName string, outer
 func tableColumns(t *metadata.TableMetadata) []qcol {
 	cols := make([]qcol, 0, len(t.Columns))
 	for _, c := range t.Columns {
-		cols = append(cols, qcol{name: c.Name, typ: typeClass(c.Type), identity: c.IsIdentity})
+		cols = append(cols, qcol{name: c.Name, typ: typeClass(c.Type), identity: c.IsIdentity, guid: typeClass(c.Type) == qtOther && strings.HasPrefix(strings.Trim(strings.ToLower(c.Type), "[ "), "uniqueidentifier")})
 	}
 	return cols
 }
@@ -1322,6 +1371,19 @@ func tableColumns(t *metadata.TableMetadata) []qcol {
 // viewRel binds a view's stored definition for the columns it gives. A view
 // that does not bind is opaque.
 func (b *binder) viewRel(v *metadata.ViewMetadata, schemaName string) *qrel {
+	// A view keeps the columns it was created with until it is altered or
+	// refreshed, whatever its tables became since.
+	cols, known := b.c.viewColumns[v]
+	if cols != nil {
+		return &qrel{cols: append([]qcol(nil), cols...)}
+	}
+	if !known && len(v.Columns) > 0 {
+		cols := make([]qcol, 0, len(v.Columns))
+		for _, col := range v.Columns {
+			cols = append(cols, qcol{name: col.Name, typ: typeClass(col.Type)})
+		}
+		return &qrel{cols: cols}
+	}
 	if b.depth >= maxBindDepth {
 		return &qrel{opaque: true}
 	}
@@ -1702,6 +1764,7 @@ func (b *binder) column(ref *ast.ColumnRef, sc *qscope) (qtype, error) {
 				case identity:
 					c = r.identityCol()
 				case special:
+					c = r.rowguidCol()
 				default:
 					c = r.col(ref.Column)
 				}
@@ -1731,6 +1794,7 @@ func (b *binder) column(ref *ast.ColumnRef, sc *qscope) (qtype, error) {
 			case identity:
 				c = r.identityCol()
 			case special:
+				c = r.rowguidCol()
 			default:
 				c = r.col(ref.Column)
 			}

@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"errors"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -433,4 +434,57 @@ var queryFeatures = []struct{ feature, query string }{
 	{"view", "CREATE VIEW _v WITH SCHEMABINDING AS SELECT id FROM dbo.f_orders(1)"},
 	{"view", "CREATE VIEW _v WITH SCHEMABINDING AS SELECT COUNT_BIG(*) AS n, customer_id FROM dbo.orders GROUP BY customer_id"},
 	{"view", "CREATE VIEW _v WITH SCHEMABINDING AS SELECT name FROM sys.objects"},
+}
+
+// TestViewBinding pins view bindings SQL Server accepts or refuses beyond
+// the simulated rows.
+func TestViewBinding(t *testing.T) {
+	cases := []struct {
+		name  string
+		setup []string
+		sql   string
+		code  int // 0 when SQL Server accepts the view
+	}{
+		{"distinct order by a column star selects", nil, "CREATE VIEW v AS SELECT DISTINCT TOP 10 * FROM t ORDER BY id", 0},
+		{"distinct order by an unqualified selected column", nil, "CREATE VIEW v AS SELECT DISTINCT TOP 10 t.id FROM t ORDER BY id", 0},
+		{"distinct order by an unselected column", nil, "CREATE VIEW v AS SELECT DISTINCT TOP 10 id FROM t ORDER BY g", 145},
+		{"view keeps its columns", []string{"CREATE VIEW v AS SELECT * FROM t", "ALTER TABLE t ADD extra INT"}, "CREATE VIEW v2 (id, g) AS SELECT * FROM v", 0},
+		{"rowguid of a uniqueidentifier column", nil, "CREATE VIEW v AS SELECT $ROWGUID AS g FROM t", 0},
+		{"rowguid without a uniqueidentifier column", nil, "CREATE VIEW v AS SELECT $ROWGUID AS g FROM u", ErrInvalidColumnName},
+		{"set operation orders by the first operand", nil, "CREATE VIEW v AS SELECT 1 AS a UNION ALL SELECT 2 AS b UNION ALL SELECT 3 AS c ORDER BY a OFFSET 0 ROWS", 0},
+		{"set operation order by a later operand's name", nil, "CREATE VIEW v AS SELECT 1 AS a UNION ALL SELECT 2 AS b UNION ALL SELECT 3 AS c ORDER BY b OFFSET 0 ROWS", 104},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c, err := LoadSQL("CREATE TABLE t (id INT NOT NULL, g UNIQUEIDENTIFIER ROWGUIDCOL NULL);\nCREATE TABLE u (id INT NOT NULL);")
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, stmt := range append(append([]string(nil), tc.setup...), tc.sql) {
+				results, err := c.Exec(stmt, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var got error
+				for _, r := range results {
+					if r.Error != nil {
+						got = r.Error
+					}
+				}
+				if stmt != tc.sql {
+					if got != nil {
+						t.Fatalf("%s: %v", stmt, got)
+					}
+					continue
+				}
+				var refusal *Error
+				switch {
+				case tc.code == 0 && got != nil:
+					t.Fatalf("%s: %v", stmt, got)
+				case tc.code != 0 && (!errors.As(got, &refusal) || refusal.Code != tc.code):
+					t.Fatalf("%s: got %v, want Msg %d", stmt, got, tc.code)
+				}
+			}
+		})
+	}
 }

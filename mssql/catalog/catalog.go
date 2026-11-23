@@ -46,7 +46,11 @@ type Catalog struct {
 	// loadingScript is set while LoadSQL runs a desired-state script, whose
 	// objects need not come in the order SQL Server would create them, so a
 	// view's query is not bound against what precedes it.
-	loadingScript         bool
+	loadingScript bool
+	// viewColumns holds the columns a view was bound to when Exec created or
+	// altered it, which SQL Server keeps until the view is altered or
+	// refreshed.
+	viewColumns           map[*metadata.ViewMetadata][]qcol
 	systemTimeTables      map[tableKey][2]string
 	systemVersionedTables map[tableKey]bool
 }

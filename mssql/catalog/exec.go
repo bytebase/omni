@@ -1578,12 +1578,22 @@ func (c *Catalog) execCreateOrAlterView(n *ast.CreateViewStmt, source string) er
 	// testdata/simulate.tsv). A script LoadSQL loads is not bound: it may
 	// define a view before what the view reads.
 	bind := !c.lenientMetadataLoad && !c.loadingScript
+	var cols []qcol
 	if !bind {
 		if selectStarWithoutFrom(n.Query) {
 			return mssqlErr(ErrSelectStarWithoutFrom, "Must specify table to select from.")
 		}
-	} else if err := c.bindView(n, source, name); err != nil {
-		return err
+	} else {
+		var err error
+		if cols, err = c.bindView(n, source, name); err != nil {
+			return err
+		}
+	}
+	keep := func(v *metadata.ViewMetadata) {
+		if c.viewColumns == nil {
+			c.viewColumns = map[*metadata.ViewMetadata][]qcol{}
+		}
+		c.viewColumns[v] = cols
 	}
 	schema := c.GetSchema(schemaName)
 	if schema == nil && bind && !strings.EqualFold(schemaName, defaultSchema) {
@@ -1622,13 +1632,20 @@ func (c *Catalog) execCreateOrAlterView(n *ast.CreateViewStmt, source string) er
 				return mssqlErr(ErrDropSchemaNotEmpty, "Cannot ALTER VIEW '%s' because it is being referenced by object '%s'.", v.Name, consumer)
 			}
 			v.Definition = creationDefinition(definition)
+			if bind {
+				keep(v)
+			}
 			return nil
 		}
 		if pureAlter {
 			return mssqlErr(ErrInvalidObjectName, "Invalid object name '%s'.", name)
 		}
 	}
-	schema.Views = append(schema.Views, &metadata.ViewMetadata{Name: name, Definition: definition})
+	view := &metadata.ViewMetadata{Name: name, Definition: definition}
+	if bind {
+		keep(view)
+	}
+	schema.Views = append(schema.Views, view)
 	return nil
 }
 
