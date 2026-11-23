@@ -115,3 +115,38 @@ func TestDropTableGoesOn(t *testing.T) {
 		t.Errorf("want p kept and c2 dropped")
 	}
 }
+
+// TestReviewRoundOne pins the answers the first review of the port asked
+// for, read on mariadb:11.8.8.
+func TestReviewRoundOne(t *testing.T) {
+	for _, tt := range []struct {
+		name, setup, stmt string
+		code              int
+	}{
+		{"child display width", fkSetup, "ALTER TABLE c MODIFY p INT(10)", 0},
+		{"parent display width", fkSetup, "ALTER TABLE p MODIFY id INT(5)", 0},
+		{"child signedness", fkSetup, "ALTER TABLE c MODIFY p INT UNSIGNED", 1832},
+		{"skipped key under INSTANT", "CREATE TABLE t (b INT PRIMARY KEY, c INT, KEY k (c))", "ALTER TABLE t ADD INDEX IF NOT EXISTS k (c), ADD COLUMN d INT, ALGORITHM = INSTANT", 0},
+		{"absent key dropped under INSTANT", "CREATE TABLE t (b INT PRIMARY KEY, c INT)", "ALTER TABLE t DROP INDEX IF EXISTS k, ADD COLUMN d INT, ALGORITHM = INSTANT", 0},
+		{"column CHECK on AUTO_INCREMENT", "", "CREATE TABLE k (a INT AUTO_INCREMENT PRIMARY KEY CHECK (a > 0))", 1901},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			c := wtSetup(t)
+			if tt.setup != "" {
+				wtExec(t, c, tt.setup)
+			}
+			results, err := c.Exec(tt.stmt, nil)
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			got := results[len(results)-1].Error
+			var catErr *Error
+			switch {
+			case tt.code == 0 && got != nil:
+				t.Fatalf("got %v, want it to run", got)
+			case tt.code != 0 && (!errors.As(got, &catErr) || catErr.Code != tt.code):
+				t.Fatalf("got %v, want %d", got, tt.code)
+			}
+		})
+	}
+}

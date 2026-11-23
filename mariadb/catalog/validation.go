@@ -839,31 +839,35 @@ func errUnusableInCheck(expr, name string) error {
 	return &Error{Code: 1901, SQLState: "HY000", Message: fmt.Sprintf("Function or expression '%s' cannot be used in the CHECK clause of `%s`", expr, name)}
 }
 
-// checkAutoIncrementInChecks refuses a CHECK that reads an AUTO_INCREMENT
-// column, whose value is not known when the row is checked: measured on
-// mariadb:11.8.8, CREATE TABLE (a INT AUTO_INCREMENT PRIMARY KEY, CHECK (a >
-// 0)) answers 1901 with 'AUTO_INCREMENT' and the column's name, and so does a
-// CHECK reading it beside another column.
-func checkAutoIncrementInChecks(tbl *Table) error {
-	for _, con := range tbl.Constraints {
-		if con.Type != ConCheck || con.Implicit {
-			continue
+// checkAutoIncrementInChecks refuses a CHECK a CREATE TABLE writes that reads
+// an AUTO_INCREMENT column, whose value is not known when the row is checked:
+// measured on mariadb:11.8.8, CREATE TABLE (a INT AUTO_INCREMENT PRIMARY KEY,
+// CHECK (a > 0)) answers 1901 with 'AUTO_INCREMENT' and the column's name, and
+// so does a CHECK reading it beside another column. It reads the statement's
+// own expressions, once every column is in the table.
+func checkAutoIncrementInChecks(tbl *Table, stmt *nodes.CreateTableStmt) error {
+	for _, def := range stmt.Columns {
+		for _, cc := range def.Constraints {
+			if cc != nil && cc.Type == nodes.ColConstrCheck {
+				if err := checkAutoIncrementInCheckExpr(tbl, cc.Expr); err != nil {
+					return err
+				}
+			}
 		}
-		refs, ok := checkColumnRefs(con.CheckExpr)
-		if !ok {
-			continue
-		}
-		for _, col := range tbl.Columns {
-			if col.AutoIncrement && refs[toLower(col.Name)] {
-				return errUnusableInCheck("AUTO_INCREMENT", col.Name)
+	}
+	for _, con := range stmt.Constraints {
+		if con != nil && con.Type == nodes.ConstrCheck {
+			if err := checkAutoIncrementInCheckExpr(tbl, con.Expr); err != nil {
+				return err
 			}
 		}
 	}
 	return nil
 }
 
-// checkAutoIncrementInCheckExpr is checkAutoIncrementInChecks for a CHECK an
-// ALTER TABLE adds, before it is added.
+// checkAutoIncrementInCheckExpr refuses one CHECK expression that reads an
+// AUTO_INCREMENT column of tbl (checkAutoIncrementInChecks); an ALTER TABLE
+// asks it of a CHECK it adds, before the CHECK is added.
 func checkAutoIncrementInCheckExpr(tbl *Table, expr nodes.ExprNode) error {
 	for _, name := range generatedColumnRefs(expr) {
 		if col := tbl.GetColumn(name); col != nil && col.AutoIncrement {

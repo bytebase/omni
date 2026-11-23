@@ -1124,7 +1124,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, source string) error 
 		return err
 	}
 	defaultAriaPageChecksum(tbl)
-	if err := checkAutoIncrementInChecks(tbl); err != nil {
+	if err := checkAutoIncrementInChecks(tbl, stmt); err != nil {
 		return err
 	}
 	if err := c.checkOversizeVarchars(stmt.Columns, tbl.Charset); err != nil {

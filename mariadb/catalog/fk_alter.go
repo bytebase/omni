@@ -107,8 +107,12 @@ func (c *Catalog) checkForeignKeyColumnChanges(tbl *Table, oldDB *Database, oldN
 
 // columnTypeChanged reports whether a redefinition changed what a column
 // stores: its type, or a string column's character set or collation.
+//
+// An integer's display width is not stored: mariadb:11.8.8 takes MODIFY p
+// INT(10) over a foreign key's INT(11) column, on either side, where INT
+// UNSIGNED is 1832.
 func columnTypeChanged(tbl *Table, old, now *Column) bool {
-	if !strings.EqualFold(old.ColumnType, now.ColumnType) {
+	if !strings.EqualFold(withoutDisplayWidth(old), withoutDisplayWidth(now)) {
 		return true
 	}
 	if !isStringType(old.DataType) {
@@ -186,4 +190,21 @@ func checkInvisibleColumns(tbl *Table, before map[*Column]bool) error {
 		}
 	}
 	return errTableMustHaveColumns()
+}
+
+// withoutDisplayWidth is a column's type with an integer's display width left
+// out: int(11) unsigned is int unsigned.
+func withoutDisplayWidth(col *Column) string {
+	if !isIntegerTypeName(col.DataType) {
+		return col.ColumnType
+	}
+	open := strings.IndexByte(col.ColumnType, '(')
+	if open < 0 {
+		return col.ColumnType
+	}
+	end := strings.IndexByte(col.ColumnType[open:], ')')
+	if end < 0 {
+		return col.ColumnType
+	}
+	return col.ColumnType[:open] + col.ColumnType[open+end+1:]
 }

@@ -67,6 +67,10 @@ func alterAlgorithmLimits(old *Table, commands []*nodes.AlterTableCmd) []algoLim
 			addsPrimary = true
 		}
 	}
+	// An IF [NOT] EXISTS clause that finds what it looks for is a note, and
+	// runs no operation: over a table holding key k, ADD INDEX IF NOT EXISTS k
+	// (c), ADD COLUMN d INT, ALGORITHM = INSTANT runs (mariadb:11.8.8).
+	_, skippedKeys := computeSkippedAlterAdditions(old, commands)
 	var limits []algoLimit
 	for _, cmd := range commands {
 		if cmd == nil {
@@ -74,7 +78,7 @@ func alterAlgorithmLimits(old *Table, commands []*nodes.AlterTableCmd) []algoLim
 		}
 		switch cmd.Type {
 		case nodes.ATAddConstraint, nodes.ATAddIndex:
-			if cmd.Constraint == nil {
+			if cmd.Constraint == nil || skippedKeys[cmd.Constraint] {
 				continue
 			}
 			switch cmd.Constraint.Type {
@@ -91,7 +95,7 @@ func alterAlgorithmLimits(old *Table, commands []*nodes.AlterTableCmd) []algoLim
 				limits = append(limits, algoLimit{algoInplace, ""})
 			case strings.EqualFold(cmd.Name, "PRIMARY"):
 				limits = append(limits, algoLimit{algoCopy, "Dropping a primary key is not allowed without also adding a new primary key"})
-			case cmd.Type == nodes.ATDropIndex:
+			case cmd.Type == nodes.ATDropIndex && !(cmd.IfExists && !indexNameExists(old, cmd.Name)):
 				limits = append(limits, algoLimit{algoNocopy, "DROP INDEX"})
 			}
 		case nodes.ATDropColumn:
