@@ -332,7 +332,7 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 			schema = t.schema.spelling
 		}
 		done := b.enterModule(schema)
-		b.moduleBody(v.Body, nil, nil, pseudo, t.written)
+		b.moduleBody(v.Body, nil, nil, nil, pseudo, t.written)
 		done()
 	}
 	b.arriveObject(r, kindTrigger)

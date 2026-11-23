@@ -58,6 +58,12 @@ type binder struct {
 	pseudo, pseudoTable string
 	// tableVars are the table variables the body declares.
 	tableVars []*ast.VariableDecl
+	// bound is set while a statement SQL Server certainly binds is bound:
+	// every table it names exists, so a COLLATE in it is checked (448).
+	bound bool
+	// vars are the declared types of the module's parameters and
+	// variables, for a COLLATE operand.
+	vars []typedVar
 }
 
 func newBinder(b *builder, root ast.Node, noFrom bool) *binder {
@@ -252,6 +258,13 @@ func (q *binder) expr(n ast.Node, sc *qscope) {
 			return false
 		case *ast.ColumnRef:
 			q.column(v, sc)
+			return false
+		case *ast.CollateExpr:
+			// The operand is bound before the operator.
+			q.expr(v.Expr, sc)
+			if q.bound {
+				q.b.collateFail(v, func(e ast.ExprNode) bool { return q.charOperand(e, sc) })
+			}
 			return false
 		case *ast.FuncCallExpr:
 			if v.Name != nil && v.Name.Schema == "" && strings.EqualFold(v.Name.Object, "UPDATE") && v.Args != nil && len(v.Args.Items) == 1 {
@@ -558,6 +571,7 @@ func (b *builder) viewQuery(query ast.Node, cols *ast.List, kind string, params 
 		return
 	}
 	b.queryTables(q, query)
+	q.bound = q.resolvable(query)
 	q.query(query, nil)
 }
 
@@ -842,8 +856,8 @@ func twice(names []string) string {
 // table may bind against what it changed, and binds nothing here.
 // pseudo is the path of the table whose rows a DML trigger's inserted
 // and deleted hold, "" when the walk does not know them, and table that
-// table as written.
-func (b *builder) moduleBody(body ast.Node, params []string, tableVars []*ast.VariableDecl, pseudo, table string) {
+// table as written. vars are the module's typed parameters.
+func (b *builder) moduleBody(body ast.Node, params []string, vars []typedVar, tableVars []*ast.VariableDecl, pseudo, table string) {
 	if body == nil || b.undeclared(body, params) {
 		return
 	}
@@ -866,9 +880,18 @@ func (b *builder) moduleBody(body ast.Node, params []string, tableVars []*ast.Va
 		}
 		return true
 	})
+	q.vars = vars
+	ast.Inspect(body, func(n ast.Node) bool {
+		if v, ok := n.(*ast.VariableDecl); ok && !v.IsTable {
+			q.vars = append(q.vars, typedVar{v.Name, v.DataType})
+		}
+		return true
+	})
 	for _, s := range stmts {
 		if q.resolvable(s) {
+			q.bound = true
 			q.statement(s)
+			q.bound = false
 		}
 	}
 }
