@@ -1101,6 +1101,15 @@ func (d *deparseCtx) getVariableTarget(v *VarExpr, isTopLevel bool) string {
 	}
 	colNames := ctx.rtePrintedColNames(rte)
 	colIdx := int(v.AttNum - 1)
+	if name := SystemColumnName(v.AttNum); name != "" && rte.Kind == RTERelation {
+		// pg: get_variable — get_rte_attribute_name names a system column.
+		if v.LevelsUp > 0 || d.hasParentNamespace || len(d.query.RangeTable) != 1 {
+			d.buf.WriteString(quoteIdentifier(refName))
+			d.buf.WriteByte('.')
+		}
+		d.buf.WriteString(quoteIdentifier(name))
+		return name
+	}
 	if colIdx < 0 || colIdx >= len(colNames) {
 		d.buf.WriteString("???")
 		return "???"

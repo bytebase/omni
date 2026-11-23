@@ -185,8 +185,8 @@ func findDollarQuotedBody(definition string) (tag string, bodyStart int, bodyEnd
 }
 
 // unresolvedColumnsError checks stored metadata independently of column lineage.
-// Accesses are conservative: CTE names can match physical tables, so this may
-// refuse a CTE-only query. Reads missing from the access set remain unchecked.
+// A name that a CTE in scope shadows reads the CTE and is not an access.
+// Reads missing from the access set remain unchecked.
 func (e *querySpanExtractor) unresolvedColumnsError(accesses ColumnSet) *UnresolvedColumnsError {
 	seen := make(map[ColumnResource]bool, len(accesses))
 	var unresolved []ColumnResource
@@ -911,7 +911,7 @@ func (e *querySpanExtractor) resolveVar(queryStack []*catalog.Query, v *catalog.
 			return
 		}
 		// The table's own column name, which an alias column list may hide.
-		colName := ""
+		colName := catalog.SystemColumnName(v.AttNum)
 		if colIdx >= 0 && colIdx < len(rel.Columns) {
 			colName = rel.Columns[colIdx].Name
 		}
@@ -1098,14 +1098,16 @@ func (e *querySpanExtractor) extractFallbackColumns(selStmt *ast.SelectStmt) []Q
 
 	// Check if SELECT has explicit target list (not *).
 	if selStmt.TargetList != nil {
-		var results []QuerySpanResult
+		var results, stars []QuerySpanResult
 		allStar := true
 		for _, item := range selStmt.TargetList.Items {
 			rt, ok := item.(*ast.ResTarget)
 			if !ok {
 				continue
 			}
-			if !isStarTarget(rt) {
+			if isStarTarget(rt) {
+				stars = append(stars, e.starColumns(selStmt, rt, analyzer, fromTables)...)
+			} else {
 				allStar = false
 				name := rt.Name
 				if name == "" {
@@ -1135,6 +1137,9 @@ func (e *querySpanExtractor) extractFallbackColumns(selStmt *ast.SelectStmt) []Q
 			}
 			return results
 		}
+		if allStar && len(stars) > 0 {
+			return stars
+		}
 	}
 
 	// For SELECT *, combine columns from ALL FROM clause items.
@@ -1149,6 +1154,124 @@ func (e *querySpanExtractor) extractFallbackColumns(selStmt *ast.SelectStmt) []Q
 	}
 
 	return nil
+}
+
+// starColumns returns the columns a star target of sel expands to: those of
+// every FROM item for *, and those of the FROM item the qualifier names for
+// name.*.
+//
+// pg: src/backend/parser/parse_target.c — ExpandColumnRefStar
+func (e *querySpanExtractor) starColumns(sel *ast.SelectStmt, rt *ast.ResTarget, analyzer *plpgsqlAnalyzer, fromTables map[string]ColumnResource) []QuerySpanResult {
+	if sel.FromClause == nil {
+		return nil
+	}
+	qualifier := ""
+	if cr, ok := rt.Val.(*ast.ColumnRef); ok && cr.Fields != nil && len(cr.Fields.Items) >= 2 {
+		if s, ok := cr.Fields.Items[len(cr.Fields.Items)-2].(*ast.String); ok {
+			qualifier = s.Str
+		}
+	}
+	var columns []QuerySpanResult
+	for _, item := range sel.FromClause.Items {
+		if qualifier == "" {
+			columns = append(columns, e.extractColumnsFromFromItem(item, analyzer, fromTables)...)
+			continue
+		}
+		if named := fromItemNamed(item, qualifier); named != nil {
+			return e.extractColumnsFromFromItem(named, analyzer, fromTables)
+		}
+	}
+	return columns
+}
+
+// fromItemNamed returns the FROM item, item or one an alias-less join of it
+// holds, whose reference name is name, or nil.
+func fromItemNamed(item ast.Node, name string) ast.Node {
+	aliasOf := func(a *ast.Alias) string {
+		if a == nil {
+			return ""
+		}
+		return a.Aliasname
+	}
+	switch v := item.(type) {
+	case *ast.RangeVar:
+		if ref := aliasOf(v.Alias); ref == name || ref == "" && v.Relname == name {
+			return v
+		}
+	case *ast.RangeSubselect:
+		if aliasOf(v.Alias) == name {
+			return v
+		}
+	case *ast.RangeFunction:
+		if aliasOf(v.Alias) == name {
+			return v
+		}
+	case *ast.JsonTable:
+		if aliasOf(v.Alias) == name {
+			return v
+		}
+	case *ast.JoinExpr:
+		if v.Alias != nil {
+			if v.Alias.Aliasname == name {
+				return v
+			}
+			return nil
+		}
+		if l := fromItemNamed(v.Larg, name); l != nil {
+			return l
+		}
+		return fromItemNamed(v.Rarg, name)
+	}
+	return nil
+}
+
+// jsonTableColumns returns the columns of a JSON_TABLE: each column of its
+// COLUMNS clause, NESTED ones in place, reading the context item and the
+// PASSING arguments; an ORDINALITY column reads nothing.
+//
+// pg: src/backend/parser/parse_jsontable.c — transformJsonTable
+func jsonTableColumns(jt *ast.JsonTable, analyzer *plpgsqlAnalyzer, fromTables map[string]ColumnResource) []QuerySpanResult {
+	sources := make(ColumnSet)
+	if analyzer != nil {
+		if jt.ContextItem != nil {
+			analyzer.extractColumnRefsFromExpr(jt.ContextItem.RawExpr, fromTables, sources)
+		}
+		if jt.Passing != nil {
+			for _, arg := range jt.Passing.Items {
+				analyzer.extractColumnRefsFromExpr(arg, fromTables, sources)
+			}
+		}
+	}
+	var columns []QuerySpanResult
+	var add func(list *ast.List)
+	add = func(list *ast.List) {
+		if list == nil {
+			return
+		}
+		for _, item := range list.Items {
+			col, ok := item.(*ast.JsonTableColumn)
+			if !ok {
+				continue
+			}
+			switch col.Coltype {
+			case ast.JTC_NESTED:
+				add(col.Columns)
+			case ast.JTC_FOR_ORDINALITY:
+				columns = append(columns, QuerySpanResult{Name: col.Name, SourceColumns: make(ColumnSet)})
+			default:
+				columns = append(columns, QuerySpanResult{Name: col.Name, SourceColumns: maps.Clone(sources)})
+			}
+		}
+	}
+	add(jt.Columns)
+	if jt.Alias != nil && jt.Alias.Colnames != nil {
+		for i, name := range astStrings(jt.Alias.Colnames) {
+			if i < len(columns) {
+				columns[i].Name = name
+			}
+		}
+	}
+	return columns
 }
 
 // figureResTargetName extracts a column name from a ResTarget's expression.
@@ -1222,6 +1345,8 @@ func (e *querySpanExtractor) extractColumnsFromFromItem(item ast.Node, analyzer 
 		return analyzer.fromItemColumns(item, fromTables)
 	case *ast.RangeFunction:
 		return e.extractColumnsFromRangeFunction(v, analyzer, fromTables)
+	case *ast.JsonTable:
+		return jsonTableColumns(v, analyzer, fromTables)
 	case *ast.JoinExpr:
 		return joinColumns(v, e.extractColumnsFromFromItem(v.Larg, analyzer, fromTables), e.extractColumnsFromFromItem(v.Rarg, analyzer, fromTables))
 	default:

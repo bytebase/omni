@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"fmt"
+	"slices"
 
 	omnipg "github.com/bytebase/omni/pg"
 	"github.com/bytebase/omni/pg/ast"
@@ -31,18 +32,7 @@ func (e *querySpanExtractor) accessTablesOfNode(node ast.Node) ([]ColumnResource
 		getDatabase:     e.catalog.GetDatabase,
 	}
 
-	// Walk the omni AST to find all RangeVar nodes (table references)
-	ast.Inspect(node, func(n ast.Node) bool {
-		if extractor.err != nil {
-			return false
-		}
-		rv, ok := n.(*ast.RangeVar)
-		if !ok {
-			return true
-		}
-		extractor.processRangeVar(rv)
-		return true
-	})
+	extractor.walk(node, nil, nil)
 
 	if extractor.err != nil {
 		return nil, fmt.Errorf("failed to extract access tables: %w", extractor.err)
@@ -57,6 +47,73 @@ type accessTableExtractor struct {
 	searchPath      []string
 	accessTables    []ColumnResource
 	getDatabase     func(name string) (Database, error)
+}
+
+// walk finds every table reference (RangeVar) under n. ctes holds the names
+// of the common table expressions in scope: an unqualified reference to one
+// reads the CTE, not a relation, as PostgreSQL's parser resolves it. skip is
+// the WITH clause of n, which walkWith has already visited.
+func (a *accessTableExtractor) walk(n ast.Node, ctes []string, skip ast.Node) {
+	if w := withClauseOf(n); w != nil && skip == nil {
+		a.walkWith(n, w, ctes)
+		return
+	}
+	ast.Inspect(n, func(c ast.Node) bool {
+		if a.err != nil || (skip != nil && c == skip) {
+			return false
+		}
+		if c != n {
+			if w := withClauseOf(c); w != nil {
+				a.walkWith(c, w, ctes)
+				return false
+			}
+		}
+		if rv, ok := c.(*ast.RangeVar); ok && !(rv.Schemaname == "" && rv.Catalogname == "" && slices.Contains(ctes, rv.Relname)) {
+			a.processRangeVar(rv)
+		}
+		return true
+	})
+}
+
+// walkWith walks a statement with a WITH clause. A CTE's own query sees the
+// CTEs before it, or, in WITH RECURSIVE, every CTE of the clause; the rest of
+// the statement sees them all.
+func (a *accessTableExtractor) walkWith(n ast.Node, w *ast.WithClause, outer []string) {
+	var names []string
+	var ctes []*ast.CommonTableExpr
+	if w.Ctes != nil {
+		for _, item := range w.Ctes.Items {
+			if cte, ok := item.(*ast.CommonTableExpr); ok {
+				ctes = append(ctes, cte)
+				names = append(names, cte.Ctename)
+			}
+		}
+	}
+	for i, cte := range ctes {
+		visible := names[:i]
+		if w.Recursive {
+			visible = names
+		}
+		a.walk(cte, append(slices.Clone(outer), visible...), nil)
+	}
+	a.walk(n, append(slices.Clone(outer), names...), w)
+}
+
+// withClauseOf returns the WITH clause of a statement that can have one.
+func withClauseOf(n ast.Node) *ast.WithClause {
+	switch n := n.(type) {
+	case *ast.SelectStmt:
+		return n.WithClause
+	case *ast.InsertStmt:
+		return n.WithClause
+	case *ast.UpdateStmt:
+		return n.WithClause
+	case *ast.DeleteStmt:
+		return n.WithClause
+	case *ast.MergeStmt:
+		return n.WithClause
+	}
+	return nil
 }
 
 func (a *accessTableExtractor) processRangeVar(rv *ast.RangeVar) {

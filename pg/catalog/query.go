@@ -682,13 +682,18 @@ type RangeTableEntry struct {
 	// reference to a column that equals an input Var is analyzed as that
 	// Var, so only those COALESCE columns are read through the join entry.
 	JoinAliasVars []AnalyzedExpr
-	Lateral       bool                // LATERAL subquery or function
-	CTEName       string              // for RTECTE: name of referenced CTE
-	CTEIndex      int                 // for RTECTE: index into Query.CTEList
-	FuncExprs     []AnalyzedExpr      // for RTEFunction: function call expressions
-	Ordinality    bool                // for RTEFunction: WITH ORDINALITY
-	TableFunc     *TableFuncQ         // for RTETableFunc: XMLTABLE definition
-	Tablesample   *TablesampleClauseQ // for RTERelation: TABLESAMPLE clause
+	// JoinUsingAlias is, for RTEJoin, the name JOIN ... USING (...) AS name
+	// gives the merged columns, the first joinMergedCols of ColNames. A
+	// reference qualified by it reaches those columns and no others.
+	JoinUsingAlias string
+	joinMergedCols int
+	Lateral        bool                // LATERAL subquery or function
+	CTEName        string              // for RTECTE: name of referenced CTE
+	CTEIndex       int                 // for RTECTE: index into Query.CTEList
+	FuncExprs      []AnalyzedExpr      // for RTEFunction: function call expressions
+	Ordinality     bool                // for RTEFunction: WITH ORDINALITY
+	TableFunc      *TableFuncQ         // for RTETableFunc: XMLTABLE definition
+	Tablesample    *TablesampleClauseQ // for RTERelation: TABLESAMPLE clause
 	// FuncColCounts holds, for RTEFunction, how many of ColNames each of
 	// FuncExprs produces, in order; an ORDINALITY column follows them all.
 	// It is nil when UnknownColumns is set.
@@ -705,6 +710,21 @@ type RangeTableEntry struct {
 	// funcColDefs holds, for RTEFunction, each function's column
 	// definition list, or nil for a function without one.
 	funcColDefs []*funcColDef
+}
+
+// refColumns reports whether name refers to the entry, and how many of its
+// columns, from the first, a reference qualified by name reaches: every one
+// by its reference name, or the merged columns by a join's USING alias.
+//
+// pg: src/backend/parser/parse_clause.c — transformFromClauseItem (join_using_alias)
+func (rte *RangeTableEntry) refColumns(name string) (int, bool) {
+	if rte.ERef == name {
+		return len(rte.ColNames), true
+	}
+	if rte.Kind == RTEJoin && rte.JoinUsingAlias != "" && rte.JoinUsingAlias == name {
+		return rte.joinMergedCols, true
+	}
+	return 0, false
 }
 
 // inferredColumn reports whether column attNum of an UnknownColumns entry

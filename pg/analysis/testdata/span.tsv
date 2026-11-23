@@ -1,0 +1,497 @@
+# pin: pg18 postgres:18.7-alpine sha256:75dcac3dfb1cd01ca3536910bbc84128759362f8b118bf8c55b38a94f68f3b73 REL_18_7
+# columns: omni, expected, source, fixture, session, aspect, statement
+id, name	id, name	engine	base	public	results	SELECT id, name FROM customers
+db.public.customers.id | db.public.customers.name	db.public.customers.id | db.public.customers.name	engine	base	public	lineage	SELECT id, name FROM customers
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT id, name FROM customers
+customer, email	customer, email	engine	base	public	results	SELECT c.id AS customer, c.email FROM customers c
+db.public.customers.id | db.public.customers.email	db.public.customers.id | db.public.customers.email	engine	base	public	lineage	SELECT c.id AS customer, c.email FROM customers c
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT c.id AS customer, c.email FROM customers c
+?column?, upper	?column?, upper	engine	base	public	results	SELECT id + customer_id, upper(status) FROM orders
+db.public.orders.customer_id db.public.orders.id | db.public.orders.status	~ | ~	engine	base	public	lineage	SELECT id + customer_id, upper(status) FROM orders
+db.public.orders	db.public.orders	engine	base	public	tables	SELECT id + customer_id, upper(status) FROM orders
+doubled, shout	doubled, shout	engine	base	public	results	SELECT amount * 2 AS doubled, status || '!' AS shout FROM orders
+db.public.orders.amount | db.public.orders.status	~ | ~	engine	base	public	lineage	SELECT amount * 2 AS doubled, status || '!' AS shout FROM orders
+db.public.orders	db.public.orders	engine	base	public	tables	SELECT amount * 2 AS doubled, status || '!' AS shout FROM orders
+a, amount	a, amount	engine	base	public	results	SELECT CAST(amount AS text) AS a, amount::int FROM orders
+db.public.orders.amount | db.public.orders.amount	~ | ~	engine	base	public	lineage	SELECT CAST(amount AS text) AS a, amount::int FROM orders
+db.public.orders	db.public.orders	engine	base	public	tables	SELECT CAST(amount AS text) AS a, amount::int FROM orders
+?column?, b	?column?, b	engine	base	public	results	SELECT 1, 'a' AS b
+- | -	~ | ~	engine	base	public	lineage	SELECT 1, 'a' AS b
+-	-	engine	base	public	tables	SELECT 1, 'a' AS b
+region	region	engine	base	public	results	SELECT DISTINCT region FROM customers
+db.public.customers.region	db.public.customers.region	engine	base	public	lineage	SELECT DISTINCT region FROM customers
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT DISTINCT region FROM customers
+name	name	engine	base	public	results	SELECT name FROM customers ORDER BY region LIMIT 5
+db.public.customers.name	db.public.customers.name	engine	base	public	lineage	SELECT name FROM customers ORDER BY region LIMIT 5
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT name FROM customers ORDER BY region LIMIT 5
+id	id	engine	base	public	results	SELECT id FROM orders OFFSET 1 ROWS FETCH FIRST 2 ROWS ONLY
+db.public.orders.id	db.public.orders.id	engine	base	public	lineage	SELECT id FROM orders OFFSET 1 ROWS FETCH FIRST 2 ROWS ONLY
+db.public.orders	db.public.orders	engine	base	public	tables	SELECT id FROM orders OFFSET 1 ROWS FETCH FIRST 2 ROWS ONLY
+s	s	engine	base	public	results	SELECT CASE WHEN amount > 10 THEN status ELSE 'small' END AS s FROM orders
+db.public.orders.amount db.public.orders.status	~	engine	base	public	lineage	SELECT CASE WHEN amount > 10 THEN status ELSE 'small' END AS s FROM orders
+db.public.orders	db.public.orders	engine	base	public	tables	SELECT CASE WHEN amount > 10 THEN status ELSE 'small' END AS s FROM orders
+coalesce	coalesce	engine	base	public	results	SELECT coalesce(email, name) FROM customers
+db.public.customers.email db.public.customers.name	~	engine	base	public	lineage	SELECT coalesce(email, name) FROM customers
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT coalesce(email, name) FROM customers
+id	id	engine	base	public	results	SELECT id FROM customers WHERE email LIKE '%@example.com'
+db.public.customers.id	db.public.customers.id	engine	base	public	lineage	SELECT id FROM customers WHERE email LIKE '%@example.com'
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT id FROM customers WHERE email LIKE '%@example.com'
+name	name	engine	base	public	results	SELECT public.customers.name FROM public.customers
+db.public.customers.name	db.public.customers.name	engine	base	public	lineage	SELECT public.customers.name FROM public.customers
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT public.customers.name FROM public.customers
+id, name, email, region	id, name, email, region	engine	base	public	results	TABLE customers
+db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region	db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region	engine	base	public	lineage	TABLE customers
+db.public.customers	db.public.customers	engine	base	public	tables	TABLE customers
+c	c	engine	base	public	results	SELECT c FROM customers c
+db.public.customers.email db.public.customers.id db.public.customers.name db.public.customers.region	db.public.customers.email db.public.customers.id db.public.customers.name db.public.customers.region	engine	base	public	lineage	SELECT c FROM customers c
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT c FROM customers c
+customers	customers	engine	base	public	results	SELECT customers FROM customers
+db.public.customers.email db.public.customers.id db.public.customers.name db.public.customers.region	db.public.customers.email db.public.customers.id db.public.customers.name db.public.customers.region	engine	base	public	lineage	SELECT customers FROM customers
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT customers FROM customers
+name, id, name, email, region	name, id, name, email, region	engine	base	public	results	SELECT (c).name, (c).* FROM customers c
+db.public.customers.name | db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region	db.public.customers.name | db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region	engine	base	public	lineage	SELECT (c).name, (c).* FROM customers c
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT (c).name, (c).* FROM customers c
+row_to_json	row_to_json	engine	base	public	results	SELECT row_to_json(c) FROM customers c
+db.public.customers.email db.public.customers.id db.public.customers.name db.public.customers.region	~	engine	base	public	lineage	SELECT row_to_json(c) FROM customers c
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT row_to_json(c) FROM customers c
+ctid, xmin, id	ctid, xmin, id	engine	base	public	results	SELECT ctid, xmin, id FROM customers
+db.public.customers.ctid | db.public.customers.xmin | db.public.customers.id	db.public.customers.ctid | db.public.customers.xmin | db.public.customers.id	engine	base	public	lineage	SELECT ctid, xmin, id FROM customers
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT ctid, xmin, id FROM customers
+ctid	ctid	engine	base	public	results	SELECT s.ctid FROM (SELECT ctid FROM customers) s
+db.public.customers.ctid	db.public.customers.ctid	engine	base	public	lineage	SELECT s.ctid FROM (SELECT ctid FROM customers) s
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT s.ctid FROM (SELECT ctid FROM customers) s
+tableoid, id	tableoid, id	engine	base	public	results	SELECT tableoid, id FROM events
+db.public.events.tableoid | db.public.events.id	db.public.events.tableoid | db.public.events.id	engine	base	public	lineage	SELECT tableoid, id FROM events
+db.public.events	db.public.events	engine	base	public	tables	SELECT tableoid, id FROM events
+id, name, email, region	id, name, email, region	engine	base	public	results	SELECT * FROM ONLY customers
+db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region	db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region	engine	base	public	lineage	SELECT * FROM ONLY customers
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT * FROM ONLY customers
+id, name, email, region	id, name, email, region	engine	base	public	results	SELECT * FROM customers TABLESAMPLE SYSTEM (50)
+db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region	db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region	engine	base	public	lineage	SELECT * FROM customers TABLESAMPLE SYSTEM (50)
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT * FROM customers TABLESAMPLE SYSTEM (50)
+a, b	a, b	engine	base	public	results	SELECT a, b FROM customers AS c(a, b)
+db.public.customers.id | db.public.customers.name	db.public.customers.id | db.public.customers.name	engine	base	public	lineage	SELECT a, b FROM customers AS c(a, b)
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT a, b FROM customers AS c(a, b)
+id, name, email, region	id, name, email, region	engine	base	public	results	SELECT * FROM customers
+db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region	db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region	engine	base	public	lineage	SELECT * FROM customers
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT * FROM customers
+id, name, email, region	id, name, email, region	engine	base	public	results	SELECT c.* FROM customers c
+db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region	db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region	engine	base	public	lineage	SELECT c.* FROM customers c
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT c.* FROM customers c
+id, customer_id, amount, status, created_at, again	id, customer_id, amount, status, created_at, again	engine	base	public	results	SELECT *, id AS again FROM orders
+db.public.orders.id | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at | db.public.orders.id	db.public.orders.id | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at | db.public.orders.id	engine	base	public	lineage	SELECT *, id AS again FROM orders
+db.public.orders	db.public.orders	engine	base	public	tables	SELECT *, id AS again FROM orders
+id, customer_id, amount, status, created_at, name	id, customer_id, amount, status, created_at, name	engine	base	public	results	SELECT o.*, c.name FROM orders o JOIN customers c ON c.id = o.customer_id
+db.public.orders.id | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at | db.public.customers.name	db.public.orders.id | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at | db.public.customers.name	engine	base	public	lineage	SELECT o.*, c.name FROM orders o JOIN customers c ON c.id = o.customer_id
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT o.*, c.name FROM orders o JOIN customers c ON c.id = o.customer_id
+id, customer_id, amount, status, created_at, id, name, email, region	id, customer_id, amount, status, created_at, id, name, email, region	engine	base	public	results	SELECT * FROM orders o, customers c WHERE o.customer_id = c.id
+db.public.orders.id | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at | db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region	db.public.orders.id | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at | db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region	engine	base	public	lineage	SELECT * FROM orders o, customers c WHERE o.customer_id = c.id
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT * FROM orders o, customers c WHERE o.customer_id = c.id
+id, email	id, email	engine	base	public	results	SELECT s.* FROM (SELECT id, email FROM customers) s
+db.public.customers.id | db.public.customers.email	db.public.customers.id | db.public.customers.email	engine	base	public	lineage	SELECT s.* FROM (SELECT id, email FROM customers) s
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT s.* FROM (SELECT id, email FROM customers) s
+id, name	id, name	engine	base	public	results	SELECT o.id, c.name FROM orders o JOIN customers c ON c.id = o.customer_id
+db.public.orders.id | db.public.customers.name	db.public.orders.id | db.public.customers.name	engine	base	public	lineage	SELECT o.id, c.name FROM orders o JOIN customers c ON c.id = o.customer_id
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT o.id, c.name FROM orders o JOIN customers c ON c.id = o.customer_id
+id, name	id, name	engine	base	public	results	SELECT o.id, c.name FROM orders o LEFT JOIN customers c ON c.id = o.customer_id
+db.public.orders.id | db.public.customers.name	db.public.orders.id | db.public.customers.name	engine	base	public	lineage	SELECT o.id, c.name FROM orders o LEFT JOIN customers c ON c.id = o.customer_id
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT o.id, c.name FROM orders o LEFT JOIN customers c ON c.id = o.customer_id
+id, name	id, name	engine	base	public	results	SELECT o.id, c.name FROM orders o RIGHT JOIN customers c ON c.id = o.customer_id
+db.public.orders.id | db.public.customers.name	db.public.orders.id | db.public.customers.name	engine	base	public	lineage	SELECT o.id, c.name FROM orders o RIGHT JOIN customers c ON c.id = o.customer_id
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT o.id, c.name FROM orders o RIGHT JOIN customers c ON c.id = o.customer_id
+id, name	id, name	engine	base	public	results	SELECT o.id, c.name FROM orders o FULL JOIN customers c ON c.id = o.customer_id
+db.public.orders.id | db.public.customers.name	db.public.orders.id | db.public.customers.name	engine	base	public	lineage	SELECT o.id, c.name FROM orders o FULL JOIN customers c ON c.id = o.customer_id
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT o.id, c.name FROM orders o FULL JOIN customers c ON c.id = o.customer_id
+id, name	id, name	engine	base	public	results	SELECT o.id, c.name FROM orders o CROSS JOIN customers c
+db.public.orders.id | db.public.customers.name	db.public.orders.id | db.public.customers.name	engine	base	public	lineage	SELECT o.id, c.name FROM orders o CROSS JOIN customers c
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT o.id, c.name FROM orders o CROSS JOIN customers c
+id, customer_id, amount, status, created_at, order_id, sku, qty, price	id, customer_id, amount, status, created_at, order_id, sku, qty, price	engine	base	public	results	SELECT * FROM orders JOIN items ON items.order_id = orders.id
+db.public.orders.id | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at | db.public.items.order_id | db.public.items.sku | db.public.items.qty | db.public.items.price	db.public.orders.id | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at | db.public.items.order_id | db.public.items.sku | db.public.items.qty | db.public.items.price	engine	base	public	lineage	SELECT * FROM orders JOIN items ON items.order_id = orders.id
+db.public.items, db.public.orders	db.public.items, db.public.orders	engine	base	public	tables	SELECT * FROM orders JOIN items ON items.order_id = orders.id
+id, name, email, region, id, customer_id, iban	id, name, email, region, id, customer_id, iban	engine	base	public	results	SELECT * FROM customers JOIN accounts ON accounts.customer_id = customers.id
+db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region | db.public.accounts.id | db.public.accounts.customer_id | db.public.accounts.iban	db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region | db.public.accounts.id | db.public.accounts.customer_id | db.public.accounts.iban	engine	base	public	lineage	SELECT * FROM customers JOIN accounts ON accounts.customer_id = customers.id
+db.public.accounts, db.public.customers	db.public.accounts, db.public.customers	engine	base	public	tables	SELECT * FROM customers JOIN accounts ON accounts.customer_id = customers.id
+id, id	id, id	engine	base	public	results	SELECT a.id, b.id FROM customers a JOIN customers b ON a.region = b.region
+db.public.customers.id | db.public.customers.id	db.public.customers.id | db.public.customers.id	engine	base	public	lineage	SELECT a.id, b.id FROM customers a JOIN customers b ON a.region = b.region
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT a.id, b.id FROM customers a JOIN customers b ON a.region = b.region
+id, customer_id, amount, status, created_at, id, name, email, region	id, customer_id, amount, status, created_at, id, name, email, region	engine	base	public	results	SELECT * FROM (orders o JOIN customers c ON c.id = o.customer_id) j
+db.public.orders.id | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at | db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region	db.public.orders.id | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at | db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region	engine	base	public	lineage	SELECT * FROM (orders o JOIN customers c ON c.id = o.customer_id) j
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT * FROM (orders o JOIN customers c ON c.id = o.customer_id) j
+name	name	engine	base	public	results	SELECT j.name FROM (orders o JOIN customers c ON c.id = o.customer_id) AS j
+db.public.customers.name	db.public.customers.name	engine	base	public	lineage	SELECT j.name FROM (orders o JOIN customers c ON c.id = o.customer_id) AS j
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT j.name FROM (orders o JOIN customers c ON c.id = o.customer_id) AS j
+id, name, email, region, customer_id, amount, status, created_at, order_id, sku, qty, price	id, name, email, region, customer_id, amount, status, created_at, order_id, sku, qty, price	engine	base	public	results	SELECT * FROM customers JOIN orders USING (id) JOIN items ON items.order_id = id
+db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at | db.public.items.order_id | db.public.items.sku | db.public.items.qty | db.public.items.price	db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at | db.public.items.order_id | db.public.items.sku | db.public.items.qty | db.public.items.price	engine	base	public	lineage	SELECT * FROM customers JOIN orders USING (id) JOIN items ON items.order_id = id
+db.public.customers, db.public.items, db.public.orders	db.public.customers, db.public.items, db.public.orders	engine	base	public	tables	SELECT * FROM customers JOIN orders USING (id) JOIN items ON items.order_id = id
+id, name, email, region, customer_id, amount, status, created_at, customer_id, iban	id, name, email, region, customer_id, amount, status, created_at, customer_id, iban	engine	base	public	results	SELECT * FROM customers JOIN orders USING (id) JOIN accounts USING (id)
+db.public.accounts.id | db.public.customers.name | db.public.customers.email | db.public.customers.region | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at | db.public.accounts.customer_id | db.public.accounts.iban	db.public.accounts.id | db.public.customers.name | db.public.customers.email | db.public.customers.region | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at | db.public.accounts.customer_id | db.public.accounts.iban	engine	base	public	lineage	SELECT * FROM customers JOIN orders USING (id) JOIN accounts USING (id)
+db.public.accounts, db.public.customers, db.public.orders	db.public.accounts, db.public.customers, db.public.orders	engine	base	public	tables	SELECT * FROM customers JOIN orders USING (id) JOIN accounts USING (id)
+id, name, email, region, customer_id, amount, status, created_at, customer_id, iban	id, name, email, region, customer_id, amount, status, created_at, customer_id, iban	engine	base	public	results	SELECT * FROM customers FULL JOIN orders USING (id) FULL JOIN accounts USING (id)
+db.public.accounts.id db.public.customers.id db.public.orders.id | db.public.customers.name | db.public.customers.email | db.public.customers.region | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at | db.public.accounts.customer_id | db.public.accounts.iban	~ | db.public.customers.name | db.public.customers.email | db.public.customers.region | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at | db.public.accounts.customer_id | db.public.accounts.iban	engine	base	public	lineage	SELECT * FROM customers FULL JOIN orders USING (id) FULL JOIN accounts USING (id)
+db.public.accounts, db.public.customers, db.public.orders	db.public.accounts, db.public.customers, db.public.orders	engine	base	public	tables	SELECT * FROM customers FULL JOIN orders USING (id) FULL JOIN accounts USING (id)
+id, email, name, region	id, email, name, region	engine	base	public	results	SELECT * FROM customers JOIN customer_emails USING (id, email)
+db.public.customers.id | db.public.customers.email | db.public.customers.name | db.public.customers.region	db.public.customers.id | db.public.customers.email | db.public.customers.name | db.public.customers.region	engine	base	public	lineage	SELECT * FROM customers JOIN customer_emails USING (id, email)
+db.public.customer_emails, db.public.customers	db.public.customer_emails, db.public.customers	engine	base	public	tables	SELECT * FROM customers JOIN customer_emails USING (id, email)
+id, email, name, region	id, email, name, region	engine	base	public	results	SELECT * FROM customers NATURAL FULL JOIN customer_emails
+db.public.customer_emails.id db.public.customers.id | db.public.customer_emails.email db.public.customers.email | db.public.customers.name | db.public.customers.region	~ | ~ | db.public.customers.name | db.public.customers.region	engine	base	public	lineage	SELECT * FROM customers NATURAL FULL JOIN customer_emails
+db.public.customer_emails, db.public.customers	db.public.customer_emails, db.public.customers	engine	base	public	tables	SELECT * FROM customers NATURAL FULL JOIN customer_emails
+id, name, email, region, customer_id, amount, status, created_at	id, name, email, region, customer_id, amount, status, created_at	engine	base	public	results	SELECT * FROM (SELECT * FROM customers) s JOIN orders USING (id)
+db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at	db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at	engine	base	public	lineage	SELECT * FROM (SELECT * FROM customers) s JOIN orders USING (id)
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT * FROM (SELECT * FROM customers) s JOIN orders USING (id)
+id, name	error:42703	engine	base	public	results	SELECT j.id, j.name FROM customers JOIN orders USING (id) AS j
+- | -	error:42703	engine	base	public	lineage	SELECT j.id, j.name FROM customers JOIN orders USING (id) AS j
+db.public.customers, db.public.orders	error:42703	engine	base	public	tables	SELECT j.id, j.name FROM customers JOIN orders USING (id) AS j
+id	id	engine	base	public	results	SELECT j.id FROM customers FULL JOIN orders USING (id) AS j
+db.public.customers.id db.public.orders.id	~	engine	base	public	lineage	SELECT j.id FROM customers FULL JOIN orders USING (id) AS j
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT j.id FROM customers FULL JOIN orders USING (id) AS j
+id	id	engine	base	public	results	SELECT j.* FROM customers JOIN orders USING (id) AS j
+db.public.customers.id	db.public.customers.id	engine	base	public	lineage	SELECT j.* FROM customers JOIN orders USING (id) AS j
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT j.* FROM customers JOIN orders USING (id) AS j
+id, customer_id, amount, status, created_at, order_id, sku, qty, price, name, email, region	id, customer_id, amount, status, created_at, order_id, sku, qty, price, name, email, region	engine	base	public	results	SELECT * FROM orders JOIN items ON true JOIN customers USING (id)
+db.public.orders.id | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at | db.public.items.order_id | db.public.items.sku | db.public.items.qty | db.public.items.price | db.public.customers.name | db.public.customers.email | db.public.customers.region	db.public.orders.id | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at | db.public.items.order_id | db.public.items.sku | db.public.items.qty | db.public.items.price | db.public.customers.name | db.public.customers.email | db.public.customers.region	engine	base	public	lineage	SELECT * FROM orders JOIN items ON true JOIN customers USING (id)
+db.public.customers, db.public.items, db.public.orders	db.public.customers, db.public.items, db.public.orders	engine	base	public	tables	SELECT * FROM orders JOIN items ON true JOIN customers USING (id)
+id, name, amount	id, name, amount	engine	base	public	results	SELECT id, name, amount FROM customers JOIN orders USING (id)
+db.public.customers.id | db.public.customers.name | db.public.orders.amount	db.public.customers.id | db.public.customers.name | db.public.orders.amount	engine	base	public	lineage	SELECT id, name, amount FROM customers JOIN orders USING (id)
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT id, name, amount FROM customers JOIN orders USING (id)
+id, name, email, region, customer_id, amount, status, created_at	id, name, email, region, customer_id, amount, status, created_at	engine	base	public	results	SELECT * FROM customers JOIN orders USING (id)
+db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at	db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at	engine	base	public	lineage	SELECT * FROM customers JOIN orders USING (id)
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT * FROM customers JOIN orders USING (id)
+id, name, email, region, customer_id, amount, status, created_at	id, name, email, region, customer_id, amount, status, created_at	engine	base	public	results	SELECT * FROM customers LEFT JOIN orders USING (id)
+db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at	db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at	engine	base	public	lineage	SELECT * FROM customers LEFT JOIN orders USING (id)
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT * FROM customers LEFT JOIN orders USING (id)
+id, name, email, region, customer_id, amount, status, created_at	id, name, email, region, customer_id, amount, status, created_at	engine	base	public	results	SELECT * FROM customers RIGHT JOIN orders USING (id)
+db.public.orders.id | db.public.customers.name | db.public.customers.email | db.public.customers.region | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at	db.public.orders.id | db.public.customers.name | db.public.customers.email | db.public.customers.region | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at	engine	base	public	lineage	SELECT * FROM customers RIGHT JOIN orders USING (id)
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT * FROM customers RIGHT JOIN orders USING (id)
+id, name, email, region, customer_id, amount, status, created_at	id, name, email, region, customer_id, amount, status, created_at	engine	base	public	results	SELECT * FROM customers FULL JOIN orders USING (id)
+db.public.customers.id db.public.orders.id | db.public.customers.name | db.public.customers.email | db.public.customers.region | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at	~ | db.public.customers.name | db.public.customers.email | db.public.customers.region | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at	engine	base	public	lineage	SELECT * FROM customers FULL JOIN orders USING (id)
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT * FROM customers FULL JOIN orders USING (id)
+id, name, email, region, customer_id, iban	id, name, email, region, customer_id, iban	engine	base	public	results	SELECT * FROM customers JOIN accounts USING (id)
+db.public.accounts.id | db.public.customers.name | db.public.customers.email | db.public.customers.region | db.public.accounts.customer_id | db.public.accounts.iban	db.public.accounts.id | db.public.customers.name | db.public.customers.email | db.public.customers.region | db.public.accounts.customer_id | db.public.accounts.iban	engine	base	public	lineage	SELECT * FROM customers JOIN accounts USING (id)
+db.public.accounts, db.public.customers	db.public.accounts, db.public.customers	engine	base	public	tables	SELECT * FROM customers JOIN accounts USING (id)
+id	id	engine	base	public	results	SELECT id FROM accounts JOIN customers USING (id)
+db.public.accounts.id	db.public.accounts.id	engine	base	public	lineage	SELECT id FROM accounts JOIN customers USING (id)
+db.public.accounts, db.public.customers	db.public.accounts, db.public.customers	engine	base	public	tables	SELECT id FROM accounts JOIN customers USING (id)
+id, id	id, id	engine	base	public	results	SELECT customers.id, orders.id FROM customers JOIN orders USING (id)
+db.public.customers.id | db.public.orders.id	db.public.customers.id | db.public.orders.id	engine	base	public	lineage	SELECT customers.id, orders.id FROM customers JOIN orders USING (id)
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT customers.id, orders.id FROM customers JOIN orders USING (id)
+id, email, name, region	id, email, name, region	engine	base	public	results	SELECT * FROM customers NATURAL JOIN customer_emails
+db.public.customers.id | db.public.customers.email | db.public.customers.name | db.public.customers.region	db.public.customers.id | db.public.customers.email | db.public.customers.name | db.public.customers.region	engine	base	public	lineage	SELECT * FROM customers NATURAL JOIN customer_emails
+db.public.customer_emails, db.public.customers	db.public.customer_emails, db.public.customers	engine	base	public	tables	SELECT * FROM customers NATURAL JOIN customer_emails
+id, customer_id, amount, status, created_at, order_id, sku, qty, price	id, customer_id, amount, status, created_at, order_id, sku, qty, price	engine	base	public	results	SELECT * FROM orders NATURAL JOIN items
+db.public.orders.id | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at | db.public.items.order_id | db.public.items.sku | db.public.items.qty | db.public.items.price	db.public.orders.id | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at | db.public.items.order_id | db.public.items.sku | db.public.items.qty | db.public.items.price	engine	base	public	lineage	SELECT * FROM orders NATURAL JOIN items
+db.public.items, db.public.orders	db.public.items, db.public.orders	engine	base	public	tables	SELECT * FROM orders NATURAL JOIN items
+id, name, email, region, customer_id, amount, status, created_at	id, name, email, region, customer_id, amount, status, created_at	engine	base	public	results	SELECT * FROM customers JOIN orders AS o USING (id) AS j
+db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at	db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region | db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status | db.public.orders.created_at	engine	base	public	lineage	SELECT * FROM customers JOIN orders AS o USING (id) AS j
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT * FROM customers JOIN orders AS o USING (id) AS j
+id	id	engine	base	public	results	SELECT j.id FROM customers JOIN orders USING (id) AS j
+db.public.customers.id	db.public.customers.id	engine	base	public	lineage	SELECT j.id FROM customers JOIN orders USING (id) AS j
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT j.id FROM customers JOIN orders USING (id) AS j
+any	any	engine	base	public	results	SELECT EXISTS (SELECT 1 FROM orders) AS any
+-	~	engine	base	public	lineage	SELECT EXISTS (SELECT 1 FROM orders) AS any
+db.public.orders	db.public.orders	engine	base	public	tables	SELECT EXISTS (SELECT 1 FROM orders) AS any
+id	id	engine	base	public	results	SELECT id FROM customers WHERE id = ANY (SELECT customer_id FROM orders)
+db.public.customers.id	db.public.customers.id	engine	base	public	lineage	SELECT id FROM customers WHERE id = ANY (SELECT customer_id FROM orders)
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT id FROM customers WHERE id = ANY (SELECT customer_id FROM orders)
+name	name	engine	base	public	results	SELECT orders.name FROM (SELECT * FROM customers) AS orders
+db.public.customers.name	db.public.customers.name	engine	base	public	lineage	SELECT orders.name FROM (SELECT * FROM customers) AS orders
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT orders.name FROM (SELECT * FROM customers) AS orders
+id, x	id, x	engine	base	public	results	SELECT c.id, t.x FROM customers c, LATERAL unnest(ARRAY[c.name, c.email]) AS t(x)
+db.public.customers.id | db.public.customers.email db.public.customers.name	db.public.customers.id | ~	engine	base	public	lineage	SELECT c.id, t.x FROM customers c, LATERAL unnest(ARRAY[c.name, c.email]) AS t(x)
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT c.id, t.x FROM customers c, LATERAL unnest(ARRAY[c.name, c.email]) AS t(x)
+g	g	engine	base	public	results	SELECT * FROM generate_series(1, 3) AS g
+-	~	engine	base	public	lineage	SELECT * FROM generate_series(1, 3) AS g
+-	-	engine	base	public	tables	SELECT * FROM generate_series(1, 3) AS g
+n, name	n, name	engine	base	public	results	SELECT g.n, c.name FROM generate_series(1, 3) AS g(n) JOIN customers c ON c.id = g.n
+- | db.public.customers.name	~ | db.public.customers.name	engine	base	public	lineage	SELECT g.n, c.name FROM generate_series(1, 3) AS g(n) JOIN customers c ON c.id = g.n
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT g.n, c.name FROM generate_series(1, 3) AS g(n) JOIN customers c ON c.id = g.n
+n, s	n, s	engine	base	public	results	SELECT * FROM ROWS FROM (generate_series(1, 2), unnest(ARRAY['a', 'b'])) AS r(n, s)
+- | -	~ | ~	engine	base	public	lineage	SELECT * FROM ROWS FROM (generate_series(1, 2), unnest(ARRAY['a', 'b'])) AS r(n, s)
+-	-	engine	base	public	tables	SELECT * FROM ROWS FROM (generate_series(1, 2), unnest(ARRAY['a', 'b'])) AS r(n, s)
+v	v	engine	base	public	results	SELECT jt.* FROM orders, JSON_TABLE('[1, 2]'::jsonb, '$[*]' COLUMNS (v int PATH '$')) AS jt
+-	~	engine	base	public	lineage	SELECT jt.* FROM orders, JSON_TABLE('[1, 2]'::jsonb, '$[*]' COLUMNS (v int PATH '$')) AS jt
+db.public.orders	db.public.orders	engine	base	public	tables	SELECT jt.* FROM orders, JSON_TABLE('[1, 2]'::jsonb, '$[*]' COLUMNS (v int PATH '$')) AS jt
+v	v	engine	base	public	results	SELECT jt.v FROM customers c, JSON_TABLE(to_jsonb(c.email), '$' COLUMNS (v text PATH '$')) AS jt
+-	~	engine	base	public	lineage	SELECT jt.v FROM customers c, JSON_TABLE(to_jsonb(c.email), '$' COLUMNS (v text PATH '$')) AS jt
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT jt.v FROM customers c, JSON_TABLE(to_jsonb(c.email), '$' COLUMNS (v text PATH '$')) AS jt
+id, name, email, region, n, v	id, name, email, region, n, v	engine	base	public	results	SELECT * FROM customers c, JSON_TABLE(to_jsonb(c.email), '$' COLUMNS (n FOR ORDINALITY, v text PATH '$')) AS jt
+db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region | - | db.public.customers.email	db.public.customers.id | db.public.customers.name | db.public.customers.email | db.public.customers.region | ~ | ~	engine	base	public	lineage	SELECT * FROM customers c, JSON_TABLE(to_jsonb(c.email), '$' COLUMNS (n FOR ORDINALITY, v text PATH '$')) AS jt
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT * FROM customers c, JSON_TABLE(to_jsonb(c.email), '$' COLUMNS (n FOR ORDINALITY, v text PATH '$')) AS jt
+id	id	engine	base	public	results	SELECT s.id FROM (SELECT id FROM customers UNION SELECT id FROM orders ORDER BY 1 LIMIT 2) s
+db.public.customers.id db.public.orders.id	~	engine	base	public	lineage	SELECT s.id FROM (SELECT id FROM customers UNION SELECT id FROM orders ORDER BY 1 LIMIT 2) s
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT s.id FROM (SELECT id FROM customers UNION SELECT id FROM orders ORDER BY 1 LIMIT 2) s
+top	top	engine	base	public	results	SELECT (SELECT max(amount) FROM orders) AS top
+db.public.orders.amount	~	engine	base	public	lineage	SELECT (SELECT max(amount) FROM orders) AS top
+db.public.orders	db.public.orders	engine	base	public	tables	SELECT (SELECT max(amount) FROM orders) AS top
+name, n	name, n	engine	base	public	results	SELECT name, (SELECT count(*) FROM orders o WHERE o.customer_id = c.id) AS n FROM customers c
+db.public.customers.name | -	db.public.customers.name | ~	engine	base	public	lineage	SELECT name, (SELECT count(*) FROM orders o WHERE o.customer_id = c.id) AS n FROM customers c
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT name, (SELECT count(*) FROM orders o WHERE o.customer_id = c.id) AS n FROM customers c
+name	name	engine	base	public	results	SELECT name FROM customers WHERE id IN (SELECT customer_id FROM orders)
+db.public.customers.name	db.public.customers.name	engine	base	public	lineage	SELECT name FROM customers WHERE id IN (SELECT customer_id FROM orders)
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT name FROM customers WHERE id IN (SELECT customer_id FROM orders)
+name	name	engine	base	public	results	SELECT name FROM customers c WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id)
+db.public.customers.name	db.public.customers.name	engine	base	public	lineage	SELECT name FROM customers c WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id)
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT name FROM customers c WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id)
+id	id	engine	base	public	results	SELECT id FROM (SELECT id, name FROM customers) AS s
+db.public.customers.id	db.public.customers.id	engine	base	public	lineage	SELECT id FROM (SELECT id, name FROM customers) AS s
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT id FROM (SELECT id, name FROM customers) AS s
+x	x	engine	base	public	results	SELECT x FROM (SELECT id AS x FROM customers) s
+db.public.customers.id	db.public.customers.id	engine	base	public	lineage	SELECT x FROM (SELECT id AS x FROM customers) s
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT x FROM (SELECT id AS x FROM customers) s
+a, b	a, b	engine	base	public	results	SELECT a, b FROM (SELECT id, email FROM customers) AS s(a, b)
+db.public.customers.id | db.public.customers.email	db.public.customers.id | db.public.customers.email	engine	base	public	lineage	SELECT a, b FROM (SELECT id, email FROM customers) AS s(a, b)
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT a, b FROM (SELECT id, email FROM customers) AS s(a, b)
+n	n	engine	base	public	results	SELECT t.n FROM (SELECT amount + 1 AS n FROM orders) t
+db.public.orders.amount	~	engine	base	public	lineage	SELECT t.n FROM (SELECT amount + 1 AS n FROM orders) t
+db.public.orders	db.public.orders	engine	base	public	tables	SELECT t.n FROM (SELECT amount + 1 AS n FROM orders) t
+id, region	id, region	engine	base	public	results	SELECT * FROM (SELECT * FROM (SELECT id, region FROM customers) a) b
+db.public.customers.id | db.public.customers.region	db.public.customers.id | db.public.customers.region	engine	base	public	lineage	SELECT * FROM (SELECT * FROM (SELECT id, region FROM customers) a) b
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT * FROM (SELECT * FROM (SELECT id, region FROM customers) a) b
+name, amount	name, amount	engine	base	public	results	SELECT c.name, l.amount FROM customers c, LATERAL (SELECT amount FROM orders o WHERE o.customer_id = c.id) l
+db.public.customers.name | db.public.orders.amount	db.public.customers.name | db.public.orders.amount	engine	base	public	lineage	SELECT c.name, l.amount FROM customers c, LATERAL (SELECT amount FROM orders o WHERE o.customer_id = c.id) l
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT c.name, l.amount FROM customers c, LATERAL (SELECT amount FROM orders o WHERE o.customer_id = c.id) l
+name, m, min	name, m, min	engine	base	public	results	SELECT c.name, l.* FROM customers c CROSS JOIN LATERAL (SELECT max(amount) AS m, min(status) FROM orders o WHERE o.customer_id = c.id) l
+db.public.customers.name | db.public.orders.amount | db.public.orders.status	db.public.customers.name | ~ | ~	engine	base	public	lineage	SELECT c.name, l.* FROM customers c CROSS JOIN LATERAL (SELECT max(amount) AS m, min(status) FROM orders o WHERE o.customer_id = c.id) l
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT c.name, l.* FROM customers c CROSS JOIN LATERAL (SELECT max(amount) AS m, min(status) FROM orders o WHERE o.customer_id = c.id) l
+name, amount	name, amount	engine	base	public	results	SELECT c.name, l.amount FROM customers c LEFT JOIN LATERAL (SELECT amount FROM orders o WHERE o.customer_id = c.id LIMIT 1) l ON true
+db.public.customers.name | db.public.orders.amount	db.public.customers.name | db.public.orders.amount	engine	base	public	lineage	SELECT c.name, l.amount FROM customers c LEFT JOIN LATERAL (SELECT amount FROM orders o WHERE o.customer_id = c.id LIMIT 1) l ON true
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT c.name, l.amount FROM customers c LEFT JOIN LATERAL (SELECT amount FROM orders o WHERE o.customer_id = c.id LIMIT 1) l ON true
+id, email, email	id, email, email	engine	base	public	results	WITH x AS (SELECT id, email FROM customers) SELECT * FROM x a JOIN x b USING (id)
+db.public.customers.id | db.public.customers.email | db.public.customers.email	db.public.customers.id | db.public.customers.email | db.public.customers.email	engine	base	public	lineage	WITH x AS (SELECT id, email FROM customers) SELECT * FROM x a JOIN x b USING (id)
+db.public.customers	db.public.customers	engine	base	public	tables	WITH x AS (SELECT id, email FROM customers) SELECT * FROM x a JOIN x b USING (id)
+name	name	engine	base	public	results	WITH "Cte" AS (SELECT id, name FROM customers) SELECT "Cte".name FROM "Cte"
+db.public.customers.name	db.public.customers.name	engine	base	public	lineage	WITH "Cte" AS (SELECT id, name FROM customers) SELECT "Cte".name FROM "Cte"
+db.public.customers	db.public.customers	engine	base	public	tables	WITH "Cte" AS (SELECT id, name FROM customers) SELECT "Cte".name FROM "Cte"
+id, status	id, status	engine	base	public	results	WITH c AS (SELECT id, email FROM customers) SELECT * FROM (WITH c AS (SELECT id, status FROM orders) SELECT * FROM c) inner_q
+db.public.orders.id | db.public.orders.status	db.public.orders.id | db.public.orders.status	engine	base	public	lineage	WITH c AS (SELECT id, email FROM customers) SELECT * FROM (WITH c AS (SELECT id, status FROM orders) SELECT * FROM c) inner_q
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	WITH c AS (SELECT id, email FROM customers) SELECT * FROM (WITH c AS (SELECT id, status FROM orders) SELECT * FROM c) inner_q
+name, count	name, count	engine	base	public	results	WITH orders AS (SELECT * FROM customers) SELECT o.name, (SELECT count(*) FROM orders) FROM orders o
+db.public.customers.name | -	db.public.customers.name | ~	engine	base	public	lineage	WITH orders AS (SELECT * FROM customers) SELECT o.name, (SELECT count(*) FROM orders) FROM orders o
+db.public.customers	db.public.customers	engine	base	public	tables	WITH orders AS (SELECT * FROM customers) SELECT o.name, (SELECT count(*) FROM orders) FROM orders o
+status	status	engine	base	public	results	WITH a AS (SELECT id, status FROM orders), b AS (SELECT * FROM a UNION ALL SELECT id, name FROM customers) SELECT status FROM b
+db.public.customers.name db.public.orders.status	~	engine	base	public	lineage	WITH a AS (SELECT id, status FROM orders), b AS (SELECT * FROM a UNION ALL SELECT id, name FROM customers) SELECT status FROM b
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	WITH a AS (SELECT id, status FROM orders), b AS (SELECT * FROM a UNION ALL SELECT id, name FROM customers) SELECT status FROM b
+id, email	id, email	engine	base	public	results	WITH c AS (SELECT id, email FROM customers) SELECT * FROM c
+db.public.customers.id | db.public.customers.email	db.public.customers.id | db.public.customers.email	engine	base	public	lineage	WITH c AS (SELECT id, email FROM customers) SELECT * FROM c
+db.public.customers	db.public.customers	engine	base	public	tables	WITH c AS (SELECT id, email FROM customers) SELECT * FROM c
+email	email	engine	base	public	results	WITH c AS (SELECT id, email FROM customers) SELECT email FROM c WHERE id > 1
+db.public.customers.email	db.public.customers.email	engine	base	public	lineage	WITH c AS (SELECT id, email FROM customers) SELECT email FROM c WHERE id > 1
+db.public.customers	db.public.customers	engine	base	public	tables	WITH c AS (SELECT id, email FROM customers) SELECT email FROM c WHERE id > 1
+k, v	k, v	engine	base	public	results	WITH c(k, v) AS (SELECT id, email FROM customers) SELECT k, v FROM c
+db.public.customers.id | db.public.customers.email	db.public.customers.id | db.public.customers.email	engine	base	public	lineage	WITH c(k, v) AS (SELECT id, email FROM customers) SELECT k, v FROM c
+db.public.customers	db.public.customers	engine	base	public	tables	WITH c(k, v) AS (SELECT id, email FROM customers) SELECT k, v FROM c
+name	name	engine	base	public	results	WITH a AS (SELECT id, name FROM customers), b AS (SELECT a.name FROM a) SELECT * FROM b
+db.public.customers.name	db.public.customers.name	engine	base	public	lineage	WITH a AS (SELECT id, name FROM customers), b AS (SELECT a.name FROM a) SELECT * FROM b
+db.public.customers	db.public.customers	engine	base	public	tables	WITH a AS (SELECT id, name FROM customers), b AS (SELECT a.name FROM a) SELECT * FROM b
+name, s	name, s	engine	base	public	results	WITH t AS (SELECT customer_id, sum(amount) AS s FROM orders GROUP BY customer_id) SELECT c.name, t.s FROM customers c JOIN t ON t.customer_id = c.id
+db.public.customers.name | db.public.orders.amount	db.public.customers.name | ~	engine	base	public	lineage	WITH t AS (SELECT customer_id, sum(amount) AS s FROM orders GROUP BY customer_id) SELECT c.name, t.s FROM customers c JOIN t ON t.customer_id = c.id
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	WITH t AS (SELECT customer_id, sum(amount) AS s FROM orders GROUP BY customer_id) SELECT c.name, t.s FROM customers c JOIN t ON t.customer_id = c.id
+name	name	engine	base	public	results	WITH customers AS (SELECT id, status AS name FROM orders) SELECT name FROM customers
+db.public.orders.status	db.public.orders.status	engine	base	public	lineage	WITH customers AS (SELECT id, status AS name FROM orders) SELECT name FROM customers
+db.public.orders	db.public.orders	engine	base	public	tables	WITH customers AS (SELECT id, status AS name FROM orders) SELECT name FROM customers
+email	email	engine	base	public	results	WITH c AS MATERIALIZED (SELECT id, email FROM customers) SELECT email FROM c
+db.public.customers.email	db.public.customers.email	engine	base	public	lineage	WITH c AS MATERIALIZED (SELECT id, email FROM customers) SELECT email FROM c
+db.public.customers	db.public.customers	engine	base	public	tables	WITH c AS MATERIALIZED (SELECT id, email FROM customers) SELECT email FROM c
+id	id	engine	base	public	results	WITH unused AS (SELECT ssn FROM hr.employees) SELECT id FROM customers
+db.public.customers.id	db.public.customers.id	engine	base	public	lineage	WITH unused AS (SELECT ssn FROM hr.employees) SELECT id FROM customers
+db.hr.employees, db.public.customers	db.hr.employees, db.public.customers	engine	base	public	tables	WITH unused AS (SELECT ssn FROM hr.employees) SELECT id FROM customers
+n	n	engine	base	public	results	WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r WHERE n < 5) SELECT n FROM r
+-	~	engine	base	public	lineage	WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r WHERE n < 5) SELECT n FROM r
+-	-	engine	base	public	tables	WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r WHERE n < 5) SELECT n FROM r
+id, manager_id, name	id, manager_id, name	engine	base	public	results	WITH RECURSIVE chain AS (SELECT id, manager_id, name FROM hr.employees WHERE manager_id IS NULL UNION ALL SELECT e.id, e.manager_id, e.name FROM hr.employees e JOIN chain ON e.manager_id = chain.id) SELECT * FROM chain
+db.hr.employees.id | db.hr.employees.manager_id | db.hr.employees.name	~ | ~ | ~	engine	base	public	lineage	WITH RECURSIVE chain AS (SELECT id, manager_id, name FROM hr.employees WHERE manager_id IS NULL UNION ALL SELECT e.id, e.manager_id, e.name FROM hr.employees e JOIN chain ON e.manager_id = chain.id) SELECT * FROM chain
+db.hr.employees	db.hr.employees	engine	base	public	tables	WITH RECURSIVE chain AS (SELECT id, manager_id, name FROM hr.employees WHERE manager_id IS NULL UNION ALL SELECT e.id, e.manager_id, e.name FROM hr.employees e JOIN chain ON e.manager_id = chain.id) SELECT * FROM chain
+name	name	engine	base	public	results	WITH RECURSIVE chain AS (SELECT id, name FROM hr.employees UNION SELECT e.id, e.name FROM hr.employees e JOIN chain c ON c.id = e.manager_id) SELECT name FROM chain
+db.hr.employees.name	~	engine	base	public	lineage	WITH RECURSIVE chain AS (SELECT id, name FROM hr.employees UNION SELECT e.id, e.name FROM hr.employees e JOIN chain c ON c.id = e.manager_id) SELECT name FROM chain
+db.hr.employees	db.hr.employees	engine	base	public	tables	WITH RECURSIVE chain AS (SELECT id, name FROM hr.employees UNION SELECT e.id, e.name FROM hr.employees e JOIN chain c ON c.id = e.manager_id) SELECT name FROM chain
+id, name	id, name	engine	base	public	results	SELECT id, name FROM customers UNION SELECT id, status FROM orders
+db.public.customers.id db.public.orders.id | db.public.customers.name db.public.orders.status	~ | ~	engine	base	public	lineage	SELECT id, name FROM customers UNION SELECT id, status FROM orders
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT id, name FROM customers UNION SELECT id, status FROM orders
+id, name	id, name	engine	base	public	results	SELECT id, name FROM customers UNION ALL SELECT id, status FROM orders
+db.public.customers.id db.public.orders.id | db.public.customers.name db.public.orders.status	~ | ~	engine	base	public	lineage	SELECT id, name FROM customers UNION ALL SELECT id, status FROM orders
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT id, name FROM customers UNION ALL SELECT id, status FROM orders
+email	email	engine	base	public	results	SELECT email FROM customers INTERSECT SELECT status FROM orders
+db.public.customers.email db.public.orders.status	~	engine	base	public	lineage	SELECT email FROM customers INTERSECT SELECT status FROM orders
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT email FROM customers INTERSECT SELECT status FROM orders
+region	region	engine	base	public	results	SELECT region FROM customers EXCEPT SELECT status FROM orders
+db.public.customers.region	~	engine	base	public	lineage	SELECT region FROM customers EXCEPT SELECT status FROM orders
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT region FROM customers EXCEPT SELECT status FROM orders
+id	id	engine	base	public	results	SELECT id FROM customers UNION SELECT id FROM orders UNION SELECT order_id FROM items
+db.public.customers.id db.public.items.order_id db.public.orders.id	~	engine	base	public	lineage	SELECT id FROM customers UNION SELECT id FROM orders UNION SELECT order_id FROM items
+db.public.customers, db.public.items, db.public.orders	db.public.customers, db.public.items, db.public.orders	engine	base	public	tables	SELECT id FROM customers UNION SELECT id FROM orders UNION SELECT order_id FROM items
+id, email	id, email	engine	base	public	results	SELECT * FROM (SELECT id, email FROM customers UNION SELECT id, status FROM orders) u
+db.public.customers.id db.public.orders.id | db.public.customers.email db.public.orders.status	~ | ~	engine	base	public	lineage	SELECT * FROM (SELECT id, email FROM customers UNION SELECT id, status FROM orders) u
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT * FROM (SELECT id, email FROM customers UNION SELECT id, status FROM orders) u
+name	name	engine	base	public	results	SELECT name FROM customers UNION SELECT 'none' ORDER BY 1
+db.public.customers.name	~	engine	base	public	lineage	SELECT name FROM customers UNION SELECT 'none' ORDER BY 1
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT name FROM customers UNION SELECT 'none' ORDER BY 1
+column1, column2	column1, column2	engine	base	public	results	VALUES (1, 'a'), (2, 'b')
+- | -	~ | ~	engine	base	public	lineage	VALUES (1, 'a'), (2, 'b')
+-	-	engine	base	public	tables	VALUES (1, 'a'), (2, 'b')
+n, s	n, s	engine	base	public	results	SELECT * FROM (VALUES (1, 'a')) AS v(n, s)
+- | -	~ | ~	engine	base	public	lineage	SELECT * FROM (VALUES (1, 'a')) AS v(n, s)
+-	-	engine	base	public	tables	SELECT * FROM (VALUES (1, 'a')) AS v(n, s)
+cid, mail	cid, mail	engine	base	public	results	SELECT * FROM renamed
+db.public.renamed.cid | db.public.renamed.mail	db.public.renamed.cid | db.public.renamed.mail	engine	base	public	lineage	SELECT * FROM renamed
+db.public.renamed	db.public.renamed	engine	base	public	tables	SELECT * FROM renamed
+mail	mail	engine	base	public	results	SELECT mail FROM renamed WHERE cid > 0
+db.public.renamed.mail	db.public.renamed.mail	engine	base	public	lineage	SELECT mail FROM renamed WHERE cid > 0
+db.public.renamed	db.public.renamed	engine	base	public	tables	SELECT mail FROM renamed WHERE cid > 0
+ID, Lower	ID, Lower	engine	base	public	results	SELECT * FROM "Mixed"."Upper View"
+db.Mixed.Upper View.ID | db.Mixed.Upper View.Lower	db.Mixed.Upper View.ID | db.Mixed.Upper View.Lower	engine	base	public	lineage	SELECT * FROM "Mixed"."Upper View"
+db.Mixed.Upper View	db.Mixed.Upper View	engine	base	public	tables	SELECT * FROM "Mixed"."Upper View"
+ID, Lower	ID, Lower	engine	base	public	results	SELECT "ID", "Lower" FROM "Mixed"."Upper View" u
+db.Mixed.Upper View.ID | db.Mixed.Upper View.Lower	db.Mixed.Upper View.ID | db.Mixed.Upper View.Lower	engine	base	public	lineage	SELECT "ID", "Lower" FROM "Mixed"."Upper View" u
+db.Mixed.Upper View	db.Mixed.Upper View	engine	base	public	tables	SELECT "ID", "Lower" FROM "Mixed"."Upper View" u
+id, kind, payload	id, kind, payload	engine	base	public	results	SELECT * FROM events
+db.public.events.id | db.public.events.kind | db.public.events.payload	db.public.events.id | db.public.events.kind | db.public.events.payload	engine	base	public	lineage	SELECT * FROM events
+db.public.events	db.public.events	engine	base	public	tables	SELECT * FROM events
+id, payload	id, payload	engine	base	public	results	SELECT id, payload FROM events_a
+db.public.events_a.id | db.public.events_a.payload	db.public.events_a.id | db.public.events_a.payload	engine	base	public	lineage	SELECT id, payload FROM events_a
+db.public.events_a	db.public.events_a	engine	base	public	tables	SELECT id, payload FROM events_a
+kind	kind	engine	base	public	results	SELECT e.kind FROM events e JOIN events_b b USING (id)
+db.public.events.kind	db.public.events.kind	engine	base	public	lineage	SELECT e.kind FROM events e JOIN events_b b USING (id)
+db.public.events, db.public.events_b	db.public.events, db.public.events_b	engine	base	public	tables	SELECT e.kind FROM events e JOIN events_b b USING (id)
+id, email	id, email	engine	base	public	results	SELECT * FROM customer_emails
+db.public.customer_emails.id | db.public.customer_emails.email	db.public.customer_emails.id | db.public.customer_emails.email	engine	base	public	lineage	SELECT * FROM customer_emails
+db.public.customer_emails	db.public.customer_emails	engine	base	public	tables	SELECT * FROM customer_emails
+email	email	engine	base	public	results	SELECT email FROM customer_emails WHERE id = 1
+db.public.customer_emails.email	db.public.customer_emails.email	engine	base	public	lineage	SELECT email FROM customer_emails WHERE id = 1
+db.public.customer_emails	db.public.customer_emails	engine	base	public	tables	SELECT email FROM customer_emails WHERE id = 1
+customer_id, total, n	customer_id, total, n	engine	base	public	results	SELECT * FROM order_totals
+db.public.order_totals.customer_id | db.public.order_totals.total | db.public.order_totals.n	db.public.order_totals.customer_id | db.public.order_totals.total | db.public.order_totals.n	engine	base	public	lineage	SELECT * FROM order_totals
+db.public.order_totals	db.public.order_totals	engine	base	public	tables	SELECT * FROM order_totals
+customer_id, total	customer_id, total	engine	base	public	results	SELECT customer_id, total FROM order_totals
+db.public.order_totals.customer_id | db.public.order_totals.total	db.public.order_totals.customer_id | db.public.order_totals.total	engine	base	public	lineage	SELECT customer_id, total FROM order_totals
+db.public.order_totals	db.public.order_totals	engine	base	public	tables	SELECT customer_id, total FROM order_totals
+id, email, total	id, email, total	engine	base	public	results	SELECT * FROM vip
+db.public.vip.id | db.public.vip.email | db.public.vip.total	db.public.vip.id | db.public.vip.email | db.public.vip.total	engine	base	public	lineage	SELECT * FROM vip
+db.public.vip	db.public.vip	engine	base	public	tables	SELECT * FROM vip
+email, status	email, status	engine	base	public	results	SELECT v.email, o.status FROM vip v JOIN orders o ON o.customer_id = v.id
+db.public.vip.email | db.public.orders.status	db.public.vip.email | db.public.orders.status	engine	base	public	lineage	SELECT v.email, o.status FROM vip v JOIN orders o ON o.customer_id = v.id
+db.public.orders, db.public.vip	db.public.orders, db.public.vip	engine	base	public	tables	SELECT v.email, o.status FROM vip v JOIN orders o ON o.customer_id = v.id
+label	label	engine	base	public	results	SELECT label FROM labeled
+db.public.labeled.label	db.public.labeled.label	engine	base	public	lineage	SELECT label FROM labeled
+db.public.labeled	db.public.labeled	engine	base	public	tables	SELECT label FROM labeled
+name, amount	name, amount	engine	base	public	results	SELECT * FROM staff_orders
+db.public.staff_orders.name | db.public.staff_orders.amount	db.public.staff_orders.name | db.public.staff_orders.amount	engine	base	public	lineage	SELECT * FROM staff_orders
+db.public.staff_orders	db.public.staff_orders	engine	base	public	tables	SELECT * FROM staff_orders
+id, name, dept	id, name, dept	engine	base	public	results	SELECT * FROM hr.directory
+db.hr.directory.id | db.hr.directory.name | db.hr.directory.dept	db.hr.directory.id | db.hr.directory.name | db.hr.directory.dept	engine	base	public	lineage	SELECT * FROM hr.directory
+db.hr.directory	db.hr.directory	engine	base	public	tables	SELECT * FROM hr.directory
+name, ssn	name, ssn	engine	base	public	results	SELECT d.name, e.ssn FROM hr.directory d JOIN hr.employees e USING (id)
+db.hr.directory.name | db.hr.employees.ssn	db.hr.directory.name | db.hr.employees.ssn	engine	base	public	lineage	SELECT d.name, e.ssn FROM hr.directory d JOIN hr.employees e USING (id)
+db.hr.directory, db.hr.employees	db.hr.directory, db.hr.employees	engine	base	public	tables	SELECT d.name, e.ssn FROM hr.directory d JOIN hr.employees e USING (id)
+region, n	region, n	engine	base	public	results	SELECT * FROM region_counts
+db.public.region_counts.region | db.public.region_counts.n	db.public.region_counts.region | db.public.region_counts.n	engine	base	public	lineage	SELECT * FROM region_counts
+db.public.region_counts	db.public.region_counts	engine	base	public	tables	SELECT * FROM region_counts
+region, n, name	region, n, name	engine	base	public	results	SELECT r.region, r.n, c.name FROM region_counts r JOIN customers c USING (region)
+db.public.region_counts.region | db.public.region_counts.n | db.public.customers.name	db.public.region_counts.region | db.public.region_counts.n | db.public.customers.name	engine	base	public	lineage	SELECT r.region, r.n, c.name FROM region_counts r JOIN customers c USING (region)
+db.public.customers, db.public.region_counts	db.public.customers, db.public.region_counts	engine	base	public	tables	SELECT r.region, r.n, c.name FROM region_counts r JOIN customers c USING (region)
+Id, MixedCol, lower_col	Id, MixedCol, lower_col	engine	base	public	results	SELECT "Id", "MixedCol", lower_col FROM "Mixed"."CamelTable"
+db.Mixed.CamelTable.Id | db.Mixed.CamelTable.MixedCol | db.Mixed.CamelTable.lower_col	db.Mixed.CamelTable.Id | db.Mixed.CamelTable.MixedCol | db.Mixed.CamelTable.lower_col	engine	base	public	lineage	SELECT "Id", "MixedCol", lower_col FROM "Mixed"."CamelTable"
+db.Mixed.CamelTable	db.Mixed.CamelTable	engine	base	public	tables	SELECT "Id", "MixedCol", lower_col FROM "Mixed"."CamelTable"
+Id, MixedCol, lower_col	Id, MixedCol, lower_col	engine	base	public	results	SELECT * FROM "Mixed"."CamelTable"
+db.Mixed.CamelTable.Id | db.Mixed.CamelTable.MixedCol | db.Mixed.CamelTable.lower_col	db.Mixed.CamelTable.Id | db.Mixed.CamelTable.MixedCol | db.Mixed.CamelTable.lower_col	engine	base	public	lineage	SELECT * FROM "Mixed"."CamelTable"
+db.Mixed.CamelTable	db.Mixed.CamelTable	engine	base	public	tables	SELECT * FROM "Mixed"."CamelTable"
+Out	Out	engine	base	public	results	SELECT t."MixedCol" AS "Out" FROM "Mixed"."CamelTable" t
+db.Mixed.CamelTable.MixedCol	db.Mixed.CamelTable.MixedCol	engine	base	public	lineage	SELECT t."MixedCol" AS "Out" FROM "Mixed"."CamelTable" t
+db.Mixed.CamelTable	db.Mixed.CamelTable	engine	base	public	tables	SELECT t."MixedCol" AS "Out" FROM "Mixed"."CamelTable" t
+Id, Renamed	Id, Renamed	engine	base	public	results	SELECT * FROM "Mixed"."CamelView"
+db.Mixed.CamelView.Id | db.Mixed.CamelView.Renamed	db.Mixed.CamelView.Id | db.Mixed.CamelView.Renamed	engine	base	public	lineage	SELECT * FROM "Mixed"."CamelView"
+db.Mixed.CamelView	db.Mixed.CamelView	engine	base	public	tables	SELECT * FROM "Mixed"."CamelView"
+Renamed	Renamed	engine	base	public	results	SELECT "Renamed" FROM "Mixed"."CamelView"
+db.Mixed.CamelView.Renamed	db.Mixed.CamelView.Renamed	engine	base	public	lineage	SELECT "Renamed" FROM "Mixed"."CamelView"
+db.Mixed.CamelView	db.Mixed.CamelView	engine	base	public	tables	SELECT "Renamed" FROM "Mixed"."CamelView"
+id, name	id, name	engine	base	public	results	SELECT ID, NAME FROM CUSTOMERS
+db.public.customers.id | db.public.customers.name	db.public.customers.id | db.public.customers.name	engine	base	public	lineage	SELECT ID, NAME FROM CUSTOMERS
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT ID, NAME FROM CUSTOMERS
+id, name	id, name	engine	base	public	results	SELECT "id", "name" FROM "customers"
+db.public.customers.id | db.public.customers.name	db.public.customers.id | db.public.customers.name	engine	base	public	lineage	SELECT "id", "name" FROM "customers"
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT "id", "name" FROM "customers"
+Weird Name, x.y	Weird Name, x.y	engine	base	public	results	SELECT id AS "Weird Name", name AS "x.y" FROM customers
+db.public.customers.id | db.public.customers.name	db.public.customers.id | db.public.customers.name	engine	base	public	lineage	SELECT id AS "Weird Name", name AS "x.y" FROM customers
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT id AS "Weird Name", name AS "x.y" FROM customers
+id	id	engine	base	public	results	SELECT orders.id FROM customers AS orders
+db.public.customers.id	db.public.customers.id	engine	base	public	lineage	SELECT orders.id FROM customers AS orders
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT orders.id FROM customers AS orders
+amount	amount	engine	base	public	results	SELECT customers.amount FROM orders AS customers
+db.public.orders.amount	db.public.orders.amount	engine	base	public	lineage	SELECT customers.amount FROM orders AS customers
+db.public.orders	db.public.orders	engine	base	public	tables	SELECT customers.amount FROM orders AS customers
+id	id	engine	base	public	results	SELECT o.id FROM orders o JOIN customers orders ON orders.id = o.customer_id
+db.public.orders.id	db.public.orders.id	engine	base	public	lineage	SELECT o.id FROM orders o JOIN customers orders ON orders.id = o.customer_id
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT o.id FROM orders o JOIN customers orders ON orders.id = o.customer_id
+name	name	engine	base	public	results	SELECT customers.name FROM customers JOIN (SELECT id, status AS name FROM orders) AS customers2 ON customers2.id = customers.id
+db.public.customers.name	db.public.customers.name	engine	base	public	lineage	SELECT customers.name FROM customers JOIN (SELECT id, status AS name FROM orders) AS customers2 ON customers2.id = customers.id
+db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT customers.name FROM customers JOIN (SELECT id, status AS name FROM orders) AS customers2 ON customers2.id = customers.id
+id, row_number	id, row_number	engine	base	public	results	SELECT id, row_number() OVER (ORDER BY amount) FROM orders
+db.public.orders.id | -	db.public.orders.id | ~	engine	base	public	lineage	SELECT id, row_number() OVER (ORDER BY amount) FROM orders
+db.public.orders	db.public.orders	engine	base	public	tables	SELECT id, row_number() OVER (ORDER BY amount) FROM orders
+id, running	id, running	engine	base	public	results	SELECT id, sum(amount) OVER (PARTITION BY customer_id) AS running FROM orders
+db.public.orders.id | db.public.orders.amount	db.public.orders.id | ~	engine	base	public	lineage	SELECT id, sum(amount) OVER (PARTITION BY customer_id) AS running FROM orders
+db.public.orders	db.public.orders	engine	base	public	tables	SELECT id, sum(amount) OVER (PARTITION BY customer_id) AS running FROM orders
+name, rank	name, rank	engine	base	public	results	SELECT name, rank() OVER w FROM customers WINDOW w AS (PARTITION BY region ORDER BY name)
+db.public.customers.name | -	db.public.customers.name | ~	engine	base	public	lineage	SELECT name, rank() OVER w FROM customers WINDOW w AS (PARTITION BY region ORDER BY name)
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT name, rank() OVER w FROM customers WINDOW w AS (PARTITION BY region ORDER BY name)
+id, prev	id, prev	engine	base	public	results	SELECT id, lag(status) OVER (ORDER BY created_at) AS prev FROM orders
+db.public.orders.id | db.public.orders.status	db.public.orders.id | ~	engine	base	public	lineage	SELECT id, lag(status) OVER (ORDER BY created_at) AS prev FROM orders
+db.public.orders	db.public.orders	engine	base	public	tables	SELECT id, lag(status) OVER (ORDER BY created_at) AS prev FROM orders
+region, name	region, name	engine	base	public	results	SELECT DISTINCT ON (region) region, name FROM customers ORDER BY region, name
+db.public.customers.region | db.public.customers.name	db.public.customers.region | db.public.customers.name	engine	base	public	lineage	SELECT DISTINCT ON (region) region, name FROM customers ORDER BY region, name
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT DISTINCT ON (region) region, name FROM customers ORDER BY region, name
+region, email, count	region, email, count	engine	base	public	results	SELECT region, email, count(*) FROM customers GROUP BY GROUPING SETS ((region), (email))
+db.public.customers.region | db.public.customers.email | -	db.public.customers.region | db.public.customers.email | ~	engine	base	public	lineage	SELECT region, email, count(*) FROM customers GROUP BY GROUPING SETS ((region), (email))
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT region, email, count(*) FROM customers GROUP BY GROUPING SETS ((region), (email))
+id	id	engine	base	public	results	SELECT max(id) AS id FROM customers
+db.public.customers.id	~	engine	base	public	lineage	SELECT max(id) AS id FROM customers
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT max(id) AS id FROM customers
+region	region	engine	base	public	results	SELECT region FROM customers GROUP BY CUBE (region, name)
+db.public.customers.region	db.public.customers.region	engine	base	public	lineage	SELECT region FROM customers GROUP BY CUBE (region, name)
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT region FROM customers GROUP BY CUBE (region, name)
+count	count	engine	base	public	results	SELECT count(*) FROM orders
+-	~	engine	base	public	lineage	SELECT count(*) FROM orders
+db.public.orders	db.public.orders	engine	base	public	tables	SELECT count(*) FROM orders
+customer_id, sum, max	customer_id, sum, max	engine	base	public	results	SELECT customer_id, sum(amount), max(status) FROM orders GROUP BY customer_id
+db.public.orders.customer_id | db.public.orders.amount | db.public.orders.status	db.public.orders.customer_id | ~ | ~	engine	base	public	lineage	SELECT customer_id, sum(amount), max(status) FROM orders GROUP BY customer_id
+db.public.orders	db.public.orders	engine	base	public	tables	SELECT customer_id, sum(amount), max(status) FROM orders GROUP BY customer_id
+region, count	region, count	engine	base	public	results	SELECT region, count(DISTINCT email) FROM customers GROUP BY region HAVING count(*) > 1
+db.public.customers.region | db.public.customers.email	db.public.customers.region | ~	engine	base	public	lineage	SELECT region, count(DISTINCT email) FROM customers GROUP BY region HAVING count(*) > 1
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT region, count(DISTINCT email) FROM customers GROUP BY region HAVING count(*) > 1
+string_agg	string_agg	engine	base	public	results	SELECT string_agg(name, ',' ORDER BY name) FROM customers
+db.public.customers.name	~	engine	base	public	lineage	SELECT string_agg(name, ',' ORDER BY name) FROM customers
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT string_agg(name, ',' ORDER BY name) FROM customers
+customer_id	customer_id	engine	base	public	results	SELECT customer_id FROM orders GROUP BY customer_id
+db.public.orders.customer_id	db.public.orders.customer_id	engine	base	public	lineage	SELECT customer_id FROM orders GROUP BY customer_id
+db.public.orders	db.public.orders	engine	base	public	tables	SELECT customer_id FROM orders GROUP BY customer_id
+paid	paid	engine	base	public	results	SELECT count(*) FILTER (WHERE status = 'paid') AS paid FROM orders
+db.public.orders.status	~	engine	base	public	lineage	SELECT count(*) FILTER (WHERE status = 'paid') AS paid FROM orders
+db.public.orders	db.public.orders	engine	base	public	tables	SELECT count(*) FILTER (WHERE status = 'paid') AS paid FROM orders
+region, count	region, count	engine	base	public	results	SELECT region, count(*) FROM customers GROUP BY ROLLUP (region)
+db.public.customers.region | -	db.public.customers.region | ~	engine	base	public	lineage	SELECT region, count(*) FROM customers GROUP BY ROLLUP (region)
+db.public.customers	db.public.customers	engine	base	public	tables	SELECT region, count(*) FROM customers GROUP BY ROLLUP (region)
+id, region	id, region	engine	base	sales,public	results	SELECT id, region FROM orders
+db.sales.orders.id | db.sales.orders.region	db.sales.orders.id | db.sales.orders.region	engine	base	sales,public	lineage	SELECT id, region FROM orders
+db.sales.orders	db.sales.orders	engine	base	sales,public	tables	SELECT id, region FROM orders
+id, region, total	id, region, total	engine	base	sales,public	results	SELECT * FROM orders
+db.sales.orders.id | db.sales.orders.region | db.sales.orders.total	db.sales.orders.id | db.sales.orders.region | db.sales.orders.total	engine	base	sales,public	lineage	SELECT * FROM orders
+db.sales.orders	db.sales.orders	engine	base	sales,public	tables	SELECT * FROM orders
+total, goal	total, goal	engine	base	sales,public	results	SELECT o.total, t.goal FROM orders o JOIN targets t USING (region)
+db.sales.orders.total | db.sales.targets.goal	db.sales.orders.total | db.sales.targets.goal	engine	base	sales,public	lineage	SELECT o.total, t.goal FROM orders o JOIN targets t USING (region)
+db.sales.orders, db.sales.targets	db.sales.orders, db.sales.targets	engine	base	sales,public	tables	SELECT o.total, t.goal FROM orders o JOIN targets t USING (region)
+id, amount	id, amount	engine	base	sales,public	results	SELECT id, amount FROM public.orders
+db.public.orders.id | db.public.orders.amount	db.public.orders.id | db.public.orders.amount	engine	base	sales,public	lineage	SELECT id, amount FROM public.orders
+db.public.orders	db.public.orders	engine	base	sales,public	tables	SELECT id, amount FROM public.orders
+name	name	engine	base	sales,public	results	SELECT name FROM customers
+db.public.customers.name	db.public.customers.name	engine	base	sales,public	lineage	SELECT name FROM customers
+db.public.customers	db.public.customers	engine	base	sales,public	tables	SELECT name FROM customers
+name, ssn	name, ssn	engine	base	hr,public	results	SELECT name, ssn FROM employees
+db.hr.employees.name | db.hr.employees.ssn	db.hr.employees.name | db.hr.employees.ssn	engine	base	hr,public	lineage	SELECT name, ssn FROM employees
+db.hr.employees	db.hr.employees	engine	base	hr,public	tables	SELECT name, ssn FROM employees
+id, name, dept	id, name, dept	engine	base	hr,public	results	SELECT * FROM directory
+db.hr.directory.id | db.hr.directory.name | db.hr.directory.dept	db.hr.directory.id | db.hr.directory.name | db.hr.directory.dept	engine	base	hr,public	lineage	SELECT * FROM directory
+db.hr.directory	db.hr.directory	engine	base	hr,public	tables	SELECT * FROM directory
+name, manager	name, manager	engine	base	hr,public	results	SELECT e.name, m.name AS manager FROM employees e LEFT JOIN employees m ON m.id = e.manager_id
+db.hr.employees.name | db.hr.employees.name	db.hr.employees.name | db.hr.employees.name	engine	base	hr,public	lineage	SELECT e.name, m.name AS manager FROM employees e LEFT JOIN employees m ON m.id = e.manager_id
+db.hr.employees	db.hr.employees	engine	base	hr,public	tables	SELECT e.name, m.name AS manager FROM employees e LEFT JOIN employees m ON m.id = e.manager_id
+name, email	name, email	engine	base	hr,public	results	SELECT d.name, c.email FROM directory d JOIN customers c ON c.id = d.id
+db.hr.directory.name | db.public.customers.email	db.hr.directory.name | db.public.customers.email	engine	base	hr,public	lineage	SELECT d.name, c.email FROM directory d JOIN customers c ON c.id = d.id
+db.hr.directory, db.public.customers	db.hr.directory, db.public.customers	engine	base	hr,public	tables	SELECT d.name, c.email FROM directory d JOIN customers c ON c.id = d.id
