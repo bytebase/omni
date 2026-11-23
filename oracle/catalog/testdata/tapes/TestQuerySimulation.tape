@@ -3392,6 +3392,15 @@
 | CREATE INDEX a_d_idx ON a (d);]'); END;
 < ok 1 0
 > exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(ORDER BY a, a ASC PATTERN(a) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
+| BEGIN system.omni_sim.reset_schema(q'[CREATE TABLE a (b NUMBER CONSTRAINT a_pk PRIMARY KEY, a NUMBER, d NUMBER);
+| CREATE INDEX a_d_idx ON a (d);]'); END;
+< ok 1 0
+> exec
 | CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(MEASURES 1 AS a PATTERN(a) DEFINE a AS 1 = 1)
 < ok 0 0
 > query

@@ -40,3 +40,63 @@ SUBPROGRAM_SPEC	MEMBER PROCEDURE a	subprogram_spec of ALTER TYPE: a method's spe
 MAP_ORDER_SPEC	MAP MEMBER FUNCTION a RETURN NUMBER	map_order_function_spec of ALTER TYPE
 FUNCTION_DECLARATION	FUNCTION a RETURN NUMBER IS BEGIN RETURN 1; END;	function_declaration in WITH's plsql_declarations
 PROCEDURE_DECLARATION	PROCEDURE a IS BEGIN NULL; END;	procedure_declaration in WITH's plsql_declarations
+# Optional clauses tried at every site their rule allows them, and not only
+# at the first. The converter writes each statement's IF [NOT] EXISTS, OR
+# REPLACE, EDITIONABLE, FORCE, CASCADE CONSTRAINTS and PURGE inline in the
+# one alternative that takes it, which already has a row with the clause; a
+# group gets a row of its own only where two alternatives of its rule name
+# it. These are the keyword clauses, alone or before one value, that do.
+alterDatabase_controlfile_clauses(REUSE)?	(every site)	OracleDocs.g4:389 alterDatabase_controlfile_clauses: REUSE
+alterDiskgroup_check_diskgroup_clause(REPAIR|NOREPAIR)?	(every site)	OracleDocs.g4:565 alterDiskgroup_check_diskgroup_clause: REPAIR or NOREPAIR
+alterDiskgroup_disk_online_clause(POWER_NUMBER)?	(every site)	OracleDocs.g4:551 alterDiskgroup_disk_online_clause: POWER NUMBER
+alterDiskgroup_disk_online_clause(WAIT|NOWAIT)?	(every site)	OracleDocs.g4:551 alterDiskgroup_disk_online_clause: WAIT or NOWAIT
+alterDiskgroup_diskgroup_availability(ALL)?	(every site)	OracleDocs.g4:643 alterDiskgroup_diskgroup_availability: ALL
+alterDiskgroup_user_clauses(CASCADE)?	(every site)	OracleDocs.g4:612 alterDiskgroup_user_clauses: CASCADE
+alterMaterializedViewLog_inmemory_memcompress(LOW|HIGH)?	(every site)	OracleDocs.g4:1104 alterMaterializedViewLog_inmemory_memcompress: LOW or HIGH
+alterMaterializedViewLog_partition_attributes(CASCADE)?	(every site)	OracleDocs.g4:1009 alterMaterializedViewLog_partition_attributes: CASCADE
+alterMaterializedViewLog_table_compression(LOW|HIGH)?	(every site)	OracleDocs.g4:988 alterMaterializedViewLog_table_compression: LOW or HIGH
+alterMaterializedView_inmemory_column_clause(LOW|HIGH)?	(every site)	OracleDocs.g4:1210 alterMaterializedView_inmemory_column_clause: LOW or HIGH
+alterMaterializedView_inmemory_memcompress(LOW|HIGH)?	(every site)	OracleDocs.g4:1294 alterMaterializedView_inmemory_memcompress: LOW or HIGH
+alterMaterializedView_partition_attributes(CASCADE)?	(every site)	OracleDocs.g4:1345 alterMaterializedView_partition_attributes: CASCADE
+alterMaterializedView_table_compression(LOW|HIGH)?	(every site)	OracleDocs.g4:1156 alterMaterializedView_table_compression: LOW or HIGH
+alterPluggableDatabase_application_clauses(COMMENT_STRING)?	(every site)	OracleDocs.g4:1529 alterPluggableDatabase_application_clauses: COMMENT STRING
+alterSequence(EXTEND|NOEXTEND)?	(every site)	OracleDocs.g4:1656 alterSequence: EXTEND or NOEXTEND
+alterSystem_flush_clause((GLOBAL|LOCAL))?	(every site)	OracleDocs.g4:1713 alterSystem_flush_clause: GLOBAL or LOCAL
+alterSystem_security_clauses(IDENTIFIED_BY_ID)?	(every site)	OracleDocs.g4:1698 alterSystem_security_clauses: IDENTIFIED BY ID
+alterTable_attribute_clustering_clause(ASC|DESC)?	(every site)	OracleDocs.g4:1802 alterTable_attribute_clustering_clause: ASC or DESC
+alterTable_drop_column_clause(CHECKPOINT_NUMBER)?	(every site)	OracleDocs.g4:1821 alterTable_drop_column_clause: CHECKPOINT NUMBER
+alterTable_drop_constraint_clause(CASCADE)?	(every site)	OracleDocs.g4:1851 alterTable_drop_constraint_clause: CASCADE
+alterTable_drop_constraint_clause(ONLINE)?	(every site)	OracleDocs.g4:1851 alterTable_drop_constraint_clause: ONLINE
+alterTable_inmemory_memcompress(LOW|HIGH)?	(every site)	OracleDocs.g4:1944 alterTable_inmemory_memcompress: LOW or HIGH
+alterTable_partition_attributes(CASCADE)?	(every site)	OracleDocs.g4:2027 alterTable_partition_attributes: CASCADE
+alterTable_supplemental_log_grp_clause(NO_LOG)?	(every site)	OracleDocs.g4:2262 alterTable_supplemental_log_grp_clause: NO LOG
+alterTable_supplemental_table_logging(NO_LOG)?	(every site)	OracleDocs.g4:1777 alterTable_supplemental_table_logging: NO LOG
+alterTablespaceSet_inmemory_memcompress(LOW|HIGH)?	(every site)	OracleDocs.g4:2334 alterTablespaceSet_inmemory_memcompress: LOW or HIGH
+alterTablespaceSet_table_compression(LOW|HIGH)?	(every site)	OracleDocs.g4:2355 alterTablespaceSet_table_compression: LOW or HIGH
+alterTablespace_inmemory_memcompress(LOW|HIGH)?	(every site)	OracleDocs.g4:2436 alterTablespace_inmemory_memcompress: LOW or HIGH
+alterTablespace_table_compression(LOW|HIGH)?	(every site)	OracleDocs.g4:2457 alterTablespace_table_compression: LOW or HIGH
+alterUser_alter_identified_clause(AS_STRING)?	(every site)	OracleDocs.g4:2512 alterUser_alter_identified_clause: AS STRING
+createAttributeDimension_dim_order_clause(ASC|DESC)?	(every site)	OracleDocs.g4:2751 createAttributeDimension_dim_order_clause: ASC or DESC
+createCluster_inmemory_memcompress(LOW|HIGH)?	(every site)	OracleDocs.g4:2837 createCluster_inmemory_memcompress: LOW or HIGH
+createCluster_table_compression(LOW|HIGH)?	(every site)	OracleDocs.g4:2816 createCluster_table_compression: LOW or HIGH
+createMaterializedViewLog_inmemory_memcompress(LOW|HIGH)?	(every site)	OracleDocs.g4:3263 createMaterializedViewLog_inmemory_memcompress: LOW or HIGH
+createMaterializedViewLog_table_compression(LOW|HIGH)?	(every site)	OracleDocs.g4:3232 createMaterializedViewLog_table_compression: LOW or HIGH
+createMaterializedView_inmemory_memcompress((LOW|HIGH))?	(every site)	OracleDocs.g4:3425 createMaterializedView_inmemory_memcompress: LOW or HIGH
+createMaterializedView_supplemental_log_grp_clause(NO_LOG)?	(every site)	OracleDocs.g4:3545 createMaterializedView_supplemental_log_grp_clause: NO LOG
+createMaterializedView_table_compression((LOW|HIGH))?	(every site)	OracleDocs.g4:3338 createMaterializedView_table_compression: LOW or HIGH
+createPluggableDatabase_keystore_clause(DECRYPT_USING_ID)?	(every site)	OracleDocs.g4:3727 createPluggableDatabase_keystore_clause: DECRYPT USING ID
+createPropertyGraph_graph_table_label_properties_clause(AS_ID)?	(every site)	OracleDocs.g4:5654 createPropertyGraph_graph_table_label_properties_clause: AS ID
+createTable_inmemory_memcompress(LOW|HIGH)?	(every site)	OracleDocs.g4:4086 createTable_inmemory_memcompress: LOW or HIGH
+createTable_partitioning_storage_clause(TABLESPACE_ID)?	(every site)	OracleDocs.g4:4161 createTable_partitioning_storage_clause: TABLESPACE ID
+createTable_supplemental_log_grp_clause(NO_LOG)?	(every site)	OracleDocs.g4:3981 createTable_supplemental_log_grp_clause: NO LOG
+createTablespaceSet_inmemory_memcompress(LOW|HIGH)?	(every site)	OracleDocs.g4:4280 createTablespaceSet_inmemory_memcompress: LOW or HIGH
+createTablespaceSet_table_compression(LOW|HIGH)?	(every site)	OracleDocs.g4:4301 createTablespaceSet_table_compression: LOW or HIGH
+createTablespace_default_table_compression(LOW|HIGH)?	(every site)	OracleDocs.g4:4364 createTablespace_default_table_compression: LOW or HIGH
+createTablespace_inmemory_memcompress(LOW|HIGH)?	(every site)	OracleDocs.g4:4382 createTablespace_inmemory_memcompress: LOW or HIGH
+createTablespace_table_compression(LOW|HIGH)?	(every site)	OracleDocs.g4:4403 createTablespace_table_compression: LOW or HIGH
+createUser(AS_STRING)?	(every site)	OracleDocs.g4:4426 createUser: AS STRING
+createView_subquery_restriction_clause(CONSTRAINT_ID)?	(every site)	OracleDocs.g4:4452 createView_subquery_restriction_clause: CONSTRAINT ID
+delete_row_pattern_clause(ASC|DESC)?	(every site)	OracleDocs.g4:4524 delete_row_pattern_clause: ASC or DESC
+purge(USER_ID)?	(every site)	OracleDocs.g4:5041 purge: USER ID
+select_row_pattern_clause(ASC|DESC)?	(every site)	OracleDocs.g4:5229 select_row_pattern_clause: ASC or DESC
+setRole(IDENTIFIED_BY_ID)?	(every site)	OracleDocs.g4:5396 setRole: IDENTIFIED BY ID

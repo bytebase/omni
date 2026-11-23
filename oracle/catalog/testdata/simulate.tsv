@@ -29,6 +29,7 @@ ok:f07dbe4edd7c	ok:f07dbe4edd7c	engine	one_table@missing	statement/createSequenc
 2289	2289	engine	one_table@missing	alterSequence(EXTEND|NOEXTEND)?/EXTEND	ALTER SEQUENCE a SCALE EXTEND
 2289	2289	engine	one_table@missing	alterSequence(EXTEND|NOEXTEND)?/NOEXTEND	ALTER SEQUENCE a SCALE NOEXTEND
 2511	2511	engine	one_table@missing	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
+2511	2511	engine	one_table@missing	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/SHARD_(EXTEND|NOEXTEND)?+alterSequence(EXTEND|NOEXTEND)?	ALTER SEQUENCE a SHARD EXTEND
 2511	2511	engine	one_table@missing	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
 2289	2289	engine	one_table@missing	alterSequence(RESTART_(WITH_NUMBER)?)?/RESTART_(WITH_NUMBER)?	ALTER SEQUENCE a RESTART
 942	942	engine	one_table@missing	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses	ALTER TABLE a MODIFY a VISIBLE
@@ -60,6 +61,8 @@ ok:f07dbe4edd7c	ok:f07dbe4edd7c	engine	one_table@missing	statement/createSequenc
 942	942	engine	one_table@missing	alterTable_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a ON DELETE SET NULL
 942	942	engine	one_table@missing	alterTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID	ALTER TABLE a ADD CONSTRAINT a FOREIGN KEY(a) REFERENCES a
 942	942	engine	one_table@missing	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?	ALTER TABLE a DROP CONSTRAINT a
+942	942	engine	one_table@missing	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?+alterTable_drop_constraint_clause(CASCADE)?	ALTER TABLE a DROP CONSTRAINT a CASCADE
+942	942	engine	one_table@missing	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?+alterTable_drop_constraint_clause(ONLINE)?	ALTER TABLE a DROP CONSTRAINT a ONLINE
 942	942	engine	one_table@missing	alterTable_drop_constraint_clause(PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))/UNIQUE_(_ID_(,_ID)*_)	ALTER TABLE a DROP UNIQUE(a)
 957	957	engine	one_table@missing	alterTable_drop_constraint_clause(,_ID)*/,_ID_(,_ID)*	ALTER TABLE a DROP UNIQUE(a, a)
 942	942	engine	one_table@missing	alterTable_drop_constraint_clause(CASCADE)?/CASCADE	ALTER TABLE a DROP PRIMARY KEY CASCADE
@@ -282,6 +285,7 @@ ok:1c6895cfd667	ok:1c6895cfd667	engine	one_table@missing	createView(VISIBLE|INVI
 ok:1c6895cfd667	ok:1c6895cfd667	engine	one_table@missing	createView_inline_constraint(ENABLE|DISABLE)?/DISABLE	CREATE VIEW a(a UNIQUE DISABLE) AS SELECT 1 FROM dual
 ok:1c6895cfd667	ok:1c6895cfd667	engine	one_table@missing	createView_out_of_line_constraint(ENABLE|DISABLE)?/DISABLE	CREATE VIEW a(a, UNIQUE(a) DISABLE) AS SELECT 1 FROM dual
 998	998	engine	one_table@missing	createView_subquery_restriction_clause(WITH_READ_ONLY_(CONSTRAINT_ID)?|WITH~323fb4a6)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?	CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+998	998	engine	one_table@missing	createView_subquery_restriction_clause(WITH_READ_ONLY_(CONSTRAINT_ID)?|WITH~323fb4a6)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?+createView_subquery_restriction_clause(CONSTRAINT_ID)?	CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 998	998	engine	one_table@missing	createView_subquery_restriction_clause(CONSTRAINT_ID)?/CONSTRAINT_ID	CREATE VIEW a AS SELECT 1 FROM dual WITH READ ONLY CONSTRAINT a
 ok:8281d3c6dc70	ok:8281d3c6dc70	engine	one_table@missing	dropIndex(IF_EXISTS)?/IF_EXISTS	DROP INDEX IF EXISTS a
 1418	1418	engine	one_table@missing	dropIndex(ID_.)?/ID_.	DROP INDEX a.a
@@ -338,6 +342,7 @@ ok:78fd52bc93ec	ok:78fd52bc93ec	engine	one_table@table	statement/truncateTable	T
 2289	2289	engine	one_table@table	alterSequence(EXTEND|NOEXTEND)?/EXTEND	ALTER SEQUENCE a SCALE EXTEND
 2289	2289	engine	one_table@table	alterSequence(EXTEND|NOEXTEND)?/NOEXTEND	ALTER SEQUENCE a SCALE NOEXTEND
 2511	2511	engine	one_table@table	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
+2511	2511	engine	one_table@table	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/SHARD_(EXTEND|NOEXTEND)?+alterSequence(EXTEND|NOEXTEND)?	ALTER SEQUENCE a SHARD EXTEND
 2511	2511	engine	one_table@table	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
 2289	2289	engine	one_table@table	alterSequence(RESTART_(WITH_NUMBER)?)?/RESTART_(WITH_NUMBER)?	ALTER SEQUENCE a RESTART
 904	904	engine	one_table@table	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses	ALTER TABLE a MODIFY a VISIBLE
@@ -369,6 +374,8 @@ ok:0c36db2c4f69	ok:0c36db2c4f69	engine	one_table@table	alterTable_add_period_cla
 904	904	engine	one_table@table	alterTable_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a ON DELETE SET NULL
 904	904	engine	one_table@table	alterTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID	ALTER TABLE a ADD CONSTRAINT a FOREIGN KEY(a) REFERENCES a
 2443	2443	engine	one_table@table	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?	ALTER TABLE a DROP CONSTRAINT a
+2443	2443	engine	one_table@table	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?+alterTable_drop_constraint_clause(CASCADE)?	ALTER TABLE a DROP CONSTRAINT a CASCADE
+2443	2443	engine	one_table@table	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?+alterTable_drop_constraint_clause(ONLINE)?	ALTER TABLE a DROP CONSTRAINT a ONLINE
 904	904	engine	one_table@table	alterTable_drop_constraint_clause(PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))/UNIQUE_(_ID_(,_ID)*_)	ALTER TABLE a DROP UNIQUE(a)
 957	957	engine	one_table@table	alterTable_drop_constraint_clause(,_ID)*/,_ID_(,_ID)*	ALTER TABLE a DROP UNIQUE(a, a)
 ok:0474939368a1	ok:0474939368a1	engine	one_table@table	alterTable_drop_constraint_clause(CASCADE)?/CASCADE	ALTER TABLE a DROP PRIMARY KEY CASCADE
@@ -591,6 +598,7 @@ ok:9f584ab93c67	ok:9f584ab93c67	engine	one_table@table	createSynonym(PUBLIC)?/PU
 955	955	engine	one_table@table	createView_inline_constraint(ENABLE|DISABLE)?/DISABLE	CREATE VIEW a(a UNIQUE DISABLE) AS SELECT 1 FROM dual
 955	955	engine	one_table@table	createView_out_of_line_constraint(ENABLE|DISABLE)?/DISABLE	CREATE VIEW a(a, UNIQUE(a) DISABLE) AS SELECT 1 FROM dual
 955	955	engine	one_table@table	createView_subquery_restriction_clause(WITH_READ_ONLY_(CONSTRAINT_ID)?|WITH~323fb4a6)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?	CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+955	955	engine	one_table@table	createView_subquery_restriction_clause(WITH_READ_ONLY_(CONSTRAINT_ID)?|WITH~323fb4a6)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?+createView_subquery_restriction_clause(CONSTRAINT_ID)?	CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 955	955	engine	one_table@table	createView_subquery_restriction_clause(CONSTRAINT_ID)?/CONSTRAINT_ID	CREATE VIEW a AS SELECT 1 FROM dual WITH READ ONLY CONSTRAINT a
 ok:78fd52bc93ec	ok:78fd52bc93ec	engine	one_table@table	dropIndex(IF_EXISTS)?/IF_EXISTS	DROP INDEX IF EXISTS a
 1418	1418	engine	one_table@table	dropIndex(ID_.)?/ID_.	DROP INDEX a.a
@@ -647,6 +655,7 @@ ok:c35748ae0d07	ok:c35748ae0d07	engine	one_table@column	statement/truncateTable	
 2289	2289	engine	one_table@column	alterSequence(EXTEND|NOEXTEND)?/EXTEND	ALTER SEQUENCE a SCALE EXTEND
 2289	2289	engine	one_table@column	alterSequence(EXTEND|NOEXTEND)?/NOEXTEND	ALTER SEQUENCE a SCALE NOEXTEND
 2511	2511	engine	one_table@column	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
+2511	2511	engine	one_table@column	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/SHARD_(EXTEND|NOEXTEND)?+alterSequence(EXTEND|NOEXTEND)?	ALTER SEQUENCE a SHARD EXTEND
 2511	2511	engine	one_table@column	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
 2289	2289	engine	one_table@column	alterSequence(RESTART_(WITH_NUMBER)?)?/RESTART_(WITH_NUMBER)?	ALTER SEQUENCE a RESTART
 ok:c35748ae0d07	ok:c35748ae0d07	engine	one_table@column	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses	ALTER TABLE a MODIFY a VISIBLE
@@ -678,6 +687,8 @@ ok:98c33b4d9a45	ok:98c33b4d9a45	engine	one_table@column	alterTable_out_of_line_c
 ok:34f917308b10	ok:34f917308b10	engine	one_table@column	alterTable_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a ON DELETE SET NULL
 ok:733792c11f53	ok:733792c11f53	engine	one_table@column	alterTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID	ALTER TABLE a ADD CONSTRAINT a FOREIGN KEY(a) REFERENCES a
 2443	2443	engine	one_table@column	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?	ALTER TABLE a DROP CONSTRAINT a
+2443	2443	engine	one_table@column	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?+alterTable_drop_constraint_clause(CASCADE)?	ALTER TABLE a DROP CONSTRAINT a CASCADE
+2443	2443	engine	one_table@column	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?+alterTable_drop_constraint_clause(ONLINE)?	ALTER TABLE a DROP CONSTRAINT a ONLINE
 2442	2442	engine	one_table@column	alterTable_drop_constraint_clause(PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))/UNIQUE_(_ID_(,_ID)*_)	ALTER TABLE a DROP UNIQUE(a)
 957	957	engine	one_table@column	alterTable_drop_constraint_clause(,_ID)*/,_ID_(,_ID)*	ALTER TABLE a DROP UNIQUE(a, a)
 ok:eeb5dd09f7e7	ok:eeb5dd09f7e7	engine	one_table@column	alterTable_drop_constraint_clause(CASCADE)?/CASCADE	ALTER TABLE a DROP PRIMARY KEY CASCADE
@@ -900,6 +911,7 @@ ok:3a8306b918a0	ok:3a8306b918a0	engine	one_table@column	createSynonym(PUBLIC)?/P
 955	955	engine	one_table@column	createView_inline_constraint(ENABLE|DISABLE)?/DISABLE	CREATE VIEW a(a UNIQUE DISABLE) AS SELECT 1 FROM dual
 955	955	engine	one_table@column	createView_out_of_line_constraint(ENABLE|DISABLE)?/DISABLE	CREATE VIEW a(a, UNIQUE(a) DISABLE) AS SELECT 1 FROM dual
 955	955	engine	one_table@column	createView_subquery_restriction_clause(WITH_READ_ONLY_(CONSTRAINT_ID)?|WITH~323fb4a6)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?	CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+955	955	engine	one_table@column	createView_subquery_restriction_clause(WITH_READ_ONLY_(CONSTRAINT_ID)?|WITH~323fb4a6)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?+createView_subquery_restriction_clause(CONSTRAINT_ID)?	CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 955	955	engine	one_table@column	createView_subquery_restriction_clause(CONSTRAINT_ID)?/CONSTRAINT_ID	CREATE VIEW a AS SELECT 1 FROM dual WITH READ ONLY CONSTRAINT a
 ok:c35748ae0d07	ok:c35748ae0d07	engine	one_table@column	dropIndex(IF_EXISTS)?/IF_EXISTS	DROP INDEX IF EXISTS a
 1418	1418	engine	one_table@column	dropIndex(ID_.)?/ID_.	DROP INDEX a.a
@@ -956,6 +968,7 @@ ok:171984386b25	ok:171984386b25	engine	one_table@index	statement/dropIndex	DROP 
 2289	2289	engine	one_table@index	alterSequence(EXTEND|NOEXTEND)?/EXTEND	ALTER SEQUENCE a SCALE EXTEND
 2289	2289	engine	one_table@index	alterSequence(EXTEND|NOEXTEND)?/NOEXTEND	ALTER SEQUENCE a SCALE NOEXTEND
 2511	2511	engine	one_table@index	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
+2511	2511	engine	one_table@index	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/SHARD_(EXTEND|NOEXTEND)?+alterSequence(EXTEND|NOEXTEND)?	ALTER SEQUENCE a SHARD EXTEND
 2511	2511	engine	one_table@index	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
 2289	2289	engine	one_table@index	alterSequence(RESTART_(WITH_NUMBER)?)?/RESTART_(WITH_NUMBER)?	ALTER SEQUENCE a RESTART
 942	942	engine	one_table@index	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses	ALTER TABLE a MODIFY a VISIBLE
@@ -987,6 +1000,8 @@ ok:171984386b25	ok:171984386b25	engine	one_table@index	statement/dropIndex	DROP 
 942	942	engine	one_table@index	alterTable_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a ON DELETE SET NULL
 942	942	engine	one_table@index	alterTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID	ALTER TABLE a ADD CONSTRAINT a FOREIGN KEY(a) REFERENCES a
 942	942	engine	one_table@index	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?	ALTER TABLE a DROP CONSTRAINT a
+942	942	engine	one_table@index	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?+alterTable_drop_constraint_clause(CASCADE)?	ALTER TABLE a DROP CONSTRAINT a CASCADE
+942	942	engine	one_table@index	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?+alterTable_drop_constraint_clause(ONLINE)?	ALTER TABLE a DROP CONSTRAINT a ONLINE
 942	942	engine	one_table@index	alterTable_drop_constraint_clause(PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))/UNIQUE_(_ID_(,_ID)*_)	ALTER TABLE a DROP UNIQUE(a)
 957	957	engine	one_table@index	alterTable_drop_constraint_clause(,_ID)*/,_ID_(,_ID)*	ALTER TABLE a DROP UNIQUE(a, a)
 942	942	engine	one_table@index	alterTable_drop_constraint_clause(CASCADE)?/CASCADE	ALTER TABLE a DROP PRIMARY KEY CASCADE
@@ -1209,6 +1224,7 @@ ok:79aaf6a86645	ok:79aaf6a86645	engine	one_table@index	createView(VISIBLE|INVISI
 ok:79aaf6a86645	ok:79aaf6a86645	engine	one_table@index	createView_inline_constraint(ENABLE|DISABLE)?/DISABLE	CREATE VIEW a(a UNIQUE DISABLE) AS SELECT 1 FROM dual
 ok:79aaf6a86645	ok:79aaf6a86645	engine	one_table@index	createView_out_of_line_constraint(ENABLE|DISABLE)?/DISABLE	CREATE VIEW a(a, UNIQUE(a) DISABLE) AS SELECT 1 FROM dual
 998	998	engine	one_table@index	createView_subquery_restriction_clause(WITH_READ_ONLY_(CONSTRAINT_ID)?|WITH~323fb4a6)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?	CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+998	998	engine	one_table@index	createView_subquery_restriction_clause(WITH_READ_ONLY_(CONSTRAINT_ID)?|WITH~323fb4a6)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?+createView_subquery_restriction_clause(CONSTRAINT_ID)?	CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 998	998	engine	one_table@index	createView_subquery_restriction_clause(CONSTRAINT_ID)?/CONSTRAINT_ID	CREATE VIEW a AS SELECT 1 FROM dual WITH READ ONLY CONSTRAINT a
 ok:171984386b25	ok:171984386b25	engine	one_table@index	dropIndex(IF_EXISTS)?/IF_EXISTS	DROP INDEX IF EXISTS a
 1418	1418	engine	one_table@index	dropIndex(ID_.)?/ID_.	DROP INDEX a.a
@@ -1265,6 +1281,7 @@ ok:171984386b25	ok:171984386b25	engine	objects@view	statement/dropView	DROP VIEW
 2289	2289	engine	objects@view	alterSequence(EXTEND|NOEXTEND)?/EXTEND	ALTER SEQUENCE a SCALE EXTEND
 2289	2289	engine	objects@view	alterSequence(EXTEND|NOEXTEND)?/NOEXTEND	ALTER SEQUENCE a SCALE NOEXTEND
 2511	2511	engine	objects@view	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
+2511	2511	engine	objects@view	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/SHARD_(EXTEND|NOEXTEND)?+alterSequence(EXTEND|NOEXTEND)?	ALTER SEQUENCE a SHARD EXTEND
 2511	2511	engine	objects@view	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
 2289	2289	engine	objects@view	alterSequence(RESTART_(WITH_NUMBER)?)?/RESTART_(WITH_NUMBER)?	ALTER SEQUENCE a RESTART
 942	942	engine	objects@view	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses	ALTER TABLE a MODIFY a VISIBLE
@@ -1296,6 +1313,8 @@ ok:171984386b25	ok:171984386b25	engine	objects@view	statement/dropView	DROP VIEW
 942	942	engine	objects@view	alterTable_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a ON DELETE SET NULL
 942	942	engine	objects@view	alterTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID	ALTER TABLE a ADD CONSTRAINT a FOREIGN KEY(a) REFERENCES a
 942	942	engine	objects@view	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?	ALTER TABLE a DROP CONSTRAINT a
+942	942	engine	objects@view	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?+alterTable_drop_constraint_clause(CASCADE)?	ALTER TABLE a DROP CONSTRAINT a CASCADE
+942	942	engine	objects@view	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?+alterTable_drop_constraint_clause(ONLINE)?	ALTER TABLE a DROP CONSTRAINT a ONLINE
 942	942	engine	objects@view	alterTable_drop_constraint_clause(PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))/UNIQUE_(_ID_(,_ID)*_)	ALTER TABLE a DROP UNIQUE(a)
 957	957	engine	objects@view	alterTable_drop_constraint_clause(,_ID)*/,_ID_(,_ID)*	ALTER TABLE a DROP UNIQUE(a, a)
 942	942	engine	objects@view	alterTable_drop_constraint_clause(CASCADE)?/CASCADE	ALTER TABLE a DROP PRIMARY KEY CASCADE
@@ -1518,6 +1537,7 @@ ok:3820237041cf	ok:3820237041cf	engine	objects@view	createSynonym(PUBLIC)?/PUBLI
 955	955	engine	objects@view	createView_inline_constraint(ENABLE|DISABLE)?/DISABLE	CREATE VIEW a(a UNIQUE DISABLE) AS SELECT 1 FROM dual
 955	955	engine	objects@view	createView_out_of_line_constraint(ENABLE|DISABLE)?/DISABLE	CREATE VIEW a(a, UNIQUE(a) DISABLE) AS SELECT 1 FROM dual
 998	998	engine	objects@view	createView_subquery_restriction_clause(WITH_READ_ONLY_(CONSTRAINT_ID)?|WITH~323fb4a6)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?	CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+998	998	engine	objects@view	createView_subquery_restriction_clause(WITH_READ_ONLY_(CONSTRAINT_ID)?|WITH~323fb4a6)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?+createView_subquery_restriction_clause(CONSTRAINT_ID)?	CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 998	998	engine	objects@view	createView_subquery_restriction_clause(CONSTRAINT_ID)?/CONSTRAINT_ID	CREATE VIEW a AS SELECT 1 FROM dual WITH READ ONLY CONSTRAINT a
 ok:0d2aeb61b8ac	ok:0d2aeb61b8ac	engine	objects@view	dropIndex(IF_EXISTS)?/IF_EXISTS	DROP INDEX IF EXISTS a
 1418	1418	engine	objects@view	dropIndex(ID_.)?/ID_.	DROP INDEX a.a
@@ -1574,6 +1594,7 @@ ok:6ab164dab0a2	ok:6ab164dab0a2	engine	objects@sequence	alterSequence(SCALE_(EXT
 ok:6ab164dab0a2	ok:6ab164dab0a2	engine	objects@sequence	alterSequence(EXTEND|NOEXTEND)?/EXTEND	ALTER SEQUENCE a SCALE EXTEND
 ok:6ab164dab0a2	ok:6ab164dab0a2	engine	objects@sequence	alterSequence(EXTEND|NOEXTEND)?/NOEXTEND	ALTER SEQUENCE a SCALE NOEXTEND
 2511	2511	engine	objects@sequence	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
+2511	2511	engine	objects@sequence	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/SHARD_(EXTEND|NOEXTEND)?+alterSequence(EXTEND|NOEXTEND)?	ALTER SEQUENCE a SHARD EXTEND
 2511	2511	engine	objects@sequence	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
 ok:6ab164dab0a2	ok:6ab164dab0a2	engine	objects@sequence	alterSequence(RESTART_(WITH_NUMBER)?)?/RESTART_(WITH_NUMBER)?	ALTER SEQUENCE a RESTART
 942	942	engine	objects@sequence	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses	ALTER TABLE a MODIFY a VISIBLE
@@ -1605,6 +1626,8 @@ ok:6ab164dab0a2	ok:6ab164dab0a2	engine	objects@sequence	alterSequence(RESTART_(W
 942	942	engine	objects@sequence	alterTable_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a ON DELETE SET NULL
 942	942	engine	objects@sequence	alterTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID	ALTER TABLE a ADD CONSTRAINT a FOREIGN KEY(a) REFERENCES a
 942	942	engine	objects@sequence	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?	ALTER TABLE a DROP CONSTRAINT a
+942	942	engine	objects@sequence	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?+alterTable_drop_constraint_clause(CASCADE)?	ALTER TABLE a DROP CONSTRAINT a CASCADE
+942	942	engine	objects@sequence	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?+alterTable_drop_constraint_clause(ONLINE)?	ALTER TABLE a DROP CONSTRAINT a ONLINE
 942	942	engine	objects@sequence	alterTable_drop_constraint_clause(PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))/UNIQUE_(_ID_(,_ID)*_)	ALTER TABLE a DROP UNIQUE(a)
 957	957	engine	objects@sequence	alterTable_drop_constraint_clause(,_ID)*/,_ID_(,_ID)*	ALTER TABLE a DROP UNIQUE(a, a)
 942	942	engine	objects@sequence	alterTable_drop_constraint_clause(CASCADE)?/CASCADE	ALTER TABLE a DROP PRIMARY KEY CASCADE
@@ -1827,6 +1850,7 @@ ok:43a49ffb79fb	ok:43a49ffb79fb	engine	objects@sequence	createSynonym(PUBLIC)?/P
 955	955	engine	objects@sequence	createView_inline_constraint(ENABLE|DISABLE)?/DISABLE	CREATE VIEW a(a UNIQUE DISABLE) AS SELECT 1 FROM dual
 955	955	engine	objects@sequence	createView_out_of_line_constraint(ENABLE|DISABLE)?/DISABLE	CREATE VIEW a(a, UNIQUE(a) DISABLE) AS SELECT 1 FROM dual
 955	955	engine	objects@sequence	createView_subquery_restriction_clause(WITH_READ_ONLY_(CONSTRAINT_ID)?|WITH~323fb4a6)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?	CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+955	955	engine	objects@sequence	createView_subquery_restriction_clause(WITH_READ_ONLY_(CONSTRAINT_ID)?|WITH~323fb4a6)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?+createView_subquery_restriction_clause(CONSTRAINT_ID)?	CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 955	955	engine	objects@sequence	createView_subquery_restriction_clause(CONSTRAINT_ID)?/CONSTRAINT_ID	CREATE VIEW a AS SELECT 1 FROM dual WITH READ ONLY CONSTRAINT a
 ok:6ab164dab0a2	ok:6ab164dab0a2	engine	objects@sequence	dropIndex(IF_EXISTS)?/IF_EXISTS	DROP INDEX IF EXISTS a
 1418	1418	engine	objects@sequence	dropIndex(ID_.)?/ID_.	DROP INDEX a.a
@@ -1883,6 +1907,7 @@ ok:6d15d5cb0b97	ok:6d15d5cb0b97	engine	objects@synonym	statement/dropSynonym	DRO
 2289	2289	engine	objects@synonym	alterSequence(EXTEND|NOEXTEND)?/EXTEND	ALTER SEQUENCE a SCALE EXTEND
 2289	2289	engine	objects@synonym	alterSequence(EXTEND|NOEXTEND)?/NOEXTEND	ALTER SEQUENCE a SCALE NOEXTEND
 2511	2511	engine	objects@synonym	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
+2511	2511	engine	objects@synonym	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/SHARD_(EXTEND|NOEXTEND)?+alterSequence(EXTEND|NOEXTEND)?	ALTER SEQUENCE a SHARD EXTEND
 2511	2511	engine	objects@synonym	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
 2289	2289	engine	objects@synonym	alterSequence(RESTART_(WITH_NUMBER)?)?/RESTART_(WITH_NUMBER)?	ALTER SEQUENCE a RESTART
 942	942	engine	objects@synonym	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses	ALTER TABLE a MODIFY a VISIBLE
@@ -1914,6 +1939,8 @@ ok:6d15d5cb0b97	ok:6d15d5cb0b97	engine	objects@synonym	statement/dropSynonym	DRO
 942	942	engine	objects@synonym	alterTable_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a ON DELETE SET NULL
 942	942	engine	objects@synonym	alterTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID	ALTER TABLE a ADD CONSTRAINT a FOREIGN KEY(a) REFERENCES a
 942	942	engine	objects@synonym	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?	ALTER TABLE a DROP CONSTRAINT a
+942	942	engine	objects@synonym	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?+alterTable_drop_constraint_clause(CASCADE)?	ALTER TABLE a DROP CONSTRAINT a CASCADE
+942	942	engine	objects@synonym	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?+alterTable_drop_constraint_clause(ONLINE)?	ALTER TABLE a DROP CONSTRAINT a ONLINE
 942	942	engine	objects@synonym	alterTable_drop_constraint_clause(PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))/UNIQUE_(_ID_(,_ID)*_)	ALTER TABLE a DROP UNIQUE(a)
 957	957	engine	objects@synonym	alterTable_drop_constraint_clause(,_ID)*/,_ID_(,_ID)*	ALTER TABLE a DROP UNIQUE(a, a)
 942	942	engine	objects@synonym	alterTable_drop_constraint_clause(CASCADE)?/CASCADE	ALTER TABLE a DROP PRIMARY KEY CASCADE
@@ -2136,6 +2163,7 @@ ok:46baa5e1c2f0	ok:46baa5e1c2f0	engine	objects@synonym	createSynonym(PUBLIC)?/PU
 955	955	engine	objects@synonym	createView_inline_constraint(ENABLE|DISABLE)?/DISABLE	CREATE VIEW a(a UNIQUE DISABLE) AS SELECT 1 FROM dual
 955	955	engine	objects@synonym	createView_out_of_line_constraint(ENABLE|DISABLE)?/DISABLE	CREATE VIEW a(a, UNIQUE(a) DISABLE) AS SELECT 1 FROM dual
 955	955	engine	objects@synonym	createView_subquery_restriction_clause(WITH_READ_ONLY_(CONSTRAINT_ID)?|WITH~323fb4a6)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?	CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+955	955	engine	objects@synonym	createView_subquery_restriction_clause(WITH_READ_ONLY_(CONSTRAINT_ID)?|WITH~323fb4a6)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?+createView_subquery_restriction_clause(CONSTRAINT_ID)?	CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 955	955	engine	objects@synonym	createView_subquery_restriction_clause(CONSTRAINT_ID)?/CONSTRAINT_ID	CREATE VIEW a AS SELECT 1 FROM dual WITH READ ONLY CONSTRAINT a
 ok:594b954e7596	ok:594b954e7596	engine	objects@synonym	dropIndex(IF_EXISTS)?/IF_EXISTS	DROP INDEX IF EXISTS a
 1418	1418	engine	objects@synonym	dropIndex(ID_.)?/ID_.	DROP INDEX a.a
@@ -2192,6 +2220,7 @@ ok:25361af3f6f1	ok:25361af3f6f1	engine	objects@fk	statement/truncateTable	TRUNCA
 2289	2289	engine	objects@fk	alterSequence(EXTEND|NOEXTEND)?/EXTEND	ALTER SEQUENCE a SCALE EXTEND
 2289	2289	engine	objects@fk	alterSequence(EXTEND|NOEXTEND)?/NOEXTEND	ALTER SEQUENCE a SCALE NOEXTEND
 2511	2511	engine	objects@fk	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)	ALTER SEQUENCE a SHARD
+2511	2511	engine	objects@fk	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/SHARD_(EXTEND|NOEXTEND)?+alterSequence(EXTEND|NOEXTEND)?	ALTER SEQUENCE a SHARD EXTEND
 2511	2511	engine	objects@fk	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
 2289	2289	engine	objects@fk	alterSequence(RESTART_(WITH_NUMBER)?)?/RESTART_(WITH_NUMBER)?	ALTER SEQUENCE a RESTART
 ok:25361af3f6f1	ok:25361af3f6f1	engine	objects@fk	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses	ALTER TABLE a MODIFY a VISIBLE
@@ -2223,6 +2252,8 @@ ok:bbc79878cb95	ok:bbc79878cb95	engine	objects@fk	alterTable_out_of_line_constra
 ok:114e2d9e48e2	ok:114e2d9e48e2	engine	objects@fk	alterTable_out_of_line_constraint(CASCADE|SET_NULL)/SET_NULL	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a ON DELETE SET NULL
 2264	2264	engine	objects@fk	alterTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID	ALTER TABLE a ADD CONSTRAINT a FOREIGN KEY(a) REFERENCES a
 ok:cfc32a9c8d76	ok:cfc32a9c8d76	engine	objects@fk	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?	ALTER TABLE a DROP CONSTRAINT a
+ok:cfc32a9c8d76	ok:cfc32a9c8d76	engine	objects@fk	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?+alterTable_drop_constraint_clause(CASCADE)?	ALTER TABLE a DROP CONSTRAINT a CASCADE
+ok:cfc32a9c8d76	ok:cfc32a9c8d76	engine	objects@fk	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?+alterTable_drop_constraint_clause(ONLINE)?	ALTER TABLE a DROP CONSTRAINT a ONLINE
 2442	2442	engine	objects@fk	alterTable_drop_constraint_clause(PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))/UNIQUE_(_ID_(,_ID)*_)	ALTER TABLE a DROP UNIQUE(a)
 957	957	engine	objects@fk	alterTable_drop_constraint_clause(,_ID)*/,_ID_(,_ID)*	ALTER TABLE a DROP UNIQUE(a, a)
 ok:52657fcdf9f8	ok:52657fcdf9f8	engine	objects@fk	alterTable_drop_constraint_clause(CASCADE)?/CASCADE	ALTER TABLE a DROP PRIMARY KEY CASCADE
@@ -2445,6 +2476,7 @@ ok:6de315b0a65e	ok:6de315b0a65e	engine	objects@fk	createSynonym(PUBLIC)?/PUBLIC	
 955	955	engine	objects@fk	createView_inline_constraint(ENABLE|DISABLE)?/DISABLE	CREATE VIEW a(a UNIQUE DISABLE) AS SELECT 1 FROM dual
 955	955	engine	objects@fk	createView_out_of_line_constraint(ENABLE|DISABLE)?/DISABLE	CREATE VIEW a(a, UNIQUE(a) DISABLE) AS SELECT 1 FROM dual
 955	955	engine	objects@fk	createView_subquery_restriction_clause(WITH_READ_ONLY_(CONSTRAINT_ID)?|WITH~323fb4a6)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?	CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+955	955	engine	objects@fk	createView_subquery_restriction_clause(WITH_READ_ONLY_(CONSTRAINT_ID)?|WITH~323fb4a6)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?+createView_subquery_restriction_clause(CONSTRAINT_ID)?	CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 955	955	engine	objects@fk	createView_subquery_restriction_clause(CONSTRAINT_ID)?/CONSTRAINT_ID	CREATE VIEW a AS SELECT 1 FROM dual WITH READ ONLY CONSTRAINT a
 ok:25361af3f6f1	ok:25361af3f6f1	engine	objects@fk	dropIndex(IF_EXISTS)?/IF_EXISTS	DROP INDEX IF EXISTS a
 1418	1418	engine	objects@fk	dropIndex(ID_.)?/ID_.	DROP INDEX a.a

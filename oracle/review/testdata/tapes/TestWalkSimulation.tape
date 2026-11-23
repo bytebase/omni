@@ -3465,6 +3465,11 @@
 | 14464 ORA-14464: compression type not specified
 |
 > exec
+| ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY LOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -4660,6 +4665,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -5430,6 +5440,11 @@
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
 > exec
+| ALTER SEQUENCE a SHARD EXTEND
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | ALTER SEQUENCE a NOSHARD
 < error
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
@@ -6139,6 +6154,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a NO LOG)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -6340,6 +6360,16 @@
 |
 > exec
 | ALTER TABLE a DROP UNUSED COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -6620,6 +6650,16 @@
 |
 > exec
 | ALTER TABLE a DROP CONSTRAINTS a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a ONLINE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -7469,6 +7509,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY LOW
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a INMEMORY MEMCOMPRESS FOR QUERY LOW
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -8188,6 +8233,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -10062,6 +10112,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -11472,6 +11537,11 @@
 | 64307 ORA-64307:  Exadata Hybrid Columnar Compression is not supported for tablespaces on this storage type
 |
 > exec
+| CREATE MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW AS SELECT 1 FROM dual
+< error
+| 64307 ORA-64307:  Exadata Hybrid Columnar Compression is not supported for tablespaces on this storage type
+|
+> exec
 | CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY LOW AS SELECT 1 FROM dual
 < error
 | 64307 ORA-64307:  Exadata Hybrid Columnar Compression is not supported for tablespaces on this storage type
@@ -11935,6 +12005,15 @@
 < ok 0 0
 > exec
 | CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY AS SELECT 1 FROM dual
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY LOW AS SELECT 1 FROM dual
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -13544,6 +13623,21 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz))) AS SELECT 1 FROM dual
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG))) AS SELECT 1 FROM dual
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG))) AS SELECT 1 FROM dual
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO))) AS SELECT 1 FROM dual
 < error
 | 904 ORA-00904: "A": invalid identifier
 |
@@ -15363,6 +15457,11 @@
 |
 > exec
 | CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+< error
+| 998 ORA-00998: must name this expression with a column alias
+|
+> exec
+| CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 < error
 | 998 ORA-00998: must name this expression with a column alias
 |
@@ -20368,6 +20467,11 @@
 | 14464 ORA-14464: compression type not specified
 |
 > exec
+| ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY LOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -21563,6 +21667,11 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -22329,6 +22438,11 @@
 |
 > exec
 | ALTER SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
+| ALTER SEQUENCE a SHARD EXTEND
 < error
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
@@ -23658,6 +23772,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a NO LOG)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 904 ORA-00904: "A": invalid identifier
@@ -24003,6 +24122,36 @@
 | CREATE INDEX a_c_idx ON a (c)
 < ok 0 0
 > exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT 1
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT pk_a PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_c_idx ON a (c)
+< ok 0 0
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT pk_a PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_c_idx ON a (c)
+< ok 0 0
+> exec
 | ALTER TABLE a DROP(a)
 < error
 | 904 ORA-00904: "A": invalid identifier
@@ -24299,6 +24448,16 @@
 |
 > exec
 | ALTER TABLE a DROP CONSTRAINTS a
+< error
+| 2443 ORA-02443: Cannot drop constraint  - nonexistent constraint
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a CASCADE
+< error
+| 2443 ORA-02443: Cannot drop constraint  - nonexistent constraint
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a ONLINE
 < error
 | 2443 ORA-02443: Cannot drop constraint  - nonexistent constraint
 |
@@ -25244,6 +25403,21 @@
 < ok 0 0
 > exec
 | ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER CONSTRAINT pk_a PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a_c_idx ON a (c)
+< ok 0 0
+> exec
+| ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY LOW
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -26399,6 +26573,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
@@ -28603,6 +28782,21 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG)))
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG)))
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO)))
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
@@ -29923,6 +30117,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -30334,6 +30533,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -31899,6 +32103,21 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO))) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -33544,6 +33763,11 @@
 |
 > exec
 | CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -39687,6 +39911,11 @@
 | 14464 ORA-14464: compression type not specified
 |
 > exec
+| ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY LOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -40882,6 +41111,11 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -41648,6 +41882,11 @@
 |
 > exec
 | ALTER SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
+| ALTER SEQUENCE a SHARD EXTEND
 < error
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
@@ -42784,6 +43023,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a NO LOG)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 30567 ORA-30567: name already used by an existing log group
@@ -43083,6 +43327,30 @@
 < ok 0 0
 > exec
 | ALTER TABLE a DROP UNUSED COLUMNS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT 1
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -43433,6 +43701,30 @@
 < ok 0 0
 > exec
 | ALTER TABLE a DROP CONSTRAINTS a
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a DROP CONSTRAINT a CASCADE
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a DROP CONSTRAINT a ONLINE
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -44369,6 +44661,18 @@
 < ok 0 0
 > exec
 | ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
+< ok 0 0
+> exec
+| ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY LOW
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -45329,6 +45633,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
@@ -47595,6 +47904,21 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG)))
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG)))
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO)))
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
@@ -48999,6 +49323,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -49410,6 +49739,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -50975,6 +51309,21 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO))) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -52599,6 +52948,11 @@
 |
 > exec
 | CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -58253,6 +58607,11 @@
 | 14464 ORA-14464: compression type not specified
 |
 > exec
+| ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY LOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -59574,6 +59933,11 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
 < error
 | 14253 ORA-14253: table is not partitioned by composite partition method
@@ -60347,6 +60711,11 @@
 |
 > exec
 | ALTER SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
+| ALTER SEQUENCE a SHARD EXTEND
 < error
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
@@ -61483,6 +61852,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a NO LOG)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < ok 0 0
 > exec
@@ -61768,6 +62142,30 @@
 |
 > exec
 | ALTER TABLE a DROP UNUSED COLUMNS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT 1
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -62083,6 +62481,16 @@
 |
 > exec
 | ALTER TABLE a DROP CONSTRAINTS a
+< error
+| 2443 ORA-02443: Cannot drop constraint  - nonexistent constraint
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a CASCADE
+< error
+| 2443 ORA-02443: Cannot drop constraint  - nonexistent constraint
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a ONLINE
 < error
 | 2443 ORA-02443: Cannot drop constraint  - nonexistent constraint
 |
@@ -63191,6 +63599,18 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY LOW
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
+< ok 0 0
+> exec
+| CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE a INMEMORY MEMCOMPRESS FOR QUERY LOW
 < ok 0 0
 > exec
@@ -64203,6 +64623,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
@@ -66476,6 +66901,21 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG)))
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG)))
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO)))
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
@@ -67904,6 +68344,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -68315,6 +68760,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -69880,6 +70330,21 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO))) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -71504,6 +71969,11 @@
 |
 > exec
 | CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -77650,6 +78120,11 @@
 | 14464 ORA-14464: compression type not specified
 |
 > exec
+| ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY LOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -78845,6 +79320,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -79615,6 +80095,11 @@
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
 > exec
+| ALTER SEQUENCE a SHARD EXTEND
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | ALTER SEQUENCE a NOSHARD
 < error
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
@@ -80330,6 +80815,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a NO LOG)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -80531,6 +81021,16 @@
 |
 > exec
 | ALTER TABLE a DROP UNUSED COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -80811,6 +81311,16 @@
 |
 > exec
 | ALTER TABLE a DROP CONSTRAINTS a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a ONLINE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -81660,6 +82170,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY LOW
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a INMEMORY MEMCOMPRESS FOR QUERY LOW
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -82391,6 +82906,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -84265,6 +84785,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -85987,6 +86522,11 @@
 | 64307 ORA-64307:  Exadata Hybrid Columnar Compression is not supported for tablespaces on this storage type
 |
 > exec
+| CREATE MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW AS SELECT 1 FROM dual
+< error
+| 64307 ORA-64307:  Exadata Hybrid Columnar Compression is not supported for tablespaces on this storage type
+|
+> exec
 | CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY LOW AS SELECT 1 FROM dual
 < error
 | 64307 ORA-64307:  Exadata Hybrid Columnar Compression is not supported for tablespaces on this storage type
@@ -86528,6 +87068,21 @@
 < ok 0 0
 > exec
 | CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY AS SELECT 1 FROM dual
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, c NUMBER)
+< ok 0 0
+> exec
+| CREATE INDEX a ON t (c)
+< ok 0 0
+> exec
+| CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW BEGIN NULL; END;
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY LOW AS SELECT 1 FROM dual
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -88203,6 +88758,21 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz))) AS SELECT 1 FROM dual
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG))) AS SELECT 1 FROM dual
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG))) AS SELECT 1 FROM dual
+< error
+| 904 ORA-00904: "A": invalid identifier
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO))) AS SELECT 1 FROM dual
 < error
 | 904 ORA-00904: "A": invalid identifier
 |
@@ -90368,6 +90938,11 @@
 |
 > exec
 | CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+< error
+| 998 ORA-00998: must name this expression with a column alias
+|
+> exec
+| CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 < error
 | 998 ORA-00998: must name this expression with a column alias
 |
@@ -96542,6 +97117,11 @@
 | 14464 ORA-14464: compression type not specified
 |
 > exec
+| ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY LOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -97737,6 +98317,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
 < error
 | 1702 ORA-01702: a view is not appropriate here
@@ -98507,6 +99092,11 @@
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
 > exec
+| ALTER SEQUENCE a SHARD EXTEND
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | ALTER SEQUENCE a NOSHARD
 < error
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
@@ -99219,6 +99809,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a NO LOG)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -99420,6 +100015,16 @@
 |
 > exec
 | ALTER TABLE a DROP UNUSED COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -99700,6 +100305,16 @@
 |
 > exec
 | ALTER TABLE a DROP CONSTRAINTS a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a ONLINE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -100549,6 +101164,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY LOW
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a INMEMORY MEMCOMPRESS FOR QUERY LOW
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -101274,6 +101894,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -103148,6 +103773,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -104465,6 +105105,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -104876,6 +105521,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -106441,6 +107091,21 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO))) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -108066,6 +108731,11 @@
 |
 > exec
 | CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+< error
+| 998 ORA-00998: must name this expression with a column alias
+|
+> exec
+| CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 < error
 | 998 ORA-00998: must name this expression with a column alias
 |
@@ -113957,6 +114627,11 @@
 | 14464 ORA-14464: compression type not specified
 |
 > exec
+| ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW
+< error
+| 64307 ORA-64307:  Exadata Hybrid Columnar Compression is not supported for tablespaces on this storage type
+|
+> exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY LOW
 < error
 | 64307 ORA-64307:  Exadata Hybrid Columnar Compression is not supported for tablespaces on this storage type
@@ -115482,6 +116157,11 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -116258,6 +116938,11 @@
 |
 > exec
 | ALTER SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
+| ALTER SEQUENCE a SHARD EXTEND
 < error
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
@@ -117617,6 +118302,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a NO LOG)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < ok 0 0
 > exec
@@ -117968,6 +118658,36 @@
 < ok 0 0
 > exec
 | ALTER TABLE a DROP UNUSED COLUMNS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT 1
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -118390,6 +119110,16 @@
 | ALTER TABLE a DROP CONSTRAINTS a
 < error
 | 2443 ORA-02443: Cannot drop constraint  - nonexistent constraint
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a CASCADE
+< error
+| 2443 ORA-02443: Cannot drop constraint  - nonexistent constraint
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a ONLINE
+< error
+| 14416 ORA-14416: Online DDL's cannot be used because of materialized view container table
 |
 > exec
 | ALTER TABLE a DROP UNIQUE(a)
@@ -119323,6 +120053,21 @@
 < ok 0 0
 > exec
 | ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, a NUMBER, d NUMBER)
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW a AS SELECT b, a, d FROM t
+< ok 0 0
+> exec
+| CREATE INDEX a_d_idx ON a (d)
+< ok 0 0
+> exec
+| ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY LOW
 < ok 0 0
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
@@ -120378,6 +121123,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
@@ -122552,6 +123302,21 @@
 | 1735 ORA-01735: invalid ALTER TABLE option
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG)))
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG)))
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO)))
+< error
+| 1735 ORA-01735: invalid ALTER TABLE option
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
 < error
 | 1735 ORA-01735: invalid ALTER TABLE option
@@ -124015,6 +124780,11 @@
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
 |
 > exec
+| CREATE MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW AS SELECT 1 FROM dual
+< error
+| 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
+|
+> exec
 | CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY LOW AS SELECT 1 FROM dual
 < error
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
@@ -124426,6 +125196,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY AS SELECT 1 FROM dual
+< error
+| 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
+|
+> exec
+| CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY LOW AS SELECT 1 FROM dual
 < error
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
 |
@@ -125991,6 +126766,21 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz))) AS SELECT 1 FROM dual
+< error
+| 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG))) AS SELECT 1 FROM dual
+< error
+| 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG))) AS SELECT 1 FROM dual
+< error
+| 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO))) AS SELECT 1 FROM dual
 < error
 | 12006 ORA-12006: materialized view or zonemap "SIMSHOP"."A" already exists
 |
@@ -127636,6 +128426,11 @@
 |
 > exec
 | CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -133766,6 +134561,11 @@
 | 14464 ORA-14464: compression type not specified
 |
 > exec
+| ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY LOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -134961,6 +135761,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
 < error
 | 2201 ORA-02201: sequence not allowed here
@@ -135822,6 +136627,11 @@
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
 > exec
+| ALTER SEQUENCE a SHARD EXTEND
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | ALTER SEQUENCE a NOSHARD
 < error
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
@@ -136541,6 +137351,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a NO LOG)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -136742,6 +137557,16 @@
 |
 > exec
 | ALTER TABLE a DROP UNUSED COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -137022,6 +137847,16 @@
 |
 > exec
 | ALTER TABLE a DROP CONSTRAINTS a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a ONLINE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -137871,6 +138706,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY LOW
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a INMEMORY MEMCOMPRESS FOR QUERY LOW
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -138596,6 +139436,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -140470,6 +141315,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -141745,6 +142605,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -142156,6 +143021,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -143721,6 +144591,21 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO))) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -145345,6 +146230,11 @@
 |
 > exec
 | CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -150818,6 +151708,11 @@
 | 14464 ORA-14464: compression type not specified
 |
 > exec
+| ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY LOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -152013,6 +152908,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
 < error
 | 14501 ORA-14501: object is not partitioned
@@ -152779,6 +153679,11 @@
 |
 > exec
 | ALTER SEQUENCE a SHARD
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
+| ALTER SEQUENCE a SHARD EXTEND
 < error
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
@@ -153558,6 +154463,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a NO LOG)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -153759,6 +154669,16 @@
 |
 > exec
 | ALTER TABLE a DROP UNUSED COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -154039,6 +154959,16 @@
 |
 > exec
 | ALTER TABLE a DROP CONSTRAINTS a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a ONLINE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -154944,6 +155874,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY LOW
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a INMEMORY MEMCOMPRESS FOR QUERY LOW
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -155669,6 +156604,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -157739,6 +158679,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -159143,6 +160098,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -159554,6 +160514,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -161119,6 +162084,21 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO))) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -162743,6 +163723,11 @@
 |
 > exec
 | CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -168328,6 +169313,11 @@
 | 14464 ORA-14464: compression type not specified
 |
 > exec
+| ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY LOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -169523,6 +170513,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -170293,6 +171288,11 @@
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
 > exec
+| ALTER SEQUENCE a SHARD EXTEND
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | ALTER SEQUENCE a NOSHARD
 < error
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
@@ -171005,6 +172005,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a NO LOG)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -171206,6 +172211,16 @@
 |
 > exec
 | ALTER TABLE a DROP UNUSED COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -171486,6 +172501,16 @@
 |
 > exec
 | ALTER TABLE a DROP CONSTRAINTS a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a ONLINE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -172335,6 +173360,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY LOW
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a INMEMORY MEMCOMPRESS FOR QUERY LOW
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -173060,6 +174090,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -174934,6 +175969,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -176216,6 +177266,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -176627,6 +177682,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -178192,6 +179252,21 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO))) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -179816,6 +180891,11 @@
 |
 > exec
 | CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -185268,6 +186348,11 @@
 | 14464 ORA-14464: compression type not specified
 |
 > exec
+| ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW
+< error
+| 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY LOW
 < error
 | 12003 ORA-12003: materialized view or zonemap "SIMSHOP"."A" does not exist
@@ -186463,6 +187548,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
 < error
 | 4044 ORA-04044: procedure, function, package, or type is not allowed here
@@ -187233,6 +188323,11 @@
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
 |
 > exec
+| ALTER SEQUENCE a SHARD EXTEND
+< error
+| 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
+|
+> exec
 | ALTER SEQUENCE a NOSHARD
 < error
 | 2511 ORA-02511: SQL query not allowed; the shard DDL is disabled.
@@ -187945,6 +189040,11 @@
 | 957 ORA-00957: duplicate column name
 |
 > exec
+| ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a NO LOG)
+< error
+| 957 ORA-00957: duplicate column name
+|
+> exec
 | ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -188146,6 +189246,16 @@
 |
 > exec
 | ALTER TABLE a DROP UNUSED COLUMNS
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT 1
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -188426,6 +189536,16 @@
 |
 > exec
 | ALTER TABLE a DROP CONSTRAINTS a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a CASCADE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a DROP CONSTRAINT a ONLINE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -189275,6 +190395,11 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY LOW
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a INMEMORY MEMCOMPRESS FOR QUERY LOW
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -190000,6 +191125,11 @@
 |
 > exec
 | ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
@@ -191874,6 +193004,21 @@
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
 |
 > exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO)))
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
 < error
 | 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
@@ -193242,6 +194387,11 @@
 | 955 ORA-00955: name is already used by an existing object
 |
 > exec
+| CREATE MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
 | CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
@@ -193653,6 +194803,11 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY LOW AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -195218,6 +196373,21 @@
 |
 > exec
 | CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG))) AS SELECT 1 FROM dual
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO))) AS SELECT 1 FROM dual
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
@@ -196849,6 +198019,11 @@
 |
 > exec
 | CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
 < error
 | 955 ORA-00955: name is already used by an existing object
 |
