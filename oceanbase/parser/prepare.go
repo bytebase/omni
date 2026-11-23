@@ -27,10 +27,18 @@ func (p *Parser) parsePrepareStmt() (*nodes.PrepareStmt, error) {
 		return nil, err
 	}
 
-	// preparable_stmt: a text string or a user variable, and one of the two.
+	// preparable_stmt: a text string or a user variable, and one of the two
+	// (sql_parser_mysql_mode.y:18559). text_string is a string, hex or bit
+	// literal.
 	if p.cur.Type == tokSCONST {
 		stmt.Stmt = p.cur.Str
 		p.advance()
+	} else if p.cur.Type == tokXCONST || p.cur.Type == tokBCONST {
+		v, err := p.parseTextString()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Stmt = v
 	} else if p.isVariableRef() {
 		vref, err := p.parseVariableRef()
 		if err != nil {
