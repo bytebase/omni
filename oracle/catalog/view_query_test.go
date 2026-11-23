@@ -145,6 +145,9 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"distinct_lpad_lob", `CREATE VIEW v AS SELECT DISTINCT LPAD(doc, 10, 'x') x FROM t`, "22848"},
 		{"parenthesized_order_missing", `CREATE VIEW v AS (SELECT id FROM t) ORDER BY nosuch`, "00904"},
 		{"parenthesized_fetch_bind", `CREATE VIEW v AS (SELECT id FROM t) FETCH FIRST :n ROWS ONLY`, "01027"},
+		{"in_list_incompatible", `CREATE VIEW v AS SELECT 1 x FROM dual WHERE 1 IN (DATE '2020-01-01')`, "00932"},
+		{"in_row_list_width", `CREATE VIEW v AS SELECT id FROM t WHERE (id, n) IN ((1, 2), (3))`, "00947"},
+		{"order_by_position_lob", `CREATE VIEW v AS SELECT doc FROM t ORDER BY 1`, "22848"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -440,5 +443,21 @@ CREATE VIEW b AS SELECT * FROM a;
 	results, err := c.Exec(`CREATE VIEW IF NOT EXISTS v AS SELECT id FROM missing_table`, nil)
 	if err != nil || results[0].Error != nil {
 		t.Fatalf("IF NOT EXISTS on an existing view: %v %+v", err, results)
+	}
+}
+
+func TestViewQueryTypesRound18(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TABLE t (nd NCLOB, j JSON);
+CREATE VIEW v AS SELECT MOD(1, CAST(2 AS BINARY_DOUBLE)) a, CONCAT(nd, 'x') b, JSON_MERGEPATCH(j, '{"x":1}') c FROM t;
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"BINARY_DOUBLE", "NCLOB", "JSON"}
+	for i, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
+		if col.GetType() != want[i] {
+			t.Errorf("%s type = %q, want %q", col.GetName(), col.GetType(), want[i])
+		}
 	}
 }

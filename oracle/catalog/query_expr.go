@@ -155,20 +155,53 @@ func (a *queryAnalyzer) expr(x ast.ExprNode, sc *qscope, clause exprClause) (qty
 		}
 		return simpleType("BOOLEAN"), false, nil
 	case *ast.InExpr:
-		if _, _, err := a.expr(n.Expr, sc, clause); err != nil {
+		lt, _, err := a.expr(n.Expr, sc, clause)
+		if err != nil {
 			return qtype{}, false, err
 		}
+		left := rowOperands(n.Expr)
 		for _, item := range listItems(n.List) {
-			if ex, ok := item.(ast.ExprNode); ok {
-				if sq, ok := ex.(*ast.SubqueryExpr); ok {
-					if err := a.compareWithSubquery(n.Expr, sq, sc, clause); err != nil {
-						return qtype{}, false, err
-					}
-					continue
-				}
-				if _, _, err := a.expr(ex, sc, clause); err != nil {
+			ex, ok := item.(ast.ExprNode)
+			if !ok {
+				continue
+			}
+			if sq, ok := ex.(*ast.SubqueryExpr); ok {
+				if err := a.compareWithSubquery(n.Expr, sq, sc, clause); err != nil {
 					return qtype{}, false, err
 				}
+				continue
+			}
+			// Each list entry compares with the left operand, a row with a
+			// row of its width.
+			right := rowOperands(ex)
+			if len(left) > 1 || len(right) > 1 {
+				if len(right) != len(left) {
+					if len(right) > len(left) {
+						return qtype{}, false, oraError("00913", "too many values")
+					}
+					return qtype{}, false, oraError("00947", "not enough values")
+				}
+				for i := range left {
+					l, _, err := a.expr(left[i], sc, clause)
+					if err != nil {
+						return qtype{}, false, err
+					}
+					r, _, err := a.expr(right[i], sc, clause)
+					if err != nil {
+						return qtype{}, false, err
+					}
+					if err := comparable(l, r, nil); err != nil {
+						return qtype{}, false, err
+					}
+				}
+				continue
+			}
+			rt, _, err := a.expr(ex, sc, clause)
+			if err != nil {
+				return qtype{}, false, err
+			}
+			if err := comparable(lt, rt, nil); err != nil {
+				return qtype{}, false, err
 			}
 		}
 		return simpleType("BOOLEAN"), false, nil
@@ -429,6 +462,10 @@ func comparable(l, r qtype, right ast.ExprNode) error {
 
 func concatType(l, r qtype) qtype {
 	if l.kind == "CLOB" || r.kind == "CLOB" || l.kind == "NCLOB" || r.kind == "NCLOB" {
+		// NCLOB with an NCLOB operand, or a CLOB with a national one.
+		if l.kind == "NCLOB" || r.kind == "NCLOB" || l.isNational() || r.isNational() {
+			return simpleType("NCLOB")
+		}
 		return simpleType("CLOB")
 	}
 	if l.isNational() || r.isNational() {
@@ -915,4 +952,18 @@ func charCapacity(t qtype) int {
 		return 75
 	}
 	return 0
+}
+
+// rowOperands lists a row constructor's values, or the one operand.
+func rowOperands(x ast.ExprNode) []ast.ExprNode {
+	if row, ok := unparen(x).(*ast.FuncCallExpr); ok && (row.FuncName == nil || row.FuncName.Name == "") {
+		var out []ast.ExprNode
+		for _, item := range listItems(row.Args) {
+			if ex, ok := item.(ast.ExprNode); ok {
+				out = append(out, ex)
+			}
+		}
+		return out
+	}
+	return []ast.ExprNode{x}
 }

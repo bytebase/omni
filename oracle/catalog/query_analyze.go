@@ -1133,6 +1133,9 @@ func (a *queryAnalyzer) orderItem(expr ast.ExprNode, sc *qscope, ncols int) erro
 		if n.Ival < 1 || int(n.Ival) > ncols {
 			return oraError("01785", "ORDER BY item must be the number of a SELECT-list expression")
 		}
+		if int(n.Ival) <= len(sc.aliases) && sc.aliases[n.Ival-1].typ.isLOB() {
+			return oraError("22848", "cannot use %s type as comparison key", sc.aliases[n.Ival-1].typ.kind)
+		}
 		return nil
 	}
 	if ref, ok := unparen(expr).(*ast.ColumnRef); ok && ref.Table == "" {

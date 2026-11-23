@@ -275,16 +275,22 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 				return simpleType("DATE"), false, nil
 			}
 		}
-		if t := arg(0); t.kind == "BINARY_DOUBLE" || t.kind == "BINARY_FLOAT" {
-			switch name {
-			case "ROUND", "TRUNC":
-				// With a precision, ROUND and TRUNC return NUMBER.
-				if len(args) < 2 {
-					return t, false, nil
-				}
-			case "ABS", "CEIL", "FLOOR", "SQRT", "EXP", "LN", "POWER", "MOD":
+		switch name {
+		case "ROUND", "TRUNC":
+			// Without a precision a float keeps its type; with one the
+			// result is NUMBER.
+			if t := arg(0); len(args) < 2 && (t.kind == "BINARY_DOUBLE" || t.kind == "BINARY_FLOAT") {
 				return t, false, nil
 			}
+		case "ABS", "CEIL", "FLOOR", "SQRT", "EXP", "LN", "POWER", "MOD", "REMAINDER", "ATAN2", "NANVL":
+			// The arguments' highest numeric precedence.
+			out := numberType()
+			for _, t := range args {
+				if t.isNumeric() {
+					out = numericResult(out, t)
+				}
+			}
+			return out, false, nil
 		}
 		return numberType(), false, nil
 	case "CHR":
@@ -408,7 +414,13 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		return t, false, nil
 	case "GREATEST", "LEAST":
 		return widenFirst(args), false, nil
-	case "JSON_OBJECT", "JSON_ARRAY", "JSON_VALUE", "JSON_QUERY", "JSON_SERIALIZE", "JSON_MERGEPATCH", "JSON_TRANSFORM":
+	case "JSON_QUERY", "JSON_MERGEPATCH", "JSON_TRANSFORM":
+		// A JSON target returns JSON by default.
+		if arg(0).kind == "JSON" {
+			return simpleType("JSON"), false, nil
+		}
+		return varchar2Bytes(4000), false, nil
+	case "JSON_OBJECT", "JSON_ARRAY", "JSON_VALUE", "JSON_SERIALIZE":
 		return varchar2Bytes(4000), false, nil
 	case "XMLELEMENT", "XMLFOREST", "XMLCONCAT", "XMLTYPE", "XMLPARSE", "XMLROOT", "XMLQUERY", "XMLCOMMENT", "XMLPI", "XMLCDATA", "XMLSEQUENCE":
 		return simpleType("XMLTYPE"), false, nil
