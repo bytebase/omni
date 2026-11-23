@@ -353,6 +353,14 @@ func (a *queryAnalyzer) binary(n *ast.BinaryExpr, sc *qscope, clause exprClause)
 // comparable checks that two values can be compared: a datetime does not
 // compare with a number.
 func comparable(l, r qtype, right ast.ExprNode) error {
+	if l.isLOB() || r.isLOB() {
+		// A LOB is no comparison operand (DBMS_LOB.COMPARE is).
+		lob := l
+		if !lob.isLOB() {
+			lob = r
+		}
+		return oraError("00932", "expression is of data type %s, which is incompatible with this comparison", lob.kind)
+	}
 	if (l.isDatetime() && r.isNumeric()) || (l.isNumeric() && r.isDatetime()) {
 		number, other := r, l
 		if l.isNumeric() {

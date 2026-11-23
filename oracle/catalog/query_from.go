@@ -344,14 +344,18 @@ func (a *queryAnalyzer) join(n *ast.JoinClause, sc *qscope) (*qfrom, error) {
 	switch n.Type {
 	case ast.JOIN_NATURAL_INNER, ast.JOIN_NATURAL_LEFT, ast.JOIN_NATURAL_RIGHT, ast.JOIN_NATURAL_FULL:
 		natural = true
+		// The common visible columns: an invisible column is no NATURAL
+		// join key.
 		rightNames := map[string]bool{}
 		for _, it := range right.items {
-			rightNames[right.itemCol(it).name] = true
+			if c := right.itemCol(it); !c.hidden {
+				rightNames[c.name] = true
+			}
 		}
 		for _, it := range left.items {
-			name := left.itemCol(it).name
-			if rightNames[name] && !containsString(using, name) {
-				using = append(using, name)
+			c := left.itemCol(it)
+			if !c.hidden && rightNames[c.name] && !containsString(using, c.name) {
+				using = append(using, c.name)
 			}
 		}
 	default:

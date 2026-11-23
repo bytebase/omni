@@ -274,7 +274,7 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 				if len(args) < 2 {
 					return t, false, nil
 				}
-			case "ABS", "CEIL", "FLOOR", "SQRT", "EXP", "LN", "POWER", "MOD", "SIGN":
+			case "ABS", "CEIL", "FLOOR", "SQRT", "EXP", "LN", "POWER", "MOD":
 				return t, false, nil
 			}
 		}
@@ -298,12 +298,23 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 			return varchar2Bytes(t.byteLength()), false, nil
 		}
 		if len(args) > 1 {
-			if s, ok := literalString(argNode(n, 1)); ok {
-				if t.isNumeric() {
-					return varchar2Bytes(len(s) + 1), false, nil
-				}
-				return varchar2Bytes(len(s)), false, nil
+			// A format of fixed-width elements gives the length; one that
+			// expands (MONTH, DAY, FM, ...) or is not a literal is left
+			// untyped rather than given a short length.
+			s, ok := literalString(argNode(n, 1))
+			if !ok {
+				return simpleType("UNKNOWN"), false, nil
 			}
+			if t.isNumeric() {
+				if n, ok := numberFormatWidth(s); ok {
+					return varchar2Bytes(n + 1), false, nil
+				}
+				return simpleType("UNKNOWN"), false, nil
+			}
+			if n, ok := datetimeFormatWidth(s); ok {
+				return varchar2Bytes(n), false, nil
+			}
+			return simpleType("UNKNOWN"), false, nil
 		}
 		if t.kind == "DATE" {
 			return varchar2Bytes(75), false, nil
@@ -482,7 +493,16 @@ func (a *queryAnalyzer) aggregateType(n *ast.FuncCallExpr, name string, args []q
 		case "BINARY_DOUBLE", "BINARY_FLOAT":
 			return t, false, nil
 		}
-		if t.isDatetime() || t.isInterval() {
+		switch {
+		case t.isDatetime():
+			// MEDIAN and the percentiles interpolate datetimes; the sums
+			// and statistics take numbers (and SUM and AVG intervals).
+			switch name {
+			case "MEDIAN", "PERCENTILE_CONT", "APPROX_MEDIAN", "APPROX_PERCENTILE":
+				return t, false, nil
+			}
+			return qtype{}, false, oraError("00932", "expression is of data type %s, which is incompatible with expected data type NUMBER", t.kind)
+		case t.isInterval():
 			return t, false, nil
 		}
 		return numberType(), false, nil
@@ -590,4 +610,56 @@ func (a *queryAnalyzer) windowSpec(w *ast.WindowSpec, sc *qscope, seen map[strin
 
 func isTrimMode(word string) bool {
 	return word == "BOTH" || word == "LEADING" || word == "TRAILING"
+}
+
+// datetimeFormatWidth is the length of a datetime format made only of
+// fixed-width elements and punctuation, or false.
+func datetimeFormatWidth(format string) (int, bool) {
+	f := strings.ToUpper(format)
+	widths := []struct {
+		elem  string
+		width int
+	}{
+		{"SYYYY", 5}, {"YYYY", 4}, {"RRRR", 4}, {"HH24", 2}, {"HH12", 2}, {"SSSSS", 5},
+		{"YYY", 3}, {"DDD", 3}, {"YY", 2}, {"RR", 2}, {"MM", 2}, {"DD", 2},
+		{"HH", 2}, {"MI", 2}, {"SS", 2}, {"WW", 2}, {"IW", 2}, {"CC", 2},
+		{"AM", 2}, {"PM", 2}, {"Y", 1}, {"Q", 1}, {"D", 1}, {"W", 1},
+	}
+	n := 0
+	for i := 0; i < len(f); {
+		ch := f[i]
+		if strings.ContainsRune(" -/,.;:", rune(ch)) {
+			n++
+			i++
+			continue
+		}
+		matched := false
+		for _, w := range widths {
+			if strings.HasPrefix(f[i:], w.elem) {
+				n += w.width
+				i += len(w.elem)
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return 0, false
+		}
+	}
+	return n, n > 0
+}
+
+// numberFormatWidth is the length of a number format made only of digits,
+// group and decimal separators and a dollar sign, or false; the sign takes
+// one more.
+func numberFormatWidth(format string) (int, bool) {
+	if format == "" {
+		return 0, false
+	}
+	for _, ch := range strings.ToUpper(format) {
+		if !strings.ContainsRune("90.,$GD", ch) {
+			return 0, false
+		}
+	}
+	return len(format), true
 }

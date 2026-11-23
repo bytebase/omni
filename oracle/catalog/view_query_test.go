@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -132,6 +133,9 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"analytic_in_window_order", `CREATE VIEW v AS SELECT SUM(id) OVER (ORDER BY ROW_NUMBER() OVER (ORDER BY id)) s FROM t`, "30483"},
 		{"json_table_reads_join_left", `CREATE VIEW v AS SELECT jt.id FROM t CROSS JOIN JSON_TABLE(t.doc, '$' COLUMNS (id NUMBER PATH '$.id')) jt`, ""},
 		{"match_recognize_repeated_variable", `CREATE VIEW v AS SELECT * FROM t MATCH_RECOGNIZE (ORDER BY id MEASURES FIRST(a.id) AS first_id PATTERN (a b* a) DEFINE a AS id > 0)`, ""},
+		{"lob_comparison", `CREATE VIEW v AS SELECT id FROM t WHERE doc = doc`, "00932"},
+		{"lob_is_null", `CREATE VIEW v AS SELECT id FROM t WHERE doc IS NULL`, ""},
+		{"sum_of_date", `CREATE VIEW v AS SELECT SUM(DATE '2020-01-01') s FROM dual`, "00932"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -324,6 +328,31 @@ CREATE VIEW w AS SELECT * FROM t UNPIVOT (val FOR (yr, qtr) IN (a AS (2020, 'Q1'
 			if col.GetType() != want[v.GetName()][i] {
 				t.Errorf("%s.%s type = %s, want %s", v.GetName(), col.GetName(), col.GetType(), want[v.GetName()][i])
 			}
+		}
+	}
+}
+
+func TestViewQueryTypesRound13(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TABLE t1 (id NUMBER, secret NUMBER INVISIBLE);
+CREATE TABLE t2 (id NUMBER, secret NUMBER INVISIBLE);
+CREATE VIEW v AS SELECT TO_CHAR(DATE '2020-01-01', 'MONTH') m, TO_CHAR(DATE '2020-01-01', 'YYYY-MM-DD HH24:MI') d, SIGN(CAST(1 AS BINARY_DOUBLE)) s, TO_CHAR(1, 'FM999') f FROM dual;
+CREATE VIEW w AS SELECT * FROM t1 NATURAL JOIN t2;
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range c.Metadata().GetSchemas()[0].GetViews() {
+		var got []string
+		for _, col := range v.GetColumns() {
+			got = append(got, col.GetName()+" "+col.GetType())
+		}
+		want := map[string]string{
+			"V": "M ,D VARCHAR2(16 BYTE),S NUMBER,F ",
+			"W": "ID NUMBER",
+		}[v.GetName()]
+		if strings.Join(got, ",") != want {
+			t.Errorf("%s columns = %q, want %q", v.GetName(), strings.Join(got, ","), want)
 		}
 	}
 }

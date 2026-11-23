@@ -1243,7 +1243,7 @@ func (a *queryAnalyzer) starColumns(from *qfrom, _, _ string) ([]fromCol, error)
 	}
 	var out []fromCol
 	for _, it := range from.items {
-		if it.rel != nil && it.rel.cols[it.idx].hidden {
+		if it.rel != nil && it.rel.cols[it.idx].hidden || it.rel == nil && it.col.hidden {
 			continue
 		}
 		if it.rel != nil && flat[it.rel] && it.rel.name != "" && seen[it.rel.name] > 1 {
