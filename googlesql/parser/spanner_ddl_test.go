@@ -618,10 +618,12 @@ func TestSpannerDDL_Rejects(t *testing.T) {
 		"CREATE ROLE", // missing name
 		"DROP ROLE",   // missing name
 		// LOCALITY GROUP
-		"CREATE LOCALITY GROUP",              // missing name
-		"ALTER LOCALITY GROUP g SET",         // SET with no OPTIONS
-		"ALTER LOCALITY GROUP g RENAME TO h", // not a valid locality-group action
-		"DROP LOCALITY GROUP",                // missing name
+		"CREATE LOCALITY GROUP",                // missing name
+		"ALTER LOCALITY GROUP g SET",           // SET with no OPTIONS
+		"ALTER LOCALITY GROUP g RENAME TO h",   // not a valid locality-group action
+		"CREATE LOCALITY GROUP g OPTIONS()",    // OPTIONS lists one or more
+		"ALTER LOCALITY GROUP g SET OPTIONS()", // likewise
+		"DROP LOCALITY GROUP",                  // missing name
 		// PROTO BUNDLE
 		"CREATE PROTO BUNDLE",       // missing ( )
 		"CREATE PROTO BUNDLE ()",    // empty bundle (grammar requires >=1)

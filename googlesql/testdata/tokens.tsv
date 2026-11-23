@@ -30,3 +30,13 @@ KW_TABLE_FOR_TABLE_CLAUSE	TABLE	googlesql.tm:460 TABLE in a FROM-less table clau
 KW_REPLACE_AFTER_INSERT	REPLACE	googlesql.tm:461 REPLACE after INSERT OR
 KW_UPDATE_AFTER_INSERT	UPDATE	googlesql.tm:462 UPDATE after INSERT OR
 KW_OPTIONS_IN_WITH_OPTIONS	OPTIONS	googlesql.tm:502 OPTIONS in SELECT WITH a OPTIONS(...)
+
+# Optional clauses tried at every site the grammar allows them, and not only
+# where their own alternative's row reaches (see grammar.EverySite).
+opt_if_not_exists	(every site)	googlesql.tm:4234 IF NOT EXISTS
+opt_if_exists	(every site)	googlesql.tm:12428 IF EXISTS
+opt_or_replace	(every site)	googlesql.tm:11849 OR REPLACE
+opt_create_scope	(every site)	googlesql.tm:11875 TEMP, TEMPORARY, PUBLIC or PRIVATE
+opt_access	(every site)	googlesql.tm:12448 ACCESS in ROW ACCESS POLICY
+opt_unique	(every site)	googlesql.tm:11886 UNIQUE
+opt_options_list	(every site)	googlesql.tm:11946 OPTIONS (...)

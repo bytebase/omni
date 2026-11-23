@@ -41,6 +41,13 @@ func (p *Parser) parseCreateView(create Token, orReplace bool, scope string, rec
 	stmt := &ast.CreateViewStmt{OrReplace: orReplace, Scope: scope, Recursive: recursive}
 	stmt.Loc.Start = create.Loc.Start
 
+	// Spanner's CREATE VIEW takes no IF NOT EXISTS: `{ CREATE VIEW | CREATE OR
+	// REPLACE VIEW } view_name SQL SECURITY ...`
+	// (https://cloud.google.com/spanner/docs/reference/standard-sql/data-definition-language#create_view);
+	// the emulator answers "Encountered 'IF' while parsing: identifier".
+	if p.isSpanner() && p.cur.Type == kwIF {
+		return nil, p.syntaxErrorAtCur()
+	}
 	ifNotExists, err := p.parseIfNotExists()
 	if err != nil {
 		return nil, err
