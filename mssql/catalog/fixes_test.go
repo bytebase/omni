@@ -2163,3 +2163,41 @@ func TestMigrationSequencesTriggersAndSynonyms(t *testing.T) {
 		})
 	}
 }
+
+// TestOmittedCollationResolvesToDatabaseDefault holds that a column written
+// without COLLATE compares as the database's default collation once the synced
+// side carries it, and as no difference while no side does.
+func TestOmittedCollationResolvesToDatabaseDefault(t *testing.T) {
+	withCollation := func(c *Catalog, collation string) *Catalog {
+		meta := c.Metadata()
+		meta.Collation = collation
+		out := New()
+		require.NoError(t, out.LoadMetadata(context.Background(), meta))
+		return out
+	}
+	omitted, err := LoadSQL(`CREATE TABLE [dbo].[t] ([v] varchar(20) NULL);`)
+	require.NoError(t, err)
+	explicit, err := LoadSQL(`CREATE TABLE [dbo].[t] ([v] varchar(20) COLLATE Latin1_General_CI_AS NULL);`)
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		name     string
+		from, to *Catalog
+		want     string
+	}{
+		{"unknown default", omitted, explicit, ""},
+		{"explicit added", withCollation(omitted, "SQL_Latin1_General_CP1_CI_AS"), explicit, "ALTER TABLE [dbo].[t] ALTER COLUMN [v] varchar(20) COLLATE Latin1_General_CI_AS NULL;"},
+		{"explicit removed", withCollation(explicit, "SQL_Latin1_General_CP1_CI_AS"), omitted, "ALTER TABLE [dbo].[t] ALTER COLUMN [v] varchar(20) NULL;"},
+		{"explicit is the default", withCollation(omitted, "latin1_general_ci_as"), explicit, ""},
+		{"omitted is the default", withCollation(explicit, "Latin1_General_CI_AS"), omitted, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			diff := Diff(tc.from, tc.to)
+			if tc.want == "" {
+				require.True(t, diff.IsEmpty(), GenerateMigration(tc.from, tc.to, diff).SQL())
+				return
+			}
+			require.Contains(t, GenerateMigration(tc.from, tc.to, diff).SQL(), tc.want)
+		})
+	}
+}
