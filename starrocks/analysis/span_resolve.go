@@ -452,6 +452,10 @@ func (r *spanResolver) tableRef(ref *ast.TableRef, outer *spanScope, ctes *cteBi
 		// A system table, whose columns the metadata does not list.
 		rel.open = true
 		rel.source = func(column string) SourceColumnSet {
+			if column == "" {
+				// A star over it names no column.
+				return nil
+			}
 			return SourceColumnSet{ColumnResource{Database: database, Table: table, Column: column}: true}
 		}
 		return rel
@@ -462,14 +466,23 @@ func (r *spanResolver) tableRef(ref *ast.TableRef, outer *spanScope, ctes *cteBi
 
 // derived returns a derived table or CTE of cols. One whose columns hold a
 // star the metadata could not expand has columns no one can list, so any
-// name resolves on it, to no known source.
+// name resolves on it, to what those stars read.
 func derived(name string, cols []spanColumn) *relation {
 	rel := &relation{name: name, columns: cols}
+	var starred SourceColumnSet
 	for _, c := range cols {
 		if c.star {
-			rel.open, rel.source = true, func(string) SourceColumnSet { return nil }
-			break
+			rel.open = true
+			if starred == nil {
+				starred = SourceColumnSet{}
+			}
+			for k := range c.sources {
+				starred[k] = true
+			}
 		}
+	}
+	if rel.open {
+		rel.source = func(string) SourceColumnSet { return clone(starred) }
 	}
 	return rel
 }
@@ -624,8 +637,9 @@ func (r *spanResolver) star(item *ast.SelectItem, sc *spanScope) []spanColumn {
 	var cols []spanColumn
 	for _, rel := range rels {
 		if rel.open && len(rel.columns) == 0 {
-			// The metadata does not list its columns.
-			cols = append(cols, spanColumn{name: "*", star: true})
+			// The metadata does not list its columns. What every column
+			// reads, as a table function's arguments, the star reads too.
+			cols = append(cols, spanColumn{name: "*", star: true, sources: rel.source("")})
 			continue
 		}
 		for _, c := range rel.columns {
@@ -737,6 +751,29 @@ func (r *spanResolver) expr(node ast.Node, sc *spanScope, ctes *cteBinding) Sour
 // than one relation of a scope has (a USING column, or one StarRocks refuses
 // as ambiguous) reads all of them.
 func (r *spanResolver) column(parts []string, sc *spanScope) SourceColumnSet {
+	// The parser holds a struct field path, s.f or t.s.f, as a longer
+	// column reference: when the whole name is no column, read a prefix as
+	// the column and the rest as its fields.
+	for n := len(parts); n >= 1; n-- {
+		if found, ok := r.lookup(parts[:n], sc); ok {
+			return found
+		}
+	}
+	name := parts[len(parts)-1]
+	qualifier := parts[:len(parts)-1]
+	column := name
+	if len(qualifier) > 0 {
+		table := qualifier[len(qualifier)-1]
+		r.missing(NotFoundError{Table: &table, Column: &column})
+	} else {
+		r.missing(NotFoundError{Column: &column})
+	}
+	return nil
+}
+
+// lookup resolves a column reference, innermost scope first, and reports
+// whether any relation has it.
+func (r *spanResolver) lookup(parts []string, sc *spanScope) (SourceColumnSet, bool) {
 	name := parts[len(parts)-1]
 	qualifier := parts[:len(parts)-1]
 	for s := sc; s != nil; s = s.parent {
@@ -777,20 +814,13 @@ func (r *spanResolver) column(parts []string, sc *spanScope) SourceColumnSet {
 			}
 		}
 		if hit {
-			return found
+			return found, true
 		}
 		if len(qualifier) > 0 && len(rels) > 0 {
 			break
 		}
 	}
-	column := name
-	if len(qualifier) > 0 {
-		table := qualifier[len(qualifier)-1]
-		r.missing(NotFoundError{Table: &table, Column: &column})
-	} else {
-		r.missing(NotFoundError{Column: &column})
-	}
-	return nil
+	return nil, false
 }
 
 // isColumnRef reports whether expr is a bare column reference, in any

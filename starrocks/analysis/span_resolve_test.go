@@ -11,7 +11,7 @@ import (
 var spanFixture = testcontainer.SpanFixture{Databases: []testcontainer.SpanDatabase{{
 	Name: "shop",
 	Tables: []testcontainer.SpanRelation{
-		{Name: "customers", Columns: []string{"id", "name"}},
+		{Name: "customers", Columns: []string{"id", "name", "info"}},
 		{Name: "orders", Columns: []string{"id", "customer_id", "amount"}},
 	},
 	Views: []testcontainer.SpanRelation{
@@ -61,8 +61,8 @@ func TestResolveQuerySpanSemiJoin(t *testing.T) {
 	}{
 		{"SELECT * FROM orders o LEFT SEMI JOIN customers c ON o.id = c.id", []string{"id", "customer_id", "amount"}},
 		{"SELECT * FROM orders o LEFT ANTI JOIN customers c ON o.id = c.id", []string{"id", "customer_id", "amount"}},
-		{"SELECT * FROM orders o RIGHT SEMI JOIN customers c ON o.id = c.id", []string{"id", "name"}},
-		{"SELECT * FROM orders o RIGHT ANTI JOIN customers c ON o.id = c.id", []string{"id", "name"}},
+		{"SELECT * FROM orders o RIGHT SEMI JOIN customers c ON o.id = c.id", []string{"id", "name", "info"}},
+		{"SELECT * FROM orders o RIGHT ANTI JOIN customers c ON o.id = c.id", []string{"id", "name", "info"}},
 	} {
 		span, err := resolveWithCatalog(t, tc.statement)
 		if err != nil {
@@ -143,5 +143,52 @@ func TestResolveQuerySpanStarThroughQueries(t *testing.T) {
 	span, err := resolveWithCatalog(t, "SELECT d.anything FROM (SELECT * FROM ext.shop.orders) d")
 	if err != nil || span.NotFoundError != nil {
 		t.Fatalf("a column of a derived table over an unexpanded star: %v %v", err, span.NotFoundError)
+	}
+}
+
+// A struct field path reads its column: s.f and t.s.f name column s.
+func TestResolveQuerySpanStructField(t *testing.T) {
+	info := ColumnResource{Database: "shop", Table: "customers", Column: "info"}
+	for _, statement := range []string{
+		"SELECT info.city FROM customers",
+		"SELECT c.info.city FROM customers c",
+		"SELECT customers.info.city.zip FROM customers",
+	} {
+		span, err := resolveWithCatalog(t, statement)
+		if err != nil {
+			t.Fatalf("%s: %v", statement, err)
+		}
+		if span.NotFoundError != nil {
+			t.Fatalf("%s: NotFoundError %v", statement, span.NotFoundError)
+		}
+		if len(span.Results) != 1 || len(span.Results[0].SourceColumns) != 1 || !span.Results[0].SourceColumns[info] {
+			t.Errorf("%s: results %+v, want customers.info", statement, span.Results)
+		}
+	}
+	span, err := resolveWithCatalog(t, "SELECT nope.city FROM customers")
+	if err != nil || span.NotFoundError == nil {
+		t.Errorf("a path on no column: %v, NotFoundError %v; want one", err, span.NotFoundError)
+	}
+}
+
+// A table function's columns read its arguments, through a star and the
+// derived table over it.
+func TestResolveQuerySpanTableFunctionThroughStar(t *testing.T) {
+	amount := ColumnResource{Database: "shop", Table: "orders", Column: "amount"}
+	for _, statement := range []string{
+		"SELECT u.unnest FROM orders o, unnest(o.amount) u",
+		"SELECT d.unnest FROM (SELECT u.* FROM orders o, unnest(o.amount) u) d",
+		"SELECT u.* FROM orders o, unnest(o.amount) u",
+	} {
+		span, err := resolveWithCatalog(t, statement)
+		if err != nil {
+			t.Fatalf("%s: %v", statement, err)
+		}
+		if span.NotFoundError != nil {
+			t.Fatalf("%s: NotFoundError %v", statement, span.NotFoundError)
+		}
+		if len(span.Results) != 1 || !span.Results[0].SourceColumns[amount] {
+			t.Errorf("%s: results %+v, want orders.amount", statement, span.Results)
+		}
 	}
 }
