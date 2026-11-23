@@ -185,6 +185,9 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"interval_leading_precision_given", `CREATE VIEW v AS SELECT INTERVAL '123' YEAR(3) x FROM dual`, ""},
 		{"compound_charset_mismatch", `CREATE VIEW v AS SELECT nv FROM t UNION ALL SELECT vc FROM t`, "12704"},
 		{"subset_unknown_member", `CREATE VIEW v AS SELECT first_id FROM t MATCH_RECOGNIZE (ORDER BY id MEASURES FIRST(a.id) AS first_id PATTERN (a) SUBSET s = (missing) DEFINE a AS id > 0)`, "62503"},
+		{"nvl_date_number", `CREATE VIEW v AS SELECT NVL(DATE '2020-01-01', 1) x FROM dual`, "00932"},
+		{"partition_by_lob", `CREATE VIEW v AS SELECT COUNT(*) OVER (PARTITION BY doc) c FROM t`, "22848"},
+		{"quoted_pattern_variable", `CREATE VIEW v AS SELECT first_id FROM t MATCH_RECOGNIZE (ORDER BY id MEASURES FIRST("a".id) AS first_id PATTERN ("a") DEFINE "a" AS id > 0)`, ""},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -701,5 +704,25 @@ func TestViewQueryNestedComparisonsStayLinear(t *testing.T) {
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("nested subquery comparisons took more than 10s")
+	}
+}
+
+func TestViewQueryNestedWithStaysLinear(t *testing.T) {
+	q := "SELECT 1 x FROM dual"
+	for i := 0; i < 40; i++ {
+		q = "WITH c AS (SELECT (" + q + ") x FROM dual) SELECT x FROM c"
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, err := LoadSQL("CREATE VIEW v AS " + q)
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("nested WITH clauses took more than 10s")
 	}
 }

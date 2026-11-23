@@ -133,6 +133,8 @@ type queryAnalyzer struct {
 	owner map[*ast.ColumnRef]*qfrom
 	// memo holds each expression's analysis by scope and clause.
 	memo map[exprMemoKey]exprMemo
+	// queryMemo holds each subquery's analysis by scope and environment.
+	queryMemo map[queryMemoKey]queryMemo
 }
 
 type textEdit struct {
@@ -152,7 +154,7 @@ func (e *oracleMetadataExtractor) analyzeViewQuery(query ast.StmtNode) ([]qcol, 
 	if !ok || sel == nil {
 		return nil, e.nodeText(query), nil
 	}
-	a := &queryAnalyzer{e: e, plsqlFuncs: map[string]qtype{}, owner: map[*ast.ColumnRef]*qfrom{}, memo: map[exprMemoKey]exprMemo{}}
+	a := &queryAnalyzer{e: e, plsqlFuncs: map[string]qtype{}, owner: map[*ast.ColumnRef]*qfrom{}, memo: map[exprMemoKey]exprMemo{}, queryMemo: map[queryMemoKey]queryMemo{}}
 	res, err := a.query(sel, nil, nil, true)
 	if err != nil {
 		return nil, "", err
@@ -224,6 +226,36 @@ func flattenSetOp(sel *ast.SelectStmt) (ops []setOperand, orderBy *ast.List, fet
 // query analyzes a query, compound or not, under outer. top reports the
 // view's own query, whose * Oracle expands in the stored text.
 func (a *queryAnalyzer) query(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, top bool) (*queryResult, error) {
+	// A subquery analyzed again in the same scope and WITH environment
+	// answers from the memo.
+	if !top {
+		key := queryMemoKey{sel: sel, outer: outer, ctes: ctes}
+		if m, ok := a.queryMemo[key]; ok {
+			return m.res, m.err
+		}
+		res, err := a.analyzeQuery(sel, outer, ctes)
+		a.queryMemo[key] = queryMemo{res: res, err: err}
+		return res, err
+	}
+	return a.analyzeQuery(sel, outer, ctes, true)
+}
+
+type queryMemoKey struct {
+	sel   *ast.SelectStmt
+	outer *qscope
+	ctes  *cteEnv
+}
+
+type queryMemo struct {
+	res *queryResult
+	err error
+}
+
+// analyzeQuery analyzes a query, registering its WITH clause once: the
+// blocks it holds see the clause's environment and do not register it
+// again.
+func (a *queryAnalyzer) analyzeQuery(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, topFlag ...bool) (*queryResult, error) {
+	top := len(topFlag) > 0 && topFlag[0]
 	if sel.WithClause != nil {
 		env, err := a.withClause(sel.WithClause, outer, ctes)
 		if err != nil {
@@ -458,6 +490,14 @@ func (a *queryAnalyzer) analyzeCTE(d *cteDef, outer *qscope, env *cteEnv) error 
 		}
 		// The anchor is every branch before the last, which UNION ALL joins
 		// to the recursive member; only that member reads the element.
+		bodyEnv := env
+		if sel.WithClause != nil {
+			e2, err := a.withClause(sel.WithClause, outer, env)
+			if err != nil {
+				return err
+			}
+			bodyEnv = e2
+		}
 		ops, _, _ := flattenSetOp(sel)
 		last := ops[len(ops)-1]
 		if len(ops) < 2 || !last.all || last.op != ast.SETOP_UNION {
@@ -481,7 +521,7 @@ func (a *queryAnalyzer) analyzeCTE(d *cteDef, outer *qscope, env *cteEnv) error 
 				return oraError("32043", "recursive WITH clause needs an initialization branch")
 			}
 			d.analyzing = true
-			branch, err := a.block(op.sel, outer, env, false, true)
+			branch, err := a.block(op.sel, outer, bodyEnv, false, true)
 			d.analyzing = false
 			if err != nil {
 				return err
@@ -620,13 +660,6 @@ func selectReferencesTable(sel *ast.SelectStmt, table string) bool {
 // block analyzes one query block. ownOrder reports whether its ORDER BY and
 // FETCH are its own rather than a compound query's.
 func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, top, ownOrder bool) (*queryResult, error) {
-	if sel.WithClause != nil && outer != nil {
-		env, err := a.withClause(sel.WithClause, outer, ctes)
-		if err != nil {
-			return nil, err
-		}
-		ctes = env
-	}
 	if sel.ForUpdate != nil && top {
 		return nil, oraError("03048", "SQL reserved word 'FOR' is not syntactically valid")
 	}

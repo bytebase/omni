@@ -448,9 +448,16 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 	case "SYS_CONNECT_BY_PATH":
 		return varchar2Bytes(4000), false, nil
 	case "NVL", "IFNULL":
+		if err := convertibleArgs(args); err != nil {
+			return qtype{}, false, err
+		}
 		return widenFirst(args), false, nil
 	case "NVL2":
-		return widenFirst(args[min(1, len(args)):]), false, nil
+		rest := args[min(1, len(args)):]
+		if err := convertibleArgs(rest); err != nil {
+			return qtype{}, false, err
+		}
+		return widenFirst(rest), false, nil
 	case "COALESCE":
 		// One type all arguments share is kept; otherwise the first
 		// argument's family decides, numbers by numeric precedence (a
@@ -474,6 +481,9 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		}
 		if same {
 			return first, false, nil
+		}
+		if err := convertibleArgs(args); err != nil {
+			return qtype{}, false, err
 		}
 		return widenFirst(args), false, nil
 	case "NULLIF":
@@ -673,8 +683,12 @@ func firstLiteralInt(n *ast.FuncCallExpr) (int, bool) {
 func (a *queryAnalyzer) windowSpec(w *ast.WindowSpec, sc *qscope, seen map[string]bool) error {
 	for _, item := range listItems(w.PartitionBy) {
 		if ex, ok := item.(ast.ExprNode); ok {
-			if _, _, err := a.expr(ex, sc, clauseAggArg); err != nil {
+			t, _, err := a.expr(ex, sc, clauseAggArg)
+			if err != nil {
 				return err
+			}
+			if t.isLOB() {
+				return oraError("22848", "cannot use %s type as comparison key", t.kind)
 			}
 		}
 	}
@@ -817,6 +831,26 @@ func checkArity(name string, n *ast.FuncCallExpr) error {
 	}
 	if count < bounds[0] || bounds[1] >= 0 && count > bounds[1] {
 		return oraError("00909", "invalid number of arguments")
+	}
+	return nil
+}
+
+// convertibleArgs checks that the arguments NVL, NVL2 and COALESCE take
+// convert to the first non-NULL one's type: a datetime and a number do
+// not (ORA-00932).
+func convertibleArgs(args []qtype) error {
+	var first qtype
+	for _, t := range args {
+		if t.isNull() {
+			continue
+		}
+		if first.kind == "" {
+			first = t
+			continue
+		}
+		if err := comparable(first, t, nil); err != nil && !first.isLOB() && !t.isLOB() {
+			return err
+		}
 	}
 	return nil
 }

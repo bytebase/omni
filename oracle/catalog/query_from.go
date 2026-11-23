@@ -1039,14 +1039,29 @@ func patternVariables(pattern string) []string {
 		if word.Len() == 0 {
 			return
 		}
-		w := strings.ToUpper(word.String())
+		// The parser writes the pattern normalized: an unquoted variable
+		// uppercased, a quoted one as spelled.
+		w := word.String()
 		word.Reset()
 		if w == "PERMUTE" {
 			return
 		}
 		out = append(out, w)
 	}
-	for _, r := range pattern {
+	runes := []rune(pattern)
+	for i := 0; i < len(runes); i++ {
+		r := runes[i]
+		if r == '"' {
+			// A quoted variable keeps its spelling.
+			flush()
+			j := i + 1
+			for j < len(runes) && runes[j] != '"' {
+				j++
+			}
+			out = append(out, string(runes[i+1:j]))
+			i = j
+			continue
+		}
 		if r == '_' || r == '$' || r == '#' || unicode.IsLetter(r) || (word.Len() > 0 && unicode.IsDigit(r)) {
 			word.WriteRune(r)
 			continue
