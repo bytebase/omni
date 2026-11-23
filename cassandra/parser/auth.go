@@ -40,8 +40,12 @@ func (p *Parser) parseGrant() (ast.StmtNode, error) {
 		return nil, err
 	}
 
+	resourceTok := p.cur
 	resource, err := p.parseResource()
 	if err != nil {
+		return nil, err
+	}
+	if err := p.checkApplicablePermissions(privs, resource, resourceTok); err != nil {
 		return nil, err
 	}
 
@@ -96,8 +100,12 @@ func (p *Parser) parseRevoke() (ast.StmtNode, error) {
 		return nil, err
 	}
 
+	resourceTok := p.cur
 	resource, err := p.parseResource()
 	if err != nil {
+		return nil, err
+	}
+	if err := p.checkApplicablePermissions(privs, resource, resourceTok); err != nil {
 		return nil, err
 	}
 
@@ -348,7 +356,9 @@ func (p *Parser) parseResource() (*ast.Resource, error) {
 			Loc:  p.makeLoc(start),
 		}, nil
 
-	case p.cur.Type == tokROLE && (isIdentLike(next.Type) || isStringLiteral(next.Type)):
+	// roleName (Parser.g:1519) is no reserved word, so GRANT ... ON ROLE TO
+	// grants on a table named role.
+	case p.cur.Type == tokROLE && (isCQLName(next) || isStringLiteral(next.Type)):
 		p.advance()
 		role, err := p.parseRoleName()
 		if err != nil {
@@ -376,6 +386,58 @@ func (p *Parser) parseResource() (*ast.Resource, error) {
 		}
 		return &ast.Resource{Type: "TABLE", Name: name, Loc: p.makeLoc(start)}, nil
 	}
+}
+
+// applicablePermissions holds, for each resource a GRANT or REVOKE names,
+// the permissions it takes. Parser.g:1086 and :1099 pass the permissions
+// through filterPermissions (Parser.g:149), which keeps those the resource's
+// applicablePermissions() holds and refuses the statement when none is left.
+// Each set is what the pinned server answered for every permission on every
+// resource. A FUNCTION resource has none here: its applicablePermissions()
+// looks the function up, and fails on one that does not exist, so the
+// server cannot be asked and omni takes every permission there.
+var applicablePermissions = map[string]map[string]bool{
+	"ALL KEYSPACES":             dataKeyspacePermissions,
+	"KEYSPACE":                  dataKeyspacePermissions,
+	"ALL TABLES IN KEYSPACE":    dataKeyspacePermissions,
+	"TABLE":                     permissionSet("ALTER", "DROP", "SELECT", "MODIFY", "AUTHORIZE", "UNMASK", "SELECT_MASKED"),
+	"ALL ROLES":                 permissionSet("CREATE", "ALTER", "DROP", "AUTHORIZE", "DESCRIBE"),
+	"ROLE":                      permissionSet("ALTER", "DROP", "AUTHORIZE", "DESCRIBE"),
+	"ALL FUNCTIONS":             functionKeyspacePermissions,
+	"ALL FUNCTIONS IN KEYSPACE": functionKeyspacePermissions,
+	"ALL MBEANS":                mbeanPermissions,
+	"MBEAN":                     mbeanPermissions,
+	"MBEANS":                    mbeanPermissions,
+}
+
+var (
+	dataKeyspacePermissions     = permissionSet("CREATE", "ALTER", "DROP", "SELECT", "MODIFY", "AUTHORIZE", "UNMASK", "SELECT_MASKED")
+	functionKeyspacePermissions = permissionSet("CREATE", "ALTER", "DROP", "AUTHORIZE", "EXECUTE")
+	mbeanPermissions            = permissionSet("SELECT", "MODIFY", "AUTHORIZE", "DESCRIBE", "EXECUTE")
+)
+
+func permissionSet(perms ...string) map[string]bool {
+	set := make(map[string]bool, len(perms))
+	for _, perm := range perms {
+		set[perm] = true
+	}
+	return set
+}
+
+// checkApplicablePermissions refuses a GRANT or REVOKE none of whose
+// permissions the resource takes, as filterPermissions (Parser.g:149) does.
+// ALL takes every permission, so it always leaves one.
+func (p *Parser) checkApplicablePermissions(privs []string, res *ast.Resource, at Token) error {
+	applicable, ok := applicablePermissions[res.Type]
+	if !ok {
+		return nil
+	}
+	for _, priv := range privs {
+		if priv == "ALL" || applicable[priv] {
+			return nil
+		}
+	}
+	return p.errorAt(at, "Resource type %s does not support any of the requested permissions", res.Type)
 }
 
 // parseInKeyspace parses KEYSPACE ks after IN.

@@ -63,3 +63,53 @@ opt_or_replace	(every site)	DorisLegacyParser.g4:1331 (sql_parser.cup:4233) OR R
 opt_tmp	(every site)	DorisLegacyParser.g4:1514 (sql_parser.cup:4915) TEMPORARY
 opt_force	(every site)	DorisLegacyParser.g4:1361 (sql_parser.cup:4285) FORCE
 opt_full	(every site)	DorisLegacyParser.g4:1582 (sql_parser.cup:5008) FULL or EXTENDED
+# Keyword choices tried at every site that names them, and not only at the
+# one site the rule's own rows reach. Each is a named rule used at several
+# sites; an inline (...) group of DorisParser.g4 is already its own rule at
+# each site.
+wildWhere	(every alternative)	DorisParser.g4:521 LIKE string or WHERE expression
+privilege	(every alternative)	DorisParser.g4:547 a named privilege or ALL
+columnPosition	(every alternative)	DorisParser.g4:714 FIRST or AFTER a column
+partitionSpec	(every alternative)	DorisParser.g4:962 [TEMPORARY] PARTITION or PARTITIONS, a list, a name or *
+refreshTrigger	(every alternative)	DorisParser.g4:1013 ON MANUAL, SCHEDULE or COMMIT
+identifierOrTextOrAsterisk	(every alternative)	DorisParser.g4:1037 a name, a string or *
+identifierOrAsterisk	(every alternative)	DorisParser.g4:1047 a name, a string or *
+userIdentify	(every alternative)	DorisParser.g4:1052 a user, with or without a host
+explainCommand	(every alternative)	DorisParser.g4:1067 EXPLAIN, DESC or DESCRIBE
+mergeType	(every alternative)	DorisParser.g4:1091 APPEND, DELETE or MERGE
+withRemoteStorageSystem	(every alternative)	DorisParser.g4:1121 a resource, S3, HDFS, LOCAL or a broker
+setQuantifier	(every alternative)	DorisParser.g4:1178 DISTINCT or ALL
+limitClause	(every alternative)	DorisParser.g4:1324 LIMIT n, LIMIT n OFFSET m or LIMIT m, n
+rowConstructorItem	(every alternative)	DorisParser.g4:1531 a constant, DEFAULT or an expression
+frameUnits	(every alternative)	DorisParser.g4:1648 ROWS or RANGE
+frameBoundary	(every alternative)	DorisParser.g4:1653 a window frame bound
+specifiedPartition	(every alternative)	DorisParser.g4:1663 [TEMPORARY] PARTITION or PARTITIONS
+tableSnapshot	(every alternative)	DorisParser.g4:1788 FOR VERSION or TIME AS OF
+number	(every alternative)	DorisParser.g4:1820 an integer or a decimal, signed or not
+opt_to_rollup	(every alternative)	DorisLegacyParser.g4:278 (sql_parser.cup:1631) TO or IN a rollup
+opt_col_pos	(every alternative)	DorisLegacyParser.g4:291 (sql_parser.cup:1655) FIRST or AFTER a column
+time_value_with_unit	(every alternative)	DorisLegacyParser.g4:359 (sql_parser.cup:1855) DAYS, HOURS or MINUTES
+passwd_time_unit	(every alternative)	DorisLegacyParser.g4:529 (sql_parser.cup:2360) DAY, HOUR or SECOND
+opt_merge_type	(every alternative)	DorisLegacyParser.g4:638 (sql_parser.cup:2573) [WITH] APPEND, DELETE or MERGE
+tbl_pattern	(every alternative)	DorisLegacyParser.g4:914 (sql_parser.cup:3185) a table pattern, qualified or not
+resource_pattern	(every alternative)	DorisLegacyParser.g4:921 (sql_parser.cup:3200) a name, * or a string
+workload_group_pattern	(every alternative)	DorisLegacyParser.g4:927 (sql_parser.cup:3211) a name, * or a string
+opt_nullable_type	(every alternative)	DorisLegacyParser.g4:1290 (sql_parser.cup:4144) NULL or NOT NULL
+opt_index_type	(every alternative)	DorisLegacyParser.g4:1323 (sql_parser.cup:4211) USING BITMAP, NGRAM_BF or INVERTED
+charset	(every alternative)	DorisLegacyParser.g4:1534 (sql_parser.cup:4944) CHAR SET or CHARSET
+from_or_in	(every alternative)	DorisLegacyParser.g4:1576 (sql_parser.cup:5003) FROM or IN
+opt_explain_options	(every alternative)	DorisLegacyParser.g4:1621 (sql_parser.cup:5079) VERBOSE or GRAPH
+describe_command	(every alternative)	DorisLegacyParser.g4:1638 (sql_parser.cup:5123) DESCRIBE or DESC
+lock_alias	(every alternative)	DorisLegacyParser.g4:1836 (sql_parser.cup:5566) AS a name or a string
+option_type	(every alternative)	DorisLegacyParser.g4:1984 (sql_parser.cup:5896) GLOBAL, LOCAL or SESSION
+opt_var_type	(every alternative)	DorisLegacyParser.g4:1991 (sql_parser.cup:5911) GLOBAL, LOCAL or SESSION
+var_ident_type	(every alternative)	DorisLegacyParser.g4:1999 (sql_parser.cup:5922) GLOBAL., LOCAL. or SESSION.
+equal	(every alternative)	DorisLegacyParser.g4:2006 (sql_parser.cup:5937) = or :=
+transaction_access_mode	(every alternative)	DorisLegacyParser.g4:2020 (sql_parser.cup:5949) READ ONLY or WRITE
+set_expr_or_default	(every alternative)	DorisLegacyParser.g4:2039 (sql_parser.cup:5965) DEFAULT, ON, ALL or an expression
+opt_table_alias	(every alternative)	DorisLegacyParser.g4:2286 (sql_parser.cup:6506) an alias, with AS, = or neither
+partition_names	(every alternative)	DorisLegacyParser.g4:2311 (sql_parser.cup:6554) [TEMPORARY] PARTITION or PARTITIONS
+window_type	(every alternative)	DorisLegacyParser.g4:2827 (sql_parser.cup:7615) ROWS or RANGE
+window_boundary	(every alternative)	DorisLegacyParser.g4:2833 (sql_parser.cup:7622) a window frame bound
+opt_chain	(every alternative)	DorisLegacyParser.g4:3091 (sql_parser.cup:8198) AND [NO] CHAIN
+opt_release	(every alternative)	DorisLegacyParser.g4:3098 (sql_parser.cup:8212) [NO] RELEASE

@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/doris/ast"
@@ -358,5 +359,30 @@ func TestBuildIndexPartitionForms(t *testing.T) {
 				t.Errorf("parseForTest(%q) Partitions[%d] = %q, want %q", tc.sql, i, n.Partitions[i], tc.want[i])
 			}
 		}
+	}
+}
+
+func TestBuildIndexPartitionSpecForms(t *testing.T) {
+	tests := []struct {
+		sql        string
+		partitions []string
+		temporary  bool
+	}{
+		{"BUILD INDEX idx ON t PARTITION(*)", []string{"*"}, false},
+		{"BUILD INDEX idx ON t PARTITIONS(*)", []string{"*"}, false},
+		{"BUILD INDEX idx ON t TEMPORARY PARTITION p1", []string{"p1"}, true},
+		{"BUILD INDEX idx ON t TEMPORARY PARTITIONS(p1, p2)", []string{"p1", "p2"}, true},
+	}
+	for _, tt := range tests {
+		stmt, ok := parseIndexStmt(t, tt.sql).(*ast.BuildIndexStmt)
+		if !ok {
+			t.Fatalf("%s: not a *ast.BuildIndexStmt", tt.sql)
+		}
+		if strings.Join(stmt.Partitions, ",") != strings.Join(tt.partitions, ",") || stmt.TemporaryPartition != tt.temporary {
+			t.Errorf("%s: Partitions = %v, TemporaryPartition = %v; want %v, %v", tt.sql, stmt.Partitions, stmt.TemporaryPartition, tt.partitions, tt.temporary)
+		}
+	}
+	if _, err := Parse("BUILD INDEX idx ON t TEMPORARY PARTITION(*)"); err == nil {
+		t.Error("TEMPORARY PARTITION(*) parsed; partitionSpec has no TEMPORARY form of (*)")
 	}
 }

@@ -309,10 +309,13 @@ var _ Node = (*DropInvertedIndexStmt)(nil)
 //
 //	BUILD INDEX name ON table [PARTITIONS(p1, p2, ...)]
 type BuildIndexStmt struct {
-	Name       *ObjectName
-	Table      *ObjectName
-	Partitions []string // optional partition names
-	Loc        Loc
+	Name  *ObjectName
+	Table *ObjectName
+	// Partitions holds the optional partitionSpec; TemporaryPartition marks
+	// TEMPORARY. ["*"] for PARTITION(*).
+	Partitions         []string
+	TemporaryPartition bool
+	Loc                Loc
 }
 
 // Tag implements Node.
