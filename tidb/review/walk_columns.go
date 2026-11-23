@@ -531,8 +531,9 @@ var nondeterministic = map[string]bool{
 }
 
 // nondeterministicCall returns the first function of nondeterministic an
-// expression calls, "" for none.
-func nondeterministicCall(e ast.Node) string {
+// expression calls, "" for none. A name written quoted is a column, or a
+// call the walk doesn't judge.
+func nondeterministicCall(sql string, e ast.Node) string {
 	found := ""
 	if e == nil {
 		return ""
@@ -545,11 +546,11 @@ func nondeterministicCall(e ast.Node) string {
 		case *ast.SelectStmt:
 			return false
 		case *ast.FuncCallExpr:
-			if x.Schema == "" && nondeterministic[strings.ToLower(x.Name)] {
+			if x.Schema == "" && nondeterministic[strings.ToLower(x.Name)] && !quotedAt(sql, x.Loc.Start) {
 				found = strings.ToUpper(x.Name)
 			}
 		case *ast.ColumnRef:
-			if x.Table == "" && x.Schema == "" && niladicNames[strings.ToLower(x.Column)] && nondeterministic[strings.ToLower(x.Column)] {
+			if x.Table == "" && x.Schema == "" && niladicNames[strings.ToLower(x.Column)] && nondeterministic[strings.ToLower(x.Column)] && !quotedAt(sql, x.Loc.Start) {
 				found = strings.ToUpper(x.Column)
 			}
 		}
@@ -565,7 +566,7 @@ func (b *builder) generatedFuncFails(cols []*ast.ColumnDef) bool {
 		if c == nil || c.Generated == nil {
 			continue
 		}
-		if fn := nondeterministicCall(c.Generated.Expr); fn != "" {
+		if fn := nondeterministicCall(b.w.sql, c.Generated.Expr); fn != "" {
 			b.fail(rangeOf(c.Loc), nil, review.UnsupportedForm, "Generated column "+review.Code(ident(c.Name))+" can't call "+review.Code(fn)+", whose value isn't deterministic.")
 			return true
 		}
@@ -580,7 +581,7 @@ func (b *builder) indexFuncFails(parts []*ast.IndexColumn, rng review.Range) boo
 		if ic == nil || !ic.Functional {
 			continue
 		}
-		if fn := nondeterministicCall(ic.Expr); fn != "" {
+		if fn := nondeterministicCall(b.w.sql, ic.Expr); fn != "" {
 			b.fail(rng, nil, review.UnsupportedForm, "An expression index can't call "+review.Code(fn)+", whose value isn't deterministic.")
 			return true
 		}

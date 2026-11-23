@@ -353,6 +353,7 @@ func TestWalkThroughTiDBColumnsAndKeys(t *testing.T) {
 		{sql: "CREATE INDEX fi ON t ((RAND()));", want: "An expression index can't call `RAND`, whose value isn't deterministic."},
 		{sql: "CREATE TABLE x (a INT, INDEX ((NOW())));", want: "An expression index can't call `NOW`, whose value isn't deterministic."},
 		{sql: "CREATE TABLE x (a INT, b INT AS (a + 1), INDEX ((a * 2)));"},
+		{sql: "CREATE TABLE x (`current_timestamp` INT, b INT AS (`current_timestamp`), INDEX ((`current_timestamp` + 1)));"},
 	})
 }
 
@@ -377,5 +378,7 @@ func TestWalkThroughTiDBViewTypes(t *testing.T) {
 		{sql: "CREATE VIEW w AS SELECT shop.t.a FROM t AS y;", want: "Column `shop.t.a` doesn't exist in the query."},
 		{sql: "CREATE VIEW w AS SELECT shop.y.a, SHOP.y.s FROM t AS y;"},
 		{sql: "CREATE VIEW w AS SELECT shop.t.a FROM shop.t;"},
+		{sql: "ALTER TABLE t CHANGE COLUMN IF EXISTS missing j INT;\nCREATE VIEW w AS SELECT JSON_EXTRACT(j, '$') FROM t;"},
+		{sql: "ALTER TABLE t MODIFY COLUMN IF EXISTS missing INT;\nALTER TABLE t ADD COLUMN missing JSON;\nCREATE VIEW w AS SELECT JSON_EXTRACT(missing, '$') FROM t;"},
 	})
 }

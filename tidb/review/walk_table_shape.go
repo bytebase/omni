@@ -493,6 +493,21 @@ func (b *builder) shapeEffects(v *ast.AlterTableStmt, r tableRef) {
 	}
 	renamed := false
 	for _, c := range v.Commands {
+		// MODIFY or CHANGE IF EXISTS of a column the walk doesn't know is
+		// there may change nothing (skipMissingColumn): its columns' types
+		// are left Unknown.
+		if (c.Type == ast.ATModifyColumn || c.Type == ast.ATChangeColumn) && c.IfExists && c.Column != nil {
+			source := c.Name
+			if c.Type == ast.ATModifyColumn {
+				source = c.Column.Name
+			}
+			if k, ok := b.key(spaceColumn, source); !ok || b.lookupFact(colKey(r.db, r.name, k)) != walk.Present {
+				dropType(source)
+				dropType(c.Column.Name)
+				unknownIndexes()
+				continue
+			}
+		}
 		switch c.Type {
 		case ast.ATAddColumn:
 			cols := c.Columns
@@ -619,4 +634,10 @@ func contains(list []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// lookupFact returns a key's fact before the statement.
+func (b *builder) lookupFact(k walk.Key) walk.Fact {
+	f, _ := b.l.Lookup(k)
+	return f
 }
