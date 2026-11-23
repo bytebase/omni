@@ -192,6 +192,7 @@ reject	reject	engine	sqlStateValue/stringLit	BEGIN DECLARE a CONDITION FOR SQLST
 reject	reject	engine	sqlStateValue/stringLit!drop-1	BEGIN DECLARE a CONDITION FOR SQLSTATE; END
 reject	reject	engine	sqlStateValue/stringLit!truncate	BEGIN DECLARE a CONDITION FOR SQLSTATE
 reject	reject	engine	sqlStateValue/stringLit!insert	BEGIN DECLARE a CONDITION FOR SQLSTATE 's' zzz; END
+reject	reject	engine	sqlStateValue/stringLit+stringLit/DOUBLEQUOTED_STRING	BEGIN DECLARE a CONDITION FOR SQLSTATE "s"; END
 accept	accept	engine	declareConditionStatement/DECLARE_multipartIdentifier_CONDITION_(FOR_SQLSTATE_VAL~990f7ec8	BEGIN DECLARE a CONDITION; END
 accept	accept	engine	declareConditionStatement(FOR_SQLSTATE_VALUE?_sqlStateValue)?/%empty	BEGIN DECLARE a CONDITION; END
 reject	reject	engine	declareConditionStatement(FOR_SQLSTATE_VALUE?_sqlStateValue)?/FOR_SQLSTATE_(VALUE)?_sqlStateValue	BEGIN DECLARE a CONDITION FOR SQLSTATE 's'; END
@@ -433,6 +434,8 @@ reject	reject	engine	statement/CREATE_namespace_(IF_errorCapturingNot_EXISTS)?_i
 reject	reject	engine	statement/CREATE_namespace_(IF_errorCapturingNot_EXISTS)?_identif~766e847a!drop-3	CREATE NAMESPACE
 reject	reject	engine	statement/CREATE_namespace_(IF_errorCapturingNot_EXISTS)?_identif~766e847a!insert	CREATE NAMESPACE a zzz
 reject	reject	engine	statement/CREATE_namespace_(IF_errorCapturingNot_EXISTS)?_identif~766e847a!swap	CROSS NAMESPACE a
+accept	accept	engine	statement/CREATE_namespace_(IF_errorCapturingNot_EXISTS)?_identif~766e847a+namespace/DATABASE	CREATE DATABASE a
+accept	accept	engine	statement/CREATE_namespace_(IF_errorCapturingNot_EXISTS)?_identif~766e847a+namespace/SCHEMA	CREATE SCHEMA a
 reject	reject	engine	statement/ALTER_namespace_identifierReference_SET_(DBPROPERTIES|P~d5b5318d	ALTER NAMESPACE a SET DBPROPERTIES(a)
 reject	reject	engine	statement/ALTER_namespace_identifierReference_SET_(DBPROPERTIES|P~d5b5318d!drop-1	NAMESPACE a SET DBPROPERTIES(a)
 reject	reject	engine	statement/ALTER_namespace_identifierReference_SET_(DBPROPERTIES|P~d5b5318d!drop-2	ALTER a SET DBPROPERTIES(a)
@@ -444,6 +447,8 @@ reject	reject	engine	statement/ALTER_namespace_identifierReference_SET_(DBPROPER
 reject	reject	engine	statement/ALTER_namespace_identifierReference_SET_(DBPROPERTIES|P~d5b5318d!drop-8	ALTER NAMESPACE a SET DBPROPERTIES(a
 reject	reject	engine	statement/ALTER_namespace_identifierReference_SET_(DBPROPERTIES|P~d5b5318d!insert	ALTER NAMESPACE a SET DBPROPERTIES(a) zzz
 reject	reject	engine	statement/ALTER_namespace_identifierReference_SET_(DBPROPERTIES|P~d5b5318d!swap	ALWAYS NAMESPACE a SET DBPROPERTIES(a)
+reject	reject	engine	statement/ALTER_namespace_identifierReference_SET_(DBPROPERTIES|P~d5b5318d+namespace/DATABASE	ALTER DATABASE a SET DBPROPERTIES(a)
+reject	reject	engine	statement/ALTER_namespace_identifierReference_SET_(DBPROPERTIES|P~d5b5318d+namespace/SCHEMA	ALTER SCHEMA a SET DBPROPERTIES(a)
 accept	accept	engine	statement/ALTER_namespace_identifierReference_UNSET_(DBPROPERTIES~f19e860d	ALTER NAMESPACE a UNSET DBPROPERTIES(a)
 reject	reject	engine	statement/ALTER_namespace_identifierReference_UNSET_(DBPROPERTIES~f19e860d!drop-1	NAMESPACE a UNSET DBPROPERTIES(a)
 reject	reject	engine	statement/ALTER_namespace_identifierReference_UNSET_(DBPROPERTIES~f19e860d!drop-2	ALTER a UNSET DBPROPERTIES(a)
@@ -454,6 +459,8 @@ reject	reject	engine	statement/ALTER_namespace_identifierReference_UNSET_(DBPROP
 reject	reject	engine	statement/ALTER_namespace_identifierReference_UNSET_(DBPROPERTIES~f19e860d!drop-8	ALTER NAMESPACE a UNSET DBPROPERTIES(a
 reject	reject	engine	statement/ALTER_namespace_identifierReference_UNSET_(DBPROPERTIES~f19e860d!insert	ALTER NAMESPACE a UNSET DBPROPERTIES(a) zzz
 reject	reject	engine	statement/ALTER_namespace_identifierReference_UNSET_(DBPROPERTIES~f19e860d!swap	ALWAYS NAMESPACE a UNSET DBPROPERTIES(a)
+accept	accept	engine	statement/ALTER_namespace_identifierReference_UNSET_(DBPROPERTIES~f19e860d+namespace/DATABASE	ALTER DATABASE a UNSET DBPROPERTIES(a)
+accept	accept	engine	statement/ALTER_namespace_identifierReference_UNSET_(DBPROPERTIES~f19e860d+namespace/SCHEMA	ALTER SCHEMA a UNSET DBPROPERTIES(a)
 accept	accept	engine	statement/ALTER_namespace_identifierReference_SET_locationSpec	ALTER NAMESPACE a SET LOCATION 's'
 reject	reject	engine	statement/ALTER_namespace_identifierReference_SET_locationSpec!drop-1	NAMESPACE a SET LOCATION 's'
 reject	reject	engine	statement/ALTER_namespace_identifierReference_SET_locationSpec!drop-2	ALTER a SET LOCATION 's'
@@ -463,11 +470,15 @@ reject	reject	engine	statement/ALTER_namespace_identifierReference_SET_locationS
 reject	reject	engine	statement/ALTER_namespace_identifierReference_SET_locationSpec!drop-6	ALTER NAMESPACE a SET LOCATION
 reject	reject	engine	statement/ALTER_namespace_identifierReference_SET_locationSpec!insert	ALTER NAMESPACE a SET LOCATION 's' zzz
 reject	reject	engine	statement/ALTER_namespace_identifierReference_SET_locationSpec!swap	ALWAYS NAMESPACE a SET LOCATION 's'
+accept	accept	engine	statement/ALTER_namespace_identifierReference_SET_locationSpec+namespace/DATABASE	ALTER DATABASE a SET LOCATION 's'
+accept	accept	engine	statement/ALTER_namespace_identifierReference_SET_locationSpec+namespace/SCHEMA	ALTER SCHEMA a SET LOCATION 's'
 accept	accept	engine	statement/DROP_namespace_(IF_EXISTS)?_identifierReference_(RESTRI~a5f78516	DROP NAMESPACE a
 reject	reject	engine	statement/DROP_namespace_(IF_EXISTS)?_identifierReference_(RESTRI~a5f78516!drop-2	DROP a
 reject	reject	engine	statement/DROP_namespace_(IF_EXISTS)?_identifierReference_(RESTRI~a5f78516!drop-3	DROP NAMESPACE
 reject	reject	engine	statement/DROP_namespace_(IF_EXISTS)?_identifierReference_(RESTRI~a5f78516!insert	DROP NAMESPACE a zzz
 reject	reject	engine	statement/DROP_namespace_(IF_EXISTS)?_identifierReference_(RESTRI~a5f78516!swap	ELSE NAMESPACE a
+accept	accept	engine	statement/DROP_namespace_(IF_EXISTS)?_identifierReference_(RESTRI~a5f78516+namespace/DATABASE	DROP DATABASE a
+accept	accept	engine	statement/DROP_namespace_(IF_EXISTS)?_identifierReference_(RESTRI~a5f78516+namespace/SCHEMA	DROP SCHEMA a
 accept	accept	engine	statement/SHOW_namespaces_((FROM|IN)_multipartIdentifier)?_(LIKE?~c058a223	SHOW NAMESPACES
 reject	reject	engine	statement/SHOW_namespaces_((FROM|IN)_multipartIdentifier)?_(LIKE?~c058a223!drop-1	NAMESPACES
 reject	reject	engine	statement/SHOW_namespaces_((FROM|IN)_multipartIdentifier)?_(LIKE?~c058a223!drop-2	SHOW
@@ -662,6 +673,7 @@ reject	reject	engine	statement/ALTER_TABLE_identifierReference_(partitionSpec)?_
 reject	reject	engine	statement/ALTER_TABLE_identifierReference_(partitionSpec)?_SET_SE~766378a3+statement(partitionSpec)?!drop-5	ALTER TABLE a PARTITION a) SET SERDE 's'
 reject	reject	engine	statement/ALTER_TABLE_identifierReference_(partitionSpec)?_SET_SE~766378a3+statement(partitionSpec)?!drop-6	ALTER TABLE a PARTITION() SET SERDE 's'
 reject	reject	engine	statement/ALTER_TABLE_identifierReference_(partitionSpec)?_SET_SE~766378a3+statement(partitionSpec)?!drop-7	ALTER TABLE a PARTITION(a SET SERDE 's'
+accept	accept	engine	statement/ALTER_TABLE_identifierReference_(partitionSpec)?_SET_SE~766378a3+stringLit/DOUBLEQUOTED_STRING	ALTER TABLE a SET SERDE "s"
 reject	reject	engine	statement/ALTER_TABLE_identifierReference_(partitionSpec)?_SET_SE~b9f7ca02	ALTER TABLE a SET SERDEPROPERTIES(a)
 reject	reject	engine	statement/ALTER_TABLE_identifierReference_(partitionSpec)?_SET_SE~b9f7ca02!drop-1	TABLE a SET SERDEPROPERTIES(a)
 reject	reject	engine	statement/ALTER_TABLE_identifierReference_(partitionSpec)?_SET_SE~b9f7ca02!drop-2	ALTER a SET SERDEPROPERTIES(a)
@@ -835,6 +847,7 @@ accept	accept	engine	statement/CREATE_(OR_REPLACE)?_(TEMPORARY)?_FUNCTION_(IF_er
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_(TEMPORARY)?_FUNCTION_(IF_errorCap~b3a15092+statement(IF_errorCapturingNot_EXISTS)?!drop-3	CREATE FUNCTION NOT EXISTS a AS 's'
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_(TEMPORARY)?_FUNCTION_(IF_errorCap~b3a15092+statement(IF_errorCapturingNot_EXISTS)?!drop-4	CREATE FUNCTION IF EXISTS a AS 's'
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_(TEMPORARY)?_FUNCTION_(IF_errorCap~b3a15092+statement(IF_errorCapturingNot_EXISTS)?!drop-5	CREATE FUNCTION IF NOT a AS 's'
+accept	accept	engine	statement/CREATE_(OR_REPLACE)?_(TEMPORARY)?_FUNCTION_(IF_errorCap~b3a15092+stringLit/DOUBLEQUOTED_STRING	CREATE FUNCTION a AS "s"
 accept	accept	engine	statement/CREATE_(OR_REPLACE)?_(TEMPORARY)?_FUNCTION_(IF_errorCap~c4aa8616	CREATE FUNCTION a() RETURN a
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_(TEMPORARY)?_FUNCTION_(IF_errorCap~c4aa8616!drop-1	FUNCTION a() RETURN a
 reject	reject	engine	statement/CREATE_(OR_REPLACE)?_(TEMPORARY)?_FUNCTION_(IF_errorCap~c4aa8616!drop-2	CREATE a() RETURN a
@@ -875,6 +888,7 @@ reject	reject	engine	statement/DROP_TEMPORARY_variable_(IF_EXISTS)?_identifierRe
 accept	accept	engine	statement/DROP_TEMPORARY_variable_(IF_EXISTS)?_identifierReference+statement(IF_EXISTS)?	DROP TEMPORARY VARIABLE IF EXISTS a
 reject	reject	engine	statement/DROP_TEMPORARY_variable_(IF_EXISTS)?_identifierReference+statement(IF_EXISTS)?!drop-4	DROP TEMPORARY VARIABLE EXISTS a
 reject	reject	engine	statement/DROP_TEMPORARY_variable_(IF_EXISTS)?_identifierReference+statement(IF_EXISTS)?!drop-5	DROP TEMPORARY VARIABLE IF a
+accept	accept	engine	statement/DROP_TEMPORARY_variable_(IF_EXISTS)?_identifierReference+variable/VAR	DROP TEMPORARY VAR a
 reject	reject	engine	statement/EXPLAIN_(LOGICAL|FORMATTED|EXTENDED|CODEGEN|COST)?_(sta~3b53d01a	EXPLAIN REFRESH
 reject	reject	engine	statement/EXPLAIN_(LOGICAL|FORMATTED|EXTENDED|CODEGEN|COST)?_(sta~3b53d01a!drop-2	EXPLAIN
 accept	accept	engine	statement/EXPLAIN_(LOGICAL|FORMATTED|EXTENDED|CODEGEN|COST)?_(sta~3b53d01a!insert	EXPLAIN REFRESH zzz
@@ -899,6 +913,7 @@ reject	reject	engine	statement/SHOW_TABLE_EXTENDED_((FROM|IN)_identifierReferenc
 reject	reject	engine	statement/SHOW_TABLE_EXTENDED_((FROM|IN)_identifierReference)?_LI~8603de97+statement(partitionSpec)?!drop-7	SHOW TABLE EXTENDED LIKE 's' PARTITION a)
 reject	reject	engine	statement/SHOW_TABLE_EXTENDED_((FROM|IN)_identifierReference)?_LI~8603de97+statement(partitionSpec)?!drop-8	SHOW TABLE EXTENDED LIKE 's' PARTITION()
 reject	reject	engine	statement/SHOW_TABLE_EXTENDED_((FROM|IN)_identifierReference)?_LI~8603de97+statement(partitionSpec)?!drop-9	SHOW TABLE EXTENDED LIKE 's' PARTITION(a
+accept	accept	engine	statement/SHOW_TABLE_EXTENDED_((FROM|IN)_identifierReference)?_LI~8603de97+stringLit/DOUBLEQUOTED_STRING	SHOW TABLE EXTENDED LIKE "s"
 accept	accept	engine	statement/SHOW_TBLPROPERTIES_identifierReference_(LEFT_PAREN_prop~732d00e7	SHOW TBLPROPERTIES a
 reject	reject	engine	statement/SHOW_TBLPROPERTIES_identifierReference_(LEFT_PAREN_prop~732d00e7!drop-1	TBLPROPERTIES a
 reject	reject	engine	statement/SHOW_TBLPROPERTIES_identifierReference_(LEFT_PAREN_prop~732d00e7!drop-2	SHOW a
@@ -946,6 +961,8 @@ reject	reject	engine	statement/SHOW_CURRENT_namespace!drop-2	SHOW NAMESPACE
 reject	reject	engine	statement/SHOW_CURRENT_namespace!drop-3	SHOW CURRENT
 reject	reject	engine	statement/SHOW_CURRENT_namespace!insert	SHOW CURRENT NAMESPACE zzz
 reject	reject	engine	statement/SHOW_CURRENT_namespace!swap	SINGLE CURRENT NAMESPACE
+accept	accept	engine	statement/SHOW_CURRENT_namespace+namespace/DATABASE	SHOW CURRENT DATABASE
+accept	accept	engine	statement/SHOW_CURRENT_namespace+namespace/SCHEMA	SHOW CURRENT SCHEMA
 accept	accept	engine	statement/SHOW_CATALOGS_(LIKE?_stringLit)?	SHOW CATALOGS
 reject	reject	engine	statement/SHOW_CATALOGS_(LIKE?_stringLit)?!drop-1	CATALOGS
 reject	reject	engine	statement/SHOW_CATALOGS_(LIKE?_stringLit)?!insert	SHOW CATALOGS zzz
@@ -958,6 +975,8 @@ accept	accept	engine	statement/(DESC|DESCRIBE)_namespace_(EXTENDED)?_identifierR
 accept	accept	engine	statement/(DESC|DESCRIBE)_namespace_(EXTENDED)?_identifierReference!drop-3	DESC NAMESPACE
 reject	reject	engine	statement/(DESC|DESCRIBE)_namespace_(EXTENDED)?_identifierReference!insert	DESC NAMESPACE a zzz
 accept	accept	engine	statement/(DESC|DESCRIBE)_namespace_(EXTENDED)?_identifierReference!swap	DESCRIBE NAMESPACE a
+accept	accept	engine	statement/(DESC|DESCRIBE)_namespace_(EXTENDED)?_identifierReference+namespace/DATABASE	DESC DATABASE a
+accept	accept	engine	statement/(DESC|DESCRIBE)_namespace_(EXTENDED)?_identifierReference+namespace/SCHEMA	DESC SCHEMA a
 accept	accept	engine	statement/(DESC|DESCRIBE)_(TABLE)?_(EXTENDED|FORMATTED)?_identifi~46c85100	DESC a
 reject	reject	engine	statement/(DESC|DESCRIBE)_(TABLE)?_(EXTENDED|FORMATTED)?_identifi~46c85100!drop-2	DESC
 accept	accept	engine	statement/(DESC|DESCRIBE)_(TABLE)?_(EXTENDED|FORMATTED)?_identifi~46c85100!insert	DESC a zzz
@@ -974,6 +993,9 @@ reject	reject	engine	statement/COMMENT_ON_namespace_identifierReference_IS_comme
 reject	reject	engine	statement/COMMENT_ON_namespace_identifierReference_IS_comment!drop-6	COMMENT ON NAMESPACE a IS
 reject	reject	engine	statement/COMMENT_ON_namespace_identifierReference_IS_comment!insert	COMMENT ON NAMESPACE a IS 's' zzz
 reject	reject	engine	statement/COMMENT_ON_namespace_identifierReference_IS_comment!swap	COMMIT ON NAMESPACE a IS 's'
+accept	accept	engine	statement/COMMENT_ON_namespace_identifierReference_IS_comment+namespace/DATABASE	COMMENT ON DATABASE a IS 's'
+accept	accept	engine	statement/COMMENT_ON_namespace_identifierReference_IS_comment+namespace/SCHEMA	COMMENT ON SCHEMA a IS 's'
+accept	accept	engine	statement/COMMENT_ON_namespace_identifierReference_IS_comment+stringLit/DOUBLEQUOTED_STRING	COMMENT ON NAMESPACE a IS "s"
 accept	accept	engine	statement/COMMENT_ON_TABLE_identifierReference_IS_comment	COMMENT ON TABLE a IS 's'
 reject	reject	engine	statement/COMMENT_ON_TABLE_identifierReference_IS_comment!drop-1	ON TABLE a IS 's'
 reject	reject	engine	statement/COMMENT_ON_TABLE_identifierReference_IS_comment!drop-2	COMMENT TABLE a IS 's'
@@ -982,6 +1004,8 @@ reject	reject	engine	statement/COMMENT_ON_TABLE_identifierReference_IS_comment!d
 reject	reject	engine	statement/COMMENT_ON_TABLE_identifierReference_IS_comment!drop-6	COMMENT ON TABLE a IS
 reject	reject	engine	statement/COMMENT_ON_TABLE_identifierReference_IS_comment!insert	COMMENT ON TABLE a IS 's' zzz
 reject	reject	engine	statement/COMMENT_ON_TABLE_identifierReference_IS_comment!swap	COMMIT ON TABLE a IS 's'
+accept	accept	engine	statement/COMMENT_ON_TABLE_identifierReference_IS_comment+stringLit/DOUBLEQUOTED_STRING	COMMENT ON TABLE a IS "s"
+accept	accept	engine	statement/COMMENT_ON_TABLE_identifierReference_IS_comment+comment/NULL	COMMENT ON TABLE a IS NULL
 accept	accept	engine	statement/REFRESH_TABLE_identifierReference	REFRESH TABLE a
 accept	accept	engine	statement/REFRESH_TABLE_identifierReference!drop-3	REFRESH TABLE
 reject	reject	engine	statement/REFRESH_TABLE_identifierReference!insert	REFRESH TABLE a zzz
@@ -1024,6 +1048,7 @@ reject	reject	engine	statement/LOAD_DATA_(LOCAL)?_INPATH_stringLit_(OVERWRITE)?_
 reject	reject	engine	statement/LOAD_DATA_(LOCAL)?_INPATH_stringLit_(OVERWRITE)?_INTO_T~22244295+statement(partitionSpec)?!drop-9	LOAD DATA INPATH 's' INTO TABLE a PARTITION a)
 reject	reject	engine	statement/LOAD_DATA_(LOCAL)?_INPATH_stringLit_(OVERWRITE)?_INTO_T~22244295+statement(partitionSpec)?!drop-10	LOAD DATA INPATH 's' INTO TABLE a PARTITION()
 reject	reject	engine	statement/LOAD_DATA_(LOCAL)?_INPATH_stringLit_(OVERWRITE)?_INTO_T~22244295+statement(partitionSpec)?!drop-11	LOAD DATA INPATH 's' INTO TABLE a PARTITION(a
+accept	accept	engine	statement/LOAD_DATA_(LOCAL)?_INPATH_stringLit_(OVERWRITE)?_INTO_T~22244295+stringLit/DOUBLEQUOTED_STRING	LOAD DATA INPATH "s" INTO TABLE a
 accept	accept	engine	statement/TRUNCATE_TABLE_identifierReference_(partitionSpec)?	TRUNCATE TABLE a
 reject	reject	engine	statement/TRUNCATE_TABLE_identifierReference_(partitionSpec)?!drop-2	TRUNCATE a
 reject	reject	engine	statement/TRUNCATE_TABLE_identifierReference_(partitionSpec)?!drop-3	TRUNCATE TABLE
@@ -1102,6 +1127,7 @@ reject	reject	engine	statement(IF_errorCapturingNot_EXISTS)?/IF_errorCapturingNo
 reject	reject	engine	statement(IF_errorCapturingNot_EXISTS)?/IF_errorCapturingNot_EXISTS!truncate	CREATE NAMESPACE IF NOT
 reject	reject	engine	statement(IF_errorCapturingNot_EXISTS)?/IF_errorCapturingNot_EXISTS!insert	CREATE NAMESPACE IF NOT EXISTS zzz a
 reject	reject	engine	statement(IF_errorCapturingNot_EXISTS)?/IF_errorCapturingNot_EXISTS!swap	CREATE NAMESPACE IGNORE NOT EXISTS a
+reject	reject	engine	statement(IF_errorCapturingNot_EXISTS)?/IF_errorCapturingNot_EXISTS+errorCapturingNot/BANG	CREATE NAMESPACE IF ! EXISTS a
 accept	accept	engine	statement(commentSpec|locationSpec|(WITH_(DBPR~55a4ea8e)*/%empty	CREATE NAMESPACE a
 accept	accept	engine	statement(commentSpec|locationSpec|(WITH_(DBPR~55a4ea8e)*/(commentSpec|locationSpec|(WITH_(DBPR~55a4ea8e)_(commen~9393b14e	CREATE NAMESPACE a COMMENT 's'
 reject	reject	engine	statement(commentSpec|locationSpec|(WITH_(DBPR~55a4ea8e)*/(commentSpec|locationSpec|(WITH_(DBPR~55a4ea8e)_(commen~9393b14e!drop-1	CREATE NAMESPACE a 's'
@@ -1157,6 +1183,7 @@ reject	reject	engine	statement(FROM|IN)/IN!swap	SHOW NAMESPACES INCLUDE a
 accept	accept	engine	statement(LIKE?_stringLit)?/%empty	SHOW NAMESPACES
 accept	accept	engine	statement(LIKE?_stringLit)?/(LIKE)?_stringLit	SHOW NAMESPACES 's'
 reject	reject	engine	statement(LIKE?_stringLit)?/(LIKE)?_stringLit!insert	SHOW NAMESPACES 's' zzz
+accept	accept	engine	statement(LIKE?_stringLit)?/(LIKE)?_stringLit+stringLit/DOUBLEQUOTED_STRING	SHOW NAMESPACES "s"
 accept	accept	engine	statement(LIKE)?/%empty	SHOW NAMESPACES 's'
 reject	reject	engine	statement(LIKE)?/%empty!insert	SHOW NAMESPACES zzz 's'
 accept	accept	engine	statement(LIKE)?/LIKE	SHOW NAMESPACES LIKE 's'
@@ -1198,12 +1225,25 @@ reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/ro
 reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/rowFormat!drop-3	CREATE TABLE a LIKE a ROW FORMAT
 reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/rowFormat!insert	CREATE TABLE a LIKE a ROW FORMAT DELIMITED zzz
 reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/rowFormat!swap	CREATE TABLE a LIKE a ROWS FORMAT DELIMITED
+reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/rowFormat+rowFormat/ROW_FORMAT_SERDE_stringLit_(WITH_SERDEPROPERTIES_propertyList)?	CREATE TABLE a LIKE a ROW FORMAT SERDE 's'
+reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/rowFormat+rowFormat/ROW_FORMAT_SERDE_stringLit_(WITH_SERDEPROPERTIES_propertyList)?!drop-1	CREATE TABLE a LIKE a FORMAT SERDE 's'
+reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/rowFormat+rowFormat/ROW_FORMAT_SERDE_stringLit_(WITH_SERDEPROPERTIES_propertyList)?!drop-2	CREATE TABLE a LIKE a ROW SERDE 's'
+reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/rowFormat+rowFormat/ROW_FORMAT_SERDE_stringLit_(WITH_SERDEPROPERTIES_propertyList)?!drop-3	CREATE TABLE a LIKE a ROW FORMAT 's'
+reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/rowFormat+rowFormat/ROW_FORMAT_SERDE_stringLit_(WITH_SERDEPROPERTIES_propertyList)?!drop-4	CREATE TABLE a LIKE a ROW FORMAT SERDE
+reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/rowFormat+stringLit/DOUBLEQUOTED_STRING	CREATE TABLE a LIKE a ROW FORMAT SERDE "s"
+reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/rowFormat+stringLit/DOUBLEQUOTED_STRING!drop-1	CREATE TABLE a LIKE a FORMAT SERDE "s"
+reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/rowFormat+stringLit/DOUBLEQUOTED_STRING!drop-2	CREATE TABLE a LIKE a ROW SERDE "s"
+reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/rowFormat+stringLit/DOUBLEQUOTED_STRING!drop-3	CREATE TABLE a LIKE a ROW FORMAT "s"
 reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/createFileFormat	CREATE TABLE a LIKE a STORED AS a
 reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/createFileFormat!drop-1	CREATE TABLE a LIKE a AS a
 reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/createFileFormat!drop-2	CREATE TABLE a LIKE a STORED a
 reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/createFileFormat!drop-3	CREATE TABLE a LIKE a STORED AS
 reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/createFileFormat!insert	CREATE TABLE a LIKE a STORED AS a zzz
 reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/createFileFormat!swap	CREATE TABLE a LIKE a STRATIFY AS a
+reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/createFileFormat+createFileFormat/STORED_BY_storageHandler	CREATE TABLE a LIKE a STORED BY 's'
+reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/createFileFormat+createFileFormat/STORED_BY_storageHandler!drop-1	CREATE TABLE a LIKE a BY 's'
+reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/createFileFormat+createFileFormat/STORED_BY_storageHandler!drop-2	CREATE TABLE a LIKE a STORED 's'
+reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/createFileFormat+createFileFormat/STORED_BY_storageHandler!drop-3	CREATE TABLE a LIKE a STORED BY
 accept	accept	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/locationSpec	CREATE TABLE a LIKE a LOCATION 's'
 reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/locationSpec!drop-1	CREATE TABLE a LIKE a 's'
 reject	reject	engine	statement(tableProvider|rowFormat|createFileFo~74776650)/locationSpec!drop-2	CREATE TABLE a LIKE a LOCATION
@@ -1276,6 +1316,9 @@ accept	accept	engine	statement(colPosition)?/%empty	ALTER TABLE a CHANGE a a BOO
 accept	accept	engine	statement(colPosition)?/colPosition	ALTER TABLE a CHANGE a a BOOLEAN FIRST
 reject	reject	engine	statement(colPosition)?/colPosition!insert	ALTER TABLE a CHANGE a a BOOLEAN FIRST zzz
 reject	reject	engine	statement(colPosition)?/colPosition!swap	ALTER TABLE a CHANGE a a BOOLEAN FLOAT
+accept	accept	engine	statement(colPosition)?/colPosition+colPosition/AFTER_errorCapturingIdentifier	ALTER TABLE a CHANGE a a BOOLEAN AFTER a
+reject	reject	engine	statement(colPosition)?/colPosition+colPosition/AFTER_errorCapturingIdentifier!drop-1	ALTER TABLE a CHANGE a a BOOLEAN a
+reject	reject	engine	statement(colPosition)?/colPosition+colPosition/AFTER_errorCapturingIdentifier!drop-2	ALTER TABLE a CHANGE a a BOOLEAN AFTER
 accept	accept	engine	statement(WITH_SERDEPROPERTIES_propertyList)?/%empty	ALTER TABLE a SET SERDE 's'
 reject	reject	engine	statement(WITH_SERDEPROPERTIES_propertyList)?/WITH_SERDEPROPERTIES_propertyList	ALTER TABLE a SET SERDE 's' WITH SERDEPROPERTIES(a)
 reject	reject	engine	statement(WITH_SERDEPROPERTIES_propertyList)?/WITH_SERDEPROPERTIES_propertyList!drop-1	ALTER TABLE a SET SERDE 's' SERDEPROPERTIES(a)
@@ -1441,6 +1484,26 @@ reject	reject	engine	statement(RETURNS_(dataType|TABLE_LEFT_PAREN_c~4838d87b)?/R
 reject	reject	engine	statement(RETURNS_(dataType|TABLE_LEFT_PAREN_c~4838d87b)?/RETURNS_(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)!swap	CREATE FUNCTION a() REVOKE BOOLEAN RETURN a
 accept	accept	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType	CREATE FUNCTION a() RETURNS BOOLEAN RETURN a
 accept	accept	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType!swap	CREATE FUNCTION a() RETURNS BOTH RETURN a
+accept	accept	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType+dataType/ARRAY_LT_dataType_GT	CREATE FUNCTION a() RETURNS ARRAY < BOOLEAN > RETURN a
+reject	reject	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType+dataType/ARRAY_LT_dataType_GT!drop-1	CREATE FUNCTION a() RETURNS < BOOLEAN > RETURN a
+reject	reject	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType+dataType/ARRAY_LT_dataType_GT!drop-2	CREATE FUNCTION a() RETURNS ARRAY BOOLEAN > RETURN a
+reject	reject	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType+dataType/ARRAY_LT_dataType_GT!drop-3	CREATE FUNCTION a() RETURNS ARRAY < > RETURN a
+reject	reject	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType+dataType/ARRAY_LT_dataType_GT!drop-4	CREATE FUNCTION a() RETURNS ARRAY < BOOLEAN RETURN a
+accept	accept	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType+dataType/MAP_LT_dataType_COMMA_dataType_GT	CREATE FUNCTION a() RETURNS MAP < BOOLEAN, BOOLEAN > RETURN a
+reject	reject	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-1	CREATE FUNCTION a() RETURNS < BOOLEAN, BOOLEAN > RETURN a
+reject	reject	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-2	CREATE FUNCTION a() RETURNS MAP BOOLEAN, BOOLEAN > RETURN a
+reject	reject	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-3	CREATE FUNCTION a() RETURNS MAP <, BOOLEAN > RETURN a
+reject	reject	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-4	CREATE FUNCTION a() RETURNS MAP < BOOLEAN BOOLEAN > RETURN a
+reject	reject	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-5	CREATE FUNCTION a() RETURNS MAP < BOOLEAN, > RETURN a
+reject	reject	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-6	CREATE FUNCTION a() RETURNS MAP < BOOLEAN, BOOLEAN RETURN a
+accept	accept	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)	CREATE FUNCTION a() RETURNS STRUCT <> RETURN a
+reject	reject	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!drop-1	CREATE FUNCTION a() RETURNS <> RETURN a
+accept	accept	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!drop-2	CREATE FUNCTION a() RETURNS STRUCT RETURN a
+accept	accept	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?	CREATE FUNCTION a() RETURNS INTERVAL YEAR RETURN a
+accept	accept	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?!drop-1	CREATE FUNCTION a() RETURNS YEAR RETURN a
+accept	accept	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?!drop-2	CREATE FUNCTION a() RETURNS INTERVAL RETURN a
+accept	accept	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType+dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?	CREATE FUNCTION a() RETURNS INTERVAL DAY RETURN a
+accept	accept	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/dataType+dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?!drop-1	CREATE FUNCTION a() RETURNS DAY RETURN a
 accept	accept	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/TABLE_LEFT_PAREN_colTypeList_RIGHT_PAREN	CREATE FUNCTION a() RETURNS TABLE(a BOOLEAN) RETURN a
 reject	reject	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/TABLE_LEFT_PAREN_colTypeList_RIGHT_PAREN!drop-1	CREATE FUNCTION a() RETURNS(a BOOLEAN) RETURN a
 reject	reject	engine	statement(dataType|TABLE_LEFT_PAREN_colTypeLis~3b4caf09)/TABLE_LEFT_PAREN_colTypeList_RIGHT_PAREN!drop-2	CREATE FUNCTION a() RETURNS TABLE a BOOLEAN) RETURN a
@@ -1496,12 +1559,15 @@ reject	reject	engine	statement(LEFT_PAREN_propertyKey_RIGHT_PAREN)?/LEFT_PAREN_p
 reject	reject	engine	statement(LEFT_PAREN_propertyKey_RIGHT_PAREN)?/LEFT_PAREN_propertyKey_RIGHT_PAREN!drop-2	SHOW TBLPROPERTIES a()
 reject	reject	engine	statement(LEFT_PAREN_propertyKey_RIGHT_PAREN)?/LEFT_PAREN_propertyKey_RIGHT_PAREN!drop-3	SHOW TBLPROPERTIES a(a
 reject	reject	engine	statement(LEFT_PAREN_propertyKey_RIGHT_PAREN)?/LEFT_PAREN_propertyKey_RIGHT_PAREN!insert	SHOW TBLPROPERTIES a(a) zzz
+accept	accept	engine	statement(LEFT_PAREN_propertyKey_RIGHT_PAREN)?/LEFT_PAREN_propertyKey_RIGHT_PAREN+propertyKey/stringLit	SHOW TBLPROPERTIES a('s')
+accept	accept	engine	statement(LEFT_PAREN_propertyKey_RIGHT_PAREN)?/LEFT_PAREN_propertyKey_RIGHT_PAREN+stringLit/DOUBLEQUOTED_STRING	SHOW TBLPROPERTIES a("s")
 accept	accept	engine	statement(LIKE?_(multipartIdentifier|stringLit))?/%empty	SHOW FUNCTIONS
 accept	accept	engine	statement(LIKE?_(multipartIdentifier|stringLit))?/(LIKE)?_(multipartIdentifier|stringLit)	SHOW FUNCTIONS a
 reject	reject	engine	statement(LIKE?_(multipartIdentifier|stringLit))?/(LIKE)?_(multipartIdentifier|stringLit)!insert	SHOW FUNCTIONS a zzz
 accept	accept	engine	statement(multipartIdentifier|stringLit)/multipartIdentifier	SHOW FUNCTIONS a
 accept	accept	engine	statement(multipartIdentifier|stringLit)/stringLit	SHOW FUNCTIONS 's'
 reject	reject	engine	statement(multipartIdentifier|stringLit)/stringLit!insert	SHOW FUNCTIONS 's' zzz
+accept	accept	engine	statement(multipartIdentifier|stringLit)/stringLit+stringLit/DOUBLEQUOTED_STRING	SHOW FUNCTIONS "s"
 accept	accept	engine	statement(AS_SERDE)?/%empty	SHOW CREATE TABLE a
 accept	accept	engine	statement(AS_SERDE)?/AS_SERDE	SHOW CREATE TABLE a AS SERDE
 reject	reject	engine	statement(AS_SERDE)?/AS_SERDE!drop-1	SHOW CREATE TABLE a SERDE
@@ -1545,6 +1611,7 @@ reject	reject	engine	statement(QUERY)?/QUERY!insert	DESC QUERY zzz SELECT a
 reject	reject	engine	statement(QUERY)?/QUERY!swap	DESC RANGE SELECT a
 accept	accept	engine	statement(stringLit|.*)/stringLit	REFRESH 's'
 reject	reject	engine	statement(stringLit|.*)/stringLit!insert	REFRESH 's' zzz
+accept	accept	engine	statement(stringLit|.*)/stringLit+stringLit/DOUBLEQUOTED_STRING	REFRESH "s"
 reject	reject	engine	statement(stringLit|.*)/(.)*	REFRESH
 reject	reject	engine	statement(.)*/%empty	REFRESH
 accept	accept	engine	statement(.)*/._(.)*	REFRESH a
@@ -1641,6 +1708,7 @@ reject	reject	engine	setResetStatement/SET_variable_assignmentList!drop-4	SET VA
 reject	reject	engine	setResetStatement/SET_variable_assignmentList!drop-5	SET VARIABLE a =
 reject	reject	engine	setResetStatement/SET_variable_assignmentList!insert	SET VARIABLE a = a zzz
 reject	reject	engine	setResetStatement/SET_variable_assignmentList!swap	SETS VARIABLE a = a
+accept	accept	engine	setResetStatement/SET_variable_assignmentList+variable/VAR	SET VAR a = a
 accept	accept	engine	setResetStatement/SET_variable_LEFT_PAREN_multipartIdentifierList_RIGHT_P~2fedd42c	SET VARIABLE(a) =(SELECT a)
 reject	reject	engine	setResetStatement/SET_variable_LEFT_PAREN_multipartIdentifierList_RIGHT_P~2fedd42c!drop-1	VARIABLE(a) =(SELECT a)
 reject	reject	engine	setResetStatement/SET_variable_LEFT_PAREN_multipartIdentifierList_RIGHT_P~2fedd42c!drop-2	SET(a) =(SELECT a)
@@ -1654,6 +1722,7 @@ reject	reject	engine	setResetStatement/SET_variable_LEFT_PAREN_multipartIdentifi
 reject	reject	engine	setResetStatement/SET_variable_LEFT_PAREN_multipartIdentifierList_RIGHT_P~2fedd42c!drop-10	SET VARIABLE(a) =(SELECT a
 reject	reject	engine	setResetStatement/SET_variable_LEFT_PAREN_multipartIdentifierList_RIGHT_P~2fedd42c!insert	SET VARIABLE(a) =(SELECT a) zzz
 reject	reject	engine	setResetStatement/SET_variable_LEFT_PAREN_multipartIdentifierList_RIGHT_P~2fedd42c!swap	SETS VARIABLE(a) =(SELECT a)
+accept	accept	engine	setResetStatement/SET_variable_LEFT_PAREN_multipartIdentifierList_RIGHT_P~2fedd42c+variable/VAR	SET VAR(a) =(SELECT a)
 accept	accept	engine	setResetStatement/SET_configKey_EQ_configValue	SET `a` = `a`
 reject	reject	engine	setResetStatement/SET_configKey_EQ_configValue!drop-1	`a` = `a`
 reject	reject	engine	setResetStatement/SET_configKey_EQ_configValue!drop-3	SET `a` `a`
@@ -1702,9 +1771,11 @@ accept	accept	engine	executeImmediateUsing/USING_LEFT_PAREN_namedExpressionSeq_R
 reject	reject	engine	executeImmediateUsing/USING_LEFT_PAREN_namedExpressionSeq_RIGHT_PAREN!swap	EXECUTE IMMEDIATE 's' VALUE(a)
 accept	accept	engine	executeImmediateUsing/USING_namedExpressionSeq	EXECUTE IMMEDIATE 's' USING a
 accept	accept	engine	executeImmediateQueryParam/stringLit	EXECUTE IMMEDIATE 's'
+accept	accept	engine	executeImmediateQueryParam/stringLit+stringLit/DOUBLEQUOTED_STRING	EXECUTE IMMEDIATE "s"
 accept	accept	engine	executeImmediateQueryParam/multipartIdentifier	EXECUTE IMMEDIATE a
 reject	reject	engine	executeImmediateQueryParam/multipartIdentifier!insert	EXECUTE IMMEDIATE a zzz
 accept	accept	engine	timezone/stringLit	SET TIME ZONE 's'
+accept	accept	engine	timezone/stringLit+stringLit/DOUBLEQUOTED_STRING	SET TIME ZONE "s"
 accept	accept	engine	timezone/LOCAL	SET TIME ZONE LOCAL
 reject	reject	engine	timezone/LOCAL!insert	SET TIME ZONE LOCAL zzz
 reject	reject	engine	timezone/LOCAL!swap	SET TIME ZONE LOCATION
@@ -1964,6 +2035,7 @@ reject	reject	engine	createTableHeader(IF_errorCapturingNot_EXISTS)?/IF_errorCap
 reject	reject	engine	createTableHeader(IF_errorCapturingNot_EXISTS)?/IF_errorCapturingNot_EXISTS!truncate	CREATE TABLE IF NOT
 reject	reject	engine	createTableHeader(IF_errorCapturingNot_EXISTS)?/IF_errorCapturingNot_EXISTS!insert	CREATE TABLE IF NOT EXISTS zzz a
 reject	reject	engine	createTableHeader(IF_errorCapturingNot_EXISTS)?/IF_errorCapturingNot_EXISTS!swap	CREATE TABLE IGNORE NOT EXISTS a
+reject	reject	engine	createTableHeader(IF_errorCapturingNot_EXISTS)?/IF_errorCapturingNot_EXISTS+errorCapturingNot/BANG	CREATE TABLE IF ! EXISTS a
 accept	accept	engine	replaceTableHeader/(CREATE_OR)?_REPLACE_TABLE_identifierReference	REPLACE TABLE a
 accept	accept	engine	replaceTableHeader(CREATE_OR)?/%empty	REPLACE TABLE a
 reject	reject	engine	replaceTableHeader(CREATE_OR)?/%empty!insert	zzz REPLACE TABLE a
@@ -2030,6 +2102,7 @@ reject	reject	engine	skewSpec(STORED_AS_DIRECTORIES)?/STORED_AS_DIRECTORIES!drop
 reject	reject	engine	skewSpec(STORED_AS_DIRECTORIES)?/STORED_AS_DIRECTORIES!insert	CREATE TABLE a SKEWED BY(a) ON(NULL) STORED AS DIRECTORIES zzz
 reject	reject	engine	skewSpec(STORED_AS_DIRECTORIES)?/STORED_AS_DIRECTORIES!swap	CREATE TABLE a SKEWED BY(a) ON(NULL) STRATIFY AS DIRECTORIES
 accept	accept	engine	locationSpec/LOCATION_stringLit	CREATE NAMESPACE a LOCATION 's'
+accept	accept	engine	locationSpec/LOCATION_stringLit+stringLit/DOUBLEQUOTED_STRING	CREATE NAMESPACE a LOCATION "s"
 accept	accept	engine	schemaBinding/WITH_SCHEMA_(BINDING|COMPENSATION|EVOLUTION|TYPE_EVOLUTION)	ALTER VIEW a WITH SCHEMA BINDING
 reject	reject	engine	schemaBinding/WITH_SCHEMA_(BINDING|COMPENSATION|EVOLUTION|TYPE_EVOLUTION)!swap	ALTER VIEW a WITHIN SCHEMA BINDING
 accept	accept	engine	schemaBinding(BINDING|COMPENSATION|EVOLUTION|TYPE_EVOLUTION)/BINDING	ALTER VIEW a WITH SCHEMA BINDING
@@ -2045,6 +2118,7 @@ reject	reject	engine	schemaBinding(BINDING|COMPENSATION|EVOLUTION|TYPE_EVOLUTION
 reject	reject	engine	schemaBinding(BINDING|COMPENSATION|EVOLUTION|TYPE_EVOLUTION)/TYPE_EVOLUTION!insert	ALTER VIEW a WITH SCHEMA TYPE EVOLUTION zzz
 reject	reject	engine	schemaBinding(BINDING|COMPENSATION|EVOLUTION|TYPE_EVOLUTION)/TYPE_EVOLUTION!swap	ALTER VIEW a WITH SCHEMA UNARCHIVE EVOLUTION
 accept	accept	engine	commentSpec/COMMENT_stringLit	CREATE NAMESPACE a COMMENT 's'
+accept	accept	engine	commentSpec/COMMENT_stringLit+stringLit/DOUBLEQUOTED_STRING	CREATE NAMESPACE a COMMENT "s"
 accept	accept	engine	query/(ctes)?_queryTerm_queryOrganization	SELECT a
 accept	accept	engine	query(ctes)?/%empty	SELECT a
 reject	reject	engine	query(ctes)?/%empty!insert	zzz SELECT a
@@ -2100,6 +2174,7 @@ accept	accept	engine	insertInto/INSERT_OVERWRITE_(LOCAL)?_DIRECTORY_stringLit_(r
 reject	reject	engine	insertInto/INSERT_OVERWRITE_(LOCAL)?_DIRECTORY_stringLit_(rowForma~f2f7ccb9!truncate	INSERT OVERWRITE DIRECTORY
 reject	reject	engine	insertInto/INSERT_OVERWRITE_(LOCAL)?_DIRECTORY_stringLit_(rowForma~f2f7ccb9!insert	INSERT OVERWRITE DIRECTORY 's' zzz SELECT a
 reject	reject	engine	insertInto/INSERT_OVERWRITE_(LOCAL)?_DIRECTORY_stringLit_(rowForma~f2f7ccb9!swap	INT OVERWRITE DIRECTORY 's' SELECT a
+accept	accept	engine	insertInto/INSERT_OVERWRITE_(LOCAL)?_DIRECTORY_stringLit_(rowForma~f2f7ccb9+stringLit/DOUBLEQUOTED_STRING	INSERT OVERWRITE DIRECTORY "s" SELECT a
 reject	reject	engine	insertInto/INSERT_OVERWRITE_(LOCAL)?_DIRECTORY_(stringLit)?_tableP~0657b146	INSERT OVERWRITE DIRECTORY USING a SELECT a
 reject	reject	engine	insertInto/INSERT_OVERWRITE_(LOCAL)?_DIRECTORY_(stringLit)?_tableP~0657b146!drop-1	OVERWRITE DIRECTORY USING a SELECT a
 reject	reject	engine	insertInto/INSERT_OVERWRITE_(LOCAL)?_DIRECTORY_(stringLit)?_tableP~0657b146!drop-2	INSERT DIRECTORY USING a SELECT a
@@ -2142,6 +2217,7 @@ reject	reject	engine	insertInto(IF_errorCapturingNot_EXISTS)?/IF_errorCapturingN
 reject	reject	engine	insertInto(IF_errorCapturingNot_EXISTS)?/IF_errorCapturingNot_EXISTS!truncate	INSERT INTO a IF NOT
 reject	reject	engine	insertInto(IF_errorCapturingNot_EXISTS)?/IF_errorCapturingNot_EXISTS!insert	INSERT INTO a IF NOT EXISTS zzz SELECT a
 reject	reject	engine	insertInto(IF_errorCapturingNot_EXISTS)?/IF_errorCapturingNot_EXISTS!swap	INSERT INTO a IGNORE NOT EXISTS SELECT a
+reject	reject	engine	insertInto(IF_errorCapturingNot_EXISTS)?/IF_errorCapturingNot_EXISTS+errorCapturingNot/BANG	INSERT INTO a IF ! EXISTS SELECT a
 accept	accept	engine	insertInto((BY_NAME)|identifierList)?/%empty	INSERT OVERWRITE a SELECT a
 accept	accept	engine	insertInto((BY_NAME)|identifierList)?/BY_NAME	INSERT OVERWRITE a BY NAME SELECT a
 reject	reject	engine	insertInto((BY_NAME)|identifierList)?/BY_NAME!drop-1	INSERT OVERWRITE a NAME SELECT a
@@ -2176,6 +2252,15 @@ reject	reject	engine	insertInto(rowFormat)?/rowFormat!drop-3	INSERT OVERWRITE DI
 reject	reject	engine	insertInto(rowFormat)?/rowFormat!truncate	INSERT OVERWRITE DIRECTORY 's' ROW FORMAT
 reject	reject	engine	insertInto(rowFormat)?/rowFormat!insert	INSERT OVERWRITE DIRECTORY 's' ROW FORMAT DELIMITED zzz SELECT a
 reject	reject	engine	insertInto(rowFormat)?/rowFormat!swap	INSERT OVERWRITE DIRECTORY 's' ROWS FORMAT DELIMITED SELECT a
+accept	accept	engine	insertInto(rowFormat)?/rowFormat+rowFormat/ROW_FORMAT_SERDE_stringLit_(WITH_SERDEPROPERTIES_propertyList)?	INSERT OVERWRITE DIRECTORY 's' ROW FORMAT SERDE 's' SELECT a
+reject	reject	engine	insertInto(rowFormat)?/rowFormat+rowFormat/ROW_FORMAT_SERDE_stringLit_(WITH_SERDEPROPERTIES_propertyList)?!drop-1	INSERT OVERWRITE DIRECTORY 's' FORMAT SERDE 's' SELECT a
+reject	reject	engine	insertInto(rowFormat)?/rowFormat+rowFormat/ROW_FORMAT_SERDE_stringLit_(WITH_SERDEPROPERTIES_propertyList)?!drop-2	INSERT OVERWRITE DIRECTORY 's' ROW SERDE 's' SELECT a
+reject	reject	engine	insertInto(rowFormat)?/rowFormat+rowFormat/ROW_FORMAT_SERDE_stringLit_(WITH_SERDEPROPERTIES_propertyList)?!drop-3	INSERT OVERWRITE DIRECTORY 's' ROW FORMAT 's' SELECT a
+reject	reject	engine	insertInto(rowFormat)?/rowFormat+rowFormat/ROW_FORMAT_SERDE_stringLit_(WITH_SERDEPROPERTIES_propertyList)?!drop-4	INSERT OVERWRITE DIRECTORY 's' ROW FORMAT SERDE SELECT a
+accept	accept	engine	insertInto(rowFormat)?/rowFormat+stringLit/DOUBLEQUOTED_STRING	INSERT OVERWRITE DIRECTORY 's' ROW FORMAT SERDE "s" SELECT a
+reject	reject	engine	insertInto(rowFormat)?/rowFormat+stringLit/DOUBLEQUOTED_STRING!drop-1	INSERT OVERWRITE DIRECTORY 's' FORMAT SERDE "s" SELECT a
+reject	reject	engine	insertInto(rowFormat)?/rowFormat+stringLit/DOUBLEQUOTED_STRING!drop-2	INSERT OVERWRITE DIRECTORY 's' ROW SERDE "s" SELECT a
+reject	reject	engine	insertInto(rowFormat)?/rowFormat+stringLit/DOUBLEQUOTED_STRING!drop-3	INSERT OVERWRITE DIRECTORY 's' ROW FORMAT "s" SELECT a
 accept	accept	engine	insertInto(createFileFormat)?/%empty	INSERT OVERWRITE DIRECTORY 's' SELECT a
 reject	reject	engine	insertInto(createFileFormat)?/createFileFormat	INSERT OVERWRITE DIRECTORY 's' STORED AS a SELECT a
 reject	reject	engine	insertInto(createFileFormat)?/createFileFormat!drop-1	INSERT OVERWRITE DIRECTORY 's' AS a SELECT a
@@ -2184,10 +2269,15 @@ reject	reject	engine	insertInto(createFileFormat)?/createFileFormat!drop-3	INSER
 reject	reject	engine	insertInto(createFileFormat)?/createFileFormat!truncate	INSERT OVERWRITE DIRECTORY 's' STORED AS
 reject	reject	engine	insertInto(createFileFormat)?/createFileFormat!insert	INSERT OVERWRITE DIRECTORY 's' STORED AS a zzz SELECT a
 reject	reject	engine	insertInto(createFileFormat)?/createFileFormat!swap	INSERT OVERWRITE DIRECTORY 's' STRATIFY AS a SELECT a
+reject	reject	engine	insertInto(createFileFormat)?/createFileFormat+createFileFormat/STORED_BY_storageHandler	INSERT OVERWRITE DIRECTORY 's' STORED BY 's' SELECT a
+reject	reject	engine	insertInto(createFileFormat)?/createFileFormat+createFileFormat/STORED_BY_storageHandler!drop-1	INSERT OVERWRITE DIRECTORY 's' BY 's' SELECT a
+reject	reject	engine	insertInto(createFileFormat)?/createFileFormat+createFileFormat/STORED_BY_storageHandler!drop-2	INSERT OVERWRITE DIRECTORY 's' STORED 's' SELECT a
+reject	reject	engine	insertInto(createFileFormat)?/createFileFormat+createFileFormat/STORED_BY_storageHandler!drop-3	INSERT OVERWRITE DIRECTORY 's' STORED BY SELECT a
 reject	reject	engine	insertInto(stringLit)?/%empty	INSERT OVERWRITE DIRECTORY USING a SELECT a
 reject	reject	engine	insertInto(stringLit)?/%empty!insert	INSERT OVERWRITE DIRECTORY zzz USING a SELECT a
 accept	accept	engine	insertInto(stringLit)?/stringLit	INSERT OVERWRITE DIRECTORY 's' USING a SELECT a
 reject	reject	engine	insertInto(stringLit)?/stringLit!insert	INSERT OVERWRITE DIRECTORY 's' zzz USING a SELECT a
+accept	accept	engine	insertInto(stringLit)?/stringLit+stringLit/DOUBLEQUOTED_STRING	INSERT OVERWRITE DIRECTORY "s" USING a SELECT a
 reject	reject	engine	insertInto(OPTIONS_propertyList)?/%empty	INSERT OVERWRITE DIRECTORY USING a SELECT a
 reject	reject	engine	insertInto(OPTIONS_propertyList)?/OPTIONS_propertyList	INSERT OVERWRITE DIRECTORY USING a OPTIONS(a) SELECT a
 reject	reject	engine	insertInto(OPTIONS_propertyList)?/OPTIONS_propertyList!drop-1	INSERT OVERWRITE DIRECTORY USING a(a) SELECT a
@@ -2226,6 +2316,22 @@ accept	accept	engine	partitionVal(EQ_constant)?/EQ_constant	DESC a PARTITION(a =
 reject	reject	engine	partitionVal(EQ_constant)?/EQ_constant!drop-1	DESC a PARTITION(a NULL)
 reject	reject	engine	partitionVal(EQ_constant)?/EQ_constant!insert	DESC a PARTITION(a = NULL zzz)
 reject	reject	engine	partitionVal(EQ_constant)?/EQ_constant!swap	DESC a PARTITION(a = NULLS)
+reject	reject	engine	partitionVal(EQ_constant)?/EQ_constant+constant/QUESTION	DESC a PARTITION(a = ?)
+reject	reject	engine	partitionVal(EQ_constant)?/EQ_constant+constant/COLON_identifier	DESC a PARTITION(a = : a)
+reject	reject	engine	partitionVal(EQ_constant)?/EQ_constant+constant/COLON_identifier!drop-2	DESC a PARTITION(a = a)
+reject	reject	engine	partitionVal(EQ_constant)?/EQ_constant+constant/COLON_identifier!drop-3	DESC a PARTITION(a = :)
+reject	reject	engine	partitionVal(EQ_constant)?/EQ_constant+constant/interval	DESC a PARTITION(a = INTERVAL 1 NANOSECOND)
+reject	reject	engine	partitionVal(EQ_constant)?/EQ_constant+constant/interval!drop-2	DESC a PARTITION(a = 1 NANOSECOND)
+reject	reject	engine	partitionVal(EQ_constant)?/EQ_constant+constant/interval!drop-3	DESC a PARTITION(a = INTERVAL NANOSECOND)
+reject	reject	engine	partitionVal(EQ_constant)?/EQ_constant+constant/interval!drop-4	DESC a PARTITION(a = INTERVAL 1)
+reject	reject	engine	partitionVal(EQ_constant)?/EQ_constant+constant/literalType_stringLit	DESC a PARTITION(a = DATE 's')
+reject	reject	engine	partitionVal(EQ_constant)?/EQ_constant+constant/literalType_stringLit!drop-3	DESC a PARTITION(a = DATE)
+reject	reject	engine	partitionVal(EQ_constant)?/EQ_constant+stringLit/DOUBLEQUOTED_STRING	DESC a PARTITION(a = DATE "s")
+accept	accept	engine	partitionVal(EQ_constant)?/EQ_constant+stringLit/DOUBLEQUOTED_STRING!drop-2	DESC a PARTITION(a = "s")
+accept	accept	engine	partitionVal(EQ_constant)?/EQ_constant+constant/number	DESC a PARTITION(a = 1E1)
+accept	accept	engine	partitionVal(EQ_constant)?/EQ_constant+constant/booleanValue	DESC a PARTITION(a = TRUE)
+accept	accept	engine	partitionVal(EQ_constant)?/EQ_constant+booleanValue/FALSE	DESC a PARTITION(a = FALSE)
+accept	accept	engine	partitionVal(EQ_constant)?/EQ_constant+constant/(stringLit)+	DESC a PARTITION(a = 's')
 accept	accept	engine	namespace/NAMESPACE	USE NAMESPACE a
 reject	reject	engine	namespace/NAMESPACE!insert	USE NAMESPACE zzz a
 reject	reject	engine	namespace/NAMESPACE!swap	USE NAMESPACES a
@@ -2250,6 +2356,7 @@ reject	reject	engine	variable/VAR!swap	DECLARE VARCHAR a
 accept	accept	engine	describeFuncName/identifierReference	DESC FUNCTION a
 accept	accept	engine	describeFuncName/stringLit	DESC FUNCTION 's'
 reject	reject	engine	describeFuncName/stringLit!insert	DESC FUNCTION 's' zzz
+accept	accept	engine	describeFuncName/stringLit+stringLit/DOUBLEQUOTED_STRING	DESC FUNCTION "s"
 accept	accept	engine	describeFuncName/comparisonOperator	DESC FUNCTION =
 reject	reject	engine	describeFuncName/comparisonOperator!insert	DESC FUNCTION = zzz
 accept	accept	engine	describeFuncName/arithmeticOperator	DESC FUNCTION +
@@ -2330,6 +2437,11 @@ reject	reject	engine	createTableClauses((OPTIONS_expressionPropertyList)|(PA~1b1
 reject	reject	engine	createTableClauses((OPTIONS_expressionPropertyList)|(PA~1b1dd0a2)/rowFormat!drop-3	CREATE TABLE a ROW FORMAT
 reject	reject	engine	createTableClauses((OPTIONS_expressionPropertyList)|(PA~1b1dd0a2)/rowFormat!insert	CREATE TABLE a ROW FORMAT DELIMITED zzz
 reject	reject	engine	createTableClauses((OPTIONS_expressionPropertyList)|(PA~1b1dd0a2)/rowFormat!swap	CREATE TABLE a ROWS FORMAT DELIMITED
+accept	accept	engine	createTableClauses((OPTIONS_expressionPropertyList)|(PA~1b1dd0a2)/rowFormat+stringLit/DOUBLEQUOTED_STRING	CREATE TABLE a ROW FORMAT SERDE "s"
+reject	reject	engine	createTableClauses((OPTIONS_expressionPropertyList)|(PA~1b1dd0a2)/rowFormat+stringLit/DOUBLEQUOTED_STRING!drop-1	CREATE TABLE a FORMAT SERDE "s"
+reject	reject	engine	createTableClauses((OPTIONS_expressionPropertyList)|(PA~1b1dd0a2)/rowFormat+stringLit/DOUBLEQUOTED_STRING!drop-2	CREATE TABLE a ROW SERDE "s"
+reject	reject	engine	createTableClauses((OPTIONS_expressionPropertyList)|(PA~1b1dd0a2)/rowFormat+stringLit/DOUBLEQUOTED_STRING!drop-3	CREATE TABLE a ROW FORMAT "s"
+reject	reject	engine	createTableClauses((OPTIONS_expressionPropertyList)|(PA~1b1dd0a2)/rowFormat+stringLit/DOUBLEQUOTED_STRING!drop-4	CREATE TABLE a ROW FORMAT SERDE
 accept	accept	engine	createTableClauses((OPTIONS_expressionPropertyList)|(PA~1b1dd0a2)/createFileFormat	CREATE TABLE a STORED AS a
 reject	reject	engine	createTableClauses((OPTIONS_expressionPropertyList)|(PA~1b1dd0a2)/createFileFormat!drop-1	CREATE TABLE a AS a
 reject	reject	engine	createTableClauses((OPTIONS_expressionPropertyList)|(PA~1b1dd0a2)/createFileFormat!drop-2	CREATE TABLE a STORED a
@@ -2367,6 +2479,7 @@ reject	reject	engine	propertyList(COMMA_property)*/COMMA_property_(COMMA_propert
 reject	reject	engine	propertyList(COMMA_property)*/COMMA_property_(COMMA_property)*!insert	FROM a WITH(a, a zzz)
 reject	reject	engine	property/propertyKey_(EQ?_propertyValue)?	FROM a WITH(a)
 reject	reject	engine	property/propertyKey_(EQ?_propertyValue)?!truncate	FROM a WITH(
+reject	reject	engine	property/propertyKey_(EQ?_propertyValue)?+stringLit/DOUBLEQUOTED_STRING	FROM a WITH("s")
 reject	reject	engine	property(EQ?_propertyValue)?/%empty	FROM a WITH(a)
 accept	accept	engine	property(EQ?_propertyValue)?/(EQ)?_propertyValue	FROM a WITH(a 1)
 reject	reject	engine	property(EQ?_propertyValue)?/(EQ)?_propertyValue!insert	FROM a WITH(a 1 zzz)
@@ -2388,8 +2501,10 @@ reject	reject	engine	propertyValue/DECIMAL_VALUE!insert	FROM a WITH(a 1.5 zzz)
 accept	accept	engine	propertyValue/booleanValue	FROM a WITH(a TRUE)
 reject	reject	engine	propertyValue/booleanValue!insert	FROM a WITH(a TRUE zzz)
 reject	reject	engine	propertyValue/booleanValue!swap	FROM a WITH(a TRUNCATE)
+accept	accept	engine	propertyValue/booleanValue+booleanValue/FALSE	FROM a WITH(a FALSE)
 accept	accept	engine	propertyValue/stringLit	FROM a WITH(a 's')
 reject	reject	engine	propertyValue/stringLit!insert	FROM a WITH(a 's' zzz)
+accept	accept	engine	propertyValue/stringLit+stringLit/DOUBLEQUOTED_STRING	FROM a WITH(a "s")
 reject	reject	engine	expressionPropertyList/LEFT_PAREN_expressionProperty_(COMMA_expressionProperty~e3e81655	CREATE TABLE a OPTIONS(a)
 reject	reject	engine	expressionPropertyList(COMMA_expressionProperty)*/%empty	CREATE TABLE a OPTIONS(a)
 accept	accept	engine	expressionPropertyList(COMMA_expressionProperty)*/%empty!insert	CREATE TABLE a OPTIONS(a zzz)
@@ -2399,6 +2514,8 @@ reject	reject	engine	expressionPropertyList(COMMA_expressionProperty)*/COMMA_exp
 reject	reject	engine	expressionPropertyList(COMMA_expressionProperty)*/COMMA_expressionProperty_(COMMA_expressionProperty)*!insert	CREATE TABLE a OPTIONS(a, a zzz)
 reject	reject	engine	expressionProperty/propertyKey_(EQ?_expression)?	CREATE TABLE a OPTIONS(a)
 reject	reject	engine	expressionProperty/propertyKey_(EQ?_expression)?!truncate	CREATE TABLE a OPTIONS(
+reject	reject	engine	expressionProperty/propertyKey_(EQ?_expression)?+propertyKey/stringLit	CREATE TABLE a OPTIONS('s')
+reject	reject	engine	expressionProperty/propertyKey_(EQ?_expression)?+stringLit/DOUBLEQUOTED_STRING	CREATE TABLE a OPTIONS("s")
 reject	reject	engine	expressionProperty(EQ?_expression)?/%empty	CREATE TABLE a OPTIONS(a)
 accept	accept	engine	expressionProperty(EQ?_expression)?/(EQ)?_expression	CREATE TABLE a OPTIONS(a a)
 reject	reject	engine	expressionProperty(EQ?_expression)?/(EQ)?_expression!insert	CREATE TABLE a OPTIONS(a a zzz)
@@ -2407,6 +2524,22 @@ reject	reject	engine	expressionProperty(EQ)?/%empty!insert	CREATE TABLE a OPTION
 accept	accept	engine	expressionProperty(EQ)?/EQ	CREATE TABLE a OPTIONS(a = a)
 reject	reject	engine	expressionProperty(EQ)?/EQ!insert	CREATE TABLE a OPTIONS(a = zzz a)
 reject	reject	engine	constantList/LEFT_PAREN_constant_(COMMA_constant)*_RIGHT_PAREN	CREATE TABLE a SKEWED BY(a) ON(NULL)
+reject	reject	engine	constantList/LEFT_PAREN_constant_(COMMA_constant)*_RIGHT_PAREN+constant/QUESTION	CREATE TABLE a SKEWED BY(a) ON(?)
+reject	reject	engine	constantList/LEFT_PAREN_constant_(COMMA_constant)*_RIGHT_PAREN+constant/COLON_identifier	CREATE TABLE a SKEWED BY(a) ON(: a)
+reject	reject	engine	constantList/LEFT_PAREN_constant_(COMMA_constant)*_RIGHT_PAREN+constant/COLON_identifier!drop-2	CREATE TABLE a SKEWED BY(a) ON(a)
+reject	reject	engine	constantList/LEFT_PAREN_constant_(COMMA_constant)*_RIGHT_PAREN+constant/COLON_identifier!drop-3	CREATE TABLE a SKEWED BY(a) ON(:)
+reject	reject	engine	constantList/LEFT_PAREN_constant_(COMMA_constant)*_RIGHT_PAREN+constant/interval	CREATE TABLE a SKEWED BY(a) ON(INTERVAL 1 NANOSECOND)
+reject	reject	engine	constantList/LEFT_PAREN_constant_(COMMA_constant)*_RIGHT_PAREN+constant/interval!drop-2	CREATE TABLE a SKEWED BY(a) ON(1 NANOSECOND)
+reject	reject	engine	constantList/LEFT_PAREN_constant_(COMMA_constant)*_RIGHT_PAREN+constant/interval!drop-3	CREATE TABLE a SKEWED BY(a) ON(INTERVAL NANOSECOND)
+reject	reject	engine	constantList/LEFT_PAREN_constant_(COMMA_constant)*_RIGHT_PAREN+constant/interval!drop-4	CREATE TABLE a SKEWED BY(a) ON(INTERVAL 1)
+reject	reject	engine	constantList/LEFT_PAREN_constant_(COMMA_constant)*_RIGHT_PAREN+constant/literalType_stringLit	CREATE TABLE a SKEWED BY(a) ON(DATE 's')
+reject	reject	engine	constantList/LEFT_PAREN_constant_(COMMA_constant)*_RIGHT_PAREN+constant/literalType_stringLit!drop-3	CREATE TABLE a SKEWED BY(a) ON(DATE)
+reject	reject	engine	constantList/LEFT_PAREN_constant_(COMMA_constant)*_RIGHT_PAREN+stringLit/DOUBLEQUOTED_STRING	CREATE TABLE a SKEWED BY(a) ON(DATE "s")
+reject	reject	engine	constantList/LEFT_PAREN_constant_(COMMA_constant)*_RIGHT_PAREN+stringLit/DOUBLEQUOTED_STRING!drop-2	CREATE TABLE a SKEWED BY(a) ON("s")
+reject	reject	engine	constantList/LEFT_PAREN_constant_(COMMA_constant)*_RIGHT_PAREN+constant/number	CREATE TABLE a SKEWED BY(a) ON(1E1)
+reject	reject	engine	constantList/LEFT_PAREN_constant_(COMMA_constant)*_RIGHT_PAREN+constant/booleanValue	CREATE TABLE a SKEWED BY(a) ON(TRUE)
+reject	reject	engine	constantList/LEFT_PAREN_constant_(COMMA_constant)*_RIGHT_PAREN+booleanValue/FALSE	CREATE TABLE a SKEWED BY(a) ON(FALSE)
+reject	reject	engine	constantList/LEFT_PAREN_constant_(COMMA_constant)*_RIGHT_PAREN+constant/(stringLit)+	CREATE TABLE a SKEWED BY(a) ON('s')
 reject	reject	engine	constantList(COMMA_constant)*/%empty	CREATE TABLE a SKEWED BY(a) ON(NULL)
 reject	reject	engine	constantList(COMMA_constant)*/%empty!insert	CREATE TABLE a SKEWED BY(a) ON(NULL zzz)
 reject	reject	engine	constantList(COMMA_constant)*/COMMA_constant_(COMMA_constant)*	CREATE TABLE a SKEWED BY(a) ON(NULL, NULL)
@@ -2415,6 +2548,22 @@ reject	reject	engine	constantList(COMMA_constant)*/COMMA_constant_(COMMA_constan
 reject	reject	engine	constantList(COMMA_constant)*/COMMA_constant_(COMMA_constant)*!truncate	CREATE TABLE a SKEWED BY(a) ON(NULL,
 reject	reject	engine	constantList(COMMA_constant)*/COMMA_constant_(COMMA_constant)*!insert	CREATE TABLE a SKEWED BY(a) ON(NULL, NULL zzz)
 reject	reject	engine	constantList(COMMA_constant)*/COMMA_constant_(COMMA_constant)*!swap	CREATE TABLE a SKEWED BY(a) ON(NULL, NULLS)
+reject	reject	engine	constantList(COMMA_constant)*/COMMA_constant_(COMMA_constant)*+constant/QUESTION	CREATE TABLE a SKEWED BY(a) ON(NULL, ?)
+reject	reject	engine	constantList(COMMA_constant)*/COMMA_constant_(COMMA_constant)*+constant/COLON_identifier	CREATE TABLE a SKEWED BY(a) ON(NULL, : a)
+reject	reject	engine	constantList(COMMA_constant)*/COMMA_constant_(COMMA_constant)*+constant/COLON_identifier!drop-2	CREATE TABLE a SKEWED BY(a) ON(NULL, a)
+reject	reject	engine	constantList(COMMA_constant)*/COMMA_constant_(COMMA_constant)*+constant/COLON_identifier!drop-3	CREATE TABLE a SKEWED BY(a) ON(NULL, :)
+reject	reject	engine	constantList(COMMA_constant)*/COMMA_constant_(COMMA_constant)*+constant/interval	CREATE TABLE a SKEWED BY(a) ON(NULL, INTERVAL 1 NANOSECOND)
+reject	reject	engine	constantList(COMMA_constant)*/COMMA_constant_(COMMA_constant)*+constant/interval!drop-2	CREATE TABLE a SKEWED BY(a) ON(NULL, 1 NANOSECOND)
+reject	reject	engine	constantList(COMMA_constant)*/COMMA_constant_(COMMA_constant)*+constant/interval!drop-3	CREATE TABLE a SKEWED BY(a) ON(NULL, INTERVAL NANOSECOND)
+reject	reject	engine	constantList(COMMA_constant)*/COMMA_constant_(COMMA_constant)*+constant/interval!drop-4	CREATE TABLE a SKEWED BY(a) ON(NULL, INTERVAL 1)
+reject	reject	engine	constantList(COMMA_constant)*/COMMA_constant_(COMMA_constant)*+constant/literalType_stringLit	CREATE TABLE a SKEWED BY(a) ON(NULL, DATE 's')
+reject	reject	engine	constantList(COMMA_constant)*/COMMA_constant_(COMMA_constant)*+constant/literalType_stringLit!drop-3	CREATE TABLE a SKEWED BY(a) ON(NULL, DATE)
+reject	reject	engine	constantList(COMMA_constant)*/COMMA_constant_(COMMA_constant)*+stringLit/DOUBLEQUOTED_STRING	CREATE TABLE a SKEWED BY(a) ON(NULL, DATE "s")
+reject	reject	engine	constantList(COMMA_constant)*/COMMA_constant_(COMMA_constant)*+stringLit/DOUBLEQUOTED_STRING!drop-2	CREATE TABLE a SKEWED BY(a) ON(NULL, "s")
+reject	reject	engine	constantList(COMMA_constant)*/COMMA_constant_(COMMA_constant)*+constant/number	CREATE TABLE a SKEWED BY(a) ON(NULL, 1E1)
+reject	reject	engine	constantList(COMMA_constant)*/COMMA_constant_(COMMA_constant)*+constant/booleanValue	CREATE TABLE a SKEWED BY(a) ON(NULL, TRUE)
+reject	reject	engine	constantList(COMMA_constant)*/COMMA_constant_(COMMA_constant)*+booleanValue/FALSE	CREATE TABLE a SKEWED BY(a) ON(NULL, FALSE)
+reject	reject	engine	constantList(COMMA_constant)*/COMMA_constant_(COMMA_constant)*+constant/(stringLit)+	CREATE TABLE a SKEWED BY(a) ON(NULL, 's')
 reject	reject	engine	nestedConstantList/LEFT_PAREN_constantList_(COMMA_constantList)*_RIGHT_PAREN	CREATE TABLE a SKEWED BY(a) ON((NULL))
 reject	reject	engine	nestedConstantList(COMMA_constantList)*/%empty	CREATE TABLE a SKEWED BY(a) ON((NULL))
 reject	reject	engine	nestedConstantList(COMMA_constantList)*/%empty!insert	CREATE TABLE a SKEWED BY(a) ON((NULL) zzz)
@@ -2440,8 +2589,11 @@ reject	reject	engine	fileFormat/INPUTFORMAT_stringLit_OUTPUTFORMAT_stringLit!dro
 reject	reject	engine	fileFormat/INPUTFORMAT_stringLit_OUTPUTFORMAT_stringLit!drop-4	CREATE TABLE a STORED AS INPUTFORMAT 's' OUTPUTFORMAT
 reject	reject	engine	fileFormat/INPUTFORMAT_stringLit_OUTPUTFORMAT_stringLit!insert	CREATE TABLE a STORED AS INPUTFORMAT 's' OUTPUTFORMAT 's' zzz
 reject	reject	engine	fileFormat/INPUTFORMAT_stringLit_OUTPUTFORMAT_stringLit!swap	CREATE TABLE a STORED AS INSERT 's' OUTPUTFORMAT 's'
+accept	accept	engine	fileFormat/INPUTFORMAT_stringLit_OUTPUTFORMAT_stringLit+stringLit/DOUBLEQUOTED_STRING	CREATE TABLE a STORED AS INPUTFORMAT "s" OUTPUTFORMAT 's'
+accept	accept	engine	fileFormat/INPUTFORMAT_stringLit_OUTPUTFORMAT_stringLit+stringLit/DOUBLEQUOTED_STRING#2	CREATE TABLE a STORED AS INPUTFORMAT 's' OUTPUTFORMAT "s"
 accept	accept	engine	fileFormat/identifier	CREATE TABLE a STORED AS a
 reject	reject	engine	storageHandler/stringLit_(WITH_SERDEPROPERTIES_propertyList)?	CREATE TABLE a STORED BY 's'
+reject	reject	engine	storageHandler/stringLit_(WITH_SERDEPROPERTIES_propertyList)?+stringLit/DOUBLEQUOTED_STRING	CREATE TABLE a STORED BY "s"
 reject	reject	engine	storageHandler(WITH_SERDEPROPERTIES_propertyList)?/%empty	CREATE TABLE a STORED BY 's'
 reject	reject	engine	storageHandler(WITH_SERDEPROPERTIES_propertyList)?/WITH_SERDEPROPERTIES_propertyList	CREATE TABLE a STORED BY 's' WITH SERDEPROPERTIES(a)
 reject	reject	engine	storageHandler(WITH_SERDEPROPERTIES_propertyList)?/WITH_SERDEPROPERTIES_propertyList!drop-1	CREATE TABLE a STORED BY 's' SERDEPROPERTIES(a)
@@ -2452,6 +2604,7 @@ reject	reject	engine	storageHandler(WITH_SERDEPROPERTIES_propertyList)?/WITH_SER
 reject	reject	engine	storageHandler(WITH_SERDEPROPERTIES_propertyList)?/WITH_SERDEPROPERTIES_propertyList!insert	CREATE TABLE a STORED BY 's' WITH SERDEPROPERTIES(a) zzz
 reject	reject	engine	storageHandler(WITH_SERDEPROPERTIES_propertyList)?/WITH_SERDEPROPERTIES_propertyList!swap	CREATE TABLE a STORED BY 's' WITHIN SERDEPROPERTIES(a)
 reject	reject	engine	resource/identifier_stringLit	CREATE FUNCTION a AS 's' USING a 's'
+reject	reject	engine	resource/identifier_stringLit+stringLit/DOUBLEQUOTED_STRING	CREATE FUNCTION a AS 's' USING a "s"
 accept	accept	engine	dmlStatementNoWith/insertInto_query	INSERT OVERWRITE a SELECT a
 reject	reject	engine	dmlStatementNoWith/insertInto_query!drop-4	INSERT OVERWRITE a a
 reject	reject	engine	dmlStatementNoWith/insertInto_query!drop-5	INSERT OVERWRITE a SELECT
@@ -2574,6 +2727,7 @@ reject	reject	engine	catalogIdentifierReference/IDENTIFIER_KW_LEFT_PAREN_express
 accept	accept	engine	catalogIdentifierReference/errorCapturingIdentifier	SET CATALOG a
 accept	accept	engine	catalogIdentifierReference/stringLit	SET CATALOG 's'
 reject	reject	engine	catalogIdentifierReference/stringLit!insert	SET CATALOG 's' zzz
+accept	accept	engine	catalogIdentifierReference/stringLit+stringLit/DOUBLEQUOTED_STRING	SET CATALOG "s"
 accept	accept	engine	queryOrganization/(ORDER_BY_sortItem_(COMMA_sortItem)*)?_(CLUSTER_BY_expr~cdeb34e7	SELECT a
 accept	accept	engine	queryOrganization(ORDER_BY_sortItem_(COMMA_sortItem)*)?/%empty	SELECT a
 accept	accept	engine	queryOrganization(ORDER_BY_sortItem_(COMMA_sortItem)*)?/ORDER_BY_sortItem_(COMMA_sortItem)*	SELECT a ORDER BY a
@@ -2673,6 +2827,7 @@ accept	accept	engine	queryTerm(setQuantifier)?/setQuantifier	SELECT a INTERSECT 
 accept	accept	engine	queryTerm(setQuantifier)?/setQuantifier!truncate	SELECT a INTERSECT
 reject	reject	engine	queryTerm(setQuantifier)?/setQuantifier!insert	SELECT a INTERSECT DISTINCT zzz SELECT a
 reject	reject	engine	queryTerm(setQuantifier)?/setQuantifier!swap	SELECT a INTERSECT DISTRIBUTE SELECT a
+accept	accept	engine	queryTerm(setQuantifier)?/setQuantifier+setQuantifier/ALL	SELECT a INTERSECT ALL SELECT a
 accept	accept	engine	queryTerm(UNION|EXCEPT|SETMINUS)/UNION	SELECT a UNION SELECT a
 accept	accept	engine	queryTerm(UNION|EXCEPT|SETMINUS)/EXCEPT	SELECT a EXCEPT SELECT a
 accept	accept	engine	queryTerm(UNION|EXCEPT|SETMINUS)/SETMINUS	SELECT a MINUS SELECT a
@@ -2804,6 +2959,7 @@ reject	reject	engine	querySpecification(havingClause)?/havingClause!swap	SELECT 
 accept	accept	engine	querySpecification(windowClause)?/%empty	SELECT a
 reject	reject	engine	querySpecification(windowClause)?/windowClause	SELECT a WINDOW a AS a
 accept	accept	engine	transformClause/(SELECT_TRANSFORM_LEFT_PAREN_setQuant~8ce41a0f)_(rowFor~d7b59c55	MAP a USING 's'
+accept	accept	engine	transformClause/(SELECT_TRANSFORM_LEFT_PAREN_setQuant~8ce41a0f)_(rowFor~d7b59c55+stringLit/DOUBLEQUOTED_STRING	MAP a USING "s"
 accept	accept	engine	transformClause(SELECT_TRANSFORM_LEFT_PAREN_setQuant~8ce41a0f)/SELECT_TRANSFORM_LEFT_PAREN_(setQuantifier)?_expression~fdec2d3b	SELECT TRANSFORM(a) USING 's'
 reject	reject	engine	transformClause(SELECT_TRANSFORM_LEFT_PAREN_setQuant~8ce41a0f)/SELECT_TRANSFORM_LEFT_PAREN_(setQuantifier)?_expression~fdec2d3b!drop-1	TRANSFORM(a) USING 's'
 reject	reject	engine	transformClause(SELECT_TRANSFORM_LEFT_PAREN_setQuant~8ce41a0f)/SELECT_TRANSFORM_LEFT_PAREN_(setQuantifier)?_expression~fdec2d3b!drop-2	SELECT(a) USING 's'
@@ -2826,6 +2982,7 @@ reject	reject	engine	transformClause(setQuantifier)?/%empty!insert	MAP zzz a USI
 reject	reject	engine	transformClause(setQuantifier)?/setQuantifier	MAP DISTINCT a USING 's'
 reject	reject	engine	transformClause(setQuantifier)?/setQuantifier!insert	MAP DISTINCT zzz a USING 's'
 reject	reject	engine	transformClause(setQuantifier)?/setQuantifier!swap	MAP DISTRIBUTE a USING 's'
+reject	reject	engine	transformClause(setQuantifier)?/setQuantifier+setQuantifier/ALL	MAP ALL a USING 's'
 accept	accept	engine	transformClause(rowFormat)?/%empty	MAP a USING 's'
 accept	accept	engine	transformClause(rowFormat)?/rowFormat	MAP a ROW FORMAT DELIMITED USING 's'
 reject	reject	engine	transformClause(rowFormat)?/rowFormat!drop-1	MAP a FORMAT DELIMITED USING 's'
@@ -2834,6 +2991,15 @@ reject	reject	engine	transformClause(rowFormat)?/rowFormat!drop-3	MAP a ROW FORM
 reject	reject	engine	transformClause(rowFormat)?/rowFormat!truncate	MAP a ROW FORMAT
 reject	reject	engine	transformClause(rowFormat)?/rowFormat!insert	MAP a ROW FORMAT DELIMITED zzz USING 's'
 reject	reject	engine	transformClause(rowFormat)?/rowFormat!swap	MAP a ROWS FORMAT DELIMITED USING 's'
+reject	reject	engine	transformClause(rowFormat)?/rowFormat+rowFormat/ROW_FORMAT_SERDE_stringLit_(WITH_SERDEPROPERTIES_propertyList)?	MAP a ROW FORMAT SERDE 's' USING 's'
+reject	reject	engine	transformClause(rowFormat)?/rowFormat+rowFormat/ROW_FORMAT_SERDE_stringLit_(WITH_SERDEPROPERTIES_propertyList)?!drop-1	MAP a FORMAT SERDE 's' USING 's'
+reject	reject	engine	transformClause(rowFormat)?/rowFormat+rowFormat/ROW_FORMAT_SERDE_stringLit_(WITH_SERDEPROPERTIES_propertyList)?!drop-2	MAP a ROW SERDE 's' USING 's'
+reject	reject	engine	transformClause(rowFormat)?/rowFormat+rowFormat/ROW_FORMAT_SERDE_stringLit_(WITH_SERDEPROPERTIES_propertyList)?!drop-3	MAP a ROW FORMAT 's' USING 's'
+reject	reject	engine	transformClause(rowFormat)?/rowFormat+rowFormat/ROW_FORMAT_SERDE_stringLit_(WITH_SERDEPROPERTIES_propertyList)?!drop-4	MAP a ROW FORMAT SERDE USING 's'
+reject	reject	engine	transformClause(rowFormat)?/rowFormat+stringLit/DOUBLEQUOTED_STRING	MAP a ROW FORMAT SERDE "s" USING 's'
+reject	reject	engine	transformClause(rowFormat)?/rowFormat+stringLit/DOUBLEQUOTED_STRING!drop-1	MAP a FORMAT SERDE "s" USING 's'
+reject	reject	engine	transformClause(rowFormat)?/rowFormat+stringLit/DOUBLEQUOTED_STRING!drop-2	MAP a ROW SERDE "s" USING 's'
+reject	reject	engine	transformClause(rowFormat)?/rowFormat+stringLit/DOUBLEQUOTED_STRING!drop-3	MAP a ROW FORMAT "s" USING 's'
 accept	accept	engine	transformClause(RECORDWRITER_stringLit)?/%empty	MAP a USING 's'
 reject	reject	engine	transformClause(RECORDWRITER_stringLit)?/RECORDWRITER_stringLit	MAP a RECORDWRITER 's' USING 's'
 reject	reject	engine	transformClause(RECORDWRITER_stringLit)?/RECORDWRITER_stringLit!drop-1	MAP a 's' USING 's'
@@ -2841,6 +3007,7 @@ reject	reject	engine	transformClause(RECORDWRITER_stringLit)?/RECORDWRITER_strin
 reject	reject	engine	transformClause(RECORDWRITER_stringLit)?/RECORDWRITER_stringLit!truncate	MAP a RECORDWRITER
 reject	reject	engine	transformClause(RECORDWRITER_stringLit)?/RECORDWRITER_stringLit!insert	MAP a RECORDWRITER 's' zzz USING 's'
 reject	reject	engine	transformClause(RECORDWRITER_stringLit)?/RECORDWRITER_stringLit!swap	MAP a RECOVER 's' USING 's'
+reject	reject	engine	transformClause(RECORDWRITER_stringLit)?/RECORDWRITER_stringLit+stringLit/DOUBLEQUOTED_STRING	MAP a RECORDWRITER "s" USING 's'
 accept	accept	engine	transformClause(AS_(identifierSeq|colTypeList|(LEFT_~edff170b)?/%empty	MAP a USING 's'
 accept	accept	engine	transformClause(AS_(identifierSeq|colTypeList|(LEFT_~edff170b)?/AS_(identifierSeq|colTypeList|(LEFT_PARE~baeb554e)	MAP a USING 's' AS a
 reject	reject	engine	transformClause(AS_(identifierSeq|colTypeList|(LEFT_~edff170b)?/AS_(identifierSeq|colTypeList|(LEFT_PARE~baeb554e)!drop-1	MAP a USING 's' a
@@ -2870,6 +3037,7 @@ reject	reject	engine	transformClause(RECORDREADER_stringLit)?/RECORDREADER_strin
 reject	reject	engine	transformClause(RECORDREADER_stringLit)?/RECORDREADER_stringLit!drop-2	MAP a USING 's' RECORDREADER
 reject	reject	engine	transformClause(RECORDREADER_stringLit)?/RECORDREADER_stringLit!insert	MAP a USING 's' RECORDREADER 's' zzz
 reject	reject	engine	transformClause(RECORDREADER_stringLit)?/RECORDREADER_stringLit!swap	MAP a USING 's' RECORDWRITER 's'
+reject	reject	engine	transformClause(RECORDREADER_stringLit)?/RECORDREADER_stringLit+stringLit/DOUBLEQUOTED_STRING	MAP a USING 's' RECORDREADER "s"
 accept	accept	engine	selectClause/SELECT_(hint)*_(setQuantifier)?_namedExpressionSeq	SELECT a
 accept	accept	engine	selectClause(hint)*/%empty	SELECT a
 accept	accept	engine	selectClause(hint)*/%empty!insert	SELECT zzz a
@@ -2895,6 +3063,7 @@ reject	reject	engine	matchedClause(AND_booleanExpression)?/AND_booleanExpression
 reject	reject	engine	matchedClause(AND_booleanExpression)?/AND_booleanExpression!insert	MERGE INTO a USING a ON a WHEN MATCHED AND a zzz THEN DELETE
 reject	reject	engine	matchedClause(AND_booleanExpression)?/AND_booleanExpression!swap	MERGE INTO a USING a ON a WHEN MATCHED ANTI a THEN DELETE
 accept	accept	engine	notMatchedClause/WHEN_errorCapturingNot_MATCHED_(BY_TARGET)?_(AND_boolea~a9598591	MERGE INTO a USING a ON a WHEN NOT MATCHED THEN INSERT *
+accept	accept	engine	notMatchedClause/WHEN_errorCapturingNot_MATCHED_(BY_TARGET)?_(AND_boolea~a9598591+errorCapturingNot/BANG	MERGE INTO a USING a ON a WHEN ! MATCHED THEN INSERT *
 accept	accept	engine	notMatchedClause(BY_TARGET)?/%empty	MERGE INTO a USING a ON a WHEN NOT MATCHED THEN INSERT *
 reject	reject	engine	notMatchedClause(BY_TARGET)?/%empty!insert	MERGE INTO a USING a ON a WHEN NOT MATCHED zzz THEN INSERT *
 accept	accept	engine	notMatchedClause(BY_TARGET)?/BY_TARGET	MERGE INTO a USING a ON a WHEN NOT MATCHED BY TARGET THEN INSERT *
@@ -2911,6 +3080,7 @@ reject	reject	engine	notMatchedClause(AND_booleanExpression)?/AND_booleanExpress
 reject	reject	engine	notMatchedClause(AND_booleanExpression)?/AND_booleanExpression!insert	MERGE INTO a USING a ON a WHEN NOT MATCHED AND a zzz THEN INSERT *
 reject	reject	engine	notMatchedClause(AND_booleanExpression)?/AND_booleanExpression!swap	MERGE INTO a USING a ON a WHEN NOT MATCHED ANTI a THEN INSERT *
 accept	accept	engine	notMatchedBySourceClause/WHEN_errorCapturingNot_MATCHED_BY_SOURCE_(AND_booleanEx~93923ea6	MERGE INTO a USING a ON a WHEN NOT MATCHED BY SOURCE THEN DELETE
+accept	accept	engine	notMatchedBySourceClause/WHEN_errorCapturingNot_MATCHED_BY_SOURCE_(AND_booleanEx~93923ea6+errorCapturingNot/BANG	MERGE INTO a USING a ON a WHEN ! MATCHED BY SOURCE THEN DELETE
 accept	accept	engine	notMatchedBySourceClause(AND_booleanExpression)?/%empty	MERGE INTO a USING a ON a WHEN NOT MATCHED BY SOURCE THEN DELETE
 reject	reject	engine	notMatchedBySourceClause(AND_booleanExpression)?/%empty!insert	MERGE INTO a USING a ON a WHEN NOT MATCHED BY SOURCE zzz THEN DELETE
 accept	accept	engine	notMatchedBySourceClause(AND_booleanExpression)?/AND_booleanExpression	MERGE INTO a USING a ON a WHEN NOT MATCHED BY SOURCE AND a THEN DELETE
@@ -3712,7 +3882,6 @@ accept	accept	engine	rowFormat/ROW_FORMAT_SERDE_stringLit_(WITH_SERDEPROPERTIES_
 reject	reject	engine	rowFormat/ROW_FORMAT_SERDE_stringLit_(WITH_SERDEPROPERTIES_propertyList)?!drop-1	CREATE TABLE a FORMAT SERDE 's'
 reject	reject	engine	rowFormat/ROW_FORMAT_SERDE_stringLit_(WITH_SERDEPROPERTIES_propertyList)?!drop-2	CREATE TABLE a ROW SERDE 's'
 reject	reject	engine	rowFormat/ROW_FORMAT_SERDE_stringLit_(WITH_SERDEPROPERTIES_propertyList)?!drop-3	CREATE TABLE a ROW FORMAT 's'
-reject	reject	engine	rowFormat/ROW_FORMAT_SERDE_stringLit_(WITH_SERDEPROPERTIES_propertyList)?!drop-4	CREATE TABLE a ROW FORMAT SERDE
 reject	reject	engine	rowFormat/ROW_FORMAT_SERDE_stringLit_(WITH_SERDEPROPERTIES_propertyList)?!insert	CREATE TABLE a ROW FORMAT SERDE 's' zzz
 reject	reject	engine	rowFormat/ROW_FORMAT_SERDE_stringLit_(WITH_SERDEPROPERTIES_propertyList)?!swap	CREATE TABLE a ROWS FORMAT SERDE 's'
 accept	accept	engine	rowFormat/ROW_FORMAT_DELIMITED_(FIELDS_TERMINATED_BY_stringLit_(E~d9076158	CREATE TABLE a ROW FORMAT DELIMITED
@@ -3733,6 +3902,7 @@ reject	reject	engine	rowFormat(FIELDS_TERMINATED_BY_stringLit_(ESCA~87e253a3)?/F
 reject	reject	engine	rowFormat(FIELDS_TERMINATED_BY_stringLit_(ESCA~87e253a3)?/FIELDS_TERMINATED_BY_stringLit_(ESCAPED_BY_stringLit)?!drop-4	CREATE TABLE a ROW FORMAT DELIMITED FIELDS TERMINATED BY
 reject	reject	engine	rowFormat(FIELDS_TERMINATED_BY_stringLit_(ESCA~87e253a3)?/FIELDS_TERMINATED_BY_stringLit_(ESCAPED_BY_stringLit)?!insert	CREATE TABLE a ROW FORMAT DELIMITED FIELDS TERMINATED BY 's' zzz
 reject	reject	engine	rowFormat(FIELDS_TERMINATED_BY_stringLit_(ESCA~87e253a3)?/FIELDS_TERMINATED_BY_stringLit_(ESCAPED_BY_stringLit)?!swap	CREATE TABLE a ROW FORMAT DELIMITED FILEFORMAT TERMINATED BY 's'
+accept	accept	engine	rowFormat(FIELDS_TERMINATED_BY_stringLit_(ESCA~87e253a3)?/FIELDS_TERMINATED_BY_stringLit_(ESCAPED_BY_stringLit)?+stringLit/DOUBLEQUOTED_STRING	CREATE TABLE a ROW FORMAT DELIMITED FIELDS TERMINATED BY "s"
 accept	accept	engine	rowFormat(ESCAPED_BY_stringLit)?/%empty	CREATE TABLE a ROW FORMAT DELIMITED FIELDS TERMINATED BY 's'
 accept	accept	engine	rowFormat(ESCAPED_BY_stringLit)?/ESCAPED_BY_stringLit	CREATE TABLE a ROW FORMAT DELIMITED FIELDS TERMINATED BY 's' ESCAPED BY 's'
 reject	reject	engine	rowFormat(ESCAPED_BY_stringLit)?/ESCAPED_BY_stringLit!drop-1	CREATE TABLE a ROW FORMAT DELIMITED FIELDS TERMINATED BY 's' BY 's'
@@ -3740,6 +3910,7 @@ reject	reject	engine	rowFormat(ESCAPED_BY_stringLit)?/ESCAPED_BY_stringLit!drop-
 reject	reject	engine	rowFormat(ESCAPED_BY_stringLit)?/ESCAPED_BY_stringLit!drop-3	CREATE TABLE a ROW FORMAT DELIMITED FIELDS TERMINATED BY 's' ESCAPED BY
 reject	reject	engine	rowFormat(ESCAPED_BY_stringLit)?/ESCAPED_BY_stringLit!insert	CREATE TABLE a ROW FORMAT DELIMITED FIELDS TERMINATED BY 's' ESCAPED BY 's' zzz
 reject	reject	engine	rowFormat(ESCAPED_BY_stringLit)?/ESCAPED_BY_stringLit!swap	CREATE TABLE a ROW FORMAT DELIMITED FIELDS TERMINATED BY 's' EVOLUTION BY 's'
+accept	accept	engine	rowFormat(ESCAPED_BY_stringLit)?/ESCAPED_BY_stringLit+stringLit/DOUBLEQUOTED_STRING	CREATE TABLE a ROW FORMAT DELIMITED FIELDS TERMINATED BY 's' ESCAPED BY "s"
 accept	accept	engine	rowFormat(COLLECTION_ITEMS_TERMINATED_BY_stringLit)?/%empty	CREATE TABLE a ROW FORMAT DELIMITED
 accept	accept	engine	rowFormat(COLLECTION_ITEMS_TERMINATED_BY_stringLit)?/COLLECTION_ITEMS_TERMINATED_BY_stringLit	CREATE TABLE a ROW FORMAT DELIMITED COLLECTION ITEMS TERMINATED BY 's'
 reject	reject	engine	rowFormat(COLLECTION_ITEMS_TERMINATED_BY_stringLit)?/COLLECTION_ITEMS_TERMINATED_BY_stringLit!drop-1	CREATE TABLE a ROW FORMAT DELIMITED ITEMS TERMINATED BY 's'
@@ -3749,6 +3920,7 @@ reject	reject	engine	rowFormat(COLLECTION_ITEMS_TERMINATED_BY_stringLit)?/COLLEC
 reject	reject	engine	rowFormat(COLLECTION_ITEMS_TERMINATED_BY_stringLit)?/COLLECTION_ITEMS_TERMINATED_BY_stringLit!drop-5	CREATE TABLE a ROW FORMAT DELIMITED COLLECTION ITEMS TERMINATED BY
 reject	reject	engine	rowFormat(COLLECTION_ITEMS_TERMINATED_BY_stringLit)?/COLLECTION_ITEMS_TERMINATED_BY_stringLit!insert	CREATE TABLE a ROW FORMAT DELIMITED COLLECTION ITEMS TERMINATED BY 's' zzz
 reject	reject	engine	rowFormat(COLLECTION_ITEMS_TERMINATED_BY_stringLit)?/COLLECTION_ITEMS_TERMINATED_BY_stringLit!swap	CREATE TABLE a ROW FORMAT DELIMITED COLUMN ITEMS TERMINATED BY 's'
+accept	accept	engine	rowFormat(COLLECTION_ITEMS_TERMINATED_BY_stringLit)?/COLLECTION_ITEMS_TERMINATED_BY_stringLit+stringLit/DOUBLEQUOTED_STRING	CREATE TABLE a ROW FORMAT DELIMITED COLLECTION ITEMS TERMINATED BY "s"
 accept	accept	engine	rowFormat(MAP_KEYS_TERMINATED_BY_stringLit)?/%empty	CREATE TABLE a ROW FORMAT DELIMITED
 accept	accept	engine	rowFormat(MAP_KEYS_TERMINATED_BY_stringLit)?/MAP_KEYS_TERMINATED_BY_stringLit	CREATE TABLE a ROW FORMAT DELIMITED MAP KEYS TERMINATED BY 's'
 reject	reject	engine	rowFormat(MAP_KEYS_TERMINATED_BY_stringLit)?/MAP_KEYS_TERMINATED_BY_stringLit!drop-1	CREATE TABLE a ROW FORMAT DELIMITED KEYS TERMINATED BY 's'
@@ -3758,6 +3930,7 @@ reject	reject	engine	rowFormat(MAP_KEYS_TERMINATED_BY_stringLit)?/MAP_KEYS_TERMI
 reject	reject	engine	rowFormat(MAP_KEYS_TERMINATED_BY_stringLit)?/MAP_KEYS_TERMINATED_BY_stringLit!drop-5	CREATE TABLE a ROW FORMAT DELIMITED MAP KEYS TERMINATED BY
 reject	reject	engine	rowFormat(MAP_KEYS_TERMINATED_BY_stringLit)?/MAP_KEYS_TERMINATED_BY_stringLit!insert	CREATE TABLE a ROW FORMAT DELIMITED MAP KEYS TERMINATED BY 's' zzz
 reject	reject	engine	rowFormat(MAP_KEYS_TERMINATED_BY_stringLit)?/MAP_KEYS_TERMINATED_BY_stringLit!swap	CREATE TABLE a ROW FORMAT DELIMITED MATCHED KEYS TERMINATED BY 's'
+accept	accept	engine	rowFormat(MAP_KEYS_TERMINATED_BY_stringLit)?/MAP_KEYS_TERMINATED_BY_stringLit+stringLit/DOUBLEQUOTED_STRING	CREATE TABLE a ROW FORMAT DELIMITED MAP KEYS TERMINATED BY "s"
 accept	accept	engine	rowFormat(LINES_TERMINATED_BY_stringLit)?/%empty	CREATE TABLE a ROW FORMAT DELIMITED
 reject	reject	engine	rowFormat(LINES_TERMINATED_BY_stringLit)?/LINES_TERMINATED_BY_stringLit	CREATE TABLE a ROW FORMAT DELIMITED LINES TERMINATED BY 's'
 reject	reject	engine	rowFormat(LINES_TERMINATED_BY_stringLit)?/LINES_TERMINATED_BY_stringLit!drop-2	CREATE TABLE a ROW FORMAT DELIMITED LINES BY 's'
@@ -3765,6 +3938,7 @@ reject	reject	engine	rowFormat(LINES_TERMINATED_BY_stringLit)?/LINES_TERMINATED_
 reject	reject	engine	rowFormat(LINES_TERMINATED_BY_stringLit)?/LINES_TERMINATED_BY_stringLit!drop-4	CREATE TABLE a ROW FORMAT DELIMITED LINES TERMINATED BY
 reject	reject	engine	rowFormat(LINES_TERMINATED_BY_stringLit)?/LINES_TERMINATED_BY_stringLit!insert	CREATE TABLE a ROW FORMAT DELIMITED LINES TERMINATED BY 's' zzz
 reject	reject	engine	rowFormat(LINES_TERMINATED_BY_stringLit)?/LINES_TERMINATED_BY_stringLit!swap	CREATE TABLE a ROW FORMAT DELIMITED LIST TERMINATED BY 's'
+reject	reject	engine	rowFormat(LINES_TERMINATED_BY_stringLit)?/LINES_TERMINATED_BY_stringLit+stringLit/DOUBLEQUOTED_STRING	CREATE TABLE a ROW FORMAT DELIMITED LINES TERMINATED BY "s"
 accept	accept	engine	rowFormat(NULL_DEFINED_AS_stringLit)?/%empty	CREATE TABLE a ROW FORMAT DELIMITED
 accept	accept	engine	rowFormat(NULL_DEFINED_AS_stringLit)?/NULL_DEFINED_AS_stringLit	CREATE TABLE a ROW FORMAT DELIMITED NULL DEFINED AS 's'
 reject	reject	engine	rowFormat(NULL_DEFINED_AS_stringLit)?/NULL_DEFINED_AS_stringLit!drop-1	CREATE TABLE a ROW FORMAT DELIMITED DEFINED AS 's'
@@ -3773,6 +3947,7 @@ reject	reject	engine	rowFormat(NULL_DEFINED_AS_stringLit)?/NULL_DEFINED_AS_strin
 reject	reject	engine	rowFormat(NULL_DEFINED_AS_stringLit)?/NULL_DEFINED_AS_stringLit!drop-4	CREATE TABLE a ROW FORMAT DELIMITED NULL DEFINED AS
 reject	reject	engine	rowFormat(NULL_DEFINED_AS_stringLit)?/NULL_DEFINED_AS_stringLit!insert	CREATE TABLE a ROW FORMAT DELIMITED NULL DEFINED AS 's' zzz
 reject	reject	engine	rowFormat(NULL_DEFINED_AS_stringLit)?/NULL_DEFINED_AS_stringLit!swap	CREATE TABLE a ROW FORMAT DELIMITED NULLS DEFINED AS 's'
+accept	accept	engine	rowFormat(NULL_DEFINED_AS_stringLit)?/NULL_DEFINED_AS_stringLit+stringLit/DOUBLEQUOTED_STRING	CREATE TABLE a ROW FORMAT DELIMITED NULL DEFINED AS "s"
 accept	accept	engine	multipartIdentifierList/multipartIdentifier_(COMMA_multipartIdentifier)*	EXECUTE IMMEDIATE 's' INTO a
 accept	accept	engine	multipartIdentifierList(COMMA_multipartIdentifier)*/%empty	EXECUTE IMMEDIATE 's' INTO a
 accept	accept	engine	multipartIdentifierList(COMMA_multipartIdentifier)*/COMMA_multipartIdentifier_(COMMA_multipartIdentifier)*	EXECUTE IMMEDIATE 's' INTO a, a
@@ -3862,6 +4037,21 @@ reject	reject	engine	transformArgument/qualifiedName!truncate	CREATE TABLE a PAR
 accept	accept	engine	transformArgument/constant	CREATE TABLE a PARTITIONED BY(a(NULL))
 reject	reject	engine	transformArgument/constant!insert	CREATE TABLE a PARTITIONED BY(a(NULL zzz))
 accept	accept	engine	transformArgument/constant!swap	CREATE TABLE a PARTITIONED BY(a(NULLS))
+reject	reject	engine	transformArgument/constant+constant/QUESTION	CREATE TABLE a PARTITIONED BY(a(?))
+reject	reject	engine	transformArgument/constant+constant/COLON_identifier	CREATE TABLE a PARTITIONED BY(a(: a))
+reject	reject	engine	transformArgument/constant+constant/COLON_identifier!drop-2	CREATE TABLE a PARTITIONED BY(a(:))
+reject	reject	engine	transformArgument/constant+constant/interval	CREATE TABLE a PARTITIONED BY(a(INTERVAL 1 NANOSECOND))
+reject	reject	engine	transformArgument/constant+constant/interval!drop-1	CREATE TABLE a PARTITIONED BY(a(1 NANOSECOND))
+reject	reject	engine	transformArgument/constant+constant/interval!drop-2	CREATE TABLE a PARTITIONED BY(a(INTERVAL NANOSECOND))
+reject	reject	engine	transformArgument/constant+constant/interval!drop-3	CREATE TABLE a PARTITIONED BY(a(INTERVAL 1))
+reject	reject	engine	transformArgument/constant+constant/literalType_stringLit	CREATE TABLE a PARTITIONED BY(a(DATE 's'))
+accept	accept	engine	transformArgument/constant+constant/literalType_stringLit!drop-2	CREATE TABLE a PARTITIONED BY(a(DATE))
+reject	reject	engine	transformArgument/constant+stringLit/DOUBLEQUOTED_STRING	CREATE TABLE a PARTITIONED BY(a(DATE "s"))
+accept	accept	engine	transformArgument/constant+stringLit/DOUBLEQUOTED_STRING!drop-1	CREATE TABLE a PARTITIONED BY(a("s"))
+accept	accept	engine	transformArgument/constant+constant/number	CREATE TABLE a PARTITIONED BY(a(1E1))
+accept	accept	engine	transformArgument/constant+constant/booleanValue	CREATE TABLE a PARTITIONED BY(a(TRUE))
+accept	accept	engine	transformArgument/constant+booleanValue/FALSE	CREATE TABLE a PARTITIONED BY(a(FALSE))
+accept	accept	engine	transformArgument/constant+constant/(stringLit)+	CREATE TABLE a PARTITIONED BY(a('s'))
 accept	accept	engine	expression/booleanExpression	SELECT a
 accept	accept	engine	namedArgumentExpression/identifier_FAT_ARROW_expression	SELECT IDENTIFIER(a => a)
 reject	reject	engine	namedArgumentExpression/identifier_FAT_ARROW_expression!drop-1	SELECT IDENTIFIER(=> a)
@@ -4001,6 +4191,7 @@ reject	reject	engine	predicate(ESCAPE_stringLit)?/ESCAPE_stringLit!drop-1	SELECT
 accept	accept	engine	predicate(ESCAPE_stringLit)?/ESCAPE_stringLit!drop-2	SELECT a LIKE a ESCAPE
 accept	accept	engine	predicate(ESCAPE_stringLit)?/ESCAPE_stringLit!insert	SELECT a LIKE a ESCAPE 's' zzz
 reject	reject	engine	predicate(ESCAPE_stringLit)?/ESCAPE_stringLit!swap	SELECT a LIKE a ESCAPED 's'
+accept	accept	engine	predicate(ESCAPE_stringLit)?/ESCAPE_stringLit+stringLit/DOUBLEQUOTED_STRING	SELECT a LIKE a ESCAPE "s"
 accept	accept	engine	predicate(TRUE|FALSE|UNKNOWN)/TRUE	SELECT a IS TRUE
 reject	reject	engine	predicate(TRUE|FALSE|UNKNOWN)/TRUE!swap	SELECT a IS TRUNCATE
 accept	accept	engine	predicate(TRUE|FALSE|UNKNOWN)/FALSE	SELECT a IS FALSE
@@ -4151,6 +4342,26 @@ reject	reject	engine	primaryExpression/(CAST|TRY_CAST)_LEFT_PAREN_expression_AS_
 reject	reject	engine	primaryExpression/(CAST|TRY_CAST)_LEFT_PAREN_expression_AS_dataType_RIGHT_PAREN!drop-6	SELECT CAST(a AS BOOLEAN
 accept	accept	engine	primaryExpression/(CAST|TRY_CAST)_LEFT_PAREN_expression_AS_dataType_RIGHT_PAREN!insert	SELECT CAST(a AS BOOLEAN) zzz
 reject	reject	engine	primaryExpression/(CAST|TRY_CAST)_LEFT_PAREN_expression_AS_dataType_RIGHT_PAREN!swap	SELECT CATALOG(a AS BOOLEAN)
+accept	accept	engine	primaryExpression/(CAST|TRY_CAST)_LEFT_PAREN_expression_AS_dataType_RIGHT_PAREN+dataType/ARRAY_LT_dataType_GT	SELECT CAST(a AS ARRAY < BOOLEAN >)
+reject	reject	engine	primaryExpression/(CAST|TRY_CAST)_LEFT_PAREN_expression_AS_dataType_RIGHT_PAREN+dataType/ARRAY_LT_dataType_GT!drop-5	SELECT CAST(a AS < BOOLEAN >)
+reject	reject	engine	primaryExpression/(CAST|TRY_CAST)_LEFT_PAREN_expression_AS_dataType_RIGHT_PAREN+dataType/ARRAY_LT_dataType_GT!drop-6	SELECT CAST(a AS ARRAY BOOLEAN >)
+reject	reject	engine	primaryExpression/(CAST|TRY_CAST)_LEFT_PAREN_expression_AS_dataType_RIGHT_PAREN+dataType/ARRAY_LT_dataType_GT!drop-7	SELECT CAST(a AS ARRAY < >)
+reject	reject	engine	primaryExpression/(CAST|TRY_CAST)_LEFT_PAREN_expression_AS_dataType_RIGHT_PAREN+dataType/ARRAY_LT_dataType_GT!drop-8	SELECT CAST(a AS ARRAY < BOOLEAN)
+accept	accept	engine	primaryExpression/(CAST|TRY_CAST)_LEFT_PAREN_expression_AS_dataType_RIGHT_PAREN+dataType/MAP_LT_dataType_COMMA_dataType_GT	SELECT CAST(a AS MAP < BOOLEAN, BOOLEAN >)
+reject	reject	engine	primaryExpression/(CAST|TRY_CAST)_LEFT_PAREN_expression_AS_dataType_RIGHT_PAREN+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-5	SELECT CAST(a AS < BOOLEAN, BOOLEAN >)
+reject	reject	engine	primaryExpression/(CAST|TRY_CAST)_LEFT_PAREN_expression_AS_dataType_RIGHT_PAREN+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-6	SELECT CAST(a AS MAP BOOLEAN, BOOLEAN >)
+reject	reject	engine	primaryExpression/(CAST|TRY_CAST)_LEFT_PAREN_expression_AS_dataType_RIGHT_PAREN+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-7	SELECT CAST(a AS MAP <, BOOLEAN >)
+reject	reject	engine	primaryExpression/(CAST|TRY_CAST)_LEFT_PAREN_expression_AS_dataType_RIGHT_PAREN+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-8	SELECT CAST(a AS MAP < BOOLEAN BOOLEAN >)
+reject	reject	engine	primaryExpression/(CAST|TRY_CAST)_LEFT_PAREN_expression_AS_dataType_RIGHT_PAREN+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-9	SELECT CAST(a AS MAP < BOOLEAN, >)
+reject	reject	engine	primaryExpression/(CAST|TRY_CAST)_LEFT_PAREN_expression_AS_dataType_RIGHT_PAREN+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-10	SELECT CAST(a AS MAP < BOOLEAN, BOOLEAN)
+accept	accept	engine	primaryExpression/(CAST|TRY_CAST)_LEFT_PAREN_expression_AS_dataType_RIGHT_PAREN+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)	SELECT CAST(a AS STRUCT <>)
+reject	reject	engine	primaryExpression/(CAST|TRY_CAST)_LEFT_PAREN_expression_AS_dataType_RIGHT_PAREN+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!drop-5	SELECT CAST(a AS <>)
+reject	reject	engine	primaryExpression/(CAST|TRY_CAST)_LEFT_PAREN_expression_AS_dataType_RIGHT_PAREN+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!drop-6	SELECT CAST(a AS STRUCT)
+accept	accept	engine	primaryExpression/(CAST|TRY_CAST)_LEFT_PAREN_expression_AS_dataType_RIGHT_PAREN+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?	SELECT CAST(a AS INTERVAL YEAR)
+reject	reject	engine	primaryExpression/(CAST|TRY_CAST)_LEFT_PAREN_expression_AS_dataType_RIGHT_PAREN+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?!drop-5	SELECT CAST(a AS YEAR)
+accept	accept	engine	primaryExpression/(CAST|TRY_CAST)_LEFT_PAREN_expression_AS_dataType_RIGHT_PAREN+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?!drop-6	SELECT CAST(a AS INTERVAL)
+accept	accept	engine	primaryExpression/(CAST|TRY_CAST)_LEFT_PAREN_expression_AS_dataType_RIGHT_PAREN+dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?	SELECT CAST(a AS INTERVAL DAY)
+reject	reject	engine	primaryExpression/(CAST|TRY_CAST)_LEFT_PAREN_expression_AS_dataType_RIGHT_PAREN+dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?!drop-5	SELECT CAST(a AS DAY)
 accept	accept	engine	primaryExpression/primaryExpression_collateClause	SELECT a COLLATE a
 accept	accept	engine	primaryExpression/primaryExpression_collateClause!drop-1	SELECT COLLATE a
 accept	accept	engine	primaryExpression/primaryExpression_collateClause!drop-3	SELECT a COLLATE
@@ -4162,6 +4373,26 @@ accept	accept	engine	primaryExpression/primaryExpression_DOUBLE_COLON_dataType!d
 reject	reject	engine	primaryExpression/primaryExpression_DOUBLE_COLON_dataType!drop-3	SELECT a ::
 accept	accept	engine	primaryExpression/primaryExpression_DOUBLE_COLON_dataType!insert	SELECT a :: BOOLEAN zzz
 reject	reject	engine	primaryExpression/primaryExpression_DOUBLE_COLON_dataType!swap	SELECT a :: BOTH
+accept	accept	engine	primaryExpression/primaryExpression_DOUBLE_COLON_dataType+dataType/ARRAY_LT_dataType_GT	SELECT a :: ARRAY < BOOLEAN >
+reject	reject	engine	primaryExpression/primaryExpression_DOUBLE_COLON_dataType+dataType/ARRAY_LT_dataType_GT!drop-3	SELECT a :: < BOOLEAN >
+reject	reject	engine	primaryExpression/primaryExpression_DOUBLE_COLON_dataType+dataType/ARRAY_LT_dataType_GT!drop-4	SELECT a :: ARRAY BOOLEAN >
+reject	reject	engine	primaryExpression/primaryExpression_DOUBLE_COLON_dataType+dataType/ARRAY_LT_dataType_GT!drop-5	SELECT a :: ARRAY < >
+reject	reject	engine	primaryExpression/primaryExpression_DOUBLE_COLON_dataType+dataType/ARRAY_LT_dataType_GT!drop-6	SELECT a :: ARRAY < BOOLEAN
+accept	accept	engine	primaryExpression/primaryExpression_DOUBLE_COLON_dataType+dataType/MAP_LT_dataType_COMMA_dataType_GT	SELECT a :: MAP < BOOLEAN, BOOLEAN >
+reject	reject	engine	primaryExpression/primaryExpression_DOUBLE_COLON_dataType+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-3	SELECT a :: < BOOLEAN, BOOLEAN >
+reject	reject	engine	primaryExpression/primaryExpression_DOUBLE_COLON_dataType+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-4	SELECT a :: MAP BOOLEAN, BOOLEAN >
+reject	reject	engine	primaryExpression/primaryExpression_DOUBLE_COLON_dataType+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-5	SELECT a :: MAP <, BOOLEAN >
+reject	reject	engine	primaryExpression/primaryExpression_DOUBLE_COLON_dataType+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-6	SELECT a :: MAP < BOOLEAN BOOLEAN >
+reject	reject	engine	primaryExpression/primaryExpression_DOUBLE_COLON_dataType+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-7	SELECT a :: MAP < BOOLEAN, >
+reject	reject	engine	primaryExpression/primaryExpression_DOUBLE_COLON_dataType+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-8	SELECT a :: MAP < BOOLEAN, BOOLEAN
+accept	accept	engine	primaryExpression/primaryExpression_DOUBLE_COLON_dataType+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)	SELECT a :: STRUCT <>
+reject	reject	engine	primaryExpression/primaryExpression_DOUBLE_COLON_dataType+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!drop-3	SELECT a :: <>
+reject	reject	engine	primaryExpression/primaryExpression_DOUBLE_COLON_dataType+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!drop-4	SELECT a :: STRUCT
+accept	accept	engine	primaryExpression/primaryExpression_DOUBLE_COLON_dataType+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?	SELECT a :: INTERVAL YEAR
+reject	reject	engine	primaryExpression/primaryExpression_DOUBLE_COLON_dataType+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?!drop-3	SELECT a :: YEAR
+accept	accept	engine	primaryExpression/primaryExpression_DOUBLE_COLON_dataType+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?!drop-4	SELECT a :: INTERVAL
+accept	accept	engine	primaryExpression/primaryExpression_DOUBLE_COLON_dataType+dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?	SELECT a :: INTERVAL DAY
+reject	reject	engine	primaryExpression/primaryExpression_DOUBLE_COLON_dataType+dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?!drop-3	SELECT a :: DAY
 accept	accept	engine	primaryExpression/STRUCT_LEFT_PAREN_(namedExpression_(COMMA_namedExpressi~dd44a411	SELECT STRUCT()
 reject	reject	engine	primaryExpression/STRUCT_LEFT_PAREN_(namedExpression_(COMMA_namedExpressi~dd44a411!drop-1	SELECT()
 reject	reject	engine	primaryExpression/STRUCT_LEFT_PAREN_(namedExpression_(COMMA_namedExpressi~dd44a411!drop-2	SELECT STRUCT)
@@ -4197,6 +4428,7 @@ accept	accept	engine	primaryExpression/POSITION_LEFT_PAREN_valueExpression_IN_va
 reject	reject	engine	primaryExpression/POSITION_LEFT_PAREN_valueExpression_IN_valueExpression_~8caa2057!swap	SELECT PRECEDING(a IN a)
 accept	accept	engine	primaryExpression/constant	SELECT NULL
 accept	accept	engine	primaryExpression/constant!insert	SELECT NULL zzz
+reject	reject	engine	primaryExpression/constant+stringLit/DOUBLEQUOTED_STRING	SELECT DATE "s"
 accept	accept	engine	primaryExpression/ASTERISK_(exceptClause)?	SELECT *
 accept	accept	engine	primaryExpression/ASTERISK_(exceptClause)?!insert	SELECT * zzz
 accept	accept	engine	primaryExpression/qualifiedName_DOT_ASTERISK_(exceptClause)?	SELECT a.*
@@ -4299,6 +4531,7 @@ reject	reject	engine	primaryExpression(TIMESTAMPADD|DATEADD|DATE_ADD)/DATE_ADD!i
 accept	accept	engine	primaryExpression(datetimeUnit|stringLit)/datetimeUnit	SELECT TIMESTAMPADD(YEAR, a, a)
 reject	reject	engine	primaryExpression(datetimeUnit|stringLit)/stringLit	SELECT TIMESTAMPADD('s', a, a)
 reject	reject	engine	primaryExpression(datetimeUnit|stringLit)/stringLit!insert	SELECT TIMESTAMPADD('s' zzz, a, a)
+reject	reject	engine	primaryExpression(datetimeUnit|stringLit)/stringLit+stringLit/DOUBLEQUOTED_STRING	SELECT TIMESTAMPADD("s", a, a)
 accept	accept	engine	primaryExpression(TIMESTAMPDIFF|DATEDIFF|DATE_DIFF|TIMEDIFF)/TIMESTAMPDIFF	SELECT TIMESTAMPDIFF(YEAR, a, a)
 reject	reject	engine	primaryExpression(TIMESTAMPDIFF|DATEDIFF|DATE_DIFF|TIMEDIFF)/TIMESTAMPDIFF!insert	SELECT TIMESTAMPDIFF zzz(YEAR, a, a)
 accept	accept	engine	primaryExpression(TIMESTAMPDIFF|DATEDIFF|DATE_DIFF|TIMEDIFF)/DATEDIFF	SELECT DATEDIFF(YEAR, a, a)
@@ -4375,6 +4608,7 @@ reject	reject	engine	primaryExpression(setQuantifier)?/%empty!insert	SELECT IDEN
 accept	accept	engine	primaryExpression(setQuantifier)?/setQuantifier	SELECT IDENTIFIER(DISTINCT a)
 reject	reject	engine	primaryExpression(setQuantifier)?/setQuantifier!insert	SELECT IDENTIFIER(DISTINCT zzz a)
 reject	reject	engine	primaryExpression(setQuantifier)?/setQuantifier!swap	SELECT IDENTIFIER(DISTRIBUTE a)
+accept	accept	engine	primaryExpression(setQuantifier)?/setQuantifier+setQuantifier/ALL	SELECT IDENTIFIER(ALL a)
 accept	accept	engine	primaryExpression(COMMA_functionArgument)*/%empty	SELECT IDENTIFIER(a)
 accept	accept	engine	primaryExpression(COMMA_functionArgument)*/COMMA_functionArgument_(COMMA_functionArgument)*	SELECT IDENTIFIER(a, a)
 reject	reject	engine	primaryExpression(COMMA_functionArgument)*/COMMA_functionArgument_(COMMA_functionArgument)*!drop-2	SELECT IDENTIFIER(a,)
@@ -4520,6 +4754,7 @@ accept	accept	engine	constant/(stringLit)+!insert	SELECT 's' zzz
 accept	accept	engine	constant(stringLit)+/stringLit	SELECT 's'
 accept	accept	engine	constant(stringLit)+/stringLit_(stringLit)+	SELECT 's' 's'
 accept	accept	engine	constant(stringLit)+/stringLit_(stringLit)+!insert	SELECT 's' 's' zzz
+accept	accept	engine	constant(stringLit)+/stringLit_(stringLit)++stringLit/DOUBLEQUOTED_STRING	SELECT "s" 's'
 accept	accept	engine	comparisonOperator/EQ	DESC FUNCTION =
 accept	accept	engine	comparisonOperator/NEQ	DESC FUNCTION <>
 reject	reject	engine	comparisonOperator/NEQ!insert	DESC FUNCTION <> zzz
@@ -4625,6 +4860,7 @@ reject	reject	engine	intervalValue(INTEGER_VALUE|DECIMAL_VALUE|stringLit)/DECIMA
 reject	reject	engine	intervalValue(INTEGER_VALUE|DECIMAL_VALUE|stringLit)/DECIMAL_VALUE!insert	SELECT INTERVAL 1.5 zzz NANOSECOND
 reject	reject	engine	intervalValue(INTEGER_VALUE|DECIMAL_VALUE|stringLit)/stringLit	SELECT INTERVAL 's' NANOSECOND
 reject	reject	engine	intervalValue(INTEGER_VALUE|DECIMAL_VALUE|stringLit)/stringLit!insert	SELECT INTERVAL 's' zzz NANOSECOND
+reject	reject	engine	intervalValue(INTEGER_VALUE|DECIMAL_VALUE|stringLit)/stringLit+stringLit/DOUBLEQUOTED_STRING	SELECT INTERVAL "s" NANOSECOND
 reject	reject	engine	unitInMultiUnits/NANOSECOND	SELECT INTERVAL 1 NANOSECOND
 reject	reject	engine	unitInMultiUnits/NANOSECONDS	SELECT INTERVAL 1 NANOSECONDS
 reject	reject	engine	unitInMultiUnits/NANOSECONDS!insert	SELECT INTERVAL 1 NANOSECONDS zzz
@@ -4797,6 +5033,26 @@ reject	reject	engine	dataType/ARRAY_LT_dataType_GT!drop-3	DECLARE a ARRAY < >
 reject	reject	engine	dataType/ARRAY_LT_dataType_GT!drop-4	DECLARE a ARRAY < BOOLEAN
 reject	reject	engine	dataType/ARRAY_LT_dataType_GT!insert	DECLARE a ARRAY < BOOLEAN > zzz
 reject	reject	engine	dataType/ARRAY_LT_dataType_GT!swap	DECLARE a AS < BOOLEAN >
+accept	accept	engine	dataType/ARRAY_LT_dataType_GT+dataType/ARRAY_LT_dataType_GT	DECLARE a ARRAY < ARRAY < BOOLEAN > >
+reject	reject	engine	dataType/ARRAY_LT_dataType_GT+dataType/ARRAY_LT_dataType_GT!drop-3	DECLARE a ARRAY < < BOOLEAN > >
+reject	reject	engine	dataType/ARRAY_LT_dataType_GT+dataType/ARRAY_LT_dataType_GT!drop-4	DECLARE a ARRAY < ARRAY BOOLEAN > >
+reject	reject	engine	dataType/ARRAY_LT_dataType_GT+dataType/ARRAY_LT_dataType_GT!drop-5	DECLARE a ARRAY < ARRAY < > >
+reject	reject	engine	dataType/ARRAY_LT_dataType_GT+dataType/ARRAY_LT_dataType_GT!drop-6	DECLARE a ARRAY < ARRAY < BOOLEAN >
+accept	accept	engine	dataType/ARRAY_LT_dataType_GT+dataType/MAP_LT_dataType_COMMA_dataType_GT	DECLARE a ARRAY < MAP < BOOLEAN, BOOLEAN > >
+reject	reject	engine	dataType/ARRAY_LT_dataType_GT+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-3	DECLARE a ARRAY < < BOOLEAN, BOOLEAN > >
+reject	reject	engine	dataType/ARRAY_LT_dataType_GT+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-4	DECLARE a ARRAY < MAP BOOLEAN, BOOLEAN > >
+reject	reject	engine	dataType/ARRAY_LT_dataType_GT+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-5	DECLARE a ARRAY < MAP <, BOOLEAN > >
+reject	reject	engine	dataType/ARRAY_LT_dataType_GT+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-6	DECLARE a ARRAY < MAP < BOOLEAN BOOLEAN > >
+reject	reject	engine	dataType/ARRAY_LT_dataType_GT+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-7	DECLARE a ARRAY < MAP < BOOLEAN, > >
+reject	reject	engine	dataType/ARRAY_LT_dataType_GT+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-8	DECLARE a ARRAY < MAP < BOOLEAN, BOOLEAN >
+accept	accept	engine	dataType/ARRAY_LT_dataType_GT+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)	DECLARE a ARRAY < STRUCT <> >
+reject	reject	engine	dataType/ARRAY_LT_dataType_GT+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!drop-3	DECLARE a ARRAY < <> >
+reject	reject	engine	dataType/ARRAY_LT_dataType_GT+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!drop-4	DECLARE a ARRAY < STRUCT >
+accept	accept	engine	dataType/ARRAY_LT_dataType_GT+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?	DECLARE a ARRAY < INTERVAL YEAR >
+reject	reject	engine	dataType/ARRAY_LT_dataType_GT+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?!drop-3	DECLARE a ARRAY < YEAR >
+accept	accept	engine	dataType/ARRAY_LT_dataType_GT+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?!drop-4	DECLARE a ARRAY < INTERVAL >
+accept	accept	engine	dataType/ARRAY_LT_dataType_GT+dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?	DECLARE a ARRAY < INTERVAL DAY >
+reject	reject	engine	dataType/ARRAY_LT_dataType_GT+dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?!drop-3	DECLARE a ARRAY < DAY >
 accept	accept	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT	DECLARE a MAP < BOOLEAN, BOOLEAN >
 reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-1	DECLARE a < BOOLEAN, BOOLEAN >
 reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-2	DECLARE a MAP BOOLEAN, BOOLEAN >
@@ -4806,6 +5062,46 @@ reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-5	DECLARE a
 reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-6	DECLARE a MAP < BOOLEAN, BOOLEAN
 reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT!insert	DECLARE a MAP < BOOLEAN, BOOLEAN > zzz
 reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT!swap	DECLARE a MATCHED < BOOLEAN, BOOLEAN >
+accept	accept	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/ARRAY_LT_dataType_GT	DECLARE a MAP < ARRAY < BOOLEAN >, BOOLEAN >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/ARRAY_LT_dataType_GT!drop-3	DECLARE a MAP < < BOOLEAN >, BOOLEAN >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/ARRAY_LT_dataType_GT!drop-4	DECLARE a MAP < ARRAY BOOLEAN >, BOOLEAN >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/ARRAY_LT_dataType_GT!drop-5	DECLARE a MAP < ARRAY < >, BOOLEAN >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/ARRAY_LT_dataType_GT!drop-6	DECLARE a MAP < ARRAY < BOOLEAN, BOOLEAN >
+accept	accept	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/MAP_LT_dataType_COMMA_dataType_GT	DECLARE a MAP < MAP < BOOLEAN, BOOLEAN >, BOOLEAN >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-3	DECLARE a MAP < < BOOLEAN, BOOLEAN >, BOOLEAN >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-4	DECLARE a MAP < MAP BOOLEAN, BOOLEAN >, BOOLEAN >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-5	DECLARE a MAP < MAP <, BOOLEAN >, BOOLEAN >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-6	DECLARE a MAP < MAP < BOOLEAN BOOLEAN >, BOOLEAN >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-7	DECLARE a MAP < MAP < BOOLEAN, >, BOOLEAN >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-8	DECLARE a MAP < MAP < BOOLEAN, BOOLEAN, BOOLEAN >
+accept	accept	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)	DECLARE a MAP < STRUCT <>, BOOLEAN >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!drop-3	DECLARE a MAP < <>, BOOLEAN >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!drop-4	DECLARE a MAP < STRUCT, BOOLEAN >
+accept	accept	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?	DECLARE a MAP < INTERVAL YEAR, BOOLEAN >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?!drop-3	DECLARE a MAP < YEAR, BOOLEAN >
+accept	accept	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?!drop-4	DECLARE a MAP < INTERVAL, BOOLEAN >
+accept	accept	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?	DECLARE a MAP < INTERVAL DAY, BOOLEAN >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?!drop-3	DECLARE a MAP < DAY, BOOLEAN >
+accept	accept	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/ARRAY_LT_dataType_GT#2	DECLARE a MAP < BOOLEAN, ARRAY < BOOLEAN > >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/ARRAY_LT_dataType_GT#2!drop-5	DECLARE a MAP < BOOLEAN, < BOOLEAN > >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/ARRAY_LT_dataType_GT#2!drop-6	DECLARE a MAP < BOOLEAN, ARRAY BOOLEAN > >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/ARRAY_LT_dataType_GT#2!drop-7	DECLARE a MAP < BOOLEAN, ARRAY < > >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/ARRAY_LT_dataType_GT#2!drop-8	DECLARE a MAP < BOOLEAN, ARRAY < BOOLEAN >
+accept	accept	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/MAP_LT_dataType_COMMA_dataType_GT#2	DECLARE a MAP < BOOLEAN, MAP < BOOLEAN, BOOLEAN > >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/MAP_LT_dataType_COMMA_dataType_GT#2!drop-5	DECLARE a MAP < BOOLEAN, < BOOLEAN, BOOLEAN > >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/MAP_LT_dataType_COMMA_dataType_GT#2!drop-6	DECLARE a MAP < BOOLEAN, MAP BOOLEAN, BOOLEAN > >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/MAP_LT_dataType_COMMA_dataType_GT#2!drop-7	DECLARE a MAP < BOOLEAN, MAP <, BOOLEAN > >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/MAP_LT_dataType_COMMA_dataType_GT#2!drop-8	DECLARE a MAP < BOOLEAN, MAP < BOOLEAN BOOLEAN > >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/MAP_LT_dataType_COMMA_dataType_GT#2!drop-9	DECLARE a MAP < BOOLEAN, MAP < BOOLEAN, > >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/MAP_LT_dataType_COMMA_dataType_GT#2!drop-10	DECLARE a MAP < BOOLEAN, MAP < BOOLEAN, BOOLEAN >
+accept	accept	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)#2	DECLARE a MAP < BOOLEAN, STRUCT <> >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)#2!drop-5	DECLARE a MAP < BOOLEAN, <> >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)#2!drop-6	DECLARE a MAP < BOOLEAN, STRUCT >
+accept	accept	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?#2	DECLARE a MAP < BOOLEAN, INTERVAL YEAR >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?#2!drop-5	DECLARE a MAP < BOOLEAN, YEAR >
+accept	accept	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?#2!drop-6	DECLARE a MAP < BOOLEAN, INTERVAL >
+accept	accept	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?#2	DECLARE a MAP < BOOLEAN, INTERVAL DAY >
+reject	reject	engine	dataType/MAP_LT_dataType_COMMA_dataType_GT+dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?#2!drop-5	DECLARE a MAP < BOOLEAN, DAY >
 accept	accept	engine	dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)	DECLARE a STRUCT <>
 reject	reject	engine	dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!drop-1	DECLARE a <>
 reject	reject	engine	dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!insert	DECLARE a STRUCT <> zzz
@@ -4891,6 +5187,26 @@ reject	reject	engine	qualifiedColTypeWithPositionList(COMMA_qualifiedColTypeWith
 reject	reject	engine	qualifiedColTypeWithPositionList(COMMA_qualifiedColTypeWithPosition)*/COMMA_qualifiedColTypeWithPosition_(COMMA_qualifiedColT~5ab0bde3!insert	ALTER TABLE a ADD COLUMN a BOOLEAN, a BOOLEAN zzz
 reject	reject	engine	qualifiedColTypeWithPositionList(COMMA_qualifiedColTypeWithPosition)*/COMMA_qualifiedColTypeWithPosition_(COMMA_qualifiedColT~5ab0bde3!swap	ALTER TABLE a ADD COLUMN a BOOLEAN, a BOTH
 accept	accept	engine	qualifiedColTypeWithPosition/multipartIdentifier_dataType_(colDefinitionDescriptorWi~fab01e84	ALTER TABLE a ADD COLUMN a BOOLEAN
+accept	accept	engine	qualifiedColTypeWithPosition/multipartIdentifier_dataType_(colDefinitionDescriptorWi~fab01e84+dataType/ARRAY_LT_dataType_GT	ALTER TABLE a ADD COLUMN a ARRAY < BOOLEAN >
+reject	reject	engine	qualifiedColTypeWithPosition/multipartIdentifier_dataType_(colDefinitionDescriptorWi~fab01e84+dataType/ARRAY_LT_dataType_GT!drop-2	ALTER TABLE a ADD COLUMN a < BOOLEAN >
+reject	reject	engine	qualifiedColTypeWithPosition/multipartIdentifier_dataType_(colDefinitionDescriptorWi~fab01e84+dataType/ARRAY_LT_dataType_GT!drop-3	ALTER TABLE a ADD COLUMN a ARRAY BOOLEAN >
+reject	reject	engine	qualifiedColTypeWithPosition/multipartIdentifier_dataType_(colDefinitionDescriptorWi~fab01e84+dataType/ARRAY_LT_dataType_GT!drop-4	ALTER TABLE a ADD COLUMN a ARRAY < >
+reject	reject	engine	qualifiedColTypeWithPosition/multipartIdentifier_dataType_(colDefinitionDescriptorWi~fab01e84+dataType/ARRAY_LT_dataType_GT!drop-5	ALTER TABLE a ADD COLUMN a ARRAY < BOOLEAN
+accept	accept	engine	qualifiedColTypeWithPosition/multipartIdentifier_dataType_(colDefinitionDescriptorWi~fab01e84+dataType/MAP_LT_dataType_COMMA_dataType_GT	ALTER TABLE a ADD COLUMN a MAP < BOOLEAN, BOOLEAN >
+reject	reject	engine	qualifiedColTypeWithPosition/multipartIdentifier_dataType_(colDefinitionDescriptorWi~fab01e84+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-2	ALTER TABLE a ADD COLUMN a < BOOLEAN, BOOLEAN >
+reject	reject	engine	qualifiedColTypeWithPosition/multipartIdentifier_dataType_(colDefinitionDescriptorWi~fab01e84+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-3	ALTER TABLE a ADD COLUMN a MAP BOOLEAN, BOOLEAN >
+reject	reject	engine	qualifiedColTypeWithPosition/multipartIdentifier_dataType_(colDefinitionDescriptorWi~fab01e84+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-4	ALTER TABLE a ADD COLUMN a MAP <, BOOLEAN >
+reject	reject	engine	qualifiedColTypeWithPosition/multipartIdentifier_dataType_(colDefinitionDescriptorWi~fab01e84+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-5	ALTER TABLE a ADD COLUMN a MAP < BOOLEAN BOOLEAN >
+reject	reject	engine	qualifiedColTypeWithPosition/multipartIdentifier_dataType_(colDefinitionDescriptorWi~fab01e84+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-6	ALTER TABLE a ADD COLUMN a MAP < BOOLEAN, >
+reject	reject	engine	qualifiedColTypeWithPosition/multipartIdentifier_dataType_(colDefinitionDescriptorWi~fab01e84+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-7	ALTER TABLE a ADD COLUMN a MAP < BOOLEAN, BOOLEAN
+accept	accept	engine	qualifiedColTypeWithPosition/multipartIdentifier_dataType_(colDefinitionDescriptorWi~fab01e84+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)	ALTER TABLE a ADD COLUMN a STRUCT <>
+reject	reject	engine	qualifiedColTypeWithPosition/multipartIdentifier_dataType_(colDefinitionDescriptorWi~fab01e84+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!drop-2	ALTER TABLE a ADD COLUMN a <>
+reject	reject	engine	qualifiedColTypeWithPosition/multipartIdentifier_dataType_(colDefinitionDescriptorWi~fab01e84+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!drop-3	ALTER TABLE a ADD COLUMN a STRUCT
+accept	accept	engine	qualifiedColTypeWithPosition/multipartIdentifier_dataType_(colDefinitionDescriptorWi~fab01e84+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?	ALTER TABLE a ADD COLUMN a INTERVAL YEAR
+reject	reject	engine	qualifiedColTypeWithPosition/multipartIdentifier_dataType_(colDefinitionDescriptorWi~fab01e84+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?!drop-2	ALTER TABLE a ADD COLUMN a YEAR
+reject	reject	engine	qualifiedColTypeWithPosition/multipartIdentifier_dataType_(colDefinitionDescriptorWi~fab01e84+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?!drop-3	ALTER TABLE a ADD COLUMN a INTERVAL
+accept	accept	engine	qualifiedColTypeWithPosition/multipartIdentifier_dataType_(colDefinitionDescriptorWi~fab01e84+dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?	ALTER TABLE a ADD COLUMN a INTERVAL DAY
+reject	reject	engine	qualifiedColTypeWithPosition/multipartIdentifier_dataType_(colDefinitionDescriptorWi~fab01e84+dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?!drop-2	ALTER TABLE a ADD COLUMN a DAY
 accept	accept	engine	qualifiedColTypeWithPosition(colDefinitionDescriptorWithPosition)*/%empty	ALTER TABLE a ADD COLUMN a BOOLEAN
 accept	accept	engine	qualifiedColTypeWithPosition(colDefinitionDescriptorWithPosition)*/colDefinitionDescriptorWithPosition_(colDefinitionDescr~9c3c21a6	ALTER TABLE a ADD COLUMN a BOOLEAN FIRST
 reject	reject	engine	qualifiedColTypeWithPosition(colDefinitionDescriptorWithPosition)*/colDefinitionDescriptorWithPosition_(colDefinitionDescr~9c3c21a6!insert	ALTER TABLE a ADD COLUMN a BOOLEAN FIRST zzz
@@ -4900,6 +5216,7 @@ reject	reject	engine	colDefinitionDescriptorWithPosition/errorCapturingNot_NULL!
 reject	reject	engine	colDefinitionDescriptorWithPosition/errorCapturingNot_NULL!drop-2	ALTER TABLE a ADD COLUMN a BOOLEAN NOT
 reject	reject	engine	colDefinitionDescriptorWithPosition/errorCapturingNot_NULL!insert	ALTER TABLE a ADD COLUMN a BOOLEAN NOT NULL zzz
 reject	reject	engine	colDefinitionDescriptorWithPosition/errorCapturingNot_NULL!swap	ALTER TABLE a ADD COLUMN a BOOLEAN NULL NULL
+reject	reject	engine	colDefinitionDescriptorWithPosition/errorCapturingNot_NULL+errorCapturingNot/BANG	ALTER TABLE a ADD COLUMN a BOOLEAN ! NULL
 accept	accept	engine	colDefinitionDescriptorWithPosition/defaultExpression	ALTER TABLE a ADD COLUMN a BOOLEAN DEFAULT a
 reject	reject	engine	colDefinitionDescriptorWithPosition/defaultExpression!drop-1	ALTER TABLE a ADD COLUMN a BOOLEAN a
 reject	reject	engine	colDefinitionDescriptorWithPosition/defaultExpression!drop-2	ALTER TABLE a ADD COLUMN a BOOLEAN DEFAULT
@@ -4911,6 +5228,8 @@ reject	reject	engine	colDefinitionDescriptorWithPosition/commentSpec!drop-2	ALTE
 reject	reject	engine	colDefinitionDescriptorWithPosition/commentSpec!insert	ALTER TABLE a ADD COLUMN a BOOLEAN COMMENT 's' zzz
 reject	reject	engine	colDefinitionDescriptorWithPosition/commentSpec!swap	ALTER TABLE a ADD COLUMN a BOOLEAN COMMIT 's'
 accept	accept	engine	colDefinitionDescriptorWithPosition/colPosition	ALTER TABLE a ADD COLUMN a BOOLEAN FIRST
+accept	accept	engine	colDefinitionDescriptorWithPosition/colPosition+colPosition/AFTER_errorCapturingIdentifier	ALTER TABLE a ADD COLUMN a BOOLEAN AFTER a
+reject	reject	engine	colDefinitionDescriptorWithPosition/colPosition+colPosition/AFTER_errorCapturingIdentifier!drop-2	ALTER TABLE a ADD COLUMN a BOOLEAN AFTER
 accept	accept	engine	defaultExpression/DEFAULT_expression	ALTER TABLE a ALTER a SET DEFAULT a
 reject	reject	engine	defaultExpression/DEFAULT_expression!drop-1	ALTER TABLE a ALTER a SET a
 reject	reject	engine	defaultExpression/DEFAULT_expression!drop-2	ALTER TABLE a ALTER a SET DEFAULT
@@ -4930,12 +5249,33 @@ reject	reject	engine	colTypeList(COMMA_colType)*/COMMA_colType_(COMMA_colType)*!
 reject	reject	engine	colTypeList(COMMA_colType)*/COMMA_colType_(COMMA_colType)*!insert	MAP a USING 's' AS a BOOLEAN, a BOOLEAN zzz
 reject	reject	engine	colTypeList(COMMA_colType)*/COMMA_colType_(COMMA_colType)*!swap	MAP a USING 's' AS a BOOLEAN, a BOTH
 accept	accept	engine	colType/errorCapturingIdentifier_dataType_(errorCapturingNot_NU~ba1a1ea6	MAP a USING 's' AS a BOOLEAN
+accept	accept	engine	colType/errorCapturingIdentifier_dataType_(errorCapturingNot_NU~ba1a1ea6+dataType/ARRAY_LT_dataType_GT	MAP a USING 's' AS a ARRAY < BOOLEAN >
+reject	reject	engine	colType/errorCapturingIdentifier_dataType_(errorCapturingNot_NU~ba1a1ea6+dataType/ARRAY_LT_dataType_GT!drop-2	MAP a USING 's' AS a < BOOLEAN >
+reject	reject	engine	colType/errorCapturingIdentifier_dataType_(errorCapturingNot_NU~ba1a1ea6+dataType/ARRAY_LT_dataType_GT!drop-3	MAP a USING 's' AS a ARRAY BOOLEAN >
+reject	reject	engine	colType/errorCapturingIdentifier_dataType_(errorCapturingNot_NU~ba1a1ea6+dataType/ARRAY_LT_dataType_GT!drop-4	MAP a USING 's' AS a ARRAY < >
+reject	reject	engine	colType/errorCapturingIdentifier_dataType_(errorCapturingNot_NU~ba1a1ea6+dataType/ARRAY_LT_dataType_GT!drop-5	MAP a USING 's' AS a ARRAY < BOOLEAN
+accept	accept	engine	colType/errorCapturingIdentifier_dataType_(errorCapturingNot_NU~ba1a1ea6+dataType/MAP_LT_dataType_COMMA_dataType_GT	MAP a USING 's' AS a MAP < BOOLEAN, BOOLEAN >
+reject	reject	engine	colType/errorCapturingIdentifier_dataType_(errorCapturingNot_NU~ba1a1ea6+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-2	MAP a USING 's' AS a < BOOLEAN, BOOLEAN >
+reject	reject	engine	colType/errorCapturingIdentifier_dataType_(errorCapturingNot_NU~ba1a1ea6+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-3	MAP a USING 's' AS a MAP BOOLEAN, BOOLEAN >
+reject	reject	engine	colType/errorCapturingIdentifier_dataType_(errorCapturingNot_NU~ba1a1ea6+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-4	MAP a USING 's' AS a MAP <, BOOLEAN >
+reject	reject	engine	colType/errorCapturingIdentifier_dataType_(errorCapturingNot_NU~ba1a1ea6+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-5	MAP a USING 's' AS a MAP < BOOLEAN BOOLEAN >
+reject	reject	engine	colType/errorCapturingIdentifier_dataType_(errorCapturingNot_NU~ba1a1ea6+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-6	MAP a USING 's' AS a MAP < BOOLEAN, >
+reject	reject	engine	colType/errorCapturingIdentifier_dataType_(errorCapturingNot_NU~ba1a1ea6+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-7	MAP a USING 's' AS a MAP < BOOLEAN, BOOLEAN
+accept	accept	engine	colType/errorCapturingIdentifier_dataType_(errorCapturingNot_NU~ba1a1ea6+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)	MAP a USING 's' AS a STRUCT <>
+reject	reject	engine	colType/errorCapturingIdentifier_dataType_(errorCapturingNot_NU~ba1a1ea6+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!drop-2	MAP a USING 's' AS a <>
+reject	reject	engine	colType/errorCapturingIdentifier_dataType_(errorCapturingNot_NU~ba1a1ea6+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!drop-3	MAP a USING 's' AS a STRUCT
+accept	accept	engine	colType/errorCapturingIdentifier_dataType_(errorCapturingNot_NU~ba1a1ea6+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?	MAP a USING 's' AS a INTERVAL YEAR
+reject	reject	engine	colType/errorCapturingIdentifier_dataType_(errorCapturingNot_NU~ba1a1ea6+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?!drop-2	MAP a USING 's' AS a YEAR
+accept	accept	engine	colType/errorCapturingIdentifier_dataType_(errorCapturingNot_NU~ba1a1ea6+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?!drop-3	MAP a USING 's' AS a INTERVAL
+accept	accept	engine	colType/errorCapturingIdentifier_dataType_(errorCapturingNot_NU~ba1a1ea6+dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?	MAP a USING 's' AS a INTERVAL DAY
+reject	reject	engine	colType/errorCapturingIdentifier_dataType_(errorCapturingNot_NU~ba1a1ea6+dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?!drop-2	MAP a USING 's' AS a DAY
 accept	accept	engine	colType(errorCapturingNot_NULL)?/%empty	MAP a USING 's' AS a BOOLEAN
 accept	accept	engine	colType(errorCapturingNot_NULL)?/errorCapturingNot_NULL	MAP a USING 's' AS a BOOLEAN NOT NULL
 reject	reject	engine	colType(errorCapturingNot_NULL)?/errorCapturingNot_NULL!drop-1	MAP a USING 's' AS a BOOLEAN NULL
 reject	reject	engine	colType(errorCapturingNot_NULL)?/errorCapturingNot_NULL!drop-2	MAP a USING 's' AS a BOOLEAN NOT
 reject	reject	engine	colType(errorCapturingNot_NULL)?/errorCapturingNot_NULL!insert	MAP a USING 's' AS a BOOLEAN NOT NULL zzz
 reject	reject	engine	colType(errorCapturingNot_NULL)?/errorCapturingNot_NULL!swap	MAP a USING 's' AS a BOOLEAN NULL NULL
+accept	accept	engine	colType(errorCapturingNot_NULL)?/errorCapturingNot_NULL+errorCapturingNot/BANG	MAP a USING 's' AS a BOOLEAN ! NULL
 accept	accept	engine	colType(commentSpec)?/%empty	MAP a USING 's' AS a BOOLEAN
 accept	accept	engine	colType(commentSpec)?/commentSpec	MAP a USING 's' AS a BOOLEAN COMMENT 's'
 reject	reject	engine	colType(commentSpec)?/commentSpec!drop-1	MAP a USING 's' AS a BOOLEAN 's'
@@ -4954,6 +5294,26 @@ reject	reject	engine	colDefinitionList(COMMA_colDefinition)*/COMMA_colDefinition
 reject	reject	engine	colDefinitionList(COMMA_colDefinition)*/COMMA_colDefinition_(COMMA_colDefinition)*!insert	CREATE TABLE a(a BOOLEAN, a BOOLEAN zzz)
 reject	reject	engine	colDefinitionList(COMMA_colDefinition)*/COMMA_colDefinition_(COMMA_colDefinition)*!swap	CREATE TABLE a(a BOOLEAN, a BOTH)
 accept	accept	engine	colDefinition/errorCapturingIdentifier_dataType_(colDefinitionOption)*	CREATE TABLE a(a BOOLEAN)
+accept	accept	engine	colDefinition/errorCapturingIdentifier_dataType_(colDefinitionOption)*+dataType/ARRAY_LT_dataType_GT	CREATE TABLE a(a ARRAY < BOOLEAN >)
+reject	reject	engine	colDefinition/errorCapturingIdentifier_dataType_(colDefinitionOption)*+dataType/ARRAY_LT_dataType_GT!drop-2	CREATE TABLE a(a < BOOLEAN >)
+reject	reject	engine	colDefinition/errorCapturingIdentifier_dataType_(colDefinitionOption)*+dataType/ARRAY_LT_dataType_GT!drop-3	CREATE TABLE a(a ARRAY BOOLEAN >)
+reject	reject	engine	colDefinition/errorCapturingIdentifier_dataType_(colDefinitionOption)*+dataType/ARRAY_LT_dataType_GT!drop-4	CREATE TABLE a(a ARRAY < >)
+reject	reject	engine	colDefinition/errorCapturingIdentifier_dataType_(colDefinitionOption)*+dataType/ARRAY_LT_dataType_GT!drop-5	CREATE TABLE a(a ARRAY < BOOLEAN)
+accept	accept	engine	colDefinition/errorCapturingIdentifier_dataType_(colDefinitionOption)*+dataType/MAP_LT_dataType_COMMA_dataType_GT	CREATE TABLE a(a MAP < BOOLEAN, BOOLEAN >)
+reject	reject	engine	colDefinition/errorCapturingIdentifier_dataType_(colDefinitionOption)*+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-2	CREATE TABLE a(a < BOOLEAN, BOOLEAN >)
+reject	reject	engine	colDefinition/errorCapturingIdentifier_dataType_(colDefinitionOption)*+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-3	CREATE TABLE a(a MAP BOOLEAN, BOOLEAN >)
+reject	reject	engine	colDefinition/errorCapturingIdentifier_dataType_(colDefinitionOption)*+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-4	CREATE TABLE a(a MAP <, BOOLEAN >)
+reject	reject	engine	colDefinition/errorCapturingIdentifier_dataType_(colDefinitionOption)*+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-5	CREATE TABLE a(a MAP < BOOLEAN BOOLEAN >)
+reject	reject	engine	colDefinition/errorCapturingIdentifier_dataType_(colDefinitionOption)*+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-6	CREATE TABLE a(a MAP < BOOLEAN, >)
+reject	reject	engine	colDefinition/errorCapturingIdentifier_dataType_(colDefinitionOption)*+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-7	CREATE TABLE a(a MAP < BOOLEAN, BOOLEAN)
+accept	accept	engine	colDefinition/errorCapturingIdentifier_dataType_(colDefinitionOption)*+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)	CREATE TABLE a(a STRUCT <>)
+reject	reject	engine	colDefinition/errorCapturingIdentifier_dataType_(colDefinitionOption)*+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!drop-2	CREATE TABLE a(a <>)
+reject	reject	engine	colDefinition/errorCapturingIdentifier_dataType_(colDefinitionOption)*+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!drop-3	CREATE TABLE a(a STRUCT)
+accept	accept	engine	colDefinition/errorCapturingIdentifier_dataType_(colDefinitionOption)*+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?	CREATE TABLE a(a INTERVAL YEAR)
+reject	reject	engine	colDefinition/errorCapturingIdentifier_dataType_(colDefinitionOption)*+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?!drop-2	CREATE TABLE a(a YEAR)
+accept	accept	engine	colDefinition/errorCapturingIdentifier_dataType_(colDefinitionOption)*+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?!drop-3	CREATE TABLE a(a INTERVAL)
+accept	accept	engine	colDefinition/errorCapturingIdentifier_dataType_(colDefinitionOption)*+dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?	CREATE TABLE a(a INTERVAL DAY)
+reject	reject	engine	colDefinition/errorCapturingIdentifier_dataType_(colDefinitionOption)*+dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?!drop-2	CREATE TABLE a(a DAY)
 accept	accept	engine	colDefinition(colDefinitionOption)*/%empty	CREATE TABLE a(a BOOLEAN)
 accept	accept	engine	colDefinition(colDefinitionOption)*/colDefinitionOption_(colDefinitionOption)*	CREATE TABLE a(a BOOLEAN NOT NULL)
 reject	reject	engine	colDefinition(colDefinitionOption)*/colDefinitionOption_(colDefinitionOption)*!drop-1	CREATE TABLE a(a BOOLEAN NULL)
@@ -4962,6 +5322,7 @@ reject	reject	engine	colDefinition(colDefinitionOption)*/colDefinitionOption_(co
 reject	reject	engine	colDefinition(colDefinitionOption)*/colDefinitionOption_(colDefinitionOption)*!insert	CREATE TABLE a(a BOOLEAN NOT NULL zzz)
 reject	reject	engine	colDefinition(colDefinitionOption)*/colDefinitionOption_(colDefinitionOption)*!swap	CREATE TABLE a(a BOOLEAN NULL NULL)
 accept	accept	engine	colDefinitionOption/errorCapturingNot_NULL	CREATE TABLE a(a BOOLEAN NOT NULL)
+reject	reject	engine	colDefinitionOption/errorCapturingNot_NULL+errorCapturingNot/BANG	CREATE TABLE a(a BOOLEAN ! NULL)
 accept	accept	engine	colDefinitionOption/defaultExpression	CREATE TABLE a(a BOOLEAN DEFAULT a)
 reject	reject	engine	colDefinitionOption/defaultExpression!drop-1	CREATE TABLE a(a BOOLEAN a)
 reject	reject	engine	colDefinitionOption/defaultExpression!drop-2	CREATE TABLE a(a BOOLEAN DEFAULT)
@@ -5044,6 +5405,26 @@ reject	reject	engine	complexColTypeList(COMMA_complexColType)*/COMMA_complexColT
 reject	reject	engine	complexColTypeList(COMMA_complexColType)*/COMMA_complexColType_(COMMA_complexColType)*!insert	DECLARE a STRUCT < a BOOLEAN, a BOOLEAN zzz >
 reject	reject	engine	complexColTypeList(COMMA_complexColType)*/COMMA_complexColType_(COMMA_complexColType)*!swap	DECLARE a STRUCT < a BOOLEAN, a BOTH >
 accept	accept	engine	complexColType/errorCapturingIdentifier_(COLON)?_dataType_(errorCaptur~01ad203f	DECLARE a STRUCT < a BOOLEAN >
+accept	accept	engine	complexColType/errorCapturingIdentifier_(COLON)?_dataType_(errorCaptur~01ad203f+dataType/ARRAY_LT_dataType_GT	DECLARE a STRUCT < a ARRAY < BOOLEAN > >
+reject	reject	engine	complexColType/errorCapturingIdentifier_(COLON)?_dataType_(errorCaptur~01ad203f+dataType/ARRAY_LT_dataType_GT!drop-2	DECLARE a STRUCT < a < BOOLEAN > >
+reject	reject	engine	complexColType/errorCapturingIdentifier_(COLON)?_dataType_(errorCaptur~01ad203f+dataType/ARRAY_LT_dataType_GT!drop-3	DECLARE a STRUCT < a ARRAY BOOLEAN > >
+reject	reject	engine	complexColType/errorCapturingIdentifier_(COLON)?_dataType_(errorCaptur~01ad203f+dataType/ARRAY_LT_dataType_GT!drop-4	DECLARE a STRUCT < a ARRAY < > >
+reject	reject	engine	complexColType/errorCapturingIdentifier_(COLON)?_dataType_(errorCaptur~01ad203f+dataType/ARRAY_LT_dataType_GT!drop-5	DECLARE a STRUCT < a ARRAY < BOOLEAN >
+accept	accept	engine	complexColType/errorCapturingIdentifier_(COLON)?_dataType_(errorCaptur~01ad203f+dataType/MAP_LT_dataType_COMMA_dataType_GT	DECLARE a STRUCT < a MAP < BOOLEAN, BOOLEAN > >
+reject	reject	engine	complexColType/errorCapturingIdentifier_(COLON)?_dataType_(errorCaptur~01ad203f+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-2	DECLARE a STRUCT < a < BOOLEAN, BOOLEAN > >
+reject	reject	engine	complexColType/errorCapturingIdentifier_(COLON)?_dataType_(errorCaptur~01ad203f+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-3	DECLARE a STRUCT < a MAP BOOLEAN, BOOLEAN > >
+reject	reject	engine	complexColType/errorCapturingIdentifier_(COLON)?_dataType_(errorCaptur~01ad203f+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-4	DECLARE a STRUCT < a MAP <, BOOLEAN > >
+reject	reject	engine	complexColType/errorCapturingIdentifier_(COLON)?_dataType_(errorCaptur~01ad203f+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-5	DECLARE a STRUCT < a MAP < BOOLEAN BOOLEAN > >
+reject	reject	engine	complexColType/errorCapturingIdentifier_(COLON)?_dataType_(errorCaptur~01ad203f+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-6	DECLARE a STRUCT < a MAP < BOOLEAN, > >
+reject	reject	engine	complexColType/errorCapturingIdentifier_(COLON)?_dataType_(errorCaptur~01ad203f+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-7	DECLARE a STRUCT < a MAP < BOOLEAN, BOOLEAN >
+accept	accept	engine	complexColType/errorCapturingIdentifier_(COLON)?_dataType_(errorCaptur~01ad203f+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)	DECLARE a STRUCT < a STRUCT <> >
+reject	reject	engine	complexColType/errorCapturingIdentifier_(COLON)?_dataType_(errorCaptur~01ad203f+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!drop-2	DECLARE a STRUCT < a <> >
+reject	reject	engine	complexColType/errorCapturingIdentifier_(COLON)?_dataType_(errorCaptur~01ad203f+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!drop-3	DECLARE a STRUCT < a STRUCT >
+accept	accept	engine	complexColType/errorCapturingIdentifier_(COLON)?_dataType_(errorCaptur~01ad203f+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?	DECLARE a STRUCT < a INTERVAL YEAR >
+reject	reject	engine	complexColType/errorCapturingIdentifier_(COLON)?_dataType_(errorCaptur~01ad203f+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?!drop-2	DECLARE a STRUCT < a YEAR >
+accept	accept	engine	complexColType/errorCapturingIdentifier_(COLON)?_dataType_(errorCaptur~01ad203f+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?!drop-3	DECLARE a STRUCT < a INTERVAL >
+accept	accept	engine	complexColType/errorCapturingIdentifier_(COLON)?_dataType_(errorCaptur~01ad203f+dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?	DECLARE a STRUCT < a INTERVAL DAY >
+reject	reject	engine	complexColType/errorCapturingIdentifier_(COLON)?_dataType_(errorCaptur~01ad203f+dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?!drop-2	DECLARE a STRUCT < a DAY >
 accept	accept	engine	complexColType(COLON)?/%empty	DECLARE a STRUCT < a BOOLEAN >
 reject	reject	engine	complexColType(COLON)?/%empty!insert	DECLARE a STRUCT < a zzz BOOLEAN >
 accept	accept	engine	complexColType(COLON)?/COLON	DECLARE a STRUCT < a : BOOLEAN >
@@ -5055,6 +5436,7 @@ reject	reject	engine	complexColType(errorCapturingNot_NULL)?/errorCapturingNot_N
 reject	reject	engine	complexColType(errorCapturingNot_NULL)?/errorCapturingNot_NULL!truncate	DECLARE a STRUCT < a BOOLEAN NOT
 reject	reject	engine	complexColType(errorCapturingNot_NULL)?/errorCapturingNot_NULL!insert	DECLARE a STRUCT < a BOOLEAN NOT NULL zzz >
 reject	reject	engine	complexColType(errorCapturingNot_NULL)?/errorCapturingNot_NULL!swap	DECLARE a STRUCT < a BOOLEAN NULL NULL >
+accept	accept	engine	complexColType(errorCapturingNot_NULL)?/errorCapturingNot_NULL+errorCapturingNot/BANG	DECLARE a STRUCT < a BOOLEAN ! NULL >
 accept	accept	engine	complexColType(commentSpec)?/%empty	DECLARE a STRUCT < a BOOLEAN >
 accept	accept	engine	complexColType(commentSpec)?/commentSpec	DECLARE a STRUCT < a BOOLEAN COMMENT 's' >
 reject	reject	engine	complexColType(commentSpec)?/commentSpec!drop-1	DECLARE a STRUCT < a BOOLEAN 's' >
@@ -5119,6 +5501,7 @@ reject	reject	engine	deterministic/errorCapturingNot_DETERMINISTIC!drop-2	CREATE
 reject	reject	engine	deterministic/errorCapturingNot_DETERMINISTIC!truncate	CREATE FUNCTION a() NOT
 reject	reject	engine	deterministic/errorCapturingNot_DETERMINISTIC!insert	CREATE FUNCTION a() NOT DETERMINISTIC zzz RETURN a
 reject	reject	engine	deterministic/errorCapturingNot_DETERMINISTIC!swap	CREATE FUNCTION a() NULL DETERMINISTIC RETURN a
+reject	reject	engine	deterministic/errorCapturingNot_DETERMINISTIC+errorCapturingNot/BANG	CREATE FUNCTION a() ! DETERMINISTIC RETURN a
 reject	reject	engine	sqlDataAccess/NO_SQL	CREATE FUNCTION a() NO SQL RETURN a
 accept	accept	engine	sqlDataAccess/CONTAINS_SQL	CREATE FUNCTION a() CONTAINS SQL RETURN a
 reject	reject	engine	sqlDataAccess/CONTAINS_SQL!drop-2	CREATE FUNCTION a() CONTAINS RETURN a
@@ -5235,6 +5618,11 @@ reject	reject	engine	windowFrame/ROWS_frameBound!drop-3	SELECT IDENTIFIER() OVER
 reject	reject	engine	windowFrame/ROWS_frameBound!truncate	SELECT IDENTIFIER() OVER(ROWS UNBOUNDED
 reject	reject	engine	windowFrame/ROWS_frameBound!insert	SELECT IDENTIFIER() OVER(ROWS UNBOUNDED PRECEDING zzz)
 reject	reject	engine	windowFrame/ROWS_frameBound!swap	SELECT IDENTIFIER() OVER(SCHEMA UNBOUNDED PRECEDING)
+reject	reject	engine	windowFrame/ROWS_frameBound+frameBound/CURRENT_ROW	SELECT IDENTIFIER() OVER(ROWS CURRENT ROW)
+reject	reject	engine	windowFrame/ROWS_frameBound+frameBound/CURRENT_ROW!drop-2	SELECT IDENTIFIER() OVER(ROWS ROW)
+reject	reject	engine	windowFrame/ROWS_frameBound+frameBound/CURRENT_ROW!drop-3	SELECT IDENTIFIER() OVER(ROWS CURRENT)
+reject	reject	engine	windowFrame/ROWS_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)	SELECT IDENTIFIER() OVER(ROWS a PRECEDING)
+reject	reject	engine	windowFrame/ROWS_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)!drop-3	SELECT IDENTIFIER() OVER(ROWS a)
 reject	reject	engine	windowFrame/RANGE_BETWEEN_frameBound_AND_frameBound	SELECT IDENTIFIER() OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
 reject	reject	engine	windowFrame/RANGE_BETWEEN_frameBound_AND_frameBound!drop-1	SELECT IDENTIFIER() OVER(BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
 reject	reject	engine	windowFrame/RANGE_BETWEEN_frameBound_AND_frameBound!drop-2	SELECT IDENTIFIER() OVER(RANGE UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
@@ -5246,6 +5634,16 @@ reject	reject	engine	windowFrame/RANGE_BETWEEN_frameBound_AND_frameBound!drop-7	
 reject	reject	engine	windowFrame/RANGE_BETWEEN_frameBound_AND_frameBound!truncate	SELECT IDENTIFIER() OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED
 reject	reject	engine	windowFrame/RANGE_BETWEEN_frameBound_AND_frameBound!insert	SELECT IDENTIFIER() OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING zzz)
 reject	reject	engine	windowFrame/RANGE_BETWEEN_frameBound_AND_frameBound!swap	SELECT IDENTIFIER() OVER(READS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
+reject	reject	engine	windowFrame/RANGE_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW	SELECT IDENTIFIER() OVER(RANGE BETWEEN CURRENT ROW AND UNBOUNDED PRECEDING)
+reject	reject	engine	windowFrame/RANGE_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW!drop-3	SELECT IDENTIFIER() OVER(RANGE BETWEEN ROW AND UNBOUNDED PRECEDING)
+reject	reject	engine	windowFrame/RANGE_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW!drop-4	SELECT IDENTIFIER() OVER(RANGE BETWEEN CURRENT AND UNBOUNDED PRECEDING)
+reject	reject	engine	windowFrame/RANGE_BETWEEN_frameBound_AND_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)	SELECT IDENTIFIER() OVER(RANGE BETWEEN a PRECEDING AND UNBOUNDED PRECEDING)
+reject	reject	engine	windowFrame/RANGE_BETWEEN_frameBound_AND_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)!drop-4	SELECT IDENTIFIER() OVER(RANGE BETWEEN a AND UNBOUNDED PRECEDING)
+reject	reject	engine	windowFrame/RANGE_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW#2	SELECT IDENTIFIER() OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+reject	reject	engine	windowFrame/RANGE_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW#2!drop-6	SELECT IDENTIFIER() OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND ROW)
+reject	reject	engine	windowFrame/RANGE_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW#2!drop-7	SELECT IDENTIFIER() OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT)
+reject	reject	engine	windowFrame/RANGE_BETWEEN_frameBound_AND_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)#2	SELECT IDENTIFIER() OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND a PRECEDING)
+reject	reject	engine	windowFrame/RANGE_BETWEEN_frameBound_AND_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)#2!drop-7	SELECT IDENTIFIER() OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND a)
 reject	reject	engine	windowFrame/ROWS_BETWEEN_frameBound_AND_frameBound	SELECT IDENTIFIER() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
 reject	reject	engine	windowFrame/ROWS_BETWEEN_frameBound_AND_frameBound!drop-2	SELECT IDENTIFIER() OVER(ROWS UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
 reject	reject	engine	windowFrame/ROWS_BETWEEN_frameBound_AND_frameBound!drop-3	SELECT IDENTIFIER() OVER(ROWS BETWEEN PRECEDING AND UNBOUNDED PRECEDING)
@@ -5256,6 +5654,16 @@ reject	reject	engine	windowFrame/ROWS_BETWEEN_frameBound_AND_frameBound!drop-7	S
 reject	reject	engine	windowFrame/ROWS_BETWEEN_frameBound_AND_frameBound!truncate	SELECT IDENTIFIER() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED
 reject	reject	engine	windowFrame/ROWS_BETWEEN_frameBound_AND_frameBound!insert	SELECT IDENTIFIER() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING zzz)
 reject	reject	engine	windowFrame/ROWS_BETWEEN_frameBound_AND_frameBound!swap	SELECT IDENTIFIER() OVER(SCHEMA BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
+reject	reject	engine	windowFrame/ROWS_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW	SELECT IDENTIFIER() OVER(ROWS BETWEEN CURRENT ROW AND UNBOUNDED PRECEDING)
+reject	reject	engine	windowFrame/ROWS_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW!drop-3	SELECT IDENTIFIER() OVER(ROWS BETWEEN ROW AND UNBOUNDED PRECEDING)
+reject	reject	engine	windowFrame/ROWS_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW!drop-4	SELECT IDENTIFIER() OVER(ROWS BETWEEN CURRENT AND UNBOUNDED PRECEDING)
+reject	reject	engine	windowFrame/ROWS_BETWEEN_frameBound_AND_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)	SELECT IDENTIFIER() OVER(ROWS BETWEEN a PRECEDING AND UNBOUNDED PRECEDING)
+reject	reject	engine	windowFrame/ROWS_BETWEEN_frameBound_AND_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)!drop-4	SELECT IDENTIFIER() OVER(ROWS BETWEEN a AND UNBOUNDED PRECEDING)
+reject	reject	engine	windowFrame/ROWS_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW#2	SELECT IDENTIFIER() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+reject	reject	engine	windowFrame/ROWS_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW#2!drop-6	SELECT IDENTIFIER() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND ROW)
+reject	reject	engine	windowFrame/ROWS_BETWEEN_frameBound_AND_frameBound+frameBound/CURRENT_ROW#2!drop-7	SELECT IDENTIFIER() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT)
+reject	reject	engine	windowFrame/ROWS_BETWEEN_frameBound_AND_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)#2	SELECT IDENTIFIER() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND a PRECEDING)
+reject	reject	engine	windowFrame/ROWS_BETWEEN_frameBound_AND_frameBound+frameBound/expression_(PRECEDING|FOLLOWING)#2!drop-7	SELECT IDENTIFIER() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND a)
 reject	reject	engine	frameBound/UNBOUNDED_(PRECEDING|FOLLOWING)	SELECT IDENTIFIER() OVER(RANGE UNBOUNDED PRECEDING)
 reject	reject	engine	frameBound/UNBOUNDED_(PRECEDING|FOLLOWING)!swap	SELECT IDENTIFIER() OVER(RANGE UNCACHE PRECEDING)
 reject	reject	engine	frameBound/CURRENT_ROW	SELECT IDENTIFIER() OVER(RANGE CURRENT ROW)
@@ -5363,6 +5771,26 @@ reject	reject	engine	alterColumnAction/TYPE_dataType!drop-1	ALTER TABLE a ALTER 
 reject	reject	engine	alterColumnAction/TYPE_dataType!drop-2	ALTER TABLE a ALTER a TYPE
 reject	reject	engine	alterColumnAction/TYPE_dataType!insert	ALTER TABLE a ALTER a TYPE BOOLEAN zzz
 reject	reject	engine	alterColumnAction/TYPE_dataType!swap	ALTER TABLE a ALTER a UNARCHIVE BOOLEAN
+accept	accept	engine	alterColumnAction/TYPE_dataType+dataType/ARRAY_LT_dataType_GT	ALTER TABLE a ALTER a TYPE ARRAY < BOOLEAN >
+reject	reject	engine	alterColumnAction/TYPE_dataType+dataType/ARRAY_LT_dataType_GT!drop-2	ALTER TABLE a ALTER a TYPE < BOOLEAN >
+reject	reject	engine	alterColumnAction/TYPE_dataType+dataType/ARRAY_LT_dataType_GT!drop-3	ALTER TABLE a ALTER a TYPE ARRAY BOOLEAN >
+reject	reject	engine	alterColumnAction/TYPE_dataType+dataType/ARRAY_LT_dataType_GT!drop-4	ALTER TABLE a ALTER a TYPE ARRAY < >
+reject	reject	engine	alterColumnAction/TYPE_dataType+dataType/ARRAY_LT_dataType_GT!drop-5	ALTER TABLE a ALTER a TYPE ARRAY < BOOLEAN
+accept	accept	engine	alterColumnAction/TYPE_dataType+dataType/MAP_LT_dataType_COMMA_dataType_GT	ALTER TABLE a ALTER a TYPE MAP < BOOLEAN, BOOLEAN >
+reject	reject	engine	alterColumnAction/TYPE_dataType+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-2	ALTER TABLE a ALTER a TYPE < BOOLEAN, BOOLEAN >
+reject	reject	engine	alterColumnAction/TYPE_dataType+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-3	ALTER TABLE a ALTER a TYPE MAP BOOLEAN, BOOLEAN >
+reject	reject	engine	alterColumnAction/TYPE_dataType+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-4	ALTER TABLE a ALTER a TYPE MAP <, BOOLEAN >
+reject	reject	engine	alterColumnAction/TYPE_dataType+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-5	ALTER TABLE a ALTER a TYPE MAP < BOOLEAN BOOLEAN >
+reject	reject	engine	alterColumnAction/TYPE_dataType+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-6	ALTER TABLE a ALTER a TYPE MAP < BOOLEAN, >
+reject	reject	engine	alterColumnAction/TYPE_dataType+dataType/MAP_LT_dataType_COMMA_dataType_GT!drop-7	ALTER TABLE a ALTER a TYPE MAP < BOOLEAN, BOOLEAN
+accept	accept	engine	alterColumnAction/TYPE_dataType+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)	ALTER TABLE a ALTER a TYPE STRUCT <>
+reject	reject	engine	alterColumnAction/TYPE_dataType+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!drop-2	ALTER TABLE a ALTER a TYPE <>
+reject	reject	engine	alterColumnAction/TYPE_dataType+dataType/STRUCT_(LT_complexColTypeList?_GT|NEQ)!drop-3	ALTER TABLE a ALTER a TYPE STRUCT
+accept	accept	engine	alterColumnAction/TYPE_dataType+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?	ALTER TABLE a ALTER a TYPE INTERVAL YEAR
+reject	reject	engine	alterColumnAction/TYPE_dataType+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?!drop-2	ALTER TABLE a ALTER a TYPE YEAR
+accept	accept	engine	alterColumnAction/TYPE_dataType+dataType/INTERVAL_(YEAR|MONTH)_(TO_MONTH)?!drop-3	ALTER TABLE a ALTER a TYPE INTERVAL
+accept	accept	engine	alterColumnAction/TYPE_dataType+dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?	ALTER TABLE a ALTER a TYPE INTERVAL DAY
+reject	reject	engine	alterColumnAction/TYPE_dataType+dataType/INTERVAL_(DAY|HOUR|MINUTE|SECOND)_(TO_(HOUR|MINUTE|SECOND))?!drop-2	ALTER TABLE a ALTER a TYPE DAY
 accept	accept	engine	alterColumnAction/commentSpec	ALTER TABLE a ALTER a COMMENT 's'
 reject	reject	engine	alterColumnAction/commentSpec!drop-1	ALTER TABLE a ALTER a 's'
 reject	reject	engine	alterColumnAction/commentSpec!drop-2	ALTER TABLE a ALTER a COMMENT
@@ -5375,6 +5803,7 @@ reject	reject	engine	alterColumnAction/(SET|DROP)_errorCapturingNot_NULL!drop-2	
 reject	reject	engine	alterColumnAction/(SET|DROP)_errorCapturingNot_NULL!drop-3	ALTER TABLE a ALTER a SET NOT
 reject	reject	engine	alterColumnAction/(SET|DROP)_errorCapturingNot_NULL!insert	ALTER TABLE a ALTER a SET NOT NULL zzz
 reject	reject	engine	alterColumnAction/(SET|DROP)_errorCapturingNot_NULL!swap	ALTER TABLE a ALTER a SETS NOT NULL
+accept	accept	engine	alterColumnAction/(SET|DROP)_errorCapturingNot_NULL+errorCapturingNot/BANG	ALTER TABLE a ALTER a SET ! NULL
 accept	accept	engine	alterColumnAction/SET_defaultExpression	ALTER TABLE a ALTER a SET DEFAULT a
 reject	reject	engine	alterColumnAction/SET_defaultExpression!drop-1	ALTER TABLE a ALTER a DEFAULT a
 reject	reject	engine	alterColumnAction/SET_defaultExpression!swap	ALTER TABLE a ALTER a SETS DEFAULT a
@@ -5397,6 +5826,7 @@ reject	reject	engine	comment/NULL!swap	COMMENT ON NAMESPACE a IS NULLS
 accept	accept	engine	version/INTEGER_VALUE	FROM a SYSTEM_VERSION AS OF 1
 accept	accept	engine	version/stringLit	FROM a SYSTEM_VERSION AS OF 's'
 accept	accept	engine	version/stringLit!insert	FROM a SYSTEM_VERSION AS OF 's' zzz
+accept	accept	engine	version/stringLit+stringLit/DOUBLEQUOTED_STRING	FROM a SYSTEM_VERSION AS OF "s"
 accept	accept	engine	operatorPipeRightSide/selectClause_(windowClause)?	SELECT a |> SELECT a
 reject	reject	engine	operatorPipeRightSide/selectClause_(windowClause)?!drop-1	SELECT a |> a
 reject	reject	engine	operatorPipeRightSide/selectClause_(windowClause)?!drop-2	SELECT a |> SELECT
@@ -5517,6 +5947,7 @@ accept	accept	engine	operatorPipeRightSide(setQuantifier)?/setQuantifier	SELECT 
 reject	reject	engine	operatorPipeRightSide(setQuantifier)?/setQuantifier!truncate	SELECT a |> UNION
 reject	reject	engine	operatorPipeRightSide(setQuantifier)?/setQuantifier!insert	SELECT a |> UNION DISTINCT zzz SELECT a
 reject	reject	engine	operatorPipeRightSide(setQuantifier)?/setQuantifier!swap	SELECT a |> UNION DISTRIBUTE SELECT a
+accept	accept	engine	operatorPipeRightSide(setQuantifier)?/setQuantifier+setQuantifier/ALL	SELECT a |> UNION ALL SELECT a
 reject	reject	engine	operatorPipeRightSide(namedExpressionSeq)?/%empty	SELECT a |> AGGREGATE
 accept	accept	engine	operatorPipeRightSide(namedExpressionSeq)?/namedExpressionSeq	SELECT a |> AGGREGATE a
 accept	accept	engine	operatorPipeRightSide(namedExpressionSeq)?/namedExpressionSeq!insert	SELECT a |> AGGREGATE a zzz
