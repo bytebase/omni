@@ -1780,11 +1780,8 @@ func (c *Catalog) execAlterSequence(n *ast.AlterSequenceStmt, source string) err
 	schema := c.GetSchema(schemaName)
 	var seq *metadata.SequenceMetadata
 	if schema != nil {
-		for _, sq := range schema.Sequences {
-			if strings.EqualFold(sq.Name, sequenceName) {
-				seq = sq
-				break
-			}
+		if idx, ok := resolveExactOrFoldIndex(schema.Sequences, func(sq *metadata.SequenceMetadata) string { return sq.Name }, sequenceName); ok {
+			seq = schema.Sequences[idx]
 		}
 	}
 	if seq == nil {
@@ -2347,6 +2344,10 @@ func (c *Catalog) execAlterColumnAddDrop(table *metadata.TableMetadata, action *
 			if !isComputedColumnType(col.Type) {
 				return mssqlErr(ErrAlterColPersistedNonComp, "PERSISTED attribute cannot be altered on column '%s' because this column is not computed.", col.Name)
 			}
+			trimmed := strings.TrimSpace(col.Type)
+			if !strings.HasSuffix(strings.ToUpper(trimmed), " PERSISTED") {
+				col.Type = trimmed + " PERSISTED"
+			}
 		case "MASKED":
 			if !isValidMaskingFunction(opt.MaskFunction) {
 				return mssqlErr(ErrInvalidMaskingFunction, "Invalid data masking format for function '%s' in column '%s'.", opt.MaskFunction, col.Name)
@@ -2355,6 +2356,17 @@ func (c *Catalog) execAlterColumnAddDrop(table *metadata.TableMetadata, action *
 			return mssqlErr(ErrAlterColHiddenNotPeriod, "Cannot alter HIDDEN attribute on column '%s' in table '%s' because this column is not a generated always column.", col.Name, table.Name)
 		case "SPARSE":
 			return nil
+		}
+	} else if strings.EqualFold(opt.Action, "DROP") {
+		switch strings.ToUpper(opt.Option) {
+		case "PERSISTED":
+			if !isComputedColumnType(col.Type) {
+				return mssqlErr(ErrAlterColPersistedNonComp, "PERSISTED attribute cannot be altered on column '%s' because this column is not computed.", col.Name)
+			}
+			trimmed := strings.TrimSpace(col.Type)
+			if len(trimmed) > len(" PERSISTED") && strings.EqualFold(trimmed[len(trimmed)-len(" PERSISTED"):], " PERSISTED") {
+				col.Type = strings.TrimSpace(trimmed[:len(trimmed)-len(" PERSISTED")])
+			}
 		}
 	}
 	return nil
@@ -2453,36 +2465,91 @@ func (c *Catalog) execAlterTableAddConstraint(table *metadata.TableMetadata, sch
 }
 
 func (c *Catalog) dropTableConstraint(schemaName string, table *metadata.TableMetadata, name string) (bool, error) {
+	dropIndexConstraint := func(i int) (bool, error) {
+		idx := table.Indexes[i]
+		if refTable, fkName, referenced := indexReferencedByFK(c, schemaName, table, idx); referenced {
+			return false, mssqlErr(ErrDropConstraintReferencedByFK, "The constraint '%s' is being referenced by table '%s', foreign key constraint '%s'.", idx.Name, refTable, fkName)
+		}
+		if idx.Primary && isClusteredPrimaryKey(idx) && tableHasXMLIndex(table) {
+			return false, mssqlErr(ErrDropPKWithXMLIndex, "Cannot drop the clustered primary key '%s' on table '%s' because the table has an XML index.", idx.Name, table.Name)
+		}
+		table.Indexes = append(table.Indexes[:i], table.Indexes[i+1:]...)
+		return true, nil
+	}
+
+	// Pass 1: exact name match across all constraint kinds.
 	for i, idx := range table.Indexes {
-		if idx.IsConstraint && strings.EqualFold(idx.Name, name) {
-			if refTable, fkName, referenced := indexReferencedByFK(c, schemaName, table, idx); referenced {
-				return false, mssqlErr(ErrDropConstraintReferencedByFK, "The constraint '%s' is being referenced by table '%s', foreign key constraint '%s'.", idx.Name, refTable, fkName)
-			}
-			if idx.Primary && isClusteredPrimaryKey(idx) && tableHasXMLIndex(table) {
-				return false, mssqlErr(ErrDropPKWithXMLIndex, "Cannot drop the clustered primary key '%s' on table '%s' because the table has an XML index.", idx.Name, table.Name)
-			}
-			table.Indexes = append(table.Indexes[:i], table.Indexes[i+1:]...)
-			return true, nil
+		if idx.IsConstraint && idx.Name == name {
+			return dropIndexConstraint(i)
 		}
 	}
 	for i, fk := range table.ForeignKeys {
-		if strings.EqualFold(fk.Name, name) {
+		if fk.Name == name {
 			table.ForeignKeys = append(table.ForeignKeys[:i], table.ForeignKeys[i+1:]...)
 			return true, nil
 		}
 	}
 	for i, ck := range table.CheckConstraints {
-		if strings.EqualFold(ck.Name, name) {
+		if ck.Name == name {
 			table.CheckConstraints = append(table.CheckConstraints[:i], table.CheckConstraints[i+1:]...)
 			return true, nil
 		}
 	}
 	for _, col := range table.Columns {
-		if col.DefaultConstraintName != "" && strings.EqualFold(col.DefaultConstraintName, name) {
+		if col.DefaultConstraintName != "" && col.DefaultConstraintName == name {
 			col.Default = ""
 			col.DefaultConstraintName = ""
 			return true, nil
 		}
+	}
+
+	// Pass 2: unambiguous case-folded fallback across all constraint kinds.
+	type constraintMatch struct {
+		kind int // 1=idx, 2=fk, 3=ck, 4=df
+		pos  int
+	}
+	var match constraintMatch
+	matches := 0
+	for i, idx := range table.Indexes {
+		if idx.IsConstraint && strings.EqualFold(idx.Name, name) {
+			match = constraintMatch{kind: 1, pos: i}
+			matches++
+		}
+	}
+	for i, fk := range table.ForeignKeys {
+		if strings.EqualFold(fk.Name, name) {
+			match = constraintMatch{kind: 2, pos: i}
+			matches++
+		}
+	}
+	for i, ck := range table.CheckConstraints {
+		if strings.EqualFold(ck.Name, name) {
+			match = constraintMatch{kind: 3, pos: i}
+			matches++
+		}
+	}
+	for i, col := range table.Columns {
+		if col.DefaultConstraintName != "" && strings.EqualFold(col.DefaultConstraintName, name) {
+			match = constraintMatch{kind: 4, pos: i}
+			matches++
+		}
+	}
+	if matches != 1 {
+		return false, nil
+	}
+	switch match.kind {
+	case 1:
+		return dropIndexConstraint(match.pos)
+	case 2:
+		table.ForeignKeys = append(table.ForeignKeys[:match.pos], table.ForeignKeys[match.pos+1:]...)
+		return true, nil
+	case 3:
+		table.CheckConstraints = append(table.CheckConstraints[:match.pos], table.CheckConstraints[match.pos+1:]...)
+		return true, nil
+	case 4:
+		table.Columns[match.pos].Default = ""
+		table.Columns[match.pos].DefaultConstraintName = ""
+		return true, nil
 	}
 	return false, nil
 }
@@ -2678,6 +2745,13 @@ func columnInPrimaryKey(table *metadata.TableMetadata, colName string) (string, 
 }
 
 func alterColumnTypeDependency(c *Catalog, schemaName string, table *metadata.TableMetadata, col *metadata.ColumnMetadata, newType string, collationChanged bool) (string, bool) {
+	if col.Default != "" {
+		name := col.DefaultConstraintName
+		if name == "" {
+			name = "DEFAULT"
+		}
+		return name, true
+	}
 	widenOK := !collationChanged && isCompatibleVarLengthWidening(col.Type, newType)
 	for _, idx := range table.Indexes {
 		for _, expr := range idx.Expressions {

@@ -985,4 +985,64 @@ CREATE CLUSTERED INDEX [ix] ON [dbo].[t]([a]);
 	execExpectOK(t, c, `DROP INDEX [foo] ON [dbo].[t]`)
 	require.Len(t, c.GetTable("dbo", "t").Indexes, 1)
 	require.Equal(t, "Foo", c.GetTable("dbo", "t").Indexes[0].Name)
+
+	// 67. ALTER COLUMN rejects changing the data type of a column with a bound DEFAULT constraint.
+	c, err = LoadSQL(`CREATE TABLE [dbo].[t] ([a] INT CONSTRAINT [DF_t_a] DEFAULT (0));`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ALTER COLUMN [a] BIGINT`, ErrColumnDependentObject)
+	require.Equal(t, "INT", columnByName(c.GetTable("dbo", "t"), "a").Type)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] DROP CONSTRAINT [DF_t_a]`)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] ALTER COLUMN [a] BIGINT`)
+	require.Equal(t, "BIGINT", columnByName(c.GetTable("dbo", "t"), "a").Type)
+
+	// 68. DROP CONSTRAINT resolves the exact constraint name in case-sensitive snapshots.
+	c = New()
+	require.NoError(t, c.LoadMetadata(t.Context(), &metadata.DatabaseSchemaMetadata{
+		Schemas: []*metadata.SchemaMetadata{
+			{
+				Name: "dbo",
+				Tables: []*metadata.TableMetadata{
+					{
+						Name: "t",
+						Columns: []*metadata.ColumnMetadata{
+							{Name: "a", Type: "int", Position: 1},
+							{Name: "b", Type: "int", Position: 2},
+						},
+						Indexes: []*metadata.IndexMetadata{
+							{Name: "Foo", Unique: true, IsConstraint: true, Type: "NONCLUSTERED", Expressions: []string{"a"}},
+							{Name: "foo", Unique: true, IsConstraint: true, Type: "NONCLUSTERED", Expressions: []string{"b"}},
+						},
+					},
+				},
+			},
+		},
+	}))
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] DROP CONSTRAINT [foo]`)
+	require.Len(t, c.GetTable("dbo", "t").Indexes, 1)
+	require.Equal(t, "Foo", c.GetTable("dbo", "t").Indexes[0].Name)
+
+	// 69. ALTER SEQUENCE resolves the exact sequence name in case-sensitive snapshots.
+	c = New()
+	require.NoError(t, c.LoadMetadata(t.Context(), &metadata.DatabaseSchemaMetadata{
+		Schemas: []*metadata.SchemaMetadata{
+			{
+				Name: "dbo",
+				Sequences: []*metadata.SequenceMetadata{
+					{Name: "Foo", DataType: "int", Start: "1", Increment: "1"},
+					{Name: "foo", DataType: "int", Start: "1", Increment: "1"},
+				},
+			},
+		},
+	}))
+	execExpectOK(t, c, `ALTER SEQUENCE [dbo].[foo] INCREMENT BY 5`)
+	require.Equal(t, "1", c.GetSchema("dbo").Sequences[0].Increment)
+	require.Equal(t, "5", c.GetSchema("dbo").Sequences[1].Increment)
+
+	// 70. ALTER COLUMN ADD/DROP PERSISTED updates computed-column metadata.
+	c, err = LoadSQL(`CREATE TABLE [dbo].[t] ([a] INT, [b] AS ([a] + 1));`)
+	require.NoError(t, err)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] ALTER COLUMN [b] ADD PERSISTED`)
+	require.Equal(t, "AS ([a] + 1) PERSISTED", columnByName(c.GetTable("dbo", "t"), "b").Type)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] ALTER COLUMN [b] DROP PERSISTED`)
+	require.Equal(t, "AS ([a] + 1)", columnByName(c.GetTable("dbo", "t"), "b").Type)
 }
