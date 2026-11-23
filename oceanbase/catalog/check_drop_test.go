@@ -24,6 +24,8 @@ func TestDropColumnReadByCheck(t *testing.T) {
 		{"ALTER TABLE bookings RENAME COLUMN starts TO begins, DROP COLUMN ends", "Check constraint 'chk_dates' uses column 'starts', hence column cannot be dropped or renamed.", ""},
 		{"ALTER TABLE bookings DROP COLUMN starts, DROP COLUMN ends, DROP CHECK chk_dates", "", "chk_nights,chk_text"},
 		{"ALTER TABLE bookings DROP COLUMN nights", "", "chk_dates,chk_text"},
+		{"ALTER TABLE bookings DROP CHECK (chk_dates), DROP COLUMN starts", "", "chk_nights,chk_text"},
+		{"ALTER TABLE bookings DROP CONSTRAINT (chk_nights, chk_dates), DROP COLUMN starts", "", "chk_text"},
 		{"ALTER TABLE bookings ADD COLUMN floor INT", "", "chk_dates,chk_nights,chk_always,chk_text"},
 	}
 	for _, tc := range cases {

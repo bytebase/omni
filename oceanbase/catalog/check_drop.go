@@ -43,7 +43,12 @@ func checksDroppedWithColumns(tbl *Table, cmds []*nodes.AlterTableCmd) (map[*Con
 				drops = append(drops, col.Name)
 			}
 		case nodes.ATDropConstraint:
-			named[toLower(cmd.Name)] = true
+			// DROP CHECK (a, b) holds its names in ConstraintNames.
+			for _, name := range append([]string{cmd.Name}, cmd.ConstraintNames...) {
+				if name != "" {
+					named[toLower(name)] = true
+				}
+			}
 		}
 	}
 	type check struct {
