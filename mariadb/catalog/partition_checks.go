@@ -61,6 +61,12 @@ func checkPartitionFieldTypes(tbl *Table, typ nodes.PartitionType, columns []str
 			continue
 		}
 		dt := strings.ToLower(col.DataType)
+		// BOOLEAN is TINYINT(1), whichever way the column came in: an added
+		// one keeps the alias as its type (mariadb:11.8.8 partitions BY HASH
+		// and BY RANGE COLUMNS over it).
+		if dt == "boolean" || dt == "bool" {
+			dt = "tinyint"
+		}
 		switch dt {
 		case "tinyblob", "blob", "mediumblob", "longblob", "tinytext", "text", "mediumtext", "longtext", "json":
 			return errBlobInPartitionFunc()

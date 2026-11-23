@@ -433,6 +433,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, source string) error 
 		if colDef.Generated != nil {
 			col.Generated = &GeneratedColumnInfo{
 				Expr:             nodeToSQL(colDef.Generated.Expr),
+				source:           newExprSource(colDef.Generated.Expr),
 				Stored:           colDef.Generated.Stored,
 				RowBound:         rowBoundSQL(colDef.Generated.RowBound),
 				Nondeterministic: nondeterministicFuncIn(colDef.Generated.Expr),
@@ -503,6 +504,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, source string) error 
 					Column:      colDef.Name,
 					CheckExpr:   nodeToSQL(cc.Expr),
 					checkRefs:   checkExprRefs(cc.Expr),
+					checkSrc:    newExprSource(cc.Expr),
 					NotEnforced: cc.NotEnforced,
 				})
 			case nodes.ColConstrReferences:
@@ -884,6 +886,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, source string) error 
 				Table:       tbl,
 				CheckExpr:   nodeToSQL(con.Expr),
 				checkRefs:   checkExprRefs(con.Expr),
+				checkSrc:    newExprSource(con.Expr),
 				NotEnforced: con.NotEnforced,
 			})
 
@@ -1465,7 +1468,7 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 			pi.Columns = pc.Columns
 		} else {
 			pi.Type = "RANGE"
-			pi.Expr = nodeToSQL(pc.Expr)
+			pi.Expr, pi.exprSrc = nodeToSQL(pc.Expr), newExprSource(pc.Expr)
 		}
 	case nodes.PartitionList:
 		if len(pc.Columns) > 0 {
@@ -1473,11 +1476,11 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 			pi.Columns = pc.Columns
 		} else {
 			pi.Type = "LIST"
-			pi.Expr = nodeToSQL(pc.Expr)
+			pi.Expr, pi.exprSrc = nodeToSQL(pc.Expr), newExprSource(pc.Expr)
 		}
 	case nodes.PartitionHash:
 		pi.Type = "HASH"
-		pi.Expr = nodeToSQL(pc.Expr)
+		pi.Expr, pi.exprSrc = nodeToSQL(pc.Expr), newExprSource(pc.Expr)
 	case nodes.PartitionKey:
 		pi.Type = "KEY"
 		pi.Columns = pc.Columns
@@ -1501,7 +1504,7 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 		switch pc.SubPartType {
 		case nodes.PartitionHash:
 			pi.SubType = "HASH"
-			pi.SubExpr = nodeToSQL(pc.SubPartExpr)
+			pi.SubExpr, pi.subExprSrc = nodeToSQL(pc.SubPartExpr), newExprSource(pc.SubPartExpr)
 		case nodes.PartitionKey:
 			pi.SubType = "KEY"
 			pi.SubColumns = pc.SubPartColumns
@@ -4157,6 +4160,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, srcTbl *T
 		if srcCol.Generated != nil {
 			col.Generated = &GeneratedColumnInfo{
 				Expr:             srcCol.Generated.Expr,
+				source:           srcCol.Generated.source,
 				Stored:           srcCol.Generated.Stored,
 				RowBound:         srcCol.Generated.RowBound,
 				Nondeterministic: srcCol.Generated.Nondeterministic,
@@ -4211,6 +4215,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, srcTbl *T
 			IndexName:   srcCon.IndexName,
 			CheckExpr:   srcCon.CheckExpr,
 			checkRefs:   srcCon.checkRefs,
+			checkSrc:    srcCon.checkSrc,
 			NotEnforced: srcCon.NotEnforced,
 			RefDatabase: srcCon.RefDatabase,
 			RefTable:    srcCon.RefTable,

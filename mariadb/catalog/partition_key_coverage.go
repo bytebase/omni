@@ -234,11 +234,11 @@ func renamePartitionKeyColumn(tbl *Table, oldName, newName string) {
 		}
 		return out
 	}
-	if pi.Expr != "" {
-		pi.Expr = renameColumnInExprText(pi.Expr, oldName, newName)
+	if next, text, ok := pi.exprSrc.rename(oldName, newName); ok {
+		pi.exprSrc, pi.Expr = next, text
 	}
-	if pi.SubExpr != "" {
-		pi.SubExpr = renameColumnInExprText(pi.SubExpr, oldName, newName)
+	if next, text, ok := pi.subExprSrc.rename(oldName, newName); ok {
+		pi.subExprSrc, pi.SubExpr = next, text
 	}
 	pi.Columns = renameIn(pi.Columns)
 	pi.SubColumns = renameIn(pi.SubColumns)

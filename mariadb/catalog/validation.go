@@ -897,8 +897,7 @@ func checkAutoIncrementInTableChecks(tbl *Table) error {
 }
 
 // checkAutoIncrementInCheckExpr refuses one CHECK expression that reads an
-// AUTO_INCREMENT column of tbl (checkAutoIncrementInChecks); an ALTER TABLE
-// asks it of a CHECK it adds, before the CHECK is added.
+// AUTO_INCREMENT column of tbl (checkAutoIncrementInChecks).
 func checkAutoIncrementInCheckExpr(tbl *Table, expr nodes.ExprNode) error {
 	for _, name := range generatedColumnRefs(expr) {
 		if col := tbl.GetColumn(name); col != nil && col.AutoIncrement {

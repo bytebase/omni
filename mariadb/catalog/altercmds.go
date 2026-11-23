@@ -107,10 +107,13 @@ func (c *Catalog) alterTableKeepingOptions(db *Database, tbl *Table, key string,
 		existing[con] = true
 	}
 	renames := alterColumnRenames(stmt.Commands)
-	changesColumns := false
+	changesColumns, addsCheck := false, false
 	for _, cmd := range stmt.Commands {
 		if cmd != nil && isColumnMutation(cmd) {
 			changesColumns = true
+		}
+		if cmd != nil && cmd.Type == nodes.ATAddConstraint && cmd.Constraint != nil && cmd.Constraint.Type == nodes.ConstrCheck {
+			addsCheck = true
 		}
 	}
 	columnsBefore := make(map[*Column]bool, len(tbl.Columns))
@@ -125,7 +128,7 @@ func (c *Catalog) alterTableKeepingOptions(db *Database, tbl *Table, key string,
 		algoLimits = alterAlgorithmLimits(tbl, stmt.Commands)
 	}
 	var snapshot Table
-	if refusesRowFormat || checksAutoIncrement || inForeignKey || changesColumns || len(algoLimits) > 0 {
+	if refusesRowFormat || checksAutoIncrement || inForeignKey || changesColumns || addsCheck || len(algoLimits) > 0 {
 		snapshot = cloneTable(tbl)
 	}
 	if err := c.alterTableRun(db, tbl, key, stmt); err != nil {
@@ -140,6 +143,11 @@ func (c *Catalog) alterTableKeepingOptions(db *Database, tbl *Table, key string,
 			undoAlter(db, key, tbl, snapshot)
 			return err
 		}
+	}
+	// A CHECK and an AUTO_INCREMENT column are judged on the table the whole
+	// statement leaves: ADD CONSTRAINT ck CHECK (id > 0), MODIFY id INT over an
+	// AUTO_INCREMENT id runs (mariadb:11.8.8).
+	if changesColumns || addsCheck {
 		if err := checkAutoIncrementInTableChecks(tbl); err != nil {
 			undoAlter(db, key, tbl, snapshot)
 			return err
@@ -1138,6 +1146,7 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 				Column:      colDef.Name,
 				CheckExpr:   nodeToSQL(cc.Expr),
 				checkRefs:   checkExprRefs(cc.Expr),
+				checkSrc:    newExprSource(cc.Expr),
 				NotEnforced: cc.NotEnforced,
 			})
 		case nodes.ColConstrPrimaryKey:
@@ -1752,6 +1761,7 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 			Column:      colDef.Name,
 			CheckExpr:   nodeToSQL(cc.Expr),
 			checkRefs:   checkExprRefs(cc.Expr),
+			checkSrc:    newExprSource(cc.Expr),
 			NotEnforced: cc.NotEnforced,
 		})
 		declared = true
@@ -2187,9 +2197,6 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		if err := validateCheckExpr(conName, con.Expr); err != nil {
 			return err
 		}
-		if err := checkAutoIncrementInCheckExpr(tbl, con.Expr); err != nil {
-			return err
-		}
 		if checkNames != nil {
 			checkNames[con] = conName
 		}
@@ -2202,6 +2209,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			Table:       tbl,
 			CheckExpr:   nodeToSQL(con.Expr),
 			checkRefs:   checkExprRefs(con.Expr),
+			checkSrc:    newExprSource(con.Expr),
 			NotEnforced: con.NotEnforced,
 		})
 
@@ -2892,6 +2900,7 @@ func buildColumnFromDefInDB(tbl *Table, seqDBName string, colDef *nodes.ColumnDe
 	if colDef.Generated != nil {
 		col.Generated = &GeneratedColumnInfo{
 			Expr:             nodeToSQL(colDef.Generated.Expr),
+			source:           newExprSource(colDef.Generated.Expr),
 			Stored:           colDef.Generated.Stored,
 			RowBound:         rowBoundSQL(colDef.Generated.RowBound),
 			Nondeterministic: nondeterministicFuncIn(colDef.Generated.Expr),
@@ -3006,7 +3015,11 @@ func updateColumnRefsInIndexes(tbl *Table, oldName, newName string) {
 		}
 		gen := *col.Generated
 		gen.Refs = refs
-		gen.Expr = renameColumnInExprText(gen.Expr, oldName, newName)
+		if next, text, ok := gen.source.rename(oldName, newName); ok {
+			gen.source, gen.Expr = next, text
+		} else if gen.source == nil {
+			gen.Expr = renameColumnInExprText(gen.Expr, oldName, newName)
+		}
 		col.Generated = &gen
 	}
 }

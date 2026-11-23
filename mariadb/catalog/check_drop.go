@@ -125,7 +125,13 @@ func renameCheckColumnRefs(tbl *Table, oldName, newName string) {
 		if con.Type != ConCheck || con.Implicit {
 			continue
 		}
-		con.CheckExpr = renameColumnInExprText(con.CheckExpr, oldName, newName)
+		if next, text, ok := con.checkSrc.rename(oldName, newName); ok {
+			con.checkSrc, con.CheckExpr = next, text
+		} else if con.checkSrc == nil {
+			// A CHECK the catalog kept no AST of (one loaded by another way
+			// than a statement it ran) is rewritten from its text.
+			con.CheckExpr = renameColumnInExprText(con.CheckExpr, oldName, newName)
+		}
 		if con.checkRefs[toLower(oldName)] {
 			// A fresh map rather than a write through this one, which a
 			// snapshot of the table may still be sharing.

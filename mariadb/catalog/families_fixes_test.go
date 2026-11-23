@@ -137,6 +137,9 @@ func TestReviewRoundOne(t *testing.T) {
 		{"added column CHECK reads AUTO_INCREMENT", aiSetup, "ALTER TABLE ai ADD COLUMN x INT CHECK (x > id)", 1901},
 		{"CHECKed column made AUTO_INCREMENT", aiSetup, "ALTER TABLE ai MODIFY id INT, MODIFY b INT AUTO_INCREMENT UNIQUE", 1901},
 		{"renamed CHECKed column made AUTO_INCREMENT", aiSetup + "; ALTER TABLE ai RENAME COLUMN b TO c", "ALTER TABLE ai MODIFY id INT, MODIFY c INT AUTO_INCREMENT UNIQUE", 1901},
+		{"AUTO_INCREMENT dropped beside an added CHECK", "CREATE TABLE ai (id INT AUTO_INCREMENT PRIMARY KEY)", "ALTER TABLE ai ADD CONSTRAINT ck CHECK (id > 0), MODIFY id INT", 0},
+		{"added BOOLEAN partitions BY HASH", "CREATE TABLE bp (id INT); ALTER TABLE bp ADD COLUMN flag BOOLEAN", "ALTER TABLE bp PARTITION BY HASH (flag) PARTITIONS 2", 0},
+		{"added BOOLEAN partitions BY RANGE COLUMNS", "CREATE TABLE bp (id INT); ALTER TABLE bp ADD COLUMN flag BOOLEAN", "ALTER TABLE bp PARTITION BY RANGE COLUMNS (flag) (PARTITION p0 VALUES LESS THAN (1))", 0},
 		{"added CHECK reads AUTO_INCREMENT", aiSetup, "ALTER TABLE ai ADD CONSTRAINT cx CHECK (id > 0)", 1901},
 		{"FULLTEXT key dropped after MODIFY", ftSetup, "ALTER TABLE f MODIFY name INT, DROP INDEX ft", 0},
 		{"SPATIAL key dropped after MODIFY", ftSetup, "ALTER TABLE f MODIFY g POINT NULL, DROP INDEX sg", 0},
@@ -182,5 +185,21 @@ func TestSDLKeepsPastEvents(t *testing.T) {
 	}
 	if ev := db.Events["f"]; ev == nil || !strings.EqualFold(ev.Enable, "ENABLE") {
 		t.Fatalf("event f is %+v, want it ENABLE", ev)
+	}
+}
+
+// TestRenamesKeepDeclaredText pins that a rename rewrites a generated column's,
+// a CHECK's and a partitioning function's text from the AST each was declared
+// with, twice over, as mariadb:11.8.8 stores them.
+func TestRenamesKeepDeclaredText(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE TABLE r (id INT NOT NULL, d DATE NOT NULL, a INT, g INT AS (a + 1) VIRTUAL, PRIMARY KEY (id, d), CONSTRAINT ck CHECK (a > 0)) PARTITION BY RANGE (YEAR(d)) (PARTITION p0 VALUES LESS THAN (2025))")
+	wtExec(t, c, "ALTER TABLE r RENAME COLUMN a TO b, RENAME COLUMN d TO e")
+	wtExec(t, c, "ALTER TABLE r RENAME COLUMN b TO c")
+	text := c.ShowCreateTable("testdb", "r")
+	for _, want := range []string{"AS (`c` + 1) VIRTUAL", "CHECK (`c` > 0)", "PARTITION BY RANGE (year(`e`))"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("no %q in:\n%s", want, text)
+		}
 	}
 }
