@@ -1220,4 +1220,46 @@ CREATE VIEW [dbo].[v_sb] WITH SCHEMABINDING AS SELECT [a] FROM [dbo].[t];
 	require.False(t, columnByName(c.GetTable("dbo", "t"), "a").Nullable)
 	execExpectOK(t, c, `ALTER TABLE [dbo].[t] ALTER COLUMN [b] INT NULL`)
 	require.True(t, columnByName(c.GetTable("dbo", "t"), "b").Nullable)
+
+	// 84. SET (SYSTEM_VERSIONING = ON) requires a primary key on the temporal table.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[t] (
+    [id] INT NOT NULL CONSTRAINT [PK_t] PRIMARY KEY,
+    [sys_start] DATETIME2 GENERATED ALWAYS AS ROW START NOT NULL,
+    [sys_end] DATETIME2 GENERATED ALWAYS AS ROW END NOT NULL,
+    PERIOD FOR SYSTEM_TIME ([sys_start], [sys_end])
+) WITH (SYSTEM_VERSIONING = ON);
+`)
+	require.NoError(t, err)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] SET (SYSTEM_VERSIONING = OFF)`)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] DROP CONSTRAINT [PK_t]`)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] SET (SYSTEM_VERSIONING = ON)`, ErrDropPKSystemVersioned)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] SET (SYSTEM_VERSIONING = OFF)`, ErrSystemVersioningNotEnabled)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY ([id])`)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] SET (SYSTEM_VERSIONING = ON)`)
+	execExpectCode(t, c, `CREATE TABLE [dbo].[t_nopk] (
+    [id] INT NOT NULL,
+    [sys_start] DATETIME2 GENERATED ALWAYS AS ROW START NOT NULL,
+    [sys_end] DATETIME2 GENERATED ALWAYS AS ROW END NOT NULL,
+    PERIOD FOR SYSTEM_TIME ([sys_start], [sys_end])
+) WITH (SYSTEM_VERSIONING = ON)`, ErrDropPKSystemVersioned)
+	require.Nil(t, c.GetTable("dbo", "t_nopk"))
+
+	// 85. Sequence default dependency detection ignores string literals and comments.
+	c, err = LoadSQL(`
+CREATE SEQUENCE [dbo].[s] AS INT START WITH 1 INCREMENT BY 1;
+GO
+CREATE TABLE [dbo].[t] (
+    [note] NVARCHAR(100) CONSTRAINT [DF_t_note] DEFAULT (N'NEXT VALUE FOR dbo.s'),
+    [c] INT CONSTRAINT [DF_t_c] DEFAULT (/* NEXT VALUE FOR dbo.s */ 1),
+    [l] INT CONSTRAINT [DF_t_l] DEFAULT (1 -- NEXT VALUE FOR dbo.s
+    )
+);
+`)
+	require.NoError(t, err)
+	require.False(t, defaultReferencesSequence(`N'NEXT VALUE FOR dbo.s'`, "dbo", "s"))
+	require.False(t, defaultReferencesSequence(`/* NEXT VALUE FOR dbo.s */ 1`, "dbo", "s"))
+	require.True(t, defaultReferencesSequence(`(NEXT /* c */ VALUE FOR [dbo].[s])`, "dbo", "s"))
+	execExpectOK(t, c, `DROP SEQUENCE [dbo].[s]`)
+	require.Empty(t, c.GetSchema("dbo").Sequences)
 }

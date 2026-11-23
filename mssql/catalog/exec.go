@@ -1065,6 +1065,23 @@ func (c *Catalog) execCreateTable(n *ast.CreateTableStmt, source string) error {
 	if !c.lenientMetadataLoad && n.IsFileTable {
 		return mssqlErr(ErrFileTableNotSupported, "Default FILESTREAM filegroup is not available.")
 	}
+	wantsSystemVersioning := false
+	if n.TableOptions != nil {
+		for _, item := range n.TableOptions.Items {
+			if opt, ok := item.(*ast.TableOption); ok && strings.EqualFold(opt.Name, "SYSTEM_VERSIONING") && strings.EqualFold(opt.Value, "ON") {
+				wantsSystemVersioning = true
+				break
+			}
+		}
+	}
+	if wantsSystemVersioning && !c.lenientMetadataLoad {
+		if n.PeriodStartCol == "" || n.PeriodEndCol == "" {
+			return mssqlErr(ErrSystemVersioningNoPeriod, "Cannot set SYSTEM_VERSIONING to ON when SYSTEM_TIME period is not defined.")
+		}
+		if !createTableHasPrimaryKey(n) {
+			return mssqlErr(ErrDropPKSystemVersioned, "System versioned temporal table '%s.%s' must have primary key defined.", schemaName, tableName)
+		}
+	}
 
 	table := c.getOrCreateTable(schemaName, tableName)
 	if n.PeriodStartCol != "" && n.PeriodEndCol != "" {
@@ -1073,16 +1090,11 @@ func (c *Catalog) execCreateTable(n *ast.CreateTableStmt, source string) error {
 		}
 		periodKey := c.temporalKey(schemaName, table.Name)
 		c.systemTimeTables[periodKey] = [2]string{n.PeriodStartCol, n.PeriodEndCol}
-		if n.TableOptions != nil {
-			for _, item := range n.TableOptions.Items {
-				if opt, ok := item.(*ast.TableOption); ok && strings.EqualFold(opt.Name, "SYSTEM_VERSIONING") && strings.EqualFold(opt.Value, "ON") {
-					if c.systemVersionedTables == nil {
-						c.systemVersionedTables = make(map[tableKey]bool)
-					}
-					c.systemVersionedTables[periodKey] = true
-					break
-				}
+		if wantsSystemVersioning {
+			if c.systemVersionedTables == nil {
+				c.systemVersionedTables = make(map[tableKey]bool)
 			}
+			c.systemVersionedTables[periodKey] = true
 		}
 	}
 
@@ -2844,6 +2856,33 @@ func tableHasXMLIndex(table *metadata.TableMetadata) bool {
 	return false
 }
 
+func createTableHasPrimaryKey(n *ast.CreateTableStmt) bool {
+	if n == nil {
+		return false
+	}
+	if n.Columns != nil {
+		for _, item := range n.Columns.Items {
+			col, ok := item.(*ast.ColumnDef)
+			if !ok || col.Constraints == nil {
+				continue
+			}
+			for _, cItem := range col.Constraints.Items {
+				if cd, ok := cItem.(*ast.ConstraintDef); ok && cd.Type == ast.ConstraintPrimaryKey {
+					return true
+				}
+			}
+		}
+	}
+	if n.Constraints != nil {
+		for _, item := range n.Constraints.Items {
+			if cd, ok := item.(*ast.ConstraintDef); ok && cd.Type == ast.ConstraintPrimaryKey {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func tableHasPrimaryKey(table *metadata.TableMetadata) bool {
 	if table == nil {
 		return false
@@ -3309,10 +3348,13 @@ func (c *Catalog) execAlterTableSet(schemaName string, table *metadata.TableMeta
 		}
 		switch name {
 		case "SYSTEM_VERSIONING":
-			periodKey := tableKey{schema: normalizeOrDefault(schemaName, c.defaultSchema), table: table.Name}
+			periodKey := c.temporalKey(schemaName, table.Name)
 			if val == "ON" {
 				if _, exists := c.systemTimeTables[periodKey]; !exists {
 					return mssqlErr(ErrSystemVersioningNoPeriod, "Cannot set SYSTEM_VERSIONING to ON when SYSTEM_TIME period is not defined.")
+				}
+				if !tableHasPrimaryKey(table) {
+					return mssqlErr(ErrDropPKSystemVersioned, "System versioned temporal table '%s.%s' must have primary key defined.", schemaName, table.Name)
 				}
 				if c.systemVersionedTables == nil {
 					c.systemVersionedTables = make(map[tableKey]bool)
@@ -3924,25 +3966,17 @@ func sequenceDefaultConsumer(c *Catalog, targetSchema, targetSeq string) (string
 }
 
 func defaultReferencesSequenceInSchema(expression, tableSchema, defaultSchemaName, targetSchema, targetSeq string) bool {
-	if !defaultReferencesSequence(expression, targetSchema, targetSeq) {
-		return false
-	}
-	matches := sequenceReference.FindAllStringSubmatch(expression, -1)
-	for _, match := range matches {
-		parts := strings.Split(match[1], ".")
-		for i := range parts {
-			parts[i] = strings.Trim(parts[i], "[]")
-		}
-		if len(parts) == 0 || !strings.EqualFold(parts[len(parts)-1], targetSeq) {
+	for _, ref := range defaultSequenceRefs(expression) {
+		if !strings.EqualFold(ref.Object, targetSeq) {
 			continue
 		}
-		if len(parts) == 1 {
+		if ref.Schema == "" {
 			if strings.EqualFold(targetSchema, tableSchema) || strings.EqualFold(targetSchema, defaultSchemaName) {
 				return true
 			}
 			continue
 		}
-		if strings.EqualFold(parts[len(parts)-2], targetSchema) {
+		if strings.EqualFold(ref.Schema, targetSchema) {
 			return true
 		}
 	}

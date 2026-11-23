@@ -2,11 +2,12 @@ package catalog
 
 import (
 	"fmt"
-	"regexp"
 	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/mssql/ast"
+	mssqlparser "github.com/bytebase/omni/mssql/parser"
 )
 
 // MigrationOpType names one emitted chunk of a migration script.
@@ -1317,7 +1318,11 @@ func dropSequenceDefaults(from *Catalog, diff *SchemaDiff, buf *strings.Builder)
 				if column.Default == "" || column.DefaultConstraintName == "" || droppedColumns[tableID+"."+column.Name] {
 					continue
 				}
-				if !strings.Contains(strings.ToLower(column.Default), "next value for") {
+				if !strings.Contains(strings.ToLower(column.Default), "next") {
+					continue
+				}
+				refs := defaultSequenceRefs(column.Default)
+				if len(refs) == 0 {
 					continue
 				}
 				for name := range droppedSequences {
@@ -1325,7 +1330,7 @@ func dropSequenceDefaults(from *Catalog, diff *SchemaDiff, buf *strings.Builder)
 					if len(parts) != 2 {
 						continue
 					}
-					if defaultReferencesSequence(column.Default, parts[0], parts[1]) {
+					if sequenceRefsMatch(refs, parts[0], parts[1]) {
 						fmt.Fprintf(buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(schema.Name), quote(table.Name), quote(column.DefaultConstraintName))
 						removed[schema.Name+"."+column.DefaultConstraintName] = true
 						break
@@ -2592,24 +2597,48 @@ func dropFunctionChecks(from *Catalog, diff *SchemaDiff, functionDrops []*Functi
 	return removed, restore
 }
 
-func defaultReferencesSequence(expression, schemaName, sequenceName string) bool {
-	matches := sequenceReference.FindAllStringSubmatch(expression, -1)
-	for _, match := range matches {
-		parts := strings.Split(match[1], ".")
-		for i := range parts {
-			parts[i] = strings.Trim(parts[i], "[]")
-		}
-		if len(parts) == 0 || !strings.EqualFold(parts[len(parts)-1], sequenceName) {
+type nextValueForCollector struct {
+	refs []*ast.TableRef
+}
+
+func (c *nextValueForCollector) Visit(n ast.Node) ast.Visitor {
+	if n == nil {
+		return nil
+	}
+	if nv, ok := n.(*ast.NextValueForExpr); ok && nv.Sequence != nil {
+		c.refs = append(c.refs, nv.Sequence)
+	}
+	return c
+}
+
+func defaultSequenceRefs(expression string) []*ast.TableRef {
+	if !strings.Contains(strings.ToLower(expression), "next") {
+		return nil
+	}
+	list, err := mssqlparser.Parse("SELECT " + expression + "\n")
+	if err != nil || list == nil {
+		return nil
+	}
+	collector := &nextValueForCollector{}
+	ast.Walk(collector, list)
+	return collector.refs
+}
+
+func sequenceRefsMatch(refs []*ast.TableRef, schemaName, sequenceName string) bool {
+	for _, ref := range refs {
+		if !strings.EqualFold(ref.Object, sequenceName) {
 			continue
 		}
-		if len(parts) == 1 || strings.EqualFold(parts[len(parts)-2], schemaName) {
+		if ref.Schema == "" || strings.EqualFold(ref.Schema, schemaName) {
 			return true
 		}
 	}
 	return false
 }
 
-var sequenceReference = regexp.MustCompile(`(?i)NEXT\s+VALUE\s+FOR\s+((?:\[[^\]]+\]|[A-Za-z0-9_]+)(?:\.(?:\[[^\]]+\]|[A-Za-z0-9_]+))*)`)
+func defaultReferencesSequence(expression, schemaName, sequenceName string) bool {
+	return sequenceRefsMatch(defaultSequenceRefs(expression), schemaName, sequenceName)
+}
 
 func schemaHasSkipDump(schema *metadata.SchemaMetadata) bool {
 	if schema == nil {
