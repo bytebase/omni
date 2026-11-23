@@ -2055,6 +2055,9 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 		if action.Column.Identity != nil && tableHasIdentityColumn(table) {
 			return mssqlErr(ErrMultipleIdentityColumns, "Multiple identity columns specified for table '%s'. Only one identity column per table is allowed.", table.Name)
 		}
+		if !c.lenientMetadataLoad && action.Column.Identity != nil && !isValidIdentityDataType(action.Column.DataType) {
+			return mssqlErr(ErrIdentityColumnType, "Identity column '%s' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, unencrypted, and constrained to be nonnullable.", action.Column.Name)
+		}
 		if action.Column.Constraints != nil {
 			schema := c.GetSchema(schemaName)
 			for _, ci := range action.Column.Constraints.Items {
@@ -2118,6 +2121,11 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 				typeName = action.DataType.Name
 			}
 			return mssqlErr(ErrUnknownColumnType, "Column, parameter, or variable #1: Cannot find data type %s.", typeName)
+		}
+		if !c.lenientMetadataLoad && col.IsIdentity {
+			if !isValidIdentityDataType(action.DataType) || (action.Column != nil && action.Column.Nullable != nil && !action.Column.Nullable.NotNull) {
+				return mssqlErr(ErrIdentityColumnType, "Identity column '%s' must be of data type int, bigint, smallint, tinyint, or decimal or numeric with a scale of 0, unencrypted, and constrained to be nonnullable.", col.Name)
+			}
 		}
 		newType := nodeText(action.DataType, source)
 		collationChanged := action.Collation != "" && !strings.EqualFold(action.Collation, col.Collation)
@@ -2453,6 +2461,22 @@ func (c *Catalog) dropTableConstraint(schemaName string, table *metadata.TableMe
 		}
 	}
 	return false, nil
+}
+
+func isValidIdentityDataType(dt *ast.DataType) bool {
+	if dt == nil || dt.Schema != "" {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(dt.Name)) {
+	case "tinyint", "smallint", "int", "integer", "bigint":
+		return true
+	case "decimal", "dec", "numeric":
+		if dt.Scale == nil {
+			return true
+		}
+		return isZeroNumericExpr(dt.Scale)
+	}
+	return false
 }
 
 func (c *Catalog) isPeriodColumn(schemaName, tableName, colName string) bool {
@@ -3263,6 +3287,7 @@ func (c *Catalog) execDropObjects(n *ast.DropStmt, wantKind objectKind, sqlKind 
 			kind = targetCat.lookupSchemaObject(schema, objName, false)
 		}
 		var resolvedTable *metadata.TableMetadata
+		resolvedName := ""
 		isDup := false
 		if kind == kindTable {
 			resolvedTable = targetCat.resolveTableInSchema(schema, objName)
@@ -3272,8 +3297,14 @@ func (c *Catalog) execDropObjects(n *ast.DropStmt, wantKind objectKind, sqlKind 
 				isDup = true
 			}
 		} else if kind != kindNone {
-			if seenOther[otherKey{cat: targetCat, schema: normalize(schema.Name), obj: normalize(objName)}] {
-				isDup = true
+			if kind == wantKind {
+				var ok bool
+				resolvedName, ok = resolveSchemaObjectName(schema, wantKind, objName)
+				if !ok {
+					kind = kindNone
+				} else if seenOther[otherKey{cat: targetCat, schema: schema.Name, obj: resolvedName}] {
+					isDup = true
+				}
 			}
 		}
 		if kind == kindNone || isDup {
@@ -3300,24 +3331,24 @@ func (c *Catalog) execDropObjects(n *ast.DropStmt, wantKind objectKind, sqlKind 
 			targets = append(targets, dropTarget{cat: targetCat, schema: schema, name: resolvedTable.Name, table: resolvedTable})
 		} else {
 			if wantKind == kindView {
-				if consumer, bound := schemaBoundObjectConsumer(targetCat, schema.Name, objName, func(sName, oName string) bool {
-					return seenOther[otherKey{cat: targetCat, schema: normalize(sName), obj: normalize(oName)}]
+				if consumer, bound := schemaBoundObjectConsumer(targetCat, schema.Name, resolvedName, func(sName, oName string) bool {
+					return seenOther[otherKey{cat: targetCat, schema: sName, obj: oName}]
 				}); bound {
 					return mssqlErr(ErrDropSchemaNotEmpty, "Cannot DROP VIEW '%s' because it is being referenced by object '%s'.", objName, consumer)
 				}
 			} else if wantKind == kindFunction {
-				if consumer, bound := schemaBoundFunctionConsumer(targetCat, schema.Name, objName, func(sName, oName string) bool {
-					return seenOther[otherKey{cat: targetCat, schema: normalize(sName), obj: normalize(oName)}]
+				if consumer, bound := schemaBoundFunctionConsumer(targetCat, schema.Name, resolvedName, func(sName, oName string) bool {
+					return seenOther[otherKey{cat: targetCat, schema: sName, obj: oName}]
 				}); bound {
 					return mssqlErr(ErrDropSchemaNotEmpty, "Cannot DROP FUNCTION '%s' because it is being referenced by object '%s'.", objName, consumer)
 				}
 			} else if wantKind == kindSequence {
-				if consumer, bound := sequenceDefaultConsumer(targetCat, schema.Name, objName); bound {
+				if consumer, bound := sequenceDefaultConsumer(targetCat, schema.Name, resolvedName); bound {
 					return mssqlErr(ErrDropSchemaNotEmpty, "Cannot DROP SEQUENCE '%s' because it is being referenced by object '%s'.", objName, consumer)
 				}
 			}
-			seenOther[otherKey{cat: targetCat, schema: normalize(schema.Name), obj: normalize(objName)}] = true
-			targets = append(targets, dropTarget{cat: targetCat, schema: schema, name: objName})
+			seenOther[otherKey{cat: targetCat, schema: schema.Name, obj: resolvedName}] = true
+			targets = append(targets, dropTarget{cat: targetCat, schema: schema, name: resolvedName})
 		}
 	}
 	for _, target := range targets {
@@ -3328,6 +3359,81 @@ func (c *Catalog) execDropObjects(n *ast.DropStmt, wantKind objectKind, sqlKind 
 		}
 	}
 	return nil
+}
+
+func resolveExactOrFoldIndex[T any](items []T, nameOf func(T) string, target string) (int, bool) {
+	for i, item := range items {
+		if nameOf(item) == target {
+			return i, true
+		}
+	}
+	match := -1
+	for i, item := range items {
+		if strings.EqualFold(nameOf(item), target) {
+			if match >= 0 {
+				return -1, false
+			}
+			match = i
+		}
+	}
+	return match, match >= 0
+}
+
+func resolveSchemaObjectName(schema *metadata.SchemaMetadata, kind objectKind, name string) (string, bool) {
+	if schema == nil || name == "" {
+		return "", false
+	}
+	switch kind {
+	case kindView:
+		if idx, ok := resolveExactOrFoldIndex(schema.Views, func(v *metadata.ViewMetadata) string { return v.Name }, name); ok {
+			return schema.Views[idx].Name, true
+		}
+	case kindProcedure:
+		if idx, ok := resolveExactOrFoldIndex(schema.Procedures, func(p *metadata.ProcedureMetadata) string { return p.Name }, name); ok {
+			return schema.Procedures[idx].Name, true
+		}
+	case kindFunction:
+		if idx, ok := resolveExactOrFoldIndex(schema.Functions, func(fn *metadata.FunctionMetadata) string { return fn.Name }, name); ok {
+			return schema.Functions[idx].Name, true
+		}
+	case kindSequence:
+		if idx, ok := resolveExactOrFoldIndex(schema.Sequences, func(sq *metadata.SequenceMetadata) string { return sq.Name }, name); ok {
+			return schema.Sequences[idx].Name, true
+		}
+	case kindSynonym:
+		if idx, ok := resolveExactOrFoldIndex(schema.Synonyms, func(sy *metadata.SynonymMetadata) string { return sy.Name }, name); ok {
+			return schema.Synonyms[idx].Name, true
+		}
+	case kindTrigger:
+		var foldedName string
+		foldedCount := 0
+		for _, t := range schema.Tables {
+			for _, tr := range t.Triggers {
+				if tr.Name == name {
+					return tr.Name, true
+				}
+				if strings.EqualFold(tr.Name, name) {
+					foldedName = tr.Name
+					foldedCount++
+				}
+			}
+		}
+		for _, v := range schema.Views {
+			for _, tr := range v.Triggers {
+				if tr.Name == name {
+					return tr.Name, true
+				}
+				if strings.EqualFold(tr.Name, name) {
+					foldedName = tr.Name
+					foldedCount++
+				}
+			}
+		}
+		if foldedCount == 1 {
+			return foldedName, true
+		}
+	}
+	return "", false
 }
 
 func (c *Catalog) removeTable(schema *metadata.SchemaMetadata, target *metadata.TableMetadata) {
@@ -3350,40 +3456,79 @@ func (c *Catalog) removeObject(schema *metadata.SchemaMetadata, kind objectKind,
 			if t == target || (target == nil && strings.EqualFold(t.Name, name)) {
 				delete(c.tableByName, tableKey{schema: schema.Name, table: t.Name})
 				delete(c.systemTimeTables, tableKey{schema: normalize(schema.Name), table: t.Name})
+				delete(c.systemVersionedTables, tableKey{schema: normalize(schema.Name), table: t.Name})
 				schema.Tables = append(schema.Tables[:i], schema.Tables[i+1:]...)
 				return
 			}
 		}
 	case kindView:
-		schema.Views = slices.DeleteFunc(schema.Views, func(v *metadata.ViewMetadata) bool {
-			return strings.EqualFold(v.Name, name)
-		})
+		if idx, ok := resolveExactOrFoldIndex(schema.Views, func(v *metadata.ViewMetadata) string { return v.Name }, name); ok {
+			schema.Views = append(schema.Views[:idx], schema.Views[idx+1:]...)
+		}
 	case kindProcedure:
-		schema.Procedures = slices.DeleteFunc(schema.Procedures, func(p *metadata.ProcedureMetadata) bool {
-			return strings.EqualFold(p.Name, name)
-		})
+		if idx, ok := resolveExactOrFoldIndex(schema.Procedures, func(p *metadata.ProcedureMetadata) string { return p.Name }, name); ok {
+			schema.Procedures = append(schema.Procedures[:idx], schema.Procedures[idx+1:]...)
+		}
 	case kindFunction:
-		schema.Functions = slices.DeleteFunc(schema.Functions, func(fn *metadata.FunctionMetadata) bool {
-			return strings.EqualFold(fn.Name, name)
-		})
+		if idx, ok := resolveExactOrFoldIndex(schema.Functions, func(fn *metadata.FunctionMetadata) string { return fn.Name }, name); ok {
+			schema.Functions = append(schema.Functions[:idx], schema.Functions[idx+1:]...)
+		}
 	case kindSequence:
-		schema.Sequences = slices.DeleteFunc(schema.Sequences, func(sq *metadata.SequenceMetadata) bool {
-			return strings.EqualFold(sq.Name, name)
-		})
+		if idx, ok := resolveExactOrFoldIndex(schema.Sequences, func(sq *metadata.SequenceMetadata) string { return sq.Name }, name); ok {
+			schema.Sequences = append(schema.Sequences[:idx], schema.Sequences[idx+1:]...)
+		}
 	case kindSynonym:
-		schema.Synonyms = slices.DeleteFunc(schema.Synonyms, func(sy *metadata.SynonymMetadata) bool {
-			return strings.EqualFold(sy.Name, name)
-		})
+		if idx, ok := resolveExactOrFoldIndex(schema.Synonyms, func(sy *metadata.SynonymMetadata) string { return sy.Name }, name); ok {
+			schema.Synonyms = append(schema.Synonyms[:idx], schema.Synonyms[idx+1:]...)
+		}
 	case kindTrigger:
 		for _, t := range schema.Tables {
-			t.Triggers = slices.DeleteFunc(t.Triggers, func(tr *metadata.TriggerMetadata) bool {
-				return strings.EqualFold(tr.Name, name)
-			})
+			for i, tr := range t.Triggers {
+				if tr.Name == name {
+					t.Triggers = append(t.Triggers[:i], t.Triggers[i+1:]...)
+					return
+				}
+			}
 		}
 		for _, v := range schema.Views {
-			v.Triggers = slices.DeleteFunc(v.Triggers, func(tr *metadata.TriggerMetadata) bool {
-				return strings.EqualFold(tr.Name, name)
-			})
+			for i, tr := range v.Triggers {
+				if tr.Name == name {
+					v.Triggers = append(v.Triggers[:i], v.Triggers[i+1:]...)
+					return
+				}
+			}
+		}
+		// Unambiguous folded fallback.
+		var matchTable *metadata.TableMetadata
+		var matchView *metadata.ViewMetadata
+		matchIdx := -1
+		matches := 0
+		for _, t := range schema.Tables {
+			for i, tr := range t.Triggers {
+				if strings.EqualFold(tr.Name, name) {
+					matchTable = t
+					matchView = nil
+					matchIdx = i
+					matches++
+				}
+			}
+		}
+		for _, v := range schema.Views {
+			for i, tr := range v.Triggers {
+				if strings.EqualFold(tr.Name, name) {
+					matchTable = nil
+					matchView = v
+					matchIdx = i
+					matches++
+				}
+			}
+		}
+		if matches == 1 {
+			if matchTable != nil {
+				matchTable.Triggers = append(matchTable.Triggers[:matchIdx], matchTable.Triggers[matchIdx+1:]...)
+			} else if matchView != nil {
+				matchView.Triggers = append(matchView.Triggers[:matchIdx], matchView.Triggers[matchIdx+1:]...)
+			}
 		}
 	}
 }
@@ -3457,6 +3602,10 @@ func (c *Catalog) execTruncateTable(n *ast.TruncateStmt) error {
 	table := targetCat.resolveTableInSchema(schema, tableName)
 	if table == nil {
 		return mssqlErr(ErrTruncateNotFound, "Cannot find the object \"%s\" because it does not exist or you do not have permissions.", tableName)
+	}
+	periodKey := tableKey{schema: normalizeOrDefault(schema.Name, targetCat.defaultSchema), table: table.Name}
+	if targetCat.systemVersionedTables[periodKey] {
+		return mssqlErr(ErrTruncateSystemVersionedTable, "Truncate failed on table '%s.%s' because it is not a supported operation on system-versioned tables.", schema.Name, table.Name)
 	}
 	if fkName, referenced := hasInboundFK(targetCat, schema.Name, table); referenced {
 		return mssqlErr(ErrTruncateReferencedByFK, "Cannot truncate table '%s' because it is being referenced by a FOREIGN KEY constraint '%s'.", tableName, fkName)

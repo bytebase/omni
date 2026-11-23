@@ -43,6 +43,7 @@ const (
 	ErrUnknownColumnType          = 2715
 	ErrIndexNotFound              = 2727
 	ErrMultipleIdentityColumns    = 2744
+	ErrIdentityColumnType         = 2749
 	ErrRowguidcolType             = 2761
 	ErrCannotDropNotFound         = 3701
 	ErrCannotDropWrongKind        = 3705
@@ -88,6 +89,7 @@ const (
 	ErrSystemTimeInvalidCols      = 13501
 	ErrSystemVersioningNoPeriod   = 13510
 	ErrPeriodAlreadyDefined       = 13514
+	ErrTruncateSystemVersionedTable = 13545
 	ErrDropSystemVersionedTable   = 13552
 	ErrDropPeriodSystemVersioned  = 13554
 	ErrDropPeriodColumn           = 13561

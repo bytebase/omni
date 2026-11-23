@@ -864,4 +864,45 @@ CREATE TABLE [dbo].[t] (
 	require.NotNil(t, c.GetSchema("Foo"))
 	require.NotNil(t, c.GetTable("Foo", "t"))
 	require.Len(t, c.ListSchemaNames(), 1)
+
+	// 59. ALTER COLUMN rejects identity-incompatible types (and NULL) on IDENTITY columns.
+	c, err = LoadSQL(`CREATE TABLE [dbo].[t] ([id] INT IDENTITY(1,1) NOT NULL, [v] INT);`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ALTER COLUMN [id] VARCHAR(20) NOT NULL`, ErrIdentityColumnType)
+	require.Equal(t, "INT", columnByName(c.GetTable("dbo", "t"), "id").Type)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ALTER COLUMN [id] DECIMAL(10,2) NOT NULL`, ErrIdentityColumnType)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ALTER COLUMN [id] BIGINT NULL`, ErrIdentityColumnType)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] ALTER COLUMN [id] BIGINT NOT NULL`)
+	require.Equal(t, "BIGINT", columnByName(c.GetTable("dbo", "t"), "id").Type)
+
+	// 60. DROP VIEW removes only the exact requested case-distinct object.
+	c = New()
+	require.NoError(t, c.LoadMetadata(t.Context(), &metadata.DatabaseSchemaMetadata{
+		Schemas: []*metadata.SchemaMetadata{
+			{
+				Name: "dbo",
+				Views: []*metadata.ViewMetadata{
+					{Name: "Foo", Definition: "CREATE VIEW [dbo].[Foo] AS SELECT 1 AS a;"},
+					{Name: "foo", Definition: "CREATE VIEW [dbo].[foo] AS SELECT 2 AS a;"},
+				},
+			},
+		},
+	}))
+	execExpectOK(t, c, `DROP VIEW [dbo].[foo]`)
+	require.Len(t, c.GetSchema("dbo").Views, 1)
+	require.Equal(t, "Foo", c.GetSchema("dbo").Views[0].Name)
+
+	// 61. TRUNCATE TABLE rejects truncating a table while SYSTEM_VERSIONING is ON.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[t] (
+    [id] INT NOT NULL PRIMARY KEY,
+    [sys_start] DATETIME2 GENERATED ALWAYS AS ROW START NOT NULL,
+    [sys_end] DATETIME2 GENERATED ALWAYS AS ROW END NOT NULL,
+    PERIOD FOR SYSTEM_TIME ([sys_start], [sys_end])
+) WITH (SYSTEM_VERSIONING = ON);
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `TRUNCATE TABLE [dbo].[t]`, ErrTruncateSystemVersionedTable)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] SET (SYSTEM_VERSIONING = OFF)`)
+	execExpectOK(t, c, `TRUNCATE TABLE [dbo].[t]`)
 }
