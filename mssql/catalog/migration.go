@@ -708,14 +708,14 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	for _, procDiff := range diff.Procedures {
 		switch procDiff.Action {
 		case DiffCreate:
-			buf.WriteString(creationDefinition(procDiff.NewProcedure.Definition))
+			buf.WriteString(qualifyModuleDefinition(creationDefinition(procDiff.NewProcedure.Definition), procDiff.SchemaName, false))
 			if !strings.HasSuffix(strings.TrimSpace(procDiff.NewProcedure.Definition), ";") {
 				buf.WriteString(";")
 			}
 			buf.WriteString("\nGO\n")
 		case DiffAlter:
 			fmt.Fprintf(&buf, "DROP PROCEDURE %s.%s;\nGO\n", quote(procDiff.SchemaName), quote(procDiff.ProcedureName))
-			buf.WriteString(creationDefinition(procDiff.NewProcedure.Definition))
+			buf.WriteString(qualifyModuleDefinition(creationDefinition(procDiff.NewProcedure.Definition), procDiff.SchemaName, false))
 			if !strings.HasSuffix(strings.TrimSpace(procDiff.NewProcedure.Definition), ";") {
 				buf.WriteString(";")
 			}
@@ -2128,7 +2128,7 @@ func createViewsAndFunctionsInOrder(viewsToCreate []*ViewDiffEntry, funcCreates 
 		}
 	}
 	writeViewEntry := func(viewDiff *ViewDiffEntry) {
-		buf.WriteString(creationDefinition(viewDiff.NewView.Definition))
+		buf.WriteString(qualifyModuleDefinition(creationDefinition(viewDiff.NewView.Definition), viewDiff.SchemaName, false))
 		if !strings.HasSuffix(strings.TrimSpace(viewDiff.NewView.Definition), ";") {
 			buf.WriteString(";")
 		}
@@ -2992,7 +2992,7 @@ func writeFunctionMigration(buf *strings.Builder, funcDiff *FunctionDiffEntry) {
 	if funcDiff.NewFunction == nil {
 		return
 	}
-	buf.WriteString(creationDefinition(funcDiff.NewFunction.Definition))
+	buf.WriteString(qualifyModuleDefinition(creationDefinition(funcDiff.NewFunction.Definition), funcDiff.SchemaName, false))
 	if !strings.HasSuffix(strings.TrimSpace(funcDiff.NewFunction.Definition), ";") {
 		buf.WriteString(";")
 	}
@@ -3505,7 +3505,7 @@ func createViewsInOrder(diff *SchemaDiff, rebuiltViews []viewWithSchema, buf *st
 		}
 	}
 	writeView := func(viewDiff *ViewDiffEntry) {
-		buf.WriteString(creationDefinition(viewDiff.NewView.Definition))
+		buf.WriteString(qualifyModuleDefinition(creationDefinition(viewDiff.NewView.Definition), viewDiff.SchemaName, false))
 		if !strings.HasSuffix(strings.TrimSpace(viewDiff.NewView.Definition), ";") {
 			buf.WriteString(";")
 		}

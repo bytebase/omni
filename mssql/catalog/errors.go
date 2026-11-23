@@ -25,6 +25,7 @@ const (
 	ErrAddDefaultColumnNotFound   = 1752
 	ErrFKColumnNotFound           = 1769
 	ErrFKColumnCountMismatch      = 1774
+	ErrMultiplePrimaryKeys        = 1779
 	ErrColumnAlreadyHasDefault    = 1781
 	ErrMultipleClusteredIndex     = 1902
 	ErrDupIndexColumn             = 1909
@@ -57,6 +58,7 @@ const (
 	ErrAlterTableNotTable         = 4909
 	ErrCheckConstraintNotFound    = 4917
 	ErrAlterColPersistedNonComp   = 4919
+	ErrDropLastColumn             = 4923
 	ErrAlterColNotFound           = 4924
 	ErrDropRowguidcolMissing      = 4926
 	ErrSwitchSameTable            = 4955
@@ -77,6 +79,7 @@ const (
 	ErrSpatialIndexNonSpatialCol  = 12002
 	ErrSystemTimeInvalidCols      = 13501
 	ErrSystemVersioningNoPeriod   = 13510
+	ErrDropPeriodSystemVersioned  = 13554
 	ErrSystemVersioningNotEnabled = 13591
 	ErrDropPeriodNotDefined       = 13593
 	ErrAlterColHiddenNotPeriod    = 13735

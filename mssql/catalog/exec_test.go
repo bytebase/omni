@@ -313,7 +313,7 @@ CREATE FUNCTION [app].[f]() RETURNS INT WITH EXECUTE AS 'app_user' AS BEGIN RETU
 	require.Len(t, meta.Schemas[0].Functions, 1)
 
 	// 14. DROP COLUMN rejects columns referenced by computed columns.
-	c, err = LoadSQL(`CREATE TABLE [dbo].[t] ([a] INT, [b] AS ([a] + 1) PERSISTED);`)
+	c, err = LoadSQL(`CREATE TABLE [dbo].[t] ([a] INT, [b] AS ([a] + 1) PERSISTED, [c] INT);`)
 	require.NoError(t, err)
 	execExpectCode(t, c, `ALTER TABLE [dbo].[t] DROP COLUMN [a]`, ErrColumnDependentObject)
 	require.NotNil(t, columnByName(c.GetTable("dbo", "t"), "a"))
@@ -512,4 +512,64 @@ CREATE XML INDEX [sxml] ON [dbo].[docs]([body]) USING XML INDEX [pxml] FOR PATH;
 	execExpectOK(t, c, `DROP INDEX [pxml] ON [dbo].[docs]`)
 	require.Nil(t, indexByName(c.GetTable("dbo", "docs"), "pxml"))
 	require.Nil(t, indexByName(c.GetTable("dbo", "docs"), "sxml"))
+
+	// 32. DROP PERIOD FOR SYSTEM_TIME succeeds when versioning is OFF, fails when ON or absent.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[t] (
+    [id] INT NOT NULL PRIMARY KEY,
+    [sys_start] DATETIME2 GENERATED ALWAYS AS ROW START NOT NULL,
+    [sys_end] DATETIME2 GENERATED ALWAYS AS ROW END NOT NULL,
+    PERIOD FOR SYSTEM_TIME ([sys_start], [sys_end])
+) WITH (SYSTEM_VERSIONING = ON);
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] DROP PERIOD FOR SYSTEM_TIME`, ErrDropPeriodSystemVersioned)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] SET (SYSTEM_VERSIONING = OFF)`)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] DROP PERIOD FOR SYSTEM_TIME`)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] DROP PERIOD FOR SYSTEM_TIME`, ErrDropPeriodNotDefined)
+
+	// 33. Collation-only ALTER COLUMN on an indexed column is rejected.
+	c, err = LoadSQL(`CREATE TABLE [dbo].[t] ([a] VARCHAR(20) NOT NULL); CREATE INDEX [ix_a] ON [dbo].[t]([a]);`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ALTER COLUMN [a] VARCHAR(20) COLLATE Latin1_General_CS_AS NOT NULL`, ErrColumnDependentObject)
+	require.Equal(t, "", columnByName(c.GetTable("dbo", "t"), "a").Collation)
+
+	// 34. DROP COLUMN rejects dropping the table's last column (single and multi-column).
+	c, err = LoadSQL(`CREATE TABLE [dbo].[t] ([a] INT, [b] INT);`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] DROP COLUMN [a], [b]`, ErrDropLastColumn)
+	require.Len(t, c.GetTable("dbo", "t").Columns, 2)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] DROP COLUMN [b]`)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] DROP COLUMN [a]`, ErrDropLastColumn)
+	require.Len(t, c.GetTable("dbo", "t").Columns, 1)
+
+	// 35. Adding a second primary key via ADD COLUMN or ADD CONSTRAINT is rejected.
+	c, err = LoadSQL(`CREATE TABLE [dbo].[t] ([id] INT NOT NULL PRIMARY KEY, [x] INT NOT NULL);`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ADD [other_id] INT NOT NULL PRIMARY KEY`, ErrMultiplePrimaryKeys)
+	require.Nil(t, columnByName(c.GetTable("dbo", "t"), "other_id"))
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t2] PRIMARY KEY ([x])`, ErrMultiplePrimaryKeys)
+
+	// 36. ALTER SCHEMA TRANSFER renders transferred views/procedures/functions under destination schema.
+	c, err = LoadSQL(`
+CREATE SCHEMA [app];
+GO
+CREATE VIEW [dbo].[v] AS SELECT 1 AS [a];
+GO
+CREATE PROCEDURE [dbo].[p] AS BEGIN SELECT 1; END;
+GO
+CREATE FUNCTION [dbo].[f]() RETURNS INT AS BEGIN RETURN 1; END;
+`)
+	require.NoError(t, err)
+	execExpectOK(t, c, `ALTER SCHEMA [app] TRANSFER [dbo].[v]`)
+	execExpectOK(t, c, `ALTER SCHEMA [app] TRANSFER [dbo].[p]`)
+	execExpectOK(t, c, `ALTER SCHEMA [app] TRANSFER [dbo].[f]`)
+	def, err = c.Definition(DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "CREATE VIEW [app].[v]")
+	require.Contains(t, def, "CREATE PROCEDURE [app].[p]")
+	require.Contains(t, def, "CREATE FUNCTION [app].[f]")
+	require.NotContains(t, def, "[dbo].[v]")
+	require.NotContains(t, def, "[dbo].[p]")
+	require.NotContains(t, def, "[dbo].[f]")
 }

@@ -500,6 +500,7 @@ func (c *Catalog) execAlterSchema(n *ast.AlterSchemaStmt) error {
 		for i, v := range srcSchema.Views {
 			if strings.EqualFold(v.Name, objName) {
 				srcSchema.Views = append(srcSchema.Views[:i], srcSchema.Views[i+1:]...)
+				v.Definition = qualifyModuleDefinition(v.Definition, targetSchema.Name, true)
 				targetSchema.Views = append(targetSchema.Views, v)
 				return nil
 			}
@@ -508,6 +509,7 @@ func (c *Catalog) execAlterSchema(n *ast.AlterSchemaStmt) error {
 		for i, p := range srcSchema.Procedures {
 			if strings.EqualFold(p.Name, objName) {
 				srcSchema.Procedures = append(srcSchema.Procedures[:i], srcSchema.Procedures[i+1:]...)
+				p.Definition = qualifyModuleDefinition(p.Definition, targetSchema.Name, true)
 				targetSchema.Procedures = append(targetSchema.Procedures, p)
 				return nil
 			}
@@ -516,6 +518,7 @@ func (c *Catalog) execAlterSchema(n *ast.AlterSchemaStmt) error {
 		for i, fn := range srcSchema.Functions {
 			if strings.EqualFold(fn.Name, objName) {
 				srcSchema.Functions = append(srcSchema.Functions[:i], srcSchema.Functions[i+1:]...)
+				fn.Definition = qualifyModuleDefinition(fn.Definition, targetSchema.Name, true)
 				targetSchema.Functions = append(targetSchema.Functions, fn)
 				return nil
 			}
@@ -1415,6 +1418,7 @@ func (c *Catalog) execAlterTable(n *ast.AlterTableStmt, source string) error {
 	savedIndexCounter := c.indexCounter
 	key := tableKey{schema: schema.Name, table: table.Name}
 	periodKey := tableKey{schema: normalizeOrDefault(schema.Name, c.defaultSchema), table: table.Name}
+	savedSystemTime := c.systemTimeTables[periodKey]
 	savedSystemVersioned := c.systemVersionedTables[periodKey]
 	if tableIdx >= 0 {
 		schema.Tables[tableIdx] = staged
@@ -1432,6 +1436,14 @@ func (c *Catalog) execAlterTable(n *ast.AlterTableStmt, source string) error {
 				c.tableByName[key] = table
 			}
 			c.indexCounter = savedIndexCounter
+			if savedSystemTime {
+				if c.systemTimeTables == nil {
+					c.systemTimeTables = make(map[tableKey]bool)
+				}
+				c.systemTimeTables[periodKey] = true
+			} else {
+				delete(c.systemTimeTables, periodKey)
+			}
 			if savedSystemVersioned {
 				if c.systemVersionedTables == nil {
 					c.systemVersionedTables = make(map[tableKey]bool)
@@ -1500,6 +1512,21 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 			}
 			return mssqlErr(ErrUnknownColumnType, "Column, parameter, or variable #1: Cannot find data type %s.", typeName)
 		}
+		if action.Column.Constraints != nil {
+			schema := c.GetSchema(schemaName)
+			for _, ci := range action.Column.Constraints.Items {
+				cd, ok := ci.(*ast.ConstraintDef)
+				if !ok {
+					continue
+				}
+				if cd.Name != "" && schema != nil && c.lookupSchemaObject(schema, cd.Name, false) != kindNone {
+					return mssqlErr(ErrDupObject, "There is already an object named '%s' in the database.", cd.Name)
+				}
+				if cd.Type == ast.ConstraintPrimaryKey && tableHasPrimaryKey(table) {
+					return mssqlErr(ErrMultiplePrimaryKeys, "Table '%s' already has a primary key defined on it.", table.Name)
+				}
+			}
+		}
 		c.extractColumn(action.Column, table, schemaName, source)
 		return nil
 
@@ -1513,6 +1540,9 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 		}
 		if dep, ok := columnDependency(c, schemaName, table, col); ok {
 			return mssqlErr(ErrColumnDependentObject, "The object '%s' is dependent on column '%s'.", dep, col.Name)
+		}
+		if len(table.Columns) <= 1 {
+			return mssqlErr(ErrDropLastColumn, "ALTER TABLE DROP COLUMN failed because '%s' is the only data column in table '%s'. A table must have at least one data column.", col.Name, table.Name)
 		}
 		for i, cur := range table.Columns {
 			if cur == col {
@@ -1538,8 +1568,9 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 			return mssqlErr(ErrUnknownColumnType, "Column, parameter, or variable #1: Cannot find data type %s.", typeName)
 		}
 		newType := nodeText(action.DataType, source)
-		if !c.lenientMetadataLoad && !typesEqual(col.Type, newType) {
-			if dep, blocked := alterColumnTypeDependency(c, schemaName, table, col, newType, action.Collation != "" && !strings.EqualFold(action.Collation, col.Collation)); blocked {
+		collationChanged := action.Collation != "" && !strings.EqualFold(action.Collation, col.Collation)
+		if !c.lenientMetadataLoad && (!typesEqual(col.Type, newType) || collationChanged) {
+			if dep, blocked := alterColumnTypeDependency(c, schemaName, table, col, newType, collationChanged); blocked {
 				return mssqlErr(ErrColumnDependentObject, "The object '%s' is dependent on column '%s'.", dep, col.Name)
 			}
 		}
@@ -1667,7 +1698,15 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 		return mssqlErr(ErrSystemTimeInvalidCols, "Temporal generated always column has invalid data type.")
 
 	case ast.ATDropPeriod:
-		return mssqlErr(ErrDropPeriodNotDefined, "SYSTEM_TIME period cannot be dropped from table '%s', because SYSTEM_TIME period does not exist.", table.Name)
+		periodKey := tableKey{schema: normalizeOrDefault(schemaName, c.defaultSchema), table: table.Name}
+		if !c.systemTimeTables[periodKey] {
+			return mssqlErr(ErrDropPeriodNotDefined, "SYSTEM_TIME period cannot be dropped from table '%s', because SYSTEM_TIME period does not exist.", table.Name)
+		}
+		if c.systemVersionedTables[periodKey] {
+			return mssqlErr(ErrDropPeriodSystemVersioned, "Cannot drop SYSTEM_TIME period on table '%s' while SYSTEM_VERSIONING is ON.", table.Name)
+		}
+		delete(c.systemTimeTables, periodKey)
+		return nil
 	}
 	return nil
 }
@@ -1732,6 +1771,9 @@ func (c *Catalog) execAlterTableAddConstraint(table *metadata.TableMetadata, sch
 	case ast.ConstraintPrimaryKey, ast.ConstraintUnique:
 		if err := checkDuplicateIndexColumns(n.Columns, nil); err != nil {
 			return err
+		}
+		if n.Type == ast.ConstraintPrimaryKey && tableHasPrimaryKey(table) {
+			return mssqlErr(ErrMultiplePrimaryKeys, "Table '%s' already has a primary key defined on it.", table.Name)
 		}
 		for _, colName := range stringNodeList(n.Columns) {
 			if columnByName(table, colName) == nil {
@@ -1835,6 +1877,53 @@ func (c *Catalog) dropTableConstraint(schemaName string, table *metadata.TableMe
 		}
 	}
 	return false, nil
+}
+
+func tableHasPrimaryKey(table *metadata.TableMetadata) bool {
+	if table == nil {
+		return false
+	}
+	for _, idx := range table.Indexes {
+		if idx.Primary {
+			return true
+		}
+	}
+	return false
+}
+
+// qualifyModuleDefinition ensures a view, procedure, or function CREATE header
+// uses schemaName. When forceQualify is false, unqualified headers and headers
+// already matching schemaName are returned unchanged so existing dumps keep
+// exact formatting parity; when forceQualify is true (used after ALTER SCHEMA
+// TRANSFER), even unqualified headers are qualified with schemaName.
+func qualifyModuleDefinition(definition, schemaName string, forceQualify bool) string {
+	if schemaName == "" || strings.TrimSpace(definition) == "" {
+		return definition
+	}
+	stmts, err := mssql.Parse(definition)
+	if err != nil || len(stmts) == 0 {
+		return definition
+	}
+	var nameRef *ast.TableRef
+	switch n := stmts[0].AST.(type) {
+	case *ast.CreateViewStmt:
+		nameRef = n.Name
+	case *ast.CreateProcedureStmt:
+		nameRef = n.Name
+	case *ast.CreateFunctionStmt:
+		nameRef = n.Name
+	}
+	if nameRef == nil || nameRef.Loc.Start < 0 || nameRef.Loc.End <= nameRef.Loc.Start || nameRef.Loc.End > len(definition) {
+		return definition
+	}
+	if nameRef.Schema == "" && !forceQualify {
+		return definition
+	}
+	if nameRef.Schema != "" && strings.EqualFold(nameRef.Schema, schemaName) {
+		return definition
+	}
+	qualified := quote(schemaName) + "." + quote(nameRef.Object)
+	return definition[:nameRef.Loc.Start] + qualified + definition[nameRef.Loc.End:]
 }
 
 func columnInPrimaryKey(table *metadata.TableMetadata, colName string) (string, bool) {
