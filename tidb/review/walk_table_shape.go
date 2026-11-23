@@ -560,7 +560,8 @@ func (b *builder) shapeEffects(v *ast.AlterTableStmt, r tableRef) {
 				continue
 			}
 			unknownIndexes()
-		case ast.ATDropIndex, ast.ATRenameIndex:
+		case ast.ATDropIndex, ast.ATRenameIndex, ast.ATPartitionBy, ast.ATRemovePartitioning:
+			// Partitioning may make a key global or local.
 			unknownIndexes()
 		case ast.ATDropConstraint:
 			k, ok := b.key(spaceTableForeignKey, c.Name)
