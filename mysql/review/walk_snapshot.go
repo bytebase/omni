@@ -250,7 +250,13 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 					}
 					fkCols[fkKey] = colsLower
 					refSchema := fk.GetReferencedSchema()
-					if refSchema == "" || strings.EqualFold(refSchema, db.GetName()) || (!foldTables && refSchema == db.GetName()) {
+					sameDB := refSchema == ""
+					if !sameDB {
+						if refDB, ok := nameKey(spaceDatabase, refSchema, foldTables); ok && refDB == s.db {
+							sameDB = true
+						}
+					}
+					if sameDB {
 						if refTbl, ok := nameKey(spaceRelation, fk.GetReferencedTable(), foldTables); ok {
 							if s.referencedByFK[refTbl] == nil {
 								s.referencedByFK[refTbl] = make(map[[2]string]bool)

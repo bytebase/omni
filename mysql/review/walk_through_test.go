@@ -544,6 +544,46 @@ func TestWalkThroughMySQLRefusalFamilies(t *testing.T) {
 						{Name: "id", Type: "int"},
 					},
 				},
+				{
+					Name:   "self_fk",
+					Engine: "InnoDB",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id", Type: "int"},
+						{Name: "pid", Type: "int"},
+					},
+					Indexes: []*metadata.IndexMetadata{
+						{Name: "PRIMARY", Primary: true, Unique: true, Type: "BTREE", Expressions: []string{"id"}},
+						{Name: "fk_self", Type: "BTREE", Expressions: []string{"pid"}},
+					},
+					ForeignKeys: []*metadata.ForeignKeyMetadata{
+						{Name: "fk_self", Columns: []string{"pid"}, ReferencedTable: "self_fk", ReferencedColumns: []string{"id"}},
+					},
+				},
+				{
+					Name:   "other_db_parent",
+					Engine: "InnoDB",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id", Type: "int"},
+					},
+					Indexes: []*metadata.IndexMetadata{
+						{Name: "PRIMARY", Primary: true, Unique: true, Type: "BTREE", Expressions: []string{"id"}},
+					},
+				},
+				{
+					Name:   "other_db_child",
+					Engine: "InnoDB",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "id", Type: "int"},
+						{Name: "pid", Type: "int"},
+					},
+					Indexes: []*metadata.IndexMetadata{
+						{Name: "PRIMARY", Primary: true, Unique: true, Type: "BTREE", Expressions: []string{"id"}},
+						{Name: "fk_other", Type: "BTREE", Expressions: []string{"pid"}},
+					},
+					ForeignKeys: []*metadata.ForeignKeyMetadata{
+						{Name: "fk_other", Columns: []string{"pid"}, ReferencedSchema: "Shop", ReferencedTable: "other_db_parent", ReferencedColumns: []string{"id"}},
+					},
+				},
 			},
 			Views:  []*metadata.ViewMetadata{{Name: "v"}},
 			Events: []*metadata.EventMetadata{{Name: "ev"}},
@@ -669,6 +709,10 @@ func TestWalkThroughMySQLRefusalFamilies(t *testing.T) {
 		{"innodb valid autoextend_size", "ALTER TABLE plain AUTOEXTEND_SIZE = 4M;"},
 		{"innodb zero autoextend_size", "ALTER TABLE plain AUTOEXTEND_SIZE = 0;"},
 		{"numeric string default on int", "ALTER TABLE plain ALTER COLUMN n SET DEFAULT '42';"},
+		{"decimal string default on int", "CREATE TABLE x (a INT DEFAULT '1.5');"},
+		{"scientific string default on int", "CREATE TABLE x (a INT DEFAULT '1e2');"},
+		{"drop self fk and partition in same alter", "ALTER TABLE self_fk DROP FOREIGN KEY fk_self PARTITION BY HASH (id);"},
+		{"partition table whose namesake in different-case db is referenced", "ALTER TABLE other_db_parent PARTITION BY HASH (id);"},
 		{"expr default referencing other col", "ALTER TABLE plain ADD COLUMN x INT DEFAULT (n + 1);"},
 		{"generated col referencing other col", "ALTER TABLE plain ADD COLUMN x INT AS (n + 1);"},
 		{"auto_increment with key in same alter", "ALTER TABLE plain ADD COLUMN x INT AUTO_INCREMENT, ADD KEY (x);"},

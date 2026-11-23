@@ -530,15 +530,56 @@ func (b *builder) columnDefaultFails(colName, baseType string, expr ast.ExprNode
 		}
 	}
 	if sl, ok := expr.(*ast.StringLit); ok && isIntegerBaseType(baseType) {
-		trimmed := strings.TrimSpace(sl.Value)
-		if _, err := strconv.ParseInt(trimmed, 10, 64); err != nil {
-			if _, err2 := strconv.ParseUint(trimmed, 10, 64); err2 != nil {
-				b.fail(rng, nil, review.UnsupportedForm, "Column "+review.Code(ident(colName))+" has an invalid default value.")
-				return true
-			}
+		if !isStrictNumericString(sl.Value) {
+			b.fail(rng, nil, review.UnsupportedForm, "Column "+review.Code(ident(colName))+" has an invalid default value.")
+			return true
 		}
 	}
 	return false
+}
+
+// isStrictNumericString reports whether raw (after trimming ASCII whitespace)
+// has valid MySQL decimal or scientific-notation numeric syntax (e.g. "42",
+// "-1.5", ".5", "1e2") that MySQL can coerce to an integer default.
+func isStrictNumericString(raw string) bool {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return false
+	}
+	i := 0
+	if s[i] == '+' || s[i] == '-' {
+		i++
+	}
+	digits := 0
+	for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+		i++
+		digits++
+	}
+	if i < len(s) && s[i] == '.' {
+		i++
+		for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+			i++
+			digits++
+		}
+	}
+	if digits == 0 {
+		return false
+	}
+	if i < len(s) && (s[i] == 'e' || s[i] == 'E') {
+		i++
+		if i < len(s) && (s[i] == '+' || s[i] == '-') {
+			i++
+		}
+		expDigits := 0
+		for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+			i++
+			expDigits++
+		}
+		if expDigits == 0 {
+			return false
+		}
+	}
+	return i == len(s)
 }
 
 func colHasAutoIncrement(col *ast.ColumnDef) bool {
@@ -1006,7 +1047,10 @@ func (b *builder) tableHasSurvivingFK(rel walk.Key, droppedFKs map[string]bool) 
 			return true
 		}
 	}
-	if refs := b.w.referencedByFK[rel]; len(refs) > 0 {
+	for ref := range b.w.referencedByFK[rel] {
+		if ref.child == rel && droppedFKs[ref.fk] {
+			continue
+		}
 		return true
 	}
 	return false
