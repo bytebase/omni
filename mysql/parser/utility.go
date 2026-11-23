@@ -37,10 +37,11 @@ func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 		p.advance()
 	}
 
-	// TABLE is required. It used to be matched leniently, which left
-	// `ANALYZE t` -- a 1064 on MySQL 8.0 -- parsing as an ANALYZE of t.
-	if _, err := p.expect(kwTABLE); err != nil {
-		return nil, err
+	// TABLE or TABLES (table_or_tables, sql_yacc.yy:16132) is required. It
+	// used to be matched leniently, which left `ANALYZE t` -- a 1064 on MySQL
+	// 8.0 -- parsing as an ANALYZE of t.
+	if _, ok := p.match(kwTABLE, kwTABLES); !ok {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// Completion: after ANALYZE [LOCAL] TABLE, offer table_ref.
@@ -2642,6 +2643,10 @@ func (p *Parser) parseCreateLogfileGroupStmt(start int) (*nodes.CreateLogfileGro
 		case p.cur.Type == kwWAIT:
 			p.advance()
 			stmt.Wait = true
+		case p.cur.Type == kwNO_WAIT:
+			// ts_option_wait: WAIT_SYM | NO_WAIT_SYM (sql_yacc.yy:6136).
+			p.advance()
+			stmt.Wait = false
 		case p.cur.Type == kwCOMMENT:
 			p.advance()
 			p.matchEqual()
@@ -2722,6 +2727,10 @@ func (p *Parser) parseAlterLogfileGroupStmt(start int) (*nodes.AlterLogfileGroup
 		case p.cur.Type == kwWAIT:
 			p.advance()
 			stmt.Wait = true
+		case p.cur.Type == kwNO_WAIT:
+			// ts_option_wait: WAIT_SYM | NO_WAIT_SYM (sql_yacc.yy:6136).
+			p.advance()
+			stmt.Wait = false
 		case p.cur.Type == kwENGINE:
 			p.advance()
 			p.matchEqual()

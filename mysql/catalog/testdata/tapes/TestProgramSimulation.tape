@@ -61,6 +61,27 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ENABLE DO COMMIT;
+< error
+| 1054 42S22 Unknown column 'utf8mb4' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DISABLE ON SLAVE DO COMMIT;
+< error
+| 1054 42S22 Unknown column 'utf8mb4' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DISABLE DO COMMIT;
+< error
+| 1054 42S22 Unknown column 'utf8mb4' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4 DAY;
 < error
 | 1054 42S22 Unknown column 'utf8mb4' in 'field list'
@@ -1932,6 +1953,27 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ENABLE DO COMMIT;
+< error
+| 1054 42S22 Unknown column 'utf8mb4' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DISABLE ON SLAVE DO COMMIT;
+< error
+| 1054 42S22 Unknown column 'utf8mb4' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DISABLE DO COMMIT;
+< error
+| 1054 42S22 Unknown column 'utf8mb4' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4 DAY;
 < error
 | 1054 42S22 Unknown column 'utf8mb4' in 'field list'
@@ -4052,6 +4094,30 @@
 < ok 0 0
 > exec
 | CREATE EVENT IF NOT EXISTS utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
+< error
+| 1054 42S22 Unknown column 'utf8mb4' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE PROCEDURE utf8mb4() COMMIT;
+| CREATE FUNCTION utf8mb4() RETURNS INT DETERMINISTIC RETURN 1
+< ok 0 0
+> exec
+| CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ENABLE DO COMMIT;
+< error
+| 1054 42S22 Unknown column 'utf8mb4' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE PROCEDURE utf8mb4() COMMIT;
+| CREATE FUNCTION utf8mb4() RETURNS INT DETERMINISTIC RETURN 1
+< ok 0 0
+> exec
+| CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DISABLE ON SLAVE DO COMMIT;
+< error
+| 1054 42S22 Unknown column 'utf8mb4' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE PROCEDURE utf8mb4() COMMIT;
+| CREATE FUNCTION utf8mb4() RETURNS INT DETERMINISTIC RETURN 1
+< ok 0 0
+> exec
+| CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DISABLE DO COMMIT;
 < error
 | 1054 42S22 Unknown column 'utf8mb4' in 'field list'
 > exec
@@ -5773,6 +5839,30 @@
 | CREATE TRIGGER utf8mb4 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
 < ok 0 0
 > exec
+| CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ENABLE DO COMMIT;
+< error
+| 1054 42S22 Unknown column 'utf8mb4' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT);
+| CREATE TRIGGER utf8mb4 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+< ok 0 0
+> exec
+| CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DISABLE ON SLAVE DO COMMIT;
+< error
+| 1054 42S22 Unknown column 'utf8mb4' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT);
+| CREATE TRIGGER utf8mb4 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+< ok 0 0
+> exec
+| CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DISABLE DO COMMIT;
+< error
+| 1054 42S22 Unknown column 'utf8mb4' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT);
+| CREATE TRIGGER utf8mb4 BEFORE INSERT ON t FOR EACH ROW SET NEW.c = 1
+< ok 0 0
+> exec
 | ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4 DAY;
 < error
 | 1054 42S22 Unknown column 'utf8mb4' in 'field list'
@@ -8289,6 +8379,27 @@
 < ok 0 0
 > exec
 | CREATE EVENT IF NOT EXISTS utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
+< error
+| 1054 42S22 Unknown column 'utf8mb4' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE EVENT utf8mb4 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT
+< ok 0 0
+> exec
+| CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ENABLE DO COMMIT;
+< error
+| 1054 42S22 Unknown column 'utf8mb4' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE EVENT utf8mb4 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT
+< ok 0 0
+> exec
+| CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DISABLE ON SLAVE DO COMMIT;
+< error
+| 1054 42S22 Unknown column 'utf8mb4' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE EVENT utf8mb4 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE ENABLE DO COMMIT
+< ok 0 0
+> exec
+| CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DISABLE DO COMMIT;
 < error
 | 1054 42S22 Unknown column 'utf8mb4' in 'field list'
 > exec

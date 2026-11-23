@@ -215,7 +215,7 @@ func (p *Parser) parseDatabaseOption(alter bool) (*nodes.DatabaseOption, bool, e
 	// 1064 on MySQL 8.0, MariaDB 11.8.8 and TiDB v8.5.5.
 	if p.cur.Type == kwDEFAULT {
 		switch p.peekNext().Type {
-		case kwCHARACTER, kwCHARSET, kwCOLLATE, kwENCRYPTION:
+		case kwCHARACTER, kwCHAR, kwCHARSET, kwCOLLATE, kwENCRYPTION:
 			p.advance()
 		default:
 			return nil, false, nil
@@ -223,7 +223,9 @@ func (p *Parser) parseDatabaseOption(alter bool) (*nodes.DatabaseOption, bool, e
 	}
 
 	switch {
-	case p.cur.Type == kwCHARACTER:
+	// character_set: CHAR_SYM SET_SYM | CHARSET (sql_yacc.yy:7595), and
+	// CHAR_SYM is both CHAR and CHARACTER (lex.h).
+	case p.cur.Type == kwCHARACTER || p.cur.Type == kwCHAR:
 		p.advance()
 		if _, ok := p.match(kwSET); ok {
 			p.matchEqual() // optional =
