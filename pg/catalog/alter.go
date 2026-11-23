@@ -2508,34 +2508,7 @@ func (c *Catalog) atDropConstraint(schema *Schema, rel *Relation, conName string
 		if con.Name == conName {
 			if con.Type == ConstraintNotNull && len(con.Columns) == 1 {
 				if ci := indexOfAttNum(rel, con.Columns[0]); ci >= 0 {
-					colName := rel.Columns[ci].Name
-					if err := c.atDropNotNull(rel, colName); err != nil {
-						return err
-					}
-					if recurse || rel.RelKind == 'p' {
-						// Propagate by column name across all descendant partitions and
-						// inheritance children (descendants name their own NOT NULL
-						// constraints independently).
-						seen := map[uint32]bool{rel.OID: true}
-						queue := c.findChildRelations(rel.OID)
-						for len(queue) > 0 {
-							childOID := queue[0]
-							queue = queue[1:]
-							if seen[childOID] {
-								continue
-							}
-							seen[childOID] = true
-							childRel := c.relationByOID[childOID]
-							if childRel == nil {
-								continue
-							}
-							if err := c.atDropNotNull(childRel, colName); err != nil {
-								return err
-							}
-							queue = append(queue, c.findChildRelations(childRel.OID)...)
-						}
-					}
-					return nil
+					return c.dropNotNullConstraintTree(rel, rel.Columns[ci].Name, recurse || rel.RelKind == 'p', false)
 				}
 			}
 			// Collect this constraint and all descendant partition constraints
@@ -2699,6 +2672,58 @@ func (c *Catalog) atDropNotNull(rel *Relation, colName string) error {
 
 	col.NotNull = false
 	c.removeNotNullConstraint(rel.Schema, rel, col.AttNum)
+	return nil
+}
+
+// dropNotNullConstraintTree drops a PG 18 cataloged NOT NULL constraint on rel
+// and propagates the drop down inheritance/partition children, decrementing
+// each child's ConInhCount and stopping at any child whose NOT NULL constraint
+// is still locally declared or inherited from another parent.
+//
+// pg: src/backend/commands/tablecmds.c — ATExecDropNotNull / dropconstraint_internal
+func (c *Catalog) dropNotNullConstraintTree(rel *Relation, colName string, propagate, recursing bool) error {
+	idx, exists := rel.colByName[colName]
+	if !exists {
+		return errUndefinedColumn(colName)
+	}
+	col := rel.Columns[idx]
+	var nnCon *Constraint
+	for _, con := range c.consByRel[rel.OID] {
+		if con.Type == ConstraintNotNull && len(con.Columns) == 1 && con.Columns[0] == col.AttNum {
+			nnCon = con
+			break
+		}
+	}
+	if !recursing {
+		if nnCon != nil && nnCon.ConInhCount > 0 {
+			return &Error{
+				Code:    CodeInvalidTableDefinition,
+				Message: fmt.Sprintf("cannot drop inherited constraint %q of relation %q", nnCon.Name, rel.Name),
+			}
+		}
+	} else if nnCon != nil {
+		if nnCon.ConInhCount > 0 {
+			nnCon.ConInhCount--
+		}
+		if nnCon.ConIsLocal || nnCon.ConInhCount > 0 {
+			return nil
+		}
+	}
+	if err := c.atDropNotNull(rel, colName); err != nil {
+		return err
+	}
+	if !propagate {
+		return nil
+	}
+	for _, childOID := range c.findChildRelations(rel.OID) {
+		childRel := c.relationByOID[childOID]
+		if childRel == nil {
+			continue
+		}
+		if err := c.dropNotNullConstraintTree(childRel, colName, true, true); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -3384,6 +3409,10 @@ func (c *Catalog) atExecDetachPartition(parent *Relation, pc *nodes.PartitionCmd
 	for _, con := range c.consByRel[part.OID] {
 		if parentCon := c.constraints[con.ConParentID]; parentCon != nil && parentCon.RelOID == parent.OID {
 			con.ConParentID = 0
+		}
+		if con.Type == ConstraintNotNull && con.ConInhCount > 0 {
+			con.ConIsLocal = true
+			con.ConInhCount = 0
 		}
 	}
 	// Remove row triggers cloned from the detached parent.

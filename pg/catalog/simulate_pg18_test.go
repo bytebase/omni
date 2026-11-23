@@ -390,6 +390,72 @@ CREATE TABLE c_inh () INHERITS (p_inh);
 			}
 		}
 	}
+
+	// Explicit NOT NULL names are reserved before unnamed columns pick implicit names, regardless of column order.
+	if c, err := LoadSQLWithVersion(`CREATE TABLE t_ord (a int NOT NULL, b int CONSTRAINT t_ord_a_not_null NOT NULL);`, PG18); err != nil {
+		t.Fatalf("PG18 CREATE TABLE with colliding explicit NOT NULL after implicit column: %v", err)
+	} else {
+		rel := c.GetRelation("public", "t_ord")
+		got := map[int16]string{}
+		for _, con := range c.ConstraintsOf(rel.OID) {
+			if con.Type == ConstraintNotNull && len(con.Columns) == 1 {
+				got[con.Columns[0]] = con.Name
+			}
+		}
+		if got[2] != "t_ord_a_not_null" || got[1] != "t_ord_a_not_null1" {
+			t.Fatalf("NOT NULL names = %v, want col1=t_ord_a_not_null1 col2=t_ord_a_not_null", got)
+		}
+	}
+
+	// Dropping parent NOT NULL preserves child's own locally declared NOT NULL constraint.
+	localChildSetup := `
+CREATE TABLE p_loc (x int NOT NULL);
+CREATE TABLE c_loc (x int CONSTRAINT child_nn NOT NULL) INHERITS (p_loc);
+`
+	if got, c := execCodeVersion(t, PG18, localChildSetup, "ALTER TABLE p_loc DROP CONSTRAINT p_loc_x_not_null"); got != "" {
+		t.Fatalf("PG18 DROP CONSTRAINT p_loc_x_not_null: got %q, want ok", got)
+	} else {
+		p := c.GetRelation("public", "p_loc")
+		ch := c.GetRelation("public", "c_loc")
+		if p.Columns[0].NotNull {
+			t.Fatalf("expected parent p_loc.x to become nullable")
+		}
+		if !ch.Columns[0].NotNull {
+			t.Fatalf("expected child c_loc.x to stay NOT NULL due to local child_nn")
+		}
+		var found bool
+		for _, con := range c.ConstraintsOf(ch.OID) {
+			if con.Type == ConstraintNotNull && con.Name == "child_nn" && con.ConIsLocal && con.ConInhCount == 0 {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("expected child_nn (ConIsLocal=true, ConInhCount=0) to survive, got %+v", c.ConstraintsOf(ch.OID))
+		}
+	}
+
+	// Multiple inheritance preserves child NOT NULL until all enforcing parents drop theirs.
+	multiParentSetup := `
+CREATE TABLE p1_mi (x int NOT NULL);
+CREATE TABLE p2_mi (x int NOT NULL);
+CREATE TABLE c_mi () INHERITS (p1_mi, p2_mi);
+`
+	if got, c := execCodeVersion(t, PG18, multiParentSetup, "ALTER TABLE p1_mi DROP CONSTRAINT p1_mi_x_not_null"); got != "" {
+		t.Fatalf("PG18 DROP CONSTRAINT p1_mi_x_not_null: got %q, want ok", got)
+	} else {
+		ch := c.GetRelation("public", "c_mi")
+		if !ch.Columns[0].NotNull {
+			t.Fatalf("expected c_mi.x to remain NOT NULL while p2_mi still requires it")
+		}
+		if res, err := c.Exec("ALTER TABLE p2_mi DROP CONSTRAINT p2_mi_x_not_null", nil); err != nil {
+			t.Fatal(err)
+		} else if len(res) > 0 && res[0].Error != nil {
+			t.Fatalf("PG18 DROP CONSTRAINT p2_mi_x_not_null: %v", res[0].Error)
+		}
+		if ch.Columns[0].NotNull {
+			t.Fatalf("expected c_mi.x to become nullable after both parents dropped NOT NULL")
+		}
+	}
 }
 
 func TestPG18PartitionDetachPKNameAndJsonExpr(t *testing.T) {

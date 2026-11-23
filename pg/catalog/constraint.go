@@ -343,7 +343,7 @@ func (c *Catalog) reusePartitionIndexConstraint(schema *Schema, rel *Relation, c
 	for _, attnum := range attnums {
 		if int(attnum) > 0 && int(attnum) <= len(rel.Columns) {
 			rel.Columns[attnum-1].NotNull = true
-			_ = c.ensureNotNullConstraint(schema, rel, rel.Columns[attnum-1], "")
+			_ = c.ensureNotNullConstraintWithInh(schema, rel, rel.Columns[attnum-1], "", false, 1)
 		}
 	}
 
@@ -1045,16 +1045,29 @@ func (c *Catalog) validateExclusionOpFamilyMember(am *AccessMethod, opcOID, opOI
 
 // chooseConstraintAndIndexName picks a free name in both the relation/index
 // namespace and the relation's constraint list, matching ChooseRelationName.
-// ensureNotNullConstraint records a PG 18 cataloged NOT NULL constraint
-// (pg_constraint.contype = 'n') for col when c.Version() >= PG18.
+// ensureNotNullConstraint records a locally defined PG 18 cataloged NOT NULL
+// constraint (pg_constraint.contype = 'n') for col when c.Version() >= PG18.
+func (c *Catalog) ensureNotNullConstraint(schema *Schema, rel *Relation, col *Column, conName string) error {
+	return c.ensureNotNullConstraintWithInh(schema, rel, col, conName, true, 0)
+}
+
+// ensureNotNullConstraintWithInh records or updates a PG 18 cataloged NOT NULL
+// constraint (pg_constraint.contype = 'n') with explicit locality and
+// inheritance count tracking.
 //
 // pg: src/backend/commands/tablecmds.c — StoreRelNotNull
-func (c *Catalog) ensureNotNullConstraint(schema *Schema, rel *Relation, col *Column, conName string) error {
+func (c *Catalog) ensureNotNullConstraintWithInh(schema *Schema, rel *Relation, col *Column, conName string, isLocal bool, inhCount int16) error {
 	if c.Version() < PG18 || schema == nil || rel == nil || rel.RelKind == 'c' || col == nil || !col.NotNull {
 		return nil
 	}
 	for _, existing := range c.consByRel[rel.OID] {
 		if existing.Type == ConstraintNotNull && len(existing.Columns) == 1 && existing.Columns[0] == col.AttNum {
+			if isLocal {
+				existing.ConIsLocal = true
+			}
+			if existing.ConInhCount < inhCount {
+				existing.ConInhCount = inhCount
+			}
 			return nil
 		}
 	}
@@ -1064,14 +1077,15 @@ func (c *Catalog) ensureNotNullConstraint(schema *Schema, rel *Relation, col *Co
 		return err
 	}
 	con := &Constraint{
-		OID:        c.oidGen.Next(),
-		Name:       conName,
-		Type:       ConstraintNotNull,
-		RelOID:     rel.OID,
-		Namespace:  schema.OID,
-		Columns:    []int16{col.AttNum},
-		Validated:  true,
-		ConIsLocal: col.IsLocal,
+		OID:         c.oidGen.Next(),
+		Name:        conName,
+		Type:        ConstraintNotNull,
+		RelOID:      rel.OID,
+		Namespace:   schema.OID,
+		Columns:     []int16{col.AttNum},
+		Validated:   true,
+		ConIsLocal:  isLocal,
+		ConInhCount: inhCount,
 	}
 	c.registerConstraint(rel.OID, con)
 	c.recordDependency('c', con.OID, 0, 'r', rel.OID, int32(col.AttNum), DepAuto)

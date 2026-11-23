@@ -188,6 +188,14 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		ofTypeOID = oid
 	}
 
+	// Mark locally-declared NOT NULL before merging inherited columns so
+	// PG 18 cataloged NOT NULL constraints preserve ConIsLocal vs ConInhCount.
+	for i := range colDefs {
+		if colDefs[i].NotNull || colDefs[i].Identity != 0 || colDefs[i].IsSerial != 0 {
+			colDefs[i].NotNullLocal = true
+		}
+	}
+
 	// Merge inherited columns (INHERITS clause).
 	// pg: src/backend/commands/tablecmds.c — MergeAttributes
 	var parentOIDs []uint32
@@ -308,6 +316,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 					// Merge NOT NULL from parent.
 					if pcol.NotNull {
 						existCD.NotNull = true
+						existCD.NotNullInhCount++
 					}
 					// Merge default from parent if child has no default.
 					// pg: src/backend/commands/tablecmds.c — MergeAttributes (default conflict detection)
@@ -330,10 +339,16 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 					existCD.InhCount++
 				} else {
 					// New inherited column — not locally defined.
+					var nnInh int16
+					if pcol.NotNull {
+						nnInh = 1
+					}
 					newCD := ColumnDef{
 						Name:             pcol.Name,
 						Type:             c.typeNameForOID(pcol.TypeOID, pcol.TypeMod),
 						NotNull:          pcol.NotNull,
+						NotNullLocal:     false,
+						NotNullInhCount:  nnInh,
 						Default:          pcol.Default,
 						IsLocal:          false,
 						InhCount:         1,
@@ -942,17 +957,12 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 
 	// Process constraints (composite types have no constraints).
 	if relkind != 'c' {
-		// PG 18 catalogs table NOT NULL constraints in pg_constraint (contype = 'n').
-		// Register column-level NOT NULL constraints (including explicit names)
-		// before table constraints so a PRIMARY KEY on the same column preserves
-		// an explicit CONSTRAINT <name> NOT NULL.
+		// Pass 1: reserve all explicitly named column NOT NULL constraints
+		// before table constraints and unnamed NOT NULL constraints so column
+		// order never causes an implicit name to collide with an explicit one.
 		for i, col := range columns {
-			if col.NotNull {
-				var nnName string
-				if i < len(colDefs) {
-					nnName = colDefs[i].NotNullConName
-				}
-				if err := c.ensureNotNullConstraint(schema, rel, col, nnName); err != nil {
+			if col.NotNull && i < len(colDefs) && colDefs[i].NotNullConName != "" {
+				if err := c.ensureNotNullConstraintWithInh(schema, rel, col, colDefs[i].NotNullConName, colDefs[i].NotNullLocal, colDefs[i].NotNullInhCount); err != nil {
 					rollbackRelation()
 					return err
 				}
@@ -961,6 +971,27 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 
 		for _, cd := range constraintDefs {
 			if err := c.addConstraint(schema, rel, cd); err != nil {
+				rollbackRelation()
+				return err
+			}
+		}
+
+		// Pass 2: register remaining (unnamed) PG 18 cataloged NOT NULL
+		// constraints after all explicit constraint names are reserved.
+		for i, col := range columns {
+			if !col.NotNull {
+				continue
+			}
+			isLocal := col.IsLocal
+			var inhCount int16
+			if i < len(colDefs) {
+				if colDefs[i].NotNullConName != "" {
+					continue
+				}
+				isLocal = colDefs[i].NotNullLocal
+				inhCount = colDefs[i].NotNullInhCount
+			}
+			if err := c.ensureNotNullConstraintWithInh(schema, rel, col, "", isLocal, inhCount); err != nil {
 				rollbackRelation()
 				return err
 			}
@@ -2017,7 +2048,7 @@ func (c *Catalog) cloneIndexToPartition(schema *Schema, parent, partition *Relat
 		for _, attnum := range indexKeyAttnums(idx, partAttnums) {
 			if int(attnum) > 0 && int(attnum) <= len(partition.Columns) {
 				partition.Columns[attnum-1].NotNull = true
-				_ = c.ensureNotNullConstraint(schema, partition, partition.Columns[attnum-1], "")
+				_ = c.ensureNotNullConstraintWithInh(schema, partition, partition.Columns[attnum-1], "", false, 1)
 			}
 		}
 	}
