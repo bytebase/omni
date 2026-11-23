@@ -12,14 +12,22 @@ import (
 // Catalog is the in-memory Oracle catalog. Oracle has one schema per user, so a
 // snapshot is normally one schema; the metadata type still carries the list.
 type Catalog struct {
-	meta              *metadatapb.DatabaseSchemaMetadata
-	namedNotNull      map[string]bool
-	primaryKeyNotNull map[string]bool
+	meta                 *metadatapb.DatabaseSchemaMetadata
+	namedNotNull         map[string]bool
+	primaryKeyNotNull    map[string]bool
+	syntheticConstraints map[string]bool
+	viewConstraints      map[string][]viewConstraint
 }
 
 // New returns an empty catalog.
 func New() *Catalog {
-	return &Catalog{meta: &metadatapb.DatabaseSchemaMetadata{}, namedNotNull: map[string]bool{}, primaryKeyNotNull: map[string]bool{}}
+	return &Catalog{
+		meta:                 &metadatapb.DatabaseSchemaMetadata{},
+		namedNotNull:         map[string]bool{},
+		primaryKeyNotNull:    map[string]bool{},
+		syntheticConstraints: map[string]bool{},
+		viewConstraints:      map[string][]viewConstraint{},
+	}
 }
 
 // Metadata returns the catalog's snapshot.
@@ -38,6 +46,8 @@ func (c *Catalog) SetMetadata(meta *metadatapb.DatabaseSchemaMetadata) {
 	c.meta = meta
 	c.namedNotNull = map[string]bool{}
 	c.primaryKeyNotNull = map[string]bool{}
+	c.syntheticConstraints = map[string]bool{}
+	c.viewConstraints = map[string][]viewConstraint{}
 }
 
 // LoadMetadataReport lists snapshot objects that could not be installed as
@@ -57,6 +67,8 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadatapb.DatabaseSch
 	}
 	c.namedNotNull = map[string]bool{}
 	c.primaryKeyNotNull = map[string]bool{}
+	c.syntheticConstraints = map[string]bool{}
+	c.viewConstraints = map[string][]viewConstraint{}
 	if meta == nil {
 		c.meta = &metadatapb.DatabaseSchemaMetadata{}
 		return report, nil
@@ -149,6 +161,12 @@ func (c *Catalog) applyStatement(stmt ast.StmtNode, source string) error {
 	for key := range c.primaryKeyNotNull {
 		extractor.primaryKeyNotNull[key] = true
 	}
+	for key := range c.syntheticConstraints {
+		extractor.syntheticConstraints[key] = true
+	}
+	for viewName, constraints := range c.viewConstraints {
+		extractor.viewConstraints[viewName] = cloneViewConstraints(constraints)
+	}
 	extractor.extractStatement(stmt)
 	if extractor.err != nil {
 		return extractor.err
@@ -183,6 +201,8 @@ func (c *Catalog) applyStatement(stmt ast.StmtNode, source string) error {
 	c.meta = result
 	c.namedNotNull = extractor.namedNotNull
 	c.primaryKeyNotNull = extractor.primaryKeyNotNull
+	c.syntheticConstraints = extractor.syntheticConstraints
+	c.viewConstraints = extractor.viewConstraints
 	return nil
 }
 

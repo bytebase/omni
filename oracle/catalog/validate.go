@@ -8,7 +8,29 @@ import (
 
 	metadatapb "github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/oracle/ast"
+	oracleparser "github.com/bytebase/omni/oracle/parser"
 )
+
+type viewConstraint struct {
+	name    string
+	kind    ast.ConstraintType
+	columns []string
+}
+
+func cloneViewConstraints(src []viewConstraint) []viewConstraint {
+	if len(src) == 0 {
+		return nil
+	}
+	out := make([]viewConstraint, len(src))
+	for i, vc := range src {
+		out[i] = viewConstraint{
+			name:    vc.name,
+			kind:    vc.kind,
+			columns: append([]string(nil), vc.columns...),
+		}
+	}
+	return out
+}
 
 func oraError(code, format string, args ...any) *Error {
 	return &Error{Code: code, Message: fmt.Sprintf(format, args...)}
@@ -113,11 +135,74 @@ func (e *oracleMetadataExtractor) constraintNameExists(name string) bool {
 		return false
 	}
 	for _, table := range e.tables {
-		if tableHasConstraint(table, name) {
+		if tableHasConstraint(table, name) && !e.syntheticConstraints[table.Name+"\x00"+name] {
 			return true
 		}
 	}
+	for _, constraints := range e.viewConstraints {
+		for _, vc := range constraints {
+			if vc.name == name {
+				return true
+			}
+		}
+	}
 	return false
+}
+
+// resolveConstraintName returns explicitName when provided (disambiguating any
+// same-table synthetic constraint that happened to use that fallback name), or
+// generates a non-colliding synthetic name recorded in syntheticConstraints.
+func (e *oracleMetadataExtractor) resolveConstraintName(table *metadatapb.TableMetadata, explicitName, fallback string) string {
+	if explicitName != "" {
+		e.disambiguateSyntheticConstraint(table, explicitName)
+		return explicitName
+	}
+	name := fallback
+	for suffix := 1; tableHasConstraint(table, name); suffix++ {
+		name = fmt.Sprintf("%s_%d", fallback, suffix)
+	}
+	e.syntheticConstraints[table.Name+"\x00"+name] = true
+	return name
+}
+
+func (e *oracleMetadataExtractor) disambiguateSyntheticConstraint(table *metadatapb.TableMetadata, explicitName string) {
+	if table == nil || explicitName == "" {
+		return
+	}
+	key := table.Name + "\x00" + explicitName
+	if !e.syntheticConstraints[key] {
+		return
+	}
+	newName := explicitName + "_SYS1"
+	for suffix := 2; tableHasConstraint(table, newName); suffix++ {
+		newName = fmt.Sprintf("%s_SYS%d", explicitName, suffix)
+	}
+	e.renameConstraint(table, explicitName, newName)
+	delete(e.syntheticConstraints, key)
+	e.syntheticConstraints[table.Name+"\x00"+newName] = true
+}
+
+// constraintKeyColumns returns the referenced key columns if name identifies
+// a primary key or unique constraint on table, and nil otherwise (including
+// CHECK constraints, foreign keys, and standalone indexes that share the name).
+func constraintKeyColumns(table *metadatapb.TableMetadata, name string) []string {
+	for _, idx := range table.Indexes {
+		if len(idx.Constraints) > 0 {
+			for _, c := range idx.Constraints {
+				if c.Name == name {
+					if len(c.Columns) > 0 {
+						return append([]string(nil), c.Columns...)
+					}
+					return append([]string(nil), idx.Expressions...)
+				}
+			}
+			continue
+		}
+		if idx.IsConstraint && idx.Name == name {
+			return append([]string(nil), idx.Expressions...)
+		}
+	}
+	return nil
 }
 
 func tableHasConstraint(table *metadatapb.TableMetadata, name string) bool {
@@ -391,15 +476,229 @@ func (e *oracleMetadataExtractor) extractAlterView(n *ast.AlterViewStmt) {
 		return
 	}
 	switch strings.ToUpper(n.Action) {
-	case "DROP_CONSTRAINT", "DROP_PRIMARY_KEY", "DROP_UNIQUE":
-		e.setError(oraError("02443", "cannot drop constraint - nonexistent constraint"))
-	case "MODIFY_CONSTRAINT", "MODIFY_PRIMARY_KEY", "MODIFY_UNIQUE":
-		e.setError(oraError("25129", "cannot modify constraint - no such constraint"))
+	case "ADD_CONSTRAINT":
+		if n.Constraint != nil {
+			if n.Constraint.Name != "" && e.constraintNameExists(n.Constraint.Name) {
+				e.setError(oraError("02264", "name %q already used by an existing constraint", n.Constraint.Name))
+				return
+			}
+			e.viewConstraints[name] = append(e.viewConstraints[name], viewConstraint{
+				name:    n.Constraint.Name,
+				kind:    n.Constraint.Type,
+				columns: stringList(n.Constraint.Columns),
+			})
+		}
+	case "DROP_CONSTRAINT":
+		if !e.removeViewConstraintByName(name, n.ConstraintName) {
+			e.setError(oraError("02443", "cannot drop constraint - nonexistent constraint"))
+		}
+	case "DROP_PRIMARY_KEY":
+		if !e.removeViewConstraintByKind(name, ast.CONSTRAINT_PRIMARY, nil) {
+			e.setError(oraError("02443", "cannot drop constraint - nonexistent constraint"))
+		}
+	case "DROP_UNIQUE":
+		cols := extractAlterViewUniqueColumns(e.nodeText(n))
+		if !e.removeViewConstraintByKind(name, ast.CONSTRAINT_UNIQUE, cols) {
+			e.setError(oraError("02443", "cannot drop constraint - nonexistent constraint"))
+		}
+	case "MODIFY_CONSTRAINT":
+		if !e.hasViewConstraintByName(name, n.ConstraintName) {
+			e.setError(oraError("25129", "cannot modify constraint - no such constraint"))
+		}
+	case "MODIFY_PRIMARY_KEY":
+		if !e.hasViewConstraintByKind(name, ast.CONSTRAINT_PRIMARY, nil) {
+			e.setError(oraError("25129", "cannot modify constraint - no such constraint"))
+		}
+	case "MODIFY_UNIQUE":
+		cols := extractAlterViewUniqueColumns(e.nodeText(n))
+		if !e.hasViewConstraintByKind(name, ast.CONSTRAINT_UNIQUE, cols) {
+			e.setError(oraError("25129", "cannot modify constraint - no such constraint"))
+		}
 	case "READ_ONLY", "READ_WRITE":
 		e.setError(oraError("42310", "ALTER VIEW READ ONLY/READ WRITE is only supported on editioning views"))
 	default:
-		// COMPILE, EDITIONABLE, NONEDITIONABLE, ADD_CONSTRAINT (declarative view constraints).
+		// COMPILE, EDITIONABLE, NONEDITIONABLE, ANNOTATIONS.
 	}
+}
+
+func (e *oracleMetadataExtractor) hasViewConstraintByName(viewName, constraintName string) bool {
+	if constraintName == "" {
+		return false
+	}
+	for _, vc := range e.viewConstraints[viewName] {
+		if vc.name == constraintName {
+			return true
+		}
+	}
+	return false
+}
+
+func (e *oracleMetadataExtractor) removeViewConstraintByName(viewName, constraintName string) bool {
+	if constraintName == "" {
+		return false
+	}
+	constraints := e.viewConstraints[viewName]
+	for i, vc := range constraints {
+		if vc.name == constraintName {
+			e.viewConstraints[viewName] = append(constraints[:i], constraints[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
+func viewConstraintMatchesKind(vc viewConstraint, kind ast.ConstraintType, cols []string) bool {
+	if vc.kind != kind {
+		return false
+	}
+	if kind != ast.CONSTRAINT_UNIQUE || len(cols) == 0 || len(vc.columns) == 0 {
+		return true
+	}
+	want := make([]string, len(cols))
+	for i, c := range cols {
+		want[i] = strings.Trim(c, `"`)
+	}
+	slices.Sort(want)
+	return columnsMatchSet(vc.columns, want)
+}
+
+func (e *oracleMetadataExtractor) hasViewConstraintByKind(viewName string, kind ast.ConstraintType, cols []string) bool {
+	for _, vc := range e.viewConstraints[viewName] {
+		if viewConstraintMatchesKind(vc, kind, cols) {
+			return true
+		}
+	}
+	return false
+}
+
+func (e *oracleMetadataExtractor) removeViewConstraintByKind(viewName string, kind ast.ConstraintType, cols []string) bool {
+	constraints := e.viewConstraints[viewName]
+	for i, vc := range constraints {
+		if viewConstraintMatchesKind(vc, kind, cols) {
+			e.viewConstraints[viewName] = append(constraints[:i], constraints[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
+func extractAlterViewUniqueColumns(text string) []string {
+	lexer := oracleparser.NewLexer(text)
+	seenUnique := false
+	inParens := false
+	var cols []string
+	for {
+		tok := lexer.NextToken()
+		if tok.Type == 0 {
+			break
+		}
+		if !seenUnique {
+			if strings.EqualFold(tok.Str, "UNIQUE") {
+				seenUnique = true
+			}
+			continue
+		}
+		if !inParens {
+			if tok.Type == '(' {
+				inParens = true
+			}
+			continue
+		}
+		if tok.Type == ')' {
+			break
+		}
+		if tok.Type == ',' {
+			continue
+		}
+		if tok.Str != "" {
+			cols = append(cols, tok.Str)
+		}
+	}
+	return cols
+}
+
+func extractViewInlineConstraints(schemaText string, n *ast.CreateViewStmt) []viewConstraint {
+	if n == nil || n.Name == nil || n.Query == nil {
+		return nil
+	}
+	start := n.Name.Loc.End
+	end := n.Loc.End
+	if qloc := ast.NodeLoc(n.Query); qloc.Start > start && qloc.Start <= len(schemaText) {
+		end = qloc.Start
+	}
+	if start < 0 || end <= start || end > len(schemaText) {
+		return nil
+	}
+	header := schemaText[start:end]
+	openIdx := strings.IndexByte(header, '(')
+	if openIdx < 0 {
+		return nil
+	}
+	lexer := oracleparser.NewLexer(header[openIdx:])
+	depth := 0
+	started := false
+	var itemTokens []oracleparser.Token
+	var out []viewConstraint
+	flush := func() {
+		if len(itemTokens) == 0 {
+			return
+		}
+		first := strings.ToUpper(itemTokens[0].Str)
+		// Out-of-line constraints start with CONSTRAINT/PRIMARY/UNIQUE/FOREIGN and are already in n.Constraints.
+		if first == "CONSTRAINT" || first == "PRIMARY" || first == "UNIQUE" || first == "FOREIGN" {
+			itemTokens = itemTokens[:0]
+			return
+		}
+		colName := itemTokens[0].Str
+		pendingName := ""
+		for i := 1; i < len(itemTokens); i++ {
+			word := strings.ToUpper(itemTokens[i].Str)
+			switch word {
+			case "CONSTRAINT":
+				if i+1 < len(itemTokens) {
+					pendingName = itemTokens[i+1].Str
+					i++
+				}
+			case "PRIMARY":
+				out = append(out, viewConstraint{name: pendingName, kind: ast.CONSTRAINT_PRIMARY, columns: []string{colName}})
+				pendingName = ""
+			case "UNIQUE":
+				out = append(out, viewConstraint{name: pendingName, kind: ast.CONSTRAINT_UNIQUE, columns: []string{colName}})
+				pendingName = ""
+			case "REFERENCES":
+				out = append(out, viewConstraint{name: pendingName, kind: ast.CONSTRAINT_FOREIGN, columns: []string{colName}})
+				pendingName = ""
+			}
+		}
+		itemTokens = itemTokens[:0]
+	}
+	for {
+		tok := lexer.NextToken()
+		if tok.Type == 0 {
+			break
+		}
+		if tok.Type == '(' {
+			depth++
+			started = true
+			continue
+		}
+		if tok.Type == ')' {
+			depth--
+			if started && depth == 0 {
+				flush()
+				break
+			}
+			continue
+		}
+		if depth == 1 {
+			if tok.Type == ',' {
+				flush()
+				continue
+			}
+			itemTokens = append(itemTokens, tok)
+		}
+	}
+	return out
 }
 
 func (e *oracleMetadataExtractor) extractTruncate(n *ast.TruncateStmt) {
@@ -421,7 +720,7 @@ func (e *oracleMetadataExtractor) extractTruncate(n *ast.TruncateStmt) {
 		e.setError(oraError("02201", "sequence not allowed here"))
 		return
 	}
-	if e.tables[name] == nil {
+	if e.tables[name] == nil && e.materializedViews[name] == nil {
 		e.setError(oraError("00942", "table or view %q does not exist", name))
 		return
 	}

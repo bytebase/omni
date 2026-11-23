@@ -438,3 +438,139 @@ func TestExecForeignKeyAgainstConstraintMetadata(t *testing.T) {
 		require.Equal(t, "02270", oraErr.Code)
 	})
 }
+
+func TestExecReviewRegressionFixes(t *testing.T) {
+	t.Run("drop CHECK constraint sharing name with standalone index on referenced key succeeds", func(t *testing.T) {
+		c, err := LoadSQL(`
+			CREATE TABLE p (id NUMBER CONSTRAINT p_pk PRIMARY KEY, val NUMBER CONSTRAINT p_idx CHECK (val > 0));
+			CREATE INDEX p_idx ON p (id);
+			CREATE TABLE ch (p_id NUMBER CONSTRAINT ch_fk REFERENCES p (id));
+		`)
+		require.NoError(t, err)
+
+		results, err := c.Exec(`ALTER TABLE p DROP CONSTRAINT p_idx`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+
+		tbl := tableByName(c.Metadata().Schemas[0])["P"]
+		require.Empty(t, tbl.CheckConstraints)
+		require.Len(t, tbl.Indexes, 2) // p_pk and standalone p_idx remain
+	})
+
+	t.Run("drop FK constraint sharing name with standalone index on referenced key succeeds", func(t *testing.T) {
+		c, err := LoadSQL(`
+			CREATE TABLE p (id NUMBER CONSTRAINT p_pk PRIMARY KEY, parent_id NUMBER);
+			CREATE INDEX same_name ON p (id);
+			ALTER TABLE p ADD CONSTRAINT same_name FOREIGN KEY (parent_id) REFERENCES p (id);
+		`)
+		require.NoError(t, err)
+
+		results, err := c.Exec(`ALTER TABLE p DROP CONSTRAINT same_name`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		require.Empty(t, tableByName(c.Metadata().Schemas[0])["P"].ForeignKeys)
+	})
+
+	t.Run("ALTER VIEW retains ADD CONSTRAINT and CREATE VIEW constraints for MODIFY and DROP", func(t *testing.T) {
+		c, err := LoadSQL(`
+			CREATE TABLE t (id NUMBER, code NUMBER);
+			CREATE VIEW v AS SELECT id, code FROM t;
+		`)
+		require.NoError(t, err)
+
+		for _, stmt := range []string{
+			`ALTER VIEW v ADD CONSTRAINT v_pk PRIMARY KEY (id) DISABLE NOVALIDATE`,
+			`ALTER VIEW v MODIFY CONSTRAINT v_pk RELY`,
+			`ALTER VIEW v MODIFY PRIMARY KEY NORELY`,
+			`ALTER VIEW v DROP CONSTRAINT v_pk`,
+		} {
+			results, err := c.Exec(stmt, nil)
+			require.NoError(t, err)
+			require.Nil(t, results[0].Error, stmt)
+		}
+
+		// Dropping again after removal returns ORA-02443.
+		results, err := c.Exec(`ALTER VIEW v DROP CONSTRAINT v_pk`, nil)
+		require.NoError(t, err)
+		var oraErr *Error
+		require.True(t, errors.As(results[0].Error, &oraErr))
+		require.Equal(t, "02443", oraErr.Code)
+
+		// Constraints declared directly in CREATE VIEW (out-of-line and inline) are also retained.
+		c2, err := LoadSQL(`
+			CREATE TABLE t (id NUMBER, code NUMBER);
+			CREATE VIEW v2 (id CONSTRAINT v2_pk PRIMARY KEY DISABLE NOVALIDATE, code, CONSTRAINT v2_uk UNIQUE (code) DISABLE NOVALIDATE) AS SELECT id, code FROM t;
+		`)
+		require.NoError(t, err)
+		for _, stmt := range []string{
+			`ALTER VIEW v2 MODIFY CONSTRAINT v2_pk RELY`,
+			`ALTER VIEW v2 DROP PRIMARY KEY`,
+			`ALTER VIEW v2 MODIFY UNIQUE (code) RELY`,
+			`ALTER VIEW v2 DROP UNIQUE (code)`,
+		} {
+			results, err := c2.Exec(stmt, nil)
+			require.NoError(t, err)
+			require.Nil(t, results[0].Error, stmt)
+		}
+	})
+
+	t.Run("synthetic constraint names do not block explicit user constraint names", func(t *testing.T) {
+		c, err := LoadSQL(`
+			CREATE TABLE t (id NUMBER PRIMARY KEY, x NUMBER);
+			CREATE TABLE u (id NUMBER);
+		`)
+		require.NoError(t, err)
+
+		// Cross-table: PK_T was synthetic on T, so explicit PK_T on U must succeed.
+		results, err := c.Exec(`ALTER TABLE u ADD CONSTRAINT pk_t PRIMARY KEY (id)`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+
+		// Second explicit PK_T must still fail with ORA-02264.
+		results, err = c.Exec(`ALTER TABLE t ADD CONSTRAINT pk_t UNIQUE (x)`, nil)
+		require.NoError(t, err)
+		var oraErr *Error
+		require.True(t, errors.As(results[0].Error, &oraErr))
+		require.Equal(t, "02264", oraErr.Code)
+
+		// Same-table: unnamed PK on A does not block explicit PK_A UNIQUE on A.
+		c2, err := LoadSQL(`CREATE TABLE a (id NUMBER PRIMARY KEY, x NUMBER)`)
+		require.NoError(t, err)
+		results, err = c2.Exec(`ALTER TABLE a ADD CONSTRAINT pk_a UNIQUE (x)`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		// Dropping explicit PK_A removes the unique constraint, leaving the primary key intact.
+		results, err = c2.Exec(`ALTER TABLE a DROP CONSTRAINT pk_a`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		tblA := tableByName(c2.Metadata().Schemas[0])["A"]
+		require.Len(t, tblA.Indexes, 1)
+		require.True(t, tblA.Indexes[0].Primary)
+	})
+
+	t.Run("TRUNCATE TABLE accepts materialized views from CREATE and LoadMetadata", func(t *testing.T) {
+		c, err := LoadSQL(`
+			CREATE TABLE t (id NUMBER);
+			CREATE MATERIALIZED VIEW mv AS SELECT id FROM t;
+		`)
+		require.NoError(t, err)
+		results, err := c.Exec(`TRUNCATE TABLE mv`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+
+		c2 := New()
+		_, err = c2.LoadMetadata(context.Background(), &metadatapb.DatabaseSchemaMetadata{
+			Name: "APP",
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name: "APP",
+				MaterializedViews: []*metadatapb.MaterializedViewMetadata{
+					{Name: "MV_SYNCED", Definition: "SELECT 1 FROM DUAL"},
+				},
+			}},
+		})
+		require.NoError(t, err)
+		results, err = c2.Exec(`TRUNCATE TABLE mv_synced`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+	})
+}
