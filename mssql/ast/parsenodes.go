@@ -1468,6 +1468,8 @@ type AlterSchemaStmt struct {
 	Name           string // schema name
 	TransferType   string // OBJECT, TYPE, XML SCHEMA COLLECTION, or ""
 	TransferEntity string // dot-qualified entity name
+	TransferSchema string // optional source schema name (preserves dots inside identifiers)
+	TransferObject string // target object name (preserves dots inside identifiers)
 	Loc            Loc
 }
 
@@ -1527,6 +1529,7 @@ type CreateSequenceStmt struct {
 	NoMaxVal    bool      // NO MAXVALUE
 	Cycle       *bool     // CYCLE (true) / NO CYCLE (false) / nil (unset)
 	Cache       ExprNode  // CACHE n
+	HasCache    bool      // true when CACHE was explicitly specified (with or without a size)
 	NoCache     bool      // NO CACHE
 	Loc         Loc
 }
@@ -1548,6 +1551,7 @@ type AlterSequenceStmt struct {
 	NoMaxVal    bool      // NO MAXVALUE
 	Cycle       *bool     // CYCLE / NO CYCLE
 	Cache       ExprNode  // CACHE n
+	HasCache    bool      // true when CACHE was explicitly specified (with or without a size)
 	NoCache     bool      // NO CACHE
 	Loc         Loc
 }

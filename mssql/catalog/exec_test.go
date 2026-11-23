@@ -164,4 +164,75 @@ func TestExecExpressionAndSequenceDiffNormalization(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, Diff(from, to).IsEmpty())
 	require.True(t, Diff(to, from).IsEmpty())
+
+	// Double-quoted identifiers and lone '!' must terminate cleanly without hanging.
+	require.False(t, expressionsEqual(`"x" + 1`, `"x" + 2`))
+	require.True(t, expressionsEqual(`("x") + (1)`, `"x" + 1`))
+	require.False(t, expressionsEqual(`!a`, `!b`))
+}
+
+func TestExecReviewRegressions(t *testing.T) {
+	// 1. User-defined / alias types are preserved by GetDatabaseMetadata.
+	meta, err := GetDatabaseMetadata(`
+CREATE TABLE [dbo].[contacts] ([id] INT NOT NULL, [phone] dbo.PhoneNumber NULL);
+GO
+CREATE PROCEDURE [dbo].[p_contact] @p dbo.PhoneNumber AS BEGIN SELECT 1; END;
+GO
+CREATE FUNCTION [dbo].[f_contact](@p dbo.PhoneNumber) RETURNS dbo.PhoneNumber AS BEGIN RETURN @p; END;
+`)
+	require.NoError(t, err)
+	require.Len(t, meta.Schemas, 1)
+	require.Len(t, meta.Schemas[0].Tables, 1)
+	require.Equal(t, "dbo.PhoneNumber", meta.Schemas[0].Tables[0].Columns[1].Type)
+	require.Len(t, meta.Schemas[0].Procedures, 1)
+	require.Len(t, meta.Schemas[0].Functions, 1)
+
+	// 2. ALTER TABLE rolls back earlier actions when a later action fails.
+	c, err := LoadSQL(`CREATE TABLE [dbo].[t] ([a] INT NOT NULL);`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ADD [b] INT, [a] INT`, ErrDupColumn)
+	require.Nil(t, columnByName(c.GetTable("dbo", "t"), "b"), "rolled-back column must not remain")
+
+	// 3. ALTER SEQUENCE preserves CACHE size when sequence/schema name contains "cache".
+	c, err = LoadSQL(`CREATE SEQUENCE [dbo].[cached_seq] CACHE 10;`)
+	require.NoError(t, err)
+	execExpectOK(t, c, `ALTER SEQUENCE [dbo].[cached_seq] INCREMENT BY 2`)
+	require.Equal(t, "10", c.GetSchema("dbo").Sequences[0].CacheSize)
+	execExpectOK(t, c, `ALTER SEQUENCE [dbo].[cached_seq] CACHE`)
+	require.Equal(t, "", c.GetSchema("dbo").Sequences[0].CacheSize)
+
+	// 4. TRUNCATE TABLE allows self-referencing foreign keys while blocking external ones.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[node] ([id] INT NOT NULL PRIMARY KEY, [parent_id] INT NULL REFERENCES [dbo].[node]([id]));
+CREATE TABLE [dbo].[child] ([id] INT NOT NULL, [node_id] INT NULL REFERENCES [dbo].[node]([id]));
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `TRUNCATE TABLE [dbo].[node]`, ErrTruncateReferencedByFK)
+	execExpectOK(t, c, `DROP TABLE [dbo].[child]`)
+	execExpectOK(t, c, `TRUNCATE TABLE [dbo].[node]`)
+	execExpectOK(t, c, `DROP TABLE [dbo].[node]`)
+
+	// 5. Case-distinct tables reject ambiguous names without panicking.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[Foo] ([a] INT NOT NULL);
+CREATE TABLE [dbo].[foo] ([a] INT NOT NULL);
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `CREATE INDEX [ix] ON [dbo].[FOO]([a])`, ErrObjectNotFound)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[FOO] ADD [b] INT`, ErrAlterTableNotFound)
+	execExpectCode(t, c, `TRUNCATE TABLE [dbo].[FOO]`, ErrTruncateNotFound)
+	execExpectOK(t, c, `CREATE INDEX [ix] ON [dbo].[Foo]([a])`)
+	require.Len(t, c.GetTable("dbo", "Foo").Indexes, 1)
+	require.Empty(t, c.GetTable("dbo", "foo").Indexes)
+
+	// 6. ALTER SCHEMA TRANSFER preserves identifier boundaries with embedded dots.
+	c, err = LoadSQL(`
+CREATE SCHEMA [app];
+GO
+CREATE TABLE [dbo].[a.b] ([id] INT NOT NULL);
+`)
+	require.NoError(t, err)
+	execExpectOK(t, c, `ALTER SCHEMA [app] TRANSFER [dbo].[a.b]`)
+	require.Nil(t, c.GetTable("dbo", "a.b"))
+	require.NotNil(t, c.GetTable("app", "a.b"))
 }

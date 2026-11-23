@@ -173,15 +173,18 @@ func (p *Parser) parseAlterSchemaStmt() (*nodes.AlterSchemaStmt, error) {
 	if !ok {
 		return nil, p.syntaxErrorAtCur()
 	}
-	securableParts := []string{id}
 	if _, ok := p.match('.'); ok {
 		part, ok := p.parseIdentifier()
 		if !ok {
 			return nil, p.syntaxErrorAtCur()
 		}
-		securableParts = append(securableParts, part)
+		stmt.TransferSchema = id
+		stmt.TransferObject = part
+		stmt.TransferEntity = id + "." + part
+	} else {
+		stmt.TransferObject = id
+		stmt.TransferEntity = id
 	}
-	stmt.TransferEntity = strings.Join(securableParts, ".")
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil

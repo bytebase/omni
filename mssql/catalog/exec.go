@@ -25,6 +25,27 @@ const (
 	kindConstraint objectKind = "constraint"
 )
 
+// resolveTableInSchema resolves name within schema using the same exact-first,
+// reject-ambiguous-fold semantics as GetTable.
+func (c *Catalog) resolveTableInSchema(schema *metadata.SchemaMetadata, name string) *metadata.TableMetadata {
+	if schema == nil || name == "" {
+		return nil
+	}
+	if table := c.tableByName[tableKey{schema: schema.Name, table: name}]; table != nil {
+		return table
+	}
+	var match *metadata.TableMetadata
+	for _, table := range schema.Tables {
+		if strings.EqualFold(table.Name, name) {
+			if match != nil {
+				return nil
+			}
+			match = table
+		}
+	}
+	return match
+}
+
 // lookupSchemaObject returns the kind of the object named name in schema,
 // checking tables, views, procedures, functions, sequences, synonyms, triggers,
 // and named constraints. When exactTableCase is true, table matching requires
@@ -33,14 +54,14 @@ func (c *Catalog) lookupSchemaObject(schema *metadata.SchemaMetadata, name strin
 	if schema == nil || name == "" {
 		return kindNone
 	}
-	for _, t := range schema.Tables {
-		if exactTableCase {
+	if exactTableCase {
+		for _, t := range schema.Tables {
 			if t.Name == name {
 				return kindTable
 			}
-		} else if strings.EqualFold(t.Name, name) {
-			return kindTable
 		}
+	} else if c.resolveTableInSchema(schema, name) != nil {
+		return kindTable
 	}
 	for _, v := range schema.Views {
 		if strings.EqualFold(v.Name, name) {
@@ -128,6 +149,9 @@ func hasInboundFK(c *Catalog, targetSchema, targetTable string) (string, bool) {
 func hasInboundFKExcluding(c *Catalog, targetSchema, targetTable string, exclude map[tableKey]bool) (string, bool) {
 	for _, s := range c.schemas {
 		for _, t := range s.Tables {
+			if strings.EqualFold(s.Name, targetSchema) && strings.EqualFold(t.Name, targetTable) {
+				continue
+			}
 			if exclude != nil && exclude[tableKey{schema: normalize(s.Name), table: normalize(t.Name)}] {
 				continue
 			}
@@ -278,10 +302,15 @@ func (c *Catalog) execAlterSchema(n *ast.AlterSchemaStmt) error {
 		return mssqlErr(ErrSecurableNotFound, "Cannot find the %s '%s', because it does not exist or you do not have permission.", strings.ToLower(n.TransferType), n.TransferEntity)
 	}
 	srcSchemaName := c.defaultSchema
-	objName := n.TransferEntity
-	if dot := strings.LastIndex(objName, "."); dot >= 0 {
-		srcSchemaName = objName[:dot]
-		objName = objName[dot+1:]
+	objName := n.TransferObject
+	if n.TransferSchema != "" {
+		srcSchemaName = n.TransferSchema
+	} else if objName == "" {
+		objName = n.TransferEntity
+		if dot := strings.LastIndex(objName, "."); dot >= 0 {
+			srcSchemaName = objName[:dot]
+			objName = objName[dot+1:]
+		}
 	}
 	srcSchema := c.GetSchema(srcSchemaName)
 	if srcSchema == nil {
@@ -301,8 +330,12 @@ func (c *Catalog) execAlterSchema(n *ast.AlterSchemaStmt) error {
 	}
 	switch kind {
 	case kindTable:
+		table := c.resolveTableInSchema(srcSchema, objName)
+		if table == nil {
+			return mssqlErr(ErrSecurableNotFound, "Cannot find the object '%s', because it does not exist or you do not have permission.", n.TransferEntity)
+		}
 		for i, t := range srcSchema.Tables {
-			if strings.EqualFold(t.Name, objName) {
+			if t == table {
 				srcSchema.Tables = append(srcSchema.Tables[:i], srcSchema.Tables[i+1:]...)
 				delete(c.tableByName, tableKey{schema: srcSchema.Name, table: t.Name})
 				targetSchema.Tables = append(targetSchema.Tables, t)
@@ -379,7 +412,7 @@ func (c *Catalog) execCreateTableAsSelect(n *ast.CreateTableAsSelectStmt) error 
 
 func (c *Catalog) execCreateTable(n *ast.CreateTableStmt, source string) error {
 	// Validate column data types first (compile-time check in SQL Server).
-	if n.Columns != nil {
+	if !c.lenientMetadataLoad && n.Columns != nil {
 		for idx, item := range n.Columns.Items {
 			col, ok := item.(*ast.ColumnDef)
 			if !ok {
@@ -525,7 +558,10 @@ func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt, source string) error {
 		return mssqlErr(ErrIndexInvalidObject, "Index cannot be created on object '%s' because the object is not a user table or view.", tableName)
 	}
 
-	table := c.GetTable(schemaName, tableName)
+	table := c.resolveTableInSchema(schema, tableName)
+	if table == nil {
+		return mssqlErr(ErrObjectNotFound, "Cannot find the object \"%s\" because it does not exist or you do not have permissions.", tableName)
+	}
 	if n.WhereClause != nil {
 		whereText := strings.ToUpper(nodeText(n.WhereClause, source))
 		if strings.Contains(whereText, "IDENTITYCOL") && !tableHasIdentityColumn(table) {
@@ -597,7 +633,10 @@ func (c *Catalog) execCreateXMLIndex(n *ast.CreateXmlIndexStmt) error {
 	default:
 		return mssqlErr(ErrXmlIndexNotTable, "Could not create the XML or spatial index on object '%s' because that object is not a table.", tableName)
 	}
-	table := c.GetTable(schemaName, tableName)
+	table := c.resolveTableInSchema(schema, tableName)
+	if table == nil {
+		return mssqlErr(ErrObjectNotFound, "Cannot find the object \"%s\" because it does not exist or you do not have permissions.", tableName)
+	}
 	col := columnByName(table, n.XmlColumn)
 	if col == nil {
 		return mssqlErr(ErrIndexColumnNotFound, "Column name '%s' does not exist in the target table or view.", n.XmlColumn)
@@ -644,7 +683,10 @@ func (c *Catalog) execCreateSelectiveXMLIndex(n *ast.CreateSelectiveXmlIndexStmt
 	default:
 		return mssqlErr(ErrXmlIndexNotTable, "Could not create the XML or spatial index on object '%s' because that object is not a table.", tableName)
 	}
-	table := c.GetTable(schemaName, tableName)
+	table := c.resolveTableInSchema(schema, tableName)
+	if table == nil {
+		return mssqlErr(ErrObjectNotFound, "Cannot find the object \"%s\" because it does not exist or you do not have permissions.", tableName)
+	}
 	col := columnByName(table, n.XmlColumn)
 	if col == nil {
 		return mssqlErr(ErrIndexColumnNotFound, "Column name '%s' does not exist in the target table or view.", n.XmlColumn)
@@ -676,7 +718,10 @@ func (c *Catalog) execCreateSpatialIndex(n *ast.CreateSpatialIndexStmt) error {
 	default:
 		return mssqlErr(ErrXmlIndexNotTable, "Could not create the XML or spatial index on object '%s' because that object is not a table.", tableName)
 	}
-	table := c.GetTable(schemaName, tableName)
+	table := c.resolveTableInSchema(schema, tableName)
+	if table == nil {
+		return mssqlErr(ErrObjectNotFound, "Cannot find the object \"%s\" because it does not exist or you do not have permissions.", tableName)
+	}
 	col := columnByName(table, n.SpatialColumn)
 	if col == nil {
 		return mssqlErr(ErrIndexColumnNotFound, "Column name '%s' does not exist in the target table or view.", n.SpatialColumn)
@@ -730,10 +775,16 @@ func (c *Catalog) execAlterIndex(n *ast.AlterIndexStmt) error {
 	default:
 		return mssqlErr(ErrIndexInvalidObject, "Index cannot be altered on object '%s' because the object is not a user table or view.", tableName)
 	}
+	var table *metadata.TableMetadata
+	if kind == kindTable {
+		table = c.resolveTableInSchema(schema, tableName)
+		if table == nil {
+			return mssqlErr(ErrObjectNotFound, "Cannot find the object \"%s\" because it does not exist or you do not have permissions.", tableName)
+		}
+	}
 	if strings.EqualFold(n.IndexName, "ALL") {
 		return nil
 	}
-	table := c.GetTable(schemaName, tableName)
 	var idx *metadata.IndexMetadata
 	if table != nil {
 		idx = indexByName(table, n.IndexName)
@@ -796,7 +847,7 @@ func (c *Catalog) execCreateOrAlterView(n *ast.CreateViewStmt, source string) er
 }
 
 func (c *Catalog) execCreateOrAlterProcedure(n *ast.CreateProcedureStmt, source string) error {
-	if n.Params != nil {
+	if !c.lenientMetadataLoad && n.Params != nil {
 		for idx, item := range n.Params.Items {
 			p, ok := item.(*ast.ParamDef)
 			if !ok {
@@ -877,7 +928,7 @@ func (c *Catalog) execCreateOrAlterFunction(n *ast.CreateFunctionStmt, source st
 	if n.ExternalName != "" {
 		return mssqlErr(ErrSecurableNotFound, "Cannot find the assembly '%s', because it does not exist or you do not have permission.", n.ExternalName)
 	}
-	if n.Params != nil {
+	if !c.lenientMetadataLoad && n.Params != nil {
 		for idx, item := range n.Params.Items {
 			p, ok := item.(*ast.ParamDef)
 			if !ok {
@@ -892,7 +943,7 @@ func (c *Catalog) execCreateOrAlterFunction(n *ast.CreateFunctionStmt, source st
 			}
 		}
 	}
-	if n.ReturnType != nil && !isValidDataType(n.ReturnType, false) {
+	if !c.lenientMetadataLoad && n.ReturnType != nil && !isValidDataType(n.ReturnType, false) {
 		return mssqlErr(ErrUnknownColumnType, "Column, parameter, or variable #0: Cannot find data type %s.", n.ReturnType.Name)
 	}
 	if n.ReturnsTable != nil && selectStarWithoutFrom(n.Body) {
@@ -986,7 +1037,10 @@ func (c *Catalog) execCreateOrAlterTrigger(n *ast.CreateTriggerStmt, source stri
 		Body:   definitionText(n, source),
 	}
 	if parentKind == kindTable {
-		table := c.GetTable(schemaName, parentName)
+		table := c.resolveTableInSchema(schema, parentName)
+		if table == nil {
+			return mssqlErr(ErrTriggerTargetInvalid, "The object '%s' does not exist or is invalid for this operation.", parentName)
+		}
 		table.Triggers = append(table.Triggers, trigger)
 		return nil
 	}
@@ -999,7 +1053,7 @@ func (c *Catalog) execCreateOrAlterTrigger(n *ast.CreateTriggerStmt, source stri
 // --- CREATE / ALTER SEQUENCE ---
 
 func (c *Catalog) execCreateSequence(n *ast.CreateSequenceStmt, source string) error {
-	if n.DataType != nil && !isValidSequenceType(n.DataType) {
+	if !c.lenientMetadataLoad && n.DataType != nil && !isValidSequenceType(n.DataType) {
 		return mssqlErr(ErrUnknownType, "Type '%s' is not a defined system type.", n.DataType.Name)
 	}
 	schemaName, sequenceName := tableRefSchemaObject(n.Name, c.defaultSchema)
@@ -1072,7 +1126,7 @@ func (c *Catalog) execAlterSequence(n *ast.AlterSequenceStmt, source string) err
 		seq.CacheSize = "NO CACHE"
 	} else if n.Cache != nil {
 		seq.CacheSize = strings.TrimSpace(nodeText(n.Cache, source))
-	} else if strings.Contains(strings.ToUpper(nodeText(n, source)), "CACHE") {
+	} else if n.HasCache {
 		seq.CacheSize = ""
 	}
 	return nil
@@ -1123,14 +1177,39 @@ func (c *Catalog) execAlterTable(n *ast.AlterTableStmt, source string) error {
 	default:
 		return mssqlErr(ErrAlterTableNotTable, "Cannot alter '%s' because it is not a table.", tableName)
 	}
-	table := c.GetTable(schemaName, tableName)
+	table := c.resolveTableInSchema(schema, tableName)
+	if table == nil {
+		return mssqlErr(ErrAlterTableNotFound, "Cannot find the object \"%s\" because it does not exist or you do not have permissions.", tableName)
+	}
+
+	// Stage actions against a clone of the table so a failing later action
+	// leaves the catalog untouched, matching SQL Server statement atomicity.
+	tableIdx := -1
+	for i, t := range schema.Tables {
+		if t == table {
+			tableIdx = i
+			break
+		}
+	}
+	staged := cloneTable(table)
+	savedIndexCounter := c.indexCounter
+	key := tableKey{schema: schema.Name, table: table.Name}
+	if tableIdx >= 0 {
+		schema.Tables[tableIdx] = staged
+		c.tableByName[key] = staged
+	}
 
 	for _, item := range n.Actions.Items {
 		action, ok := item.(*ast.AlterTableAction)
 		if !ok {
 			continue
 		}
-		if err := c.execAlterTableAction(table, schemaName, action, source); err != nil {
+		if err := c.execAlterTableAction(staged, schema.Name, action, source); err != nil {
+			if tableIdx >= 0 {
+				schema.Tables[tableIdx] = table
+				c.tableByName[key] = table
+			}
+			c.indexCounter = savedIndexCounter
 			return err
 		}
 	}
@@ -1184,7 +1263,7 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 		if columnByName(table, action.Column.Name) != nil {
 			return mssqlErr(ErrDupColumn, "Column names in each table must be unique. Column name '%s' in table '%s' is specified more than once.", action.Column.Name, table.Name)
 		}
-		if action.Column.Computed == nil && !isValidDataType(action.Column.DataType, false) {
+		if !c.lenientMetadataLoad && action.Column.Computed == nil && !isValidDataType(action.Column.DataType, false) {
 			typeName := ""
 			if action.Column.DataType != nil {
 				typeName = action.Column.DataType.Name
@@ -1221,7 +1300,7 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 		if col == nil {
 			return mssqlErr(ErrAlterColNotFound, "ALTER TABLE ALTER COLUMN %s failed because column '%s' does not exist in table '%s'.", action.ColName, action.ColName, table.Name)
 		}
-		if !isValidDataType(action.DataType, false) {
+		if !c.lenientMetadataLoad && !isValidDataType(action.DataType, false) {
 			typeName := ""
 			if action.DataType != nil {
 				typeName = action.DataType.Name
@@ -1840,8 +1919,9 @@ func (c *Catalog) execDropObjects(n *ast.DropStmt, wantKind objectKind, sqlKind 
 func (c *Catalog) removeObject(schema *metadata.SchemaMetadata, kind objectKind, name string) {
 	switch kind {
 	case kindTable:
+		target := c.resolveTableInSchema(schema, name)
 		for i, t := range schema.Tables {
-			if strings.EqualFold(t.Name, name) {
+			if t == target || (target == nil && strings.EqualFold(t.Name, name)) {
 				delete(c.tableByName, tableKey{schema: schema.Name, table: t.Name})
 				schema.Tables = append(schema.Tables[:i], schema.Tables[i+1:]...)
 				return
@@ -1894,7 +1974,11 @@ func (c *Catalog) execTruncateTable(n *ast.TruncateStmt) error {
 	default:
 		return mssqlErr(ErrTruncateNotTable, "Cannot truncate object '%s' because it is not a table.", tableName)
 	}
-	if fkName, referenced := hasInboundFK(c, schema.Name, tableName); referenced {
+	table := c.resolveTableInSchema(schema, tableName)
+	if table == nil {
+		return mssqlErr(ErrTruncateNotFound, "Cannot find the object \"%s\" because it does not exist or you do not have permissions.", tableName)
+	}
+	if fkName, referenced := hasInboundFK(c, schema.Name, table.Name); referenced {
 		return mssqlErr(ErrTruncateReferencedByFK, "Cannot truncate table '%s' because it is being referenced by a FOREIGN KEY constraint '%s'.", tableName, fkName)
 	}
 	return nil

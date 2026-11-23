@@ -1062,3 +1062,15 @@ func cloneSchema(schema *metadata.SchemaMetadata) *metadata.SchemaMetadata {
 	}
 	return out
 }
+
+func cloneTable(table *metadata.TableMetadata) *metadata.TableMetadata {
+	data, err := json.Marshal(table)
+	if err != nil {
+		return table
+	}
+	out := &metadata.TableMetadata{}
+	if err := json.Unmarshal(data, out); err != nil {
+		return table
+	}
+	return out
+}

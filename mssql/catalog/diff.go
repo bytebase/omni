@@ -1297,6 +1297,23 @@ func canonicalizeSQLExpr(expr string) string {
 			toks = append(toks, expr[start:i])
 			continue
 		}
+		if ch == '"' {
+			start := i
+			i++
+			for i < len(expr) {
+				if expr[i] == '"' {
+					i++
+					if i < len(expr) && expr[i] == '"' {
+						i++
+						continue
+					}
+					break
+				}
+				i++
+			}
+			toks = append(toks, expr[start:i])
+			continue
+		}
 		if (ch == '<' || ch == '>' || ch == '!') && i+1 < len(expr) && (expr[i+1] == '=' || (ch == '<' && expr[i+1] == '>')) {
 			toks = append(toks, expr[i:i+2])
 			i += 2
@@ -1311,6 +1328,9 @@ func canonicalizeSQLExpr(expr string) string {
 		for i < len(expr) && !strings.ContainsRune(" \t\r\n'\"[(),=<>!+-*/", rune(expr[i])) {
 			i++
 		}
+		if i == start {
+			i++
+		}
 		toks = append(toks, expr[start:i])
 	}
 	// Collapse "( atom )" where atom is a single number, literal, or bracketed
@@ -1319,7 +1339,7 @@ func canonicalizeSQLExpr(expr string) string {
 		if tok == "" || tok == "(" || tok == ")" || tok == "," {
 			return false
 		}
-		if tok[0] == '\'' || tok[0] == '[' {
+		if tok[0] == '\'' || tok[0] == '[' || tok[0] == '"' {
 			return true
 		}
 		for i := 0; i < len(tok); i++ {
@@ -1335,7 +1355,7 @@ func canonicalizeSQLExpr(expr string) string {
 			return false
 		}
 		c := tok[0]
-		return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_' || c == '['
+		return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_' || c == '[' || c == '"'
 	}
 	changed := true
 	for changed {
