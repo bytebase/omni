@@ -142,7 +142,8 @@ func Split(script string) []Segment {
 			kwDO, kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwSORT, kwCLUSTER, kwDISTRIBUTE,
 			kwWINDOW, kwLIMIT, kwOFFSET, kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS,
 			kwJOIN, kwINNER, kwLEFT, kwRIGHT, kwFULL, kwCROSS, kwNATURAL, kwSEMI, kwANTI, kwLATERAL,
-			kwON, kwUSING, kwAS, kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN:
+			kwON, kwUSING, kwAS, kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN,
+			kwASC, kwDESC, kwNULLS, kwELSE, kwELSEIF, kwTHEN, kwWHEN:
 			return false
 		}
 		return true
@@ -541,7 +542,8 @@ func Split(script string) []Segment {
 			// `IF CASE WHEN ... THEN ... END THEN` doesn't treat the expression's
 			// THEN as the IF body start, while preserving non-reserved identifiers
 			// named `case` (e.g. `IF case = 1 THEN ...`).
-			if (stmtHead == kwIF || stmtHead == kwELSEIF || stmtHead == kwWHEN || stmtHead == kwCASE || stmtHead == kwUNTIL || stmtHead == kwWHILE) &&
+			if (stmtHead == kwIF || stmtHead == kwELSEIF || stmtHead == kwWHEN || stmtHead == kwCASE ||
+				stmtHead == kwUNTIL || stmtHead == kwWHILE || stmtHead == kwFOR) &&
 				isCaseExprStart(prevKind) {
 				caseStack = append(caseStack, caseFrame{parenDepth: parenDepth, phase: caseExpectWhen})
 				prevIsValue = false
@@ -612,6 +614,10 @@ func Split(script string) []Segment {
 			} else {
 				prevIsValue = true
 			}
+		case kwALL:
+			// `GROUP BY ALL DO` and `LIMIT ALL DO` end the clause with a value,
+			// whereas `SELECT ALL <expr>` / `UNION ALL <query>` expect an operand.
+			prevIsValue = prevKind == kwBY || prevKind == kwLIMIT
 		default:
 			prevIsValue = !isExprOperatorOrClause(tok.Kind)
 		}

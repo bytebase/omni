@@ -379,10 +379,10 @@ func (p *Parser) isSingleBarPipeStart() bool {
 	if p.queryDepth <= 0 || p.cur().Kind != tokPipe || p.parenDepth != p.queryParenDepth {
 		return false
 	}
-	if p.inSelectList && p.hasKeywordAtDepthZero(1, kwFROM) {
+	if !p.isSingleBarPipeStageAt(1) {
 		return false
 	}
-	if !p.isSingleBarPipeStageAt(1) {
+	if p.inSelectList && p.hasSelectListFromAhead() {
 		return false
 	}
 	if p.probingSingleBarPipe {
@@ -396,6 +396,49 @@ func (p *Parser) isSingleBarPipeStart() bool {
 	p.probingSingleBarPipe = false
 	p.restore(cp)
 	return validEnd
+}
+
+// hasSelectListFromAhead reports whether a depth-0 FROM keyword appears ahead
+// in the current SELECT projection list. The result is memoized per
+// parseSelectClause invocation in p.selectListFromPos so long bitwise-OR chains
+// containing candidate keywords (such as `limit | limit | ... FROM t`) scan at
+// most once in O(N) total time.
+func (p *Parser) hasSelectListFromAhead() bool {
+	if p.selectListFromPos == -2 {
+		return false
+	}
+	if p.selectListFromPos > p.pos {
+		return true
+	}
+	depth := 0
+	for i := p.pos + 1; i < len(p.toks); i++ {
+		k := p.toks[i].Kind
+		switch k {
+		case tokEOF:
+			p.selectListFromPos = -2
+			return false
+		case tokLParen, tokLBracket:
+			depth++
+		case tokRParen, tokRBracket:
+			if depth == 0 {
+				p.selectListFromPos = -2
+				return false
+			}
+			depth--
+		case tokSemicolon, tokOperatorPipe:
+			if depth == 0 {
+				p.selectListFromPos = -2
+				return false
+			}
+		case kwFROM:
+			if depth == 0 {
+				p.selectListFromPos = i
+				return true
+			}
+		}
+	}
+	p.selectListFromPos = -2
+	return false
 }
 
 func (p *Parser) isValidSingleBarPipeEnd() bool {
@@ -895,9 +938,12 @@ func (p *Parser) parseSelectClause() error {
 	}
 	p.matchSetQuantifierIfFollowedByExpr()
 	prevInSelectList := p.inSelectList
+	prevSelectFromPos := p.selectListFromPos
 	p.inSelectList = true
+	p.selectListFromPos = -1
 	err := p.parseNamedExpressionSeq()
 	p.inSelectList = prevInSelectList
+	p.selectListFromPos = prevSelectFromPos
 	return err
 }
 

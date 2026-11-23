@@ -7,23 +7,24 @@ import (
 
 // checkpoint stores parser cursor state for LL(k) backtracking.
 type checkpoint struct {
-	pos             int
-	gtPending       int
-	gtStart         int
-	gtEnd           int
-	parenDepth      int
-	windowSpecSeen  bool
-	queryDepth      int
-	queryParenDepth int
-	hasTransform    bool
-	hasEmptyPipe    bool
-	hasPipe         bool
-	inSelectList    bool
-	limitLoc        Loc
-	limitAll        bool
-	offsetLoc       Loc
-	tableRefCount   int
-	cteScopeCount   int
+	pos               int
+	gtPending         int
+	gtStart           int
+	gtEnd             int
+	parenDepth        int
+	windowSpecSeen    bool
+	queryDepth        int
+	queryParenDepth   int
+	hasTransform      bool
+	hasEmptyPipe      bool
+	hasPipe           bool
+	inSelectList      bool
+	selectListFromPos int
+	limitLoc          Loc
+	limitAll          bool
+	offsetLoc         Loc
+	tableRefCount     int
+	cteScopeCount     int
 }
 
 // Parser is a hand-written recursive-descent parser for Databricks / Spark SQL.
@@ -76,6 +77,7 @@ type Parser struct {
 	hasEmptyPipe           bool
 	hasPipe                bool
 	inSelectList           bool
+	selectListFromPos      int
 	probingSingleBarPipe   bool
 	limitLoc               Loc
 	limitAll               bool
@@ -93,8 +95,9 @@ func Parse(sql string) (*ParseResult, error) {
 		return nil, err
 	}
 	p := &Parser{
-		src:  sql,
-		toks: toks,
+		src:               sql,
+		toks:              toks,
+		selectListFromPos: -1,
 	}
 	if p.cur().Kind == tokEOF {
 		return nil, p.errorf("empty SQL input")
@@ -124,23 +127,24 @@ func Parse(sql string) (*ParseResult, error) {
 
 func (p *Parser) save() checkpoint {
 	return checkpoint{
-		pos:             p.pos,
-		gtPending:       p.gtPending,
-		gtStart:         p.gtStart,
-		gtEnd:           p.gtEnd,
-		parenDepth:      p.parenDepth,
-		windowSpecSeen:  p.windowSpecSeen,
-		queryDepth:      p.queryDepth,
-		queryParenDepth: p.queryParenDepth,
-		hasTransform:    p.hasTransform,
-		hasEmptyPipe:    p.hasEmptyPipe,
-		hasPipe:         p.hasPipe,
-		inSelectList:    p.inSelectList,
-		limitLoc:        p.limitLoc,
-		limitAll:        p.limitAll,
-		offsetLoc:       p.offsetLoc,
-		tableRefCount:   len(p.tableRefs),
-		cteScopeCount:   len(p.cteScopes),
+		pos:               p.pos,
+		gtPending:         p.gtPending,
+		gtStart:           p.gtStart,
+		gtEnd:             p.gtEnd,
+		parenDepth:        p.parenDepth,
+		windowSpecSeen:    p.windowSpecSeen,
+		queryDepth:        p.queryDepth,
+		queryParenDepth:   p.queryParenDepth,
+		hasTransform:      p.hasTransform,
+		hasEmptyPipe:      p.hasEmptyPipe,
+		hasPipe:           p.hasPipe,
+		inSelectList:      p.inSelectList,
+		selectListFromPos: p.selectListFromPos,
+		limitLoc:          p.limitLoc,
+		limitAll:          p.limitAll,
+		offsetLoc:         p.offsetLoc,
+		tableRefCount:     len(p.tableRefs),
+		cteScopeCount:     len(p.cteScopes),
 	}
 }
 
@@ -157,6 +161,7 @@ func (p *Parser) restore(cp checkpoint) {
 	p.hasEmptyPipe = cp.hasEmptyPipe
 	p.hasPipe = cp.hasPipe
 	p.inSelectList = cp.inSelectList
+	p.selectListFromPos = cp.selectListFromPos
 	p.limitLoc = cp.limitLoc
 	p.limitAll = cp.limitAll
 	p.offsetLoc = cp.offsetLoc

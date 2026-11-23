@@ -323,6 +323,18 @@ func TestSplit(t *testing.T) {
 			empty:  []bool{false, false},
 		},
 		{
+			name:   "CASE expression referencing do inside FOR query header",
+			script: "BEGIN DECLARE do INT DEFAULT 1; FOR SELECT CASE WHEN true THEN do ELSE 1 END AS x DO WHILE false DO SELECT 1; END WHILE; END FOR; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE do INT DEFAULT 1; FOR SELECT CASE WHEN true THEN do ELSE 1 END AS x DO WHILE false DO SELECT 1; END WHILE; END FOR; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "FOR query with ORDER BY do ASC and GROUP BY ALL before DO",
+			script: "BEGIN FOR SELECT a FROM t GROUP BY ALL ORDER BY do ASC DO WHILE false DO SELECT 1; END WHILE; END FOR; END; SELECT 2;",
+			want:   []string{"BEGIN FOR SELECT a FROM t GROUP BY ALL ORDER BY do ASC DO WHILE false DO SELECT 1; END WHILE; END FOR; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
 			name:   "then variable inside IF condition with nested IF",
 			script: "BEGIN DECLARE then INT DEFAULT 1; IF then = 1 THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
 			want:   []string{"BEGIN DECLARE then INT DEFAULT 1; IF then = 1 THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},

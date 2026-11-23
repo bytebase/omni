@@ -329,4 +329,24 @@ func TestValidateQueryNestingAndScale(t *testing.T) {
 			t.Errorf("ValidateQuery(long union) = (%v, %v), want (true, true)", readOnly, returnsData)
 		}
 	})
+
+	t.Run("long bitwise-OR projection chains stay linear", func(t *testing.T) {
+		for _, term := range []string{"x", "limit"} {
+			var b strings.Builder
+			b.WriteString("SELECT ")
+			b.WriteString(term)
+			for i := 0; i < 16000; i++ {
+				b.WriteString(" | ")
+				b.WriteString(term)
+			}
+			b.WriteString(" FROM t")
+			readOnly, returnsData, err := ValidateQuery(b.String())
+			if err != nil {
+				t.Fatalf("ValidateQuery(long bitwise-OR %q) err = %v", term, err)
+			}
+			if !readOnly || !returnsData {
+				t.Errorf("ValidateQuery(long bitwise-OR %q) = (%v, %v), want (true, true)", term, readOnly, returnsData)
+			}
+		}
+	})
 }
