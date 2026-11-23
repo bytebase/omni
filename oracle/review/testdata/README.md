@@ -30,7 +30,12 @@ Total: **33,847 rows** (3,753 accepted `ok`, 30,094 refused).
 `TestWalkSimulation` (`../walk_simulation_test.go`) enforces **zero false positives**
 on all 3,753 Oracle-accepted rows and verifies every finding on refused rows against
 either Oracle's error code or the fixture's real Oracle inventory synced via
-`tapes/TestWalkSimulation.tape`. Currently catches 25,595 / 30,094 refusals (85.1%).
+`tapes/TestWalkSimulation.tape`. Currently catches 25,768 / 30,094 refusals (85.6%).
+
+Its `queries` subtest walks `../../catalog/testdata/queries/simulate.tsv`, each
+query as `CREATE VIEW v AS <query>` on the catalog's fixtures, and asks Oracle for
+each verdict on the same tape. The walk resolves no view query, so it catches 6 / 255
+refusals (2.4%); the subtest holds it to zero false positives.
 
 ## Commands
 

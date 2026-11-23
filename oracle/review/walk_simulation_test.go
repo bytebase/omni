@@ -87,7 +87,7 @@ var walkSimMinFixtureRecallPct = map[string]float64{
 	"objects@partitioned":   87.5,
 	"objects@index_trigger": 91.5,
 	"objects@view":          91.5,
-	"objects@matview":       56.0,
+	"objects@matview":       56.5,
 	"objects@sequence":      93.0,
 	"objects@synonym":       87.0,
 	"objects@function":      93.5,
@@ -401,6 +401,7 @@ func TestWalkSimulation(t *testing.T) {
 	if pct < walkSimMinTotalRecallPct {
 		t.Errorf("total WALK_THROUGH refusal recall %.1f%% (%d/%d) dropped below floor %.1f%%", pct, totalFound, totalRefused, walkSimMinTotalRecallPct)
 	}
+	t.Run("queries", func(t *testing.T) { walkSimQueries(t, w, shop, allNames) })
 	if *walkSimShowMissed {
 		type kv struct {
 			k string
@@ -422,6 +423,90 @@ func TestWalkSimulation(t *testing.T) {
 			}
 			t.Logf("MISSED %4d | %s | e.g. %s", item.n, item.k, missedSample[item.k])
 		}
+	}
+}
+
+// walkSimQueriesSuite is oracle/catalog's query suite: each query Oracle
+// accepts in compat.tsv, and a corpus of Oracle's query forms, as CREATE
+// VIEW v AS <query>, on the catalog's fixtures. The walk reads it for its
+// statements and fixtures, and asks the server for each verdict itself.
+const walkSimQueriesSuite = "../catalog/testdata/queries/simulate.tsv"
+
+// walkSimQueriesMinRecallPct is the queries subtest's recall floor.
+const walkSimQueriesMinRecallPct = 2.0
+
+// walkSimQueries holds WALK_THROUGH to the query suite as TestWalkSimulation
+// holds it to compat.tsv: no finding on a statement Oracle accepts, and a
+// finding on a refused one maps to Oracle's code or claims only what the
+// fixture holds.
+func walkSimQueries(t *testing.T, w *walkSchemas, shop, allNames string) {
+	suite, err := simulate.ReadFile(walkSimQueriesSuite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixtures []string
+	rowsByFixture := map[string][]simulate.Row{}
+	for _, r := range suite.Rows {
+		if rowsByFixture[r.Fixture] == nil {
+			fixtures = append(fixtures, r.Fixture)
+		}
+		rowsByFixture[r.Fixture] = append(rowsByFixture[r.Fixture], r)
+	}
+	var refused, found int
+	var problems []string
+	for _, fxName := range fixtures {
+		fxPath := filepath.Join("..", "catalog", "testdata", "fixtures", fxName+".sql")
+		rawSQL, err := os.ReadFile(fxPath)
+		if err != nil {
+			t.Fatalf("read fixture %s: %v", fxPath, err)
+		}
+		fxStmts := splitFixtureStatements(t, string(rawSQL))
+		resetSimFixture(t, w.adminConn, shop, fxStmts, false)
+		e := &oracleEngine{
+			w:      w,
+			conn:   w.adminConn,
+			target: review.Target{Schema: walkSync(t, w.adminConn, shop, allNames)},
+		}
+		inventory := simNormalizeInventory(e.Inventory(t, allNames))
+		var fxRefused, fxFound int
+		for _, r := range rowsByFixture[fxName] {
+			verdict := execSimStatement(t, w.adminConn, r.Statement)
+			if verdict == "ok" {
+				resetSimFixture(t, w.adminConn, shop, fxStmts, false)
+			}
+			finding := walkSimReport(t, e, r.Statement)
+			switch {
+			case verdict == "ok" && finding != nil:
+				problems = append(problems, fmt.Sprintf("[%s] FALSE POSITIVE %q on an Oracle-accepted statement:\n    %s", fxName, finding.Message, r.Statement))
+			case verdict == "ok":
+			case finding == nil:
+				fxRefused++
+			default:
+				fxRefused++
+				fxFound++
+				if slices.Contains(e.Codes(finding.Message), verdict) {
+					continue
+				}
+				v := e.Violation(t, r.Statement)
+				if holds, why := simClaimsHold(walktest.Claims(v), inventory, e.Same); !holds {
+					problems = append(problems, fmt.Sprintf("[%s] INVALID CLAIM %q on ORA-%s (%s):\n    %s", fxName, finding.Message, verdict, why, r.Statement))
+				}
+			}
+		}
+		refused += fxRefused
+		found += fxFound
+		t.Logf("fixture %-22s: %4d rows, caught %4d/%4d refusals", fxName, len(rowsByFixture[fxName]), fxFound, fxRefused)
+	}
+	if len(problems) > 0 {
+		t.Errorf("%d problems (showing up to 50):\n%s", len(problems), strings.Join(problems[:min(50, len(problems))], "\n"))
+	}
+	pct := 0.0
+	if refused > 0 {
+		pct = 100 * float64(found) / float64(refused)
+	}
+	t.Logf("queries: caught %d/%d refusals (%.1f%%)", found, refused, pct)
+	if pct < walkSimQueriesMinRecallPct {
+		t.Errorf("queries recall %.1f%% (%d/%d) dropped below floor %.1f%%", pct, found, refused, walkSimQueriesMinRecallPct)
 	}
 }
 
