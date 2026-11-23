@@ -545,3 +545,12 @@ const fkVarchar = "CREATE TABLE p (id VARCHAR(10) PRIMARY KEY) CHARSET=utf8mb4; 
 
 const srsInUse = `CREATE SPATIAL REFERENCE SYSTEM 1000001 NAME 'zz' DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["degree",0.017453292519943278],AXIS["Lat",NORTH],AXIS["Lon",EAST]]';
 	CREATE TABLE g (x GEOMETRY SRID 1000001);`
+
+func TestNestedCTEKeepsOuterShadowing(t *testing.T) {
+	// The outer CTE t shadows a.t inside x's body too.
+	c := familiesCatalog(t, "CREATE TABLE t (id INT);")
+	mustExec(t, c, "CREATE VIEW v AS WITH t AS (SELECT 2 AS id) SELECT d.id FROM (WITH x AS (SELECT a.t.id FROM a.t) SELECT * FROM x) d")
+	if got := c.GetDatabase("a").Views["v"].Definition; !strings.Contains(got, "from `a`.`t`") {
+		t.Errorf("x reads the outer CTE:\n%s", got)
+	}
+}

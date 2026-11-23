@@ -128,6 +128,7 @@ func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string
 				NormalizeCastAsYear: r.NormalizeCastAsYear,
 				Source:              r.Source,
 				DefaultSchema:       r.DefaultSchema,
+				shadowing:           r.shadowing,
 			}
 			cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
 			if vt := buildCTEVirtualTable(cte, cteResolver.Lookup, r.SchemaLookup); vt != nil {
@@ -175,6 +176,7 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 					NormalizeCastAsYear: r.NormalizeCastAsYear,
 					Source:              r.Source,
 					DefaultSchema:       r.DefaultSchema,
+					shadowing:           r.shadowing,
 				}
 				cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
 				vt := buildCTEVirtualTable(cte, cteResolver.Lookup, r.SchemaLookup)
@@ -228,6 +230,7 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 				NormalizeCastAsYear: r.NormalizeCastAsYear,
 				Source:              r.Source,
 				DefaultSchema:       r.DefaultSchema,
+				shadowing:           r.shadowing,
 			}
 			leftResolver.resolveWithCTEs(sel.Left, localCTETables)
 
@@ -246,6 +249,7 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 				NormalizeCastAsYear: r.NormalizeCastAsYear,
 				Source:              r.Source,
 				DefaultSchema:       r.DefaultSchema,
+				shadowing:           r.shadowing,
 			}
 			rightResolver.resolveWithCTEs(sel.Right, localCTETables)
 		} else {
@@ -258,6 +262,7 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 				NormalizeCastAsYear: r.NormalizeCastAsYear,
 				Source:              r.Source,
 				DefaultSchema:       r.DefaultSchema,
+				shadowing:           r.shadowing,
 			}
 			cteResolver.resolveWithCTEs(cte.Select, localCTETables)
 
