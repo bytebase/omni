@@ -772,18 +772,22 @@ func commonResultType(results []qtype, strict bool) (qtype, error) {
 // decodeExpr types DECODE: its first result's family, character results
 // widened to VARCHAR2 and numbers to NUMBER.
 func (a *queryAnalyzer) decodeExpr(n *ast.DecodeExpr, sc *qscope, clause exprClause) (qtype, bool, error) {
-	if _, _, err := a.expr(n.Arg, sc, clause); err != nil {
+	argType, _, err := a.expr(n.Arg, sc, clause)
+	if err != nil {
 		return qtype{}, false, err
 	}
+	comparands := []qtype{argType}
 	var results []qtype
 	for _, item := range listItems(n.Pairs) {
 		p, ok := item.(*ast.DecodePair)
 		if !ok {
 			continue
 		}
-		if _, _, err := a.expr(p.Search, sc, clause); err != nil {
+		st, _, err := a.expr(p.Search, sc, clause)
+		if err != nil {
 			return qtype{}, false, err
 		}
+		comparands = append(comparands, st)
 		t, _, err := a.expr(p.Result, sc, clause)
 		if err != nil {
 			return qtype{}, false, err
@@ -805,7 +809,17 @@ func (a *queryAnalyzer) decodeExpr(n *ast.DecodeExpr, sc *qscope, clause exprCla
 		}
 		return varchar2Bytes(n), false, nil
 	}
-	return widenFirst(results), false, nil
+	t := widenFirst(results)
+	if t.isNumeric() {
+		// A numeric DECODE takes the highest numeric precedence of its
+		// comparisons and results.
+		for _, x := range comparands {
+			if x.isNumeric() {
+				t = numericResult(t, x)
+			}
+		}
+	}
+	return t, false, nil
 }
 
 // widenFirst is the result type of DECODE, NVL and the like: the first

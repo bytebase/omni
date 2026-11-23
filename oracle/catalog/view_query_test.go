@@ -227,6 +227,8 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"grouping_without_group_by", `CREATE VIEW v AS SELECT GROUPING(id) g FROM t`, "30481"},
 		{"ansi_join_with_plus", `CREATE VIEW v AS SELECT a.id FROM t a LEFT JOIN t b ON a.id=b.id WHERE a.id=b.id(+)`, "25156"},
 		{"prior_without_connect_by", `CREATE VIEW v AS SELECT PRIOR id x FROM t`, "01788"},
+		{"pivot_lob_grouping_column", `CREATE VIEW v AS SELECT * FROM (SELECT id, n, doc FROM t) PIVOT (SUM(id) FOR n IN (1 AS one))`, "22848"},
+		{"fetch_first_date", `CREATE VIEW v AS SELECT dummy FROM dual FETCH FIRST DATE '2020-01-01' ROWS ONLY`, "00932"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -1050,5 +1052,15 @@ CREATE VIEW w AS SELECT SYS_CONTEXT('USERENV', 'AUTHENTICATION_DATA', 4000) x FR
 		if got := v.GetColumns()[0].GetType(); got != want[v.GetName()] {
 			t.Errorf("%s.X type = %q, want %q", v.GetName(), got, want[v.GetName()])
 		}
+	}
+}
+
+func TestViewQueryDecodePrecedence(t *testing.T) {
+	c, err := LoadSQL(`CREATE VIEW v AS SELECT DECODE(1d, 1, 1, 0) x FROM dual;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns()[0].GetType(); got != "BINARY_DOUBLE" {
+		t.Errorf("type = %q, want BINARY_DOUBLE", got)
 	}
 }

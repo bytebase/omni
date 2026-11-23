@@ -727,6 +727,10 @@ func (a *queryAnalyzer) pivot(n *ast.PivotClause, sc *qscope) (*qfrom, error) {
 		if used[c.name] || c.hidden {
 			continue
 		}
+		// Every column the pivot does not consume groups its rows.
+		if c.typ.isLOB() {
+			return nil, oraError("22848", "cannot use %s type as comparison key", c.typ.kind)
+		}
 		rel.cols = append(rel.cols, c)
 	}
 	for _, item := range items {

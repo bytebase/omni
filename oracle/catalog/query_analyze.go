@@ -1224,8 +1224,13 @@ func (a *queryAnalyzer) fetchClause(f *ast.FetchFirstClause, sc *qscope) error {
 		if x == nil {
 			continue
 		}
-		if _, _, err := a.expr(x, sc, clauseFrom); err != nil {
+		t, _, err := a.expr(x, sc, clauseFrom)
+		if err != nil {
 			return err
+		}
+		// A row count is a number.
+		if t.isDatetime() || t.isInterval() || t.isLOB() || t.kind == "RAW" || t.kind == "BOOLEAN" {
+			return oraError("00932", "expression is of data type %s, which is incompatible with expected data type NUMBER", t.kind)
 		}
 	}
 	return nil
