@@ -117,11 +117,15 @@ ok:a091cc6acc0f	ok:a091cc6acc0f	engine	one_table@column	literal/BIN_STRING_VALUE
 1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_LE_sub_query_flag_select_with_parens	CREATE VIEW _v AS SELECT a <= ALL(SELECT a)
 1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_LE_sub_query_flag_select_with_parens!drop-3	CREATE VIEW _v AS SELECT a <=(SELECT a)
 1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_LE_sub_query_flag_select_with_parens!insert	CREATE VIEW _v AS SELECT a <= ALL(SELECT a) zzz
+1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_LE_sub_query_flag_select_with_parens+sub_query_flag/ANY	CREATE VIEW _v AS SELECT a <= ANY(SELECT a)
+1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_LE_sub_query_flag_select_with_parens+sub_query_flag/SOME	CREATE VIEW _v AS SELECT a <= SOME(SELECT a)
 1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_LT_predicate	CREATE VIEW _v AS SELECT a < a
 1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_LT_predicate!insert	CREATE VIEW _v AS SELECT a < a zzz
 1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_LT_sub_query_flag_select_with_parens	CREATE VIEW _v AS SELECT a < ALL(SELECT a)
 1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_LT_sub_query_flag_select_with_parens!drop-3	CREATE VIEW _v AS SELECT a <(SELECT a)
 1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_LT_sub_query_flag_select_with_parens!insert	CREATE VIEW _v AS SELECT a < ALL(SELECT a) zzz
+1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_LT_sub_query_flag_select_with_parens+sub_query_flag/ANY	CREATE VIEW _v AS SELECT a < ANY(SELECT a)
+1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_LT_sub_query_flag_select_with_parens+sub_query_flag/SOME	CREATE VIEW _v AS SELECT a < SOME(SELECT a)
 1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_EQ_predicate	CREATE VIEW _v AS SELECT a = a
 1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_EQ_predicate!insert	CREATE VIEW _v AS SELECT a = a zzz
 1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_EQ_sub_query_flag_any_expr	CREATE VIEW _v AS SELECT a = ALL(a)
@@ -134,16 +138,22 @@ ok:a091cc6acc0f	ok:a091cc6acc0f	engine	one_table@column	literal/BIN_STRING_VALUE
 1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_GE_sub_query_flag_select_with_parens	CREATE VIEW _v AS SELECT a >= ALL(SELECT a)
 1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_GE_sub_query_flag_select_with_parens!drop-3	CREATE VIEW _v AS SELECT a >=(SELECT a)
 1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_GE_sub_query_flag_select_with_parens!insert	CREATE VIEW _v AS SELECT a >= ALL(SELECT a) zzz
+1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_GE_sub_query_flag_select_with_parens+sub_query_flag/ANY	CREATE VIEW _v AS SELECT a >= ANY(SELECT a)
+1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_GE_sub_query_flag_select_with_parens+sub_query_flag/SOME	CREATE VIEW _v AS SELECT a >= SOME(SELECT a)
 1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_GT_predicate	CREATE VIEW _v AS SELECT a > a
 1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_GT_predicate!insert	CREATE VIEW _v AS SELECT a > a zzz
 1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_GT_sub_query_flag_select_with_parens	CREATE VIEW _v AS SELECT a > ALL(SELECT a)
 1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_GT_sub_query_flag_select_with_parens!drop-3	CREATE VIEW _v AS SELECT a >(SELECT a)
 1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_GT_sub_query_flag_select_with_parens!insert	CREATE VIEW _v AS SELECT a > ALL(SELECT a) zzz
+1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_GT_sub_query_flag_select_with_parens+sub_query_flag/ANY	CREATE VIEW _v AS SELECT a > ANY(SELECT a)
+1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_GT_sub_query_flag_select_with_parens+sub_query_flag/SOME	CREATE VIEW _v AS SELECT a > SOME(SELECT a)
 1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_NE_predicate	CREATE VIEW _v AS SELECT a != a
 1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_NE_predicate!insert	CREATE VIEW _v AS SELECT a != a zzz
 1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_NE_sub_query_flag_select_with_parens	CREATE VIEW _v AS SELECT a != ALL(SELECT a)
 1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_NE_sub_query_flag_select_with_parens!drop-3	CREATE VIEW _v AS SELECT a !=(SELECT a)
 1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_NE_sub_query_flag_select_with_parens!insert	CREATE VIEW _v AS SELECT a != ALL(SELECT a) zzz
+1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_NE_sub_query_flag_select_with_parens+sub_query_flag/ANY	CREATE VIEW _v AS SELECT a != ANY(SELECT a)
+1054	1054	engine	one_table@column	bool_pri/bool_pri_COMP_NE_sub_query_flag_select_with_parens+sub_query_flag/SOME	CREATE VIEW _v AS SELECT a != SOME(SELECT a)
 1054	1054	engine	one_table@column	opt_of/OF	CREATE VIEW _v AS SELECT a MEMBER OF(a)
 1054	1054	engine	one_table@column	opt_of/%empty	CREATE VIEW _v AS SELECT a MEMBER(a)
 1054	1054	engine	one_table@column	predicate/bit_expr_IN_in_expr	CREATE VIEW _v AS SELECT a IN(a)
@@ -194,9 +204,47 @@ ok:6341983d1cd5	ok:6341983d1cd5	engine	one_table@column	string_val_list/string_v
 1054	1054	engine	one_table@column	bit_expr/bit_expr_+_INTERVAL_expr_date_unit!insert	CREATE VIEW _v AS SELECT a + INTERVAL a DAY zzz
 1054	1054	engine	one_table@column	bit_expr/INTERVAL_expr_date_unit_+_bit_expr	CREATE VIEW _v AS SELECT INTERVAL a DAY + a
 1054	1054	engine	one_table@column	bit_expr/INTERVAL_expr_date_unit_+_bit_expr!insert	CREATE VIEW _v AS SELECT INTERVAL a DAY + a zzz
+1054	1054	engine	one_table@column	bit_expr/INTERVAL_expr_date_unit_+_bit_expr+date_unit/DAY_HOUR	CREATE VIEW _v AS SELECT INTERVAL a DAY_HOUR + a
+1054	1054	engine	one_table@column	bit_expr/INTERVAL_expr_date_unit_+_bit_expr+date_unit/DAY_MICROSECOND	CREATE VIEW _v AS SELECT INTERVAL a DAY_MICROSECOND + a
+1054	1054	engine	one_table@column	bit_expr/INTERVAL_expr_date_unit_+_bit_expr+date_unit/DAY_MINUTE	CREATE VIEW _v AS SELECT INTERVAL a DAY_MINUTE + a
+1054	1054	engine	one_table@column	bit_expr/INTERVAL_expr_date_unit_+_bit_expr+date_unit/DAY_SECOND	CREATE VIEW _v AS SELECT INTERVAL a DAY_SECOND + a
+1054	1054	engine	one_table@column	bit_expr/INTERVAL_expr_date_unit_+_bit_expr+date_unit/HOUR	CREATE VIEW _v AS SELECT INTERVAL a HOUR + a
+1054	1054	engine	one_table@column	bit_expr/INTERVAL_expr_date_unit_+_bit_expr+date_unit/HOUR_MICROSECOND	CREATE VIEW _v AS SELECT INTERVAL a HOUR_MICROSECOND + a
+1054	1054	engine	one_table@column	bit_expr/INTERVAL_expr_date_unit_+_bit_expr+date_unit/HOUR_MINUTE	CREATE VIEW _v AS SELECT INTERVAL a HOUR_MINUTE + a
+1054	1054	engine	one_table@column	bit_expr/INTERVAL_expr_date_unit_+_bit_expr+date_unit/HOUR_SECOND	CREATE VIEW _v AS SELECT INTERVAL a HOUR_SECOND + a
+1054	1054	engine	one_table@column	bit_expr/INTERVAL_expr_date_unit_+_bit_expr+date_unit/MICROSECOND	CREATE VIEW _v AS SELECT INTERVAL a MICROSECOND + a
+1054	1054	engine	one_table@column	bit_expr/INTERVAL_expr_date_unit_+_bit_expr+date_unit/MINUTE	CREATE VIEW _v AS SELECT INTERVAL a MINUTE + a
+1054	1054	engine	one_table@column	bit_expr/INTERVAL_expr_date_unit_+_bit_expr+date_unit/MINUTE_MICROSECOND	CREATE VIEW _v AS SELECT INTERVAL a MINUTE_MICROSECOND + a
+1054	1054	engine	one_table@column	bit_expr/INTERVAL_expr_date_unit_+_bit_expr+date_unit/MINUTE_SECOND	CREATE VIEW _v AS SELECT INTERVAL a MINUTE_SECOND + a
+1054	1054	engine	one_table@column	bit_expr/INTERVAL_expr_date_unit_+_bit_expr+date_unit/MONTH	CREATE VIEW _v AS SELECT INTERVAL a MONTH + a
+1054	1054	engine	one_table@column	bit_expr/INTERVAL_expr_date_unit_+_bit_expr+date_unit/QUARTER	CREATE VIEW _v AS SELECT INTERVAL a QUARTER + a
+1054	1054	engine	one_table@column	bit_expr/INTERVAL_expr_date_unit_+_bit_expr+date_unit/SECOND	CREATE VIEW _v AS SELECT INTERVAL a SECOND + a
+1054	1054	engine	one_table@column	bit_expr/INTERVAL_expr_date_unit_+_bit_expr+date_unit/SECOND_MICROSECOND	CREATE VIEW _v AS SELECT INTERVAL a SECOND_MICROSECOND + a
+1054	1054	engine	one_table@column	bit_expr/INTERVAL_expr_date_unit_+_bit_expr+date_unit/WEEK	CREATE VIEW _v AS SELECT INTERVAL a WEEK + a
+1054	1054	engine	one_table@column	bit_expr/INTERVAL_expr_date_unit_+_bit_expr+date_unit/YEAR	CREATE VIEW _v AS SELECT INTERVAL a YEAR + a
+1054	1054	engine	one_table@column	bit_expr/INTERVAL_expr_date_unit_+_bit_expr+date_unit/YEAR_MONTH	CREATE VIEW _v AS SELECT INTERVAL a YEAR_MONTH + a
 1054	1054	engine	one_table@column	bit_expr/bit_expr_-_INTERVAL_expr_date_unit	CREATE VIEW _v AS SELECT a - INTERVAL a DAY
 1054	1054	engine	one_table@column	bit_expr/bit_expr_-_INTERVAL_expr_date_unit!drop-3	CREATE VIEW _v AS SELECT a - a DAY
 1054	1054	engine	one_table@column	bit_expr/bit_expr_-_INTERVAL_expr_date_unit!insert	CREATE VIEW _v AS SELECT a - INTERVAL a DAY zzz
+1054	1054	engine	one_table@column	bit_expr/bit_expr_-_INTERVAL_expr_date_unit+date_unit/DAY_HOUR	CREATE VIEW _v AS SELECT a - INTERVAL a DAY_HOUR
+1054	1054	engine	one_table@column	bit_expr/bit_expr_-_INTERVAL_expr_date_unit+date_unit/DAY_MICROSECOND	CREATE VIEW _v AS SELECT a - INTERVAL a DAY_MICROSECOND
+1054	1054	engine	one_table@column	bit_expr/bit_expr_-_INTERVAL_expr_date_unit+date_unit/DAY_MINUTE	CREATE VIEW _v AS SELECT a - INTERVAL a DAY_MINUTE
+1054	1054	engine	one_table@column	bit_expr/bit_expr_-_INTERVAL_expr_date_unit+date_unit/DAY_SECOND	CREATE VIEW _v AS SELECT a - INTERVAL a DAY_SECOND
+1054	1054	engine	one_table@column	bit_expr/bit_expr_-_INTERVAL_expr_date_unit+date_unit/HOUR	CREATE VIEW _v AS SELECT a - INTERVAL a HOUR
+1054	1054	engine	one_table@column	bit_expr/bit_expr_-_INTERVAL_expr_date_unit+date_unit/HOUR_MICROSECOND	CREATE VIEW _v AS SELECT a - INTERVAL a HOUR_MICROSECOND
+1054	1054	engine	one_table@column	bit_expr/bit_expr_-_INTERVAL_expr_date_unit+date_unit/HOUR_MINUTE	CREATE VIEW _v AS SELECT a - INTERVAL a HOUR_MINUTE
+1054	1054	engine	one_table@column	bit_expr/bit_expr_-_INTERVAL_expr_date_unit+date_unit/HOUR_SECOND	CREATE VIEW _v AS SELECT a - INTERVAL a HOUR_SECOND
+1054	1054	engine	one_table@column	bit_expr/bit_expr_-_INTERVAL_expr_date_unit+date_unit/MICROSECOND	CREATE VIEW _v AS SELECT a - INTERVAL a MICROSECOND
+1054	1054	engine	one_table@column	bit_expr/bit_expr_-_INTERVAL_expr_date_unit+date_unit/MINUTE	CREATE VIEW _v AS SELECT a - INTERVAL a MINUTE
+1054	1054	engine	one_table@column	bit_expr/bit_expr_-_INTERVAL_expr_date_unit+date_unit/MINUTE_MICROSECOND	CREATE VIEW _v AS SELECT a - INTERVAL a MINUTE_MICROSECOND
+1054	1054	engine	one_table@column	bit_expr/bit_expr_-_INTERVAL_expr_date_unit+date_unit/MINUTE_SECOND	CREATE VIEW _v AS SELECT a - INTERVAL a MINUTE_SECOND
+1054	1054	engine	one_table@column	bit_expr/bit_expr_-_INTERVAL_expr_date_unit+date_unit/MONTH	CREATE VIEW _v AS SELECT a - INTERVAL a MONTH
+1054	1054	engine	one_table@column	bit_expr/bit_expr_-_INTERVAL_expr_date_unit+date_unit/QUARTER	CREATE VIEW _v AS SELECT a - INTERVAL a QUARTER
+1054	1054	engine	one_table@column	bit_expr/bit_expr_-_INTERVAL_expr_date_unit+date_unit/SECOND	CREATE VIEW _v AS SELECT a - INTERVAL a SECOND
+1054	1054	engine	one_table@column	bit_expr/bit_expr_-_INTERVAL_expr_date_unit+date_unit/SECOND_MICROSECOND	CREATE VIEW _v AS SELECT a - INTERVAL a SECOND_MICROSECOND
+1054	1054	engine	one_table@column	bit_expr/bit_expr_-_INTERVAL_expr_date_unit+date_unit/WEEK	CREATE VIEW _v AS SELECT a - INTERVAL a WEEK
+1054	1054	engine	one_table@column	bit_expr/bit_expr_-_INTERVAL_expr_date_unit+date_unit/YEAR	CREATE VIEW _v AS SELECT a - INTERVAL a YEAR
+1054	1054	engine	one_table@column	bit_expr/bit_expr_-_INTERVAL_expr_date_unit+date_unit/YEAR_MONTH	CREATE VIEW _v AS SELECT a - INTERVAL a YEAR_MONTH
 1054	1054	engine	one_table@column	bit_expr/bit_expr_*_bit_expr	CREATE VIEW _v AS SELECT a * a
 1054	1054	engine	one_table@column	bit_expr/bit_expr_*_bit_expr!insert	CREATE VIEW _v AS SELECT a * a zzz
 1054	1054	engine	one_table@column	bit_expr/bit_expr_/_bit_expr	CREATE VIEW _v AS SELECT a / a
@@ -307,18 +355,33 @@ ok:05dfa2a7669b	ok:05dfa2a7669b	engine	one_table@column	window_function/COUNT_(_
 5929	5929	engine	one_table@column	window_function/SUM_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT SUM(a) OVER a
 1054	1054	engine	one_table@column	window_function/SUM_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause!drop-5	CREATE VIEW _v AS SELECT SUM(a) a
 5929	5929	engine	one_table@column	window_function/SUM_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT SUM(a) OVER a zzz
+5929	5929	engine	one_table@column	window_function/SUM_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause+opt_distinct_or_all/ALL	CREATE VIEW _v AS SELECT SUM(ALL a) OVER a
+5929	5929	engine	one_table@column	window_function/SUM_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause+opt_distinct_or_all/DISTINCT	CREATE VIEW _v AS SELECT SUM(DISTINCT a) OVER a
+5929	5929	engine	one_table@column	window_function/SUM_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause+opt_distinct_or_all/UNIQUE	CREATE VIEW _v AS SELECT SUM(UNIQUE a) OVER a
 5929	5929	engine	one_table@column	window_function/MAX_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT MAX(a) OVER a
 1054	1054	engine	one_table@column	window_function/MAX_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause!drop-5	CREATE VIEW _v AS SELECT MAX(a) a
 5929	5929	engine	one_table@column	window_function/MAX_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT MAX(a) OVER a zzz
+5929	5929	engine	one_table@column	window_function/MAX_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause+opt_distinct_or_all/ALL	CREATE VIEW _v AS SELECT MAX(ALL a) OVER a
+5929	5929	engine	one_table@column	window_function/MAX_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause+opt_distinct_or_all/DISTINCT	CREATE VIEW _v AS SELECT MAX(DISTINCT a) OVER a
+5929	5929	engine	one_table@column	window_function/MAX_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause+opt_distinct_or_all/UNIQUE	CREATE VIEW _v AS SELECT MAX(UNIQUE a) OVER a
 5929	5929	engine	one_table@column	window_function/MIN_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT MIN(a) OVER a
 1054	1054	engine	one_table@column	window_function/MIN_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause!drop-5	CREATE VIEW _v AS SELECT MIN(a) a
 5929	5929	engine	one_table@column	window_function/MIN_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT MIN(a) OVER a zzz
+5929	5929	engine	one_table@column	window_function/MIN_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause+opt_distinct_or_all/ALL	CREATE VIEW _v AS SELECT MIN(ALL a) OVER a
+5929	5929	engine	one_table@column	window_function/MIN_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause+opt_distinct_or_all/DISTINCT	CREATE VIEW _v AS SELECT MIN(DISTINCT a) OVER a
+5929	5929	engine	one_table@column	window_function/MIN_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause+opt_distinct_or_all/UNIQUE	CREATE VIEW _v AS SELECT MIN(UNIQUE a) OVER a
 5929	5929	engine	one_table@column	window_function/AVG_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT AVG(a) OVER a
 1054	1054	engine	one_table@column	window_function/AVG_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause!drop-5	CREATE VIEW _v AS SELECT AVG(a) a
 5929	5929	engine	one_table@column	window_function/AVG_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT AVG(a) OVER a zzz
+5929	5929	engine	one_table@column	window_function/AVG_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause+opt_distinct_or_all/ALL	CREATE VIEW _v AS SELECT AVG(ALL a) OVER a
+5929	5929	engine	one_table@column	window_function/AVG_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause+opt_distinct_or_all/DISTINCT	CREATE VIEW _v AS SELECT AVG(DISTINCT a) OVER a
+5929	5929	engine	one_table@column	window_function/AVG_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause+opt_distinct_or_all/UNIQUE	CREATE VIEW _v AS SELECT AVG(UNIQUE a) OVER a
 5929	5929	engine	one_table@column	window_function/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a) OVER a
 1054	1054	engine	one_table@column	window_function/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause!drop-5	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a) a
 5929	5929	engine	one_table@column	window_function/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a) OVER a zzz
+5929	5929	engine	one_table@column	window_function/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause+opt_distinct_or_all/ALL	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(ALL a) OVER a
+5929	5798	engine	one_table@column	window_function/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause+opt_distinct_or_all/DISTINCT	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(DISTINCT a) OVER a
+5929	5798	engine	one_table@column	window_function/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause+opt_distinct_or_all/UNIQUE	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(UNIQUE a) OVER a
 5929	5929	engine	one_table@column	window_function/JSON_OBJECTAGG_(_expr_,_expr_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a, a) OVER a
 1054	1054	engine	one_table@column	window_function/JSON_OBJECTAGG_(_expr_,_expr_)_OVER_new_generalized_window_clause!drop-7	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a, a) a
 5929	5929	engine	one_table@column	window_function/JSON_OBJECTAGG_(_expr_,_expr_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a, a) OVER a zzz
@@ -346,8 +409,12 @@ ok:05dfa2a7669b	ok:05dfa2a7669b	engine	one_table@column	window_function/COUNT_(_
 5929	5929	engine	one_table@column	window_function/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT GROUP_CONCAT(a) OVER a
 1054	1054	engine	one_table@column	window_function/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause!drop-5	CREATE VIEW _v AS SELECT GROUP_CONCAT(a) a
 5929	5929	engine	one_table@column	window_function/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT GROUP_CONCAT(a) OVER a zzz
+5929	5929	engine	one_table@column	window_function/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause+opt_distinct/DISTINCT	CREATE VIEW _v AS SELECT GROUP_CONCAT(DISTINCT a) OVER a
+5929	5929	engine	one_table@column	window_function/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause+opt_distinct/UNIQUE	CREATE VIEW _v AS SELECT GROUP_CONCAT(UNIQUE a) OVER a
 5929	5929	engine	one_table@column	window_function/LISTAGG_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT LISTAGG(a) OVER a
 5929	5929	engine	one_table@column	window_function/LISTAGG_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT LISTAGG(a) OVER a zzz
+5929	5929	engine	one_table@column	window_function/LISTAGG_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause+opt_distinct/DISTINCT	CREATE VIEW _v AS SELECT LISTAGG(DISTINCT a) OVER a
+5929	5929	engine	one_table@column	window_function/LISTAGG_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause+opt_distinct/UNIQUE	CREATE VIEW _v AS SELECT LISTAGG(UNIQUE a) OVER a
 5929	5929	engine	one_table@column	window_function/DENSE_RANK_(_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT DENSE_RANK() OVER a
 5929	5929	engine	one_table@column	window_function/DENSE_RANK_(_)_OVER_new_generalized_window_clause!insert	CREATE VIEW _v AS SELECT DENSE_RANK() OVER a zzz
 5929	5929	engine	one_table@column	window_function/PERCENT_RANK_(_)_OVER_new_generalized_window_clause	CREATE VIEW _v AS SELECT PERCENT_RANK() OVER a
@@ -388,8 +455,11 @@ ok:05dfa2a7669b	ok:05dfa2a7669b	engine	one_table@column	window_function/COUNT_(_
 5929	5929	engine	one_table@column	respect_or_ignore/RESPECT	CREATE VIEW _v AS SELECT FIRST_VALUE(a RESPECT NULLS) OVER a
 5929	5929	engine	one_table@column	respect_or_ignore/IGNORE	CREATE VIEW _v AS SELECT FIRST_VALUE(a IGNORE NULLS) OVER a
 5929	5929	engine	one_table@column	opt_respect_or_ignore_nulls/respect_or_ignore_NULLS	CREATE VIEW _v AS SELECT FIRST_VALUE(a) RESPECT NULLS OVER a
+5929	5929	engine	one_table@column	opt_respect_or_ignore_nulls/respect_or_ignore_NULLS+respect_or_ignore/IGNORE	CREATE VIEW _v AS SELECT FIRST_VALUE(a) IGNORE NULLS OVER a
 5929	5929	engine	one_table@column	win_fun_lead_lag_params/(_expr_respect_or_ignore_NULLS_)	CREATE VIEW _v AS SELECT LEAD(a RESPECT NULLS) OVER a
+5929	5929	engine	one_table@column	win_fun_lead_lag_params/(_expr_respect_or_ignore_NULLS_)+respect_or_ignore/IGNORE	CREATE VIEW _v AS SELECT LEAD(a IGNORE NULLS) OVER a
 5929	5929	engine	one_table@column	win_fun_lead_lag_params/(_expr_respect_or_ignore_NULLS_,_expr_list_)	CREATE VIEW _v AS SELECT LEAD(a RESPECT NULLS, a) OVER a
+5929	5929	engine	one_table@column	win_fun_lead_lag_params/(_expr_respect_or_ignore_NULLS_,_expr_list_)+respect_or_ignore/IGNORE	CREATE VIEW _v AS SELECT LEAD(a IGNORE NULLS, a) OVER a
 ok:f0a43dbcd52a	ok:f0a43dbcd52a	engine	one_table@column	new_generalized_window_clause/new_generalized_window_clause_with_blanket	CREATE VIEW _v AS SELECT RANK() OVER()
 ok:ad2624615090	ok:ad2624615090	engine	one_table@column	new_generalized_window_clause/new_generalized_window_clause_with_blanket!insert	CREATE VIEW _v AS SELECT RANK() OVER() zzz
 5929	5929	engine	one_table@column	new_generalized_window_clause_with_blanket/(_NAME_OB_generalized_window_clause_)	CREATE VIEW _v AS SELECT RANK() OVER(a)
@@ -406,7 +476,27 @@ ok:c79dc895f70d	ok:c79dc895f70d	engine	one_table@column	win_preceding_or_followi
 ok:344607c3a997	ok:344607c3a997	engine	one_table@column	win_interval/DECIMAL_VAL	CREATE VIEW _v AS SELECT RANK() OVER(ROWS 1.5 PRECEDING)
 ok:c405c39b3587	ok:c405c39b3587	engine	one_table@column	win_interval/UNBOUNDED	CREATE VIEW _v AS SELECT RANK() OVER(ROWS UNBOUNDED PRECEDING)
 3596	3596	engine	one_table@column	win_interval/INTERVAL_expr_date_unit	CREATE VIEW _v AS SELECT RANK() OVER(ROWS INTERVAL a DAY PRECEDING)
+3596	3596	engine	one_table@column	win_interval/INTERVAL_expr_date_unit+date_unit/DAY_HOUR	CREATE VIEW _v AS SELECT RANK() OVER(ROWS INTERVAL a DAY_HOUR PRECEDING)
+3596	3596	engine	one_table@column	win_interval/INTERVAL_expr_date_unit+date_unit/DAY_MICROSECOND	CREATE VIEW _v AS SELECT RANK() OVER(ROWS INTERVAL a DAY_MICROSECOND PRECEDING)
+3596	3596	engine	one_table@column	win_interval/INTERVAL_expr_date_unit+date_unit/DAY_MINUTE	CREATE VIEW _v AS SELECT RANK() OVER(ROWS INTERVAL a DAY_MINUTE PRECEDING)
+3596	3596	engine	one_table@column	win_interval/INTERVAL_expr_date_unit+date_unit/DAY_SECOND	CREATE VIEW _v AS SELECT RANK() OVER(ROWS INTERVAL a DAY_SECOND PRECEDING)
+3596	3596	engine	one_table@column	win_interval/INTERVAL_expr_date_unit+date_unit/HOUR	CREATE VIEW _v AS SELECT RANK() OVER(ROWS INTERVAL a HOUR PRECEDING)
+3596	3596	engine	one_table@column	win_interval/INTERVAL_expr_date_unit+date_unit/HOUR_MICROSECOND	CREATE VIEW _v AS SELECT RANK() OVER(ROWS INTERVAL a HOUR_MICROSECOND PRECEDING)
+3596	3596	engine	one_table@column	win_interval/INTERVAL_expr_date_unit+date_unit/HOUR_MINUTE	CREATE VIEW _v AS SELECT RANK() OVER(ROWS INTERVAL a HOUR_MINUTE PRECEDING)
+3596	3596	engine	one_table@column	win_interval/INTERVAL_expr_date_unit+date_unit/HOUR_SECOND	CREATE VIEW _v AS SELECT RANK() OVER(ROWS INTERVAL a HOUR_SECOND PRECEDING)
+3596	3596	engine	one_table@column	win_interval/INTERVAL_expr_date_unit+date_unit/MICROSECOND	CREATE VIEW _v AS SELECT RANK() OVER(ROWS INTERVAL a MICROSECOND PRECEDING)
+3596	3596	engine	one_table@column	win_interval/INTERVAL_expr_date_unit+date_unit/MINUTE	CREATE VIEW _v AS SELECT RANK() OVER(ROWS INTERVAL a MINUTE PRECEDING)
+3596	3596	engine	one_table@column	win_interval/INTERVAL_expr_date_unit+date_unit/MINUTE_MICROSECOND	CREATE VIEW _v AS SELECT RANK() OVER(ROWS INTERVAL a MINUTE_MICROSECOND PRECEDING)
+3596	3596	engine	one_table@column	win_interval/INTERVAL_expr_date_unit+date_unit/MINUTE_SECOND	CREATE VIEW _v AS SELECT RANK() OVER(ROWS INTERVAL a MINUTE_SECOND PRECEDING)
+3596	3596	engine	one_table@column	win_interval/INTERVAL_expr_date_unit+date_unit/MONTH	CREATE VIEW _v AS SELECT RANK() OVER(ROWS INTERVAL a MONTH PRECEDING)
+3596	3596	engine	one_table@column	win_interval/INTERVAL_expr_date_unit+date_unit/QUARTER	CREATE VIEW _v AS SELECT RANK() OVER(ROWS INTERVAL a QUARTER PRECEDING)
+3596	3596	engine	one_table@column	win_interval/INTERVAL_expr_date_unit+date_unit/SECOND	CREATE VIEW _v AS SELECT RANK() OVER(ROWS INTERVAL a SECOND PRECEDING)
+3596	3596	engine	one_table@column	win_interval/INTERVAL_expr_date_unit+date_unit/SECOND_MICROSECOND	CREATE VIEW _v AS SELECT RANK() OVER(ROWS INTERVAL a SECOND_MICROSECOND PRECEDING)
+3596	3596	engine	one_table@column	win_interval/INTERVAL_expr_date_unit+date_unit/WEEK	CREATE VIEW _v AS SELECT RANK() OVER(ROWS INTERVAL a WEEK PRECEDING)
+3596	3596	engine	one_table@column	win_interval/INTERVAL_expr_date_unit+date_unit/YEAR	CREATE VIEW _v AS SELECT RANK() OVER(ROWS INTERVAL a YEAR PRECEDING)
+3596	3596	engine	one_table@column	win_interval/INTERVAL_expr_date_unit+date_unit/YEAR_MONTH	CREATE VIEW _v AS SELECT RANK() OVER(ROWS INTERVAL a YEAR_MONTH PRECEDING)
 ok:313e094fcfba	ok:313e094fcfba	engine	one_table@column	win_window/win_rows_or_range_BETWEEN_win_bounding_AND_win_bounding	CREATE VIEW _v AS SELECT RANK() OVER(ROWS BETWEEN CURRENT ROW AND CURRENT ROW)
+ok:761bf22979ef	ok:761bf22979ef	engine	one_table@column	win_window/win_rows_or_range_BETWEEN_win_bounding_AND_win_bounding+win_rows_or_range/RANGE	CREATE VIEW _v AS SELECT RANK() OVER(RANGE BETWEEN CURRENT ROW AND CURRENT ROW)
 1054	1054	engine	one_table@column	sys_view_cast_opt/%empty	CREATE VIEW _v AS SELECT CAST(a AS BINARY)
 1149	1149	engine	one_table@column	sys_view_cast_opt/IGNORE	CREATE VIEW _v AS SELECT CAST(a AS BINARY IGNORE)
 1054	1054	engine	one_table@column	case_arg/expr	CREATE VIEW _v AS SELECT CASE a WHEN a THEN a END
@@ -440,12 +530,24 @@ ok:8b3ee4b75227	ok:8b3ee4b75227	engine	one_table@column	func_expr/COUNT_(_opt_al
 1054	1054	engine	one_table@column	func_expr/SUM_(_opt_distinct_or_all_expr_)!insert	CREATE VIEW _v AS SELECT SUM(a) zzz
 1054	1054	engine	one_table@column	func_expr/MAX_(_opt_distinct_or_all_expr_)	CREATE VIEW _v AS SELECT MAX(a)
 1054	1054	engine	one_table@column	func_expr/MAX_(_opt_distinct_or_all_expr_)!insert	CREATE VIEW _v AS SELECT MAX(a) zzz
+1054	1054	engine	one_table@column	func_expr/MAX_(_opt_distinct_or_all_expr_)+opt_distinct_or_all/ALL	CREATE VIEW _v AS SELECT MAX(ALL a)
+1054	1054	engine	one_table@column	func_expr/MAX_(_opt_distinct_or_all_expr_)+opt_distinct_or_all/DISTINCT	CREATE VIEW _v AS SELECT MAX(DISTINCT a)
+1054	1054	engine	one_table@column	func_expr/MAX_(_opt_distinct_or_all_expr_)+opt_distinct_or_all/UNIQUE	CREATE VIEW _v AS SELECT MAX(UNIQUE a)
 1054	1054	engine	one_table@column	func_expr/MIN_(_opt_distinct_or_all_expr_)	CREATE VIEW _v AS SELECT MIN(a)
 1054	1054	engine	one_table@column	func_expr/MIN_(_opt_distinct_or_all_expr_)!insert	CREATE VIEW _v AS SELECT MIN(a) zzz
+1054	1054	engine	one_table@column	func_expr/MIN_(_opt_distinct_or_all_expr_)+opt_distinct_or_all/ALL	CREATE VIEW _v AS SELECT MIN(ALL a)
+1054	1054	engine	one_table@column	func_expr/MIN_(_opt_distinct_or_all_expr_)+opt_distinct_or_all/DISTINCT	CREATE VIEW _v AS SELECT MIN(DISTINCT a)
+1054	1054	engine	one_table@column	func_expr/MIN_(_opt_distinct_or_all_expr_)+opt_distinct_or_all/UNIQUE	CREATE VIEW _v AS SELECT MIN(UNIQUE a)
 1054	1054	engine	one_table@column	func_expr/AVG_(_opt_distinct_or_all_expr_)	CREATE VIEW _v AS SELECT AVG(a)
 1054	1054	engine	one_table@column	func_expr/AVG_(_opt_distinct_or_all_expr_)!insert	CREATE VIEW _v AS SELECT AVG(a) zzz
+1054	1054	engine	one_table@column	func_expr/AVG_(_opt_distinct_or_all_expr_)+opt_distinct_or_all/ALL	CREATE VIEW _v AS SELECT AVG(ALL a)
+1054	1054	engine	one_table@column	func_expr/AVG_(_opt_distinct_or_all_expr_)+opt_distinct_or_all/DISTINCT	CREATE VIEW _v AS SELECT AVG(DISTINCT a)
+1054	1054	engine	one_table@column	func_expr/AVG_(_opt_distinct_or_all_expr_)+opt_distinct_or_all/UNIQUE	CREATE VIEW _v AS SELECT AVG(UNIQUE a)
 1054	1054	engine	one_table@column	func_expr/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a)
 1054	1054	engine	one_table@column	func_expr/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)!insert	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(a) zzz
+1054	1054	engine	one_table@column	func_expr/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)+opt_distinct_or_all/ALL	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(ALL a)
+1054	5798	engine	one_table@column	func_expr/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)+opt_distinct_or_all/DISTINCT	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(DISTINCT a)
+1054	5798	engine	one_table@column	func_expr/JSON_ARRAYAGG_(_opt_distinct_or_all_expr_)+opt_distinct_or_all/UNIQUE	CREATE VIEW _v AS SELECT JSON_ARRAYAGG(UNIQUE a)
 1054	1054	engine	one_table@column	func_expr/JSON_OBJECTAGG_(_expr_,_expr_)	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a, a)
 1054	1054	engine	one_table@column	func_expr/JSON_OBJECTAGG_(_expr_,_expr_)!insert	CREATE VIEW _v AS SELECT JSON_OBJECTAGG(a, a) zzz
 1054	1054	engine	one_table@column	func_expr/STD_(_opt_all_expr_)	CREATE VIEW _v AS SELECT STD(a)
@@ -470,6 +572,9 @@ ok:8b3ee4b75227	ok:8b3ee4b75227	engine	one_table@column	func_expr/COUNT_(_opt_al
 1054	1054	engine	one_table@column	func_expr/BIT_XOR_(_opt_all_expr_)!insert	CREATE VIEW _v AS SELECT BIT_XOR(a) zzz
 1054	1054	engine	one_table@column	func_expr/PERCENTILE_CONT_(_opt_distinct_or_all_expr_,_expr_list_)	CREATE VIEW _v AS SELECT PERCENTILE_CONT(a, a)
 1054	1054	engine	one_table@column	func_expr/PERCENTILE_CONT_(_opt_distinct_or_all_expr_,_expr_list_)!insert	CREATE VIEW _v AS SELECT PERCENTILE_CONT(a, a) zzz
+1054	1054	engine	one_table@column	func_expr/PERCENTILE_CONT_(_opt_distinct_or_all_expr_,_expr_list_)+opt_distinct_or_all/ALL	CREATE VIEW _v AS SELECT PERCENTILE_CONT(ALL a, a)
+1054	5798	engine	one_table@column	func_expr/PERCENTILE_CONT_(_opt_distinct_or_all_expr_,_expr_list_)+opt_distinct_or_all/DISTINCT	CREATE VIEW _v AS SELECT PERCENTILE_CONT(DISTINCT a, a)
+1054	5798	engine	one_table@column	func_expr/PERCENTILE_CONT_(_opt_distinct_or_all_expr_,_expr_list_)+opt_distinct_or_all/UNIQUE	CREATE VIEW _v AS SELECT PERCENTILE_CONT(UNIQUE a, a)
 1054	1054	engine	one_table@column	func_expr/GROUPING_(_expr_)	CREATE VIEW _v AS SELECT GROUPING(a)
 1054	1054	engine	one_table@column	func_expr/GROUPING_(_expr_)!insert	CREATE VIEW _v AS SELECT GROUPING(a) zzz
 1054	1054	engine	one_table@column	func_expr/GROUPING_ID_(_expr_list_)	CREATE VIEW _v AS SELECT GROUPING_ID(a)
@@ -508,6 +613,9 @@ ok:4a781ec512c6	ok:4a781ec512c6	engine	one_table@column	func_expr/utc_date_func!
 1054	1054	engine	one_table@column	func_expr/CONVERT_(_expr_,_cast_data_type_)!insert	CREATE VIEW _v AS SELECT CONVERT(a, BINARY) zzz
 1115	1115	engine	one_table@column	func_expr/CONVERT_(_expr_USING_charset_name_)	CREATE VIEW _v AS SELECT CONVERT(a USING a)
 1115	1115	engine	one_table@column	func_expr/CONVERT_(_expr_USING_charset_name_)!insert	CREATE VIEW _v AS SELECT CONVERT(a USING a) zzz
+1115	1054	engine	one_table@column	func_expr/CONVERT_(_expr_USING_charset_name_)+charset_name/STRING_VALUE	CREATE VIEW _v AS SELECT CONVERT(a USING 's')
+1054	1054	engine	one_table@column	func_expr/CONVERT_(_expr_USING_charset_name_)+charset_name/BINARY	CREATE VIEW _v AS SELECT CONVERT(a USING BINARY)
+1054	1054	engine	one_table@column	func_expr/CONVERT_(_expr_USING_charset_name_)+charset_name/ASCII	CREATE VIEW _v AS SELECT CONVERT(a USING ASCII)
 1054	1054	engine	one_table@column	func_expr/POSITION_(_bit_expr_IN_expr_)	CREATE VIEW _v AS SELECT POSITION(a IN a)
 1054	1054	engine	one_table@column	func_expr/POSITION_(_bit_expr_IN_expr_)!insert	CREATE VIEW _v AS SELECT POSITION(a IN a) zzz
 1054	1054	engine	one_table@column	func_expr/substr_or_substring_(_substr_params_)	CREATE VIEW _v AS SELECT SUBSTR(a, a)
@@ -562,6 +670,25 @@ ok:4a781ec512c6	ok:4a781ec512c6	engine	one_table@column	func_expr/utc_date_func!
 1054	1054	engine	one_table@column	func_expr/TIMESTAMPADD_(_timestamp_params_)!insert	CREATE VIEW _v AS SELECT TIMESTAMPADD(DAY, a, a) zzz
 1054	1054	engine	one_table@column	func_expr/EXTRACT_(_date_unit_FROM_expr_)	CREATE VIEW _v AS SELECT EXTRACT(DAY FROM a)
 1054	1054	engine	one_table@column	func_expr/EXTRACT_(_date_unit_FROM_expr_)!insert	CREATE VIEW _v AS SELECT EXTRACT(DAY FROM a) zzz
+1054	1054	engine	one_table@column	func_expr/EXTRACT_(_date_unit_FROM_expr_)+date_unit/DAY_HOUR	CREATE VIEW _v AS SELECT EXTRACT(DAY_HOUR FROM a)
+1054	1054	engine	one_table@column	func_expr/EXTRACT_(_date_unit_FROM_expr_)+date_unit/DAY_MICROSECOND	CREATE VIEW _v AS SELECT EXTRACT(DAY_MICROSECOND FROM a)
+1054	1054	engine	one_table@column	func_expr/EXTRACT_(_date_unit_FROM_expr_)+date_unit/DAY_MINUTE	CREATE VIEW _v AS SELECT EXTRACT(DAY_MINUTE FROM a)
+1054	1054	engine	one_table@column	func_expr/EXTRACT_(_date_unit_FROM_expr_)+date_unit/DAY_SECOND	CREATE VIEW _v AS SELECT EXTRACT(DAY_SECOND FROM a)
+1054	1054	engine	one_table@column	func_expr/EXTRACT_(_date_unit_FROM_expr_)+date_unit/HOUR	CREATE VIEW _v AS SELECT EXTRACT(HOUR FROM a)
+1054	1054	engine	one_table@column	func_expr/EXTRACT_(_date_unit_FROM_expr_)+date_unit/HOUR_MICROSECOND	CREATE VIEW _v AS SELECT EXTRACT(HOUR_MICROSECOND FROM a)
+1054	1054	engine	one_table@column	func_expr/EXTRACT_(_date_unit_FROM_expr_)+date_unit/HOUR_MINUTE	CREATE VIEW _v AS SELECT EXTRACT(HOUR_MINUTE FROM a)
+1054	1054	engine	one_table@column	func_expr/EXTRACT_(_date_unit_FROM_expr_)+date_unit/HOUR_SECOND	CREATE VIEW _v AS SELECT EXTRACT(HOUR_SECOND FROM a)
+1054	1054	engine	one_table@column	func_expr/EXTRACT_(_date_unit_FROM_expr_)+date_unit/MICROSECOND	CREATE VIEW _v AS SELECT EXTRACT(MICROSECOND FROM a)
+1054	1054	engine	one_table@column	func_expr/EXTRACT_(_date_unit_FROM_expr_)+date_unit/MINUTE	CREATE VIEW _v AS SELECT EXTRACT(MINUTE FROM a)
+1054	1054	engine	one_table@column	func_expr/EXTRACT_(_date_unit_FROM_expr_)+date_unit/MINUTE_MICROSECOND	CREATE VIEW _v AS SELECT EXTRACT(MINUTE_MICROSECOND FROM a)
+1054	1054	engine	one_table@column	func_expr/EXTRACT_(_date_unit_FROM_expr_)+date_unit/MINUTE_SECOND	CREATE VIEW _v AS SELECT EXTRACT(MINUTE_SECOND FROM a)
+1054	1054	engine	one_table@column	func_expr/EXTRACT_(_date_unit_FROM_expr_)+date_unit/MONTH	CREATE VIEW _v AS SELECT EXTRACT(MONTH FROM a)
+1054	1054	engine	one_table@column	func_expr/EXTRACT_(_date_unit_FROM_expr_)+date_unit/QUARTER	CREATE VIEW _v AS SELECT EXTRACT(QUARTER FROM a)
+1054	1054	engine	one_table@column	func_expr/EXTRACT_(_date_unit_FROM_expr_)+date_unit/SECOND	CREATE VIEW _v AS SELECT EXTRACT(SECOND FROM a)
+1054	1054	engine	one_table@column	func_expr/EXTRACT_(_date_unit_FROM_expr_)+date_unit/SECOND_MICROSECOND	CREATE VIEW _v AS SELECT EXTRACT(SECOND_MICROSECOND FROM a)
+1054	1054	engine	one_table@column	func_expr/EXTRACT_(_date_unit_FROM_expr_)+date_unit/WEEK	CREATE VIEW _v AS SELECT EXTRACT(WEEK FROM a)
+1054	1054	engine	one_table@column	func_expr/EXTRACT_(_date_unit_FROM_expr_)+date_unit/YEAR	CREATE VIEW _v AS SELECT EXTRACT(YEAR FROM a)
+1054	1054	engine	one_table@column	func_expr/EXTRACT_(_date_unit_FROM_expr_)+date_unit/YEAR_MONTH	CREATE VIEW _v AS SELECT EXTRACT(YEAR_MONTH FROM a)
 1054	1054	engine	one_table@column	func_expr/ASCII_(_expr_)	CREATE VIEW _v AS SELECT ASCII(a)
 1054	1054	engine	one_table@column	func_expr/ASCII_(_expr_)!insert	CREATE VIEW _v AS SELECT ASCII(a) zzz
 1054	1054	engine	one_table@column	func_expr/DEFAULT_(_column_definition_ref_)	CREATE VIEW _v AS SELECT DEFAULT(a)
@@ -573,6 +700,9 @@ ok:4a781ec512c6	ok:4a781ec512c6	engine	one_table@column	func_expr/utc_date_func!
 1054	1054	engine	one_table@column	func_expr/CHARACTER_(_expr_list_)!swap	CREATE VIEW _v AS SELECT CHARSET(a)
 1115	1115	engine	one_table@column	func_expr/CHARACTER_(_expr_list_USING_charset_name_)	CREATE VIEW _v AS SELECT CHARACTER(a USING a)
 1115	1115	engine	one_table@column	func_expr/CHARACTER_(_expr_list_USING_charset_name_)!insert	CREATE VIEW _v AS SELECT CHARACTER(a USING a) zzz
+1115	1054	engine	one_table@column	func_expr/CHARACTER_(_expr_list_USING_charset_name_)+charset_name/STRING_VALUE	CREATE VIEW _v AS SELECT CHARACTER(a USING 's')
+1054	1054	engine	one_table@column	func_expr/CHARACTER_(_expr_list_USING_charset_name_)+charset_name/BINARY	CREATE VIEW _v AS SELECT CHARACTER(a USING BINARY)
+1054	1054	engine	one_table@column	func_expr/CHARACTER_(_expr_list_USING_charset_name_)+charset_name/ASCII	CREATE VIEW _v AS SELECT CHARACTER(a USING ASCII)
 1054	1054	engine	one_table@column	func_expr/LOG_(_expr_,_expr_)	CREATE VIEW _v AS SELECT LOG(a, a)
 1054	1054	engine	one_table@column	func_expr/LOG_(_expr_,_expr_)!insert	CREATE VIEW _v AS SELECT LOG(a, a) zzz
 1054	1054	engine	one_table@column	func_expr/LOG_(_expr_)	CREATE VIEW _v AS SELECT LOG(a)
@@ -621,6 +751,7 @@ ok:4a781ec512c6	ok:4a781ec512c6	engine	one_table@column	func_expr/utc_date_func!
 1054	1054	engine	one_table@column	func_expr/MULTIPOLYGON_(_expr_list_)!insert	CREATE VIEW _v AS SELECT MULTIPOLYGON(a) zzz
 1054	1054	engine	one_table@column	func_expr/geometry_collection_(_expr_list_)	CREATE VIEW _v AS SELECT GEOMETRYCOLLECTION(a)
 1054	1054	engine	one_table@column	func_expr/geometry_collection_(_expr_list_)!insert	CREATE VIEW _v AS SELECT GEOMETRYCOLLECTION(a) zzz
+1054	1054	engine	one_table@column	func_expr/geometry_collection_(_expr_list_)+geometry_collection/GEOMCOLLECTION	CREATE VIEW _v AS SELECT GEOMCOLLECTION(a)
 ok:4f91c48aee9d	ok:4f91c48aee9d	engine	one_table@column	func_expr/geometry_collection_(_)!insert	CREATE VIEW _v AS SELECT GEOMETRYCOLLECTION() zzz
 1149	1149	engine	one_table@column	func_expr/_ST_ASMVT_(_column_ref_)	CREATE VIEW _v AS SELECT _ST_ASMVT(a)
 1149	1149	engine	one_table@column	func_expr/_ST_ASMVT_(_column_ref_)!insert	CREATE VIEW _v AS SELECT _ST_ASMVT(a) zzz
@@ -661,7 +792,11 @@ ok:79de6c4ff8e3	ok:79de6c4ff8e3	engine	one_table@column	func_expr/LAST_REFRESH_S
 1054	1054	engine	one_table@column	func_expr/RB_ITERATE_(_simple_expr_)!insert	CREATE VIEW _v AS SELECT RB_ITERATE(a) zzz
 1054	1054	engine	one_table@column	func_expr/ARRAY_AGG_(_opt_distinct_expr_)	CREATE VIEW _v AS SELECT ARRAY_AGG(a)
 1054	1054	engine	one_table@column	func_expr/ARRAY_AGG_(_opt_distinct_expr_)!insert	CREATE VIEW _v AS SELECT ARRAY_AGG(a) zzz
+1054	1054	engine	one_table@column	func_expr/ARRAY_AGG_(_opt_distinct_expr_)+opt_distinct/DISTINCT	CREATE VIEW _v AS SELECT ARRAY_AGG(DISTINCT a)
+1054	1054	engine	one_table@column	func_expr/ARRAY_AGG_(_opt_distinct_expr_)+opt_distinct/UNIQUE	CREATE VIEW _v AS SELECT ARRAY_AGG(UNIQUE a)
 1054	1054	engine	one_table@column	func_expr/ARRAY_AGG_(_opt_distinct_expr_order_by_opt_null_)!insert	CREATE VIEW _v AS SELECT ARRAY_AGG(a ORDER BY a) zzz
+1054	1054	engine	one_table@column	func_expr/ARRAY_AGG_(_opt_distinct_expr_order_by_opt_null_)+opt_distinct/DISTINCT	CREATE VIEW _v AS SELECT ARRAY_AGG(DISTINCT a ORDER BY a)
+1054	1054	engine	one_table@column	func_expr/ARRAY_AGG_(_opt_distinct_expr_order_by_opt_null_)+opt_distinct/UNIQUE	CREATE VIEW _v AS SELECT ARRAY_AGG(UNIQUE a ORDER BY a)
 1054	1054	engine	one_table@column	func_expr/ARRAY_MAP_(_lambda_expr_,_expr_list_)	CREATE VIEW _v AS SELECT ARRAY_MAP(a -> a, a)
 1054	1054	engine	one_table@column	func_expr/ARRAY_MAP_(_lambda_expr_,_expr_list_)!insert	CREATE VIEW _v AS SELECT ARRAY_MAP(a -> a, a) zzz
 1054	1054	engine	one_table@column	func_expr/ARRAY_FIRST_(_lambda_expr_,_expr_list_)	CREATE VIEW _v AS SELECT ARRAY_FIRST(a -> a, a)
@@ -741,7 +876,44 @@ ok:333f4f7d3d38	ok:333f4f7d3d38	engine	one_table@column	opt_time_func_fsp_i/(_)!
 1054	1054	engine	one_table@column	substr_params/expr_,_expr_,_expr	CREATE VIEW _v AS SELECT SUBSTR(a, a, a)
 1054	1054	engine	one_table@column	substr_params/expr_FROM_expr	CREATE VIEW _v AS SELECT SUBSTR(a FROM a)
 1054	1054	engine	one_table@column	substr_params/expr_FROM_expr_FOR_expr	CREATE VIEW _v AS SELECT SUBSTR(a FROM a FOR a)
-1054	1054	engine	one_table@column	timestamp_params/date_unit_,_expr_,_expr!swap	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(DAY_HOUR, a, a)
+1054	1054	engine	one_table@column	date_params/expr_,_INTERVAL_expr_date_unit+date_unit/DAY_HOUR	CREATE VIEW _v AS SELECT DATE_ADD(a, INTERVAL a DAY_HOUR)
+1054	1054	engine	one_table@column	date_params/expr_,_INTERVAL_expr_date_unit+date_unit/DAY_MICROSECOND	CREATE VIEW _v AS SELECT DATE_ADD(a, INTERVAL a DAY_MICROSECOND)
+1054	1054	engine	one_table@column	date_params/expr_,_INTERVAL_expr_date_unit+date_unit/DAY_MINUTE	CREATE VIEW _v AS SELECT DATE_ADD(a, INTERVAL a DAY_MINUTE)
+1054	1054	engine	one_table@column	date_params/expr_,_INTERVAL_expr_date_unit+date_unit/DAY_SECOND	CREATE VIEW _v AS SELECT DATE_ADD(a, INTERVAL a DAY_SECOND)
+1054	1054	engine	one_table@column	date_params/expr_,_INTERVAL_expr_date_unit+date_unit/HOUR	CREATE VIEW _v AS SELECT DATE_ADD(a, INTERVAL a HOUR)
+1054	1054	engine	one_table@column	date_params/expr_,_INTERVAL_expr_date_unit+date_unit/HOUR_MICROSECOND	CREATE VIEW _v AS SELECT DATE_ADD(a, INTERVAL a HOUR_MICROSECOND)
+1054	1054	engine	one_table@column	date_params/expr_,_INTERVAL_expr_date_unit+date_unit/HOUR_MINUTE	CREATE VIEW _v AS SELECT DATE_ADD(a, INTERVAL a HOUR_MINUTE)
+1054	1054	engine	one_table@column	date_params/expr_,_INTERVAL_expr_date_unit+date_unit/HOUR_SECOND	CREATE VIEW _v AS SELECT DATE_ADD(a, INTERVAL a HOUR_SECOND)
+1054	1054	engine	one_table@column	date_params/expr_,_INTERVAL_expr_date_unit+date_unit/MICROSECOND	CREATE VIEW _v AS SELECT DATE_ADD(a, INTERVAL a MICROSECOND)
+1054	1054	engine	one_table@column	date_params/expr_,_INTERVAL_expr_date_unit+date_unit/MINUTE	CREATE VIEW _v AS SELECT DATE_ADD(a, INTERVAL a MINUTE)
+1054	1054	engine	one_table@column	date_params/expr_,_INTERVAL_expr_date_unit+date_unit/MINUTE_MICROSECOND	CREATE VIEW _v AS SELECT DATE_ADD(a, INTERVAL a MINUTE_MICROSECOND)
+1054	1054	engine	one_table@column	date_params/expr_,_INTERVAL_expr_date_unit+date_unit/MINUTE_SECOND	CREATE VIEW _v AS SELECT DATE_ADD(a, INTERVAL a MINUTE_SECOND)
+1054	1054	engine	one_table@column	date_params/expr_,_INTERVAL_expr_date_unit+date_unit/MONTH	CREATE VIEW _v AS SELECT DATE_ADD(a, INTERVAL a MONTH)
+1054	1054	engine	one_table@column	date_params/expr_,_INTERVAL_expr_date_unit+date_unit/QUARTER	CREATE VIEW _v AS SELECT DATE_ADD(a, INTERVAL a QUARTER)
+1054	1054	engine	one_table@column	date_params/expr_,_INTERVAL_expr_date_unit+date_unit/SECOND	CREATE VIEW _v AS SELECT DATE_ADD(a, INTERVAL a SECOND)
+1054	1054	engine	one_table@column	date_params/expr_,_INTERVAL_expr_date_unit+date_unit/SECOND_MICROSECOND	CREATE VIEW _v AS SELECT DATE_ADD(a, INTERVAL a SECOND_MICROSECOND)
+1054	1054	engine	one_table@column	date_params/expr_,_INTERVAL_expr_date_unit+date_unit/WEEK	CREATE VIEW _v AS SELECT DATE_ADD(a, INTERVAL a WEEK)
+1054	1054	engine	one_table@column	date_params/expr_,_INTERVAL_expr_date_unit+date_unit/YEAR	CREATE VIEW _v AS SELECT DATE_ADD(a, INTERVAL a YEAR)
+1054	1054	engine	one_table@column	date_params/expr_,_INTERVAL_expr_date_unit+date_unit/YEAR_MONTH	CREATE VIEW _v AS SELECT DATE_ADD(a, INTERVAL a YEAR_MONTH)
+1054	1054	engine	one_table@column	timestamp_params/date_unit_,_expr_,_expr+date_unit/DAY_HOUR	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(DAY_HOUR, a, a)
+1054	1054	engine	one_table@column	timestamp_params/date_unit_,_expr_,_expr+date_unit/DAY_MICROSECOND	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(DAY_MICROSECOND, a, a)
+1054	1054	engine	one_table@column	timestamp_params/date_unit_,_expr_,_expr+date_unit/DAY_MINUTE	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(DAY_MINUTE, a, a)
+1054	1054	engine	one_table@column	timestamp_params/date_unit_,_expr_,_expr+date_unit/DAY_SECOND	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(DAY_SECOND, a, a)
+1054	1054	engine	one_table@column	timestamp_params/date_unit_,_expr_,_expr+date_unit/HOUR	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(HOUR, a, a)
+1054	1054	engine	one_table@column	timestamp_params/date_unit_,_expr_,_expr+date_unit/HOUR_MICROSECOND	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(HOUR_MICROSECOND, a, a)
+1054	1054	engine	one_table@column	timestamp_params/date_unit_,_expr_,_expr+date_unit/HOUR_MINUTE	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(HOUR_MINUTE, a, a)
+1054	1054	engine	one_table@column	timestamp_params/date_unit_,_expr_,_expr+date_unit/HOUR_SECOND	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(HOUR_SECOND, a, a)
+1054	1054	engine	one_table@column	timestamp_params/date_unit_,_expr_,_expr+date_unit/MICROSECOND	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(MICROSECOND, a, a)
+1054	1054	engine	one_table@column	timestamp_params/date_unit_,_expr_,_expr+date_unit/MINUTE	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(MINUTE, a, a)
+1054	1054	engine	one_table@column	timestamp_params/date_unit_,_expr_,_expr+date_unit/MINUTE_MICROSECOND	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(MINUTE_MICROSECOND, a, a)
+1054	1054	engine	one_table@column	timestamp_params/date_unit_,_expr_,_expr+date_unit/MINUTE_SECOND	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(MINUTE_SECOND, a, a)
+1054	1054	engine	one_table@column	timestamp_params/date_unit_,_expr_,_expr+date_unit/MONTH	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(MONTH, a, a)
+1054	1054	engine	one_table@column	timestamp_params/date_unit_,_expr_,_expr+date_unit/QUARTER	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(QUARTER, a, a)
+1054	1054	engine	one_table@column	timestamp_params/date_unit_,_expr_,_expr+date_unit/SECOND	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(SECOND, a, a)
+1054	1054	engine	one_table@column	timestamp_params/date_unit_,_expr_,_expr+date_unit/SECOND_MICROSECOND	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(SECOND_MICROSECOND, a, a)
+1054	1054	engine	one_table@column	timestamp_params/date_unit_,_expr_,_expr+date_unit/WEEK	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(WEEK, a, a)
+1054	1054	engine	one_table@column	timestamp_params/date_unit_,_expr_,_expr+date_unit/YEAR	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(YEAR, a, a)
+1054	1054	engine	one_table@column	timestamp_params/date_unit_,_expr_,_expr+date_unit/YEAR_MONTH	CREATE VIEW _v AS SELECT TIMESTAMPDIFF(YEAR_MONTH, a, a)
 1054	1054	engine	one_table@column	opt_expr_as_list/%empty!insert	CREATE VIEW _v AS SELECT STATISTICS(zzz)
 1054	1054	engine	one_table@column	opt_distinct/DISTINCT	CREATE VIEW _v AS SELECT GROUP_CONCAT(DISTINCT a)
 1054	1054	engine	one_table@column	opt_distinct/UNIQUE	CREATE VIEW _v AS SELECT GROUP_CONCAT(UNIQUE a)
@@ -755,6 +927,7 @@ ok:333f4f7d3d38	ok:333f4f7d3d38	engine	one_table@column	opt_time_func_fsp_i/(_)!
 1054	1054	engine	one_table@column	ws_level_list/ws_level_list_,_ws_level_list_item	CREATE VIEW _v AS SELECT WEIGHT_STRING(a LEVEL 1, 1)
 1054	1054	engine	one_table@column	ws_level_flags/ws_level_flag_desc	CREATE VIEW _v AS SELECT WEIGHT_STRING(a LEVEL 1 ASC)
 1054	1054	engine	one_table@column	ws_level_flags/ws_level_flag_desc_ws_level_flag_reverse	CREATE VIEW _v AS SELECT WEIGHT_STRING(a LEVEL 1 ASC REVERSE)
+1054	1054	engine	one_table@column	ws_level_flags/ws_level_flag_desc_ws_level_flag_reverse+ws_level_flag_desc/DESC	CREATE VIEW _v AS SELECT WEIGHT_STRING(a LEVEL 1 DESC REVERSE)
 1054	1054	engine	one_table@column	ws_level_flags/ws_level_flag_reverse	CREATE VIEW _v AS SELECT WEIGHT_STRING(a LEVEL 1 REVERSE)
 1054	1054	engine	one_table@column	ws_level_flag_desc/DESC	CREATE VIEW _v AS SELECT WEIGHT_STRING(a LEVEL 1 DESC)
 1064	1064	engine	one_table@column	delete_stmt/with_clause_delete_basic_stmt	CREATE VIEW _v AS WITH a AS(SELECT a) DELETE FROM a
@@ -766,6 +939,10 @@ ok:333f4f7d3d38	ok:333f4f7d3d38	engine	one_table@column	opt_time_func_fsp_i/(_)!
 1109	1109	engine	one_table@column	column_definition_ref/id_dot_id_dot_id	CREATE VIEW _v AS SELECT a.a.a ->> 's'
 1054	1054	engine	one_table@column	cast_data_type/CHARACTER_opt_string_length_i_v2_opt_binary	CREATE VIEW _v AS SELECT CAST(a AS CHARACTER)
 1115	1115	engine	one_table@column	cast_data_type/CHARACTER_opt_string_length_i_v2_charset_key_charset_name	CREATE VIEW _v AS SELECT CAST(a AS CHARACTER CHARSET a)
+1115	1115	engine	one_table@column	cast_data_type/CHARACTER_opt_string_length_i_v2_charset_key_charset_name+charset_key/CHARACTER_SET	CREATE VIEW _v AS SELECT CAST(a AS CHARACTER CHARACTER SET a)
+1115	1115	engine	one_table@column	cast_data_type/CHARACTER_opt_string_length_i_v2_charset_key_charset_name+charset_name/STRING_VALUE	CREATE VIEW _v AS SELECT CAST(a AS CHARACTER CHARSET 's')
+1054	1054	engine	one_table@column	cast_data_type/CHARACTER_opt_string_length_i_v2_charset_key_charset_name+charset_name/BINARY	CREATE VIEW _v AS SELECT CAST(a AS CHARACTER CHARSET BINARY)
+1054	1054	engine	one_table@column	cast_data_type/CHARACTER_opt_string_length_i_v2_charset_key_charset_name+charset_name/ASCII	CREATE VIEW _v AS SELECT CAST(a AS CHARACTER CHARSET ASCII)
 1054	1054	engine	one_table@column	cast_data_type/cast_datetime_type_i_opt_datetime_fsp_i	CREATE VIEW _v AS SELECT CAST(a AS DATETIME)
 1054	1054	engine	one_table@column	cast_data_type/NUMBER_opt_number_precision	CREATE VIEW _v AS SELECT CAST(a AS NUMBER)
 1054	1054	engine	one_table@column	cast_data_type/DECIMAL_opt_number_precision	CREATE VIEW _v AS SELECT CAST(a AS DECIMAL)
@@ -784,6 +961,7 @@ ok:333f4f7d3d38	ok:333f4f7d3d38	engine	one_table@column	opt_time_func_fsp_i/(_)!
 1054	1054	engine	one_table@column	cast_data_type/MULTILINESTRING	CREATE VIEW _v AS SELECT CAST(a AS MULTILINESTRING)
 1054	1054	engine	one_table@column	cast_data_type/MULTIPOLYGON	CREATE VIEW _v AS SELECT CAST(a AS MULTIPOLYGON)
 1054	1054	engine	one_table@column	cast_data_type/geometry_collection	CREATE VIEW _v AS SELECT CAST(a AS GEOMETRYCOLLECTION)
+1054	1054	engine	one_table@column	cast_data_type/geometry_collection+geometry_collection/GEOMCOLLECTION	CREATE VIEW _v AS SELECT CAST(a AS GEOMCOLLECTION)
 1054	1054	engine	one_table@column	cast_data_type/ROARINGBITMAP	CREATE VIEW _v AS SELECT CAST(a AS ROARINGBITMAP)
 1054	1054	engine	one_table@column	cast_data_type/NCHAR_opt_string_length_i_v2	CREATE VIEW _v AS SELECT CAST(a AS NCHAR)
 1054	1054	engine	one_table@column	cast_data_type/NATIONAL_CHARACTER_opt_string_length_i_v2	CREATE VIEW _v AS SELECT CAST(a AS NATIONAL CHARACTER)
@@ -810,6 +988,10 @@ ok:333f4f7d3d38	ok:333f4f7d3d38	engine	one_table@column	opt_time_func_fsp_i/(_)!
 1054	1054	engine	one_table@column	trans_param_value/NEG_SIGN_INTNUM!drop-2	CREATE VIEW _v AS SELECT /*+ TRANS_PARAM('s' -) */ a
 1054	1054	engine	one_table@column	trans_param_value/NEG_SIGN_INTNUM!insert	CREATE VIEW _v AS SELECT /*+ TRANS_PARAM('s' - 1 zzz) */ a
 1054	1054	engine	one_table@column	opt_charset/charset_key_charset_name	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' CHARSET a
+1054	1054	engine	one_table@column	opt_charset/charset_key_charset_name+charset_key/CHARACTER_SET	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' CHARACTER SET a
+1054	1054	engine	one_table@column	opt_charset/charset_key_charset_name+charset_name/STRING_VALUE	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' CHARSET 's'
+1054	1054	engine	one_table@column	opt_charset/charset_key_charset_name+charset_name/BINARY	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' CHARSET BINARY
+1054	1054	engine	one_table@column	opt_charset/charset_key_charset_name+charset_name/ASCII	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' CHARSET ASCII
 1054	1054	engine	one_table@column	opt_charset/%empty	CREATE VIEW _v AS SELECT a INTO OUTFILE 's'
 1054	1054	engine	one_table@column	opt_comma/,	CREATE VIEW _v AS SELECT /*+ PQ_SUBQUERY(,) */ a
 1054	1054	engine	one_table@column	opt_comma/,!insert	CREATE VIEW _v AS SELECT /*+ PQ_SUBQUERY(, zzz) */ a
@@ -839,6 +1021,12 @@ ok:f08bee1b8861	ok:f08bee1b8861	engine	one_table@column	select_clause/simple_sel
 1054	1054	engine	one_table@column	select_clause_set_with_order_and_limit/select_clause_set_order_by	CREATE VIEW _v AS SELECT a UNION SELECT a ORDER BY a
 1054	1054	engine	one_table@column	select_clause_set/select_clause_set_set_type_select_clause_set_body	CREATE VIEW _v AS SELECT a UNION SELECT a UNION SELECT a
 1054	1054	engine	one_table@column	select_clause_set/select_clause_set_set_type_select_clause_set_body!insert	CREATE VIEW _v AS SELECT a UNION SELECT a UNION SELECT a zzz
+1054	1054	engine	one_table@column	select_clause_set/select_clause_set_set_type_select_clause_set_body+set_type/UNION_ALL	CREATE VIEW _v AS SELECT a UNION SELECT a UNION ALL SELECT a
+1054	1054	engine	one_table@column	select_clause_set/select_clause_set_set_type_select_clause_set_body+set_type/UNION_DISTINCT	CREATE VIEW _v AS SELECT a UNION SELECT a UNION DISTINCT SELECT a
+1054	1054	engine	one_table@column	select_clause_set/select_clause_set_set_type_select_clause_set_body+set_type/UNION_UNIQUE	CREATE VIEW _v AS SELECT a UNION SELECT a UNION UNIQUE SELECT a
+1054	1054	engine	one_table@column	select_clause_set/select_clause_set_set_type_select_clause_set_body+set_type/INTERSECT	CREATE VIEW _v AS SELECT a UNION SELECT a INTERSECT SELECT a
+1054	1054	engine	one_table@column	select_clause_set/select_clause_set_set_type_select_clause_set_body+set_type/EXCEPT	CREATE VIEW _v AS SELECT a UNION SELECT a EXCEPT SELECT a
+1054	1054	engine	one_table@column	select_clause_set/select_clause_set_set_type_select_clause_set_body+set_type/MINUS	CREATE VIEW _v AS SELECT a UNION SELECT a MINUS SELECT a
 1054	1054	engine	one_table@column	select_clause_set_body/no_table_select!insert	CREATE VIEW _v AS SELECT a zzz UNION SELECT a
 1054	1054	engine	one_table@column	select_clause_set_body/simple_select	CREATE VIEW _v AS SELECT a FROM a UNION SELECT a
 1054	1054	engine	one_table@column	select_clause_set_body/simple_select!drop-3	CREATE VIEW _v AS SELECT a a UNION SELECT a
@@ -872,10 +1060,19 @@ ok:79493f2ca0eb	ok:79493f2ca0eb	engine	one_table@column	simple_select_with_order
 1054	1054	engine	one_table@column	into_var/unreserved_keyword_normal	CREATE VIEW _v AS SELECT a INTO ACCESS_INFO
 1054	1054	engine	one_table@column	into_var/unreserved_keyword_normal!swap	CREATE VIEW _v AS SELECT a INTO ACCOUNT
 1054	1054	engine	one_table@column	field_opt/columns_or_fields_field_term_list	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' COLUMNS TERMINATED BY 's'
+1054	1054	engine	one_table@column	field_opt/columns_or_fields_field_term_list+columns_or_fields/FIELDS	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' FIELDS TERMINATED BY 's'
 1054	1054	engine	one_table@column	field_term_list/field_term_list_field_term	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' COLUMNS TERMINATED BY 's' TERMINATED BY 's'
+1054	1054	engine	one_table@column	field_term/TERMINATED_BY_text_string+text_string/HEX_STRING_VALUE	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' COLUMNS TERMINATED BY 0x41
+1054	1054	engine	one_table@column	field_term/TERMINATED_BY_text_string+text_string/BIN_STRING_VALUE	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' COLUMNS TERMINATED BY b'1'
 1054	1054	engine	one_table@column	field_term/OPTIONALLY_ENCLOSED_BY_text_string	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' COLUMNS OPTIONALLY ENCLOSED BY 's'
+1054	1054	engine	one_table@column	field_term/OPTIONALLY_ENCLOSED_BY_text_string+text_string/HEX_STRING_VALUE	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' COLUMNS OPTIONALLY ENCLOSED BY 0x41
+1054	1054	engine	one_table@column	field_term/OPTIONALLY_ENCLOSED_BY_text_string+text_string/BIN_STRING_VALUE	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' COLUMNS OPTIONALLY ENCLOSED BY b'1'
 1054	1054	engine	one_table@column	field_term/ENCLOSED_BY_text_string	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' COLUMNS ENCLOSED BY 's'
+1054	1054	engine	one_table@column	field_term/ENCLOSED_BY_text_string+text_string/HEX_STRING_VALUE	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' COLUMNS ENCLOSED BY 0x41
+1054	1054	engine	one_table@column	field_term/ENCLOSED_BY_text_string+text_string/BIN_STRING_VALUE	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' COLUMNS ENCLOSED BY b'1'
 1054	1054	engine	one_table@column	field_term/ESCAPED_BY_text_string	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' COLUMNS ESCAPED BY 's'
+1054	1054	engine	one_table@column	field_term/ESCAPED_BY_text_string+text_string/HEX_STRING_VALUE	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' COLUMNS ESCAPED BY 0x41
+1054	1054	engine	one_table@column	field_term/ESCAPED_BY_text_string+text_string/BIN_STRING_VALUE	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' COLUMNS ESCAPED BY b'1'
 1054	1054	engine	one_table@column	file_opt/file_option_list	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' SINGLE TRUE
 1054	1054	engine	one_table@column	file_option_list/file_option_list_file_option	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' SINGLE TRUE SINGLE TRUE
 1054	1054	engine	one_table@column	file_option/MAX_FILE_SIZE_opt_equal_mark_file_size_const	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' MAX_FILE_SIZE 1
@@ -884,7 +1081,11 @@ ok:79493f2ca0eb	ok:79493f2ca0eb	engine	one_table@column	simple_select_with_order
 1054	1054	engine	one_table@column	file_size_const/STRING_VALUE	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' MAX_FILE_SIZE 's'
 1054	1054	engine	one_table@column	line_opt/LINES_line_term_list	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' LINES TERMINATED BY 's'
 1054	1054	engine	one_table@column	line_term_list/line_term_list_line_term	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' LINES TERMINATED BY 's' TERMINATED BY 's'
+1054	1054	engine	one_table@column	line_term/TERMINATED_BY_text_string+text_string/HEX_STRING_VALUE	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' LINES TERMINATED BY 0x41
+1054	1054	engine	one_table@column	line_term/TERMINATED_BY_text_string+text_string/BIN_STRING_VALUE	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' LINES TERMINATED BY b'1'
 1054	1054	engine	one_table@column	line_term/STARTING_BY_text_string	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' LINES STARTING BY 's'
+1054	1054	engine	one_table@column	line_term/STARTING_BY_text_string+text_string/HEX_STRING_VALUE	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' LINES STARTING BY 0x41
+1054	1054	engine	one_table@column	line_term/STARTING_BY_text_string+text_string/BIN_STRING_VALUE	CREATE VIEW _v AS SELECT a INTO OUTFILE 's' LINES STARTING BY b'1'
 1054	1054	engine	one_table@column	opt_hint_list/hint_options	CREATE VIEW _v AS SELECT /*+ CURSOR_SHARING_EXACT */ a
 1054	1054	engine	one_table@column	opt_hint_list/hint_options!insert	CREATE VIEW _v AS SELECT /*+ CURSOR_SHARING_EXACT zzz */ a
 1054	1054	engine	one_table@column	opt_hint_list/hint_options!swap	CREATE VIEW _v AS SELECT /*+ CURTIME */ a
@@ -1847,6 +2048,8 @@ ok:79493f2ca0eb	ok:79493f2ca0eb	engine	one_table@column	simple_select_with_order
 1054	1054	engine	one_table@column	gs_group_by_expr/(_)	CREATE VIEW _v AS SELECT a GROUP BY ROLLUP(())
 1054	1054	engine	one_table@column	sort_list/sort_list_,_sort_key	CREATE VIEW _v AS SELECT a ORDER BY a, a
 1054	1054	engine	one_table@column	sort_list_opt_null/sort_list_opt_null_,_sort_key_opt_null	CREATE VIEW _v AS SELECT ARRAY_AGG(a ORDER BY a, a)
+1054	1054	engine	one_table@column	opt_asc_desc_null/opt_asc_desc_opt_null_pos+opt_asc_desc/ASC	CREATE VIEW _v AS SELECT ARRAY_AGG(a ORDER BY a ASC)
+1054	1054	engine	one_table@column	opt_asc_desc_null/opt_asc_desc_opt_null_pos+opt_asc_desc/DESC	CREATE VIEW _v AS SELECT ARRAY_AGG(a ORDER BY a DESC)
 1054	1054	engine	one_table@column	opt_asc_desc/ASC	CREATE VIEW _v AS SELECT a ORDER BY a ASC
 1054	1054	engine	one_table@column	opt_asc_desc/DESC	CREATE VIEW _v AS SELECT a ORDER BY a DESC
 1054	1054	engine	one_table@column	opt_having/HAVING_expr	CREATE VIEW _v AS SELECT a HAVING a
