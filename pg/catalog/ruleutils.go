@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
+	nodes "github.com/bytebase/omni/pg/ast"
 )
 
 // GetViewDefinition returns the SQL definition of a view,
@@ -3258,6 +3260,37 @@ func (d *deparseCtx) getJsonExpr(j *JsonExprQ) {
 	if j.Path != "" {
 		d.buf.WriteString(", ")
 		simpleQuoteLiteral(d.buf, j.Path)
+	}
+	switch j.Op {
+	case JsonExprValue:
+		if j.HasReturning && (j.ResultType != TEXTOID || j.ResultTypMod != -1) {
+			d.buf.WriteString(" RETURNING ")
+			d.buf.WriteString(d.catalog.formatType(j.ResultType, j.ResultTypMod))
+		}
+	case JsonExprQuery:
+		retType := j.ResultType
+		retMod := int32(-1)
+		if retType == 0 {
+			retType = JSONBOID
+		}
+		if j.HasReturning {
+			retMod = j.ResultTypMod
+		}
+		d.buf.WriteString(" RETURNING ")
+		d.buf.WriteString(d.catalog.formatType(retType, retMod))
+		switch nodes.JsonWrapper(j.Wrapper) {
+		case nodes.JSW_CONDITIONAL:
+			d.buf.WriteString(" WITH CONDITIONAL WRAPPER")
+		case nodes.JSW_UNCONDITIONAL:
+			d.buf.WriteString(" WITH UNCONDITIONAL WRAPPER")
+		default:
+			d.buf.WriteString(" WITHOUT WRAPPER")
+		}
+		if nodes.JsonQuotes(j.Quotes) == nodes.JS_QUOTES_OMIT {
+			d.buf.WriteString(" OMIT QUOTES")
+		} else {
+			d.buf.WriteString(" KEEP QUOTES")
+		}
 	}
 	d.buf.WriteByte(')')
 }

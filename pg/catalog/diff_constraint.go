@@ -10,14 +10,25 @@ func diffConstraints(from, to *Catalog, fromRelOID, toRelOID uint32) []Constrain
 
 	// Build name → *Constraint maps, leaving out a partition's constraints
 	// that come with its parent's, which PostgreSQL adds and drops along.
+	// Cataloged PG 18 NOT NULL constraints (ConstraintNotNull) are excluded
+	// here intentionally: column nullability is diffed by diffColumns via
+	// ALTER COLUMN SET/DROP NOT NULL (compatible with PG 17 DDL and the
+	// PG 17-pinned parser), while comments on NOT NULL constraints are still
+	// compared by diffComments.
 	fromMap := make(map[string]*Constraint, len(fromCons))
 	for _, c := range fromCons {
+		if c.Type == ConstraintNotNull {
+			continue
+		}
 		if !from.inheritedFromPartitionedTable(c) {
 			fromMap[c.Name] = c
 		}
 	}
 	toMap := make(map[string]*Constraint, len(toCons))
 	for _, c := range toCons {
+		if c.Type == ConstraintNotNull {
+			continue
+		}
 		if !to.inheritedFromPartitionedTable(c) {
 			toMap[c.Name] = c
 		}

@@ -12,7 +12,8 @@ import (
 // clone do not affect the original, and vice versa.
 func (c *Catalog) Clone() *Catalog {
 	clone := &Catalog{
-		oidGen: &OIDGenerator{next: c.oidGen.next},
+		version: c.version,
+		oidGen:  &OIDGenerator{next: c.oidGen.next},
 	}
 
 	// --- Shared builtin indexes (immutable, pointer-safe) ---

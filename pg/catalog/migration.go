@@ -1350,7 +1350,7 @@ func wrapModifiedAccessMethodDependents(from, to *Catalog, diff *SchemaDiff, ops
 			if !mainAddedCon[conKey] {
 				if toRel := to.GetRelation(relSc, fromRel.Name); toRel != nil {
 					for _, toCon := range to.ConstraintsOf(toRel.OID) {
-						if toCon.Name == con.Name && toCon.Type != ConstraintTrigger {
+						if toCon.Name == con.Name && toCon.Type != ConstraintTrigger && toCon.Type != ConstraintNotNull {
 							mainAddedCon[conKey] = true
 							mainExtra = append(mainExtra, buildAddConstraintOp(to, relSc, fromRel.Name, toCon))
 							if txt, ok := to.GetComment('c', toCon.OID, 0); ok && txt != "" {
@@ -2095,6 +2095,34 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 		}
 		cSc := cRel.Schema.Name
 		conKey := cSc + "." + cRel.Name + "." + con.Name
+		if con.Type == ConstraintNotNull {
+			// NOT NULL is recreated by ADD COLUMN ... [CONSTRAINT name] NOT NULL,
+			// so omit explicit DROP/ADD CONSTRAINT DDL, but restore any unchanged
+			// comment on the recreated NOT NULL constraint.
+			if toCRel := to.GetRelation(cSc, cRel.Name); toCRel != nil {
+				for _, toCon := range to.ConstraintsOf(toCRel.OID) {
+					if toCon.Name == con.Name && toCon.ConParentID == 0 && toCon.Type == ConstraintNotNull {
+						if txt, ok := to.GetComment('c', toCon.OID, 0); ok && txt != "" {
+							desc := cSc + "." + cRel.Name + "." + toCon.Name
+							if csql := formatCommentSQL(to, 'c', desc, 0, txt); csql != "" && !mainComments[csql] {
+								mainComments[csql] = true
+								mainExtra = append(mainExtra, MigrationOp{
+									Type:          OpComment,
+									ObjectName:    desc,
+									SQL:           csql,
+									Transactional: true,
+									Phase:         PhaseMain,
+									ObjType:       'c',
+									Priority:      PriorityMetadata,
+								})
+							}
+						}
+						break
+					}
+				}
+			}
+			return
+		}
 		dropOp := buildDropConstraintOpForRel(cSc, cRel.Name, cRel, con)
 		if !preDroppedCon[con.OID] && !preDroppedConKey[conKey] && !preDroppedConKey[dropOp.SQL] {
 			preDroppedCon[con.OID] = true
@@ -2105,7 +2133,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 		if !mainAddedCon[conKey] {
 			if toCRel := to.GetRelation(cSc, cRel.Name); toCRel != nil {
 				for _, toCon := range to.ConstraintsOf(toCRel.OID) {
-					if toCon.Name == con.Name && toCon.ConParentID == 0 && toCon.Type != ConstraintTrigger {
+					if toCon.Name == con.Name && toCon.ConParentID == 0 && toCon.Type != ConstraintTrigger && toCon.Type != ConstraintNotNull {
 						mainAddedCon[conKey] = true
 						mainExtra = append(mainExtra, buildAddConstraintOp(to, cSc, cRel.Name, toCon))
 						if txt, ok := to.GetComment('c', toCon.OID, 0); ok && txt != "" {

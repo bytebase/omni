@@ -9,10 +9,15 @@ import (
 // generateCommentDDL produces COMMENT ON operations from the diff.
 func generateCommentDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	var ops []MigrationOp
+	emittedRenames := make(map[string]bool)
 
 	for _, entry := range diff.Comments {
 		switch entry.Action {
 		case DiffAdd, DiffModify:
+			if renameOp, ok := renameNotNullForComment(from, to, entry); ok && !emittedRenames[renameOp.SQL] {
+				emittedRenames[renameOp.SQL] = true
+				ops = append(ops, renameOp)
+			}
 			sql := formatCommentEntrySQL(to, entry, entry.To)
 			if sql != "" {
 				ops = append(ops, MigrationOp{
@@ -26,7 +31,7 @@ func generateCommentDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				})
 			}
 		case DiffDrop:
-			if commentDroppedWithForeignTable(from, diff, entry) {
+			if commentDroppedWithForeignTable(from, diff, entry) || commentDroppedWithNotNullConstraint(from, to, entry) {
 				continue
 			}
 			sql := formatCommentEntrySQL(from, entry, "")
@@ -136,6 +141,153 @@ func commentDroppedWithForeignTable(from *Catalog, diff *SchemaDiff, entry Comme
 		return rebuiltOrDroppedFT[relKey]
 	}
 	return false
+}
+
+// commentDroppedWithNotNullConstraint reports whether entry removes a comment
+// on a PG 18 cataloged NOT NULL constraint that no longer exists in to (e.g.
+// because the table/column was dropped or ALTER COLUMN ... DROP NOT NULL
+// implicitly removed the constraint).
+func commentDroppedWithNotNullConstraint(from, to *Catalog, entry CommentDiffEntry) bool {
+	if from == nil || entry.ObjType != 'c' || len(entry.objParts) < 3 {
+		return false
+	}
+	schemaName, relName, conName := entry.objParts[0], entry.objParts[1], entry.objParts[2]
+	fromRel := from.GetRelation(schemaName, relName)
+	if fromRel == nil {
+		return false
+	}
+	var isNN bool
+	for _, con := range from.consByRel[fromRel.OID] {
+		if con.Name == conName && con.Type == ConstraintNotNull {
+			isNN = true
+			break
+		}
+	}
+	if !isNN {
+		return false
+	}
+	if to == nil {
+		return true
+	}
+	toRel := to.GetRelation(schemaName, relName)
+	if toRel == nil {
+		return true
+	}
+	for _, con := range to.consByRel[toRel.OID] {
+		if con.Name == conName && con.Type == ConstraintNotNull {
+			return false
+		}
+	}
+	return true
+}
+
+// renameNotNullForComment returns an ALTER TABLE ... RENAME CONSTRAINT op when
+// a comment targets a PG 18 cataloged NOT NULL constraint whose column was
+// already NOT NULL in from under a different constraint name.
+func renameNotNullForComment(from, to *Catalog, entry CommentDiffEntry) (MigrationOp, bool) {
+	if from == nil || to == nil || from.Version() < PG18 || to.Version() < PG18 || entry.ObjType != 'c' || len(entry.objParts) < 3 {
+		return MigrationOp{}, false
+	}
+	schemaName, relName, conName := entry.objParts[0], entry.objParts[1], entry.objParts[2]
+	toRel := to.GetRelation(schemaName, relName)
+	fromRel := from.GetRelation(schemaName, relName)
+	if toRel == nil || fromRel == nil || (toRel.RelKind != 'r' && toRel.RelKind != 'p') {
+		return MigrationOp{}, false
+	}
+	var toColName string
+	for _, con := range to.consByRel[toRel.OID] {
+		if con.Name == conName && con.Type == ConstraintNotNull && len(con.Columns) == 1 {
+			if ci := indexOfAttNum(toRel, con.Columns[0]); ci >= 0 {
+				toColName = toRel.Columns[ci].Name
+			}
+			break
+		}
+	}
+	if toColName == "" {
+		return MigrationOp{}, false
+	}
+	fi, ok := fromRel.colByName[toColName]
+	if !ok || !fromRel.Columns[fi].NotNull {
+		return MigrationOp{}, false
+	}
+	var fromCon *Constraint
+	for _, con := range from.consByRel[fromRel.OID] {
+		if con.Type == ConstraintNotNull && len(con.Columns) == 1 && con.Columns[0] == fromRel.Columns[fi].AttNum {
+			fromCon = con
+			break
+		}
+	}
+	if fromCon == nil || fromCon.Name == "" || fromCon.Name == conName {
+		return MigrationOp{}, false
+	}
+	fromNN := fromCon.Name
+
+	// If the NOT NULL constraint on fromRel is inherited (ConInhCount > 0),
+	// PostgreSQL rejects renaming it directly on the child/partition; resolve
+	// the owning ancestor so recursive RENAME CONSTRAINT updates the hierarchy.
+	targetRel := fromRel
+	if fromCon.ConInhCount > 0 {
+		visited := make(map[uint32]bool)
+		var findOwner func(r *Relation) *Relation
+		findOwner = func(r *Relation) *Relation {
+			if r == nil || visited[r.OID] {
+				return nil
+			}
+			visited[r.OID] = true
+			var parents []uint32
+			if r.PartitionOf != 0 {
+				parents = append(parents, r.PartitionOf)
+			}
+			parents = append(parents, r.InhParents...)
+			for _, poid := range parents {
+				p := from.relationByOID[poid]
+				if p == nil {
+					continue
+				}
+				pi, ok := p.colByName[toColName]
+				if !ok {
+					continue
+				}
+				for _, pcon := range from.consByRel[p.OID] {
+					if pcon.Type == ConstraintNotNull && len(pcon.Columns) == 1 && pcon.Columns[0] == p.Columns[pi].AttNum && pcon.Name == fromNN {
+						if pcon.ConInhCount == 0 {
+							return p
+						}
+						if owner := findOwner(p); owner != nil {
+							return owner
+						}
+					}
+				}
+			}
+			return nil
+		}
+		if owner := findOwner(fromRel); owner != nil {
+			targetRel = owner
+		}
+	}
+	targetSchema := schemaName
+	if targetRel.Schema != nil {
+		targetSchema = targetRel.Schema.Name
+	}
+	targetObjOID := toRel.OID
+	if toOwner := to.GetRelation(targetSchema, targetRel.Name); toOwner != nil {
+		targetObjOID = toOwner.OID
+	}
+	tableName := fmt.Sprintf("%s.%s", quoteIdentifier(targetSchema), quoteIdentifier(targetRel.Name))
+	if targetRel.Persistence == 't' || isTempSchemaName(targetSchema) {
+		tableName = quoteIdentifier(targetRel.Name)
+	}
+	return MigrationOp{
+		Type:          OpAlterColumn,
+		SchemaName:    targetSchema,
+		ObjectName:    targetRel.Name,
+		SQL:           fmt.Sprintf("ALTER TABLE %s RENAME CONSTRAINT %s TO %s", tableName, quoteIdentifier(fromNN), quoteIdentifier(conName)),
+		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'r',
+		ObjOID:        targetObjOID,
+		Priority:      PriorityColumn,
+	}, true
 }
 
 // formatCommentSQL generates a COMMENT ON ... IS '...' or COMMENT ON ... IS NULL statement.

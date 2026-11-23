@@ -7206,11 +7206,27 @@ func (ac *analyzeCtx) transformJsonFuncExpr(n *nodes.JsonFuncExpr) (AnalyzedExpr
 		resultType = TEXTOID
 	}
 
+	resultTypMod := int32(-1)
+	hasReturning := false
+	if n.Output != nil && n.Output.TypeName != nil {
+		retOID, retMod, err := ac.catalog.resolveTypeName(n.Output.TypeName)
+		if err != nil {
+			return nil, err
+		}
+		resultType = retOID
+		resultTypMod = retMod
+		hasReturning = true
+	}
+
 	return &JsonExprQ{
-		Op:         op,
-		Expr:       expr,
-		Path:       pathStr,
-		ResultType: resultType,
+		Op:           op,
+		Expr:         expr,
+		Path:         pathStr,
+		ResultType:   resultType,
+		ResultTypMod: resultTypMod,
+		HasReturning: hasReturning,
+		Wrapper:      int(n.Wrapper),
+		Quotes:       int(n.Quotes),
 	}, nil
 }
 

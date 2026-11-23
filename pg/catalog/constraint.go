@@ -5,6 +5,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"unicode/utf8"
 )
 
 // Constraint represents a table constraint.
@@ -159,7 +160,11 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 	}
 
 	name := def.Name
-	if name == "" {
+	if name != "" {
+		if err := c.checkNotNullConstraintNameFree(rel.OID, name); err != nil {
+			return err
+		}
+	} else {
 		if existingIdx != nil {
 			name = existingIdx.Name
 		} else {
@@ -178,9 +183,21 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 		}
 	}
 
+	isPrimary := typ == ConstraintPK
+	if isPrimary && c.Version() >= PG18 {
+		// pg: src/backend/commands/tablecmds.c — verifyNotNullPKCompatible (PG 18)
+		for _, attnum := range attnums {
+			if c.isNotNullNoInherit(rel, attnum) {
+				return &Error{
+					Code:    CodeObjectNotInPrerequisiteState,
+					Message: fmt.Sprintf("cannot create primary key because column %q has a NO INHERIT NOT NULL constraint", rel.Columns[attnum-1].Name),
+				}
+			}
+		}
+	}
+
 	conOID := c.oidGen.Next()
 
-	isPrimary := typ == ConstraintPK
 	if isPrimary {
 		for _, attnum := range attnums {
 			rel.Columns[attnum-1].NotNull = true
@@ -234,6 +251,17 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 	}
 	// Index depends on its constraint (internal).
 	c.recordDependency('i', idx.OID, 0, 'c', con.OID, 0, DepInternal)
+
+	// Register PG 18 cataloged NOT NULL constraints after registering the PK
+	// itself so an explicit PK named <rel>_<col>_not_null reserves that name
+	// and the implicit NOT NULL constraint chooses a non-colliding suffix.
+	// DefineRelation defers this to Pass 2 so later explicit CHECK/UNIQUE/FK
+	// constraints also reserve their names first.
+	if isPrimary && !c.deferImplicitNotNull {
+		for _, attnum := range attnums {
+			_ = c.ensureNotNullConstraint(schema, rel, rel.Columns[attnum-1], "")
+		}
+	}
 
 	return nil
 }
@@ -333,6 +361,7 @@ func (c *Catalog) reusePartitionIndexConstraint(schema *Schema, rel *Relation, c
 	for _, attnum := range attnums {
 		if int(attnum) > 0 && int(attnum) <= len(rel.Columns) {
 			rel.Columns[attnum-1].NotNull = true
+			_ = c.ensureNotNullConstraintWithInh(schema, rel, rel.Columns[attnum-1], "", false, 1)
 		}
 	}
 
@@ -446,8 +475,12 @@ func (c *Catalog) addFKConstraint(schema *Schema, rel *Relation, def ConstraintD
 	}
 
 	name := def.Name
-	if name == "" {
-		name = generateConstraintName(rel.Name, def.Columns, ConstraintFK)
+	if name != "" {
+		if err := c.checkNotNullConstraintNameFree(rel.OID, name); err != nil {
+			return err
+		}
+	} else {
+		name = c.chooseFKConstraintName(rel, def.Columns)
 	}
 
 	// Normalize FK action/match defaults.
@@ -570,7 +603,11 @@ func (c *Catalog) addCheckConstraint(rel *Relation, def ConstraintDef) error {
 	//   0 or 2+ columns: {table}_check
 	// With numeric suffix for uniqueness: _check, _check1, _check2, etc.
 	name := def.Name
-	if name == "" {
+	if name != "" {
+		if err := c.checkNotNullConstraintNameFree(rel.OID, name); err != nil {
+			return err
+		}
+	} else {
 		baseName := rel.Name + "_check"
 		if len(cols) == 1 {
 			// Find the single referenced column name.
@@ -806,7 +843,11 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 	allRawCols = append(allRawCols, def.Columns...)
 	allRawCols = append(allRawCols, def.IncludeColumns...)
 	chosenCols := chooseIndexColumnNames(allRawCols)
-	if name == "" {
+	if name != "" {
+		if err := c.checkNotNullConstraintNameFree(rel.OID, name); err != nil {
+			return err
+		}
+	} else {
 		name = c.chooseConstraintAndIndexName(schema, rel, chosenCols, ConstraintExclude)
 	}
 
@@ -1034,6 +1075,200 @@ func (c *Catalog) validateExclusionOpFamilyMember(am *AccessMethod, opcOID, opOI
 
 // chooseConstraintAndIndexName picks a free name in both the relation/index
 // namespace and the relation's constraint list, matching ChooseRelationName.
+// ensureNotNullConstraint records a locally defined PG 18 cataloged NOT NULL
+// constraint (pg_constraint.contype = 'n') for col when c.Version() >= PG18.
+func (c *Catalog) ensureNotNullConstraint(schema *Schema, rel *Relation, col *Column, conName string) error {
+	return c.ensureNotNullConstraintWithInh(schema, rel, col, conName, true, 0)
+}
+
+// ensureNotNullConstraintWithInh records or updates a PG 18 cataloged NOT NULL
+// constraint (pg_constraint.contype = 'n') with explicit locality and
+// inheritance count tracking.
+//
+// pg: src/backend/commands/tablecmds.c — StoreRelNotNull
+func (c *Catalog) ensureNotNullConstraintWithInh(schema *Schema, rel *Relation, col *Column, conName string, isLocal bool, inhCount int16) error {
+	if c.Version() < PG18 || schema == nil || rel == nil || rel.RelKind == 'c' || col == nil || !col.NotNull {
+		return nil
+	}
+	for _, existing := range c.consByRel[rel.OID] {
+		if existing.Type == ConstraintNotNull && len(existing.Columns) == 1 && existing.Columns[0] == col.AttNum {
+			if isLocal {
+				existing.ConIsLocal = true
+			}
+			if existing.ConInhCount < inhCount {
+				existing.ConInhCount = inhCount
+			}
+			return nil
+		}
+	}
+	if conName == "" {
+		conName = c.chooseNotNullConstraintName(rel, col.Name)
+	} else if err := c.checkConstraintNameFree(rel.OID, conName); err != nil {
+		return err
+	}
+	con := &Constraint{
+		OID:         c.oidGen.Next(),
+		Name:        conName,
+		Type:        ConstraintNotNull,
+		RelOID:      rel.OID,
+		Namespace:   schema.OID,
+		Columns:     []int16{col.AttNum},
+		Validated:   true,
+		ConIsLocal:  isLocal,
+		ConInhCount: inhCount,
+	}
+	c.registerConstraint(rel.OID, con)
+	c.recordDependency('c', con.OID, 0, 'r', rel.OID, int32(col.AttNum), DepAuto)
+	return nil
+}
+
+// removeNotNullConstraint removes the PG 18 cataloged NOT NULL constraint for
+// attnum on rel, if one exists.
+func (c *Catalog) removeNotNullConstraint(schema *Schema, rel *Relation, attnum int16) {
+	if rel == nil {
+		return
+	}
+	for _, con := range c.consByRel[rel.OID] {
+		if con.Type == ConstraintNotNull && len(con.Columns) == 1 && con.Columns[0] == attnum {
+			c.removeConstraint(schema, con)
+			return
+		}
+	}
+}
+
+// checkNotNullConstraintNameFree rejects an explicit table constraint name
+// that collides with an already-registered PG 18 NOT NULL constraint on rel.
+func (c *Catalog) checkNotNullConstraintNameFree(relOID uint32, name string) error {
+	if c.Version() < PG18 || name == "" {
+		return nil
+	}
+	for _, con := range c.consByRel[relOID] {
+		if con.Type == ConstraintNotNull && con.Name == name {
+			return errDuplicateObject("constraint", name)
+		}
+	}
+	return nil
+}
+
+// constraintNameInNamespace reports whether any table or domain constraint in
+// namespace nsOID already uses name.
+//
+// pg: src/backend/catalog/pg_constraint.c — ConstraintNameExists
+func (c *Catalog) constraintNameInNamespace(nsOID uint32, name string) bool {
+	for _, con := range c.constraints {
+		if con.Name != name {
+			continue
+		}
+		conNS := con.Namespace
+		if conNS == 0 {
+			if rel := c.relationByOID[con.RelOID]; rel != nil && rel.Schema != nil {
+				conNS = rel.Schema.OID
+			}
+		}
+		if conNS == nsOID {
+			return true
+		}
+	}
+	for typeOID, dt := range c.domainTypes {
+		bt := c.typeByOID[typeOID]
+		if bt == nil || bt.Namespace != nsOID {
+			continue
+		}
+		for _, dc := range dt.Constraints {
+			if dc.Name == name {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// chooseNotNullConstraintName picks PostgreSQL 18's default NOT NULL
+// constraint name (<rel>_<col>_not_null, shortened to 63 bytes via
+// makeObjectName and suffixed with 1, 2, ... on collision across the schema).
+//
+// pg: src/backend/catalog/pg_constraint.c — ChooseConstraintName(..., "not_null", ...)
+func (c *Catalog) chooseNotNullConstraintName(rel *Relation, colName string) string {
+	nsOID := uint32(0)
+	if rel.Schema != nil {
+		nsOID = rel.Schema.OID
+	}
+	name := makePGObjectName(rel.Name, colName, "not_null")
+	for i := 1; ; i++ {
+		if c.checkConstraintNameFree(rel.OID, name) == nil && (nsOID == 0 || !c.constraintNameInNamespace(nsOID, name)) {
+			return name
+		}
+		name = makePGObjectName(rel.Name, colName, fmt.Sprintf("not_null%d", i))
+	}
+}
+
+// chooseFKConstraintName picks a free generated foreign-key constraint name on
+// rel (<rel>_<cols>_fkey, suffixed with 1, 2, ... on collision across the schema).
+//
+// pg: src/backend/catalog/pg_constraint.c — ChooseConstraintName(..., "fkey", ...)
+func (c *Catalog) chooseFKConstraintName(rel *Relation, columns []string) string {
+	nsOID := uint32(0)
+	if rel.Schema != nil {
+		nsOID = rel.Schema.OID
+	}
+	colPart := strings.Join(columns, "_")
+	name := makePGObjectName(rel.Name, colPart, "fkey")
+	for i := 1; ; i++ {
+		if c.checkConstraintNameFree(rel.OID, name) == nil && (nsOID == 0 || !c.constraintNameInNamespace(nsOID, name)) {
+			return name
+		}
+		name = makePGObjectName(rel.Name, colPart, fmt.Sprintf("fkey%d", i))
+	}
+}
+
+// makePGObjectName implements PostgreSQL's makeObjectName(name1, name2, label),
+// trimming name1 and name2 on UTF-8 rune boundaries so the joined identifier
+// never exceeds NAMEDATALEN-1 (63 bytes) while preserving label.
+//
+// pg: src/backend/commands/indexcmds.c — makeObjectName
+func makePGObjectName(name1, name2, label string) string {
+	const maxLen = 63
+	overhead := 0
+	if name2 != "" {
+		overhead++
+	}
+	if label != "" {
+		overhead += 1 + len(label)
+	}
+	avail := maxLen - overhead
+	if avail < 0 {
+		avail = 0
+	}
+	n1 := name1
+	n2 := name2
+	for len(n1)+len(n2) > avail {
+		if len(n1) > len(n2) {
+			n1 = trimOneRune(n1)
+		} else {
+			n2 = trimOneRune(n2)
+		}
+	}
+	var b strings.Builder
+	b.WriteString(n1)
+	if n2 != "" {
+		b.WriteByte('_')
+		b.WriteString(n2)
+	}
+	if label != "" {
+		b.WriteByte('_')
+		b.WriteString(label)
+	}
+	return b.String()
+}
+
+func trimOneRune(s string) string {
+	if s == "" {
+		return ""
+	}
+	_, size := utf8.DecodeLastRuneInString(s)
+	return s[:len(s)-size]
+}
+
 func (c *Catalog) chooseConstraintAndIndexName(schema *Schema, rel *Relation, columns []string, ctype ConstraintType) string {
 	var name2, label string
 	switch ctype {

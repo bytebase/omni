@@ -39,6 +39,10 @@ type ColumnDef struct {
 	Compression      string               // explicit COMPRESSION directive; empty = default
 	ForeignOptions   []string             // per-column FDW options
 	IsFromType       bool                 // true if column came from OF TYPE (typed table)
+	NotNullConName   string               // explicit CONSTRAINT name NOT NULL (PG 18+)
+	InheritedNNName  string               // parent's NOT NULL constraint name when inherited (PG 18+)
+	NotNullLocal     bool                 // locally declared NOT NULL (vs purely inherited)
+	NotNullInhCount  int16                // count of direct parents enforcing NOT NULL
 }
 
 // ConstraintType identifies the kind of table constraint.
@@ -51,6 +55,7 @@ const (
 	ConstraintCheck   ConstraintType = 'c'
 	ConstraintExclude ConstraintType = 'x'
 	ConstraintTrigger ConstraintType = 't' // constraint trigger
+	ConstraintNotNull ConstraintType = 'n' // cataloged NOT NULL constraint (PG 18+)
 )
 
 // ConstraintDef describes a constraint in a CREATE TABLE statement.
