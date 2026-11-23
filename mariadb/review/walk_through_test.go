@@ -790,6 +790,12 @@ func TestWalkThroughMariaDBTypesAndQueries(t *testing.T) {
 			ForeignKeys: fk,
 		},
 		&metadata.TableMetadata{
+			Name:        "ch3",
+			Columns:     []*metadata.ColumnMetadata{typed("id", "int(11)"), typed("p", "int(11)"), typed("x", "int(11)")},
+			Indexes:     []*metadata.IndexMetadata{pk, {Name: "fk_p", Expressions: []string{"p"}}, {Name: "k", Expressions: []string{"x", "p"}}},
+			ForeignKeys: fk,
+		},
+		&metadata.TableMetadata{
 			Name:        "ch2",
 			Columns:     []*metadata.ColumnMetadata{typed("id", "int(11)"), typed("p", "int(11)")},
 			Indexes:     []*metadata.IndexMetadata{pk, {Name: "fk_p", Expressions: []string{"p"}}, {Name: "k2", Expressions: []string{"p", "id"}}},
@@ -851,6 +857,7 @@ func TestWalkThroughMariaDBTypesAndQueries(t *testing.T) {
 	oneFinding(t, "ALTER TABLE ch DROP COLUMN p;", 0, "Column `p` is needed by a foreign key constraint.", shop)
 	noFinding(t, "ALTER TABLE ch DROP FOREIGN KEY fk_p, DROP INDEX fk_p;", shop)
 	noFinding(t, "ALTER TABLE ch2 DROP INDEX fk_p;", shop)
+	noFinding(t, "ALTER TABLE ch3 DROP COLUMN x, DROP INDEX fk_p;", shop)
 	noFinding(t, "ALTER TABLE ch ADD KEY k2 (p, id);\nALTER TABLE ch DROP INDEX fk_p;", shop)
 	noFinding(t, "SET foreign_key_checks = 0;\nALTER TABLE ch DROP INDEX fk_p;", shop)
 	noFinding(t, "ALTER TABLE ch DROP INDEX fk_p;", review.Target{Schema: schema})

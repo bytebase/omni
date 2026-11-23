@@ -120,16 +120,16 @@ func (b *builder) fkIndexDropFails(r tableRef, dropIdx, dropCols []string, rng r
 		}
 		var dropped string
 		survives := false
+		// An index serves the foreign key as the drops leave it: one that
+		// loses a column may come to serve it.
 		for ik, icols := range ft.indexes {
-			if !serves(icols, cols) {
-				continue
-			}
-			if droppedIdx[ik] {
-				dropped = ik
-				continue
-			}
 			left := slices.DeleteFunc(slices.Clone(icols), func(c string) bool { return droppedCol[c] })
-			if serves(left, cols) {
+			switch {
+			case droppedIdx[ik]:
+				if serves(icols, cols) || serves(left, cols) {
+					dropped = ik
+				}
+			case serves(left, cols):
 				survives = true
 			}
 		}
