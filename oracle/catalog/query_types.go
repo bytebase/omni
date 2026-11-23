@@ -17,6 +17,10 @@ const (
 	nationalCharBytes = 2
 	maxVarchar2Bytes  = 4000
 	maxCharBytes      = 2000
+	// longestVarchar2 is the longest VARCHAR2 a function returns: 32767
+	// bytes under MAX_STRING_SIZE=EXTENDED, which a view's columns are cut
+	// to maxVarchar2Bytes under STANDARD (clampStringTypes).
+	longestVarchar2 = 32767
 )
 
 // A qtype is the data type Oracle gives a query column, as USER_TAB_COLS
@@ -54,7 +58,7 @@ func nullType() qtype { return qtype{kind: "NULL", prec: -1, scale: noScale} }
 func simpleType(kind string) qtype { return qtype{kind: kind, prec: -1, scale: noScale} }
 
 func varchar2Bytes(n int) qtype {
-	return qtype{kind: "VARCHAR2", bytes: min(n, maxVarchar2Bytes), chars: n, prec: -1, scale: noScale}
+	return qtype{kind: "VARCHAR2", bytes: min(n, longestVarchar2), chars: n, prec: -1, scale: noScale}
 }
 
 func charLiteralType(val string) qtype {
@@ -292,7 +296,7 @@ func parseColumnType(text string) qtype {
 // charSem is set or the type is an N type.
 func characterType(kind string, n int, charSem bool) qtype {
 	t := qtype{kind: kind, prec: -1, scale: noScale}
-	limit := maxVarchar2Bytes
+	limit := longestVarchar2
 	if kind == "CHAR" || kind == "NCHAR" {
 		limit = maxCharBytes
 	}
@@ -401,4 +405,27 @@ func typeNameType(tn *ast.TypeName) qtype {
 		return parseColumnType(name + "(" + mods[0] + " " + mods[1] + ")")
 	}
 	return parseColumnType(name + "(" + strings.Join(mods, ",") + ")")
+}
+
+// clampStringTypes cuts a view's character columns to the longest VARCHAR2
+// and NVARCHAR2 the server's MAX_STRING_SIZE allows.
+func clampStringTypes(cols []qcol, limit int) []qcol {
+	for i := range cols {
+		t := &cols[i].typ
+		switch t.kind {
+		case "VARCHAR2":
+			if t.bytes > limit {
+				t.bytes = limit
+				if !t.charSem {
+					t.chars = limit
+				}
+			}
+		case "NVARCHAR2":
+			if t.chars*nationalCharBytes > limit {
+				t.chars = limit / nationalCharBytes
+				t.bytes = limit
+			}
+		}
+	}
+	return cols
 }

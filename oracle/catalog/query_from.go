@@ -251,6 +251,15 @@ func (a *queryAnalyzer) tableClauses(n *ast.TableRef, rel *qrel, sc *qscope) err
 			if !hasPeriod(rel, fb.PeriodColumn) {
 				return oraError("55603", "invalid flashback archive or valid time period command")
 			}
+			// A valid-time bound is an expression like any other.
+			for _, x := range []ast.ExprNode{fb.Expr, fb.VersionsLow, fb.VersionsHigh} {
+				if x == nil {
+					continue
+				}
+				if _, _, err := a.expr(x, sc, clauseFrom); err != nil {
+					return err
+				}
+			}
 		}
 		check := func(x ast.ExprNode) error {
 			if x == nil {

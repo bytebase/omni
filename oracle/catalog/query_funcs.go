@@ -255,7 +255,7 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 				return varchar2Bytes(lit * dbCharBytes), false, nil
 			}
 		}
-		return varchar2Bytes(4000), false, nil
+		return varchar2Bytes(longestVarchar2), false, nil
 	case "REPLACE":
 		t := arg(0)
 		if t.isLOB() {
@@ -295,7 +295,7 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		if t.isLOB() {
 			return t, false, nil
 		}
-		return varchar2Bytes(4000), false, nil
+		return varchar2Bytes(longestVarchar2), false, nil
 	case "LENGTH", "LENGTHB", "LENGTHC", "INSTR", "INSTRB", "INSTRC", "ASCII", "VSIZE",
 		"REGEXP_INSTR", "REGEXP_COUNT", "MOD", "REMAINDER", "ROUND", "TRUNC", "ABS", "CEIL", "FLOOR",
 		"POWER", "SQRT", "SIGN", "LN", "EXP", "LOG", "SIN", "COS", "TAN", "ASIN", "ACOS", "ATAN", "ATAN2",
@@ -362,7 +362,7 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 			// TO_CHAR of characters returns VARCHAR2, a LOB's of the
 			// longest VARCHAR2.
 			if t.isLOB() {
-				return varchar2Bytes(maxVarchar2Bytes), false, nil
+				return varchar2Bytes(longestVarchar2), false, nil
 			}
 			return varchar2Bytes(t.byteLength()), false, nil
 		}
@@ -446,7 +446,7 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 	case "SYS_CONTEXT":
 		return varchar2Bytes(256), false, nil
 	case "SYS_CONNECT_BY_PATH":
-		return varchar2Bytes(4000), false, nil
+		return varchar2Bytes(longestVarchar2), false, nil
 	case "NVL", "IFNULL":
 		if err := convertibleArgs(args); err != nil {
 			return qtype{}, false, err
@@ -634,7 +634,7 @@ func (a *queryAnalyzer) aggregateType(n *ast.FuncCallExpr, name string, args []q
 			t.bytes = 2000
 			return t, false, nil
 		}
-		return varchar2Bytes(4000), false, nil
+		return varchar2Bytes(longestVarchar2), false, nil
 	case "JSON_ARRAYAGG", "JSON_OBJECTAGG":
 		return varchar2Bytes(4000), false, nil
 	case "XMLAGG":
@@ -712,11 +712,20 @@ func (a *queryAnalyzer) windowSpec(w *ast.WindowSpec, sc *qscope, seen map[strin
 			if b == nil || b.Value == nil {
 				continue
 			}
-			if _, _, err := a.expr(b.Value, sc, clauseAggArg); err != nil {
+			ot, _, err := a.expr(b.Value, sc, clauseAggArg)
+			if err != nil {
 				return err
 			}
 			if f.Type != ast.WINDOW_RANGE {
+				// A ROWS or GROUPS offset counts rows.
+				if typeFamily(ot) != "" && !ot.isNumeric() && !ot.isCharacter() {
+					return oraError("00902", "invalid datatype")
+				}
 				continue
+			}
+			// An interval offset needs a datetime ordering key.
+			if ot.isInterval() && len(orderTypes) == 1 && typeFamily(orderTypes[0]) != "" && !orderTypes[0].isDatetime() {
+				return oraError("00902", "invalid datatype")
 			}
 			// A RANGE offset needs one ordering key, numeric or datetime,
 			// to add it to.

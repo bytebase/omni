@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -188,6 +189,8 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"nvl_date_number", `CREATE VIEW v AS SELECT NVL(DATE '2020-01-01', 1) x FROM dual`, "00932"},
 		{"partition_by_lob", `CREATE VIEW v AS SELECT COUNT(*) OVER (PARTITION BY doc) c FROM t`, "22848"},
 		{"quoted_pattern_variable", `CREATE VIEW v AS SELECT first_id FROM t MATCH_RECOGNIZE (ORDER BY id MEASURES FIRST("a".id) AS first_id PATTERN ("a") DEFINE "a" AS id > 0)`, ""},
+		{"range_interval_numeric_key", `CREATE VIEW v AS SELECT SUM(id) OVER (ORDER BY id RANGE INTERVAL '1' DAY PRECEDING) x FROM t`, "00902"},
+		{"range_interval_date_key", `CREATE VIEW v AS SELECT SUM(id) OVER (ORDER BY d RANGE INTERVAL '1' DAY PRECEDING) x FROM t`, ""},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -724,5 +727,52 @@ func TestViewQueryNestedWithStaysLinear(t *testing.T) {
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("nested WITH clauses took more than 10s")
+	}
+}
+
+func TestViewQueryRound33(t *testing.T) {
+	// Nested recursive WITH anchors stay linear.
+	q := "SELECT 1 x FROM dual"
+	for i := 0; i < 30; i++ {
+		q = fmt.Sprintf("WITH r%d(x) AS (SELECT (%s) FROM dual UNION ALL SELECT x + 1 FROM r%d WHERE x < 0) SELECT x FROM r%d", i, q, i, i)
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, err := LoadSQL("CREATE VIEW v AS " + q)
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("nested recursive WITH anchors took more than 10s")
+	}
+
+	// MAX_STRING_SIZE=EXTENDED keeps a concatenation's length.
+	c, err := LoadSQL(`CREATE TABLE t (c VARCHAR2(3000 BYTE), id NUMBER, PERIOD FOR valid_time);`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := StandardOracle23ServerConfig()
+	cfg.MaxStringSize = "EXTENDED"
+	c.SetServerConfig(cfg)
+	results, err := c.Exec(`CREATE VIEW v AS SELECT c || c x FROM t;
+CREATE VIEW w AS SELECT id FROM t AS OF PERIOD FOR valid_time :p;`, &ExecOptions{ContinueOnError: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if results[0].Error != nil {
+		t.Fatal(results[0].Error)
+	}
+	var refusal *Error
+	if !errors.As(results[1].Error, &refusal) || refusal.Code != "01027" {
+		t.Errorf("PERIOD FOR bind: %v, want ORA-01027", results[1].Error)
+	}
+	for _, v := range c.Metadata().GetSchemas()[0].GetViews() {
+		if v.GetName() == "V" && v.GetColumns()[0].GetType() != "VARCHAR2(6000 BYTE)" {
+			t.Errorf("V.X type = %q, want VARCHAR2(6000 BYTE)", v.GetColumns()[0].GetType())
+		}
 	}
 }

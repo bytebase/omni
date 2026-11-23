@@ -135,6 +135,8 @@ type queryAnalyzer struct {
 	memo map[exprMemoKey]exprMemo
 	// queryMemo holds each subquery's analysis by scope and environment.
 	queryMemo map[queryMemoKey]queryMemo
+	// blockMemo holds each query block's analysis likewise.
+	blockMemo map[blockMemoKey]queryMemo
 }
 
 type textEdit struct {
@@ -154,11 +156,16 @@ func (e *oracleMetadataExtractor) analyzeViewQuery(query ast.StmtNode) ([]qcol, 
 	if !ok || sel == nil {
 		return nil, e.nodeText(query), nil
 	}
-	a := &queryAnalyzer{e: e, plsqlFuncs: map[string]qtype{}, owner: map[*ast.ColumnRef]*qfrom{}, memo: map[exprMemoKey]exprMemo{}, queryMemo: map[queryMemoKey]queryMemo{}}
+	a := &queryAnalyzer{e: e, plsqlFuncs: map[string]qtype{}, owner: map[*ast.ColumnRef]*qfrom{}, memo: map[exprMemoKey]exprMemo{}, queryMemo: map[queryMemoKey]queryMemo{}, blockMemo: map[blockMemoKey]queryMemo{}}
 	res, err := a.query(sel, nil, nil, true)
 	if err != nil {
 		return nil, "", err
 	}
+	limit := maxVarchar2Bytes
+	if strings.EqualFold(e.serverConfig.MaxStringSize, "EXTENDED") {
+		limit = longestVarchar2
+	}
+	res.cols = clampStringTypes(res.cols, limit)
 	loc := ast.NodeLoc(query)
 	text := e.nodeText(query)
 	if loc.Start >= 0 && len(a.edits) > 0 {
@@ -527,7 +534,8 @@ func (a *queryAnalyzer) analyzeCTE(d *cteDef, outer *qscope, env *cteEnv) error 
 				return err
 			}
 			if i == 0 {
-				anchorCols = branch.cols
+				// A copy: the memo holds the branch's own columns.
+				anchorCols = append([]qcol{}, branch.cols...)
 				continue
 			}
 			if len(branch.cols) != len(anchorCols) {
@@ -549,14 +557,20 @@ func (a *queryAnalyzer) analyzeCTE(d *cteDef, outer *qscope, env *cteEnv) error 
 			d.cols[i] = qcol{name: n, typ: anchorCols[i].typ}
 		}
 		d.analyzed = true
-		res, err := a.query(sel, outer, env, false)
+		// The anchor is analyzed; the recursive member alone remains.
+		recursiveRes, err := a.block(last.sel, outer, bodyEnv, false, false)
 		if err != nil {
 			return err
 		}
+		if len(recursiveRes.cols) != len(d.cols) {
+			return oraError("01789", "query block has incorrect number of result columns")
+		}
 		for i := range d.cols {
-			if i < len(res.cols) {
-				d.cols[i].typ = res.cols[i].typ
+			t, err := mergeSetOpTypes(d.cols[i].typ, recursiveRes.cols[i].typ)
+			if err != nil {
+				return err
 			}
+			d.cols[i].typ = t
 		}
 	} else {
 		d.analyzing = true
@@ -660,6 +674,28 @@ func selectReferencesTable(sel *ast.SelectStmt, table string) bool {
 // block analyzes one query block. ownOrder reports whether its ORDER BY and
 // FETCH are its own rather than a compound query's.
 func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, top, ownOrder bool) (*queryResult, error) {
+	// A block analyzed again in the same scope and WITH environment
+	// answers from the memo.
+	if top {
+		return a.analyzeBlock(sel, outer, ctes, top, ownOrder)
+	}
+	key := blockMemoKey{sel: sel, outer: outer, ctes: ctes, ownOrder: ownOrder}
+	if m, ok := a.blockMemo[key]; ok {
+		return m.res, m.err
+	}
+	res, err := a.analyzeBlock(sel, outer, ctes, top, ownOrder)
+	a.blockMemo[key] = queryMemo{res: res, err: err}
+	return res, err
+}
+
+type blockMemoKey struct {
+	sel      *ast.SelectStmt
+	outer    *qscope
+	ctes     *cteEnv
+	ownOrder bool
+}
+
+func (a *queryAnalyzer) analyzeBlock(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, top, ownOrder bool) (*queryResult, error) {
 	if sel.ForUpdate != nil && top {
 		return nil, oraError("03048", "SQL reserved word 'FOR' is not syntactically valid")
 	}
