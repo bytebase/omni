@@ -1296,3 +1296,55 @@ func TestParseClickHouseAliasSystemPoliciesProjectionAndWindowCompat(t *testing.
 		}
 	}
 }
+
+// TestParseDataTypeArguments holds a parametric type's arguments to
+// ParserDataType's general rule: an enum element chain, a literal or a data
+// type, never an expression. Each verdict is ClickHouse 26.8.38.9's
+// EXPLAIN AST answer.
+func TestParseDataTypeArguments(t *testing.T) {
+	accept := []string{
+		"SELECT 1 :: a(-1)",
+		"SELECT 1 :: a(+1)",
+		"SELECT 1 :: a(-inf)",
+		"SELECT 1 :: a(X'00')",
+		"SELECT 1 :: a(NULL)",
+		"SELECT 1 :: a(true)",
+		"SELECT 1 :: a(a)",
+		"SELECT 1 :: a(f(1))",
+		"SELECT 1 :: a(Nested(a b))",
+		"SELECT 1 :: a(1,)",
+		"SELECT 1 :: a(1 = 1)",
+		"SELECT 1 :: a(NULL = 1)",
+		"SELECT 1 :: a('a' = 1 = 2)",
+		"SELECT 1 :: a('a' = 1, 2)",
+		"SELECT 1 :: a('a' = 1, 'b')",
+		"SELECT 1 :: Enum8('a' = -1, 'b' = 2)",
+	}
+	reject := []string{
+		"SELECT 1 :: a((1))",
+		"SELECT 1 :: a((1, 2))",
+		"SELECT 1 :: a(())",
+		"SELECT 1 :: a(1, (a))",
+		"SELECT 1 :: a([1, 2])",
+		"SELECT 1 :: a(1 + 1)",
+		"SELECT 1 :: a(a * 2)",
+		"SELECT 1 :: a(-a)",
+		"SELECT 1 :: a(a = 1)",
+		"SELECT 1 :: a(a.b)",
+		"SELECT 1 :: a(a::b)",
+		"SELECT 1 :: a(DATE '2020-01-01')",
+		"SELECT 1 :: a(INTERVAL 1 DAY)",
+		"SELECT 1 :: a(f(1)(2))",
+		"CREATE TABLE t (c a((a))) ENGINE = Memory",
+	}
+	for _, sql := range accept {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v, want accept", sql, err)
+		}
+	}
+	for _, sql := range reject {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) accepted, want a syntax error", sql)
+		}
+	}
+}
