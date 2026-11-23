@@ -861,6 +861,10 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 				d.buf.WriteString(quoteIdentifier(col))
 			}
 			d.buf.WriteByte(')')
+			if joinRTE != nil && joinRTE.JoinUsingAlias != "" {
+				d.buf.WriteString(" AS ")
+				d.buf.WriteString(quoteIdentifier(joinRTE.JoinUsingAlias))
+			}
 		} else if v.Quals != nil {
 			d.buf.WriteString(" ON ")
 			if !d.prettyParen {
@@ -1131,6 +1135,13 @@ func (d *deparseCtx) getVariableTarget(v *VarExpr, isTopLevel bool) string {
 					LevelsUp: v.LevelsUp + av.LevelsUp,
 				})
 			}
+		}
+		// A merged column a USING alias names is qualified by it: PostgreSQL
+		// prints it bare and renames any other column of its name, which
+		// this deparser does not, so the bare name could be ambiguous.
+		if rte.JoinUsingAlias != "" && colIdx < rte.joinMergedCols {
+			d.buf.WriteString(quoteIdentifier(rte.JoinUsingAlias))
+			d.buf.WriteByte('.')
 		}
 		d.buf.WriteString(quoteIdentifier(colName))
 		return colName

@@ -1099,14 +1099,15 @@ func (e *querySpanExtractor) extractFallbackColumns(selStmt *ast.SelectStmt) []Q
 	// Check if SELECT has explicit target list (not *).
 	if selStmt.TargetList != nil {
 		var results, stars []QuerySpanResult
-		allStar := true
+		allStar, starsFound := true, true
 		for _, item := range selStmt.TargetList.Items {
 			rt, ok := item.(*ast.ResTarget)
 			if !ok {
 				continue
 			}
 			if isStarTarget(rt) {
-				stars = append(stars, e.starColumns(selStmt, rt, analyzer, fromTables)...)
+				columns, found := e.starColumns(selStmt, rt, analyzer, fromTables)
+				stars, starsFound = append(stars, columns...), starsFound && found
 			} else {
 				allStar = false
 				name := rt.Name
@@ -1137,7 +1138,9 @@ func (e *querySpanExtractor) extractFallbackColumns(selStmt *ast.SelectStmt) []Q
 			}
 			return results
 		}
-		if allStar && len(stars) > 0 {
+		// A star whose FROM item was not found leaves the columns of every
+		// FROM item below, rather than a shorter list that shifts the rest.
+		if allStar && starsFound && len(stars) > 0 {
 			return stars
 		}
 	}
@@ -1158,12 +1161,12 @@ func (e *querySpanExtractor) extractFallbackColumns(selStmt *ast.SelectStmt) []Q
 
 // starColumns returns the columns a star target of sel expands to: those of
 // every FROM item for *, and those of the FROM item the qualifier names for
-// name.*.
+// name.*. It reports false when it found no FROM item the qualifier names.
 //
 // pg: src/backend/parser/parse_target.c — ExpandColumnRefStar
-func (e *querySpanExtractor) starColumns(sel *ast.SelectStmt, rt *ast.ResTarget, analyzer *plpgsqlAnalyzer, fromTables map[string]ColumnResource) []QuerySpanResult {
+func (e *querySpanExtractor) starColumns(sel *ast.SelectStmt, rt *ast.ResTarget, analyzer *plpgsqlAnalyzer, fromTables map[string]ColumnResource) ([]QuerySpanResult, bool) {
 	if sel.FromClause == nil {
-		return nil
+		return nil, false
 	}
 	qualifier := ""
 	if cr, ok := rt.Val.(*ast.ColumnRef); ok && cr.Fields != nil && len(cr.Fields.Items) >= 2 {
@@ -1178,10 +1181,10 @@ func (e *querySpanExtractor) starColumns(sel *ast.SelectStmt, rt *ast.ResTarget,
 			continue
 		}
 		if named := fromItemNamed(item, qualifier); named != nil {
-			return e.extractColumnsFromFromItem(named, analyzer, fromTables)
+			return e.extractColumnsFromFromItem(named, analyzer, fromTables), true
 		}
 	}
-	return columns
+	return columns, qualifier == ""
 }
 
 // fromItemNamed returns the FROM item, item or one an alias-less join of it
@@ -1203,7 +1206,9 @@ func fromItemNamed(item ast.Node, name string) ast.Node {
 			return v
 		}
 	case *ast.RangeFunction:
-		if aliasOf(v.Alias) == name {
+		// An unaliased function is named for its first function.
+		// pg: src/backend/parser/parse_relation.c — addRangeTableEntryForFunction
+		if ref := aliasOf(v.Alias); ref == name || ref == "" && rangeFunctionName(v) == name {
 			return v
 		}
 	case *ast.JsonTable:
@@ -1223,6 +1228,27 @@ func fromItemNamed(item ast.Node, name string) ast.Node {
 		return fromItemNamed(v.Rarg, name)
 	}
 	return nil
+}
+
+// rangeFunctionName is the name of the first function of a FROM item, the
+// name an unaliased one is referred to by.
+func rangeFunctionName(rf *ast.RangeFunction) string {
+	if rf.Functions == nil || len(rf.Functions.Items) == 0 {
+		return ""
+	}
+	list, ok := rf.Functions.Items[0].(*ast.List)
+	if !ok || len(list.Items) == 0 {
+		return ""
+	}
+	fc, ok := list.Items[0].(*ast.FuncCall)
+	if !ok || fc.Funcname == nil || len(fc.Funcname.Items) == 0 {
+		return ""
+	}
+	name, _ := fc.Funcname.Items[len(fc.Funcname.Items)-1].(*ast.String)
+	if name == nil {
+		return ""
+	}
+	return name.Str
 }
 
 // jsonTableColumns returns the columns of a JSON_TABLE: each column of its

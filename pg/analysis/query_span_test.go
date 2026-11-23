@@ -746,3 +746,21 @@ func TestResolveQuerySpanJSONTableColumns(t *testing.T) {
 	require.Equal(t, []string{"n", "v", "d"}, names)
 	require.Equal(t, [][]string{{}, {"db.public.t.email", "db.public.t.id"}, {"db.public.t.email", "db.public.t.id", "db.public.t.ssn"}}, got)
 }
+
+// In the parse-tree fallback, a qualified star expands the FROM item it
+// names, an unaliased function by its name; a qualifier that names none
+// leaves every FROM item's columns.
+func TestResolveQuerySpanFallbackQualifiedStar(t *testing.T) {
+	const jt = "JSON_TABLE('[1]'::jsonb, '$[*]' COLUMNS (v int PATH '$')) jt"
+	for statement, want := range map[string][]string{
+		"SELECT unnest.*, t.* FROM unnest(ARRAY['x']), t, " + jt: {"unnest", "id", "email", "ssn"},
+		"SELECT jt.* FROM t, " + jt:                              {"v"},
+		"SELECT nosuch.* FROM t, " + jt:                          {"id", "email", "ssn", "v"},
+	} {
+		var got []string
+		for _, r := range spanFor(t, statement, healthySchema()).Results {
+			got = append(got, r.Name)
+		}
+		require.Equal(t, want, got, statement)
+	}
+}

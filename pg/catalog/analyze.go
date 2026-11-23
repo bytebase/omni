@@ -276,9 +276,10 @@ func (c *Catalog) analyzeSimpleSelect(stmt *nodes.SelectStmt, opts AnalyzeOption
 	// 0. Process WITH clause (CTEs) before anything else.
 	// pg: src/backend/parser/analyze.c — transformSelectStmt calls analyzeCTEList
 	ac := &analyzeCtx{
-		catalog: c,
-		query:   q,
-		opts:    opts,
+		catalog:       c,
+		query:         q,
+		opts:          opts,
+		systemColumns: true,
 	}
 
 	if stmt.WithClause != nil {
@@ -645,6 +646,13 @@ type analyzeCtx struct {
 	// for a CTE or for an outer column, made a long UNION take quadratic
 	// time and memory, so each level keeps where those lookups go on,
 	// passing over the levels of set operations that cannot answer them.
+	// systemColumns lets a table's system columns (ctid, xmin, ...) resolve:
+	// a query's FROM items have them, while an expression analyzed on its
+	// own, for an index, a CHECK constraint or a generated column, refuses
+	// them as it did before, rather than learn each place PostgreSQL allows
+	// one (tableoid in a CHECK).
+	systemColumns bool
+
 	setOp       bool        // the level of a set operation
 	noCTEs      bool        // the level of a set operation with no WITH clause
 	cteParent   *analyzeCtx // the level lookupCTE searches after this one
@@ -662,6 +670,7 @@ func (ac *analyzeCtx) subContext(disallowParentCols bool) *analyzeCtx {
 		disallowParentCols: disallowParentCols,
 		opts:               ac.opts,
 		cteParent:          ac,
+		systemColumns:      true,
 	}
 	if ac.noCTEs {
 		sub.cteParent = ac.cteParent
@@ -2556,7 +2565,7 @@ func SystemColumnName(attNum int16) string {
 // pg: src/backend/parser/parse_relation.c — scanRTEForColumn
 func (ac *analyzeCtx) systemColumnVar(rtIdx int, name string) *VarExpr {
 	rte := ac.query.RangeTable[rtIdx]
-	if rte.Kind != RTERelation || slices.Contains(rte.ColNames, name) {
+	if !ac.systemColumns || rte.Kind != RTERelation || slices.Contains(rte.ColNames, name) {
 		return nil
 	}
 	rel := ac.catalog.relationByOID[rte.RelOID]
