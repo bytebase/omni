@@ -30,7 +30,7 @@ Total: **33,847 rows** (3,753 accepted `ok`, 30,094 refused).
 `TestWalkSimulation` (`../walk_simulation_test.go`) enforces **zero false positives**
 on all 3,753 Oracle-accepted rows and verifies every finding on refused rows against
 either Oracle's error code or the fixture's real Oracle inventory synced via
-`tapes/TestWalkSimulation.tape`. Currently catches 21,598 / 30,094 refusals (71.8%).
+`tapes/TestWalkSimulation.tape`. Currently catches 25,595 / 30,094 refusals (85.1%).
 
 ## Commands
 

@@ -709,10 +709,114 @@ UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = :1 ORDER BY 
 		tables[v[0].String] = &metadata.TableMetadata{Name: v[0].String, SkipDump: v[1].String == "1"}
 		s.Tables = append(s.Tables, tables[v[0].String])
 	})
-	query(`SELECT table_name, column_name FROM dba_tab_cols WHERE owner = :1 AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name`, func(v []sql.NullString) {
+	query(`SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = :1 AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name`, func(v []sql.NullString) {
 		if tb, ok := tables[v[0].String]; ok {
-			tb.Columns = append(tb.Columns, &metadata.ColumnMetadata{Name: v[1].String})
+			col := &metadata.ColumnMetadata{
+				Name:        v[1].String,
+				Type:        v[2].String,
+				Nullable:    v[3].String == "Y",
+				IsInvisible: !v[4].Valid,
+				IsIdentity:  v[6].String == "YES",
+			}
+			if v[5].String == "YES" {
+				col.Generation = &metadata.GenerationMetadata{
+					Type:       metadata.GenerationMetadata_TYPE_VIRTUAL,
+					Expression: strings.TrimSpace(v[7].String),
+				}
+			} else if v[7].Valid && strings.TrimSpace(v[7].String) != "" {
+				col.Default = strings.TrimSpace(v[7].String)
+			}
+			tb.Columns = append(tb.Columns, col)
 		}
+	})
+	// Partition metadata for RANGE, LIST, and HASH partitioned tables,
+	// matching oracle/driver/sync.go's getTablePartitions.
+	type partTableInfo struct {
+		partType    metadata.TablePartitionMetadata_Type
+		subpartType metadata.TablePartitionMetadata_Type
+		interval    string
+	}
+	partTables := make(map[string]partTableInfo)
+	hasSubpartitions := false
+	mapPartType := func(s string) metadata.TablePartitionMetadata_Type {
+		switch strings.ToUpper(strings.TrimSpace(s)) {
+		case "RANGE":
+			return metadata.TablePartitionMetadata_RANGE
+		case "LIST":
+			return metadata.TablePartitionMetadata_LIST
+		case "HASH":
+			return metadata.TablePartitionMetadata_HASH
+		default:
+			return metadata.TablePartitionMetadata_TYPE_UNSPECIFIED
+		}
+	}
+	query(`SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = :1 ORDER BY table_name`, func(v []sql.NullString) {
+		pt := mapPartType(v[1].String)
+		if pt == metadata.TablePartitionMetadata_TYPE_UNSPECIFIED {
+			return
+		}
+		spt := mapPartType(v[2].String)
+		if spt != metadata.TablePartitionMetadata_TYPE_UNSPECIFIED {
+			hasSubpartitions = true
+		}
+		partTables[v[0].String] = partTableInfo{
+			partType:    pt,
+			subpartType: spt,
+			interval:    strings.TrimSpace(v[3].String),
+		}
+	})
+	if len(partTables) > 0 {
+		partKeys := make(map[string][]string)
+		query(`SELECT name, column_name FROM dba_part_key_columns WHERE owner = :1 AND object_type = 'TABLE' ORDER BY name, column_position`, func(v []sql.NullString) {
+			partKeys[v[0].String] = append(partKeys[v[0].String], v[1].String)
+		})
+		type partRef struct{ table, partition string }
+		subpartMap := make(map[partRef][]*metadata.TablePartitionMetadata)
+		if hasSubpartitions {
+			query(`SELECT table_name, partition_name, subpartition_name FROM dba_tab_subpartitions WHERE table_owner = :1 ORDER BY table_name, partition_name, subpartition_position`, func(v []sql.NullString) {
+				info, ok := partTables[v[0].String]
+				if !ok || info.subpartType == metadata.TablePartitionMetadata_TYPE_UNSPECIFIED {
+					return
+				}
+				ref := partRef{table: v[0].String, partition: v[1].String}
+				subpartMap[ref] = append(subpartMap[ref], &metadata.TablePartitionMetadata{
+					Name: v[2].String,
+					Type: info.subpartType,
+				})
+			})
+		}
+		query(`SELECT table_name, partition_name, high_value, interval FROM dba_tab_partitions WHERE table_owner = :1 ORDER BY table_name, partition_position`, func(v []sql.NullString) {
+			info, ok := partTables[v[0].String]
+			if !ok || strings.EqualFold(strings.TrimSpace(v[3].String), "YES") {
+				return
+			}
+			tb, ok := tables[v[0].String]
+			if !ok {
+				return
+			}
+			tb.Partitions = append(tb.Partitions, &metadata.TablePartitionMetadata{
+				Name:           v[1].String,
+				Type:           info.partType,
+				Expression:     strings.Join(partKeys[v[0].String], ", "),
+				Value:          strings.TrimSpace(v[2].String),
+				IntervalClause: info.interval,
+				Subpartitions:  subpartMap[partRef{table: v[0].String, partition: v[1].String}],
+			})
+		})
+	}
+	// An index holds a column the user made unless every column it lists
+	// is a hidden SYS_NC column and it has no expression.
+	userColumns := make(map[string]bool)
+	indexCols := make(map[string][]string)
+	indexHasExpr := make(map[string]bool)
+	query(`SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = :1 ORDER BY c.index_name, c.column_position`, func(v []sql.NullString) {
+		if !strings.HasPrefix(v[1].String, "SYS_NC") || v[2].String != "0" {
+			userColumns[v[0].String] = true
+		}
+		if v[2].String != "0" {
+			indexHasExpr[v[0].String] = true
+		}
+		indexCols[v[0].String] = append(indexCols[v[0].String], v[1].String)
 	})
 	indexed := make(map[string]bool)
 	addIndex := func(table string, idx *metadata.IndexMetadata) {
@@ -726,7 +830,11 @@ UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = :1 ORDER BY 
 		table, name := v[0].String, v[1].String
 		switch v[2].String {
 		case "P", "U":
-			addIndex(table, &metadata.IndexMetadata{Name: name, Primary: v[2].String == "P", Unique: true, IsConstraint: true})
+			idx := &metadata.IndexMetadata{Name: name, Primary: v[2].String == "P", Unique: true, IsConstraint: true}
+			if !indexHasExpr[name] {
+				idx.Expressions = indexCols[name]
+			}
+			addIndex(table, idx)
 			indexed[table+"."+name] = true
 		case "C":
 			if tb, ok := tables[table]; ok && !strings.HasPrefix(name, "SYS_C") {
@@ -738,20 +846,16 @@ UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = :1 ORDER BY 
 			}
 		}
 	})
-	// An index holds a column the user made unless every column it lists
-	// is a hidden SYS_NC column and it has no expression.
-	userColumns := make(map[string]bool)
-	query(`SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = :1 ORDER BY 1, 2`, func(v []sql.NullString) {
-		if !strings.HasPrefix(v[1].String, "SYS_NC") || v[2].String != "0" {
-			userColumns[v[0].String] = true
-		}
-	})
 	query(`SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = :1 ORDER BY 1, 2`, func(v []sql.NullString) {
 		table, name := v[0].String, v[1].String
 		if indexed[table+"."+name] || strings.HasPrefix(name, "SYS_") || !userColumns[name] {
 			return
 		}
-		addIndex(table, &metadata.IndexMetadata{Name: name, Type: v[2].String})
+		idx := &metadata.IndexMetadata{Name: name, Type: v[2].String}
+		if !indexHasExpr[name] {
+			idx.Expressions = indexCols[name]
+		}
+		addIndex(table, idx)
 	})
 	views := make(map[string]*metadata.ViewMetadata)
 	query(`SELECT view_name FROM dba_views WHERE owner = :1 ORDER BY 1`, func(v []sql.NullString) {

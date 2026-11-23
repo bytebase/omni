@@ -54,11 +54,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -245,11 +245,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -436,11 +436,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -627,11 +627,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -818,11 +818,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -1009,11 +1009,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -1200,11 +1200,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -1391,11 +1391,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -1582,11 +1582,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -1773,11 +1773,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -1964,11 +1964,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -2190,40 +2190,88 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP1' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP1'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP1' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | C
 : string
 | 0
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP1' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP1' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | C
 : string
 | X
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
 < row
 : string
 | C
 : string
 | Y
+: string
+| NUMBER
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP1' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP1' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| CK
+: string
+| Y
+: string
+| 0
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP1' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | C
@@ -2233,24 +2281,11 @@
 | U
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP1' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-< row
-: string
-| CK
-: string
-| Y
-: string
-| 0
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP1' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 < row
 : string
 | C
@@ -2261,36 +2296,36 @@
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP1' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP1' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP1' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP1' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP1' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,ADD,ALTER,AS,B,BEFORE,BEGIN,BY,C,CASCADE,CHECK,CK,COLUMN,COMMENT,CONSTRAINT,CONSTRAINTS,CREATE,CURRENT_SCHEMA,DISABLE,DROP,DUAL,EACH,ENABLE,END,EXISTS,FK,FOR,FOREIGN,FROM,FUNCTION,I,ID,IF,INCREMENT,INDEX,INSERT,INTO,IS,J,KEY,MODIFY,NOT,NULL,NUMBER,OBJECT,ON,ONLY,OR,OTHER1,PK,PRIMARY,PROCEDURE,READ,REFERENCES,RENAME,REPLACE,ROW,S,SELECT,SEQUENCE,SESSION,SET,SHOP1,SYNONYM,TABLE,TO,TR,TR2,TRIGGER,TRUNCATE,TYPE,UNIQUE,UQ,V,VALUES,VIEW,WITH,X,Y,Z,a,x,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | DUAL
@@ -2389,11 +2424,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -2590,212 +2625,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| C
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| C
-: string
-| Y
-: null
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| A
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| CK
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| C
-: string
-| CK
-: string
-| SHOP1
-< row
-: string
-| index
-: string
-| OTHER1
-: string
-| V
-: string
-| A
-: string
-| OTHER1
-< row
-: string
-| index
-: string
-| SHOP1
-: string
-| C
-: string
-| J
-: string
-| SHOP1
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| TABLE
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| V
-: null
-: null
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| DUAL
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| A
-: null
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| CK
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| C
-: string
-| CK
-: null
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -2992,11 +2826,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -3193,11 +3027,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -3394,11 +3228,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -3511,16 +3345,6 @@
 | OTHER1
 : null
 : string
-| C
-: string
-| TYPE
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
 | V
 : string
 | TABLE
@@ -3605,11 +3429,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -3816,11 +3640,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -4027,11 +3851,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -4079,26 +3903,6 @@
 | SHOP1
 : string
 | C
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| S
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| S
 : string
 | Y
 : null
@@ -4189,16 +3993,6 @@
 | TABLE
 < row
 : string
-| object
-: string
-| SHOP1
-: null
-: string
-| S
-: string
-| TABLE
-< row
-: string
 | primary key
 : string
 | OTHER1
@@ -4238,16 +4032,6 @@
 | TABLE
 < row
 : string
-| table
-: string
-| SHOP1
-: null
-: string
-| S
-: string
-| TABLE
-< row
-: string
 | table constraint
 : string
 | OTHER1
@@ -4278,11 +4062,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -4529,11 +4313,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -4780,11 +4564,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -5031,11 +4815,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -5282,11 +5066,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -5533,11 +5317,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -5784,11 +5568,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -6035,11 +5819,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -6286,11 +6070,262 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| C
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| C
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| S
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| S
+: string
+| Y
+: null
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| A
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| CK
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| C
+: string
+| CK
+: string
+| SHOP1
+< row
+: string
+| index
+: string
+| OTHER1
+: string
+| V
+: string
+| A
+: string
+| OTHER1
+< row
+: string
+| index
+: string
+| SHOP1
+: string
+| C
+: string
+| J
+: string
+| SHOP1
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| C
+: string
+| TYPE
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| S
+: string
+| TABLE
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| V
+: null
+: null
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| S
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| A
+: null
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| CK
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| C
+: string
+| CK
+: null
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -6694,11 +6729,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -6901,11 +6936,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -7118,11 +7153,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -7335,268 +7370,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| B
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| B
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| a
-: string
-| UQ
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| UQ
-: string
-| SHOP1
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| B
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| PROCEDURE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| V
-: null
-: null
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| a
-: null
-: null
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| DUAL
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
-| B
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| a
-: string
-| UQ
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| UQ
-: null
-< row
-: string
-| view
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -7849,11 +7627,268 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| B
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| B
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| a
+: string
+| UQ
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| UQ
+: string
+| SHOP1
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| B
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| PROCEDURE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| VIEW
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| V
+: null
+: null
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| a
+: null
+: null
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| B
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| a
+: string
+| UQ
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| UQ
+: null
+< row
+: string
+| view
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -8116,11 +8151,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -8383,11 +8418,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -8650,11 +8685,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -8917,11 +8952,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -9184,11 +9219,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -9451,11 +9486,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -9718,11 +9753,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -9985,11 +10020,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -10252,288 +10287,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| B
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| B
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| a
-: string
-| UQ
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| UQ
-: string
-| SHOP1
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| B
-: string
-| TYPE
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| B
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| PROCEDURE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| V
-: string
-| PROCEDURE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| V
-: null
-: null
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| a
-: null
-: null
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| DUAL
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
-| B
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| a
-: string
-| UQ
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| UQ
-: null
-< row
-: string
-| view
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -10806,11 +10564,288 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| B
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| B
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| a
+: string
+| UQ
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| UQ
+: string
+| SHOP1
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| B
+: string
+| TYPE
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| B
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| PROCEDURE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| V
+: string
+| PROCEDURE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| VIEW
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| V
+: null
+: null
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| a
+: null
+: null
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| B
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| a
+: string
+| UQ
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| UQ
+: null
+< row
+: string
+| view
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -11131,30 +11166,60 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP1' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP1'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP1' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP1' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP1' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
 < row
 : string
 | a
 : string
 | X
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP1' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP1' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP1' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 < row
 : string
 | a
@@ -11164,53 +11229,47 @@
 | O
 : null
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP1' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
-> query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP1' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP1' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 < row
 : string
 | a
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP1' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP1' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP1' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP1' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,ADD,ALTER,AS,B,BEFORE,BEGIN,BY,C,CASCADE,CHECK,CK,COLUMN,COMMENT,CONSTRAINT,CONSTRAINTS,CREATE,CURRENT_SCHEMA,DELETE,DISABLE,DROP,DUAL,EACH,ENABLE,END,EXISTS,FK,FOR,FOREIGN,FROM,FUNCTION,I,ID,IF,INCREMENT,INDEX,INSERT,IS,J,KEY,MODIFY,NOT,NULL,NUMBER,OBJECT,ON,ONLY,OR,OTHER1,PK,PRIMARY,PROCEDURE,READ,REFERENCES,RENAME,REPLACE,ROW,S,SELECT,SEQUENCE,SESSION,SET,SHOP1,SYNONYM,TABLE,TO,TR,TR2,TRIGGER,TRUNCATE,TYPE,UNIQUE,UNUSED,UPDATE,UQ,V,VIEW,WITH,X,Y,Z,a,x,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | DUAL
@@ -11327,11 +11386,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -11524,11 +11583,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -11721,11 +11780,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -11918,11 +11977,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -12115,11 +12174,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -12312,11 +12371,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -12429,11 +12488,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -12556,11 +12615,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -12683,11 +12742,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -12810,11 +12869,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -12937,11 +12996,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -13064,11 +13123,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -13332,11 +13391,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -13529,11 +13588,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -13726,11 +13785,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -13923,11 +13982,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -14131,11 +14190,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -14339,11 +14398,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -14547,11 +14606,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -14755,11 +14814,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -14963,11 +15022,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -15171,11 +15230,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -15379,11 +15438,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -15587,11 +15646,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -15795,11 +15854,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -16152,11 +16211,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -16349,11 +16408,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -16546,11 +16605,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -16743,11 +16802,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -16940,11 +16999,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -17057,11 +17116,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -17174,11 +17233,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -17291,11 +17350,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -17408,11 +17467,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -17525,11 +17584,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -17642,11 +17701,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -17759,11 +17818,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -17876,11 +17935,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -17993,11 +18052,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -18110,11 +18169,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -18227,11 +18286,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -18344,11 +18403,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -18461,11 +18520,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -18578,11 +18637,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -18695,11 +18754,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -18812,11 +18871,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -19117,11 +19176,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -19324,11 +19383,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -19622,339 +19681,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| S
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| S
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| S
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| C
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| S
-: string
-| A
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| a
-: string
-| UQ
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| UQ
-: string
-| SHOP1
-< row
-: string
-| index
-: string
-| OTHER1
-: string
-| S
-: string
-| A
-: string
-| OTHER1
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| S
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| S
-: null
-: null
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| V
-: null
-: null
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| a
-: null
-: null
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| DUAL
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| S
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| S
-: string
-| A
-: null
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| a
-: string
-| UQ
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| UQ
-: null
-< row
-: string
-| view
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| VIEW
-< row
-: string
-| view
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -20278,11 +20009,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -20606,11 +20337,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -20934,11 +20665,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -21262,11 +20993,339 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| S
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| S
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| S
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| C
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| S
+: string
+| A
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| a
+: string
+| UQ
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| UQ
+: string
+| SHOP1
+< row
+: string
+| index
+: string
+| OTHER1
+: string
+| S
+: string
+| A
+: string
+| OTHER1
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| S
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| VIEW
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| S
+: null
+: null
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| V
+: null
+: null
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| a
+: null
+: null
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| S
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| S
+: string
+| A
+: null
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| a
+: string
+| UQ
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| UQ
+: null
+< row
+: string
+| view
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| VIEW
+< row
+: string
+| view
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -21670,470 +21729,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| S
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| S
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| S
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| C
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| S
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| S
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| S
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| V
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| S
-: string
-| A
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| a
-: string
-| UQ
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| S
-: string
-| PK
-: string
-| SHOP1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| V
-: string
-| A
-: string
-| SHOP1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| UQ
-: string
-| SHOP1
-< row
-: string
-| index
-: string
-| OTHER1
-: string
-| S
-: string
-| A
-: string
-| OTHER1
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| S
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| S
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| V
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| S
-: null
-: null
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| V
-: null
-: null
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| a
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP1
-: string
-| S
-: null
-: null
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| DUAL
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| S
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
-| S
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| S
-: string
-| A
-: null
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| a
-: string
-| UQ
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| S
-: string
-| PK
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| V
-: string
-| A
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| UQ
-: null
-< row
-: string
-| view
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| VIEW
-< row
-: string
-| view
-: string
-| SHOP1
-: null
-: string
-| V
-: string
-| VIEW
-< row
-: string
-| view
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -22588,11 +22188,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -23047,11 +22647,470 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| S
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| S
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| S
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| C
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| S
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| S
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| S
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| V
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| S
+: string
+| A
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| a
+: string
+| UQ
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| S
+: string
+| PK
+: string
+| SHOP1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| V
+: string
+| A
+: string
+| SHOP1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| UQ
+: string
+| SHOP1
+< row
+: string
+| index
+: string
+| OTHER1
+: string
+| S
+: string
+| A
+: string
+| OTHER1
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| S
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| S
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| V
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| VIEW
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| S
+: null
+: null
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| V
+: null
+: null
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| a
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP1
+: string
+| S
+: null
+: null
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| S
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| S
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| S
+: string
+| A
+: null
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| a
+: string
+| UQ
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| S
+: string
+| PK
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| V
+: string
+| A
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| UQ
+: null
+< row
+: string
+| view
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| VIEW
+< row
+: string
+| view
+: string
+| SHOP1
+: null
+: string
+| V
+: string
+| VIEW
+< row
+: string
+| view
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -23455,11 +23514,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -23863,11 +23922,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -24271,11 +24330,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -24679,11 +24738,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -25036,11 +25095,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -25393,11 +25452,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -25750,11 +25809,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -26276,11 +26335,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -26483,11 +26542,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -26690,11 +26749,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -26897,248 +26956,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| S
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| a
-: string
-| UQ
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| UQ
-: string
-| SHOP1
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| S
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| V
-: null
-: null
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| a
-: null
-: null
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| DUAL
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| a
-: string
-| UQ
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| UQ
-: null
-< row
-: string
-| view
-: string
-| SHOP1
-: null
-: string
-| S
-: string
-| VIEW
-< row
-: string
-| view
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -27371,11 +27193,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -27433,36 +27255,6 @@
 | OTHER1
 : string
 | a
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| B
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| B
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| B
 : string
 | Y
 : null
@@ -27503,17 +27295,6 @@
 : string
 | SHOP1
 : string
-| B
-: string
-| CK
-: string
-| SHOP1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
 | a
 : string
 | UQ
@@ -27537,16 +27318,6 @@
 : null
 : string
 | a
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| B
 : string
 | TABLE
 < row
@@ -27585,15 +27356,6 @@
 | OTHER1
 : string
 | a
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP1
-: string
-| B
 : null
 : null
 < row
@@ -27628,16 +27390,6 @@
 | TABLE
 < row
 : string
-| table
-: string
-| SHOP1
-: null
-: string
-| B
-: string
-| TABLE
-< row
-: string
 | table constraint
 : string
 | OTHER1
@@ -27645,16 +27397,6 @@
 | a
 : string
 | UQ
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| B
-: string
-| CK
 : null
 < row
 : string
@@ -27688,11 +27430,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -28005,11 +27747,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -28322,11 +28064,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -28639,11 +28381,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -28956,11 +28698,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -29273,11 +29015,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -29590,11 +29332,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -29907,11 +29649,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -30224,11 +29966,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -30541,11 +30283,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -30858,11 +30600,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -31175,11 +30917,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -31492,11 +31234,328 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| B
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| B
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| B
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| S
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| a
+: string
+| UQ
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| B
+: string
+| CK
+: string
+| SHOP1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| UQ
+: string
+| SHOP1
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| B
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| S
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| VIEW
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| V
+: null
+: null
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| a
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP1
+: string
+| B
+: null
+: null
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| B
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| a
+: string
+| UQ
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| B
+: string
+| CK
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| UQ
+: null
+< row
+: string
+| view
+: string
+| SHOP1
+: null
+: string
+| S
+: string
+| VIEW
+< row
+: string
+| view
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -31982,11 +32041,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -32189,11 +32248,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -32416,11 +32475,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -32643,11 +32702,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -32870,11 +32929,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -33097,11 +33156,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -33324,11 +33383,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -33551,11 +33610,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -33778,11 +33837,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -34015,11 +34074,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -34252,278 +34311,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| C
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| a
-: string
-| UQ
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| UQ
-: string
-| SHOP1
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| A
-: string
-| TYPE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| S
-: string
-| SEQUENCE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| V
-: null
-: null
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| a
-: null
-: null
-< row
-: string
-| sequence
-: string
-| SHOP1
-: null
-: string
-| S
-: string
-| SEQUENCE
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| DUAL
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| a
-: string
-| UQ
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| UQ
-: null
-< row
-: string
-| view
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| VIEW
-< row
-: string
-| view
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -34786,11 +34578,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -35053,11 +34845,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -35320,11 +35112,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -35587,11 +35379,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -35854,11 +35646,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -36121,11 +35913,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -36388,11 +36180,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -36655,11 +36447,278 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| C
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| a
+: string
+| UQ
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| UQ
+: string
+| SHOP1
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| A
+: string
+| TYPE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| S
+: string
+| SEQUENCE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| VIEW
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| V
+: null
+: null
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| a
+: null
+: null
+< row
+: string
+| sequence
+: string
+| SHOP1
+: null
+: string
+| S
+: string
+| SEQUENCE
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| a
+: string
+| UQ
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| UQ
+: null
+< row
+: string
+| view
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| VIEW
+< row
+: string
+| view
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -37100,11 +37159,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -37307,11 +37366,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -37514,11 +37573,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -37721,11 +37780,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -37928,11 +37987,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -38156,290 +38215,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| C
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| PK
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| a
-: string
-| UQ
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| C
-: string
-| A
-: string
-| SHOP1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| UQ
-: string
-| SHOP1
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| V
-: null
-: null
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| a
-: null
-: null
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| DUAL
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| PK
-: null
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| a
-: string
-| UQ
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| C
-: string
-| A
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| UQ
-: null
-< row
-: string
-| view
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| VIEW
-< row
-: string
-| view
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -38714,11 +38494,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -38993,11 +38773,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -39272,11 +39052,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -39551,11 +39331,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -39830,11 +39610,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -40109,11 +39889,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -40388,11 +40168,290 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| C
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| PK
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| a
+: string
+| UQ
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| C
+: string
+| A
+: string
+| SHOP1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| UQ
+: string
+| SHOP1
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| VIEW
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| V
+: null
+: null
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| a
+: null
+: null
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| PK
+: null
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| a
+: string
+| UQ
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| C
+: string
+| A
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| UQ
+: null
+< row
+: string
+| view
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| VIEW
+< row
+: string
+| view
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -40819,11 +40878,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -41026,11 +41085,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -41233,258 +41292,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| B
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| B
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| a
-: string
-| UQ
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| UQ
-: string
-| SHOP1
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| B
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| V
-: null
-: null
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| a
-: null
-: null
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| DUAL
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
-| B
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| a
-: string
-| UQ
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| UQ
-: null
-< row
-: string
-| view
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -41727,11 +41539,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -41974,11 +41786,258 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| B
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| B
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| a
+: string
+| UQ
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| UQ
+: string
+| SHOP1
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| B
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| VIEW
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| V
+: null
+: null
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| a
+: null
+: null
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| B
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| a
+: string
+| UQ
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| UQ
+: null
+< row
+: string
+| view
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -42231,11 +42290,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -42488,11 +42547,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -42745,11 +42804,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -43002,11 +43061,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -43259,11 +43318,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -43526,11 +43585,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -43793,11 +43852,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -44172,11 +44231,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -44551,11 +44610,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -44930,11 +44989,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -45466,11 +45525,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -45673,11 +45732,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -45880,258 +45939,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| S
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| S
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| a
-: string
-| UQ
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| UQ
-: string
-| SHOP1
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| S
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| V
-: null
-: null
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| a
-: null
-: null
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| DUAL
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| S
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| a
-: string
-| UQ
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| UQ
-: null
-< row
-: string
-| view
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -46374,11 +46186,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -46621,11 +46433,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -46868,11 +46680,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -47115,11 +46927,258 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| S
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| S
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| a
+: string
+| UQ
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| UQ
+: string
+| SHOP1
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| S
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| VIEW
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| V
+: null
+: null
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| a
+: null
+: null
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| S
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| a
+: string
+| UQ
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| UQ
+: null
+< row
+: string
+| view
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -47421,327 +47480,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| S
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| S
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| C
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| C
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| C
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| a
-: string
-| UQ
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| UQ
-: string
-| SHOP1
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| S
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| V
-: string
-| SYNONYM
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| VIEW
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| V
-: null
-: null
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| a
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP1
-: string
-| C
-: null
-: null
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| DUAL
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| S
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| a
-: string
-| UQ
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| UQ
-: null
-< row
-: string
-| view
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -48053,11 +47796,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -48369,11 +48112,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -48685,11 +48428,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -49001,11 +48744,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -49317,11 +49060,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -49633,11 +49376,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -49949,11 +49692,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -50265,11 +50008,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -50581,11 +50324,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -50897,11 +50640,327 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| S
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| S
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| C
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| C
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| C
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| a
+: string
+| UQ
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| UQ
+: string
+| SHOP1
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| S
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| V
+: string
+| SYNONYM
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| VIEW
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| V
+: null
+: null
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| a
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP1
+: string
+| C
+: null
+: null
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| S
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| a
+: string
+| UQ
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| UQ
+: null
+< row
+: string
+| view
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -51391,11 +51450,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -51582,11 +51641,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -51773,11 +51832,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -51964,11 +52023,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -52155,11 +52214,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -52346,11 +52405,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -52537,11 +52596,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -52728,11 +52787,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -52919,11 +52978,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -53110,11 +53169,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -53301,11 +53360,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -53492,11 +53551,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -53683,11 +53742,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -54008,11 +54067,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -54035,11 +54094,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -54062,58 +54121,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| SEQUENCE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| V
-: string
-| SEQUENCE
-< row
-: string
-| sequence
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| SEQUENCE
-< row
-: string
-| sequence
-: string
-| SHOP1
-: null
-: string
-| V
-: string
-| SEQUENCE
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -54156,11 +54168,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -54203,11 +54215,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -54250,11 +54262,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -54297,11 +54309,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -54344,11 +54356,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -54391,11 +54403,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -54438,11 +54450,58 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| SEQUENCE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| V
+: string
+| SEQUENCE
+< row
+: string
+| sequence
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| SEQUENCE
+< row
+: string
+| sequence
+: string
+| SHOP1
+: null
+: string
+| V
+: string
+| SEQUENCE
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -54532,73 +54591,86 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP1' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP1'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP1' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP1' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP1' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP1' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP1' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP1' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
-> query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP1' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 > query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP1' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP1' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP1' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP1' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 < row
 : string
 | C
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP1' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP1' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,ADD,ALTER,AS,B,BEFORE,BEGIN,BY,C,CASCADE,CHECK,CK,COLUMN,COMMENT,CONSTRAINT,CONSTRAINTS,CREATE,CURRENT_SCHEMA,DELETE,DISABLE,DROP,DUAL,EACH,ENABLE,END,EXISTS,FK,FOR,FOREIGN,FROM,FUNCTION,I,ID,IF,INCREMENT,INDEX,INSERT,INTO,IS,J,KEY,MODIFY,NOT,NULL,NUMBER,OBJECT,ON,ONLY,OR,OTHER1,PK,PRIMARY,PROCEDURE,READ,REFERENCES,RENAME,REPLACE,ROW,S,SELECT,SEQUENCE,SESSION,SET,SHOP1,SYNONYM,TABLE,TO,TR,TR2,TRIGGER,TRUNCATE,TYPE,UNIQUE,UNUSED,UQ,V,VALUES,VIEW,WITH,X,Y,Z,a,x,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | DUAL
@@ -54699,11 +54771,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -54726,11 +54798,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -54753,11 +54825,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -54780,11 +54852,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -54807,11 +54879,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -54844,11 +54916,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -54881,11 +54953,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -54918,11 +54990,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -55027,11 +55099,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -55136,11 +55208,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -55245,11 +55317,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -55354,11 +55426,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -55463,11 +55535,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -55572,11 +55644,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -55681,11 +55753,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -55790,11 +55862,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -55899,11 +55971,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -56173,11 +56245,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -56210,11 +56282,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -56247,11 +56319,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -56284,11 +56356,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -56321,11 +56393,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -56358,11 +56430,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -56395,11 +56467,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -56432,11 +56504,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -56479,11 +56551,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -56526,11 +56598,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -56573,11 +56645,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -56620,11 +56692,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -56667,11 +56739,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -56714,11 +56786,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -56917,11 +56989,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -56944,11 +57016,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -56971,11 +57043,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -56998,11 +57070,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -57025,11 +57097,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -57052,11 +57124,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -57079,11 +57151,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -57106,11 +57178,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -57133,11 +57205,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -57160,11 +57232,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -57187,11 +57259,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -57214,11 +57286,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -57241,11 +57313,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -57268,11 +57340,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -57295,11 +57367,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -57479,11 +57551,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -57516,11 +57588,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -57644,11 +57716,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -57772,11 +57844,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -57900,11 +57972,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -57967,174 +58039,6 @@
 | S
 : string
 | SYNONYM
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| SEQUENCE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| primary key
-: string
-| SHOP1
-: string
-| V
-: null
-: null
-< row
-: string
-| sequence
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| SEQUENCE
-< row
-: string
-| synonym
-: string
-| OTHER1
-: null
-: string
-| S
-: string
-| SYNONYM
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| DUAL
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| V
-: string
-| A
-: null
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| B
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| V
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| V
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| V
-: string
-| Y
-: null
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| V
-: string
-| A
-: string
-| SHOP1
-< row
-: string
-| index
-: string
-| SHOP1
-: string
-| V
-: string
-| A
-: string
-| SHOP1
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| S
-: string
-| SYNONYM
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| B
-: string
-| VIEW
 < row
 : string
 | object
@@ -58214,23 +58118,13 @@
 : string
 | A
 : null
-< row
-: string
-| view
-: string
-| SHOP1
-: null
-: string
-| B
-: string
-| VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -58404,11 +58298,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -58582,11 +58476,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -58760,11 +58654,189 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| B
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| V
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| V
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| V
+: string
+| Y
+: null
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| V
+: string
+| A
+: string
+| SHOP1
+< row
+: string
+| index
+: string
+| SHOP1
+: string
+| V
+: string
+| A
+: string
+| SHOP1
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| S
+: string
+| SYNONYM
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| B
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| SEQUENCE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| primary key
+: string
+| SHOP1
+: string
+| V
+: null
+: null
+< row
+: string
+| sequence
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| SEQUENCE
+< row
+: string
+| synonym
+: string
+| OTHER1
+: null
+: string
+| S
+: string
+| SYNONYM
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| V
+: string
+| A
+: null
+< row
+: string
+| view
+: string
+| SHOP1
+: null
+: string
+| B
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -58968,11 +59040,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -59308,11 +59380,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -59345,11 +59417,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -59382,11 +59454,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -59470,11 +59542,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -59558,11 +59630,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -59646,11 +59718,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -59734,11 +59806,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -59822,119 +59894,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| B
-: string
-| X
-: null
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| B
-: string
-| CK
-: string
-| SHOP1
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| A
-: string
-| SEQUENCE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| B
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| SEQUENCE
-< row
-: string
-| sequence
-: string
-| SHOP1
-: null
-: string
-| A
-: string
-| SEQUENCE
-< row
-: string
-| sequence
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| SEQUENCE
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| DUAL
-: string
-| SYNONYM
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| B
-: string
-| CK
-: null
-< row
-: string
-| view
-: string
-| SHOP1
-: null
-: string
-| B
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -60038,11 +60002,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -60146,11 +60110,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -60254,11 +60218,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -60362,11 +60326,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -60470,11 +60434,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -60578,11 +60542,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -60686,11 +60650,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -60794,11 +60758,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -60902,11 +60866,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -61010,11 +60974,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -61118,11 +61082,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -61130,16 +61094,6 @@
 | SHOP1
 : string
 | B
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| a
 : string
 | X
 : null
@@ -61152,17 +61106,6 @@
 | B
 : string
 | CK
-: string
-| SHOP1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| FK
 : string
 | SHOP1
 < row
@@ -61195,16 +61138,6 @@
 | C
 : string
 | SEQUENCE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| VIEW
 < row
 : string
 | sequence
@@ -61247,16 +61180,6 @@
 : null
 < row
 : string
-| table constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| FK
-: null
-< row
-: string
 | view
 : string
 | SHOP1
@@ -61265,23 +61188,13 @@
 | B
 : string
 | VIEW
-< row
-: string
-| view
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -61436,11 +61349,170 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| B
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| B
+: string
+| CK
+: string
+| SHOP1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| FK
+: string
+| SHOP1
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| A
+: string
+| SEQUENCE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| B
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| SEQUENCE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| VIEW
+< row
+: string
+| sequence
+: string
+| SHOP1
+: null
+: string
+| A
+: string
+| SEQUENCE
+< row
+: string
+| sequence
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| SEQUENCE
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| B
+: string
+| CK
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| FK
+: null
+< row
+: string
+| view
+: string
+| SHOP1
+: null
+: string
+| B
+: string
+| VIEW
+< row
+: string
+| view
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -61778,11 +61850,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -61805,11 +61877,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -61832,11 +61904,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -61931,11 +62003,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -62030,11 +62102,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -62129,11 +62201,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -62228,11 +62300,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -62327,11 +62399,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -62426,11 +62498,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -62525,11 +62597,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -62624,11 +62696,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -62651,11 +62723,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -62678,11 +62750,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -62705,11 +62777,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -62732,11 +62804,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -62759,11 +62831,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -62786,11 +62858,11 @@
 | SEQUENCE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -62979,11 +63051,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -63016,11 +63088,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -63053,11 +63125,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -63090,11 +63162,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -63127,11 +63199,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -63174,11 +63246,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -63221,11 +63293,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -63268,11 +63340,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -63315,11 +63387,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -63362,11 +63434,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -63409,11 +63481,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -63456,11 +63528,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -63503,11 +63575,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -63550,11 +63622,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -63597,11 +63669,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -63644,11 +63716,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -63691,11 +63763,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -63738,11 +63810,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -63785,11 +63857,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -63832,11 +63904,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -64054,11 +64126,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -64091,11 +64163,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -64128,11 +64200,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -64165,11 +64237,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -64202,11 +64274,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -64239,11 +64311,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -64276,11 +64348,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -64353,11 +64425,11 @@
 | TABLE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -64430,11 +64502,11 @@
 | TABLE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -64507,139 +64579,11 @@
 | TABLE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| V
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| a
-: string
-| Y
-: null
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| V
-: string
-| CK
-: string
-| SHOP1
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| SEQUENCE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| V
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| sequence
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| SEQUENCE
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| DUAL
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| V
-: string
-| CK
-: null
-< row
-: string
-| view
-: string
-| SHOP1
-: null
-: string
-| V
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -64763,11 +64707,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -64891,11 +64835,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -65019,11 +64963,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -65147,11 +65091,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -65275,11 +65219,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -65403,11 +65347,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -65531,11 +65475,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -65659,11 +65603,139 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| V
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| a
+: string
+| Y
+: null
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| V
+: string
+| CK
+: string
+| SHOP1
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| SEQUENCE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| V
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| sequence
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| SEQUENCE
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| V
+: string
+| CK
+: null
+< row
+: string
+| view
+: string
+| SHOP1
+: null
+: string
+| V
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -65956,11 +66028,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -65993,11 +66065,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -66030,11 +66102,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -66067,11 +66139,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -66155,11 +66227,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -66243,11 +66315,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -66331,11 +66403,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -66419,11 +66491,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -66507,11 +66579,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -66595,11 +66667,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -66683,11 +66755,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -66771,11 +66843,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -66859,11 +66931,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -66947,11 +67019,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -67035,11 +67107,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -67123,11 +67195,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -67374,11 +67446,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -67575,11 +67647,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -67776,11 +67848,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -67977,11 +68049,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -68178,11 +68250,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -68379,11 +68451,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -68580,11 +68652,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -68781,11 +68853,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -68982,11 +69054,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -69183,11 +69255,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -69384,252 +69456,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| C
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| C
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| a
-: string
-| Y
-: null
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| A
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| CK
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| C
-: string
-| CK
-: string
-| SHOP1
-< row
-: string
-| index
-: string
-| OTHER1
-: string
-| V
-: string
-| A
-: string
-| OTHER1
-< row
-: string
-| index
-: string
-| SHOP1
-: string
-| C
-: string
-| CK
-: string
-| SHOP1
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| V
-: null
-: null
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| DUAL
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| A
-: null
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| CK
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| C
-: string
-| CK
-: null
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -69866,11 +69697,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -70023,16 +69854,6 @@
 | SHOP1
 : null
 : string
-| S
-: string
-| TYPE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
 | a
 : string
 | TABLE
@@ -70117,11 +69938,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -70368,11 +70189,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -70619,11 +70440,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -70870,11 +70691,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -71121,11 +70942,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -71372,11 +71193,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -71623,11 +71444,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -71874,11 +71695,262 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| C
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| C
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| a
+: string
+| Y
+: null
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| A
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| CK
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| C
+: string
+| CK
+: string
+| SHOP1
+< row
+: string
+| index
+: string
+| OTHER1
+: string
+| V
+: string
+| A
+: string
+| OTHER1
+< row
+: string
+| index
+: string
+| SHOP1
+: string
+| C
+: string
+| CK
+: string
+| SHOP1
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| S
+: string
+| TYPE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| V
+: null
+: null
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| A
+: null
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| CK
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| C
+: string
+| CK
+: null
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -72293,81 +72365,81 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 
 == TestWalkThroughSweepOracle/change30 default#2
 > exec
@@ -72413,70 +72485,83 @@
 > query
 | SELECT mview_name FROM dba_mviews WHERE owner = 'SHOP1' ORDER BY 1
 < result
-< column "MVIEW_NAME" "NCHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP1'
 | UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP1' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "0" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
 > query
-| SELECT table_name, column_name FROM dba_tab_cols WHERE owner = 'SHOP1' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP1' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SHOP1' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP1' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP1' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
-< column "SEARCH_CONDITION_VC" "NCHAR"
-> query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP1' ORDER BY 1, 2
-< result
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
 > query
 | SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP1' ORDER BY 1, 2
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP1' ORDER BY 1
 < result
-< column "VIEW_NAME" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
 > query
 | SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SHOP1' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "BASE_OBJECT_TYPE" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
 > query
 | SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SHOP1' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 > query
 | SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SHOP1' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SHOP1' ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > query
 | SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,ADD,ALTER,AS,B,BEFORE,BEGIN,BY,C,CASCADE,CHECK,CK,COLUMN,COMMENT,CONSTRAINT,CONSTRAINTS,CREATE,CURRENT_SCHEMA,DELETE,DISABLE,DROP,DUAL,EACH,ENABLE,END,EXISTS,FK,FOR,FOREIGN,FROM,FUNCTION,I,ID,IF,INCREMENT,INDEX,INSERT,INTO,IS,J,KEY,MODIFY,NOT,NULL,NUMBER,OBJECT,ON,ONLY,OR,OTHER1,PK,PRIMARY,PROCEDURE,READ,REFERENCES,RENAME,REPLACE,ROW,S,SELECT,SEQUENCE,SESSION,SET,SHOP1,SYNONYM,TABLE,TO,TR,TR2,TRIGGER,TRUNCATE,TYPE,UNIQUE,UNUSED,UPDATE,UQ,V,VALUES,VIEW,WITH,X,Y,Z,a,x,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | DUAL
@@ -72581,60 +72666,60 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -72709,11 +72794,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -72788,11 +72873,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -72867,11 +72952,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -72946,11 +73031,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -73025,11 +73110,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -73104,11 +73189,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -73183,11 +73268,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -73262,11 +73347,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -73496,11 +73581,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | synonym
@@ -73513,11 +73598,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -73602,11 +73687,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -73691,11 +73776,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -73780,11 +73865,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -73869,11 +73954,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -74038,220 +74123,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| A
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| A
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| A
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| B
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| B
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| a
-: string
-| Y
-: null
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| A
-: string
-| A
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| B
-: string
-| PK
-: string
-| OTHER1
-< row
-: string
-| index
-: string
-| OTHER1
-: string
-| B
-: string
-| PK
-: string
-| OTHER1
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| A
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| B
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| A
-: null
-: null
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| DUAL
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| A
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| B
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| A
-: string
-| A
-: null
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| B
-: string
-| PK
-: null
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -74456,11 +74332,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -74517,26 +74393,6 @@
 : string
 | SHOP1
 : string
-| S
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| S
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
 | a
 : string
 | X
@@ -74575,17 +74431,6 @@
 | OTHER1
 < row
 : string
-| constraint
-: string
-| SHOP1
-: string
-| S
-: string
-| UQ
-: string
-| SHOP1
-< row
-: string
 | index
 : string
 | OTHER1
@@ -74595,17 +74440,6 @@
 | PK
 : string
 | OTHER1
-< row
-: string
-| index
-: string
-| SHOP1
-: string
-| S
-: string
-| UQ
-: string
-| SHOP1
 < row
 : string
 | object
@@ -74624,16 +74458,6 @@
 : null
 : string
 | B
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| S
 : string
 | TABLE
 < row
@@ -74692,16 +74516,6 @@
 | SHOP1
 : null
 : string
-| S
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
 | a
 : string
 | TABLE
@@ -74725,23 +74539,13 @@
 : string
 | PK
 : null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| S
-: string
-| UQ
-: null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -75018,11 +74822,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -75299,11 +75103,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -75360,26 +75164,6 @@
 : string
 | SHOP1
 : string
-| A
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| A
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
 | S
 : string
 | X
@@ -75442,17 +75226,6 @@
 : string
 | SHOP1
 : string
-| A
-: string
-| FK
-: string
-| SHOP1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
 | S
 : string
 | UQ
@@ -75475,17 +75248,6 @@
 : string
 | SHOP1
 : string
-| A
-: string
-| FK
-: string
-| SHOP1
-< row
-: string
-| index
-: string
-| SHOP1
-: string
 | S
 : string
 | UQ
@@ -75509,16 +75271,6 @@
 : null
 : string
 | B
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| A
 : string
 | TABLE
 < row
@@ -75587,16 +75339,6 @@
 | SHOP1
 : null
 : string
-| A
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
 | S
 : string
 | TABLE
@@ -75636,27 +75378,17 @@
 : string
 | SHOP1
 : string
-| A
-: string
-| FK
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
 | S
 : string
 | UQ
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -76005,11 +75737,364 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| A
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| A
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| A
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| B
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| B
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| A
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| A
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| S
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| S
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| a
+: string
+| Y
+: null
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| A
+: string
+| A
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| B
+: string
+| PK
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| A
+: string
+| FK
+: string
+| SHOP1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| S
+: string
+| UQ
+: string
+| SHOP1
+< row
+: string
+| index
+: string
+| OTHER1
+: string
+| B
+: string
+| PK
+: string
+| OTHER1
+< row
+: string
+| index
+: string
+| SHOP1
+: string
+| A
+: string
+| FK
+: string
+| SHOP1
+< row
+: string
+| index
+: string
+| SHOP1
+: string
+| S
+: string
+| UQ
+: string
+| SHOP1
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| A
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| B
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| A
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| S
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| A
+: null
+: null
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| A
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| B
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| A
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| S
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| A
+: string
+| A
+: null
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| B
+: string
+| PK
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| A
+: string
+| FK
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| S
+: string
+| UQ
+: null
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -76500,11 +76585,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | synonym
@@ -76517,11 +76602,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | synonym
@@ -76534,11 +76619,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | synonym
@@ -76551,11 +76636,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | synonym
@@ -76568,11 +76653,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | synonym
@@ -76585,11 +76670,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -76632,11 +76717,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -76679,11 +76764,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -76726,11 +76811,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -76773,11 +76858,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -76820,11 +76905,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -76867,11 +76952,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -76914,11 +76999,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -76961,11 +77046,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -77008,11 +77093,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -77055,11 +77140,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -77102,11 +77187,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -77145,103 +77230,6 @@
 : null
 : string
 | B
-: string
-| VIEW
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| DUAL
-: string
-| SYNONYM
-< row
-: string
-| view
-: string
-| OTHER1
-: null
-: string
-| C
-: string
-| VIEW
-< row
-: string
-| view
-: string
-| SHOP1
-: null
-: string
-| B
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| C
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| B
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| V
-: string
-| X
-: null
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| C
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| B
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| V
 : string
 | VIEW
 < row
@@ -77274,23 +77262,13 @@
 | B
 : string
 | VIEW
-< row
-: string
-| view
-: string
-| SHOP1
-: null
-: string
-| V
-: string
-| VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -77393,11 +77371,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -77500,11 +77478,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -77607,11 +77585,118 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| C
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| B
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| V
+: string
+| X
+: null
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| C
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| B
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| V
+: string
+| VIEW
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| view
+: string
+| OTHER1
+: null
+: string
+| C
+: string
+| VIEW
+< row
+: string
+| view
+: string
+| SHOP1
+: null
+: string
+| B
+: string
+| VIEW
+< row
+: string
+| view
+: string
+| SHOP1
+: null
+: string
+| V
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -77893,74 +77978,74 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -77973,11 +78058,11 @@
 | PROCEDURE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -77990,11 +78075,11 @@
 | PROCEDURE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -78007,11 +78092,11 @@
 | PROCEDURE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -78024,11 +78109,11 @@
 | PROCEDURE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -78041,11 +78126,11 @@
 | PROCEDURE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -78058,11 +78143,11 @@
 | PROCEDURE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -78075,11 +78160,11 @@
 | PROCEDURE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -78092,11 +78177,11 @@
 | PROCEDURE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -78109,11 +78194,11 @@
 | PROCEDURE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -78126,11 +78211,11 @@
 | PROCEDURE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -78322,46 +78407,46 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -78436,11 +78521,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -78515,100 +78600,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| A
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| A
-: string
-| Y
-: null
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| A
-: string
-| CK
-: string
-| SHOP1
-< row
-: string
-| index
-: string
-| SHOP1
-: string
-| A
-: string
-| CK
-: string
-| SHOP1
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| A
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| V
-: string
-| PROCEDURE
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
-| A
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| A
-: string
-| CK
-: null
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -78693,11 +78689,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -78782,11 +78778,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -78871,11 +78867,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -78960,11 +78956,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -79049,11 +79045,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -79138,11 +79134,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -79227,11 +79223,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -79316,11 +79312,100 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| A
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| A
+: string
+| Y
+: null
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| A
+: string
+| CK
+: string
+| SHOP1
+< row
+: string
+| index
+: string
+| SHOP1
+: string
+| A
+: string
+| CK
+: string
+| SHOP1
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| A
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| V
+: string
+| PROCEDURE
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| A
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| A
+: string
+| CK
+: null
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -79570,11 +79655,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | synonym
@@ -79587,11 +79672,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | synonym
@@ -79604,11 +79689,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | synonym
@@ -79621,11 +79706,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | synonym
@@ -79638,11 +79723,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | synonym
@@ -79655,11 +79740,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -79712,148 +79797,11 @@
 | TABLE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| B
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| B
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| C
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| C
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| C
-: string
-| Y
-: null
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| C
-: string
-| UQ
-: string
-| SHOP1
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| B
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| TABLE
-< row
-: string
-| primary key
-: string
-| SHOP1
-: string
-| C
-: null
-: null
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| DUAL
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
-| B
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| C
-: string
-| UQ
-: null
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -79986,11 +79934,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -80123,11 +80071,148 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| B
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| B
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| C
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| C
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| C
+: string
+| Y
+: null
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| C
+: string
+| UQ
+: string
+| SHOP1
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| B
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| TABLE
+< row
+: string
+| primary key
+: string
+| SHOP1
+: string
+| C
+: null
+: null
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| B
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| C
+: string
+| UQ
+: null
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -80229,11 +80314,11 @@
 | TABLE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -80335,11 +80420,11 @@
 | TABLE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -80441,11 +80526,11 @@
 | TABLE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -80547,11 +80632,11 @@
 | TABLE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -80653,11 +80738,11 @@
 | TABLE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -80759,11 +80844,11 @@
 | TABLE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -80865,11 +80950,11 @@
 | TABLE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -80971,11 +81056,11 @@
 | TABLE
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -81242,11 +81327,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | synonym
@@ -81259,11 +81344,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -81388,11 +81473,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -81517,11 +81602,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -81646,11 +81731,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -81775,11 +81860,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -81934,242 +82019,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| S
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| S
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| a
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| a
-: string
-| Y
-: null
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| S
-: string
-| UQ
-: string
-| SHOP1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| A
-: string
-| SHOP1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| CK
-: string
-| SHOP1
-< row
-: string
-| index
-: string
-| SHOP1
-: string
-| S
-: string
-| UQ
-: string
-| SHOP1
-< row
-: string
-| index
-: string
-| SHOP1
-: string
-| a
-: string
-| CK
-: string
-| SHOP1
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| VIEW
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| S
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| primary key
-: string
-| SHOP1
-: string
-| a
-: null
-: null
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| DUAL
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
-| S
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| S
-: string
-| UQ
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| A
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| a
-: string
-| CK
-: null
-< row
-: string
-| view
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| VIEW
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -82396,11 +82250,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -82627,11 +82481,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -82858,11 +82712,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -83089,11 +82943,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -83320,11 +83174,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -83551,11 +83405,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -83782,11 +83636,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -84013,11 +83867,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -84244,11 +84098,242 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| S
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| S
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| a
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| a
+: string
+| Y
+: null
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| S
+: string
+| UQ
+: string
+| SHOP1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| A
+: string
+| SHOP1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| CK
+: string
+| SHOP1
+< row
+: string
+| index
+: string
+| SHOP1
+: string
+| S
+: string
+| UQ
+: string
+| SHOP1
+< row
+: string
+| index
+: string
+| SHOP1
+: string
+| a
+: string
+| CK
+: string
+| SHOP1
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| S
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| primary key
+: string
+| SHOP1
+: string
+| a
+: null
+: null
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| S
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| S
+: string
+| UQ
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| A
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| a
+: string
+| CK
+: null
+< row
+: string
+| view
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -84475,11 +84560,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -84706,11 +84791,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -84937,11 +85022,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -85339,18 +85424,18 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -85363,11 +85448,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -85380,11 +85465,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -85397,11 +85482,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | object
@@ -85414,11 +85499,11 @@
 | SYNONYM
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -85513,11 +85598,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -85612,11 +85697,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -85711,11 +85796,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -85810,11 +85895,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -85909,11 +85994,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -86008,11 +86093,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -86245,39 +86330,39 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -86352,11 +86437,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -86431,100 +86516,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| S
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| S
-: string
-| Y
-: null
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| S
-: string
-| CK
-: string
-| SHOP1
-< row
-: string
-| index
-: string
-| SHOP1
-: string
-| S
-: string
-| CK
-: string
-| SHOP1
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| B
-: string
-| PROCEDURE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| S
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
-| S
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| S
-: string
-| CK
-: null
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -86584,16 +86580,6 @@
 | SHOP1
 : null
 : string
-| C
-: string
-| TYPE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
 | S
 : string
 | TABLE
@@ -86619,11 +86605,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -86718,11 +86704,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -86817,11 +86803,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -86916,11 +86902,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -87015,11 +87001,110 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| S
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| S
+: string
+| Y
+: null
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| S
+: string
+| CK
+: string
+| SHOP1
+< row
+: string
+| index
+: string
+| SHOP1
+: string
+| S
+: string
+| CK
+: string
+| SHOP1
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| B
+: string
+| PROCEDURE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| TYPE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| S
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| S
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| S
+: string
+| CK
+: null
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -87252,11 +87337,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -87453,11 +87538,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -87654,303 +87739,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| C
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| C
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| V
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| V
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| V
-: string
-| Y
-: null
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| A
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| CK
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| C
-: string
-| CK
-: string
-| SHOP1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| V
-: string
-| UQ
-: string
-| SHOP1
-< row
-: string
-| index
-: string
-| OTHER1
-: string
-| V
-: string
-| A
-: string
-| OTHER1
-< row
-: string
-| index
-: string
-| SHOP1
-: string
-| C
-: string
-| CK
-: string
-| SHOP1
-< row
-: string
-| index
-: string
-| SHOP1
-: string
-| V
-: string
-| UQ
-: string
-| SHOP1
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| V
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP1
-: string
-| V
-: null
-: null
-< row
-: string
-| synonym
-: string
-| PUBLIC
-: null
-: string
-| DUAL
-: string
-| SYNONYM
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| A
-: null
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| CK
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| C
-: string
-| CK
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| V
-: string
-| UQ
-: null
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -88238,11 +88031,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -88530,11 +88323,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -88564,16 +88357,6 @@
 | V
 : string
 | Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| B
-: string
-| X
 : null
 < row
 : string
@@ -88712,16 +88495,6 @@
 | V
 : string
 | TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| B
-: string
-| VIEW
 < row
 : string
 | object
@@ -88840,23 +88613,13 @@
 : string
 | UQ
 : null
-< row
-: string
-| view
-: string
-| SHOP1
-: null
-: string
-| B
-: string
-| VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -89174,11 +88937,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -89496,11 +89259,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -89818,11 +89581,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -90140,11 +89903,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -90462,11 +90225,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -90784,11 +90547,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -91106,11 +90869,333 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| B
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| C
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| C
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| V
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| V
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| V
+: string
+| Y
+: null
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| A
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| CK
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| C
+: string
+| CK
+: string
+| SHOP1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| V
+: string
+| UQ
+: string
+| SHOP1
+< row
+: string
+| index
+: string
+| OTHER1
+: string
+| V
+: string
+| A
+: string
+| OTHER1
+< row
+: string
+| index
+: string
+| SHOP1
+: string
+| C
+: string
+| CK
+: string
+| SHOP1
+< row
+: string
+| index
+: string
+| SHOP1
+: string
+| V
+: string
+| UQ
+: string
+| SHOP1
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| B
+: string
+| VIEW
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| V
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP1
+: string
+| V
+: null
+: null
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| A
+: null
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| CK
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| C
+: string
+| CK
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| V
+: string
+| UQ
+: null
+< row
+: string
+| view
+: string
+| SHOP1
+: null
+: string
+| B
+: string
+| VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -91566,11 +91651,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -91757,11 +91842,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -91948,11 +92033,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -92139,11 +92224,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -92330,11 +92415,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -92521,11 +92606,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -92712,11 +92797,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -92903,11 +92988,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -93094,11 +93179,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -93285,11 +93370,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -93476,11 +93561,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -93667,11 +93752,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -93991,11 +94076,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -94182,11 +94267,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -94373,11 +94458,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -94564,11 +94649,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -94755,11 +94840,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -94946,11 +95031,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -95137,11 +95222,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -95328,11 +95413,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -95519,11 +95604,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -95710,11 +95795,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -95901,11 +95986,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -96092,11 +96177,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -96283,11 +96368,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -96608,11 +96693,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -96799,11 +96884,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -96990,11 +97075,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -97181,11 +97266,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -97372,11 +97457,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -97563,261 +97648,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| C
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| C
-: string
-| Y
-: null
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| A
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| CK
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| C
-: string
-| CK
-: string
-| SHOP1
-< row
-: string
-| index
-: string
-| OTHER1
-: string
-| V
-: string
-| A
-: string
-| OTHER1
-< row
-: string
-| index
-: string
-| SHOP1
-: string
-| C
-: string
-| CK
-: string
-| SHOP1
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| TABLE
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| V
-: null
-: null
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| a
-: null
-: null
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| A
-: null
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| CK
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| C
-: string
-| CK
-: null
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -98063,11 +97898,261 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| C
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| C
+: string
+| Y
+: null
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| A
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| CK
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| C
+: string
+| CK
+: string
+| SHOP1
+< row
+: string
+| index
+: string
+| OTHER1
+: string
+| V
+: string
+| A
+: string
+| OTHER1
+< row
+: string
+| index
+: string
+| SHOP1
+: string
+| C
+: string
+| CK
+: string
+| SHOP1
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| TABLE
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| V
+: null
+: null
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| a
+: null
+: null
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| A
+: null
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| CK
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| C
+: string
+| CK
+: null
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -98324,11 +98409,11 @@
 | SHOP1
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -98585,11 +98670,11 @@
 | SHOP1
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -98846,11 +98931,11 @@
 | SHOP1
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -99107,11 +99192,11 @@
 | SHOP1
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -99378,11 +99463,11 @@
 | SHOP1
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -99649,11 +99734,11 @@
 | SHOP1
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -99920,293 +100005,11 @@
 | SHOP1
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| a
-: string
-| Z
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| C
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| C
-: string
-| Y
-: null
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| A
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| CK
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| C
-: string
-| CK
-: string
-| SHOP1
-< row
-: string
-| index
-: string
-| OTHER1
-: string
-| V
-: string
-| A
-: string
-| OTHER1
-< row
-: string
-| index
-: string
-| SHOP1
-: string
-| C
-: string
-| CK
-: string
-| SHOP1
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| B
-: string
-| TYPE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| TABLE
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| V
-: null
-: null
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| a
-: null
-: null
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| a
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| A
-: null
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| CK
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| C
-: string
-| CK
-: null
-< row
-: string
-| trigger
-: string
-| SHOP1
-: string
-| C
-: string
-| A
-: string
-| SHOP1
-< row
-: string
-| trigger
-: string
-| SHOP1
-: string
-| C
-: string
-| TR2
-: string
-| SHOP1
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -100484,11 +100287,11 @@
 | SHOP1
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -100766,11 +100569,293 @@
 | SHOP1
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| a
+: string
+| Z
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| C
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| C
+: string
+| Y
+: null
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| A
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| CK
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| C
+: string
+| CK
+: string
+| SHOP1
+< row
+: string
+| index
+: string
+| OTHER1
+: string
+| V
+: string
+| A
+: string
+| OTHER1
+< row
+: string
+| index
+: string
+| SHOP1
+: string
+| C
+: string
+| CK
+: string
+| SHOP1
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| B
+: string
+| TYPE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| TABLE
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| V
+: null
+: null
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| a
+: null
+: null
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| a
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| A
+: null
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| CK
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| C
+: string
+| CK
+: null
+< row
+: string
+| trigger
+: string
+| SHOP1
+: string
+| C
+: string
+| A
+: string
+| SHOP1
+< row
+: string
+| trigger
+: string
+| SHOP1
+: string
+| C
+: string
+| TR2
+: string
+| SHOP1
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -101204,11 +101289,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -101395,11 +101480,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -101586,11 +101671,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -101777,11 +101862,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -101968,11 +102053,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -102159,261 +102244,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| OTHER1
-: string
-| V
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| C
-: string
-| ID
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| C
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| C
-: string
-| Y
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| V
-: string
-| X
-: null
-< row
-: string
-| column
-: string
-| SHOP1
-: string
-| V
-: string
-| Y
-: null
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| A
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| CK
-: string
-| OTHER1
-< row
-: string
-| constraint
-: string
-| SHOP1
-: string
-| V
-: string
-| CK
-: string
-| SHOP1
-< row
-: string
-| index
-: string
-| OTHER1
-: string
-| V
-: string
-| A
-: string
-| OTHER1
-< row
-: string
-| index
-: string
-| SHOP1
-: string
-| V
-: string
-| CK
-: string
-| SHOP1
-< row
-: string
-| object
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| TABLE
-< row
-: string
-| object
-: string
-| SHOP1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| primary key
-: string
-| OTHER1
-: string
-| V
-: null
-: null
-< row
-: string
-| primary key
-: string
-| SHOP1
-: string
-| C
-: null
-: null
-< row
-: string
-| table
-: string
-| OTHER1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
-| C
-: string
-| TABLE
-< row
-: string
-| table
-: string
-| SHOP1
-: null
-: string
-| V
-: string
-| TABLE
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| A
-: null
-< row
-: string
-| table constraint
-: string
-| OTHER1
-: string
-| V
-: string
-| CK
-: null
-< row
-: string
-| table constraint
-: string
-| SHOP1
-: string
-| V
-: string
-| CK
-: null
-> query ^
-< result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -102659,11 +102494,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -102909,11 +102744,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -103159,11 +102994,261 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| OTHER1
+: string
+| V
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| C
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| C
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| C
+: string
+| Y
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| V
+: string
+| X
+: null
+< row
+: string
+| column
+: string
+| SHOP1
+: string
+| V
+: string
+| Y
+: null
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| A
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| CK
+: string
+| OTHER1
+< row
+: string
+| constraint
+: string
+| SHOP1
+: string
+| V
+: string
+| CK
+: string
+| SHOP1
+< row
+: string
+| index
+: string
+| OTHER1
+: string
+| V
+: string
+| A
+: string
+| OTHER1
+< row
+: string
+| index
+: string
+| SHOP1
+: string
+| V
+: string
+| CK
+: string
+| SHOP1
+< row
+: string
+| object
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SHOP1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| primary key
+: string
+| OTHER1
+: string
+| V
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SHOP1
+: string
+| C
+: null
+: null
+< row
+: string
+| table
+: string
+| OTHER1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| C
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SHOP1
+: null
+: string
+| V
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| A
+: null
+< row
+: string
+| table constraint
+: string
+| OTHER1
+: string
+| V
+: string
+| CK
+: null
+< row
+: string
+| table constraint
+: string
+| SHOP1
+: string
+| V
+: string
+| CK
+: null
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -103350,11 +103435,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -103541,11 +103626,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -103857,11 +103942,11 @@
 |   AND (tbl IS NULL OR NOT (tbl LIKE 'SYS\_%' ESCAPE '\' OR tbl LIKE 'BIN$%' OR tbl LIKE 'ORA$%'))
 | ORDER BY s, o, tbl, n, k
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -104058,11 +104143,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -104259,11 +104344,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -104460,11 +104545,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -104741,11 +104826,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -105022,11 +105107,11 @@
 : null
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -105354,11 +105439,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -105686,11 +105771,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -106018,11 +106103,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -106350,11 +106435,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -106682,11 +106767,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -107024,11 +107109,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -107366,11 +107451,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -107708,11 +107793,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -108050,11 +108135,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -108392,11 +108477,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column
@@ -108734,11 +108819,11 @@
 | VIEW
 > query ^
 < result
-< column "S" "NCHAR"
-< column "O" "NCHAR"
-< column "TBL" "NCHAR"
-< column "N" "NCHAR"
-< column "K" "NCHAR"
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
 < row
 : string
 | column

@@ -47,6 +47,22 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		if f, _ := b.look(k); f == walk.Absent {
 			if objFact, objKind := b.look(r.key(spaceObject)); objFact == walk.Present {
 				if objKind == kindSynonym {
+					if sr, _, sok := b.resolveSynonymTable(v.Name, r); sok {
+						for _, c := range cmds {
+							if c.Action == ast.AT_MOVE && b.moveHasPartition(c.Loc) {
+								if b.checkPartitionTextContradictions(c.Loc, sr, true, rangeOf(c.Loc)) {
+									return true
+								}
+								if b.checkPartitionMeta(sr, b.syncedPartMeta(sr), c.Loc, rangeOf(c.Loc)) {
+									return true
+								}
+							} else if c.Action == ast.AT_MODIFY_TO_PARTITIONED {
+								if b.checkModifyPartitionBy(sr, c.Loc, rangeOf(c.Loc)) {
+									return true
+								}
+							}
+						}
+					}
 					b.Last = true
 					return true
 				}
@@ -85,9 +101,35 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 			return true
 		}
 	}
+	if b.checkDuplicateAnnotations(v.Loc, r.rng) {
+		return true
+	}
 	if unfollowed {
 		// Table existence has been verified, but an unfollowed clause may add
 		// hidden columns or constraints, so stop walking after this statement.
+		// Still check supplemental log group column lists (ORA-00904/00957) and
+		// REF/SCOPE clauses (ORA-22893) on known tables before ending the walk.
+		if v.Actions != nil {
+			pkFact, _ := b.look(r.childKey(spacePrimary, ""))
+			for _, item := range v.Actions.Items {
+				c, ok := item.(*ast.AlterTableCmd)
+				if !ok {
+					continue
+				}
+				if c.Action == ast.AT_ALTER_PROPERTY && strings.HasPrefix(c.Subtype, "ADD SUPPLEMENTAL LOG") {
+					if b.checkSupplementalLogGroup(r, c.Loc, rangeOf(c.Loc)) {
+						return true
+					}
+				}
+				if c.Action == ast.AT_ALTER_PROPERTY && pkFact == walk.Absent && isIOTPropertySubtype(c.Subtype) {
+					b.fail(rangeOf(c.Loc), review.UnsupportedForm, "Index-organized table clause is not allowed on non-IOT table "+review.Code(r.written)+".")
+					return true
+				}
+				if b.checkAlterTableAddRefOnScalar(r, c.Loc, rangeOf(c.Loc)) {
+					return true
+				}
+			}
+		}
 		b.Last = true
 		return true
 	}
@@ -97,10 +139,25 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		return true
 	}
 	addedCols := make(map[string]bool)
+	addedPK := false
 	for _, c := range cmds {
-		if c.Action == ast.AT_ADD_COLUMN {
+		switch c.Action {
+		case ast.AT_ADD_COLUMN:
 			for _, col := range alterColumns(c) {
 				addedCols[col.Name] = true
+				if pk, _ := columnKeys(col); pk {
+					addedPK = true
+				}
+			}
+		case ast.AT_MODIFY_COLUMN:
+			for _, col := range alterColumns(c) {
+				if pk, _ := columnKeys(col); pk {
+					addedPK = true
+				}
+			}
+		case ast.AT_ADD_CONSTRAINT:
+			if c.Constraint != nil && c.Constraint.Type == ast.CONSTRAINT_PRIMARY {
+				addedPK = true
 			}
 		}
 	}
@@ -110,7 +167,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		if c.Action == ast.AT_RENAME && kind == kindMView {
 			return false
 		}
-		if !b.alterCmd(r, kind, c, declared, addedCols) {
+		if !b.alterCmd(r, kind, c, declared, addedCols, addedPK) {
 			return false
 		}
 	}
@@ -297,31 +354,75 @@ func (b *builder) cascadesConstraints(c *ast.AlterTableCmd) bool {
 	return cascades(b.w.sql, c.Loc)
 }
 
-func (b *builder) alterCmd(r objRef, kind string, c *ast.AlterTableCmd, declared []string, addedCols map[string]bool) bool {
+func (b *builder) alterCmd(r objRef, kind string, c *ast.AlterTableCmd, declared []string, addedCols map[string]bool, addedPK bool) bool {
 	rng := rangeOf(c.Loc)
+	if rng == (review.Range{}) {
+		rng = r.rng
+	}
 	switch c.Action {
 	case ast.AT_ADD_COLUMN:
 		if nestedStorage(c.Options) {
 			// The nested table's storage table takes a name.
 			return false
 		}
+		pkFact, _ := b.look(r.childKey(spacePrimary, ""))
+		selfHasPK := addedPK || pkFact != walk.Absent
 		var d tableDecl
 		for _, col := range alterColumns(c) {
+			crng := rangeOf(col.Loc)
+			if crng == (review.Range{}) {
+				crng = rng
+			}
 			if columnMissingDatatype(col) {
-				b.fail(rangeOf(col.Loc), review.UnsupportedForm, "Column "+review.Code(ident(col.Name))+" must specify a datatype.")
+				b.fail(crng, review.UnsupportedForm, "Column "+review.Code(ident(col.Name))+" must specify a datatype.")
 				return true
 			}
+			if b.checkColTypeKnownNonType(col.TypeName, crng) {
+				return true
+			}
+			if b.checkColCollationAndRef(col, nil, crng) {
+				return true
+			}
+			if col.Constraints != nil {
+				for _, item := range col.Constraints.Items {
+					if cc, ok := item.(*ast.ColumnConstraint); ok && cc.Type == ast.CONSTRAINT_FOREIGN {
+						if b.checkForeignKeyRef(r, cc.RefTable, cc.RefColumns, selfHasPK, nil, crng) {
+							return true
+						}
+					}
+				}
+			}
 			ck := r.childKey(spaceColumn, col.Name)
-			b.need(ck, walk.Absent, nil, rangeOf(col.Loc), "", takenColumn(col.Name, r.written))
+			b.need(ck, walk.Absent, nil, crng, "", takenColumn(col.Name, r.written))
 			b.Set(ck, walk.Present, "")
 			b.declareColumn(&d, col)
 		}
 		b.declChecks(&d, r)
 		b.declEffects(&d, r)
+		b.mutateColMeta(r)
 	case ast.AT_MODIFY_COLUMN:
+		pkFact, _ := b.look(r.childKey(spacePrimary, ""))
+		selfHasPK := addedPK || pkFact != walk.Absent
+		st := b.syncedColMeta(r)
 		var d tableDecl
 		for _, col := range alterColumns(c) {
-			b.columnNeeds(r, col.Name, rangeOf(col.Loc))
+			crng := rangeOf(col.Loc)
+			if crng == (review.Range{}) {
+				crng = rng
+			}
+			b.columnNeeds(r, col.Name, crng)
+			if b.checkModifyColMeta(r, st, col, crng) {
+				return true
+			}
+			if col.Constraints != nil {
+				for _, item := range col.Constraints.Items {
+					if cc, ok := item.(*ast.ColumnConstraint); ok && cc.Type == ast.CONSTRAINT_FOREIGN {
+						if b.checkForeignKeyRef(r, cc.RefTable, cc.RefColumns, selfHasPK, nil, crng) {
+							return true
+						}
+					}
+				}
+			}
 			b.declareColumn(&d, col)
 			if col.Null {
 				// NULL drops the column's NOT NULL constraint, of any name.
@@ -330,13 +431,19 @@ func (b *builder) alterCmd(r objRef, kind string, c *ast.AlterTableCmd, declared
 		}
 		b.declChecks(&d, r)
 		b.declEffects(&d, r)
+		b.mutateColMeta(r)
 	case ast.AT_DROP_COLUMN, ast.AT_SET_UNUSED:
 		names := b.droppedColumns(c)
 		if names == nil {
 			return false
 		}
+		pst := b.syncedPartMeta(r)
 		for _, name := range names {
 			b.columnNeeds(r, name, rng)
+			if pst != nil && pst.partKeyCols[name] {
+				b.fail(rng, review.UnsupportedForm, "Cannot drop partitioning key column "+review.Code(ident(name))+" from "+review.Code(r.written)+".")
+				return true
+			}
 			b.Set(r.childKey(spaceColumn, name), walk.Absent, "")
 		}
 		// The column's constraints and indexes go with it, and a nested
@@ -345,6 +452,7 @@ func (b *builder) alterCmd(r objRef, kind string, c *ast.AlterTableCmd, declared
 		b.forgetStorage(r)
 		b.MayRemove(walk.Scope{Space: spacePrimary, Parent: r.path()})
 		b.dropIndexes(r)
+		b.mutateColMeta(r)
 		if b.cascadesConstraints(c) {
 			b.cascadeConstraints()
 		}
@@ -356,25 +464,50 @@ func (b *builder) alterCmd(r objRef, kind string, c *ast.AlterTableCmd, declared
 			b.Set(from, walk.Absent, "")
 			b.Set(to, walk.Present, "")
 		}
+		b.mutateTableAll(r)
 	case ast.AT_ADD_CONSTRAINT:
 		if c.Constraint == nil {
 			return false
 		}
 		if c.Constraint.Columns != nil {
+			seen := make(map[string]bool)
 			for _, item := range c.Constraint.Columns.Items {
-				if s, ok := item.(*ast.String); ok && s.Str != "" && !strings.Contains(s.Str, ".") && !addedCols[s.Str] {
-					b.columnNeeds(r, s.Str, rng)
+				if s, ok := item.(*ast.String); ok && s.Str != "" && !strings.Contains(s.Str, ".") {
+					if seen[s.Str] {
+						b.fail(rng, review.DuplicateName, twice("lists", "column", s.Str))
+						return true
+					}
+					seen[s.Str] = true
+					if !addedCols[s.Str] {
+						b.columnNeeds(r, s.Str, rng)
+					}
 				}
 			}
+		}
+		if c.Constraint.Type == ast.CONSTRAINT_FOREIGN {
+			pkFact, _ := b.look(r.childKey(spacePrimary, ""))
+			selfHasPK := addedPK || pkFact != walk.Absent
+			if b.checkForeignKeyRef(r, c.Constraint.RefTable, c.Constraint.RefColumns, selfHasPK, nil, rng) {
+				return true
+			}
+		}
+		if b.checkAlterTableAddRefOnScalar(r, c.Loc, rng) {
+			return true
 		}
 		var d tableDecl
 		b.declareConstraint(&d, c.Constraint)
 		b.declChecks(&d, r)
 		b.declEffects(&d, r)
+		b.mutateColMeta(r)
+		b.mutateIndexes(r)
 	case ast.AT_DROP_CONSTRAINT:
+		b.mutateColMeta(r)
+		b.mutateIndexes(r)
 		return b.dropConstraint(r, c, rng)
 	case ast.AT_MODIFY_CONSTRAINT, ast.AT_ENABLE_DISABLE:
-		return b.constraintState(r, c, rng, declared)
+		b.mutateColMeta(r)
+		b.mutateIndexes(r)
+		return b.constraintState(r, c, rng, declared, addedPK)
 	case ast.AT_RENAME_CONSTRAINT:
 		from, to := c.ColumnName, c.NewName
 		b.constraintNeeds(r, from, rng)
@@ -400,18 +533,60 @@ func (b *builder) alterCmd(r objRef, kind string, c *ast.AlterTableCmd, declared
 	case ast.AT_MODIFY_NESTED_TABLE:
 		if c.ColumnName != "" && !strings.Contains(c.ColumnName, ".") && !strings.EqualFold(c.ColumnName, "COLUMN_VALUE") {
 			b.columnNeeds(r, c.ColumnName, rng)
+			if st := b.syncedColMeta(r); st != nil {
+				if sc, ok := st.colMeta[c.ColumnName]; ok && isOracleScalarType(sc.typ) {
+					b.fail(rng, review.UnsupportedForm, "Column "+review.Code(ident(c.ColumnName))+" in "+review.Code(r.written)+" is not a nested table column.")
+					return true
+				}
+			}
 		}
 	case ast.AT_MODIFY_LOB:
 		if col := b.modifyLobColumn(c.Loc); col != "" && !strings.EqualFold(col, "COLUMN_VALUE") {
 			b.columnNeeds(r, col, rng)
+			if st := b.syncedColMeta(r); st != nil {
+				if sc, ok := st.colMeta[col]; ok && isOracleScalarType(sc.typ) {
+					b.fail(rng, review.UnsupportedForm, "Column "+review.Code(ident(col))+" in "+review.Code(r.written)+" is not a LOB column.")
+					return true
+				}
+			}
 		}
 	case ast.AT_MODIFY_VARRAY:
 		if col := b.modifyVarrayColumn(c.Loc); col != "" && !strings.EqualFold(col, "COLUMN_VALUE") {
 			b.columnNeeds(r, col, rng)
+			if st := b.syncedColMeta(r); st != nil {
+				if sc, ok := st.colMeta[col]; ok && isOracleScalarType(sc.typ) {
+					b.fail(rng, review.UnsupportedForm, "Column "+review.Code(ident(col))+" in "+review.Code(r.written)+" is not a VARRAY column.")
+					return true
+				}
+			}
 		}
 	case ast.AT_ALTER_PROPERTY:
-		if c.Subtype == "MODIFY COLUMN SUBSTITUTABLE" && c.ColumnName != "" && !strings.Contains(c.ColumnName, ".") {
-			b.columnNeeds(r, c.ColumnName, rng)
+		switch c.Subtype {
+		case "ALLOCATE EXTENT":
+			if kind == kindTable {
+				if st := b.syncedPartMeta(r); st != nil && st.partType != 0 {
+					b.fail(rng, review.UnsupportedForm, "Cannot specify table-level ALLOCATE EXTENT on partitioned table "+review.Code(r.written)+".")
+					return true
+				}
+			}
+		case "UPGRADE":
+			if b.checkAlterUpgrade(c.Loc, rng) {
+				return true
+			}
+		case "INMEMORY", "NO INMEMORY":
+			if b.checkAlterInmemory(r, c.Loc, rng) {
+				return true
+			}
+		case "MODIFY COLUMN SUBSTITUTABLE":
+			if c.ColumnName != "" && !strings.Contains(c.ColumnName, ".") {
+				b.columnNeeds(r, c.ColumnName, rng)
+				if st := b.syncedColMeta(r); st != nil {
+					if sc, ok := st.colMeta[c.ColumnName]; ok && isOracleScalarType(sc.typ) {
+						b.fail(rng, review.UnsupportedForm, "Column "+review.Code(ident(c.ColumnName))+" in "+review.Code(r.written)+" is not a substitutable object column.")
+						return true
+					}
+				}
+			}
 		}
 	case ast.AT_MODIFY_TO_PARTITIONED:
 		if kind == kindMView {
@@ -420,18 +595,56 @@ func (b *builder) alterCmd(r objRef, kind string, c *ast.AlterTableCmd, declared
 			return true
 		}
 		if kind == kindTable {
-			for _, col := range b.partitionByColumns(c.Loc) {
-				b.columnNeeds(r, col, rng)
+			if b.checkModifyPartitionBy(r, c.Loc, rng) {
+				return true
 			}
+			b.mutatePartitions(r)
 		}
-	case ast.AT_ENABLE_DISABLE_TRIGGERS, ast.AT_ENABLE_DISABLE_TABLE_LOCK, ast.AT_MOVE,
-		ast.AT_SHRINK_SPACE, ast.AT_MODIFY_OPAQUE_TYPE, ast.AT_IMMUTABLE_TABLE, ast.AT_BLOCKCHAIN_TABLE, ast.AT_DUPLICATED_REFRESH,
-		ast.AT_ADD_PARTITION, ast.AT_DROP_PARTITION, ast.AT_TRUNCATE_PARTITION, ast.AT_SPLIT_PARTITION,
+	case ast.AT_ADD_PARTITION, ast.AT_DROP_PARTITION, ast.AT_TRUNCATE_PARTITION, ast.AT_SPLIT_PARTITION,
 		ast.AT_SPLIT_SUBPARTITION, ast.AT_MERGE_PARTITIONS, ast.AT_MERGE_SUBPARTITIONS, ast.AT_EXCHANGE_PARTITION,
 		ast.AT_COALESCE_PARTITION, ast.AT_COALESCE_SUBPARTITION, ast.AT_MODIFY_PARTITION, ast.AT_MODIFY_SUBPARTITION,
 		ast.AT_MODIFY_DEFAULT_ATTRS, ast.AT_DROP_SUBPARTITION, ast.AT_RENAME_PARTITION, ast.AT_SET_INTERVAL,
 		ast.AT_SET_PARTITIONING, ast.AT_SET_SUBPARTITION_TEMPLATE, ast.AT_MODIFY_PARTITIONSET:
-		// Storage, partitions, and properties: no name the walk keeps.
+		if b.checkPartitionTextContradictions(c.Loc, r, true, rng) {
+			return true
+		}
+		if kind == kindTable {
+			pkFact, _ := b.look(r.childKey(spacePrimary, ""))
+			if b.checkIOTPartitionClause(r, pkFact == walk.Absent && !addedPK, c.Loc, rng) {
+				return true
+			}
+			if b.checkPartitionMeta(r, b.syncedPartMeta(r), c.Loc, rng) {
+				return true
+			}
+			if b.checkPartitionColClauses(r, b.syncedColMeta(r), c.Loc, rng) {
+				return true
+			}
+			b.mutatePartitions(r)
+		}
+	case ast.AT_MOVE:
+		if kind == kindTable {
+			pkFact, _ := b.look(r.childKey(spacePrimary, ""))
+			if b.checkIOTMoveClause(r, pkFact == walk.Absent && !addedPK, c.Loc, rng) {
+				return true
+			}
+		}
+		if b.checkUpdateIndexesText(c.Loc, rng) {
+			return true
+		}
+		if b.moveHasPartition(c.Loc) {
+			if b.checkPartitionTextContradictions(c.Loc, r, true, rng) {
+				return true
+			}
+			if kind == kindTable {
+				if b.checkPartitionMeta(r, b.syncedPartMeta(r), c.Loc, rng) {
+					return true
+				}
+				b.mutatePartitions(r)
+			}
+		}
+	case ast.AT_ENABLE_DISABLE_TRIGGERS, ast.AT_ENABLE_DISABLE_TABLE_LOCK,
+		ast.AT_SHRINK_SPACE, ast.AT_MODIFY_OPAQUE_TYPE, ast.AT_IMMUTABLE_TABLE, ast.AT_BLOCKCHAIN_TABLE, ast.AT_DUPLICATED_REFRESH:
+		// Storage and table-level flags: no name the walk keeps.
 	default:
 		return false
 	}
@@ -552,8 +765,14 @@ func (b *builder) dropConstraint(r objRef, c *ast.AlterTableCmd, rng review.Rang
 		b.dropsConstraints(r)
 	case c.Subtype == "UNIQUE":
 		if c.Constraint != nil && c.Constraint.Columns != nil {
+			seen := make(map[string]bool)
 			for _, item := range c.Constraint.Columns.Items {
 				if s, ok := item.(*ast.String); ok && s.Str != "" && !strings.Contains(s.Str, ".") {
+					if seen[s.Str] {
+						b.fail(rng, review.DuplicateName, twice("lists", "column", s.Str))
+						return true
+					}
+					seen[s.Str] = true
 					b.columnNeeds(r, s.Str, rng)
 				}
 			}
@@ -584,7 +803,7 @@ func (b *builder) dropConstraint(r objRef, c *ast.AlterTableCmd, rng review.Rang
 // MODIFY CONSTRAINT does not (02431, verified). DISABLE drops the index
 // the constraint made, and ENABLE makes it again, under the constraint's
 // name or another (spec §4).
-func (b *builder) constraintState(r objRef, c *ast.AlterTableCmd, rng review.Range, declared []string) bool {
+func (b *builder) constraintState(r objRef, c *ast.AlterTableCmd, rng review.Range, declared []string, addedPK bool) bool {
 	name := c.ColumnName
 	if c.Action == ast.AT_MODIFY_CONSTRAINT && c.Constraint != nil {
 		name = c.Constraint.Name
@@ -599,8 +818,16 @@ func (b *builder) constraintState(r objRef, c *ast.AlterTableCmd, rng review.Ran
 			b.MayAdd(walk.Scope{Space: spaceIndex, Parent: walk.Path(r.schema)})
 		}
 	case strings.HasSuffix(c.Subtype, "PRIMARY KEY"), strings.HasSuffix(c.Subtype, "UNIQUE"):
+		if strings.HasSuffix(c.Subtype, "PRIMARY KEY") && !addedPK {
+			b.need(r.childKey(spacePrimary, ""), walk.Present, nil, rng, review.Code(r.written)+" has no primary key.", "")
+		}
 		if strings.HasSuffix(c.Subtype, "UNIQUE") {
-			for _, col := range b.uniqueClauseColumns(c) {
+			cols := b.uniqueClauseColumns(c)
+			if dup := firstDupString(cols); dup != "" {
+				b.fail(rng, review.DuplicateName, twice("lists", "column", dup))
+				return true
+			}
+			for _, col := range cols {
 				b.columnNeeds(r, col, rng)
 			}
 		}
