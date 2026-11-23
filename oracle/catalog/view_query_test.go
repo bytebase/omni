@@ -75,7 +75,7 @@ func TestViewQueryValidation(t *testing.T) {
 }
 
 func TestViewQueryRefusals(t *testing.T) {
-	const fixture = `CREATE TABLE t (id NUMBER, n NUMBER(5,-1), m NUMBER(*,-2), doc CLOB);`
+	const fixture = `CREATE TABLE t (id NUMBER, n NUMBER(5,-1), m NUMBER(*,-2), doc CLOB, "USER" VARCHAR2(20)); CREATE TABLE u (id DATE);`
 	cases := []struct {
 		name, sql, code string
 	}{
@@ -136,6 +136,8 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"lob_comparison", `CREATE VIEW v AS SELECT id FROM t WHERE doc = doc`, "00932"},
 		{"lob_is_null", `CREATE VIEW v AS SELECT id FROM t WHERE doc IS NULL`, ""},
 		{"sum_of_date", `CREATE VIEW v AS SELECT SUM(DATE '2020-01-01') s FROM dual`, "00932"},
+		{"keyword_named_column_not_grouped", `CREATE VIEW v AS SELECT "USER", COUNT(*) c FROM t`, "00937"},
+		{"using_incompatible_keys", `CREATE VIEW v AS SELECT id FROM t JOIN u USING (id)`, "00932"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -353,6 +355,19 @@ CREATE VIEW w AS SELECT * FROM t1 NATURAL JOIN t2;
 		}[v.GetName()]
 		if strings.Join(got, ",") != want {
 			t.Errorf("%s columns = %q, want %q", v.GetName(), strings.Join(got, ","), want)
+		}
+	}
+}
+
+func TestViewQueryTypesRound14(t *testing.T) {
+	c, err := LoadSQL(`CREATE VIEW v AS SELECT INTERVAL '1' DAY + DATE '2020-01-01' a, NULLIF(1, CAST(2 AS BINARY_DOUBLE)) b FROM dual;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"DATE", "BINARY_DOUBLE"}
+	for i, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
+		if col.GetType() != want[i] {
+			t.Errorf("%s type = %s, want %s", col.GetName(), col.GetType(), want[i])
 		}
 	}
 }

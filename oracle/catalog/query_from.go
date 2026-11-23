@@ -424,6 +424,10 @@ func (a *queryAnalyzer) join(n *ast.JoinClause, sc *qscope) (*qfrom, error) {
 			if !lfound || !rfound {
 				return nil, oraError("00904", "%q: invalid identifier", name)
 			}
+			// USING and NATURAL join on equality of the two columns.
+			if err := comparable(lc.typ, rc.typ, nil); err != nil {
+				return nil, err
+			}
 			var c qcol
 			switch kind {
 			case ast.JOIN_LEFT, ast.JOIN_OUTER_APPLY:

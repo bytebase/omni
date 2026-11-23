@@ -384,8 +384,9 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		return t, false, nil
 	case "NULLIF":
 		t := arg(0)
-		if t.kind == "NUMBER" {
-			return numberType(), false, nil
+		if t.isNumeric() {
+			// The higher numeric precedence of the two.
+			return numericResult(numberType(), numericResult(t, arg(1))), false, nil
 		}
 		if t.kind == "CHAR" {
 			t.kind = "VARCHAR2"

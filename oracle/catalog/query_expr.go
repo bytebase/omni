@@ -412,6 +412,9 @@ func arithmeticType(op string, l, r qtype) (qtype, error) {
 
 func arithmeticResult(op string, l, r qtype) qtype {
 	switch {
+	case op == "+" && l.isInterval() && r.isDatetime():
+		// An interval plus a datetime is that datetime.
+		return r
 	case l.kind == "DATE" && r.kind == "DATE" && op == "-":
 		t := numberType()
 		t.scale = 0
@@ -737,10 +740,13 @@ func checkGrouped(x ast.Node, keys []string, keyOf func(ast.Node) string, owned 
 		if n.Column == "*" {
 			return nil
 		}
-		if _, ok := keywordValues[n.Column]; ok && n.Table == "" {
+		key := keyOf(n)
+		resolved := strings.HasPrefix(key, "col:") || strings.HasPrefix(key, "merged:")
+		if _, ok := keywordValues[n.Column]; ok && n.Table == "" && !resolved {
+			// CURRENT_DATE and the like, when no column is named so.
 			return nil
 		}
-		if keyOf(n) == outerColumn {
+		if key == outerColumn {
 			// A column of an enclosing query block is a constant here.
 			return nil
 		}
