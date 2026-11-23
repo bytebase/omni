@@ -821,6 +821,12 @@ func (q *querySpanExtractor) collectPredicatesInScope(expr ast.Node) error {
 		}
 		return nil
 	case *ast.MethodCallExpr:
+		// An instance method reads its receiver too.
+		if v.Expr != nil {
+			if err := q.collectPredicatesInScope(v.Expr); err != nil {
+				return err
+			}
+		}
 		if v.Args != nil {
 			for _, it := range v.Args.Items {
 				if err := q.collectPredicatesInScope(it); err != nil {
@@ -1807,8 +1813,20 @@ func (q *querySpanExtractor) resolveExpressionNode(n ast.Node) (QuerySpanResult,
 		return r, nil
 	case *ast.MethodCallExpr:
 		r, err := q.mergeListSources(v.Args)
+		if err != nil {
+			return r, err
+		}
+		// An instance method reads its receiver: CAST(shape AS
+		// geometry).STArea() reads shape.
+		if v.Expr != nil {
+			recv, err := q.resolveExpressionNode(v.Expr)
+			if err != nil {
+				return r, err
+			}
+			r.SourceColumns, _ = mergeColumnSet(r.SourceColumns, recv.SourceColumns)
+		}
 		r.Name = q.sliceName(n)
-		return r, err
+		return r, nil
 	case *ast.CastExpr:
 		r, err := q.resolveExpressionNode(v.Expr)
 		if err != nil {

@@ -3143,6 +3143,10 @@ func writeMethodCallExpr(sb *strings.Builder, n *MethodCallExpr) {
 		sb.WriteString(" :type ")
 		writeNode(sb, n.Type)
 	}
+	if n.Expr != nil {
+		sb.WriteString(" :expr ")
+		writeNode(sb, n.Expr)
+	}
 	sb.WriteString(fmt.Sprintf(" :method \"%s\"", escapeString(n.Method)))
 	if n.Args != nil {
 		sb.WriteString(" :args ")

@@ -211,6 +211,13 @@ func TestResolveQuerySpanLineage(t *testing.T) {
 			},
 		},
 		{
+			// An instance method reads its receiver.
+			statement: "SELECT CAST(a AS xml).value('.', 'int') AS v FROM t",
+			want: []QuerySpanResult{
+				{Name: "v", SourceColumns: set(column("t", "a"))},
+			},
+		},
+		{
 			statement: "SELECT value FROM STRING_SPLIT('a,b', ',')",
 			want: []QuerySpanResult{
 				{Name: "value", SourceColumns: set(), IsPlainField: true},
@@ -244,6 +251,14 @@ func TestResolveQuerySpanLineage(t *testing.T) {
 func TestResolveQuerySpanPredicates(t *testing.T) {
 	span := resolve(t, "SELECT a FROM t WHERE b IN (SELECT a FROM t1 WHERE t1.b > 0) ORDER BY c OFFSET 0 ROWS FETCH NEXT (SELECT COUNT(*) FROM t1) ROWS ONLY")
 	want := set(column("t", "b"), column("t1", "a"), column("t1", "b"))
+	if !equalSet(span.PredicateColumns, want) {
+		t.Errorf("got %v, want %v", span.PredicateColumns, want)
+	}
+}
+
+func TestResolveQuerySpanPredicatesThroughMethodReceivers(t *testing.T) {
+	span := resolve(t, "SELECT a FROM t WHERE CAST(b AS xml).exist('/x') = 1")
+	want := set(column("t", "b"))
 	if !equalSet(span.PredicateColumns, want) {
 		t.Errorf("got %v, want %v", span.PredicateColumns, want)
 	}

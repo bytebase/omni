@@ -241,7 +241,10 @@ func (p *Parser) parseCreateTriggerStmt(orAlter bool) (*nodes.CreateTriggerStmt,
 		stmt.ExternalName = ext
 	default:
 		// Body: ( Semicolon )* statementList, which is not empty.
+		saved := p.dmlTrigger
+		p.dmlTrigger = stmt.Table != nil
 		body, err := p.routineParseStmtBody(true)
+		p.dmlTrigger = saved
 		if err != nil {
 			return nil, err
 		}
@@ -306,12 +309,14 @@ func (p *Parser) triggerParseDDLEvents(onAllServer bool) (*nodes.List, error) {
 		switch {
 		case known && triggerEventIsDatabaseLevel(name):
 		case onAllServer && (known || name == "LOGON"):
+		case known || name == "LOGON":
+			return nil, p.newCodedParseError(evtLoc, 1098, "'"+p.cur.Str+"' is an invalid event type for this trigger")
 		default:
-			return nil, p.newParseError(evtLoc, "'"+p.cur.Str+"' is an invalid event type for this trigger")
+			return nil, p.newCodedParseError(evtLoc, 1084, "'"+p.cur.Str+"' is an invalid event type")
 		}
 		for _, prev := range names {
 			if triggerEventHolds(prev, name) || triggerEventHolds(name, prev) {
-				return nil, p.newParseError(evtLoc, "'"+p.cur.Str+"' has already been specified as an event type")
+				return nil, p.newCodedParseError(evtLoc, 1095, "'"+p.cur.Str+"' has already been specified as an event type")
 			}
 		}
 		names = append(names, name)
