@@ -1,6 +1,8 @@
 package review
 
 import (
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/oceanbase/ast"
@@ -76,6 +78,9 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	}
 	var rename *ast.AlterTableCmd
 	b.touchedCols = make(map[string]bool)
+	b.changesChecks = slices.ContainsFunc(v.Commands, func(c *ast.AlterTableCmd) bool {
+		return c != nil && (c.Type == ast.ATDropConstraint || c.Type == ast.ATAlterCheckEnforced)
+	})
 	for _, c := range v.Commands {
 		if c == nil {
 			continue
@@ -299,6 +304,9 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 		if b.checkColumnUsedInFKOB(r, c.Name, nil, true, rng) {
 			return true
 		}
+		if b.checkReadsColumn(r, c.Name, k, 2, rng) {
+			return true
+		}
 		b.leave(ck)
 		// An index loses the column, and goes with its last one; a CHECK
 		// constraint on the column alone goes with it.
@@ -372,6 +380,11 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			}
 		}
 	case ast.ATRenameColumn:
+		if k, ok := b.key(spaceColumn, c.Name); ok {
+			if nk, ok := b.key(spaceColumn, c.NewName); ok && nk != k && b.checkReadsColumn(r, c.Name, k, 1, rng) {
+				return true
+			}
+		}
 		return b.renameColumn(r, c.Name, c.NewName, rng)
 	case ast.ATAlterColumnDefault:
 		if !b.columnNeeds(r, c.Name, rng) {
@@ -1224,7 +1237,7 @@ func (b *builder) dropConstraintFails(r tableRef, c *ast.AlterTableCmd, rng revi
 				continue
 			}
 			if ik, ok := b.key(spaceIndex, name); ok {
-				if f, _ := b.l.Lookup(idxKey(r.db, r.name, ik)); f == walk.Absent {
+				if f, kind := b.l.Lookup(idxKey(r.db, r.name, ik)); f == walk.Absent || kind == plainIndex {
 					b.fail(rng, []walk.Key{ck, idxKey(r.db, r.name, ik)}, review.ObjectNotFound, notFound("check constraint", ident(name), r.written)) // 3821
 					return true
 				}
@@ -1247,6 +1260,37 @@ func (b *builder) dropConstraintFails(r tableRef, c *ast.AlterTableCmd, rng revi
 	return false
 }
 
+// checkReadsColumn fails a DROP COLUMN (least 2) or RENAME COLUMN (least 1)
+// of a column a synced CHECK constraint reads, when the constraint reads at
+// least least columns: OceanBase drops a constraint on the dropped column
+// alone with it, and refuses every other case (3959, verified on 4.3.5),
+// though CHANGE COLUMN renames such a column. A statement that drops or
+// alters a constraint, or another part that changes the column, may take
+// the constraint or the column out of the way.
+func (b *builder) checkReadsColumn(r tableRef, name, k string, least int, rng review.Range) bool {
+	if !b.w.oceanBase || b.changesChecks {
+		return false
+	}
+	rel := relKey(r.db, r.name)
+	col := colKey(r.db, r.name, k)
+	if f, _ := b.l.Lookup(col); f != walk.Present {
+		return false
+	}
+	checks := b.w.checkColumns[rel]
+	for _, chk := range slices.Sorted(maps.Keys(checks)) {
+		reads := checks[chk]
+		if len(reads) < least || !slices.Contains(reads, k) {
+			continue
+		}
+		if f, _ := b.l.Lookup(checkKey(r.db, r.name, chk)); f != walk.Present {
+			continue
+		}
+		b.fail(rng, []walk.Key{col}, review.UnsupportedForm, "Column "+review.Code(ident(name))+" is read by a CHECK constraint on "+review.Code(r.written)+".")
+		return true
+	}
+	return false
+}
+
 // noConstraint fails a statement that names a constraint the table has no
 // foreign key, key, or CHECK constraint of (3940, verified on 4.3.5).
 func (b *builder) noConstraint(r tableRef, name string, rng review.Range) bool {
@@ -1262,7 +1306,7 @@ func (b *builder) noConstraint(r tableRef, name string, rng review.Range) bool {
 	_, own := fkKeys(r, fk)
 	keys := []walk.Key{checkKey(r.db, r.name, ck), own, idxKey(r.db, r.name, ik)}
 	for _, k := range keys {
-		if f, _ := b.l.Lookup(k); f != walk.Absent {
+		if f, kind := b.l.Lookup(k); f != walk.Absent && (k.Space != spaceIndex || kind != plainIndex) {
 			return false
 		}
 	}
