@@ -9,7 +9,7 @@ import (
 // of the walkthrough. Scenarios already fully covered in wt_2_4_test.go are
 // omitted; this file covers new or extended aspects only.
 
-// Scenario 1: DROP TABLE parent when child FK exists, foreign_key_checks=1 — error 3730
+// Scenario 1: DROP TABLE parent when child FK exists, foreign_key_checks=1 — error 1451 (mariadb:11.8.8)
 // (Already covered by TestWalkThrough_2_4_DropTableReferencedByFK; included here
 // under a 6_2 name for completeness of the section proof.)
 func TestWalkThrough_6_2_DropParentFKChecksOn(t *testing.T) {
@@ -21,7 +21,7 @@ func TestWalkThrough_6_2_DropParentFKChecksOn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	assertError(t, results[0].Error, ErrFKCannotDropParent)
+	assertError(t, results[0].Error, ErrRowIsReferenced)
 }
 
 // Scenario 2: DROP TABLE parent when child FK exists, foreign_key_checks=0 — succeeds,

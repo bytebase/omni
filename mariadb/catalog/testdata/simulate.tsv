@@ -5478,6 +5478,36 @@ ok:06a45b4f48a0	ok:06a45b4f48a0	engine	objects@event	sp_param_anchored/sp_param_
 ok:849a3d53ff62	ok:849a3d53ff62	engine	objects@event	sp_proc_stmt_in_returns_clause/sp_unlabeled_block	ALTER EVENT a DO BEGIN END;
 ok:83a89ac56425	ok:83a89ac56425	engine	objects@event	sp_proc_stmt_in_returns_clause/sp_proc_stmt_compound_ok	ALTER EVENT a DO BEGIN NOT ATOMIC END;
 ok:dc7a484472e5	ok:dc7a484472e5	engine	objects@event	create_routine/create_or_replace_definer_opt_PROCEDURE_SYM_opt_if_not_exists_sp_tail_standalone+opt_if_not_exists	CREATE PROCEDURE IF NOT EXISTS a() COMMIT;
+ok:d230cf71e434	ok:d230cf71e434	engine	features@charset	charset:convert	ALTER TABLE notes CONVERT TO CHARACTER SET utf8mb4
+ok:797b7354df81	ok:797b7354df81	engine	features@charset	charset:convert	ALTER TABLE notes CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+ok:13db976085c0	ok:13db976085c0	engine	features@charset	charset:convert	ALTER TABLE notes CONVERT TO CHARACTER SET latin1
+ok:3af9013aa4ee	ok:3af9013aa4ee	engine	features@charset	charset:convert	ALTER TABLE notes CONVERT TO CHARACTER SET utf8mb3
+ok:027a028139b9	ok:027a028139b9	engine	features@charset	charset:convert	ALTER TABLE notes CONVERT TO CHARACTER SET DEFAULT
+1115	1115	engine	features@charset	charset:convert	ALTER TABLE notes CONVERT TO CHARACTER SET nope
+1253	1253	engine	features@charset	charset:convert	ALTER TABLE notes CONVERT TO CHARACTER SET utf8mb4 COLLATE latin1_swedish_ci
+ok:7fa17047f102	ok:7fa17047f102	engine	features@charset	charset:convert	ALTER TABLE notes CONVERT TO CHARACTER SET binary
+ok:d230cf71e434	ok:d230cf71e434	engine	features@charset	charset:convert	ALTER TABLE notes CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci
+ok:f692baf92de9	ok:f692baf92de9	engine	features@charset	charset:table	ALTER TABLE notes DEFAULT CHARSET = utf8mb4
+ok:6a5f3f1f2b97	ok:6a5f3f1f2b97	engine	features@charset	charset:table	ALTER TABLE notes CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci
+ok:c2c513a31b48	ok:c2c513a31b48	engine	features@charset	charset:table	ALTER TABLE notes COLLATE = latin1_bin
+1253	1253	engine	features@charset	charset:table	ALTER TABLE notes CHARACTER SET = latin1 COLLATE = utf8mb4_bin
+ok:e013356a9e56	ok:e013356a9e56	engine	features@charset	charset:column	ALTER TABLE notes MODIFY title VARCHAR(100) CHARACTER SET utf8mb4
+ok:cd7d54bf12d5	ok:cd7d54bf12d5	engine	features@charset	charset:column	ALTER TABLE notes MODIFY title VARCHAR(100) COLLATE utf8mb4_unicode_ci
+1253	1253	engine	features@charset	charset:column	ALTER TABLE notes MODIFY title VARCHAR(100) CHARACTER SET latin1 COLLATE utf8mb4_bin
+ok:fb328e81120c	ok:fb328e81120c	engine	features@charset	charset:column	ALTER TABLE notes MODIFY body TEXT CHARACTER SET utf8mb4
+ok:9044ef360a20	ok:9044ef360a20	engine	features@charset	charset:column	ALTER TABLE notes MODIFY code CHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin
+ok:bf06f2ca966c	ok:bf06f2ca966c	engine	features@charset	charset:column	ALTER TABLE notes MODIFY tag VARCHAR(20)
+ok:847f628f09ff	ok:847f628f09ff	engine	features@charset	charset:column	ALTER TABLE notes ADD COLUMN extra VARCHAR(10)
+ok:2949a49482d2	ok:2949a49482d2	engine	features@charset	charset:column	ALTER TABLE notes ADD COLUMN extra VARCHAR(10) CHARACTER SET binary
+ok:2e18923b5a60	ok:2e18923b5a60	engine	features@charset	charset:column	ALTER TABLE notes ADD COLUMN extra VARCHAR(10) BINARY
+ok:06aea8dfd8bc	ok:06aea8dfd8bc	engine	features@charset	charset:column	ALTER TABLE notes ADD COLUMN extra ENUM('a', 'b') CHARACTER SET utf8mb4
+ok:749f8627a9d5	ok:749f8627a9d5	engine	features@charset	charset:column	ALTER TABLE notes ADD COLUMN extra NATIONAL VARCHAR(10)
+ok:846f2282999c	ok:846f2282999c	engine	features@charset	charset:column	CREATE TABLE n2 (a VARCHAR(10)) CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci
+1074	1074	engine	features@charset	charset:column	CREATE TABLE n3 (a VARCHAR(20000)) CHARSET = utf8mb4
+1074	1074	engine	features@charset	charset:column	CREATE TABLE n4 (a VARCHAR(70000)) CHARSET = latin1
+1118	1118	engine	features@charset	charset:column	CREATE TABLE n5 (a VARCHAR(16383), b VARCHAR(10)) CHARSET = utf8mb4
+1253	1253	engine	features@charset	charset:column	CREATE TABLE n6 (a VARCHAR(10) CHARACTER SET latin1 COLLATE utf8mb4_bin)
+ok:054891fdc118	ok:054891fdc118	engine	features@charset	charset:column	CREATE TABLE n7 LIKE notes
 ok:725bb9fc0ad9	ok:725bb9fc0ad9	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN starts, DROP COLUMN ends
 ok:725bb9fc0ad9	ok:725bb9fc0ad9	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN ends, DROP COLUMN starts
 1054	1054	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN starts
@@ -5498,6 +5528,158 @@ ok:e73f08093c12	ok:e73f08093c12	engine	features@check	check:drop	ALTER TABLE boo
 ok:ebda42c9961b	ok:ebda42c9961b	engine	features@check	check:drop	ALTER TABLE bookings RENAME COLUMN starts TO begins, DROP COLUMN note
 ok:a5c40f112f70	ok:a5c40f112f70	engine	features@check	check:drop	ALTER TABLE rooms DROP COLUMN beds
 ok:5410703c689b	ok:5410703c689b	engine	features@check	check:drop	ALTER TABLE rooms ADD COLUMN floor INT
+ok:5688a1e87dc1	ok:5688a1e87dc1	engine	features@fk	fk:add	ALTER TABLE orders ADD CONSTRAINT fk_email FOREIGN KEY (email) REFERENCES customers (email)
+ok:6bd30879fa38	ok:6bd30879fa38	engine	features@fk	fk:add	ALTER TABLE orders ADD FOREIGN KEY (email) REFERENCES customers (email)
+1005	1005	engine	features@fk	fk:add	ALTER TABLE orders ADD CONSTRAINT fk_customer FOREIGN KEY (email) REFERENCES customers (email)
+1005	1005	engine	features@fk	fk:add	ALTER TABLE orders ADD CONSTRAINT fk_x FOREIGN KEY (customer_id) REFERENCES nope (id)
+1005	1005	engine	features@fk	fk:add	ALTER TABLE orders ADD CONSTRAINT fk_x FOREIGN KEY (customer_id) REFERENCES customers (nope)
+1005	1005	engine	features@fk	fk:add	ALTER TABLE orders ADD CONSTRAINT fk_x FOREIGN KEY (email) REFERENCES customers (id)
+ok:47dafe166da7	ok:47dafe166da7	engine	features@fk	fk:add	ALTER TABLE orders ADD CONSTRAINT fk_x FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE SET NULL
+1005	1005	engine	features@fk	fk:add	ALTER TABLE orders ADD CONSTRAINT fk_x FOREIGN KEY (id) REFERENCES customers (id) ON DELETE SET NULL
+ok:3b60d8d115d3	ok:3b60d8d115d3	engine	features@fk	fk:add	ALTER TABLE orders ADD CONSTRAINT fk_x FOREIGN KEY (customer_id) REFERENCES customers (id) ON UPDATE CASCADE
+1005	1005	engine	features@fk	fk:add	ALTER TABLE orders ADD CONSTRAINT fk_x FOREIGN KEY (customer_id, email) REFERENCES customers (id, email)
+1239	1239	engine	features@fk	fk:add	ALTER TABLE orders ADD CONSTRAINT fk_x FOREIGN KEY (customer_id) REFERENCES customers (id, email)
+1905	1905	engine	features@fk	fk:add	ALTER TABLE orders ADD COLUMN v INT AS (customer_id + 1) STORED, ADD CONSTRAINT fk_v FOREIGN KEY (v) REFERENCES customers (id) ON UPDATE CASCADE
+ok:e7cd8424b675	ok:e7cd8424b675	engine	features@fk	fk:drop	ALTER TABLE orders DROP FOREIGN KEY fk_customer
+1091	1091	engine	features@fk	fk:drop	ALTER TABLE orders DROP FOREIGN KEY nope
+ok:e7cd8424b675	ok:e7cd8424b675	engine	features@fk	fk:drop	ALTER TABLE orders DROP CONSTRAINT fk_customer
+1553	1553	engine	features@fk	fk:drop	ALTER TABLE orders DROP INDEX idx_customer
+ok:1dd529158b40	ok:1dd529158b40	engine	features@fk	fk:drop	ALTER TABLE orders DROP FOREIGN KEY fk_customer, DROP INDEX idx_customer
+1025	1025	engine	features@fk	fk:drop	ALTER TABLE items DROP PRIMARY KEY
+ok:f9d626030e2e	ok:f9d626030e2e	engine	features@fk	fk:drop	ALTER TABLE customers DROP INDEX uk_email
+1451	1451	engine	features@fk	fk:drop	DROP TABLE customers
+1451	1451	engine	features@fk	fk:drop	DROP TABLE orders
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	features@fk	fk:drop	DROP TABLE items, orders, customers
+1451	1451	engine	features@fk	fk:drop	DROP TABLE customers, orders, items
+1701	1701	engine	features@fk	fk:drop	TRUNCATE TABLE customers
+ok:10f888c1430d	ok:10f888c1430d	engine	features@fk	fk:drop	TRUNCATE TABLE items
+ok:b6b884379b06	ok:b6b884379b06	engine	features@fk	fk:alter	RENAME TABLE customers TO clients
+ok:a0025eebc165	ok:a0025eebc165	engine	features@fk	fk:alter	ALTER TABLE orders RENAME TO purchases
+ok:a2ab6b3c7028	ok:a2ab6b3c7028	engine	features@fk	fk:alter	ALTER TABLE customers RENAME COLUMN id TO cid
+ok:1762441b3ffa	ok:1762441b3ffa	engine	features@fk	fk:alter	ALTER TABLE orders RENAME COLUMN customer_id TO client_id
+1833	1833	engine	features@fk	fk:alter	ALTER TABLE customers MODIFY id BIGINT
+1832	1832	engine	features@fk	fk:alter	ALTER TABLE orders MODIFY customer_id BIGINT
+1830	1830	engine	features@fk	fk:alter	ALTER TABLE orders MODIFY customer_id INT NOT NULL
+1553	1553	engine	features@fk	fk:alter	ALTER TABLE orders DROP COLUMN customer_id
+1829	1829	engine	features@fk	fk:alter	ALTER TABLE customers DROP COLUMN id
+1553	1553	engine	features@fk	fk:alter	ALTER TABLE orders DROP COLUMN parent_id
+1217	1217	engine	features@fk	fk:alter	ALTER TABLE orders ENGINE = MyISAM
+1217	1217	engine	features@fk	fk:alter	ALTER TABLE customers ENGINE = MyISAM
+ok:d00e1be54976	ok:d00e1be54976	engine	features@fk	fk:create	CREATE TABLE refunds (id INT PRIMARY KEY, order_id INT, FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE RESTRICT)
+1005	1005	engine	features@fk	fk:create	CREATE TABLE refunds (id INT PRIMARY KEY, order_id BIGINT, FOREIGN KEY (order_id) REFERENCES orders (id))
+ok:3b2bf87c0d39	ok:3b2bf87c0d39	engine	features@fk	fk:create	CREATE TABLE refunds (id INT PRIMARY KEY, order_id INT, FOREIGN KEY (order_id) REFERENCES orders (customer_id))
+1005	1005	engine	features@fk	fk:create	CREATE TABLE refunds (id INT PRIMARY KEY, order_id INT, CONSTRAINT fk_customer FOREIGN KEY (order_id) REFERENCES orders (id))
+1005	1005	engine	features@fk	fk:create	CREATE TABLE refunds (id INT PRIMARY KEY, email VARCHAR(50) CHARACTER SET latin1, FOREIGN KEY (email) REFERENCES customers (email))
+ok:d7a8d273f38c	ok:d7a8d273f38c	engine	features@fk	fk:create	CREATE TABLE self_ref (id INT PRIMARY KEY, p INT, FOREIGN KEY (p) REFERENCES self_ref (id) ON DELETE CASCADE)
+ok:80e9ad899422	ok:80e9ad899422	engine	features@fk	fk:create	CREATE TABLE refunds (id INT PRIMARY KEY, order_id INT, FOREIGN KEY (order_id) REFERENCES orders (id)) ENGINE = MyISAM
+ok:cb51a4c2ef10	ok:cb51a4c2ef10	engine	features@fk	fk:create	CREATE TABLE refunds LIKE orders
+ok:069a75908154	ok:069a75908154	engine	features@generated	generated:column	ALTER TABLE people ADD COLUMN initials VARCHAR(2) AS (CONCAT(LEFT(first_name, 1), LEFT(last_name, 1))) VIRTUAL
+ok:48ea24090bff	ok:48ea24090bff	engine	features@generated	generated:column	ALTER TABLE people ADD COLUMN age2 INT AS (age * 2) PERSISTENT
+ok:48ea24090bff	ok:48ea24090bff	engine	features@generated	generated:column	ALTER TABLE people ADD COLUMN age2 INT AS (age * 2) STORED
+1054	1054	engine	features@generated	generated:column	ALTER TABLE people ADD COLUMN g INT AS (nope + 1)
+ok:46d3230a3615	ok:46d3230a3615	engine	features@generated	generated:column	ALTER TABLE people ADD COLUMN g DOUBLE AS (RAND())
+1901	1901	engine	features@generated	generated:column	ALTER TABLE people ADD COLUMN g DOUBLE AS (RAND()) PERSISTENT
+4029	4029	engine	features@generated	generated:column	ALTER TABLE people ADD COLUMN g INT AS (g + 1)
+1064	1064	engine	features@generated	generated:column	ALTER TABLE people ADD COLUMN g INT AS (age + 1) VIRTUAL NOT NULL
+ok:250587bb6196	ok:250587bb6196	engine	features@generated	generated:column	ALTER TABLE people ADD COLUMN g INT AS (age + 1) PERSISTENT, ADD INDEX idx_g (g)
+ok:6b37ccfeb0ae	ok:6b37ccfeb0ae	engine	features@generated	generated:column	ALTER TABLE people ADD COLUMN g INT AS (age + 1) VIRTUAL, ADD INDEX idx_g (g)
+1054	1054	engine	features@generated	generated:column	ALTER TABLE people DROP COLUMN first_name
+ok:bf4de2802979	ok:bf4de2802979	engine	features@generated	generated:column	ALTER TABLE people DROP COLUMN full_name
+1054	1054	engine	features@generated	generated:column	ALTER TABLE people DROP COLUMN full_name, DROP COLUMN name_len, DROP COLUMN first_name
+ok:a6723ae93d88	ok:a6723ae93d88	engine	features@generated	generated:column	ALTER TABLE people MODIFY full_name VARCHAR(200) AS (CONCAT(last_name, ', ', first_name)) VIRTUAL
+1907	1907	engine	features@generated	generated:column	ALTER TABLE people MODIFY full_name VARCHAR(101) AS (CONCAT(first_name, ' ', last_name)) PERSISTENT
+ok:4f521636ecaf	ok:4f521636ecaf	engine	features@generated	generated:column	ALTER TABLE people MODIFY name_len INT
+1907	1907	engine	features@generated	generated:column	ALTER TABLE people MODIFY full_name VARCHAR(101)
+ok:c6cbdd2aff73	ok:c6cbdd2aff73	engine	features@generated	generated:column	ALTER TABLE people MODIFY age INT AS (id + 1) PERSISTENT
+ok:a629db38aa50	ok:a629db38aa50	engine	features@generated	generated:column	ALTER TABLE people RENAME COLUMN first_name TO given_name
+ok:a629db38aa50	ok:a629db38aa50	engine	features@generated	generated:column	ALTER TABLE people CHANGE first_name given_name VARCHAR(50) NOT NULL
+ok:111783309c18	ok:111783309c18	engine	features@generated	generated:column	ALTER TABLE people ALTER COLUMN full_name SET DEFAULT 'x'
+ok:b89aa8adcecf	ok:b89aa8adcecf	engine	features@generated	generated:column	CREATE TABLE gc2 (a INT, b INT AS (a + 1), c INT AS (b * 2) PERSISTENT)
+4029	4029	engine	features@generated	generated:column	CREATE TABLE gc3 (a INT, b INT AS (c + 1), c INT AS (a + 1))
+ok:3a245ed78236	ok:3a245ed78236	engine	features@generated	generated:column	CREATE TABLE gc4 (a INT AUTO_INCREMENT PRIMARY KEY, b INT AS (a + 1))
+ok:5f4eb5c832e1	ok:5f4eb5c832e1	engine	features@generated	generated:column	CREATE TABLE gc5 (a INT, b INT AS (a + 1) VIRTUAL, KEY (b))
+ok:dafbf144fced	ok:dafbf144fced	engine	features@generated	generated:column	CREATE TABLE gc6 (a TEXT, b TEXT AS (a) VIRTUAL, UNIQUE KEY (b))
+ok:2a34ef335267	ok:2a34ef335267	engine	features@generated	index:ignored	ALTER TABLE people ALTER INDEX idx_age NOT IGNORED
+ok:f15b00633821	ok:f15b00633821	engine	features@generated	index:ignored	ALTER TABLE people ALTER INDEX idx_full IGNORED
+4174	4174	engine	features@generated	index:ignored	ALTER TABLE people ALTER INDEX `PRIMARY` IGNORED
+1176	1176	engine	features@generated	index:ignored	ALTER TABLE people ALTER INDEX nope IGNORED
+ok:e083310c3736	ok:e083310c3736	engine	features@generated	index:ignored	ALTER TABLE people ADD UNIQUE KEY uk_age (age) IGNORED
+1068	1068	engine	features@generated	index:ignored	ALTER TABLE people ADD PRIMARY KEY (id) IGNORED
+ok:c7b776509979	ok:c7b776509979	engine	features@generated	index:ignored	CREATE INDEX idx_name ON people (first_name) IGNORED
+ok:d85f5aeeb59c	ok:d85f5aeeb59c	engine	features@generated	index:ignored	ALTER TABLE people ADD INDEX idx_doc (doc)
+ok:f1f74f1d2955	ok:f1f74f1d2955	engine	features@generated	index:ignored	ALTER TABLE people ADD INDEX idx_doc (doc(20))
+4174	4174	engine	features@generated	index:ignored	CREATE TABLE inv (a INT NOT NULL, UNIQUE KEY u (a) IGNORED)
+ok:049daeabf449	ok:049daeabf449	engine	features@generated	index:ignored	CREATE TABLE inv (a INT NOT NULL PRIMARY KEY, b INT, KEY k (b) IGNORED)
+ok:7265fa7016df	ok:7265fa7016df	engine	features@generated	column:invisible	ALTER TABLE people MODIFY secret INT
+ok:bd2240b13bb6	ok:bd2240b13bb6	engine	features@generated	column:invisible	ALTER TABLE people MODIFY age INT INVISIBLE
+ok:7c9b4048356e	ok:7c9b4048356e	engine	features@generated	column:invisible	ALTER TABLE people MODIFY secret BIGINT INVISIBLE
+ok:0e2cb591a80d	ok:0e2cb591a80d	engine	features@generated	column:invisible	ALTER TABLE people ADD COLUMN hidden2 INT INVISIBLE
+4108	4108	engine	features@generated	column:invisible	ALTER TABLE people ADD COLUMN hidden2 INT NOT NULL INVISIBLE
+ok:fa5db004b451	ok:fa5db004b451	engine	features@generated	column:invisible	ALTER TABLE people ADD COLUMN hidden2 INT NOT NULL DEFAULT 0 INVISIBLE
+1113	1113	engine	features@generated	column:invisible	CREATE TABLE allinv (a INT INVISIBLE)
+ok:aedbfdc1e151	ok:aedbfdc1e151	engine	features@generated	column:invisible	CREATE TABLE someinv (a INT INVISIBLE, b INT)
+ok:79d998a2e729	ok:79d998a2e729	engine	features@generated	check:constraint	ALTER TABLE people DROP CONSTRAINT chk_names
+ok:baa2cc06ef0c	ok:baa2cc06ef0c	engine	features@generated	check:constraint	ALTER TABLE people DROP CONSTRAINT chk_age, DROP CONSTRAINT chk_names
+1826	1826	engine	features@generated	check:constraint	ALTER TABLE people ADD CONSTRAINT chk_age CHECK (age < 200)
+ok:6e268c93c08d	ok:6e268c93c08d	engine	features@generated	check:constraint	ALTER TABLE people ADD CONSTRAINT chk_max CHECK (age < 200)
+ok:111783309c18	ok:111783309c18	engine	features@generated	check:constraint	ALTER TABLE people ADD CONSTRAINT IF NOT EXISTS chk_age CHECK (age < 200)
+ok:0916ae4b13b1	ok:0916ae4b13b1	engine	features@generated	check:constraint	ALTER TABLE people ADD CHECK (age < 200)
+1054	1054	engine	features@generated	check:constraint	ALTER TABLE people ADD CHECK (age < nope)
+1901	1901	engine	features@generated	check:constraint	ALTER TABLE people ADD CONSTRAINT chk_rand CHECK (age > RAND())
+1901	1901	engine	features@generated	check:constraint	ALTER TABLE people ADD CONSTRAINT chk_now CHECK (age < YEAR(NOW()))
+ok:220c53c97fb9	ok:220c53c97fb9	engine	features@generated	check:constraint	ALTER TABLE people DROP COLUMN age
+ok:02c3390a58b0	ok:02c3390a58b0	engine	features@generated	check:constraint	ALTER TABLE people RENAME COLUMN age TO years
+ok:af43477d7ea9	ok:af43477d7ea9	engine	features@generated	check:constraint	ALTER TABLE people MODIFY age INT CHECK (age > 1)
+1091	1091	engine	features@generated	check:constraint	ALTER TABLE people DROP CONSTRAINT nope
+ok:a65ec3c41422	ok:a65ec3c41422	engine	features@generated	check:constraint	CREATE TABLE chk2 (a INT CHECK (a > 0), b INT, CHECK (a < b))
+ok:86f0871fddf9	ok:86f0871fddf9	engine	features@generated	check:constraint	CREATE TABLE chk3 (a INT, CONSTRAINT chk_age CHECK (a > 0))
+1901	1901	engine	features@generated	check:constraint	CREATE TABLE chk4 (a INT AUTO_INCREMENT PRIMARY KEY, CHECK (a > 0))
+ok:96ae6c6e7de8	ok:96ae6c6e7de8	engine	features@generated	check:constraint	CREATE TABLE chk5 LIKE people
+ok:29bb105863b5	ok:29bb105863b5	engine	features@generated	check:constraint	RENAME TABLE people TO persons
+1252	1252	engine	features@spatial	index:spatial	ALTER TABLE places ADD SPATIAL INDEX sp_area (area)
+ok:8d6671e3e34e	ok:8d6671e3e34e	engine	features@spatial	index:spatial	ALTER TABLE places MODIFY area POLYGON NOT NULL, ADD SPATIAL INDEX sp_area (area)
+1210	1210	engine	features@spatial	index:spatial	ALTER TABLE places ADD SPATIAL INDEX sp_name (name)
+ok:3f9e144aa147	ok:3f9e144aa147	engine	features@spatial	index:spatial	CREATE SPATIAL INDEX sp_loc2 ON places (loc)
+ok:d23e306194aa	ok:d23e306194aa	engine	features@spatial	index:spatial	ALTER TABLE places ADD INDEX idx_loc (loc)
+ok:d23e306194aa	ok:d23e306194aa	engine	features@spatial	index:spatial	ALTER TABLE places ADD INDEX idx_loc (loc(10))
+ok:826cb7d5aa98	ok:826cb7d5aa98	engine	features@spatial	index:spatial	ALTER TABLE places MODIFY loc POINT NOT NULL
+1252	1252	engine	features@spatial	index:spatial	ALTER TABLE places MODIFY loc POINT NULL
+ok:2d344deb47e4	ok:2d344deb47e4	engine	features@spatial	index:spatial	ALTER TABLE places MODIFY loc GEOMETRY REF_SYSTEM_ID = 3857 NOT NULL
+ok:70f087e5364c	ok:70f087e5364c	engine	features@spatial	index:spatial	ALTER TABLE places DROP INDEX sp_loc
+ok:13d9172b5439	ok:13d9172b5439	engine	features@spatial	index:spatial	ALTER TABLE places ADD COLUMN g GEOMETRY REF_SYSTEM_ID = 9999
+ok:a66a49782aaa	ok:a66a49782aaa	engine	features@spatial	index:spatial	ALTER TABLE places ADD COLUMN g GEOMETRY REF_SYSTEM_ID = 3857 NOT NULL
+1064	1064	engine	features@spatial	index:spatial	ALTER TABLE places ADD SPATIAL INDEX sp_multi (loc, area)
+ok:215e4aae5355	ok:215e4aae5355	engine	features@spatial	index:spatial	CREATE TABLE p2 (g GEOMETRY NOT NULL, SPATIAL KEY (g))
+ok:5d0b21a1e830	ok:5d0b21a1e830	engine	features@spatial	index:spatial	CREATE TABLE p3 (g GEOMETRY NOT NULL, SPATIAL KEY (g)) ENGINE = MyISAM
+ok:dd1124625e23	ok:dd1124625e23	engine	features@spatial	index:spatial	CREATE TABLE p6 (g GEOMETRY NOT NULL, SPATIAL KEY (g)) ENGINE = Aria
+ok:559269cd2962	ok:559269cd2962	engine	features@spatial	index:fulltext	ALTER TABLE places ADD FULLTEXT INDEX ft_descr (descr)
+ok:5b0d76e955d3	ok:5b0d76e955d3	engine	features@spatial	index:fulltext	ALTER TABLE places ADD FULLTEXT INDEX ft_both (name, descr)
+1128	1128	engine	features@spatial	index:fulltext	CREATE FULLTEXT INDEX ft_descr ON places (descr) WITH PARSER ngram
+1283	1283	engine	features@spatial	index:fulltext	ALTER TABLE places ADD FULLTEXT INDEX ft_id (id)
+1061	1061	engine	features@spatial	index:fulltext	ALTER TABLE places ADD FULLTEXT INDEX ft_name (descr)
+ok:4ca86226d1a8	ok:4ca86226d1a8	engine	features@spatial	index:fulltext	ALTER TABLE places DROP INDEX ft_name
+ok:a0f853f555a8	ok:a0f853f555a8	engine	features@spatial	index:fulltext	ALTER TABLE places DROP COLUMN name
+ok:99bf0445749d	ok:99bf0445749d	engine	features@spatial	index:fulltext	ALTER TABLE places MODIFY name VARCHAR(200) NOT NULL
+1283	1283	engine	features@spatial	index:fulltext	ALTER TABLE places MODIFY name INT NOT NULL
+ok:0bd67a50f758	ok:0bd67a50f758	engine	features@spatial	index:fulltext	CREATE TABLE p4 (a TEXT, FULLTEXT KEY (a)) ENGINE = MyISAM
+ok:4a7468c93b19	ok:4a7468c93b19	engine	features@spatial	index:fulltext	CREATE TABLE p5 (a VARCHAR(10), FULLTEXT KEY (a) KEY_BLOCK_SIZE = 4)
+ok:6fe99e165ed7	ok:6fe99e165ed7	engine	objects@event	event:alter	ALTER EVENT a RENAME TO cleanup
+ok:f63ca0df5da0	ok:f63ca0df5da0	engine	objects@event	event:alter	ALTER EVENT a ON SCHEDULE AT '2031-01-01 00:00:00'
+ok:542f4c2d9f17	ok:542f4c2d9f17	engine	objects@event	event:alter	ALTER EVENT a ON SCHEDULE EVERY 2 HOUR STARTS '2030-06-01 00:00:00' ENDS '2031-01-01 00:00:00'
+ok:f11905eea642	ok:f11905eea642	engine	objects@event	event:alter	ALTER EVENT a DISABLE
+ok:4b7060463dc6	ok:4b7060463dc6	engine	objects@event	event:alter	ALTER EVENT a DISABLE ON SLAVE
+ok:849a3d53ff62	ok:849a3d53ff62	engine	objects@event	event:alter	ALTER EVENT a ON COMPLETION NOT PRESERVE
+ok:095d926bb896	ok:095d926bb896	engine	objects@event	event:alter	ALTER EVENT a COMMENT 'nightly'
+ok:846a76093795	ok:846a76093795	engine	objects@event	event:alter	ALTER EVENT a DO SELECT 1
+1543	1543	engine	objects@event	event:alter	ALTER EVENT a ON SCHEDULE EVERY 1 HOUR STARTS '2031-01-01 00:00:00' ENDS '2030-01-01 00:00:00'
+1551	1551	engine	objects@event	event:alter	ALTER EVENT a RENAME TO a
+1539	1539	engine	objects@event	event:alter	ALTER EVENT nope DISABLE
+1537	1537	engine	objects@event	event:create	CREATE EVENT a ON SCHEDULE AT '2030-01-01 00:00:00' DO COMMIT
+ok:849a3d53ff62	ok:849a3d53ff62	engine	objects@event	event:create	CREATE EVENT IF NOT EXISTS a ON SCHEDULE AT '2030-01-01 00:00:00' DO COMMIT
+ok:c8a127c011e8	ok:c8a127c011e8	engine	objects@event	event:create	CREATE OR REPLACE EVENT a ON SCHEDULE AT '2030-01-01 00:00:00' DO COMMIT
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@event	event:drop	DROP EVENT a
+ok:849a3d53ff62	ok:849a3d53ff62	engine	objects@event	event:drop	DROP EVENT IF EXISTS nope
+1539	1539	engine	objects@event	event:drop	DROP EVENT nope
 ok:186783f59718	ok:186783f59718	engine	objects@fk	exists:foreign_key	ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (d) REFERENCES parent (b)
 ok:5d49c7807648	ok:5d49c7807648	engine	objects@fk	exists:foreign_key	ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (A) REFERENCES parent (b)
 ok:5d49c7807648	ok:5d49c7807648	engine	objects@fk	exists:foreign_key	ALTER TABLE a ADD FOREIGN KEY IF NOT EXISTS (a, d) REFERENCES a (b, a)
@@ -5544,3 +5726,183 @@ ok:e184fc087533	ok:e184fc087533	engine	objects@view	exists:column	ALTER TABLE t 
 ok:39a17cd763f3	ok:39a17cd763f3	engine	objects@view	exists:column	ALTER TABLE t RENAME KEY IF EXISTS x TO y, RENAME KEY IF EXISTS idx_d TO idx_e
 ok:a803a12b2bae	ok:a803a12b2bae	engine	objects@view	exists:column	ALTER TABLE t ALTER COLUMN IF EXISTS x SET DEFAULT (zzz), ADD COLUMN e INT
 ok:a803a12b2bae	ok:a803a12b2bae	engine	objects@view	exists:column	ALTER TABLE t CHANGE IF EXISTS x y INT AS (zzz), ADD COLUMN e INT
+ok:4c9c88ca622e	ok:4c9c88ca622e	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD COLUMN e INT, ALGORITHM = INSTANT
+ok:e80f787b6cff	ok:e80f787b6cff	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD COLUMN e INT FIRST, ALGORITHM = INSTANT
+ok:4c9c88ca622e	ok:4c9c88ca622e	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD COLUMN e INT, ALGORITHM = INSTANT, LOCK = NONE
+1846	1846	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD INDEX idx_c (c), ALGORITHM = INSTANT
+ok:9aa998a04495	ok:9aa998a04495	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD INDEX idx_c (c), ALGORITHM = NOCOPY
+ok:9aa998a04495	ok:9aa998a04495	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD INDEX idx_c (c), ALGORITHM = INPLACE, LOCK = NONE
+1846	1846	engine	one_table@missing	alter:algorithm	ALTER TABLE t MODIFY c BIGINT, ALGORITHM = INPLACE
+1846	1846	engine	one_table@missing	alter:algorithm	ALTER TABLE t MODIFY c BIGINT, ALGORITHM = NOCOPY
+ok:693a1f50cfb1	ok:693a1f50cfb1	engine	one_table@missing	alter:algorithm	ALTER TABLE t MODIFY c BIGINT, LOCK = NONE
+ok:693a1f50cfb1	ok:693a1f50cfb1	engine	one_table@missing	alter:algorithm	ALTER TABLE t MODIFY c BIGINT, ALGORITHM = COPY, LOCK = SHARED
+ok:693a1f50cfb1	ok:693a1f50cfb1	engine	one_table@missing	alter:algorithm	ALTER TABLE t MODIFY c BIGINT, ALGORITHM = COPY, LOCK = NONE
+1845	1845	engine	one_table@missing	alter:algorithm	ALTER TABLE t MODIFY c INT NOT NULL, ALGORITHM = INSTANT
+1845	1845	engine	one_table@missing	alter:algorithm	ALTER TABLE t MODIFY c INT NOT NULL, ALGORITHM = NOCOPY
+1846	1846	engine	one_table@missing	alter:algorithm	ALTER TABLE t DROP PRIMARY KEY, ALGORITHM = INPLACE
+ok:e7d16e6fa950	ok:e7d16e6fa950	engine	one_table@missing	alter:algorithm	ALTER TABLE t DROP PRIMARY KEY, ADD PRIMARY KEY (b, d), ALGORITHM = INPLACE
+1845	1845	engine	one_table@missing	alter:algorithm	ALTER TABLE t DROP PRIMARY KEY, ADD PRIMARY KEY (b, d), ALGORITHM = NOCOPY
+ok:8a3652e313a0	ok:8a3652e313a0	engine	one_table@missing	alter:algorithm	ALTER TABLE t RENAME COLUMN c TO c2, ALGORITHM = INSTANT
+ok:242ec3953d5c	ok:242ec3953d5c	engine	one_table@missing	alter:algorithm	ALTER TABLE t ALTER COLUMN c SET DEFAULT 5, ALGORITHM = INSTANT
+1846	1846	engine	one_table@missing	alter:algorithm	ALTER TABLE t DROP COLUMN d, ALGORITHM = INSTANT
+ok:06441f52ede5	ok:06441f52ede5	engine	one_table@missing	alter:algorithm	ALTER TABLE t DROP COLUMN c, ALGORITHM = INSTANT
+1846	1846	engine	one_table@missing	alter:algorithm	ALTER TABLE t DROP INDEX idx_d, ALGORITHM = INSTANT
+ok:21fe0a3043e1	ok:21fe0a3043e1	engine	one_table@missing	alter:algorithm	ALTER TABLE t DROP INDEX idx_d, ALGORITHM = INPLACE, LOCK = NONE
+ok:c2e809b69e30	ok:c2e809b69e30	engine	one_table@missing	alter:algorithm	ALTER TABLE t RENAME INDEX idx_d TO idx_d2, ALGORITHM = INSTANT
+ok:ddcba5e24503	ok:ddcba5e24503	engine	one_table@missing	alter:algorithm	ALTER TABLE t ENGINE = InnoDB, ALGORITHM = INPLACE
+1845	1845	engine	one_table@missing	alter:algorithm	ALTER TABLE t ENGINE = InnoDB, ALGORITHM = INSTANT
+1845	1845	engine	one_table@missing	alter:algorithm	ALTER TABLE t ENGINE = InnoDB, ALGORITHM = NOCOPY
+ok:9c5b0ce05278	ok:9c5b0ce05278	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD COLUMN e INT AUTO_INCREMENT UNIQUE, ALGORITHM = INPLACE
+1072	1072	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD FULLTEXT INDEX ft (e), ALGORITHM = INPLACE
+ok:1356db1cfebd	ok:1356db1cfebd	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD COLUMN e VARCHAR(10), ADD FULLTEXT INDEX ft (e), ALGORITHM = INPLACE
+ok:ddcba5e24503	ok:ddcba5e24503	engine	one_table@missing	alter:algorithm	ALTER TABLE t ALGORITHM = DEFAULT, LOCK = DEFAULT
+ok:ddcba5e24503	ok:ddcba5e24503	engine	one_table@missing	alter:algorithm	ALTER TABLE t ALGORITHM = INSTANT
+ok:ddcba5e24503	ok:ddcba5e24503	engine	one_table@missing	alter:algorithm	ALTER TABLE t LOCK = EXCLUSIVE
+ok:b660523a169b	ok:b660523a169b	engine	one_table@missing	alter:algorithm	ALTER TABLE t ALTER INDEX idx_d IGNORED, ALGORITHM = INSTANT
+ok:f6ac44b9e48c	ok:f6ac44b9e48c	engine	one_table@missing	alter:algorithm	ALTER TABLE t CONVERT TO CHARACTER SET latin1, ALGORITHM = INPLACE
+1845	1845	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD CONSTRAINT chk CHECK (c > 0), ALGORITHM = INPLACE
+1845	1845	engine	one_table@missing	alter:algorithm	ALTER TABLE t ADD CONSTRAINT chk CHECK (c > 0), ALGORITHM = INSTANT
+ok:f4eab2e0c348	ok:f4eab2e0c348	engine	one_table@missing	alter:algorithm	ALTER TABLE t DROP COLUMN c, ADD COLUMN c BIGINT, ALGORITHM = INSTANT
+ok:9aa998a04495	ok:9aa998a04495	engine	one_table@missing	alter:algorithm	CREATE INDEX idx_c ON t (c) ALGORITHM = INPLACE LOCK = NONE
+1846	1846	engine	one_table@missing	alter:algorithm	CREATE INDEX idx_c ON t (c) ALGORITHM = INSTANT
+ok:9aa998a04495	ok:9aa998a04495	engine	one_table@missing	alter:algorithm	CREATE INDEX idx_c ON t (c) ALGORITHM = NOCOPY
+1064	1064	engine	one_table@missing	alter:algorithm	DROP INDEX idx_d ON t ALGORITHM = INSTANT
+1064	1064	engine	one_table@missing	alter:algorithm	DROP INDEX idx_d ON t LOCK = NONE
+ok:746abcdd0565	ok:746abcdd0565	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE EVERY 1 HOUR STARTS '2030-01-01 00:00:00' ENDS '2031-01-01 00:00:00' DO DELETE FROM t WHERE c < 0
+1543	1543	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE EVERY 1 HOUR STARTS '2031-01-01 00:00:00' ENDS '2030-01-01 00:00:00' DO COMMIT
+ok:d50b20b1bfba	ok:d50b20b1bfba	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE AT '2030-01-01 00:00:00' + INTERVAL 1 DAY ON COMPLETION PRESERVE DISABLE COMMENT 'later' DO COMMIT
+ok:ddcba5e24503	ok:ddcba5e24503	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE AT '2000-01-01 00:00:00' DO COMMIT
+ok:90ce0973b0c7	ok:90ce0973b0c7	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE AT '2000-01-01 00:00:00' ON COMPLETION PRESERVE DO COMMIT
+1542	1542	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE EVERY 0 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:c5a30061b63e	ok:c5a30061b63e	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE EVERY '1:30' HOUR_MINUTE STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:a4c3037c404a	ok:a4c3037c404a	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO BEGIN DELETE FROM t; INSERT INTO t VALUES (1, 1, 1); END
+ok:482963da1114	ok:482963da1114	engine	one_table@missing	event:create	CREATE EVENT nightly ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE ON SLAVE DO COMMIT
+ok:5e57e3f66fb4	ok:5e57e3f66fb4	engine	one_table@missing	event:create	CREATE OR REPLACE EVENT nightly ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO COMMIT
+ok:78e838589622	ok:78e838589622	engine	partitioned@hash	partition:hash	ALTER TABLE sessions ADD PARTITION PARTITIONS 2
+ok:ed97f7287630	ok:ed97f7287630	engine	partitioned@hash	partition:hash	ALTER TABLE sessions COALESCE PARTITION 2
+1508	1508	engine	partitioned@hash	partition:hash	ALTER TABLE sessions COALESCE PARTITION 4
+1508	1508	engine	partitioned@hash	partition:hash	ALTER TABLE sessions COALESCE PARTITION 5
+1515	1515	engine	partitioned@hash	partition:hash	ALTER TABLE sessions COALESCE PARTITION 0
+1512	1512	engine	partitioned@hash	partition:hash	ALTER TABLE sessions DROP PARTITION p0
+1480	1480	engine	partitioned@hash	partition:hash	ALTER TABLE sessions ADD PARTITION (PARTITION p9 VALUES LESS THAN (10))
+ok:4cb0a5459d14	ok:4cb0a5459d14	engine	partitioned@hash	partition:hash	ALTER TABLE sessions ADD PARTITION (PARTITION p4)
+1517	1517	engine	partitioned@hash	partition:hash	ALTER TABLE sessions ADD PARTITION (PARTITION p0)
+ok:cd634eefe748	ok:cd634eefe748	engine	partitioned@hash	partition:hash	ALTER TABLE sessions REORGANIZE PARTITION
+1510	1510	engine	partitioned@hash	partition:hash	ALTER TABLE sessions REORGANIZE PARTITION p0, p1 INTO (PARTITION p01)
+ok:5bf8578da4d2	ok:5bf8578da4d2	engine	partitioned@hash	partition:hash	ALTER TABLE sessions TRUNCATE PARTITION p1
+ok:5bf8578da4d2	ok:5bf8578da4d2	engine	partitioned@hash	partition:hash	ALTER TABLE sessions TRUNCATE PARTITION ALL
+ok:5bf8578da4d2	ok:5bf8578da4d2	engine	partitioned@hash	partition:hash	ALTER TABLE sessions REBUILD PARTITION ALL
+ok:254864979964	ok:254864979964	engine	partitioned@hash	partition:hash	ALTER TABLE sessions PARTITION BY KEY (id) PARTITIONS 8
+1503	1503	engine	partitioned@hash	partition:hash	ALTER TABLE sessions PARTITION BY HASH (user_id) PARTITIONS 2
+ok:1e837af31984	ok:1e837af31984	engine	partitioned@hash	partition:hash	ALTER TABLE sessions ADD COLUMN x INT
+1503	1503	engine	partitioned@hash	partition:hash	ALTER TABLE sessions ADD UNIQUE KEY uk_user (user_id)
+ok:f241a42016e9	ok:f241a42016e9	engine	partitioned@hash	partition:hash	ALTER TABLE sessions REMOVE PARTITIONING
+ok:7a445005f4c0	ok:7a445005f4c0	engine	partitioned@hash	partition:hash	ALTER TABLE tokens ADD PARTITION PARTITIONS 1
+ok:d6e60c33dacd	ok:d6e60c33dacd	engine	partitioned@hash	partition:hash	ALTER TABLE tokens COALESCE PARTITION 1
+ok:c8d4e3e1d6c9	ok:c8d4e3e1d6c9	engine	partitioned@hash	partition:hash	ALTER TABLE tokens MODIFY id VARCHAR(64) NOT NULL
+ok:4bfeabcee363	ok:4bfeabcee363	engine	partitioned@hash	partition:hash	ALTER TABLE metrics ADD PARTITION PARTITIONS 1
+ok:8e6c6ea41596	ok:8e6c6ea41596	engine	partitioned@hash	partition:hash	ALTER TABLE metrics COALESCE PARTITION 1
+ok:66822a007399	ok:66822a007399	engine	partitioned@hash	partition:hash	ALTER TABLE metrics ADD PRIMARY KEY (id)
+1503	1503	engine	partitioned@hash	partition:hash	ALTER TABLE metrics ADD PRIMARY KEY (host)
+ok:a2d079ccba65	ok:a2d079ccba65	engine	partitioned@hash	partition:hash	ALTER TABLE metrics ADD UNIQUE KEY uk_id_host (id, host)
+1504	1504	engine	partitioned@hash	partition:hash	CREATE TABLE h2 (a INT) PARTITION BY HASH (a) PARTITIONS 0
+1659	1659	engine	partitioned@hash	partition:hash	CREATE TABLE h3 (a VARCHAR(10)) PARTITION BY HASH (a)
+ok:34b6316559d9	ok:34b6316559d9	engine	partitioned@hash	partition:hash	CREATE TABLE h4 (a VARCHAR(10)) PARTITION BY KEY (a) PARTITIONS 3
+ok:8477f743e5f6	ok:8477f743e5f6	engine	partitioned@hash	partition:hash	CREATE TABLE h5 (a INT, b INT) PARTITION BY KEY (a, b) PARTITIONS 3
+ok:96f65fdce3a9	ok:96f65fdce3a9	engine	partitioned@hash	partition:hash	CREATE TABLE h6 (a INT, b INT) PARTITION BY HASH (a + b) PARTITIONS 2
+ok:cf41f0e018ee	ok:cf41f0e018ee	engine	partitioned@hash	partition:hash	CREATE TABLE h7 (a INT) PARTITION BY HASH (a) PARTITIONS 2 (PARTITION x, PARTITION y)
+1064	1064	engine	partitioned@hash	partition:hash	CREATE TABLE h8 (a INT) PARTITION BY HASH (a) PARTITIONS 3 (PARTITION x, PARTITION y)
+1502	1502	engine	partitioned@hash	partition:hash	CREATE TABLE h9 (a TEXT) PARTITION BY KEY (a)
+ok:d7f9854fcf01	ok:d7f9854fcf01	engine	partitioned@list	partition:list	ALTER TABLE stores ADD PARTITION (PARTITION pwest VALUES IN (5, 6))
+1495	1495	engine	partitioned@list	partition:list	ALTER TABLE stores ADD PARTITION (PARTITION pwest VALUES IN (2, 5))
+1480	1480	engine	partitioned@list	partition:list	ALTER TABLE stores ADD PARTITION (PARTITION pwest VALUES LESS THAN (10))
+1517	1517	engine	partitioned@list	partition:list	ALTER TABLE stores ADD PARTITION (PARTITION pnorth VALUES IN (9))
+ok:f25405074240	ok:f25405074240	engine	partitioned@list	partition:list	ALTER TABLE stores ADD PARTITION (PARTITION pnull VALUES IN (NULL))
+ok:d447576b7a62	ok:d447576b7a62	engine	partitioned@list	partition:list	ALTER TABLE stores REORGANIZE PARTITION pnorth INTO (PARTITION pn1 VALUES IN (1), PARTITION pn2 VALUES IN (2))
+ok:c02b504f058a	ok:c02b504f058a	engine	partitioned@list	partition:list	ALTER TABLE stores REORGANIZE PARTITION pnorth, psouth INTO (PARTITION pall VALUES IN (1, 2, 3, 4))
+ok:e2ae1b37dfc1	ok:e2ae1b37dfc1	engine	partitioned@list	partition:list	ALTER TABLE stores REORGANIZE PARTITION pnorth INTO (PARTITION pn VALUES IN (1, 2, 7))
+ok:a9eff2554059	ok:a9eff2554059	engine	partitioned@list	partition:list	ALTER TABLE stores DROP PARTITION psouth
+1508	1508	engine	partitioned@list	partition:list	ALTER TABLE stores DROP PARTITION pnorth, psouth
+ok:6d262990a875	ok:6d262990a875	engine	partitioned@list	partition:list	ALTER TABLE stores TRUNCATE PARTITION pnorth, psouth
+1509	1509	engine	partitioned@list	partition:list	ALTER TABLE stores COALESCE PARTITION 1
+ok:43b2c69a952f	ok:43b2c69a952f	engine	partitioned@list	partition:list	ALTER TABLE stores PARTITION BY LIST (id) (PARTITION p VALUES IN (1))
+ok:289d8dd2e1b0	ok:289d8dd2e1b0	engine	partitioned@list	partition:list	ALTER TABLE stores PARTITION BY RANGE (region) (PARTITION p0 VALUES LESS THAN (3), PARTITION p1 VALUES LESS THAN MAXVALUE)
+ok:a7efabba1ed6	ok:a7efabba1ed6	engine	partitioned@list	partition:list	ALTER TABLE stores REMOVE PARTITIONING
+ok:2fea9c56ec92	ok:2fea9c56ec92	engine	partitioned@list	partition:list	ALTER TABLE stores MODIFY region BIGINT NOT NULL
+ok:9b7e06055917	ok:9b7e06055917	engine	partitioned@list	partition:list	ALTER TABLE cities ADD PARTITION (PARTITION pas VALUES IN ('JP'))
+1495	1495	engine	partitioned@list	partition:list	ALTER TABLE cities ADD PARTITION (PARTITION pas VALUES IN ('US'))
+ok:fd3d3b1085ae	ok:fd3d3b1085ae	engine	partitioned@list	partition:list	ALTER TABLE cities REORGANIZE PARTITION peu INTO (PARTITION pde VALUES IN ('DE'), PARTITION pfr VALUES IN ('FR'))
+1495	1495	engine	partitioned@list	partition:list	CREATE TABLE l2 (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (1), PARTITION p1 VALUES IN (1))
+1480	1480	engine	partitioned@list	partition:list	CREATE TABLE l3 (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES LESS THAN (1))
+ok:5b8c04c96445	ok:5b8c04c96445	engine	partitioned@list	partition:list	CREATE TABLE l4 (a INT) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (NULL, 1))
+ok:8f0191bf2d80	ok:8f0191bf2d80	engine	partitioned@list	partition:list	CREATE TABLE l5 (a INT, b INT) PARTITION BY LIST COLUMNS (a, b) (PARTITION p0 VALUES IN ((1, 1), (2, 2)), PARTITION p1 VALUES IN ((3, 3)))
+1492	1492	engine	partitioned@list	partition:list	CREATE TABLE l6 (a INT) PARTITION BY LIST (a)
+ok:568218c4a52f	ok:568218c4a52f	engine	partitioned@range	partition:range	ALTER TABLE orders ADD PARTITION (PARTITION p2026 VALUES LESS THAN (2027))
+ok:592d35d81f44	ok:592d35d81f44	engine	partitioned@range	partition:range	ALTER TABLE orders ADD PARTITION (PARTITION p2026 VALUES LESS THAN (2027), PARTITION p2027 VALUES LESS THAN (2028))
+1493	1493	engine	partitioned@range	partition:range	ALTER TABLE orders ADD PARTITION (PARTITION p2022 VALUES LESS THAN (2023))
+1517	1517	engine	partitioned@range	partition:range	ALTER TABLE orders ADD PARTITION (PARTITION p2024 VALUES LESS THAN (2030))
+ok:5c186fcf8627	ok:5c186fcf8627	engine	partitioned@range	partition:range	ALTER TABLE orders ADD PARTITION (PARTITION pmax VALUES LESS THAN MAXVALUE)
+1480	1480	engine	partitioned@range	partition:range	ALTER TABLE orders ADD PARTITION (PARTITION px VALUES IN (2030))
+1492	1492	engine	partitioned@range	partition:range	ALTER TABLE orders ADD PARTITION PARTITIONS 2
+ok:ddb247d01462	ok:ddb247d01462	engine	partitioned@range	partition:range	ALTER TABLE orders DROP PARTITION p2023
+ok:08b10745d843	ok:08b10745d843	engine	partitioned@range	partition:range	ALTER TABLE orders DROP PARTITION p2023, p2024
+1507	1507	engine	partitioned@range	partition:range	ALTER TABLE orders DROP PARTITION p1999
+1508	1508	engine	partitioned@range	partition:range	ALTER TABLE orders DROP PARTITION p2023, p2024, p2025
+ok:568218c4a52f	ok:568218c4a52f	engine	partitioned@range	partition:range	ALTER TABLE orders REORGANIZE PARTITION p2025 INTO (PARTITION p2025 VALUES LESS THAN (2026), PARTITION p2026 VALUES LESS THAN (2027))
+ok:1c1b331c482b	ok:1c1b331c482b	engine	partitioned@range	partition:range	ALTER TABLE orders REORGANIZE PARTITION p2023, p2024 INTO (PARTITION p_old VALUES LESS THAN (2025))
+1493	1493	engine	partitioned@range	partition:range	ALTER TABLE orders REORGANIZE PARTITION p2024 INTO (PARTITION p2024 VALUES LESS THAN (2030))
+1519	1519	engine	partitioned@range	partition:range	ALTER TABLE orders REORGANIZE PARTITION p2023, p2025 INTO (PARTITION p VALUES LESS THAN (2026))
+1517	1517	engine	partitioned@range	partition:range	ALTER TABLE orders REORGANIZE PARTITION p2023 INTO (PARTITION p2024 VALUES LESS THAN (2024))
+ok:2e50d5aab353	ok:2e50d5aab353	engine	partitioned@range	partition:range	ALTER TABLE orders EXCHANGE PARTITION p2024 WITH TABLE orders_archive
+ok:2e50d5aab353	ok:2e50d5aab353	engine	partitioned@range	partition:range	ALTER TABLE orders EXCHANGE PARTITION p2024 WITH TABLE orders_archive WITHOUT VALIDATION
+1732	1732	engine	partitioned@range	partition:range	ALTER TABLE orders EXCHANGE PARTITION p2024 WITH TABLE logs
+1735	1735	engine	partitioned@range	partition:range	ALTER TABLE orders EXCHANGE PARTITION p1999 WITH TABLE orders_archive
+1505	1505	engine	partitioned@range	partition:range	ALTER TABLE orders_archive EXCHANGE PARTITION p2024 WITH TABLE orders
+ok:2e50d5aab353	ok:2e50d5aab353	engine	partitioned@range	partition:range	ALTER TABLE orders TRUNCATE PARTITION p2023
+1735	1735	engine	partitioned@range	partition:range	ALTER TABLE orders TRUNCATE PARTITION p2023, p1999
+ok:2e50d5aab353	ok:2e50d5aab353	engine	partitioned@range	partition:range	ALTER TABLE orders ANALYZE PARTITION p2023
+ok:2e50d5aab353	ok:2e50d5aab353	engine	partitioned@range	partition:range	ALTER TABLE orders REBUILD PARTITION p2023, p2024
+1509	1509	engine	partitioned@range	partition:range	ALTER TABLE orders COALESCE PARTITION 1
+ok:e6adcc6789cc	ok:e6adcc6789cc	engine	partitioned@range	partition:range	ALTER TABLE orders REMOVE PARTITIONING
+1505	1505	engine	partitioned@range	partition:range	ALTER TABLE orders_archive REMOVE PARTITIONING
+ok:299f707bf043	ok:299f707bf043	engine	partitioned@range	partition:range	ALTER TABLE orders PARTITION BY RANGE (YEAR(created)) (PARTITION p0 VALUES LESS THAN (2025), PARTITION p1 VALUES LESS THAN MAXVALUE)
+ok:18b3264900f9	ok:18b3264900f9	engine	partitioned@range	partition:range	ALTER TABLE orders_archive PARTITION BY HASH (id) PARTITIONS 4
+ok:bdf351616f7b	ok:bdf351616f7b	engine	partitioned@range	partition:range	ALTER TABLE orders_archive PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN MAXVALUE)
+ok:e9d659f752a4	ok:e9d659f752a4	engine	partitioned@range	partition:range	ALTER TABLE orders_archive PARTITION BY RANGE COLUMNS (created) (PARTITION p0 VALUES LESS THAN ('2025-01-01'), PARTITION p1 VALUES LESS THAN (MAXVALUE))
+1659	1659	engine	partitioned@range	partition:range	ALTER TABLE orders_archive PARTITION BY HASH (amount) PARTITIONS 2
+1503	1503	engine	partitioned@range	partition:range	ALTER TABLE orders_archive PARTITION BY KEY (amount) PARTITIONS 2
+1493	1493	engine	partitioned@range	partition:range	ALTER TABLE orders_archive PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (5))
+ok:a08731cce968	ok:a08731cce968	engine	partitioned@range	partition:range	ALTER TABLE orders ADD COLUMN note VARCHAR(20)
+ok:fa69b2f4fa73	ok:fa69b2f4fa73	engine	partitioned@range	partition:range	ALTER TABLE orders DROP PRIMARY KEY
+1503	1503	engine	partitioned@range	partition:range	ALTER TABLE orders ADD UNIQUE KEY uk_amount (amount)
+ok:a5b9bac5efe9	ok:a5b9bac5efe9	engine	partitioned@range	partition:range	ALTER TABLE orders ADD UNIQUE KEY uk_id_created (created, id)
+ok:df224f438f5f	ok:df224f438f5f	engine	partitioned@range	partition:range	ALTER TABLE orders MODIFY created DATETIME NOT NULL
+1072	1072	engine	partitioned@range	partition:range	ALTER TABLE orders DROP COLUMN created
+ok:66e4b147b784	ok:66e4b147b784	engine	partitioned@range	partition:range	ALTER TABLE orders RENAME COLUMN created TO created_at
+1506	1506	engine	partitioned@range	partition:range	ALTER TABLE orders ADD CONSTRAINT fk_archive FOREIGN KEY (id, created) REFERENCES orders_archive (id, created)
+1493	1493	engine	partitioned@range	partition:range	ALTER TABLE logs ADD PARTITION (PARTITION p1 VALUES LESS THAN ('2026-01-01 00:00:00'))
+ok:50a801b0525c	ok:50a801b0525c	engine	partitioned@range	partition:range	ALTER TABLE logs REORGANIZE PARTITION pmax INTO (PARTITION p1 VALUES LESS THAN ('2026-01-01 00:00:00'), PARTITION pmax VALUES LESS THAN (MAXVALUE))
+ok:d2fa296197f0	ok:d2fa296197f0	engine	partitioned@range	partition:range	ALTER TABLE logs DROP PARTITION pmax
+1493	1493	engine	partitioned@range	partition:range	CREATE TABLE r2 (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (5))
+1503	1503	engine	partitioned@range	partition:range	CREATE TABLE r3 (a INT, b INT, PRIMARY KEY (a)) PARTITION BY RANGE (b) (PARTITION p0 VALUES LESS THAN (10))
+1481	1481	engine	partitioned@range	partition:range	CREATE TABLE r4 (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN MAXVALUE, PARTITION p1 VALUES LESS THAN (10))
+1517	1517	engine	partitioned@range	partition:range	CREATE TABLE r5 (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p0 VALUES LESS THAN (20))
+ok:fe6060abc904	ok:fe6060abc904	engine	partitioned@range	partition:range	CREATE TABLE r6 (a INT, b INT) PARTITION BY RANGE (a) SUBPARTITION BY HASH (b) SUBPARTITIONS 2 (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN MAXVALUE)
+1659	1659	engine	partitioned@range	partition:range	CREATE TABLE r7 (a VARCHAR(10)) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))
+ok:75e017e8d389	ok:75e017e8d389	engine	partitioned@range	partition:range	CREATE TABLE r8 LIKE orders
+ok:50f634d83906	ok:50f634d83906	engine	partitioned@range	partition:range	DROP TABLE orders
+ok:d6f171f96acd	ok:d6f171f96acd	engine	schemas@cross	rename:schema	RENAME TABLE accounts TO omni_simulation_other.accounts
+ok:f39e16c10210	ok:f39e16c10210	engine	schemas@cross	rename:schema	RENAME TABLE entries TO omni_simulation_other.entries
+ok:6226550c649c	ok:6226550c649c	engine	schemas@cross	rename:schema	RENAME TABLE omni_simulation_other.archived TO archived
+1450	1450	engine	schemas@cross	rename:schema	RENAME TABLE v_ledger TO omni_simulation_other.v_ledger
+1025	1025	engine	schemas@cross	rename:schema	RENAME TABLE accounts TO omni_simulation_nope.accounts
+1050	1050	engine	schemas@cross	rename:schema	RENAME TABLE accounts TO omni_simulation_other.archived
+ok:21ce1ff4d354	ok:21ce1ff4d354	engine	schemas@cross	rename:schema	RENAME TABLE accounts TO acc2, acc2 TO omni_simulation_other.acc
+ok:4f32eac11175	ok:4f32eac11175	engine	schemas@cross	rename:schema	RENAME TABLE accounts TO tmp, omni_simulation_other.archived TO accounts, tmp TO omni_simulation_other.archived
+ok:d6f171f96acd	ok:d6f171f96acd	engine	schemas@cross	rename:schema	ALTER TABLE accounts RENAME TO omni_simulation_other.accounts
+1050	1050	engine	schemas@cross	rename:schema	ALTER TABLE accounts RENAME TO omni_simulation_other.archived
+ok:f39e16c10210	ok:f39e16c10210	engine	schemas@cross	rename:schema	ALTER TABLE entries RENAME TO omni_simulation_other.entries, ADD COLUMN note INT
+ok:ba17cc6c4477	ok:ba17cc6c4477	engine	schemas@cross	rename:schema	CREATE TABLE copy LIKE omni_simulation_other.archived
+ok:b477e8f68783	ok:b477e8f68783	engine	schemas@cross	rename:schema	CREATE TABLE t2 (id INT, FOREIGN KEY (id) REFERENCES omni_simulation_other.archived (id))
+ok:bed44466ae53	ok:bed44466ae53	engine	schemas@cross	rename:schema	CREATE VIEW v2 AS SELECT id FROM omni_simulation_other.archived
+1451	1451	engine	schemas@cross	rename:schema	DROP TABLE omni_simulation_other.archived, accounts

@@ -215,8 +215,34 @@ func validateNewIndexCoversPartitioning(tbl *Table, idx *Index) error {
 
 // renamePartitionKeyColumn follows a column rename in the partitioning's key columns,
 // as the catalog follows it in the indexes.
+//
+// The partitioning's own expressions and columns follow it as well: measured on
+// mariadb:11.8.8, RENAME COLUMN created TO created_at over a table partitioned
+// BY RANGE (YEAR(created)) prints RANGE (year(`created_at`)).
 func renamePartitionKeyColumn(tbl *Table, oldName, newName string) {
-	if tbl.Partitioning == nil || len(tbl.Partitioning.keyColumns) == 0 {
+	pi := tbl.Partitioning
+	if pi == nil {
+		return
+	}
+	renameIn := func(names []string) []string {
+		out := make([]string, len(names))
+		for i, name := range names {
+			if toLower(name) == toLower(oldName) {
+				name = newName
+			}
+			out[i] = name
+		}
+		return out
+	}
+	if pi.Expr != "" {
+		pi.Expr = renameColumnInExprText(pi.Expr, oldName, newName)
+	}
+	if pi.SubExpr != "" {
+		pi.SubExpr = renameColumnInExprText(pi.SubExpr, oldName, newName)
+	}
+	pi.Columns = renameIn(pi.Columns)
+	pi.SubColumns = renameIn(pi.SubColumns)
+	if len(pi.keyColumns) == 0 {
 		return
 	}
 	cols := make([]string, len(tbl.Partitioning.keyColumns))

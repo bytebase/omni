@@ -276,6 +276,25 @@ func errDropIndexFK(name string) error {
 	return &Error{Code: 1553, SQLState: "HY000", Message: fmt.Sprintf("Cannot drop index '%s': needed in a foreign key constraint", name)}
 }
 
+// errDropFKIndex is what dropping the index a foreign key needs answers: 1553
+// naming the index, and for the primary key the 1025 InnoDB raises when it
+// renames the rebuilt table into place. Measured on mariadb:11.8.8 over
+// features@fk, ALTER TABLE items DROP PRIMARY KEY answers
+//
+//	ERROR 1025 (HY000): Error on rename of './<db>/#sql-alter-…' to
+//	'./<db>/items' (errno: 150 "Foreign key constraint is incorrectly formed")
+func errDropFKIndex(tbl *Table, name string) error {
+	if !eqFoldStr(name, "PRIMARY") {
+		return errDropIndexFK(name)
+	}
+	db := ""
+	if tbl.Database != nil {
+		db = tbl.Database.Name
+	}
+	return &Error{Code: 1025, SQLState: "HY000", Message: fmt.Sprintf(
+		"Error on rename of './%s/#sql-alter' to './%s/%s' (errno: 150 \"Foreign key constraint is incorrectly formed\")", db, db, tbl.Name)}
+}
+
 // errRowIsReferencedOld is 1217, what MariaDB reports when partitioning a table
 // that has or is referenced by a foreign key constraint.
 func errRowIsReferencedOld() error {
@@ -449,11 +468,6 @@ func errTableMustHaveColumns() error {
 		Message: "A table must have at least 1 column"}
 }
 
-func errFKCannotDropParent(table, fkName, refTable string) error {
-	return &Error{Code: ErrFKCannotDropParent, SQLState: sqlState(ErrFKCannotDropParent),
-		Message: fmt.Sprintf("Cannot drop table '%s' referenced by a foreign key constraint '%s' on table '%s'", table, fkName, refTable)}
-}
-
 // errCantDropKey reports 1091 for a DROP of something that is not there.
 // MariaDB names what was being dropped and backticks it:
 // "Can't DROP COLUMN `x`; check that it exists", and the same for INDEX,
@@ -505,6 +519,18 @@ func errFKIncorrectlyFormed(db, table string) error {
 			"\"Foreign key constraint is incorrectly formed\")", db, table)}
 }
 
+// errFKNameTaken is what InnoDB answers for a foreign key whose name another
+// foreign key of the database holds, on another table or the one an ALTER
+// TABLE changes. Measured on mariadb:11.8.8:
+//
+//	ERROR 1005 (HY000): Can't create table `<db>`.`<table>` (errno: 121
+//	"Duplicate key on write or update")
+func errFKNameTaken(db, table string) error {
+	return &Error{Code: ErrCantCreateTable, SQLState: sqlState(ErrCantCreateTable),
+		Message: fmt.Sprintf("Can't create table `%s`.`%s` (errno: 121 "+
+			"\"Duplicate key on write or update\")", db, table)}
+}
+
 func errFKDupName(name string) error {
 	return &Error{Code: ErrFKDupName, SQLState: sqlState(ErrFKDupName),
 		Message: fmt.Sprintf("Duplicate foreign key constraint name '%s'", name)}
@@ -513,11 +539,6 @@ func errFKDupName(name string) error {
 func errCheckConstraintDupName(name string) error {
 	return &Error{Code: ErrFKDupName, SQLState: sqlState(ErrFKDupName),
 		Message: fmt.Sprintf("Duplicate CHECK constraint name '%s'", name)}
-}
-
-func errCheckConstraintNotAllowed(name string) error {
-	return &Error{Code: ErrCheckConstraintNotAllowed, SQLState: sqlState(ErrCheckConstraintNotAllowed),
-		Message: fmt.Sprintf("An expression of a check constraint '%s' contains disallowed function.", name)}
 }
 
 func errDupFunction(name string) error {
@@ -569,9 +590,9 @@ func errNoSuchEvent(db, name string) error {
 		Message: fmt.Sprintf("Unknown event '%s'", name)}
 }
 
-func errUnsupportedGeneratedStorageChange(col, table string) error {
-	return &Error{Code: ErrUnsupportedGeneratedStorageChange, SQLState: sqlState(ErrUnsupportedGeneratedStorageChange),
-		Message: fmt.Sprintf("'Changing the STORED status' is not supported for generated columns.")}
+// errGeneratedNotSupported is 1907, ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN.
+func errGeneratedNotSupported() error {
+	return &Error{Code: 1907, SQLState: "HY000", Message: "This is not yet supported for generated columns"}
 }
 
 func errMissingSystemVersioning(table string) error {

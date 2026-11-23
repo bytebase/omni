@@ -796,30 +796,79 @@ func validateTemporalExprForColumn(colName, typeName string, colFsp int, expr no
 	return nil
 }
 
+// validateCheckExpr refuses what a CHECK cannot read, as mariadb:11.8.8
+// answers it: a subquery is 1970, and a variable or a function whose value
+// changes between rows 1901, naming the expression and the constraint (the
+// column, for a CHECK written on one): CHECK (a > RAND()) is "Function or
+// expression 'rand()' cannot be used in the CHECK clause of `c1`", NOW() is
+// 'current_timestamp()' and @x is '@x'.
 func validateCheckExpr(name string, expr nodes.ExprNode) error {
-	var invalid bool
 	exprSQL := strings.ToLower(nodeToSQL(expr))
 	if strings.Contains(exprSQL, "select ") || strings.Contains(exprSQL, "(select") {
-		return errCheckConstraintNotAllowed(name)
+		return errCheckSubquery()
 	}
+	var refused error
 	nodes.Inspect(expr, func(n nodes.Node) bool {
-		if invalid {
+		if refused != nil {
 			return false
 		}
 		switch x := n.(type) {
 		case *nodes.SubqueryExpr:
-			invalid = true
+			refused = errCheckSubquery()
 		case *nodes.VariableRef:
-			invalid = true
+			text := "@" + x.Name
+			if x.System {
+				text = "@@" + x.Name
+			}
+			refused = errUnusableInCheck(text, name)
 		case *nodes.FuncCallExpr:
-			if isNondeterministicFunc(x.Name) {
-				invalid = true
+			if fn := nondeterministicFuncName(x.Name); fn != "" {
+				refused = errUnusableInCheck(fn+"()", name)
 			}
 		}
-		return !invalid
+		return refused == nil
 	})
-	if invalid {
-		return errCheckConstraintNotAllowed(name)
+	return refused
+}
+
+func errCheckSubquery() error {
+	return &Error{Code: 1970, SQLState: "42000", Message: "CHECK does not support subqueries or stored functions"}
+}
+
+func errUnusableInCheck(expr, name string) error {
+	return &Error{Code: 1901, SQLState: "HY000", Message: fmt.Sprintf("Function or expression '%s' cannot be used in the CHECK clause of `%s`", expr, name)}
+}
+
+// checkAutoIncrementInChecks refuses a CHECK that reads an AUTO_INCREMENT
+// column, whose value is not known when the row is checked: measured on
+// mariadb:11.8.8, CREATE TABLE (a INT AUTO_INCREMENT PRIMARY KEY, CHECK (a >
+// 0)) answers 1901 with 'AUTO_INCREMENT' and the column's name, and so does a
+// CHECK reading it beside another column.
+func checkAutoIncrementInChecks(tbl *Table) error {
+	for _, con := range tbl.Constraints {
+		if con.Type != ConCheck || con.Implicit {
+			continue
+		}
+		refs, ok := checkColumnRefs(con.CheckExpr)
+		if !ok {
+			continue
+		}
+		for _, col := range tbl.Columns {
+			if col.AutoIncrement && refs[toLower(col.Name)] {
+				return errUnusableInCheck("AUTO_INCREMENT", col.Name)
+			}
+		}
+	}
+	return nil
+}
+
+// checkAutoIncrementInCheckExpr is checkAutoIncrementInChecks for a CHECK an
+// ALTER TABLE adds, before it is added.
+func checkAutoIncrementInCheckExpr(tbl *Table, expr nodes.ExprNode) error {
+	for _, name := range generatedColumnRefs(expr) {
+		if col := tbl.GetColumn(name); col != nil && col.AutoIncrement {
+			return errUnusableInCheck("AUTO_INCREMENT", col.Name)
+		}
 	}
 	return nil
 }

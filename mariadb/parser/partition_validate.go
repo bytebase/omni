@@ -51,7 +51,7 @@ func (p *Parser) parsePartitionCount(what string) (int, error) {
 		return 0, p.syntaxErrorAtCur()
 	}
 	if p.cur.Ival == 0 {
-		return 0, &ParseError{Message: "Number of " + what + " = 0 is not an allowed value", Position: p.cur.Loc}
+		return 0, &ParseError{Message: "Number of " + what + " = 0 is not an allowed value", Position: p.cur.Loc, Code: 1504}
 	}
 	return int(p.advance().Ival), nil
 }
@@ -77,7 +77,7 @@ func validatePartitionClause(part *nodes.PartitionClause, bounds []partitionBoun
 	defs := part.Partitions
 	if len(defs) == 0 {
 		if part.Type == nodes.PartitionRange || part.Type == nodes.PartitionList {
-			return &ParseError{Message: "For RANGE and LIST partitions each partition must be defined", Position: part.Loc.Start}
+			return &ParseError{Message: "For RANGE and LIST partitions each partition must be defined", Position: part.Loc.Start, Code: 1492}
 		}
 		return nil
 	}
@@ -102,44 +102,48 @@ func validatePartitionClause(part *nodes.PartitionClause, bounds []partitionBoun
 }
 
 func validatePartitionBound(part *nodes.PartitionClause, def *nodes.PartitionDef, bound partitionBound) error {
-	refuse := func(msg string) error {
-		return &ParseError{Message: msg, Position: def.Loc.Start}
+	refuse := func(msg string, code ...int) error {
+		pe := &ParseError{Message: msg, Position: def.Loc.Start}
+		if len(code) > 0 {
+			pe.Code = code[0]
+		}
+		return pe
 	}
 	columns := len(part.Columns)
 	switch bound {
 	case boundNone:
 		switch part.Type {
 		case nodes.PartitionRange:
-			return refuse("Syntax error: RANGE PARTITIONING requires definition of VALUES LESS THAN for each partition") // 1479
+			return refuse("Syntax error: RANGE PARTITIONING requires definition of VALUES LESS THAN for each partition", 1479)
 		case nodes.PartitionList:
-			return refuse("Syntax error: LIST PARTITIONING requires definition of VALUES IN for each partition") // 1479
+			return refuse("Syntax error: LIST PARTITIONING requires definition of VALUES IN for each partition", 1479)
 		case nodes.PartitionSystemTime:
-			return refuse("Wrong partitions for system_time: each partition must be HISTORY or CURRENT") // 4128
+			return refuse("Wrong partitions for system_time: each partition must be HISTORY or CURRENT", 4128)
 		}
 	case boundSystemTime:
 		if part.Type != nodes.PartitionSystemTime {
-			return refuse("Only SYSTEM_TIME PARTITIONING can use HISTORY or CURRENT in partition definition") // 4113
+			return refuse("Only SYSTEM_TIME PARTITIONING can use HISTORY or CURRENT in partition definition", 4113)
 		}
 	case boundDefault:
 		if part.Type != nodes.PartitionList {
-			return refuse("Only LIST PARTITIONING can use DEFAULT in partition definition") // 1480
+			return refuse("Only LIST PARTITIONING can use DEFAULT in partition definition", 1480)
 		}
 	case boundLessThan:
 		if part.Type != nodes.PartitionRange {
-			return refuse("Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition") // 1480
+			return refuse("Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition", 1480)
 		}
 		list, tuple := def.Values.(*nodes.List)
 		switch {
 		case columns == 0 && tuple:
-			return refuse("Cannot have more than one value for this type of RANGE partitioning") // 1657
+			return refuse("Cannot have more than one value for this type of RANGE partitioning", 1657)
 		case columns > 1 && !tuple:
 			return refuse("Inconsistency in usage of column lists for partitioning") // 1064
 		case columns > 0 && tuple && len(list.Items) != columns:
-			return refuse("Inconsistency in usage of column lists for partitioning") // 1653
+			return refuse("Inconsistency in usage of column lists for partitioning", 1653)
 		}
 	case boundIn:
 		if part.Type != nodes.PartitionList {
-			return refuse("Only LIST PARTITIONING can use VALUES IN in partition definition") // 1480
+			return refuse("Only LIST PARTITIONING can use VALUES IN in partition definition", 1480)
 		}
 		rows := def.Values.(*nodes.List).Items
 		first, tuples := rows[0].(*nodes.List)
@@ -149,7 +153,7 @@ func validatePartitionBound(part *nodes.PartitionClause, def *nodes.PartitionDef
 		// A row holds at least two values, so this also turns one away with fewer columns, a
 		// 1064 there.
 		if tuples && len(first.Items) != columns {
-			return refuse("Inconsistency in usage of column lists for partitioning") // 1653
+			return refuse("Inconsistency in usage of column lists for partitioning", 1653)
 		}
 	}
 	return nil

@@ -516,8 +516,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, source string) error 
 					unnamedFKCount++
 					conName = fmt.Sprintf("%s_ibfk_%d", tableName, unnamedFKCount)
 				}
-				if foreignKeyConstraintNameExists(db, tbl, conName) {
+				if constraintNameExistsInTable(tbl, ConForeignKey, conName) {
 					return errFKDupName(conName)
+				}
+				if foreignKeyConstraintNameExists(db, nil, conName) {
+					return errFKNameTaken(db.Name, tableName)
 				}
 				refDB, refTable := "", ""
 				if cc.RefTable != nil {
@@ -831,8 +834,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, source string) error 
 				unnamedFKCount++
 				conName = fmt.Sprintf("%s_ibfk_%d", tableName, unnamedFKCount)
 			}
-			if foreignKeyConstraintNameExists(db, tbl, conName) {
+			if constraintNameExistsInTable(tbl, ConForeignKey, conName) {
 				return errFKDupName(conName)
+			}
+			if foreignKeyConstraintNameExists(db, nil, conName) {
+				return errFKNameTaken(db.Name, tableName)
 			}
 			refDB := ""
 			refTable := ""
@@ -891,6 +897,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, source string) error 
 				if indexNameExists(tbl, idxName) {
 					return errDupKeyName(idxName)
 				}
+			}
+			if err := autoPrefixTextKey(tbl, idxCols); err != nil {
+				return err
 			}
 			if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
 				return err
@@ -1061,8 +1070,20 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, source string) error 
 		}
 	}
 
-	// Validate foreign key constraints (unless foreign_key_checks=0).
-	if c.foreignKeyChecks {
+	// Validate foreign key constraints (unless foreign_key_checks=0). An engine
+	// other than InnoDB keeps no foreign key: measured on mariadb:11.8.8,
+	// MyISAM, Aria and MEMORY tables keep the key a FOREIGN KEY made and
+	// nothing else, whatever it references, a table that does not exist
+	// included.
+	if !isInnoDB(tbl.Engine) && !eqFoldStr(tbl.Engine, "DEFAULT") {
+		kept := tbl.Constraints[:0]
+		for _, con := range tbl.Constraints {
+			if con.Type != ConForeignKey {
+				kept = append(kept, con)
+			}
+		}
+		tbl.Constraints = kept
+	} else if c.foreignKeyChecks {
 		if err := c.validateForeignKeys(db, tbl); err != nil {
 			return err
 		}
@@ -1098,6 +1119,19 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, source string) error 
 		if err := c.validateKeyEngineOptions(tbl, con.IndexOptions, con.Type == nodes.ConstrVector); err != nil {
 			return err
 		}
+	}
+	if err := checkInvisibleColumns(tbl, nil); err != nil {
+		return err
+	}
+	defaultAriaPageChecksum(tbl)
+	if err := checkAutoIncrementInChecks(tbl); err != nil {
+		return err
+	}
+	if err := c.checkOversizeVarchars(stmt.Columns, tbl.Charset); err != nil {
+		return err
+	}
+	if err := c.checkRowLengths(tbl); err != nil {
+		return err
 	}
 	// An AUTO_INCREMENT column takes the key its engine needs it in: measured on
 	// mariadb:11.8.8, `CREATE TABLE a (id INT AUTO_INCREMENT, b INT)` answers
@@ -1414,6 +1448,12 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 	}
 	if pi.NumParts == 0 && len(pc.Partitions) == 0 && (pc.Type == nodes.PartitionHash || pc.Type == nodes.PartitionKey) {
 		pi.NumParts = 1
+	}
+	// HASH or KEY partitions the clause names are listed by name, whatever
+	// PARTITIONS says: mariadb:11.8.8 prints `PARTITIONS 2 (PARTITION x,
+	// PARTITION y)` as (PARTITION x, PARTITION y). NumParts is 0 for them.
+	if len(pc.Partitions) > 0 && (pc.Type == nodes.PartitionHash || pc.Type == nodes.PartitionKey) {
+		pi.NumParts = 0
 	}
 
 	switch pc.Type {
@@ -1791,6 +1831,20 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 	}
 	if (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 {
 		return &Error{Code: 1492, SQLState: "HY000", Message: "Partitions must be defined for RANGE/LIST partitioning"}
+	}
+	// A column the function cannot read (1659, 1502), then a name two
+	// partitions share (1517), then RANGE bounds that do not rise and LIST
+	// values two partitions share (1493, 1495), measured on mariadb:11.8.8.
+	if err := checkPartitionClauseFields(tbl, pc); err != nil {
+		return err
+	}
+	if err := checkPartitionNamesUnique(nil, pc.Partitions); err != nil {
+		return err
+	}
+	if (pc.Type == nodes.PartitionRange && len(pc.Columns) == 0) || pc.Type == nodes.PartitionList {
+		if err := checkRangeListBounds(tbl, buildPartitionInfo(tbl, &nodes.PartitionClause{Type: pc.Type, Columns: pc.Columns, Expr: pc.Expr}), pc.Partitions); err != nil {
+			return err
+		}
 	}
 	if pc.Type == nodes.PartitionRange && len(pc.Columns) > 0 {
 		// RANGE COLUMNS takes MAXVALUE in any partition: what it requires is
@@ -2210,8 +2264,24 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 		if col == nil || refCol == nil {
 			continue
 		}
+		// An action that writes the column cannot write a generated one:
+		// measured on mariadb:11.8.8, ON UPDATE CASCADE, ON UPDATE SET NULL and
+		// ON DELETE SET NULL over a virtual or stored generated column answer
+		// 1905, and ON DELETE CASCADE runs.
+		if col.Generated != nil {
+			for _, action := range []struct{ event, act string }{{"UPDATE", con.OnUpdate}, {"DELETE", con.OnDelete}} {
+				if (action.event == "UPDATE" && strings.EqualFold(action.act, "CASCADE")) || strings.EqualFold(action.act, "SET NULL") {
+					return &Error{Code: 1905, SQLState: "HY000", Message: fmt.Sprintf(
+						"Cannot define foreign key with ON %s %s clause on a generated column", action.event, strings.ToUpper(action.act))}
+				}
+			}
+		}
+		// A new foreign key that sets a NOT NULL column to NULL is malformed to
+		// InnoDB: measured on mariadb:11.8.8, CREATE TABLE and ADD FOREIGN KEY
+		// answer 1005 (errno 150), where making the column of an existing one
+		// NOT NULL is 1830 (checkSetNullColumnsNullable).
 		if (strings.EqualFold(con.OnDelete, "SET NULL") || strings.EqualFold(con.OnUpdate, "SET NULL")) && !col.Nullable {
-			return &Error{Code: 1830, SQLState: "HY000", Message: "Column cannot be NOT NULL: needed in a foreign key constraint"}
+			return errFKIncorrectlyFormed(db.Name, tbl.Name)
 		}
 		// MariaDB takes a foreign key over a generated column, virtual or
 		// stored, on either side. MySQL 8.0 answers
@@ -4152,9 +4222,23 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, srcTbl *T
 		}
 		tbl.Constraints = append(tbl.Constraints, con)
 	}
+	// LIKE copies the partitioning (mariadb:11.8.8: `CREATE TABLE r LIKE
+	// orders` over a RANGE table prints its partitions).
+	tbl.Partitioning = clonePartitionInfo(srcTbl.Partitioning)
+	defaultAriaPageChecksum(tbl)
 
 	db.Tables[key] = tbl
 	return nil
+}
+
+// defaultAriaPageChecksum gives an Aria table that names no PAGE_CHECKSUM the
+// server's, aria_page_checksum = ON: measured on mariadb:11.8.8, CREATE TABLE
+// ... ENGINE=Aria and ALTER TABLE ... ENGINE=Aria over a MyISAM table print
+// PAGE_CHECKSUM=1.
+func defaultAriaPageChecksum(tbl *Table) {
+	if eqFoldStr(tbl.Engine, "Aria") && tbl.PageChecksum == "" {
+		tbl.PageChecksum = "1"
+	}
 }
 
 func refActionToString(action nodes.ReferenceAction) string {

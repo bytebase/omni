@@ -184,6 +184,14 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		}
 	}
 
+	// CREATE INDEX of a plain key runs NOCOPY at best on InnoDB
+	// (alter_algorithm.go): ALGORITHM = INSTANT is 1846.
+	if !stmt.Unique && !stmt.Fulltext && !stmt.Spatial && !stmt.Vector && isInnoDB(tbl.Engine) {
+		if err := checkAlgorithm(stmt.Algorithm, []algoLimit{{algoNocopy, "ADD INDEX"}}); err != nil {
+			*tbl = snapshot
+			return err
+		}
+	}
 	tbl.Indexes = append(tbl.Indexes, idx)
 	if err := validateAutoIncrementKeyed(tbl); err != nil {
 		*tbl = snapshot

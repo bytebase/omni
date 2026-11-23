@@ -2,11 +2,18 @@ package catalog
 
 import (
 	"fmt"
+	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
 func (c *Catalog) dropTable(stmt *nodes.DropTableStmt) error {
+	// A table another table's foreign key references is not dropped, and the
+	// statement goes on to the next: measured on mariadb:11.8.8 over
+	// features@fk, DROP TABLE customers, orders, items answers 1451 and leaves
+	// customers and orders, and DROP TABLE items, customers leaves customers
+	// and orders. Each table is judged once the ones before it went.
+	var refused error
 	for _, ref := range stmt.Tables {
 		dbName := ref.Schema
 		db, err := c.resolveDatabase(dbName)
@@ -35,22 +42,16 @@ func (c *Catalog) dropTable(stmt *nodes.DropTableStmt) error {
 		// Check if any other table in any database has a FK referencing this table
 		// (unless foreign_key_checks=0).
 		if c.foreignKeyChecks {
-			if err := c.checkFKReferences(db.Name, ref.Name); err != nil {
-				return err
+			if child, _ := c.findFKReference(db.Name, ref.Name); child != nil {
+				if refused == nil {
+					refused = errRowIsReferenced()
+				}
+				continue
 			}
 		}
 		delete(db.Tables, key)
 	}
-	return nil
-}
-
-// checkFKReferences returns an error if any table in any database has a
-// foreign key constraint that references the given table.
-func (c *Catalog) checkFKReferences(dbName, tableName string) error {
-	if child, con := c.findFKReference(dbName, tableName); child != nil {
-		return errFKCannotDropParent(tableName, con.Name, child.Name)
-	}
-	return nil
+	return refused
 }
 
 // findFKReference returns a table other than the given one, in any
@@ -101,6 +102,15 @@ func (c *Catalog) truncateTable(stmt *nodes.TruncateStmt) error {
 		if tbl.SystemVersioned {
 			return errTruncateSystemVersioned(ref.Name)
 		}
+		// A table another table's foreign key references is not truncated while
+		// foreign_key_checks is on (mariadb:11.8.8: TRUNCATE TABLE customers
+		// under orders' fk_customer is 1701). A foreign key to itself does not
+		// count.
+		if c.foreignKeyChecks {
+			if child, con := c.findFKReference(db.Name, tbl.Name); child != nil {
+				return errTruncateReferenced(child, con, db.Name, tbl.Name)
+			}
+		}
 		tbl.AutoIncrement = 0
 		// TRUNCATE gives the table a tablespace of its own again, after an
 		// 1814 warning where DISCARD TABLESPACE took it away: measured on
@@ -110,4 +120,20 @@ func (c *Catalog) truncateTable(stmt *nodes.TruncateStmt) error {
 		tbl.TablespaceDiscarded = false
 	}
 	return nil
+}
+
+// errTruncateReferenced is 1701, TRUNCATE of a table con of child references,
+// with the foreign key written as MariaDB writes it.
+func errTruncateReferenced(child *Table, con *Constraint, dbName, table string) error {
+	quote := func(names []string) string {
+		out := make([]string, len(names))
+		for i, n := range names {
+			out[i] = backtickIDQ(n)
+		}
+		return strings.Join(out, ",")
+	}
+	return &Error{Code: 1701, SQLState: "42000", Message: fmt.Sprintf(
+		"Cannot truncate a table referenced in a foreign key constraint (%s.%s, CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s.%s (%s))",
+		backtickIDQ(child.Database.Name), backtickIDQ(child.Name), backtickIDQ(con.Name), quote(con.Columns),
+		backtickIDQ(dbName), backtickIDQ(table), quote(con.RefColumns))}
 }

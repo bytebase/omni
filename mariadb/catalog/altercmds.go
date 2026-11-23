@@ -92,12 +92,60 @@ func (c *Catalog) alterTableKeepingOptions(db *Database, tbl *Table, key string,
 	// (1075), so the statement that can unkey the column needs a snapshot to put
 	// the table back with when it fails. See validateAutoIncrementKeyed.
 	checksAutoIncrement := needsAutoIncrementCheck(tbl, stmt.Commands)
+	if err := c.alterMovesForeignKeyTable(tbl, stmt.Commands); err != nil {
+		return err
+	}
+	// A table in a foreign key has its keys' columns judged on the table the
+	// statement leaves (checkForeignKeyColumnChanges), and the foreign keys
+	// that reference it follow its new name and the columns it renamed once
+	// nothing can undo the statement (retargetReferences).
+	origDB, origName := db, tbl.Name
+	inForeignKey := len(c.referencingForeignKeys(tbl)) > 0 || tableHasForeignKey(tbl)
+	beforeColumns := snapshotColumns(tbl)
+	existing := make(map[*Constraint]bool, len(tbl.Constraints))
+	for _, con := range tbl.Constraints {
+		existing[con] = true
+	}
+	renames := alterColumnRenames(stmt.Commands)
+	changesColumns := false
+	for _, cmd := range stmt.Commands {
+		if cmd != nil && isColumnMutation(cmd) {
+			changesColumns = true
+		}
+	}
+	columnsBefore := make(map[*Column]bool, len(tbl.Columns))
+	for _, col := range tbl.Columns {
+		columnsBefore[col] = true
+	}
+	// The ALGORITHM a statement names is judged on the operations it runs over
+	// the table it began with, after everything else (alter_algorithm.go).
+	algorithm := alterAlgorithm(stmt.Commands)
+	var algoLimits []algoLimit
+	if algorithm != "" && isInnoDB(tbl.Engine) {
+		algoLimits = alterAlgorithmLimits(tbl, stmt.Commands)
+	}
 	var snapshot Table
-	if refusesRowFormat || checksAutoIncrement {
+	if refusesRowFormat || checksAutoIncrement || inForeignKey || changesColumns || len(algoLimits) > 0 {
 		snapshot = cloneTable(tbl)
 	}
 	if err := c.alterTableRun(db, tbl, key, stmt); err != nil {
 		return err
+	}
+	if err := checkAlgorithm(algorithm, algoLimits); err != nil {
+		undoAlter(db, key, tbl, snapshot)
+		return err
+	}
+	if changesColumns {
+		if err := checkInvisibleColumns(tbl, columnsBefore); err != nil {
+			undoAlter(db, key, tbl, snapshot)
+			return err
+		}
+	}
+	if inForeignKey {
+		if err := c.checkForeignKeyColumnChanges(tbl, origDB, origName, beforeColumns, renames, existing); err != nil {
+			undoAlter(db, key, tbl, snapshot)
+			return err
+		}
 	}
 	if checksAutoIncrement {
 		if err := validateAutoIncrementKeyed(tbl); err != nil {
@@ -123,6 +171,10 @@ func (c *Catalog) alterTableKeepingOptions(db *Database, tbl *Table, key string,
 	// Aria recovers the checksum it has when the ALTER names none.
 	if rebuilt && !setsPageChecksum && !eqFoldStr(tbl.Engine, "Aria") {
 		tbl.PageChecksum = ""
+	}
+	defaultAriaPageChecksum(tbl)
+	if len(renames) > 0 || tbl.Database != origDB || tbl.Name != origName {
+		c.retargetReferences(tbl, origDB, origName, renames, existing)
 	}
 	return nil
 }
@@ -314,13 +366,24 @@ func (c *Catalog) alterTableRun(db *Database, tbl *Table, key string, stmt *node
 		undoAlter(db, key, tbl, snapshot)
 		return errNotSystemVersioned(tbl.Name)
 	}
-	if err := validateAlteredUniqueKeys(tbl, before, repartition); err != nil {
+	// A new partitioning is judged on the table the commands leave, as CREATE
+	// TABLE judges its own, unique keys last.
+	check := func() error { return validateAlteredUniqueKeys(tbl, before, repartition) }
+	if repartition != nil && !systemTimeRepartition {
+		check = func() error { return validatePartitionClause(tbl, repartition) }
+	}
+	if err := check(); err != nil {
 		undoAlter(db, key, tbl, snapshot)
 		return err
 	}
-	if repartition != nil && tbl.Partitioning != nil {
-		// The catalog does not apply a repartition, so the partitioning it keeps no
-		// longer says which columns a unique key needs.
+	if repartition != nil && !systemTimeRepartition {
+		// The table takes the partitioning the statement wrote, as the engine
+		// does (mariadb:11.8.8: PARTITION BY KEY (id) PARTITIONS 8 over a HASH
+		// table prints KEY (id) PARTITIONS 8).
+		tbl.Partitioning = buildPartitionInfo(tbl, repartition)
+	} else if repartition != nil && tbl.Partitioning != nil {
+		// The catalog does not apply a SYSTEM_TIME repartition, so the
+		// partitioning it keeps no longer says which columns a unique key needs.
 		tbl.Partitioning.keyColumns = nil
 	}
 	return nil
@@ -453,7 +516,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		}
 		if c.foreignKeyChecks && len(actx.droppedIndexes) > 0 && !checkFKIndexCoverage(tbl) {
 			*tbl = snapshot
-			return errDropIndexFK(actx.droppedIndexes[0])
+			return errDropFKIndex(tbl, actx.droppedIndexes[0])
 		}
 		if charsetPlan.hasConvert {
 			if err := c.applyAlterConvertCharset(tbl, charsetPlan); err != nil {
@@ -508,7 +571,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	}
 	if c.foreignKeyChecks && len(actx.droppedIndexes) > 0 && !checkFKIndexCoverage(tbl) {
 		rollback()
-		return errDropIndexFK(actx.droppedIndexes[0])
+		return errDropFKIndex(tbl, actx.droppedIndexes[0])
 	}
 	// Validate system-versioning consistency across the atomic ALTER as a whole
 	// ("ADD PERIOD ..., ADD SYSTEM VERSIONING" is valid; either one alone is not).
@@ -1125,7 +1188,7 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 				conName = fmt.Sprintf("%s_ibfk_%d", tbl.Name, nextFKGeneratedNumber(tbl, tbl.Name))
 			}
 			if foreignKeyConstraintNameExists(tbl.Database, nil, conName) {
-				return errFKDupName(conName)
+				return errFKNameTaken(tbl.Database.Name, tbl.Name)
 			}
 			refDB, refTable := "", ""
 			if cc.RefTable != nil {
@@ -1552,16 +1615,18 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 		}
 	}
 
-	// Check for VIRTUAL<->STORED storage type change (MySQL 8.0 error 3106).
+	// A column goes in or out of VIRTUAL only by being dropped and added:
+	// measured on mariadb:11.8.8, MODIFY over a VIRTUAL column to PERSISTENT
+	// or to a plain column, and over a PERSISTENT or plain one to VIRTUAL,
+	// answer 1907, where PERSISTENT and plain columns turn into each other.
 	oldCol := tbl.Columns[idx]
-	if oldCol.Generated != nil && colDef.Generated != nil {
-		if oldCol.Generated.Stored != colDef.Generated.Stored {
-			return errUnsupportedGeneratedStorageChange(colDef.Name, tbl.Name)
-		}
+	oldVirtual := oldCol.Generated != nil && !oldCol.Generated.Stored
+	newVirtual := colDef.Generated != nil && !colDef.Generated.Stored
+	if oldVirtual != newVirtual {
+		return errGeneratedNotSupported()
 	}
 	// A replacement expression that reads the column itself is 4029 unless the
-	// command turns a plain column into a generated one (which is 1907 first on
-	// MariaDB, not modeled here).
+	// command turns a plain column into a generated one.
 	if oldCol.Generated != nil || colDef.Generated == nil {
 		if err := validateColumnSelfReference(actx.origDBName, actx.origTableName, colDef); err != nil {
 			return err
@@ -1573,6 +1638,23 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	// unless the same ALTER drops the primary key (measured on mariadb:11.8.8).
 	if !actx.dropsPK && columnInPrimaryKey(tbl, oldName) {
 		col.Nullable = false
+	}
+	// The keys over the column hold its new definition to what they take, as
+	// they hold a column they are added over: measured on mariadb:11.8.8,
+	// MODIFY loc POINT NULL under a SPATIAL key is 1252, and MODIFY name INT
+	// under a FULLTEXT one 1283.
+	for _, idx := range tbl.Indexes {
+		for _, ic := range idx.Columns {
+			if ic == nil || !strings.EqualFold(ic.Name, oldName) {
+				continue
+			}
+			switch {
+			case idx.Fulltext && !isFulltextColumnType(col.DataType):
+				return errCannotPartOfFulltext(col.Name)
+			case idx.Spatial && isSpatialColumnType(col.DataType) && col.Nullable:
+				return &Error{Code: 1252, SQLState: "42000", Message: "All parts of a SPATIAL index must be NOT NULL"}
+			}
+		}
 	}
 	if err := c.applyColumnEngineOptions(tbl, col, colDef); err != nil {
 		return err
@@ -1610,17 +1692,47 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	tbl.Columns[idx] = col
 
 	// MODIFY and CHANGE replace the column's definition, so the check the old
-	// definition carried goes with it and the new one's takes its place: a
-	// JSON column's is json_valid, and any other definition's is whatever it
-	// declares, which is nothing here since a column-level CHECK is not part
-	// of what MODIFY accepts. Measured on mariadb:11.8.8:
-	// `ALTER TABLE t MODIFY COLUMN a INT` against
-	// `CREATE TABLE t (a INT CHECK (a > 0))` leaves no check, and
+	// definition carried goes with it and the new one's takes its place: the
+	// CHECK it declares, or a JSON column's json_valid. Measured on
+	// mariadb:11.8.8: `ALTER TABLE t MODIFY COLUMN a INT` against
+	// `CREATE TABLE t (a INT CHECK (a > 0))` leaves no check,
 	// `ALTER TABLE t MODIFY COLUMN j JSON` against
 	// `CREATE TABLE t (j JSON CHECK (j IS NOT NULL))` replaces that check
-	// with json_valid(`j`).
+	// with json_valid(`j`), and MODIFY age INT CHECK (age > 1) prints `age`
+	// int(11) DEFAULT NULL CHECK (`age` > 1).
+	checkName := func(cc *nodes.ColumnConstraint) string {
+		if cc.Name != "" {
+			return cc.Name
+		}
+		return colDef.Name
+	}
+	for _, cc := range colDef.Constraints {
+		if cc == nil || cc.Type != nodes.ColConstrCheck {
+			continue
+		}
+		if err := validateColumnCheckReferences(colDef.Name, checkName(cc), cc.Expr); err != nil {
+			tbl.Columns[idx] = oldCol
+			return err
+		}
+	}
 	dropColumnCheck(tbl, oldName)
-	if col.IsJSON {
+	declared := false
+	for _, cc := range colDef.Constraints {
+		if cc == nil || cc.Type != nodes.ColConstrCheck {
+			continue
+		}
+		conName := checkName(cc)
+		tbl.Constraints = append(tbl.Constraints, &Constraint{
+			Name:        conName,
+			Type:        ConCheck,
+			Table:       tbl,
+			Column:      colDef.Name,
+			CheckExpr:   nodeToSQL(cc.Expr),
+			NotEnforced: cc.NotEnforced,
+		})
+		declared = true
+	}
+	if col.IsJSON && !declared {
 		tbl.Constraints = append(tbl.Constraints, jsonValidConstraint(col))
 	}
 
@@ -1974,7 +2086,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			conName = fmt.Sprintf("%s_ibfk_%d", tbl.Name, nextFKGeneratedNumber(tbl, tbl.Name))
 		}
 		if foreignKeyConstraintNameExists(tbl.Database, nil, conName) {
-			return errFKDupName(conName)
+			return errFKNameTaken(tbl.Database.Name, tbl.Name)
 		}
 		refDBName := ""
 		refTable := ""
@@ -2051,6 +2163,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		if err := validateCheckExpr(conName, con.Expr); err != nil {
 			return err
 		}
+		if err := checkAutoIncrementInCheckExpr(tbl, con.Expr); err != nil {
+			return err
+		}
 		if checkNames != nil {
 			checkNames[con] = conName
 		}
@@ -2078,6 +2193,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			idxName = allocIndexName(tbl, cols[0])
 		} else if idxName != "" && indexNameExists(tbl, idxName) {
 			return errDupKeyName(idxName)
+		}
+		if err := autoPrefixTextKey(tbl, idxCols); err != nil {
+			return err
 		}
 		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
 			return err
@@ -2841,10 +2959,10 @@ func updateColumnRefsInIndexes(tbl *Table, oldName, newName string) {
 	renamePartitionKeyColumn(tbl, oldName, newName)
 	moveColumnChecks(tbl, oldName, newName)
 	renameCheckColumnRefs(tbl, oldName, newName)
-	// What a generated expression reads follows the column too. The server
-	// rewrites the expression's own text, which this does not do yet, but the
-	// recorded names have to keep pointing at the column or the dependency
-	// goes unseen: measured on mariadb:11.8.8, after
+	// What a generated expression reads follows the column too, in its text
+	// as the server rewrites it (mariadb:11.8.8: RENAME COLUMN first_name TO
+	// given_name leaves concat(`given_name`,' ',`last_name`)), and in the
+	// names it records, or the dependency goes unseen: measured on mariadb:11.8.8, after
 	// `CREATE TABLE t (a DOUBLE AS (1) VIRTUAL, b DOUBLE AS (a) STORED);
 	// ALTER TABLE t RENAME COLUMN a TO z`, `ALTER TABLE t MODIFY z DOUBLE AS
 	// (RAND()) VIRTUAL` answers 1901 naming z.
@@ -2861,7 +2979,10 @@ func updateColumnRefsInIndexes(tbl *Table, oldName, newName string) {
 			}
 			refs[i] = ref
 		}
-		col.Generated.Refs = refs
+		gen := *col.Generated
+		gen.Refs = refs
+		gen.Expr = renameColumnInExprText(gen.Expr, oldName, newName)
+		col.Generated = &gen
 	}
 }
 
@@ -2914,10 +3035,12 @@ func (c *Catalog) applyAlterConvertCharset(tbl *Table, plan alterCharsetPlan) er
 		}
 	}
 
+	oldTableCharset := tbl.Charset
 	tbl.Charset = plan.tableCharset
 	tbl.Collation = plan.tableCollation
 
 	toBinary := eqFoldStr(plan.convertCharset, "binary")
+	targetMB := charsetMaxBytes(plan.convertCharset)
 	for _, col := range tbl.Columns {
 		if !isStringType(col.DataType) {
 			continue
@@ -2925,6 +3048,24 @@ func (c *Catalog) applyAlterConvertCharset(tbl *Table, plan alterCharsetPlan) er
 		if toBinary && !isEnumSetType(col.DataType) {
 			convertExistingColumnToBinary(col)
 			continue
+		}
+		// A TEXT column keeps the characters it held: converted to a character
+		// set of wider characters it takes the next TEXT type up, as
+		// mariadb:11.8.8 makes latin1 TEXT a MEDIUMTEXT under CONVERT TO
+		// utf8mb4 or utf8mb3.
+		was := col.Charset
+		if was == "" {
+			was = oldTableCharset
+		}
+		if !eqFoldStr(was, "binary") && charsetMaxBytes(was) < targetMB {
+			switch strings.ToLower(col.DataType) {
+			case "tinytext":
+				col.DataType, col.ColumnType = "text", "text"
+			case "text":
+				col.DataType, col.ColumnType = "mediumtext", "mediumtext"
+			case "mediumtext":
+				col.DataType, col.ColumnType = "longtext", "longtext"
+			}
 		}
 		col.Charset = plan.convertCharset
 		col.Collation = plan.convertCollation
@@ -2996,7 +3137,12 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 				Name: fmt.Sprintf("p%d", start+i),
 			})
 		}
-		tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
+		// A table whose partitions were named keeps listing them: measured on
+		// mariadb:11.8.8, ADD PARTITION PARTITIONS 2 over HASH (PARTITION a,
+		// PARTITION b) prints a, b, p2 and p3.
+		if tbl.Partitioning.NumParts > 0 {
+			tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
+		}
 		return nil
 	}
 	// ADD PARTITION IF NOT EXISTS naming a partition the table has adds none
@@ -3013,6 +3159,9 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 		}
 	}
 	if err := checkAddedPartitionKinds(tbl.Partitioning, cmd.PartitionDefs); err != nil {
+		return err
+	}
+	if err := checkPartitionNamesUnique(tbl.Partitioning.Partitions, cmd.PartitionDefs); err != nil {
 		return err
 	}
 	if err := checkAddedRangeBounds(tbl, cmd.PartitionDefs); err != nil {
@@ -3040,8 +3189,20 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 	}
 	if len(cmd.PartitionDefs) > 0 {
 		tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
+		// Partitions added by name list a HASH or KEY table's partitions by
+		// name from then on (mariadb:11.8.8: ADD PARTITION (PARTITION p4) over
+		// PARTITIONS 4 prints p0 to p4).
+		if hashOrKeyPartitioned(tbl.Partitioning) {
+			tbl.Partitioning.NumParts = 0
+		}
 	}
 	return nil
+}
+
+// hashOrKeyPartitioned reports whether a table is partitioned by [LINEAR] HASH
+// or KEY, whose partitions hold no bounds.
+func hashOrKeyPartitioned(pi *PartitionInfo) bool {
+	return pi != nil && (pi.Type == "HASH" || pi.Type == "KEY")
 }
 
 // alterDropPartition drops named partitions from a partitioned table.
@@ -3102,7 +3263,12 @@ func (c *Catalog) alterTruncatePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonpartitioned()
 	}
-	// Truncate is a data operation; for DDL catalog purposes, it's a no-op.
+	// Truncate is a data operation; for DDL catalog purposes, it's a no-op. A
+	// name the table has no partition or subpartition of is 1735
+	// (mariadb:11.8.8).
+	if name := firstUnknownPartition(tbl.Partitioning, cmd.PartitionNames); !cmd.AllPartitions && name != "" {
+		return errUnknownPartition(name, tbl.Name)
+	}
 	return nil
 }
 
@@ -3119,14 +3285,20 @@ func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 	if currentCount == 0 {
 		currentCount = tbl.Partitioning.NumParts
 	}
-	newCount := currentCount - cmd.Number
-	if newCount < 1 {
-		newCount = 1
+	// Coalescing none is 1515, and every partition 1508 (mariadb:11.8.8).
+	if cmd.Number == 0 {
+		return errCoalesceNone()
 	}
+	if cmd.Number >= currentCount {
+		return errDropLastPartition()
+	}
+	newCount := currentCount - cmd.Number
 	if len(tbl.Partitioning.Partitions) > 0 {
 		tbl.Partitioning.Partitions = tbl.Partitioning.Partitions[:newCount]
 	}
-	tbl.Partitioning.NumParts = newCount
+	if tbl.Partitioning.NumParts > 0 {
+		tbl.Partitioning.NumParts = newCount
+	}
 	return nil
 }
 
@@ -3139,9 +3311,58 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 		if tbl.Partitioning.Type != "HASH" && tbl.Partitioning.Type != "KEY" {
 			return errReorgNoParam()
 		}
+		// MariaDB leaves the first partition alone: measured on mariadb:11.8.8,
+		// REORGANIZE PARTITION over HASH PARTITIONS 4 prints PARTITIONS 1, and
+		// over (PARTITION a, PARTITION b, PARTITION c) prints a alone.
+		if len(tbl.Partitioning.Partitions) > 1 {
+			tbl.Partitioning.Partitions = tbl.Partitioning.Partitions[:1]
+		}
+		if tbl.Partitioning.NumParts > 0 {
+			tbl.Partitioning.NumParts = 1
+		}
 		return nil
 	}
 	if err := checkAddedPartitionKinds(tbl.Partitioning, cmd.PartitionDefs); err != nil {
+		return err
+	}
+	// What mariadb:11.8.8 answers once the definitions fit the method: a HASH
+	// or KEY table keeps its number of partitions (1510), a RANGE table
+	// reorganizes partitions next to each other (1519), and a new name a
+	// partition the statement keeps holds is 1517.
+	if hashOrKeyPartitioned(tbl.Partitioning) && len(cmd.PartitionDefs) != len(cmd.PartitionNames) {
+		return errReorganizeChangesCount()
+	}
+	if strings.HasPrefix(tbl.Partitioning.Type, "RANGE") {
+		first, last, count := -1, -1, 0
+		for i, pd := range tbl.Partitioning.Partitions {
+			for _, name := range cmd.PartitionNames {
+				if strings.EqualFold(pd.Name, name) {
+					if first < 0 {
+						first = i
+					}
+					last = i
+					count++
+					break
+				}
+			}
+		}
+		if count > 0 && last-first+1 != count {
+			return errReorganizeNotConsecutive()
+		}
+	}
+	var kept []*PartitionDefInfo
+	for _, pd := range tbl.Partitioning.Partitions {
+		reorganized := false
+		for _, name := range cmd.PartitionNames {
+			if strings.EqualFold(pd.Name, name) {
+				reorganized = true
+			}
+		}
+		if !reorganized {
+			kept = append(kept, pd)
+		}
+	}
+	if err := checkPartitionNamesUnique(kept, cmd.PartitionDefs); err != nil {
 		return err
 	}
 	// Remove the old partitions.
@@ -3197,6 +3418,12 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 	}
 	if insertPos >= len(remaining) {
 		result = append(result, newParts...)
+	}
+	// The partitions it leaves hold to the bounds and values a new table's do:
+	// mariadb:11.8.8 answers 1493 for REORGANIZE PARTITION p2024 INTO
+	// (PARTITION p2024 VALUES LESS THAN (2030)) before p2025's 2026.
+	if err := checkPartitionSequence(tbl, tbl.Partitioning, result); err != nil {
+		return err
 	}
 	tbl.Partitioning.Partitions = result
 	return nil
@@ -3339,6 +3566,11 @@ func (c *Catalog) planAlterCharset(tbl *Table, cmds []*nodes.AlterTableCmd) (alt
 			}
 		case nodes.ATConvertCharset:
 			convCS := normalizeCharsetName(cmd.Name)
+			// A character set the server does not have is 1115
+			// (mariadb:11.8.8: CONVERT TO CHARACTER SET nope).
+			if !eqFoldStr(convCS, "DEFAULT") && defaultCollationForCharset[toLower(convCS)] == "" {
+				return plan, &Error{Code: 1115, SQLState: "42000", Message: fmt.Sprintf("Unknown character set: '%s'", cmd.Name)}
+			}
 			convColl := cmd.NewName
 			if convColl == "" && !eqFoldStr(convCS, "DEFAULT") {
 				if dc := c.charsetCollation(convCS); dc != "" {
@@ -3651,6 +3883,14 @@ func (c *Catalog) alterExchangePartition(db *Database, tbl *Table, cmd *nodes.Al
 		if exchTbl == nil {
 			return errNoSuchTable(exchDB.Name, cmd.ExchangeTable.Name)
 		}
+		// A partitioned table to exchange with is 1732, and a partition the
+		// table does not have 1735 (mariadb:11.8.8).
+		if exchTbl.Partitioning != nil {
+			return errExchangePartitioned(exchTbl.Name)
+		}
+	}
+	if name := firstUnknownPartition(tbl.Partitioning, []string{cmd.Name}); name != "" {
+		return errUnknownPartition(name, tbl.Name)
 	}
 	return nil
 }
@@ -3701,6 +3941,9 @@ func (c *Catalog) alterConvertPartitionToTable(db *Database, tbl *Table, cmd *no
 		if err := c.createTableLike(target, cmd.ConvertTable.Name, key, tbl, &nodes.CreateTableStmt{}); err != nil {
 			return err
 		}
+		// The partition becomes a table of its own, with no partitioning
+		// (LIKE copies the source's).
+		target.Tables[key].Partitioning = nil
 	}
 	parts := tbl.Partitioning.Partitions
 	tbl.Partitioning.Partitions = append(parts[:at:at], parts[at+1:]...)
@@ -3832,7 +4075,12 @@ func boundFitsColumns(pi *PartitionInfo, pd *nodes.PartitionDef) bool {
 // `ADD PARTITION (PARTITION p1 VALUES LESS THAN (5))` after LESS THAN (10), and
 // for a bound equal to it. A bound the catalog cannot order passes.
 func checkAddedRangeBounds(tbl *Table, defs []*nodes.PartitionDef) error {
-	pi := tbl.Partitioning
+	return checkRangeListBounds(tbl, tbl.Partitioning, defs)
+}
+
+// checkRangeListBounds holds defs, added after pi's partitions, to the bounds
+// and values checkAddedRangeBounds describes.
+func checkRangeListBounds(tbl *Table, pi *PartitionInfo, defs []*nodes.PartitionDef) error {
 	if pi != nil && (pi.Type == "LIST" || pi.Type == "LIST COLUMNS") {
 		return checkAddedListValues(pi, defs)
 	}
