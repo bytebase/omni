@@ -123,7 +123,12 @@ func columnDefs(cols *ast.List) []qcol {
 	out := []qcol{}
 	for _, item := range cols.Items {
 		if cd, ok := item.(*ast.ColumnDef); ok {
-			out = append(out, qcol{name: cd.Name, typ: dataTypeClass(cd.DataType), identity: cd.Identity != nil, noInsert: cd.Computed != nil})
+			rowversion := false
+			if cd.DataType != nil {
+				base := strings.ToLower(cd.DataType.Name)
+				rowversion = base == "rowversion" || base == "timestamp"
+			}
+			out = append(out, qcol{name: cd.Name, typ: dataTypeClass(cd.DataType), identity: cd.Identity != nil, noInsert: cd.Computed != nil || rowversion})
 		}
 	}
 	return out

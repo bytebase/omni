@@ -1885,12 +1885,13 @@ func (c *Catalog) execCreateOrAlterTrigger(n *ast.CreateTriggerStmt, source stri
 	existingKind := c.lookupSchemaObject(trigSchema, trigName, false)
 	pureAlter := isPureAlterStmt(n, source)
 	existing, owner := c.findTrigger(trigSchema, trigName)
+	target := c.triggerTarget(schema, parentName)
 	switch {
 	case !n.OrAlter && !pureAlter && existingKind != kindNone:
 		return mssqlErr(ErrDupObject, "There is already an object named '%s' in the database.", trigName)
 	case pureAlter && existing == nil && c.bindsModules():
 		return mssqlErr(ErrInvalidObjectName, "Invalid object name '%s'.", trigName)
-	case existing != nil && c.bindsModules() && !strings.EqualFold(owner, parentName):
+	case existing != nil && c.bindsModules() && owner != target:
 		return mssqlErr(2110, "Cannot alter trigger '%s' on '%s' because this trigger does not belong to this object. Specify the correct trigger name or the correct target object name.", trigName, parentName)
 	}
 
@@ -1922,7 +1923,7 @@ func (c *Catalog) execCreateOrAlterTrigger(n *ast.CreateTriggerStmt, source stri
 		Body:   body,
 	}
 	// CREATE OR ALTER and ALTER replace the trigger they name.
-	if existing != nil && (n.OrAlter || pureAlter) && strings.EqualFold(owner, parentName) {
+	if existing != nil && (n.OrAlter || pureAlter) && owner == target {
 		existing.Name, existing.Timing, existing.Event, existing.Body = trigger.Name, trigger.Timing, trigger.Event, trigger.Body
 		return nil
 	}
@@ -1948,25 +1949,25 @@ func triggerVerb(n *ast.CreateTriggerStmt, source string) string {
 	return "create"
 }
 
-// findTrigger returns the DML trigger named name in schema and the name of
-// the table or view it is on.
-func (c *Catalog) findTrigger(schema *metadata.SchemaMetadata, name string) (*metadata.TriggerMetadata, string) {
+// findTrigger returns the DML trigger named name in schema and the table or
+// view it is on (a *metadata.TableMetadata or *metadata.ViewMetadata).
+func (c *Catalog) findTrigger(schema *metadata.SchemaMetadata, name string) (*metadata.TriggerMetadata, any) {
 	if schema == nil {
-		return nil, ""
+		return nil, nil
 	}
 	type owned struct {
 		trigger *metadata.TriggerMetadata
-		owner   string
+		owner   any
 	}
 	var all []owned
 	for _, t := range schema.Tables {
 		for _, tr := range t.Triggers {
-			all = append(all, owned{tr, t.Name})
+			all = append(all, owned{tr, t})
 		}
 	}
 	for _, v := range schema.Views {
 		for _, tr := range v.Triggers {
-			all = append(all, owned{tr, v.Name})
+			all = append(all, owned{tr, v})
 		}
 	}
 	// An exact name first, then one that matches only by case, if just one
@@ -1974,7 +1975,21 @@ func (c *Catalog) findTrigger(schema *metadata.SchemaMetadata, name string) (*me
 	if i, ok := resolveExactOrFoldIndex(all, func(o owned) string { return o.trigger.Name }, name); ok {
 		return all[i].trigger, all[i].owner
 	}
-	return nil, ""
+	return nil, nil
+}
+
+// triggerTarget is the table or view a trigger statement names, as
+// findTrigger reports an owner.
+func (c *Catalog) triggerTarget(schema *metadata.SchemaMetadata, name string) any {
+	if t := c.resolveTableInSchema(schema, name); t != nil {
+		return t
+	}
+	if schema != nil {
+		if idx, ok := resolveExactOrFoldIndex(schema.Views, func(v *metadata.ViewMetadata) string { return v.Name }, name); ok {
+			return schema.Views[idx]
+		}
+	}
+	return nil
 }
 
 // bindsModules reports whether Exec binds the bodies of views and modules:

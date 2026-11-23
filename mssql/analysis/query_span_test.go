@@ -256,6 +256,14 @@ func TestResolveQuerySpanPredicates(t *testing.T) {
 	}
 }
 
+func TestResolveQuerySpanPredicatesThroughMethodReceivers(t *testing.T) {
+	span := resolve(t, "SELECT a FROM t WHERE CAST(b AS xml).exist('/x') = 1")
+	want := set(column("t", "b"))
+	if !equalSet(span.PredicateColumns, want) {
+		t.Errorf("got %v, want %v", span.PredicateColumns, want)
+	}
+}
+
 func TestResolveQuerySpanPredicatesThroughExpressionsAndViews(t *testing.T) {
 	tests := []struct {
 		statement string

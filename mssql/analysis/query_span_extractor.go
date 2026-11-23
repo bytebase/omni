@@ -821,6 +821,12 @@ func (q *querySpanExtractor) collectPredicatesInScope(expr ast.Node) error {
 		}
 		return nil
 	case *ast.MethodCallExpr:
+		// An instance method reads its receiver too.
+		if v.Expr != nil {
+			if err := q.collectPredicatesInScope(v.Expr); err != nil {
+				return err
+			}
+		}
 		if v.Args != nil {
 			for _, it := range v.Args.Items {
 				if err := q.collectPredicatesInScope(it); err != nil {

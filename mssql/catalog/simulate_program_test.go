@@ -237,6 +237,7 @@ func TestProgramBinding(t *testing.T) {
 		{"method receiver is bound", nil, "CREATE VIEW v AS SELECT CAST(nope AS xml).value('(/x)[1]', 'int') AS x FROM t", ErrInvalidColumnName},
 		{"table variable target in its FROM", nil, "CREATE PROCEDURE p AS BEGIN DECLARE @t TABLE (id INT); UPDATE @t SET id = id + 1 FROM @t; END", 0},
 		{"INSERT through a view projecting an identity", []string{"CREATE TABLE ti (id INT IDENTITY(1,1) NOT NULL, payload INT NULL)", "CREATE VIEW vi AS SELECT id, payload FROM ti"}, "CREATE PROCEDURE p AS INSERT INTO vi VALUES (1)", 0},
+		{"INSERT skips a table variable's rowversion", nil, "CREATE PROCEDURE p AS BEGIN DECLARE @t TABLE (id INT, rv ROWVERSION); INSERT INTO @t VALUES (1); END", 0},
 		{"recursive call binds the new signature", []string{"CREATE FUNCTION dbo.f(@x INT) RETURNS INT AS BEGIN RETURN @x END"}, "ALTER FUNCTION dbo.f(@x INT, @y INT) RETURNS INT AS BEGIN RETURN CASE WHEN @x <= 0 THEN @y ELSE dbo.f(@x - 1, @y) END; END", 0},
 		{"recursive call with the old signature", []string{"CREATE FUNCTION dbo.f(@x INT) RETURNS INT AS BEGIN RETURN @x END"}, "ALTER FUNCTION dbo.f(@x INT, @y INT) RETURNS INT AS BEGIN RETURN dbo.f(@x); END", 313},
 	}
@@ -302,5 +303,32 @@ func TestAlterTriggerPrefersExactName(t *testing.T) {
 	}
 	if table.Triggers[0].Event != "INSERT" || table.Triggers[1].Event != "UPDATE" {
 		t.Fatalf("got %s %s, %s %s", table.Triggers[0].Name, table.Triggers[0].Event, table.Triggers[1].Name, table.Triggers[1].Event)
+	}
+}
+
+// TestAlterTriggerComparesTargets pins ALTER TRIGGER on a case-sensitive
+// snapshot holding tables t and T: a trigger of t altered ON T is Msg 2110,
+// not a change to t's trigger.
+func TestAlterTriggerComparesTargets(t *testing.T) {
+	c, err := LoadSQL("CREATE TABLE t (id INT NOT NULL);")
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema := c.GetSchema("dbo")
+	upper := &metadata.TableMetadata{Name: "T", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}}}
+	schema.Tables = append(schema.Tables, upper)
+	c.indexTable(schema.Name, upper)
+	lower := c.GetTable("dbo", "t")
+	lower.Triggers = []*metadata.TriggerMetadata{{Name: "trg", Timing: "AFTER", Event: "INSERT", Body: "CREATE TRIGGER trg ON t AFTER INSERT AS SET NOCOUNT ON"}}
+	results, err := c.Exec("ALTER TRIGGER trg ON T AFTER UPDATE AS SET NOCOUNT ON", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var refusal *Error
+	if len(results) != 1 || !errors.As(results[0].Error, &refusal) || refusal.Code != 2110 {
+		t.Fatalf("got %+v, want Msg 2110", results)
+	}
+	if lower.Triggers[0].Event != "INSERT" {
+		t.Fatalf("t's trigger changed: %+v", lower.Triggers[0])
 	}
 }
