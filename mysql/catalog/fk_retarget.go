@@ -16,15 +16,16 @@ import (
 // referencing the parents it left behind, so its own references to tables of
 // oldDB name oldDB. It returns what undoes the changes.
 func (c *Catalog) retargetReferences(tbl *Table, oldDB *Database, oldName string, columns map[string]string) (undo func()) {
+	// A change is saved by the table and the position of the constraint, not
+	// the constraint: a rollback may first put back a table's snapshot, whose
+	// constraints are copies, and it is those the undo must reach.
 	type saved struct {
-		con     *Constraint
+		child   *Table
+		at      int
 		db, tbl string
 		cols    []string
 	}
 	var changed []saved
-	save := func(con *Constraint) {
-		changed = append(changed, saved{con, con.RefDatabase, con.RefTable, slices.Clone(con.RefColumns)})
-	}
 	moved := tbl.Database != oldDB
 	for _, db := range c.databases {
 		for _, child := range db.Tables {
@@ -34,9 +35,12 @@ func (c *Catalog) retargetReferences(tbl *Table, oldDB *Database, oldName string
 			if child == tbl {
 				owner = oldDB
 			}
-			for _, con := range child.Constraints {
+			for at, con := range child.Constraints {
 				if con.Type != ConForeignKey {
 					continue
+				}
+				save := func(con *Constraint) {
+					changed = append(changed, saved{child, at, con.RefDatabase, con.RefTable, slices.Clone(con.RefColumns)})
 				}
 				refDB := con.RefDatabase
 				if refDB == "" && owner != nil {
@@ -72,7 +76,10 @@ func (c *Catalog) retargetReferences(tbl *Table, oldDB *Database, oldName string
 	return func() {
 		for i := len(changed) - 1; i >= 0; i-- {
 			s := changed[i]
-			s.con.RefDatabase, s.con.RefTable, s.con.RefColumns = s.db, s.tbl, s.cols
+			if s.at < len(s.child.Constraints) {
+				con := s.child.Constraints[s.at]
+				con.RefDatabase, con.RefTable, con.RefColumns = s.db, s.tbl, s.cols
+			}
 		}
 	}
 }

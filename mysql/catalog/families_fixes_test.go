@@ -3,6 +3,7 @@ package catalog
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 // The behaviors below were read on mysql:8.0.46 while closing the
@@ -333,5 +334,59 @@ func TestEventScheduleTimes(t *testing.T) {
 		if (tc.show == "") != (got == "") || !strings.Contains(got, tc.show) {
 			t.Errorf("%s: SHOW CREATE EVENT %q, want it to hold %q", tc.sql, got, tc.show)
 		}
+	}
+}
+
+func TestRenameRollbackRestoresChildReferences(t *testing.T) {
+	// The child's snapshot, put back first, already references q; the
+	// parent's undo must reach that copy.
+	c := familiesCatalog(t, `CREATE TABLE p (id INT PRIMARY KEY);
+		CREATE TABLE ch (pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p (id));`)
+	if code := familiesCode(t, c, "RENAME TABLE p TO q, ch TO ch2, missing TO z"); code != ErrNoSuchTable {
+		t.Fatalf("got %d, want %d", code, ErrNoSuchTable)
+	}
+	if got := c.ShowCreateTable("a", "ch"); !strings.Contains(got, "REFERENCES `p` (`id`)") {
+		t.Errorf("ch after the failed rename:\n%s", got)
+	}
+}
+
+func TestListColumnsDuplicatesByEachColumnsCollation(t *testing.T) {
+	c := familiesCatalog(t, "")
+	ok := `CREATE TABLE l (a VARCHAR(10) COLLATE utf8mb4_general_ci, b VARCHAR(10) COLLATE utf8mb4_bin)
+		PARTITION BY LIST COLUMNS (a, b) (PARTITION p0 VALUES IN (('x', 'A')), PARTITION p1 VALUES IN (('x', 'a')))`
+	if got := familiesCode(t, c, ok); got != 0 {
+		t.Errorf("distinct under b's binary collation: got %d", got)
+	}
+	dup := `CREATE TABLE l2 (a VARCHAR(10) COLLATE utf8mb4_general_ci, b VARCHAR(10) COLLATE utf8mb4_bin)
+		PARTITION BY LIST COLUMNS (a, b) (PARTITION p0 VALUES IN (('X', 'a')), PARTITION p1 VALUES IN (('x', 'a')))`
+	if got := familiesCode(t, c, dup); got != 1495 {
+		t.Errorf("equal under a's case-insensitive collation: got %d, want 1495", got)
+	}
+}
+
+func TestViewKeepsSchemaAfterDerivedTable(t *testing.T) {
+	// The derived table before a.t is resolved on its own scope; the CTE t
+	// still shadows a.t after it.
+	c := familiesCatalog(t, "CREATE TABLE t (id INT);")
+	mustExec(t, c, "CREATE VIEW v AS WITH t AS (SELECT 2 AS id) SELECT a.t.id FROM (SELECT 1 AS x) d, a.t")
+	const want = "with `t` as (select 2 AS `id`) select `a`.`t`.`id` AS `id` from ((select 1 AS `x`) `d` join `a`.`t`)"
+	if got := c.GetDatabase("a").Views["v"].Definition; got != want {
+		t.Errorf("v:\n got %s\nwant %s", got, want)
+	}
+}
+
+func TestEventTimesInSessionTimeZone(t *testing.T) {
+	// An AT one hour ahead of the session's own clock is in the future,
+	// whatever UTC says.
+	zone := time.FixedZone("", -8*3600)
+	at := time.Now().In(zone).Add(time.Hour).Format("2006-01-02 15:04:05")
+	c := familiesCatalog(t, "SET time_zone = '-08:00';")
+	mustExec(t, c, "CREATE EVENT e ON SCHEDULE AT '"+at+"' DO COMMIT")
+	if got := c.ShowCreateEvent("a", "e"); !strings.Contains(got, "AT '"+at+"'") || strings.Contains(got, "DISABLE") {
+		t.Errorf("SHOW CREATE EVENT %q, want an enabled event AT '%s'", got, at)
+	}
+	ends := time.Now().In(zone).Add(time.Hour).Format("2006-01-02 15:04:05")
+	if got := familiesCode(t, c, "CREATE EVENT e2 ON SCHEDULE EVERY 1 MINUTE ENDS '"+ends+"' DO COMMIT"); got != 0 {
+		t.Errorf("ENDS one hour ahead of the session's clock: got %d", got)
 	}
 }

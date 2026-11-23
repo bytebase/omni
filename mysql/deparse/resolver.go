@@ -287,9 +287,12 @@ func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*
 		}
 	}
 	// A CTE of a table's name keeps that table's schema (viewTableSchema).
+	// A derived table in the FROM clause is resolved on its own scope, so
+	// the outer one is put back after.
+	outerShadowing := r.shadowing
 	r.shadowing = localCTETables
 	sc := r.buildScope(stmt.From, origLookup)
-	r.shadowing = nil
+	r.shadowing = outerShadowing
 	sc.parent = parentScope
 	sc.ctes = localCTETables
 	r.Lookup = origLookup

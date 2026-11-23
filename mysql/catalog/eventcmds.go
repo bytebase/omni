@@ -23,8 +23,9 @@ func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt, authored bool) error 
 	if err := c.validateEventSchedule(stmt.Schedule); err != nil {
 		return err
 	}
+	loc, knownZone := c.sessionTimeLocation()
 	if authored {
-		if err := validateEventTimes(stmt.Schedule, time.Now().UTC()); err != nil {
+		if err := validateEventTimes(stmt.Schedule, time.Now(), loc, knownZone); err != nil {
 			return err
 		}
 	}
@@ -45,12 +46,12 @@ func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt, authored bool) error 
 		definer = "`root`@`%`"
 	}
 
-	schedule, at, timed := eventScheduleText(stmt.Schedule)
+	schedule, at, timed := eventScheduleText(stmt.Schedule, loc)
 	enable := stmt.Enable
 	// A one-time event whose time has passed is dropped as soon as it is
 	// created, or kept DISABLE ON COMPLETION PRESERVE (mysql:8.0.46: CREATE
 	// EVENT e ON SCHEDULE AT '2000-01-01 00:00:00' DO COMMIT leaves no event).
-	if authored && !c.loadingSDL && timed && at.Before(time.Now().UTC()) {
+	if authored && !c.loadingSDL && knownZone && timed && at.Before(time.Now()) {
 		if !strings.EqualFold(stmt.OnCompletion, "PRESERVE") {
 			return nil
 		}
@@ -108,7 +109,8 @@ func (c *Catalog) alterEvent(stmt *nodes.AlterEventStmt) error {
 	if err := c.validateEventSchedule(stmt.Schedule); err != nil {
 		return err
 	}
-	if err := validateEventTimes(stmt.Schedule, time.Now().UTC()); err != nil {
+	loc, knownZone := c.sessionTimeLocation()
+	if err := validateEventTimes(stmt.Schedule, time.Now(), loc, knownZone); err != nil {
 		return err
 	}
 
@@ -155,7 +157,7 @@ func (c *Catalog) alterEvent(stmt *nodes.AlterEventStmt) error {
 
 	// Update schedule if specified.
 	if stmt.Schedule != nil {
-		event.Schedule, _, _ = eventScheduleText(stmt.Schedule)
+		event.Schedule, _, _ = eventScheduleText(stmt.Schedule, loc)
 	}
 
 	// Update ON COMPLETION if specified.

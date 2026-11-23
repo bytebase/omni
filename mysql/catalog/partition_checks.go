@@ -199,20 +199,31 @@ func checkPartitionBounds(tbl *Table, pi *PartitionInfo) error {
 			}
 		}
 	case "LIST", "LIST COLUMNS":
-		fold := false
+		// A value of a column whose collation ignores case is compared
+		// without it, each column of a tuple by its own collation.
+		var fold []bool
 		if pi.Type == "LIST COLUMNS" {
 			for _, name := range pi.Columns {
-				if col := tbl.GetColumn(name); col != nil && strings.HasSuffix(strings.ToLower(col.Collation), "_ci") {
-					fold = true
+				col := tbl.GetColumn(name)
+				fold = append(fold, col != nil && strings.HasSuffix(columnCollation(tbl, col), "_ci"))
+			}
+		}
+		key := func(v string) string {
+			parts := []string{v}
+			if len(fold) > 1 && strings.HasPrefix(v, "(") && strings.HasSuffix(v, ")") {
+				parts = splitPartitionValues(v[1 : len(v)-1])
+			}
+			for i := range parts {
+				if i < len(fold) && fold[i] {
+					parts[i] = strings.ToLower(parts[i])
 				}
 			}
+			return strings.Join(parts, ",")
 		}
 		seen := map[string]bool{}
 		for _, pd := range pi.Partitions {
 			for _, v := range splitPartitionValues(pd.ValueExpr) {
-				if fold {
-					v = strings.ToLower(v)
-				}
+				v = key(v)
 				if seen[v] {
 					return errListConstantTwice()
 				}
