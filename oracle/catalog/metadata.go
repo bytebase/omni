@@ -668,7 +668,9 @@ func (e *oracleMetadataExtractor) extractColumnConstraint(n *ast.ColumnConstrain
 			}
 			return
 		}
-		if !hasUniqueIndex(table, []string{column.Name}) {
+		if reusable := findStandaloneUniqueIndex(table, []string{column.Name}); reusable != nil {
+			e.attachConstraintToExistingIndex(table, reusable.Name, name, []string{column.Name}, false)
+		} else if !hasUniqueIndex(table, []string{column.Name}) {
 			table.Indexes = append(table.Indexes, &metadatapb.IndexMetadata{
 				Name:         name,
 				Unique:       true,
@@ -958,6 +960,20 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 		e.setError(oraError("00942", "table or view %q does not exist", tableName))
 		return
 	}
+	type pendingAlterFK struct {
+		refTable   *ast.ObjectName
+		refColumns *ast.List
+	}
+	var pendingFKs []pendingAlterFK
+	flushPendingFKs := func() bool {
+		for _, fk := range pendingFKs {
+			if !e.validateAlterForeignKey(table, fk.refTable, fk.refColumns) {
+				return false
+			}
+		}
+		pendingFKs = pendingFKs[:0]
+		return true
+	}
 	for _, item := range listItems(n.Actions) {
 		action, ok := item.(*ast.AlterTableCmd)
 		if !ok {
@@ -1000,9 +1016,7 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 							return
 						}
 					case ast.CONSTRAINT_FOREIGN:
-						if !e.validateAlterForeignKey(table, cc.RefTable, cc.RefColumns) {
-							return
-						}
+						pendingFKs = append(pendingFKs, pendingAlterFK{refTable: cc.RefTable, refColumns: cc.RefColumns})
 					}
 				}
 				e.extractColumn(col, table)
@@ -1014,16 +1028,23 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 			}
 		case ast.AT_MODIFY_COLUMN:
 			if action.ColumnDef != nil {
-				e.modifyColumn(action.ColumnDef, table)
+				for _, fk := range e.modifyColumn(action.ColumnDef, table) {
+					pendingFKs = append(pendingFKs, pendingAlterFK{refTable: fk.RefTable, refColumns: fk.RefColumns})
+				}
 			}
 			for _, citem := range listItems(action.ColumnDefs) {
 				column, ok := citem.(*ast.ColumnDef)
 				if !ok {
 					continue
 				}
-				e.modifyColumn(column, table)
+				for _, fk := range e.modifyColumn(column, table) {
+					pendingFKs = append(pendingFKs, pendingAlterFK{refTable: fk.RefTable, refColumns: fk.RefColumns})
+				}
 			}
 		case ast.AT_DROP_COLUMN:
+			if !flushPendingFKs() {
+				return
+			}
 			columns := []string{action.ColumnName}
 			if action.Options != nil && len(action.Options.Items) > 0 {
 				columns = stringList(action.Options)
@@ -1065,13 +1086,14 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 						return
 					}
 				case ast.CONSTRAINT_FOREIGN:
-					if !e.validateAlterForeignKey(table, tc.RefTable, tc.RefColumns) {
-						return
-					}
+					pendingFKs = append(pendingFKs, pendingAlterFK{refTable: tc.RefTable, refColumns: tc.RefColumns})
 				}
 				e.extractTableConstraint(tc, table)
 			}
 		case ast.AT_DROP_CONSTRAINT:
+			if !flushPendingFKs() {
+				return
+			}
 			var droppedColumns []string
 			opts := stringList(action.Options)
 			keepIndex := slices.Contains(opts, "KEEP INDEX")
@@ -1180,39 +1202,43 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 			return
 		}
 	}
+	flushPendingFKs()
 }
 
 // modifyColumn applies an ALTER TABLE MODIFY column definition to the column
 // the table already holds. Oracle keeps the attributes the clause does not
 // name, including a type or NOT NULL when the clause only changes visibility.
-func (e *oracleMetadataExtractor) modifyColumn(def *ast.ColumnDef, table *metadatapb.TableMetadata) {
+// It returns any inline foreign-key constraints so the caller can validate
+// them once all columns/keys in the ALTER TABLE statement have been installed.
+func (e *oracleMetadataExtractor) modifyColumn(def *ast.ColumnDef, table *metadatapb.TableMetadata) []*ast.ColumnConstraint {
 	column := tableFindColumn(table, def.Name)
 	if column == nil {
 		e.setError(oraError("00904", "%q: invalid identifier", def.Name))
-		return
+		return nil
 	}
 	if def.Virtual != nil && column.GetGeneration() == nil {
 		e.setError(oraError("54026", "real column %q cannot have an expression", def.Name))
-		return
+		return nil
 	}
 	if (def.Identity != nil || def.DropIdentity) && !column.IsIdentity {
 		e.setError(oraError("30673", "column %q to be modified is not an identity column", def.Name))
-		return
+		return nil
 	}
 	if strings.EqualFold(def.Encrypt, "DECRYPT") {
 		if !e.encryptedColumns[table.Name+"\x00"+def.Name] {
 			e.setError(oraError("28333", "cannot decrypt a column that is not encrypted"))
-			return
+			return nil
 		}
 	}
 	if def.Encrypt != "" && !strings.EqualFold(def.Encrypt, "DECRYPT") && e.columnInForeignKey(table, def.Name) {
 		e.setError(oraError("28335", "referenced or referencing foreign key constraint column %q cannot be encrypted", def.Name))
-		return
+		return nil
 	}
 	if def.Null && column.Nullable {
 		e.setError(oraError("01451", "column %q to be modified to NULL cannot be modified to NULL", def.Name))
-		return
+		return nil
 	}
+	var pendingFKs []*ast.ColumnConstraint
 	for _, item := range listItems(def.Constraints) {
 		cc, ok := item.(*ast.ColumnConstraint)
 		if !ok {
@@ -1220,22 +1246,20 @@ func (e *oracleMetadataExtractor) modifyColumn(def *ast.ColumnDef, table *metada
 		}
 		if cc.Type == ast.CONSTRAINT_NULL && column.Nullable {
 			e.setError(oraError("01451", "column %q to be modified to NULL cannot be modified to NULL", def.Name))
-			return
+			return nil
 		}
 		if cc.Name != "" && e.constraintNameExists(cc.Name) {
 			e.setError(oraError("02264", "name %q already used by an existing constraint", cc.Name))
-			return
+			return nil
 		}
 		switch cc.Type {
 		case ast.CONSTRAINT_PRIMARY:
 			if hasPrimaryIndex(table) {
 				e.setError(oraError("02260", "table %q can have only one primary key", table.Name))
-				return
+				return nil
 			}
 		case ast.CONSTRAINT_FOREIGN:
-			if !e.validateAlterForeignKey(table, cc.RefTable, cc.RefColumns) {
-				return
-			}
+			pendingFKs = append(pendingFKs, cc)
 		}
 	}
 
@@ -1304,6 +1328,7 @@ func (e *oracleMetadataExtractor) modifyColumn(def *ast.ColumnDef, table *metada
 		}
 		e.extractColumnConstraint(constraint, table, column)
 	}
+	return pendingFKs
 }
 
 func (e *oracleMetadataExtractor) dropColumn(table *metadatapb.TableMetadata, name string) {

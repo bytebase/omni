@@ -364,6 +364,26 @@ func tableHasUniqueKey(table *metadatapb.TableMetadata, cols []string) bool {
 	return false
 }
 
+func findStandaloneUniqueIndex(table *metadatapb.TableMetadata, cols []string) *metadatapb.IndexMetadata {
+	if table == nil || len(cols) == 0 {
+		return nil
+	}
+	want := make([]string, len(cols))
+	for i, c := range cols {
+		want[i] = strings.Trim(c, `"`)
+	}
+	slices.Sort(want)
+	for _, idx := range table.Indexes {
+		if idx.IsConstraint || len(idx.Constraints) > 0 || !idx.Unique || idx.Primary {
+			continue
+		}
+		if columnsMatchSet(idx.Expressions, want) {
+			return idx
+		}
+	}
+	return nil
+}
+
 func tableHasUniqueConstraint(table *metadatapb.TableMetadata, cols []string) bool {
 	if table == nil || len(cols) == 0 {
 		return false

@@ -821,4 +821,39 @@ func TestExecReviewRegressionFixes(t *testing.T) {
 		require.NoError(t, err)
 		require.Nil(t, results[0].Error)
 	})
+
+	t.Run("ALTER TABLE ADD validates self-referencing FK after installing all added columns", func(t *testing.T) {
+		c, err := LoadSQL(`CREATE TABLE t (x NUMBER)`)
+		require.NoError(t, err)
+
+		results, err := c.Exec(`ALTER TABLE t ADD (parent_id NUMBER REFERENCES t (id), id NUMBER PRIMARY KEY)`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		tbl := tableByName(c.Metadata().Schemas[0])["T"]
+		require.Len(t, tbl.ForeignKeys, 1)
+		require.Len(t, tbl.Indexes, 1)
+	})
+
+	t.Run("ALTER TABLE MODIFY inline UNIQUE reuses existing standalone unique index", func(t *testing.T) {
+		c, err := LoadSQL(`
+			CREATE TABLE t (id NUMBER);
+			CREATE UNIQUE INDEX t_idx ON t (id);
+			CREATE TABLE ch (t_id NUMBER);
+		`)
+		require.NoError(t, err)
+
+		results, err := c.Exec(`ALTER TABLE t MODIFY (id CONSTRAINT t_uk UNIQUE)`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+
+		// Foreign key can now reference the unique constraint on t(id).
+		results, err = c.Exec(`ALTER TABLE ch ADD CONSTRAINT ch_fk FOREIGN KEY (t_id) REFERENCES t (id)`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+
+		// Dropping t_uk with CASCADE succeeds (constraint was retained on t_idx).
+		results, err = c.Exec(`ALTER TABLE t DROP CONSTRAINT t_uk CASCADE`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+	})
 }
