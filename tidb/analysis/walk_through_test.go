@@ -177,3 +177,38 @@ func TestClassifyWalkThroughStatement(t *testing.T) {
 		})
 	}
 }
+
+func TestIsCreateTableAs(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+		want bool
+	}{
+		{name: "ctas with AS", sql: "CREATE TABLE t2 AS SELECT * FROM t1;", want: true},
+		{name: "ctas without AS", sql: "CREATE TABLE t2 (b INT) SELECT a FROM t1;", want: true},
+		{name: "ctas temporary", sql: "CREATE TEMPORARY TABLE IF NOT EXISTS db.t2 AS SELECT 1;", want: true},
+		{name: "ctas global temporary", sql: "CREATE GLOBAL TEMPORARY TABLE t2 AS SELECT 1;", want: true},
+		{name: "ctas as table", sql: "CREATE TABLE t2 AS TABLE t1;", want: true},
+		{name: "ctas as values row", sql: "CREATE TABLE t2 AS VALUES ROW(1);", want: true},
+		{name: "ctas parenthesized table", sql: "CREATE TABLE t2 (TABLE t1);", want: true},
+		{name: "ctas with comments", sql: "-- lead\nCREATE /* mid */ TABLE # hash\nt2 AS SELECT 1", want: true},
+		{name: "regular create table", sql: "CREATE TABLE t1 (id INT);", want: false},
+		{name: "create global without temporary", sql: "CREATE GLOBAL TABLE t1 AS SELECT 1;", want: false},
+		{name: "partitioned table with VALUES LESS THAN", sql: "CREATE TABLE t1 (id INT) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (10));", want: false},
+		{name: "select in single-quoted default", sql: "CREATE TABLE t1 (a VARCHAR(20) DEFAULT 'SELECT');", want: false},
+		{name: "select in double-quoted comment", sql: `CREATE TABLE t1 (a INT COMMENT "SELECT 1");`, want: false},
+		{name: "select in backtick identifier", sql: "CREATE TABLE t1 (`select` INT);", want: false},
+		{name: "select in comments", sql: "CREATE TABLE t1 (a INT) /* SELECT */ -- SELECT\n# SELECT", want: false},
+		{name: "select after semicolon", sql: "CREATE TABLE t1 (a INT); SELECT 1;", want: false},
+		{name: "create view as select", sql: "CREATE VIEW v1 AS SELECT 1;", want: false},
+		{name: "empty", sql: "", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsCreateTableAs(tt.sql); got != tt.want {
+				t.Errorf("IsCreateTableAs(%q) = %v, want %v", tt.sql, got, tt.want)
+			}
+		})
+	}
+}

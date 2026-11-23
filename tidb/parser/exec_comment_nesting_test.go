@@ -138,7 +138,7 @@ func TestExecCommentNestingSplit_Oracle(t *testing.T) {
 		t.Fatalf("server inserted %d rows and kept t2=%d; the oracle expects 3 rows and t2 dropped", rows, t2)
 	}
 
-	if segs := Split(statement); len(segs) != 2 {
+	if segs := nonEmptySegments(statement); len(segs) != 2 {
 		t.Fatalf("Split(%q) returned %d segments, want 2", statement, len(segs))
 	}
 	list, err := Parse(statement)

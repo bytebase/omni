@@ -1,41 +1,43 @@
 package analysis
 
-import "github.com/bytebase/omni/googlesql/ast"
+import (
+	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/googlesql/ast"
+)
 
-// StatementType is the kind of change a GoogleSQL statement makes. The values
-// mirror Bytebase's storepb.StatementType names so the adapter maps them 1:1.
-type StatementType int
+// StatementType is the kind of change a GoogleSQL statement makes.
+type StatementType = analysis.StatementType
 
 const (
-	StatementTypeUnspecified StatementType = iota
-	Insert
-	Update
-	Delete
-	Merge
-	Truncate
-	CreateTable
-	CreateView
-	CreateIndex
-	CreateSchema
-	CreateDatabase
-	CreateFunction
-	CreateProcedure
-	CreateSequence
-	AlterTable
-	AlterView
-	AlterIndex
-	AlterDatabase
-	AlterSequence
-	DropTable
-	DropView
-	DropIndex
-	DropSchema
-	DropDatabase
-	DropSequence
-	DropFunction
-	DropProcedure
-	Rename
-	Execute
+	StatementTypeUnspecified = analysis.StatementTypeUnspecified
+	Insert                   = analysis.Insert
+	Update                   = analysis.Update
+	Delete                   = analysis.Delete
+	Merge                    = analysis.Merge
+	Truncate                 = analysis.Truncate
+	CreateTable              = analysis.CreateTable
+	CreateView               = analysis.CreateView
+	CreateIndex              = analysis.CreateIndex
+	CreateSchema             = analysis.CreateSchema
+	CreateDatabase           = analysis.CreateDatabase
+	CreateFunction           = analysis.CreateFunction
+	CreateProcedure          = analysis.CreateProcedure
+	CreateSequence           = analysis.CreateSequence
+	AlterTable               = analysis.AlterTable
+	AlterView                = analysis.AlterView
+	AlterIndex               = analysis.AlterIndex
+	AlterDatabase            = analysis.AlterDatabase
+	AlterSequence            = analysis.AlterSequence
+	DropTable                = analysis.DropTable
+	DropView                 = analysis.DropView
+	DropIndex                = analysis.DropIndex
+	DropSchema               = analysis.DropSchema
+	DropDatabase             = analysis.DropDatabase
+	DropSequence             = analysis.DropSequence
+	DropFunction             = analysis.DropFunction
+	DropProcedure            = analysis.DropProcedure
+	Rename                   = analysis.Rename
+	Execute                  = analysis.Execute
 )
 
 // StatementTypeOf returns the type of a statement.

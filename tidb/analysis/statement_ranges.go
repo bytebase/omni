@@ -20,13 +20,12 @@ type ByteRange = analysis.ByteRange
 // its ';' when present. With a custom DELIMITER the range stops before the
 // delimiter. A script with no statements returns nil.
 func StatementRanges(statement string) []ByteRange {
-	segments := parser.Split(statement)
-	if len(segments) == 0 {
-		return nil
-	}
-
-	ranges := make([]ByteRange, 0, len(segments))
-	for _, seg := range segments {
+	var ranges []ByteRange
+	for _, seg := range parser.Split(statement) {
+		// A segment holding no statement (a lone ';') has no range to run.
+		if seg.Empty() {
+			continue
+		}
 		start := min(seg.ByteStart+leadingWhitespaceBytes(statement, seg.ByteStart, seg.ByteEnd), seg.ByteEnd)
 		end := seg.ByteEnd + delimLenAt(statement, seg.ByteEnd)
 		ranges = append(ranges, ByteRange{Start: start, End: end})

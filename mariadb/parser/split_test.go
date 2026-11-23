@@ -223,7 +223,7 @@ func TestSplitQuotingAndComments(t *testing.T) {
 			// swallow the DROP TABLE statement as part of the comment.
 			name: "text after a nested-looking comment is a live statement",
 			sql:  "INSERT INTO t3 SELECT * FROM t /* /* */; DROP TABLE t4; -- */",
-			want: []string{"INSERT INTO t3 SELECT * FROM t /* /* */", " DROP TABLE t4"},
+			want: []string{"INSERT INTO t3 SELECT * FROM t /* /* */", " DROP TABLE t4", " -- */"},
 		},
 		{
 			// A plain comment nested inside an executable comment is consumed
@@ -305,15 +305,15 @@ func TestSplitByteOffsets(t *testing.T) {
 func TestSplitSimple(t *testing.T) {
 	tests := []struct {
 		sql  string
-		want []string // expected segment texts (non-empty only)
+		want []string // expected segment texts, empty ones included
 	}{
 		{"SELECT 1", []string{"SELECT 1"}},
 		{"SELECT 1;", []string{"SELECT 1"}},
 		{"SELECT 1; SELECT 2;", []string{"SELECT 1", " SELECT 2"}},
-		{"SELECT 1;  ", []string{"SELECT 1"}},
+		{"SELECT 1;  ", []string{"SELECT 1", "  "}},
 		{"", nil},
-		{";;;", nil},
-		{" ; ; ", nil},
+		{";;;", []string{"", "", ""}},
+		{" ; ; ", []string{" ", " ", " "}},
 	}
 
 	for _, tt := range tests {

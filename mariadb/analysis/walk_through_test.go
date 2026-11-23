@@ -177,3 +177,39 @@ func TestClassifyWalkThroughStatement(t *testing.T) {
 		})
 	}
 }
+
+func TestIsCreateTableAs(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+		want bool
+	}{
+		{name: "ctas with AS", sql: "CREATE TABLE t2 AS SELECT * FROM t1;", want: true},
+		{name: "ctas without AS", sql: "CREATE TABLE t2 (b INT) SELECT a FROM t1;", want: true},
+		{name: "ctas temporary", sql: "CREATE TEMPORARY TABLE IF NOT EXISTS db.t2 AS SELECT 1;", want: true},
+		{name: "ctas or replace", sql: "CREATE OR REPLACE TABLE t2 AS SELECT 1;", want: true},
+		{name: "ctas or replace temporary", sql: "CREATE OR REPLACE TEMPORARY TABLE t2 SELECT 1;", want: true},
+		{name: "ctas as values", sql: "CREATE TABLE t2 AS VALUES (1, 2);", want: true},
+		{name: "ctas parenthesized values", sql: "CREATE TABLE t2 (a INT) (VALUES (1));", want: true},
+		{name: "ctas with comments", sql: "-- lead\nCREATE /* mid */ TABLE # hash\nt2 AS SELECT 1", want: true},
+		{name: "regular create table", sql: "CREATE TABLE t1 (id INT);", want: false},
+		{name: "create or replace without select", sql: "CREATE OR REPLACE TABLE t1 (id INT);", want: false},
+		{name: "create table with system versioning", sql: "CREATE TABLE t1 (id INT) WITH SYSTEM VERSIONING;", want: false},
+		{name: "partitioned table with VALUES LESS THAN", sql: "CREATE TABLE t1 (id INT) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (10));", want: false},
+		{name: "select in single-quoted default", sql: "CREATE TABLE t1 (a VARCHAR(20) DEFAULT 'SELECT');", want: false},
+		{name: "select in double-quoted comment", sql: `CREATE TABLE t1 (a INT COMMENT "SELECT 1");`, want: false},
+		{name: "select in backtick identifier", sql: "CREATE TABLE t1 (`select` INT);", want: false},
+		{name: "select in comments", sql: "CREATE TABLE t1 (a INT) /* SELECT */ -- SELECT\n# SELECT", want: false},
+		{name: "select after semicolon", sql: "CREATE TABLE t1 (a INT); SELECT 1;", want: false},
+		{name: "create view as select", sql: "CREATE VIEW v1 AS SELECT 1;", want: false},
+		{name: "empty", sql: "", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsCreateTableAs(tt.sql); got != tt.want {
+				t.Errorf("IsCreateTableAs(%q) = %v, want %v", tt.sql, got, tt.want)
+			}
+		})
+	}
+}

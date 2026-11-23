@@ -134,9 +134,11 @@ func prepareTransformation(databaseName, statement string, catalog Catalog, case
 	assigned := make(map[string]bool)
 	// used is the database a USE switched to, if not databaseName.
 	var used string
-	for i, segment := range parser.Split(statement) {
+	// The index i, a DMLTarget's Offset, counts only the segments that hold a
+	// statement, so an empty one (a lone ';') does not shift it.
+	for i, segment := range statementSegments(statement) {
 		text := segmentText(statement, segment)
-		if len(text) == 0 || segment.Empty() {
+		if len(text) == 0 {
 			continue
 		}
 
@@ -540,6 +542,18 @@ func statementWrites(databaseName string, node ast.Node, targets []DMLTarget) []
 }
 
 // segmentText is the segment's text with its ';', if any.
+// statementSegments returns the segments of parser.Split that hold a
+// statement.
+func statementSegments(sql string) []parser.Segment {
+	var segments []parser.Segment
+	for _, segment := range parser.Split(sql) {
+		if !segment.Empty() {
+			segments = append(segments, segment)
+		}
+	}
+	return segments
+}
+
 func segmentText(sql string, segment parser.Segment) string {
 	end := segment.ByteEnd
 	if end < len(sql) && sql[end] == ';' {

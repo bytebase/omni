@@ -57,7 +57,7 @@ func TestSplitNonNestedCommentSlashDelimiter(t *testing.T) {
 	// segment (see TestSplitSlashDelimiter for the established contract).
 	var sqlSegs int
 	for _, s := range segs {
-		if s.Kind == SegmentSQLPlusCommand {
+		if s.Kind == SegmentSQLPlusCommand || s.Empty() {
 			continue
 		}
 		sqlSegs++
@@ -84,7 +84,7 @@ func TestSplitCustomerShapePackagePair(t *testing.T) {
 
 	var sqlTexts []string
 	for _, s := range segs {
-		if s.Kind == SegmentSQLPlusCommand {
+		if s.Kind == SegmentSQLPlusCommand || s.Empty() {
 			continue
 		}
 		sqlTexts = append(sqlTexts, s.Text)

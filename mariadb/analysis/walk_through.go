@@ -3,6 +3,7 @@ package analysis
 import (
 	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/mariadb/ast"
+	"github.com/bytebase/omni/mariadb/parser"
 )
 
 // TableRef is an engine-neutral schema-qualified table or object reference.
@@ -175,4 +176,72 @@ func ClassifyWalkThroughStatement(node ast.Node) WalkThroughStatement {
 	default:
 	}
 	return info
+}
+
+var (
+	ctasTokCreate    = parser.NewLexer("CREATE").NextToken().Type
+	ctasTokOr        = parser.NewLexer("OR").NextToken().Type
+	ctasTokReplace   = parser.NewLexer("REPLACE").NextToken().Type
+	ctasTokTemporary = parser.NewLexer("TEMPORARY").NextToken().Type
+	ctasTokTable     = parser.NewLexer("TABLE").NextToken().Type
+	ctasTokSelect    = parser.NewLexer("SELECT").NextToken().Type
+	ctasTokValues    = parser.NewLexer("VALUES").NextToken().Type
+	ctasTokWith      = parser.NewLexer("WITH").NextToken().Type
+)
+
+// IsCreateTableAs reports whether statement is a CREATE [OR REPLACE] [TEMPORARY]
+// TABLE ... query_expression (SELECT, VALUES, or parenthesized query) statement
+// by scanning its MariaDB token stream. It provides a lexer-backed fallback for
+// CTAS forms that do not produce a CreateTableStmt AST.
+func IsCreateTableAs(statement string) bool {
+	lex := parser.NewLexer(statement)
+	if lex.NextToken().Type != ctasTokCreate {
+		return false
+	}
+	tok := lex.NextToken()
+	if tok.Type == ctasTokOr {
+		if lex.NextToken().Type != ctasTokReplace {
+			return false
+		}
+		tok = lex.NextToken()
+	}
+	if tok.Type == ctasTokTemporary {
+		tok = lex.NextToken()
+	}
+	if tok.Type != ctasTokTable {
+		return false
+	}
+	parenDepth := 0
+	atParenStart := false
+	for {
+		tok = lex.NextToken()
+		switch tok.Type {
+		case 0, ';':
+			return false
+		case '(':
+			if parenDepth == 0 {
+				atParenStart = true
+			}
+			parenDepth++
+		case ')':
+			if parenDepth > 0 {
+				parenDepth--
+			}
+			atParenStart = false
+		case ctasTokSelect:
+			return true
+		case ctasTokValues:
+			if parenDepth == 0 || atParenStart {
+				return true
+			}
+			atParenStart = false
+		case ctasTokWith:
+			if atParenStart {
+				return true
+			}
+			atParenStart = false
+		default:
+			atParenStart = false
+		}
+	}
 }

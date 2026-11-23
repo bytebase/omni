@@ -132,7 +132,7 @@ func TestExecCommentNestingSplit_Oracle(t *testing.T) {
 	if rows != 3 || left != 0 {
 		t.Fatalf("the server inserted %d rows and kept %d of exec_nest_t2; the oracle expects 3 rows and exec_nest_t2 dropped", rows, left)
 	}
-	if segs := Split(statement); len(segs) != 2 {
+	if segs := nonEmptySegments(statement); len(segs) != 2 {
 		t.Fatalf("Split(%q) returned %d segments, want 2", statement, len(segs))
 	}
 	list, err := Parse(statement)
@@ -172,7 +172,7 @@ func TestSkippedCommentIsNotRead(t *testing.T) {
 			t.Errorf("%q: got %d select items, want %d", c.sql, len(sel.TargetList), c.items)
 		}
 	}
-	if segs := Split("/*!80023 SELECT 1 */"); len(segs) != 0 {
+	if segs := nonEmptySegments("/*!80023 SELECT 1 */"); len(segs) != 0 {
 		t.Errorf("Split kept a comment MariaDB skips as a statement: %+v", segs)
 	}
 	if segs := Split("SELECT 1 /*!80023 ; */; SELECT 2"); len(segs) != 2 {

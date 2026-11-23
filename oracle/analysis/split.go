@@ -14,7 +14,9 @@ type Statement = analysis.Statement
 // commands are dropped, a MATCH_RECOGNIZE whose DEFINE line parser.Split took
 // for the SQL*Plus DEFINE command is rejoined, and trailing whitespace and
 // comments are trimmed from each statement except embedded Java or JavaScript
-// source.
+// source. A segment holding no statement — a lone ';', whitespace, a comment —
+// is kept untrimmed with Empty set, so a caller that accounts for every ';'
+// sees one entry per delimiter.
 func SplitStatements(statement string) []Statement {
 	return splitStatements(statement, true)
 }
@@ -42,12 +44,13 @@ func splitStatements(statement string, trim bool) []Statement {
 		}
 		// Embedded Java or JavaScript source does not lex as SQL: its "--"
 		// decrement would read as a comment and cut the source short.
-		if trim && seg.Kind != parser.SegmentEmbeddedSource {
+		empty := seg.Empty()
+		if trim && !empty && seg.Kind != parser.SegmentEmbeddedSource {
 			byteEnd = byteStart + trimSegmentTrailingHidden(statement[byteStart:byteEnd])
 		}
 		result = append(result, Statement{
 			Text:  statement[byteStart:byteEnd],
-			Empty: seg.Empty(),
+			Empty: empty,
 			Start: byteStart,
 			End:   byteEnd,
 		})

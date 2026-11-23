@@ -153,3 +153,24 @@ func TestParseReturnsErrorForSQLPlusCommands(t *testing.T) {
 		t.Fatal("Parse() error = nil, want SQL*Plus command parse error")
 	}
 }
+
+// TestParseSkipsEmptySegments: Parse returns statements only, though Split
+// returns the segments that hold none.
+func TestParseSkipsEmptySegments(t *testing.T) {
+	sql := ";\n-- c\n;SELECT 1 FROM dual;;\nBEGIN NULL; END;\n/\n;\n"
+	stmts, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if len(stmts) != 2 {
+		t.Fatalf("got %d statements %#v, want 2", len(stmts), stmts)
+	}
+	for i, stmt := range stmts {
+		if stmt.Empty() {
+			t.Fatalf("stmt[%d] %q is empty", i, stmt.Text)
+		}
+	}
+	if stmts[0].Text != "SELECT 1 FROM dual" || stmts[1].Text != "\nBEGIN NULL; END;" {
+		t.Fatalf("statements = %q, %q", stmts[0].Text, stmts[1].Text)
+	}
+}
