@@ -2814,6 +2814,10 @@ func buildColumnFromDefInDB(tbl *Table, seqDBName string, colDef *nodes.ColumnDe
 	// Type info.
 	if colDef.TypeName != nil {
 		col.DataType = normalizedColumnDataType(colDef.TypeName)
+		// BOOLEAN is TINYINT(1), stored as CREATE TABLE stores it.
+		if col.DataType == "boolean" || col.DataType == "bool" {
+			col.DataType = "tinyint"
+		}
 		col.ColumnType = formatColumnType(colDef.TypeName)
 		// SERIAL is BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, as it is on the
 		// CREATE TABLE path; the caller adds its unique key.
