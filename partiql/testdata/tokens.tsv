@@ -39,3 +39,11 @@ pattern(whereClause)?	(every site)	PartiQLParser.g4:411 WHERE in a pattern
 pattern(patternQuantifier)?	(every site)	PartiQLParser.g4:411 a pattern's quantifier
 edge(patternQuantifier)?	(every site)	PartiQLParser.g4:406 an edge's quantifier
 varRefExpr(AT_SIGN)?	(every site)	PartiQLParser.g4:744 @ before a variable
+# Choices tried at every site that names them, and not only where their own
+# alternatives' rows reach (see grammar.EveryAlternative).
+setQuantifierStrategy	(every alternative)	PartiQLParser.g4:270 DISTINCT or ALL, after SELECT and in an aggregate call
+joinType	(every alternative)	PartiQLParser.g4:497 INNER, LEFT, RIGHT, FULL or OUTER, before CROSS JOIN and JOIN
+type	(every alternative)	PartiQLParser.g4:789 each kind of type, in a column, IS, CAST, CAN_CAST and CAN_LOSSLESS_CAST
+literal	(every alternative)	PartiQLParser.g4:775 each kind of literal, as an expression and a path step
+dmlBaseCommand	(every alternative)	PartiQLParser.g4:128 each DML command, alone, after UPDATE and after FROM
+matchSelector	(every alternative)	PartiQLParser.g4:390 ANY or ALL SHORTEST, ANY k or SHORTEST k GROUP, before a MATCH pattern

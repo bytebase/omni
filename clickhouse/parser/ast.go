@@ -959,8 +959,15 @@ type DataType struct {
 	Name       string
 	Args       []Expr
 	TypeArgs   []*DataType
-	NestedCols []NestedCol
+	NestedCols []NestedCol // Nested and named Tuple elements, and JSON's typed paths
 	EnumValues []EnumValue
+	Skips      []JSONSkip
+}
+
+// JSONSkip is a JSON type's SKIP path or SKIP REGEXP 'pattern' argument.
+type JSONSkip struct {
+	Path   string       // the dotted path, or "" for SKIP REGEXP
+	Regexp *LiteralExpr // the pattern of SKIP REGEXP
 }
 
 type NestedCol struct {

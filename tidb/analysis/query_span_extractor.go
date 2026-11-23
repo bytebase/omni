@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/tidb/ast"
 	"github.com/bytebase/omni/tidb/parser"
 )
@@ -16,15 +17,17 @@ import (
 const rowIDColumnName = "_tidb_rowid"
 
 type querySpanExtractor struct {
-	defaultDatabase   string
-	statement         string
-	metaCache         map[string]Database
-	catalog           Catalog
-	lowerTableViewMap map[string]map[string]bool
+	defaultDatabase string
+	statement       string
+	metaCache       map[string]Database
+	catalog         Catalog
 
 	ctes              []*pseudoTable
 	outerTableSources []tableSource
 	tableSourcesFrom  []tableSource
+	// windows is the WINDOW clause of the current SELECT, which OVER w
+	// names.
+	windows []*ast.WindowDef
 
 	// baseTableSources marks the aliases and joins built only from base
 	// tables; pseudoTable drops that identity.
@@ -38,11 +41,10 @@ type querySpanExtractor struct {
 
 func newQuerySpanExtractor(defaultDatabase string, catalog Catalog) *querySpanExtractor {
 	return &querySpanExtractor{
-		defaultDatabase:   defaultDatabase,
-		metaCache:         make(map[string]Database),
-		lowerTableViewMap: make(map[string]map[string]bool),
-		catalog:           catalog,
-		baseTableSources:  make(map[tableSource]bool),
+		defaultDatabase:  defaultDatabase,
+		metaCache:        make(map[string]Database),
+		catalog:          catalog,
+		baseTableSources: make(map[tableSource]bool),
 	}
 }
 
@@ -215,38 +217,79 @@ var systemDatabases = map[string]bool{
 
 func (q *querySpanExtractor) getAccessTables(node ast.Node, includeUncached bool) ColumnSet {
 	accessesMap := make(ColumnSet)
-	// ANALYZE executes before metadata can be refreshed. Keep every physical
-	// target for authorization, excluding only references to in-scope CTEs.
-	c := &accessTableCollector{resolveCTEs: includeUncached}
+	q.collectAccessTables(accessesMap, node, q.defaultDatabase, includeUncached, map[string]bool{})
+	return accessesMap
+}
+
+// collectAccessTables adds to accesses the tables and views node reads, with
+// unqualified names in defaultDatabase, and the tables behind each view it
+// reads, as TiDB's plan reads them. A name the metadata has is spelled as the
+// metadata stores it, since TiDB compares names without case.
+func (q *querySpanExtractor) collectAccessTables(accesses ColumnSet, node ast.Node, defaultDatabase string, includeUncached bool, seenViews map[string]bool) {
+	// A reference to a CTE in scope reads no table, even where a table of
+	// that name exists.
+	c := &accessTableCollector{}
 	ast.Walk(c, node)
 	for _, table := range c.tables {
 		databaseName := table.Schema
 		if databaseName == "" {
-			databaseName = q.defaultDatabase
+			databaseName = defaultDatabase
 		}
-
-		// This is a false-positive behavior, the table we found may not be the table the query actually accesses.
-		// For example, the query is `WITH t1 AS (SELECT 1) SELECT * FROM t1` and we have a physical table `t1` in the database exactly,
-		// what we found is the physical table `t1`, but the query actually accesses the CTE `t1`.
-		if !includeUncached && !q.existsTableMetadata(databaseName, table.Name) {
+		storedDatabase, storedTable, view, ok := q.lookupTableOrView(databaseName, table.Name)
+		if !ok {
+			// ANALYZE executes before metadata can be refreshed. Keep every
+			// physical target for authorization.
+			if includeUncached {
+				accesses[ColumnResource{Database: databaseName, Table: table.Name}] = true
+			}
 			continue
 		}
-
-		resource := ColumnResource{
-			Database: databaseName,
-			Table:    table.Name,
+		accesses[ColumnResource{Database: storedDatabase, Table: storedTable}] = true
+		key := viewResolutionKey(strings.ToLower(storedDatabase), strings.ToLower(storedTable))
+		if view == nil || seenViews[key] {
+			continue
 		}
-		accessesMap[resource] = true
+		seenViews[key] = true
+		// The definition TiDB stored always parses; a synced one that does
+		// not names no further tables.
+		list, err := parser.Parse(view.Definition)
+		if err != nil || list == nil {
+			continue
+		}
+		for _, stmt := range list.Items {
+			q.collectAccessTables(accesses, stmt, storedDatabase, includeUncached, seenViews)
+		}
 	}
-	return accessesMap
+}
+
+// lookupTableOrView finds a table or view by name, ignoring case as TiDB
+// does, and returns the names the metadata stores, and the view's metadata
+// when it is a view.
+func (q *querySpanExtractor) lookupTableOrView(databaseName, tableName string) (string, string, *metadata.ViewMetadata, bool) {
+	dbMetadata, err := q.getDatabaseMetadata(databaseName)
+	if err != nil || dbMetadata == nil || !dbMetadata.HasSchema() {
+		return "", "", nil, false
+	}
+	for _, table := range dbMetadata.ListTableNames() {
+		if strings.EqualFold(table, tableName) {
+			return dbMetadata.Name(), table, nil, true
+		}
+	}
+	for _, view := range dbMetadata.ListViewNames() {
+		if strings.EqualFold(view, tableName) {
+			if meta := dbMetadata.GetView(view); meta != nil {
+				return dbMetadata.Name(), view, meta, true
+			}
+		}
+	}
+	return "", "", nil, false
 }
 
 // accessTableCollector walks an omni AST collecting the base TableRef nodes a
-// statement reads, skipping references to in-scope CTEs (when resolveCTEs) and
-// the alias-only tables named by a locking clause.
+// statement reads, skipping references to in-scope CTEs and the alias-only
+// tables named by a locking clause.
 type accessTableCollector struct {
 	tables        []*ast.TableRef
-	resolveCTEs   bool
 	cteScopes     []map[string]bool
 	lockingTables map[*ast.TableRef]bool
 }
@@ -269,14 +312,14 @@ func (c *accessTableCollector) enter(node ast.Node) ast.Visitor {
 		}
 	}
 	// A recursive CTE's name is visible inside its own definition.
-	if cte, ok := node.(*ast.CommonTableExpr); ok && c.resolveCTEs && cte.Recursive && len(c.cteScopes) > 0 {
+	if cte, ok := node.(*ast.CommonTableExpr); ok && cte.Recursive && len(c.cteScopes) > 0 {
 		c.cteScopes[len(c.cteScopes)-1][strings.ToLower(cte.Name)] = true
 	}
 	if table, ok := node.(*ast.TableRef); ok {
 		if c.lockingTables[table] {
 			return nil
 		}
-		if c.resolveCTEs && table.Schema == "" {
+		if table.Schema == "" {
 			for _, scope := range c.cteScopes {
 				if scope[strings.ToLower(table.Name)] {
 					return nil
@@ -286,16 +329,14 @@ func (c *accessTableCollector) enter(node ast.Node) ast.Visitor {
 		c.tables = append(c.tables, table)
 		return nil
 	}
-	if c.resolveCTEs {
-		switch node.(type) {
-		case *ast.SelectStmt, *ast.UpdateStmt, *ast.DeleteStmt:
-			c.cteScopes = append(c.cteScopes, make(map[string]bool))
-			return &accessTableScopeGuard{c: c}
-		}
-		if cte, ok := node.(*ast.CommonTableExpr); ok {
-			// A non-recursive CTE becomes visible only after its definition.
-			return &accessTableCTEGuard{c: c, name: strings.ToLower(cte.Name)}
-		}
+	switch node.(type) {
+	case *ast.SelectStmt, *ast.UpdateStmt, *ast.DeleteStmt:
+		c.cteScopes = append(c.cteScopes, make(map[string]bool))
+		return &accessTableScopeGuard{c: c}
+	}
+	if cte, ok := node.(*ast.CommonTableExpr); ok {
+		// A non-recursive CTE becomes visible only after its definition.
+		return &accessTableCTEGuard{c: c, name: strings.ToLower(cte.Name)}
 	}
 	return c
 }
@@ -327,39 +368,6 @@ func (g *accessTableCTEGuard) Visit(node ast.Node) ast.Visitor {
 		return nil
 	}
 	return g.c.enter(node)
-}
-
-func (q *querySpanExtractor) existsTableMetadata(databaseName string, tableName string) bool {
-	if databaseName == "" {
-		databaseName = q.defaultDatabase
-	}
-
-	if q.lowerTableViewMap[databaseName] != nil {
-		return q.lowerTableViewMap[databaseName][strings.ToLower(tableName)]
-	}
-
-	databaseMetadata, err := q.getDatabaseMetadata(databaseName)
-	if err != nil {
-		return false
-	}
-
-	if databaseMetadata == nil {
-		return false
-	}
-	if !databaseMetadata.HasSchema() {
-		return false
-	}
-
-	tableViewMap := make(map[string]bool)
-	for _, table := range databaseMetadata.ListTableNames() {
-		tableViewMap[strings.ToLower(table)] = true
-	}
-	for _, view := range databaseMetadata.ListViewNames() {
-		tableViewMap[strings.ToLower(view)] = true
-	}
-	q.lowerTableViewMap[databaseName] = tableViewMap
-
-	return q.lowerTableViewMap[databaseName][strings.ToLower(tableName)]
 }
 
 // extractTableSourceFromNode extracts the output columns of a query node (a
@@ -580,6 +588,9 @@ func (q *querySpanExtractor) extractSelect(node *ast.SelectStmt) (tableSource, e
 		}
 	}
 
+	previousWindows := q.windows
+	q.windows = node.WindowClause
+	defer func() { q.windows = previousWindows }()
 	result := new(pseudoTable)
 	for _, field := range node.TargetList {
 		columns, err := q.extractTargetColumns(field, fromFieldList)
@@ -631,7 +642,9 @@ func (q *querySpanExtractor) extractTargetColumns(field ast.ExprNode, fromFieldL
 
 func (q *querySpanExtractor) extractTableWildcard(databaseName, tableName string, fromFieldList []tableSource) ([]QuerySpanResult, error) {
 	for _, tableSource := range fromFieldList {
-		sameDatabase := strings.EqualFold(databaseName, tableSource.GetDatabaseName()) || (databaseName == "" && strings.EqualFold(tableSource.GetDatabaseName(), q.defaultDatabase))
+		// A qualifier without a database names a table or alias of any
+		// database in FROM.
+		sameDatabase := databaseName == "" || strings.EqualFold(databaseName, tableSource.GetDatabaseName())
 		sameTable := strings.EqualFold(tableName, tableSource.GetTableName())
 		if sameDatabase && sameTable {
 			return tableSource.GetQuerySpanResult(), nil
@@ -652,6 +665,14 @@ func (q *querySpanExtractor) extractTableWildcard(databaseName, tableName string
 func (q *querySpanExtractor) deriveFieldName(expr ast.ExprNode) string {
 	if columnRef, ok := expr.(*ast.ColumnRef); ok && !columnRef.Star {
 		return columnRef.Column
+	}
+	// TiDB names a string literal by its value, without quotes or an
+	// introducer.
+	if lit, ok := expr.(*ast.StringLit); ok {
+		if lit.Concatenated {
+			return lit.FirstSegment
+		}
+		return lit.Value
 	}
 	if loc, ok := exprLoc(expr); ok && loc.Start >= 0 && loc.End > loc.Start && loc.End <= len(q.statement) {
 		return strings.TrimSpace(q.statement[loc.Start:loc.End])
@@ -734,14 +755,7 @@ func (q *querySpanExtractor) extractSourceColumnSetFromExpression(in ast.ExprNod
 				exprs = append(exprs, item.Expr)
 			}
 		}
-		if node.Over != nil {
-			exprs = append(exprs, node.Over.PartitionBy...)
-			for _, item := range node.Over.OrderBy {
-				if item != nil {
-					exprs = append(exprs, item.Expr)
-				}
-			}
-		}
+		exprs = append(exprs, q.windowExprs(node.Over)...)
 		return q.extractSourceColumnSetFromExpressionList(exprs)
 	case *ast.CastExpr:
 		return q.extractSourceColumnSetFromExpression(node.Expr)
@@ -814,6 +828,32 @@ func (q *querySpanExtractor) extractSourceColumnSetFromExpression(in ast.ExprNod
 // extractSubquerySourceColumnSet extracts the merged source columns of a
 // subquery, giving it the current FROM as its outer scope so a correlated
 // reference resolves against the enclosing query.
+// windowExprs returns the PARTITION BY and ORDER BY expressions of a window,
+// with those of the named windows it builds on (OVER w, OVER (w ORDER BY
+// ...)), which decide its value as much as its own do.
+func (q *querySpanExtractor) windowExprs(w *ast.WindowDef) []ast.ExprNode {
+	var exprs []ast.ExprNode
+	seen := map[*ast.WindowDef]bool{}
+	for w != nil && !seen[w] {
+		seen[w] = true
+		exprs = append(exprs, w.PartitionBy...)
+		for _, item := range w.OrderBy {
+			if item != nil {
+				exprs = append(exprs, item.Expr)
+			}
+		}
+		ref := w.RefName
+		w = nil
+		for _, def := range q.windows {
+			if def != nil && ref != "" && strings.EqualFold(def.Name, ref) {
+				w = def
+				break
+			}
+		}
+	}
+	return exprs
+}
+
 func (q *querySpanExtractor) extractSubquerySourceColumnSet(selectStmt *ast.SelectStmt) (ColumnSet, error) {
 	if selectStmt == nil {
 		return ColumnSet{}, nil
@@ -823,7 +863,6 @@ func (q *querySpanExtractor) extractSubquerySourceColumnSet(selectStmt *ast.Sele
 		statement:           q.statement,
 		metaCache:           q.metaCache,
 		catalog:             q.catalog,
-		lowerTableViewMap:   q.lowerTableViewMap,
 		ctes:                q.ctes,
 		outerTableSources:   slices.Concat(q.outerTableSources, q.tableSourcesFrom),
 		tableSourcesFrom:    []tableSource{},
@@ -844,9 +883,6 @@ func (q *querySpanExtractor) extractSubquerySourceColumnSet(selectStmt *ast.Sele
 func (q *querySpanExtractor) getAllTableColumnSources(databaseName, tableName string) ([]QuerySpanResult, bool) {
 	findInTableSource := func(tableSource tableSource) ([]QuerySpanResult, bool) {
 		if databaseName != "" && !strings.EqualFold(databaseName, tableSource.GetDatabaseName()) {
-			return nil, false
-		}
-		if databaseName == "" && tableSource.GetDatabaseName() != "" && !strings.EqualFold(tableSource.GetDatabaseName(), q.defaultDatabase) {
 			return nil, false
 		}
 		if tableName != "" && !strings.EqualFold(tableName, tableSource.GetTableName()) {
@@ -944,7 +980,7 @@ func (q *querySpanExtractor) extractTableSource(tableExpr ast.TableExpr) (tableS
 		if t.Alias == "" {
 			return tableSource, nil
 		}
-		aliased := &pseudoTable{Name: t.Alias, Columns: tableSource.GetQuerySpanResult()}
+		aliased := &pseudoTable{Name: t.Alias, Database: tableSource.GetDatabaseName(), Columns: tableSource.GetQuerySpanResult()}
 		if q.isBaseTableSource(tableSource) {
 			q.baseTableSources[aliased] = true
 		}
@@ -1102,7 +1138,7 @@ func (q *querySpanExtractor) findTableSchema(databaseName string, tableName stri
 					columns = append(columns, column.Name)
 				}
 				return &physicalTable{
-					Database: databaseName,
+					Database: dbMetadata.Name(),
 					Name:     tableMeta.Name,
 					Columns:  columns,
 				}, nil
@@ -1114,12 +1150,22 @@ func (q *querySpanExtractor) findTableSchema(databaseName string, tableName stri
 		if lowerTableName == strings.ToLower(view) {
 			viewMeta := dbMetadata.GetView(view)
 			if viewMeta != nil {
-				columns, err := q.getColumnsForView(databaseName, viewMeta.Name, viewMeta.Definition)
+				columns, err := q.getColumnsForView(dbMetadata.Name(), viewMeta.Name, viewMeta.Definition)
 				if err != nil {
 					return nil, err
 				}
+				// A view's columns take the names it stores, which a column
+				// list gives and its definition need not.
+				if stored := viewMeta.GetColumns(); len(stored) == len(columns) {
+					renamed := make([]QuerySpanResult, len(columns))
+					for i, column := range columns {
+						column.Name = stored[i].Name
+						renamed[i] = column
+					}
+					columns = renamed
+				}
 				return &physicalView{
-					Database: databaseName,
+					Database: dbMetadata.Name(),
 					Name:     viewMeta.Name,
 					Columns:  columns,
 				}, nil
@@ -1139,7 +1185,8 @@ func (q *querySpanExtractor) getColumnsForView(databaseName, viewName, definitio
 	if q.viewResolutionStack[key] {
 		return nil, fmt.Errorf("cyclic view reference detected while resolving %q", viewName)
 	}
-	newQ := newQuerySpanExtractor(q.defaultDatabase, q.catalog)
+	// A view's definition resolves in the view's database.
+	newQ := newQuerySpanExtractor(databaseName, q.catalog)
 	newQ.viewResolutionStack = cloneViewResolutionStack(q.viewResolutionStack)
 	newQ.viewResolutionStack[key] = true
 	span, err := newQ.getQuerySpan(definition)

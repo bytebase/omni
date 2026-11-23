@@ -65,6 +65,7 @@ type Parser struct {
 	inCompound             bool
 	inFromStatement        bool
 	disallowParamMarkers   bool
+	sawCalendarInterval    bool
 	disallowColumnRefs     bool
 	inWindowFrameBound     bool
 	disallowGeneratedCols  bool

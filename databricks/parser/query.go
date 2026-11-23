@@ -841,7 +841,7 @@ func (p *Parser) parseTransformClause() error {
 	}
 
 	if p.cur().Kind == kwROW && p.peek(1).Kind == kwFORMAT {
-		if err := p.parseRowFormat(); err != nil {
+		if err := p.parseTransformRowFormat(); err != nil {
 			return err
 		}
 	}
@@ -879,12 +879,28 @@ func (p *Parser) parseTransformClause() error {
 		}
 	}
 	if p.cur().Kind == kwROW && p.peek(1).Kind == kwFORMAT {
-		if err := p.parseRowFormat(); err != nil {
+		if err := p.parseTransformRowFormat(); err != nil {
 			return err
 		}
 	}
 	if p.cur().Kind == kwRECORDREADER {
 		return p.errorf("custom RECORDREADER is not supported in TRANSFORM")
+	}
+	return nil
+}
+
+// parseTransformRowFormat parses a TRANSFORM's ROW FORMAT. Spark v4.0.5
+// outside Hive mode refuses ROW FORMAT SERDE there
+// (SparkSqlAstBuilder.withScriptIOSchema,
+// UNSUPPORTED_FEATURE.TRANSFORM_NON_HIVE); ROW FORMAT DELIMITED is read.
+func (p *Parser) parseTransformRowFormat() error {
+	start := p.cur()
+	rf, err := p.parseRowFormatKind()
+	if err != nil {
+		return err
+	}
+	if rf == rowFormatSerde {
+		return &ParseError{Message: "TRANSFORM with ROW FORMAT SERDE is only supported in Hive mode", Position: start.Start}
 	}
 	return nil
 }

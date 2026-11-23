@@ -2214,6 +2214,18 @@ func (p *Parser) parseConstant() error {
 	return p.parseConstantWithNeg(false)
 }
 
+// parseLiteralConstant parses a constant that Spark v4.0.5's AstBuilder
+// takes as a Literal: a partition spec value (visitPartitionVal,
+// _LEGACY_ERROR_TEMP_3222 "Only literals are allowed in the partition spec")
+// or a partition transform argument (visitTransformArgument casts it to
+// Literal). A parameter marker, `?` or `:name`, is refused there.
+func (p *Parser) parseLiteralConstant(where string) error {
+	if p.cur().Kind == tokQuestion || p.cur().Kind == tokColon {
+		return p.errorf("only literals are allowed in a %s, not a parameter marker", where)
+	}
+	return p.parseConstant()
+}
+
 func (p *Parser) parseConstantWithNeg(negated bool) error {
 	switch p.cur().Kind {
 	case kwNULL, kwTRUE, kwFALSE:

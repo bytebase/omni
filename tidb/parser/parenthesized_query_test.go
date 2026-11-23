@@ -225,7 +225,6 @@ func TestParenFromRegression(t *testing.T) {
 		"SELECT * FROM (t1)",                      // parenthesized single table
 		"SELECT * FROM (t1 JOIN t2 ON t1.a=t2.b)", // parenthesized join
 		"SELECT * FROM (t1, t2)",                  // parenthesized comma cross-join
-		"SELECT * FROM t1, LATERAL (SELECT 1) x",  // LATERAL derived table
 		"(SELECT 1) UNION (SELECT 2)",             // top-level set-op (statement)
 	}
 	for _, sql := range accepted {

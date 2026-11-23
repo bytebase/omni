@@ -105,3 +105,104 @@ func TestFunctionResourceRequiresKeyspace(t *testing.T) {
 		}
 	}
 }
+
+// TestGrantPermissionsApplicable holds GRANT and REVOKE to what cassandra:5.0.9
+// answered for each permission on each resource: filterPermissions
+// (Parser.g:149) refuses a statement none of whose permissions the resource
+// takes. LIST does not filter.
+func TestGrantPermissionsApplicable(t *testing.T) {
+	all := []string{"CREATE", "ALTER", "DROP", "SELECT", "MODIFY", "AUTHORIZE", "DESCRIBE", "EXECUTE", "UNMASK", "SELECT_MASKED"}
+	accepted := map[string]string{
+		"ALL KEYSPACES":               "CREATE ALTER DROP SELECT MODIFY AUTHORIZE UNMASK SELECT_MASKED",
+		"KEYSPACE k":                  "CREATE ALTER DROP SELECT MODIFY AUTHORIZE UNMASK SELECT_MASKED",
+		"ALL TABLES IN KEYSPACE k":    "CREATE ALTER DROP SELECT MODIFY AUTHORIZE UNMASK SELECT_MASKED",
+		"a":                           "ALTER DROP SELECT MODIFY AUTHORIZE UNMASK SELECT_MASKED",
+		"TABLE k.a":                   "ALTER DROP SELECT MODIFY AUTHORIZE UNMASK SELECT_MASKED",
+		"ROLE":                        "ALTER DROP SELECT MODIFY AUTHORIZE UNMASK SELECT_MASKED",
+		"ALL ROLES":                   "CREATE ALTER DROP AUTHORIZE DESCRIBE",
+		"ROLE r":                      "ALTER DROP AUTHORIZE DESCRIBE",
+		"ALL FUNCTIONS":               "CREATE ALTER DROP AUTHORIZE EXECUTE",
+		"ALL FUNCTIONS IN KEYSPACE k": "CREATE ALTER DROP AUTHORIZE EXECUTE",
+		"ALL MBEANS":                  "SELECT MODIFY AUTHORIZE DESCRIBE EXECUTE",
+		"MBEAN 'org.apache:type=a'":   "SELECT MODIFY AUTHORIZE DESCRIBE EXECUTE",
+		"MBEANS 'org.apache:type=*'":  "SELECT MODIFY AUTHORIZE DESCRIBE EXECUTE",
+	}
+	for res, perms := range accepted {
+		ok := map[string]bool{}
+		for _, perm := range strings.Fields(perms) {
+			ok[perm] = true
+		}
+		for _, perm := range all {
+			for _, sql := range []string{"GRANT " + perm + " ON " + res + " TO r", "REVOKE " + perm + " ON " + res + " FROM r"} {
+				if _, err := Parse(sql); (err == nil) != ok[perm] {
+					t.Errorf("Parse(%q) error = %v, want accepted %v", sql, err, ok[perm])
+				}
+			}
+			if sql := "LIST " + perm + " ON " + res; !parses(sql) {
+				t.Errorf("Parse(%q) failed: LIST does not filter", sql)
+			}
+		}
+		for _, sql := range []string{"GRANT ALL ON " + res + " TO r", "GRANT ALL PERMISSIONS ON " + res + " TO r"} {
+			if !parses(sql) {
+				t.Errorf("Parse(%q) failed", sql)
+			}
+		}
+	}
+	// One permission the resource takes is enough.
+	for sql, want := range map[string]bool{
+		"GRANT CREATE, SELECT ON a TO r":                   true,
+		"GRANT CREATE PERMISSION, DESCRIBE ON k.a TO r":    false,
+		"GRANT CREATE, SELECT ON ROLE r TO r":              false,
+		"GRANT CREATE PERMISSION, DESCRIBE ON ROLE r TO r": true,
+	} {
+		if parses(sql) != want {
+			t.Errorf("Parse(%q) accepted = %v, want %v", sql, !want, want)
+		}
+	}
+}
+
+func parses(sql string) bool {
+	_, err := Parse(sql)
+	return err == nil
+}
+
+// TestIntValueAndSignedConstants holds intValue (Parser.g:1601), DELETE's
+// USING (Parser.g:612) and a property's constant to what cassandra:5.0.9
+// answered: a '-' belongs to a number only written against it (Lexer.g:337).
+func TestIntValueAndSignedConstants(t *testing.T) {
+	for sql, want := range map[string]bool{
+		"INSERT INTO a (a) VALUES (1) USING TTL ?":                           true,
+		"INSERT INTO a (a) VALUES (1) USING TTL : a":                         true,
+		"INSERT INTO a (a) VALUES (1) USING TTL -1":                          true,
+		"INSERT INTO a (a) VALUES (1) USING TTL 1 AND TIMESTAMP 2 AND TTL 3": true,
+		"INSERT INTO a (a) VALUES (1) USING TTL 'a'":                         false,
+		"INSERT INTO a (a) VALUES (1) USING TTL null":                        false,
+		"INSERT INTO a (a) VALUES (1) USING TTL 1.5":                         false,
+		"INSERT INTO a (a) VALUES (1) USING TTL 1d":                          false,
+		"INSERT INTO a (a) VALUES (1) USING TIMESTAMP - 1":                   false,
+		"UPDATE a USING TIMESTAMP 1 AND TTL ? SET a = 1 WHERE a = 1":         true,
+		"DELETE FROM a USING TIMESTAMP :a WHERE a = 1":                       true,
+		"DELETE FROM a USING TIMESTAMP -1 WHERE a = 1":                       true,
+		"DELETE FROM a USING TTL 1 WHERE a = 1":                              false,
+		"DELETE FROM a USING TIMESTAMP 1 AND TIMESTAMP 2 WHERE a = 1":        false,
+		"BEGIN BATCH USING TIMESTAMP ? AND TTL 1 APPLY BATCH":                true,
+		"BEGIN BATCH USING TIMESTAMP 'a' APPLY BATCH":                        false,
+		"SELECT a FROM a LIMIT -1":                                           true,
+		"SELECT a FROM a PER PARTITION LIMIT -1":                             true,
+		"SELECT a FROM a LIMIT - 1":                                          false,
+		"CREATE KEYSPACE a WITH a = 1d":                                      true,
+		"CREATE KEYSPACE a WITH a = -P1D":                                    true,
+		"CREATE KEYSPACE a WITH replication = {'a': 1d}":                     true,
+		"CREATE KEYSPACE a WITH a = -1":                                      true,
+		"CREATE KEYSPACE a WITH a = - 1":                                     false,
+		"CREATE KEYSPACE a WITH a = - 1d":                                    false,
+		"GRANT ALL ON ROLE TO a":                                             true,
+		"REVOKE ALL ON ROLE FROM a":                                          true,
+		"GRANT ALL ON ROLE KEY TO a":                                         true,
+		"GRANT ALL ON ROLE FROM TO a":                                        false,
+	} {
+		if parses(sql) != want {
+			t.Errorf("Parse(%q) accepted = %v, want %v", sql, !want, want)
+		}
+	}
+}
