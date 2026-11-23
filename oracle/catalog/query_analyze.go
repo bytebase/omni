@@ -327,6 +327,10 @@ func mergeSetOpTypes(a, b qtype) (qtype, error) {
 	if sameType(a, b) {
 		return a, nil
 	}
+	if a.kind == "UNKNOWN" || b.kind == "UNKNOWN" {
+		// A type this analyzer does not model proves no mismatch.
+		return simpleType("UNKNOWN"), nil
+	}
 	switch {
 	case a.isCharacter() && b.isCharacter():
 		if a.isNational() || b.isNational() {

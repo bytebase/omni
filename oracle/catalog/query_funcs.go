@@ -121,10 +121,17 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		args = append(args, t)
 		argNN = append(argNN, nn)
 	}
-	for _, item := range listItems(n.OrderBy) {
+	// withinGroup is the type of the first WITHIN GROUP ordering expression,
+	// which PERCENTILE_CONT and PERCENTILE_DISC return.
+	withinGroup := simpleType("UNKNOWN")
+	for i, item := range listItems(n.OrderBy) {
 		if sb, ok := item.(*ast.SortBy); ok {
-			if _, _, err := a.expr(sb.Expr, sc, clauseSelect); err != nil {
+			t, _, err := a.expr(sb.Expr, sc, clauseSelect)
+			if err != nil {
 				return qtype{}, false, err
+			}
+			if i == 0 {
+				withinGroup = t
 			}
 		}
 	}
@@ -154,7 +161,7 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		}
 	}
 	if aggregate || n.Over != nil {
-		return a.aggregateType(n, name, args)
+		return a.aggregateType(n, name, args, withinGroup)
 	}
 	if n.FuncName.Schema != "" {
 		if t, ok := collectionElementType(n); ok {
@@ -400,7 +407,7 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 }
 
 // aggregateType types an aggregate or analytic call.
-func (a *queryAnalyzer) aggregateType(n *ast.FuncCallExpr, name string, args []qtype) (qtype, bool, error) {
+func (a *queryAnalyzer) aggregateType(n *ast.FuncCallExpr, name string, args []qtype, withinGroup qtype) (qtype, bool, error) {
 	arg := func(i int) qtype {
 		if i < len(args) {
 			return args[i]
@@ -432,7 +439,7 @@ func (a *queryAnalyzer) aggregateType(n *ast.FuncCallExpr, name string, args []q
 		"PERCENTILE_CONT", "APPROX_MEDIAN", "APPROX_PERCENTILE", "APPROX_SUM":
 		t := arg(0)
 		if name == "PERCENTILE_CONT" || name == "APPROX_PERCENTILE" {
-			t = numberType()
+			t = withinGroup
 		}
 		switch t.kind {
 		case "BINARY_DOUBLE", "BINARY_FLOAT":
@@ -442,6 +449,11 @@ func (a *queryAnalyzer) aggregateType(n *ast.FuncCallExpr, name string, args []q
 			return t, false, nil
 		}
 		return numberType(), false, nil
+	case "PERCENTILE_DISC":
+		if withinGroup.kind == "NUMBER" {
+			return numberType(), false, nil
+		}
+		return withinGroup, false, nil
 	case "LISTAGG":
 		return varchar2Bytes(4000), false, nil
 	case "JSON_ARRAYAGG", "JSON_OBJECTAGG":
@@ -508,6 +520,16 @@ func (a *queryAnalyzer) windowSpec(w *ast.WindowSpec, sc *qscope, seen map[strin
 		}
 		if t.isLOB() {
 			return oraError("22848", "cannot use %s type as comparison key", t.kind)
+		}
+	}
+	if f := w.Frame; f != nil {
+		for _, b := range []*ast.WindowBound{f.Start, f.End} {
+			if b == nil || b.Value == nil {
+				continue
+			}
+			if _, _, err := a.expr(b.Value, sc, clauseSelect); err != nil {
+				return err
+			}
 		}
 	}
 	if w.WindowName == "" || seen[w.WindowName] {

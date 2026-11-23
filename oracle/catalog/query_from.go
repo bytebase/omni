@@ -495,6 +495,16 @@ func (a *queryAnalyzer) tableCollection(n *ast.TableCollectionExpr, sc *qscope) 
 		}
 		return nil, oraError("22905", "Cannot access rows from unsupported input to TABLE operator.")
 	}
+	// The constructor's arguments are expressions like any other.
+	if fc, ok := unparen(x).(*ast.FuncCallExpr); ok {
+		for _, item := range listItems(fc.Args) {
+			if ex, ok := item.(ast.ExprNode); ok {
+				if _, _, err := a.expr(ex, sc, clauseFrom); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
 	return relFrom(&qrel{name: aliasName(n.Alias), cols: []qcol{{name: "COLUMN_VALUE", typ: elem}}}), nil
 }
 
