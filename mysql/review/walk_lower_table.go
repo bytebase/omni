@@ -1282,12 +1282,16 @@ func (b *builder) moveTable(from, to tableRef, kind string) {
 		}
 	}
 	// The foreign keys named <from>_ibfk_... become <to>_ibfk_...
-	// (verified on 8.0 and 8.4).
+	// (verified on 8.0 and 8.4), and check constraints named <from>_chk_...
+	// become <to>_chk_... (MySQL 8.0 RENAME TABLE).
 	old, renamed := b.generatedFKs(from.name), b.generatedFKs(to.name)
 	b.MayRemove(walk.Scope{Space: spaceForeignKey, Parent: walk.Path(from.db), Prefix: old})
 	b.MayAdd(walk.Scope{Space: spaceForeignKey, Parent: walk.Path(to.db), Prefix: renamed})
 	b.MayRemove(walk.Scope{Space: spaceTableForeignKey, Parent: toPath, Prefix: old})
 	b.MayAdd(walk.Scope{Space: spaceTableForeignKey, Parent: toPath, Prefix: renamed})
+	oldChk, renamedChk := b.generatedChecks(from.name), b.generatedChecks(to.name)
+	b.MayRemove(walk.Scope{Space: spaceCheckConstraint, Parent: toPath, Prefix: oldChk})
+	b.MayAdd(walk.Scope{Space: spaceCheckConstraint, Parent: toPath, Prefix: renamedChk})
 	fk, tk := relKey(from.db, from.name), relKey(to.db, to.name)
 	fromPath := tablePath(from.db, from.name)
 	b.Session(func() {

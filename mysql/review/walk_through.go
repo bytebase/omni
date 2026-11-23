@@ -527,6 +527,16 @@ func (*builder) generatedFKs(table string) string {
 	return strings.ToLower(table) + "_ibfk_"
 }
 
+// generatedChecks returns the prefix of the check constraint names MySQL
+// generates and rewrites on RENAME TABLE / ALTER TABLE RENAME TO:
+// <table>_chk_.
+func (*builder) generatedChecks(table string) string {
+	if strings.HasPrefix(table, nonASCII) {
+		return ""
+	}
+	return strings.ToLower(table) + "_chk_"
+}
+
 func (b *builder) key(space, name string) (string, bool) {
 	return nameKey(space, name, b.w.foldTables)
 }
