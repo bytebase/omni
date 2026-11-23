@@ -32,6 +32,8 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 				return false
 			}
 		}
+		// The table may get a CHECK constraint the walk does not follow.
+		b.Forget(walk.Scope{Space: spaceTableCheck, Parent: tablePath(r.db, r.name)})
 		return true
 	}
 	if b.w.oceanBase && f == walk.Present && kind != relTable {
@@ -298,8 +300,10 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			return true
 		}
 		b.leave(ck)
-		// An index loses the column, and goes with its last one.
+		// An index loses the column, and goes with its last one; a CHECK
+		// constraint on the column alone goes with it.
 		b.MayRemove(walk.Scope{Space: spaceIndex, Parent: tablePath(r.db, r.name)})
+		b.MayRemove(walk.Scope{Space: spaceTableCheck, Parent: tablePath(r.db, r.name)})
 		rel := relKey(r.db, r.name)
 		b.Session(func() {
 			delete(b.w.colTypes[rel], k)
@@ -421,7 +425,11 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			b.Set(fk, walk.Absent, "")
 			b.Set(own, walk.Absent, "")
 		case dropCheck:
+			b.dropChecks(r, c, rng)
 		case dropConstraint:
+			if b.dropConstraintFails(r, c, rng) {
+				return true
+			}
 			b.Session(func() {
 				delete(b.w.fkCols, rel)
 				delete(b.w.indexLeadsKnown, rel)
@@ -450,6 +458,14 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 					b.fail(rng, []walk.Key{own}, review.UnsupportedForm, b.engine()+" refuses altering enforcement on foreign key "+review.Code(ident(c.Name))+".")
 					return true
 				}
+			}
+			if b.noConstraint(r, c.Name, rng) {
+				return true
+			}
+		}
+		if b.w.oceanBase && c.ConstraintKeyword == ast.ConstraintKeywordCheck {
+			if k, ok := b.key(spaceTableCheck, c.Name); ok {
+				b.need(checkKey(r.db, r.name, k), walk.Present, nil, rng, notFound("check constraint", ident(c.Name), r.written), "") // 3821
 			}
 		}
 	case ast.ATPartitionBy:
@@ -819,7 +835,9 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 			}
 		})
 	case ast.ConstrCheck:
-		b.checkTableCheckConstraintOB(r, c, rng)
+		if !b.checkTableCheckConstraintOB(r, c, rng) {
+			b.addsCheck(r, c.Name)
+		}
 		return
 	case ast.ConstrForeignKey:
 		if !b.fks {
@@ -1159,5 +1177,95 @@ func (b *builder) truncate(v *ast.TruncateStmt) bool {
 			b.needKind(relKey(r.db, r.name), []string{relTable}, r.rng, notFound("table", r.written, ""), r.written, "table")
 		}
 	}
+	return true
+}
+
+// dropChecks follows DROP CHECK on OceanBase: each CHECK constraint it
+// names must be the table's (3821, verified on 4.3.5).
+func (b *builder) dropChecks(r tableRef, c *ast.AlterTableCmd, rng review.Range) {
+	if !b.w.oceanBase {
+		return
+	}
+	names := c.ConstraintNames
+	if len(names) == 0 && c.Name != "" {
+		names = []string{c.Name}
+	}
+	for _, name := range names {
+		k, ok := b.key(spaceTableCheck, name)
+		if !ok {
+			b.Forget(walk.Scope{Space: spaceTableCheck, Parent: tablePath(r.db, r.name)})
+			continue
+		}
+		ck := checkKey(r.db, r.name, k)
+		if !c.IfExists {
+			b.need(ck, walk.Present, nil, rng, notFound("check constraint", ident(name), r.written), "") // 3821
+		}
+		b.Set(ck, walk.Absent, "")
+	}
+}
+
+// dropConstraintFails follows DROP CONSTRAINT on OceanBase. Written with
+// parentheses it drops CHECK constraints alone, as DROP CHECK does (3821 for
+// a foreign key of the name, verified on 4.3.5); an index of the name, which
+// the walk does not tell from a unique key, leaves it unjudged. Without, it drops the foreign key, key, or CHECK constraint of
+// the name, and one the table has none of fails (3940, verified on 4.3.5).
+func (b *builder) dropConstraintFails(r tableRef, c *ast.AlterTableCmd, rng review.Range) bool {
+	if !b.w.oceanBase {
+		return false
+	}
+	if len(c.ConstraintNames) > 0 {
+		for _, name := range c.ConstraintNames {
+			k, ok := b.key(spaceTableCheck, name)
+			if !ok {
+				continue
+			}
+			ck := checkKey(r.db, r.name, k)
+			if f, _ := b.l.Lookup(ck); f != walk.Absent || c.IfExists {
+				continue
+			}
+			if ik, ok := b.key(spaceIndex, name); ok {
+				if f, _ := b.l.Lookup(idxKey(r.db, r.name, ik)); f == walk.Absent {
+					b.fail(rng, []walk.Key{ck, idxKey(r.db, r.name, ik)}, review.ObjectNotFound, notFound("check constraint", ident(name), r.written)) // 3821
+					return true
+				}
+			}
+		}
+	} else if !c.IfExists && b.noConstraint(r, c.Name, rng) {
+		return true
+	}
+	names := c.ConstraintNames
+	if len(names) == 0 && c.Name != "" {
+		names = []string{c.Name}
+	}
+	for _, name := range names {
+		if k, ok := b.key(spaceTableCheck, name); ok {
+			b.Set(checkKey(r.db, r.name, k), walk.Unknown, "")
+		} else {
+			b.Forget(walk.Scope{Space: spaceTableCheck, Parent: tablePath(r.db, r.name)})
+		}
+	}
+	return false
+}
+
+// noConstraint fails a statement that names a constraint the table has no
+// foreign key, key, or CHECK constraint of (3940, verified on 4.3.5).
+func (b *builder) noConstraint(r tableRef, name string, rng review.Range) bool {
+	if !b.fks {
+		return false
+	}
+	ck, ok1 := b.key(spaceTableCheck, name)
+	fk, ok2 := b.key(spaceForeignKey, name)
+	ik, ok3 := b.key(spaceIndex, name)
+	if !ok1 || !ok2 || !ok3 {
+		return false
+	}
+	_, own := fkKeys(r, fk)
+	keys := []walk.Key{checkKey(r.db, r.name, ck), own, idxKey(r.db, r.name, ik)}
+	for _, k := range keys {
+		if f, _ := b.l.Lookup(k); f != walk.Absent {
+			return false
+		}
+	}
+	b.fail(rng, keys, review.ObjectNotFound, notFound("constraint", ident(name), r.written)) // 3940
 	return true
 }

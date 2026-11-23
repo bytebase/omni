@@ -21,10 +21,14 @@ const (
 	spaceIndex           = "index"
 	spaceForeignKey      = "foreign key"
 	spaceTableForeignKey = "table foreign key"
-	spaceTrigger         = "trigger"
-	spaceProcedure       = "procedure"
-	spaceFunction        = "function"
-	spaceEvent           = "event"
+	// spaceTableCheck holds a table's CHECK constraints. OceanBase only: the
+	// walk follows them there, and DROP CHECK of one the table lacks fails
+	// (3821, verified on 4.3.5).
+	spaceTableCheck = "table check"
+	spaceTrigger    = "trigger"
+	spaceProcedure  = "procedure"
+	spaceFunction   = "function"
+	spaceEvent      = "event"
 )
 
 // gipkColumn is the column of an invisible primary key
@@ -101,10 +105,12 @@ type mysqlSnapshot struct {
 	foreignKeys map[string]bool
 	// tableForeignKeys holds each table's foreign keys.
 	tableForeignKeys map[string]map[string]bool
-	triggers         map[string]string // key → the spelling the sync lists
-	procedures       map[string]bool
-	functions        map[string]bool
-	events           map[string]bool
+	// checks holds each table's CHECK constraints, on OceanBase.
+	checks     map[string]map[string]bool
+	triggers   map[string]string // key → the spelling the sync lists
+	procedures map[string]bool
+	functions  map[string]bool
+	events     map[string]bool
 	// triggered lists the relation keys of the tables with a trigger.
 	triggered map[string]bool
 	// materialized lists the relation keys of the snapshot's materialized
@@ -141,6 +147,7 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables, oceanBase
 		foreignKeys:      make(map[string]bool),
 		triggers:         make(map[string]string),
 		tableForeignKeys: make(map[string]map[string]bool),
+		checks:           make(map[string]map[string]bool),
 		procedures:       make(map[string]bool),
 		functions:        make(map[string]bool),
 		events:           make(map[string]bool),
@@ -253,6 +260,13 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables, oceanBase
 				}
 			}
 			s.tableForeignKeys[tk] = fks
+			if oceanBase {
+				checks := make(map[string]bool)
+				for _, c := range t.GetCheckConstraints() {
+					set(checks, spaceTableCheck, tk, c.GetName())
+				}
+				s.checks[tk] = checks
+			}
 			if len(fkColSet) > 0 {
 				s.fkCols[tk] = fkColSet
 			}
@@ -358,7 +372,7 @@ func (s *mysqlSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 			return walk.Present, kind
 		}
 		return absent()
-	case spaceColumn, spaceIndex, spaceTableForeignKey:
+	case spaceColumn, spaceIndex, spaceTableForeignKey, spaceTableCheck:
 		if len(path) != 2 {
 			return walk.Unknown, ""
 		}
@@ -382,6 +396,7 @@ func (s *mysqlSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 			spaceColumn:          s.columns,
 			spaceIndex:           s.indexes,
 			spaceTableForeignKey: s.tableForeignKeys,
+			spaceTableCheck:      s.checks,
 		}[k.Space][path[1]]
 		if !ok {
 			return walk.Unknown, ""
