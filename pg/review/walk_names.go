@@ -61,6 +61,14 @@ func trigKey(t walk.Key, name string) walk.Key {
 	return walk.Key{Space: spaceTrigger, Parent: tableOf(t), Name: name}
 }
 
+func extensionKey(name string) walk.Key {
+	return walk.Key{Space: spaceExtension, Name: name}
+}
+
+func ruleKey(t walk.Key, name string) walk.Key {
+	return walk.Key{Space: spaceRule, Parent: tableOf(t), Name: name}
+}
+
 func polKey(t walk.Key, name string) walk.Key {
 	return walk.Key{Space: spacePolicy, Parent: tableOf(t), Name: name}
 }
