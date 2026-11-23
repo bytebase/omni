@@ -569,6 +569,10 @@ func comparable(l, r qtype, right ast.ExprNode) error {
 }
 
 func concatType(l, r qtype) qtype {
+	if l.kind == "UNKNOWN" || r.kind == "UNKNOWN" {
+		// An operand of unknown length leaves the result's unknown.
+		return simpleType("UNKNOWN")
+	}
 	if l.kind == "CLOB" || r.kind == "CLOB" || l.kind == "NCLOB" || r.kind == "NCLOB" {
 		// NCLOB with an NCLOB operand, or a CLOB with a national one.
 		if l.kind == "NCLOB" || r.kind == "NCLOB" || l.isNational() || r.isNational() {
@@ -812,6 +816,11 @@ func widenFirst(args []qtype) qtype {
 	}
 	switch {
 	case first.isCharacter():
+		for _, t := range args {
+			if t.kind == "UNKNOWN" {
+				return simpleType("UNKNOWN")
+			}
+		}
 		if first.isNational() {
 			n := 0
 			for _, t := range args {
@@ -976,6 +985,18 @@ func checkGrouped(x ast.Node, keys []string, keyOf func(ast.Node) string, owned 
 	switch n := x.(type) {
 	case *ast.FuncCallExpr:
 		if isAggregateCall(n) {
+			return nil
+		}
+		if n.FuncName != nil && n.FuncName.Schema == "" && n.FuncName.Name == "XMLELEMENT" {
+			// XMLELEMENT's first argument names the element.
+			for i, item := range listItems(n.Args) {
+				if i == 0 {
+					continue
+				}
+				if err := checkGrouped(item, keys, keyOf, owned, hasGroupBy, positional, nested); err != nil {
+					return err
+				}
+			}
 			return nil
 		}
 		if n.FuncName != nil && n.FuncName.Schema == "" && n.FuncName.Name == "TRIM" {

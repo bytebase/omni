@@ -221,6 +221,8 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"unpivot_bind_label", `CREATE VIEW v AS SELECT * FROM t UNPIVOT (a FOR tag IN (id AS :x))`, "56900"},
 		{"rowid_of_distinct_view", `CREATE VIEW v AS SELECT q.ROWID rid FROM (SELECT DISTINCT id FROM t) q`, "01446"},
 		{"rowid_of_simple_view", `CREATE VIEW v AS SELECT q.ROWID rid FROM (SELECT id FROM t) q`, ""},
+		{"xmlelement_tag_grouped", `CREATE VIEW v AS SELECT XMLELEMENT("tag", COUNT(*)) x FROM dual`, ""},
+		{"sum_of_lob", `CREATE VIEW v AS SELECT SUM(doc) x FROM t`, "00932"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -1017,5 +1019,15 @@ func TestViewQueryReplaceNchar(t *testing.T) {
 	}
 	if got := c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns()[0].GetType(); got != "NVARCHAR2(10)" {
 		t.Errorf("type = %q, want NVARCHAR2(10)", got)
+	}
+}
+
+func TestViewQueryUnknownThroughConcat(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE t (s VARCHAR2(10)); CREATE VIEW v AS SELECT REPLACE(s, 'a', 'bb') || 'x' x FROM t;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns()[0].GetType(); got != "" {
+		t.Errorf("type = %q, want unknown", got)
 	}
 }

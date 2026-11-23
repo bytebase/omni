@@ -642,6 +642,10 @@ func (a *queryAnalyzer) aggregateType(n *ast.FuncCallExpr, name string, args []q
 		case "BINARY_DOUBLE", "BINARY_FLOAT":
 			return t, false, nil
 		}
+		if t.isLOB() || t.kind == "RAW" || t.kind == "BOOLEAN" {
+			// No conversion to a number.
+			return qtype{}, false, oraError("00932", "expression is of data type %s, which is incompatible with expected data type NUMBER", t.kind)
+		}
 		switch {
 		case t.isDatetime():
 			// MEDIAN and the percentiles interpolate datetimes; the sums
