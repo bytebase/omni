@@ -722,6 +722,8 @@ func TestWalkThroughMySQLRefusalFamilies(t *testing.T) {
 		{"swap index names then drop non-fk index", "ALTER TABLE child RENAME INDEX fk_pid TO idx_other, RENAME INDEX idx_other TO fk_pid;\nDROP INDEX fk_pid ON child;"},
 		{"view with IN subquery in from-less select", "CREATE VIEW v2 AS SELECT 1 IN (SELECT id FROM plain) AS x;"},
 		{"overridden default attribute uses last default", "CREATE TABLE x (a INT DEFAULT 'abc' DEFAULT 0);"},
+		{"modify col type and set default in same alter", "CREATE TABLE x (a INT);\nALTER TABLE x MODIFY COLUMN a VARCHAR(10), ALTER COLUMN a SET DEFAULT 'abc';"},
+		{"change col type and set default in same alter", "CREATE TABLE x (a INT);\nALTER TABLE x CHANGE COLUMN a b VARCHAR(10), ALTER COLUMN b SET DEFAULT 'abc';"},
 		{"rename table rewrites generated check prefix", "CREATE TABLE x (a INT, CONSTRAINT x_chk_1 CHECK (a > 0));\nRENAME TABLE x TO y;\nALTER TABLE y DROP CHECK y_chk_1;"},
 		{"expr default referencing other col", "ALTER TABLE plain ADD COLUMN x INT DEFAULT (n + 1);"},
 		{"generated col referencing other col", "ALTER TABLE plain ADD COLUMN x INT AS (n + 1);"},

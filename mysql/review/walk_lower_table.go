@@ -99,31 +99,48 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 // subcommands can check final column visibility, index coverage, partitioning,
 // and foreign key dependencies without false positives across sibling actions.
 type alterDelta struct {
-	addedCols           map[string]string // colKey -> baseType
-	droppedCols         map[string]bool
-	renamedFrom         map[string]string // oldColKey -> newColKey
-	renamedTo           map[string]string // newColKey -> oldColKey
-	modifiedCols        map[string]string // colKey -> new baseType
-	droppedIndexes      map[string]bool
-	addedIndexes        []*indexMeta
-	droppedFKs          map[string]bool
-	removesPartitioning bool
-	repartition         *ast.PartitionClause
-	finalPartitioned    bool
-	finalEngine         string
-	engineKnown         bool
+	addedCols                 map[string]string // colKey -> baseType
+	droppedCols               map[string]bool
+	renamedFrom               map[string]string // oldColKey -> newColKey
+	renamedTo                 map[string]string // newColKey -> oldColKey
+	modifiedCols              map[string]string // colKey -> new baseType
+	droppedIndexes            map[string]bool
+	addedIndexes              []*indexMeta
+	droppedFKs                map[string]bool
+	addedOrRenamedConstraints map[string]bool
+	removesPartitioning       bool
+	repartition               *ast.PartitionClause
+	finalPartitioned          bool
+	finalEngine               string
+	engineKnown               bool
 }
 
 func (b *builder) buildAlterDelta(r tableRef, v *ast.AlterTableStmt, setEngine string, setsEngine bool) *alterDelta {
 	rel := relKey(r.db, r.name)
 	d := &alterDelta{
-		addedCols:      make(map[string]string),
-		droppedCols:    make(map[string]bool),
-		renamedFrom:    make(map[string]string),
-		renamedTo:      make(map[string]string),
-		modifiedCols:   make(map[string]string),
-		droppedIndexes: make(map[string]bool),
-		droppedFKs:     make(map[string]bool),
+		addedCols:                 make(map[string]string),
+		droppedCols:               make(map[string]bool),
+		renamedFrom:               make(map[string]string),
+		renamedTo:                 make(map[string]string),
+		modifiedCols:              make(map[string]string),
+		droppedIndexes:            make(map[string]bool),
+		droppedFKs:                make(map[string]bool),
+		addedOrRenamedConstraints: make(map[string]bool),
+	}
+	markConstraintName := func(name string) {
+		if k, ok := b.key(spaceIndex, name); ok {
+			d.addedOrRenamedConstraints[k] = true
+		}
+	}
+	markColConstraints := func(col *ast.ColumnDef) {
+		if col == nil {
+			return
+		}
+		for _, cc := range col.Constraints {
+			if cc != nil && cc.Name != "" {
+				markConstraintName(cc.Name)
+			}
+		}
 	}
 	if setsEngine {
 		d.finalEngine = setEngine
@@ -150,9 +167,13 @@ func (b *builder) buildAlterDelta(r tableRef, v *ast.AlterTableStmt, setEngine s
 					d.addedCols[k] = astBaseType(col.TypeName)
 				}
 				d.recordInlineColumnKeys(col)
+				markColConstraints(col)
 			}
 			for _, con := range c.Constraints {
 				d.recordAddedConstraint(con)
+				if con != nil {
+					markConstraintName(b.constraintName(con))
+				}
 			}
 		case ast.ATDropColumn:
 			if k, ok := b.key(spaceColumn, c.Name); ok {
@@ -164,6 +185,7 @@ func (b *builder) buildAlterDelta(r tableRef, v *ast.AlterTableStmt, setEngine s
 					d.modifiedCols[k] = astBaseType(c.Column.TypeName)
 				}
 				d.recordInlineColumnKeys(c.Column)
+				markColConstraints(c.Column)
 			}
 		case ast.ATChangeColumn:
 			if c.Column != nil {
@@ -177,6 +199,7 @@ func (b *builder) buildAlterDelta(r tableRef, v *ast.AlterTableStmt, setEngine s
 					d.modifiedCols[tk] = astBaseType(c.Column.TypeName)
 				}
 				d.recordInlineColumnKeys(c.Column)
+				markColConstraints(c.Column)
 			}
 		case ast.ATRenameColumn:
 			fk, ok1 := b.key(spaceColumn, c.Name)
@@ -185,6 +208,9 @@ func (b *builder) buildAlterDelta(r tableRef, v *ast.AlterTableStmt, setEngine s
 				d.renamedFrom[fk] = tk
 				d.renamedTo[tk] = fk
 			}
+		case ast.ATRenameIndex:
+			markConstraintName(c.Name)
+			markConstraintName(c.NewName)
 		case ast.ATDropIndex:
 			if k, ok := b.key(spaceIndex, c.Name); ok {
 				d.droppedIndexes[k] = true
@@ -205,6 +231,9 @@ func (b *builder) buildAlterDelta(r tableRef, v *ast.AlterTableStmt, setEngine s
 			}
 		case ast.ATAddConstraint, ast.ATAddIndex:
 			d.recordAddedConstraint(c.Constraint)
+			if c.Constraint != nil {
+				markConstraintName(b.constraintName(c.Constraint))
+			}
 		case ast.ATRemovePartitioning:
 			d.removesPartitioning = true
 			d.finalPartitioned = false
@@ -261,10 +290,13 @@ func (b *builder) alterFinalCol(r tableRef, d *alterDelta, colName string) (walk
 		return walk.Unknown, "", false
 	}
 	if bt, ok := d.addedCols[k]; ok {
+		if mbt, has := d.modifiedCols[k]; has {
+			return walk.Present, mbt, false
+		}
 		return walk.Present, bt, false
 	}
 	if oldK, ok := d.renamedTo[k]; ok {
-		if bt, has := d.modifiedCols[k]; has && bt != "" {
+		if bt, has := d.modifiedCols[k]; has {
 			return walk.Present, bt, false
 		}
 		return walk.Present, b.w.colTypes[colKey(r.db, r.name, oldK)], false
@@ -277,7 +309,7 @@ func (b *builder) alterFinalCol(r tableRef, d *alterDelta, colName string) (walk
 	}
 	ck := colKey(r.db, r.name, k)
 	f, _ := b.l.Lookup(ck)
-	if bt, has := d.modifiedCols[k]; has && bt != "" {
+	if bt, has := d.modifiedCols[k]; has {
 		return f, bt, false
 	}
 	return f, b.w.colTypes[ck], false
@@ -337,11 +369,15 @@ func (b *builder) applyAlterMeta(r tableRef, v *ast.AlterTableStmt, d *alterDelt
 		for k, bt := range d.addedCols {
 			if bt != "" {
 				b.w.colTypes[colKey(r.db, r.name, k)] = bt
+			} else {
+				delete(b.w.colTypes, colKey(r.db, r.name, k))
 			}
 		}
 		for k, bt := range d.modifiedCols {
 			if bt != "" {
 				b.w.colTypes[colKey(r.db, r.name, k)] = bt
+			} else {
+				delete(b.w.colTypes, colKey(r.db, r.name, k))
 			}
 		}
 		if len(d.droppedCols) > 0 {
@@ -651,10 +687,9 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd, d *alterDelta) bool
 		if !b.columnNeeds(r, c.Name, rng) {
 			return false
 		}
-		if k, ok := b.key(spaceColumn, c.Name); ok && c.DefaultExpr != nil {
-			ck := colKey(r.db, r.name, k)
-			if f, _ := b.l.Lookup(ck); f == walk.Present {
-				b.columnDefaultFails(c.Name, b.w.colTypes[ck], c.DefaultExpr, rng)
+		if c.DefaultExpr != nil {
+			if f, baseType, _ := b.alterFinalCol(r, d, c.Name); f == walk.Present {
+				b.columnDefaultFails(c.Name, baseType, c.DefaultExpr, rng)
 			}
 		}
 	case ast.ATAlterColumnVisible, ast.ATAlterColumnInvisible:
@@ -713,16 +748,18 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd, d *alterDelta) bool
 				fk, own := fkKeys(r, k)
 				ck := chkKey(r.db, r.name, k)
 				ik := idxKey(r.db, r.name, k)
-				cf, _ := b.l.Lookup(ck)
-				ff, _ := b.l.Lookup(own)
-				if_, _ := b.l.Lookup(ik)
-				idxNonUnique := false
-				if im := b.w.tableIndexes[rel][k]; im != nil && !im.unique && !im.primary {
-					idxNonUnique = true
-				}
-				if cf == walk.Absent && ff == walk.Absent && (if_ == walk.Absent || idxNonUnique) {
-					b.fail(rng, nil, review.ObjectNotFound, notFound("constraint", ident(c.Name), r.written)) // 3940
-					return true
+				if !d.addedOrRenamedConstraints[k] {
+					cf, _ := b.l.Lookup(ck)
+					ff, _ := b.l.Lookup(own)
+					if_, _ := b.l.Lookup(ik)
+					idxNonUnique := false
+					if im := b.w.tableIndexes[rel][k]; im != nil && !im.unique && !im.primary {
+						idxNonUnique = true
+					}
+					if cf == walk.Absent && ff == walk.Absent && (if_ == walk.Absent || idxNonUnique) {
+						b.fail(rng, nil, review.ObjectNotFound, notFound("constraint", ident(c.Name), r.written)) // 3940
+						return true
+					}
 				}
 				b.Set(fk, walk.Unknown, "")
 				b.Set(own, walk.Unknown, "")
@@ -740,6 +777,9 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd, d *alterDelta) bool
 		ck := chkKey(r.db, r.name, k)
 		if c.ConstraintKeyword == ast.ConstraintKeywordCheck {
 			b.need(ck, walk.Present, nil, rng, notFound("check constraint", ident(c.Name), r.written), "") // 3821
+			return true
+		}
+		if d.addedOrRenamedConstraints[k] {
 			return true
 		}
 		// ALTER CONSTRAINT name [NOT] ENFORCED: only CHECK constraints are supported (3941),
