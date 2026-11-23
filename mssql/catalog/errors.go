@@ -28,6 +28,7 @@ const (
 	ErrMultiplePrimaryKeys        = 1779
 	ErrColumnAlreadyHasDefault    = 1781
 	ErrMultipleClusteredIndex     = 1902
+	ErrDropExistingConstraintMismatch = 1907
 	ErrDupIndexColumn             = 1909
 	ErrIndexColumnNotFound        = 1911
 	ErrDupIndex                   = 1913

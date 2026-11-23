@@ -226,14 +226,30 @@ func indexReferencedByFK(c *Catalog, targetSchema string, targetTable *metadata.
 }
 
 func schemaBoundTableConsumer(c *Catalog, targetSchema, targetTable string) (string, bool) {
+	return schemaBoundObjectConsumer(c, targetSchema, targetTable, nil)
+}
+
+func schemaBoundObjectConsumer(c *Catalog, targetSchema, targetObj string, excluded func(schemaName, objName string) bool) (string, bool) {
 	for _, s := range c.schemas {
 		for _, v := range s.Views {
-			if isSchemaBound(v.Definition) && definitionReferencesTable(v.Definition, s.Name, targetSchema, targetTable) {
+			if strings.EqualFold(s.Name, targetSchema) && strings.EqualFold(v.Name, targetObj) {
+				continue
+			}
+			if excluded != nil && excluded(s.Name, v.Name) {
+				continue
+			}
+			if isSchemaBound(v.Definition) && definitionReferencesTable(v.Definition, s.Name, targetSchema, targetObj) {
 				return v.Name, true
 			}
 		}
 		for _, fn := range s.Functions {
-			if isSchemaBound(fn.Definition) && definitionReferencesTable(fn.Definition, s.Name, targetSchema, targetTable) {
+			if strings.EqualFold(s.Name, targetSchema) && strings.EqualFold(fn.Name, targetObj) {
+				continue
+			}
+			if excluded != nil && excluded(s.Name, fn.Name) {
+				continue
+			}
+			if isSchemaBound(fn.Definition) && definitionReferencesTable(fn.Definition, s.Name, targetSchema, targetObj) {
 				return fn.Name, true
 			}
 		}
@@ -483,6 +499,9 @@ func (c *Catalog) execAlterSchema(n *ast.AlterSchemaStmt) error {
 		if table == nil {
 			return mssqlErr(ErrSecurableNotFound, "Cannot find the object '%s', because it does not exist or you do not have permission.", n.TransferEntity)
 		}
+		if collision := c.findTransferredTableCollision(targetSchema, table); collision != "" {
+			return mssqlErr(ErrDupObject, "There is already an object named '%s' in the database.", collision)
+		}
 		for i, t := range srcSchema.Tables {
 			if t == table {
 				var inboundFKs []*metadata.ForeignKeyMetadata
@@ -531,6 +550,11 @@ func (c *Catalog) execAlterSchema(n *ast.AlterSchemaStmt) error {
 	case kindView:
 		for i, v := range srcSchema.Views {
 			if strings.EqualFold(v.Name, objName) {
+				for _, tr := range v.Triggers {
+					if tr.Name != "" && c.lookupSchemaObject(targetSchema, tr.Name, false) != kindNone {
+						return mssqlErr(ErrDupObject, "There is already an object named '%s' in the database.", tr.Name)
+					}
+				}
 				srcSchema.Views = append(srcSchema.Views[:i], srcSchema.Views[i+1:]...)
 				v.Definition = qualifyModuleDefinition(v.Definition, targetSchema.Name, true)
 				for _, tr := range v.Triggers {
@@ -827,6 +851,17 @@ func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt, source string) error {
 	appendIndexColumns(index, n.Columns)
 	index.Definition = indexDefinition(n.IncludeCols, n.WhereClause, source)
 	if dropExisting && existingPos >= 0 {
+		if existingIdx.IsConstraint {
+			if !index.Unique || n.Columnstore || n.WhereClause != nil ||
+				(n.IncludeCols != nil && len(n.IncludeCols.Items) > 0) ||
+				!sameIndexKeyColumns(existingIdx.Expressions, index.Expressions) {
+				return mssqlErr(ErrDropExistingConstraintMismatch, "Cannot recreate index '%s'. The new index definition does not match the constraint being enforced by the existing index.", existingIdx.Name)
+			}
+		} else if _, fkName, referenced := indexReferencedByFK(c, schemaName, table, existingIdx); referenced {
+			if !index.Unique || n.Columnstore || n.WhereClause != nil || !sameIndexKeyColumns(existingIdx.Expressions, index.Expressions) {
+				return mssqlErr(ErrDropIndexReferencedByFK, "An explicit DROP INDEX is not allowed on index '%s.%s'. It is being used for FOREIGN KEY constraint enforcement (%s).", tableName, existingIdx.Name, fkName)
+			}
+		}
 		index.Primary = existingIdx.Primary
 		index.IsConstraint = existingIdx.IsConstraint
 		table.Indexes[existingPos] = index
@@ -834,6 +869,47 @@ func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt, source string) error {
 		table.Indexes = append(table.Indexes, index)
 	}
 	return nil
+}
+
+func sameIndexKeyColumns(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !strings.EqualFold(a[i], b[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func (c *Catalog) findTransferredTableCollision(targetSchema *metadata.SchemaMetadata, table *metadata.TableMetadata) string {
+	for _, idx := range table.Indexes {
+		if idx.IsConstraint && idx.Name != "" && c.lookupSchemaObject(targetSchema, idx.Name, false) != kindNone {
+			return idx.Name
+		}
+	}
+	for _, fk := range table.ForeignKeys {
+		if fk.Name != "" && c.lookupSchemaObject(targetSchema, fk.Name, false) != kindNone {
+			return fk.Name
+		}
+	}
+	for _, ck := range table.CheckConstraints {
+		if ck.Name != "" && c.lookupSchemaObject(targetSchema, ck.Name, false) != kindNone {
+			return ck.Name
+		}
+	}
+	for _, col := range table.Columns {
+		if col.DefaultConstraintName != "" && c.lookupSchemaObject(targetSchema, col.DefaultConstraintName, false) != kindNone {
+			return col.DefaultConstraintName
+		}
+	}
+	for _, tr := range table.Triggers {
+		if tr.Name != "" && c.lookupSchemaObject(targetSchema, tr.Name, false) != kindNone {
+			return tr.Name
+		}
+	}
+	return ""
 }
 
 func (c *Catalog) execCreateXMLIndex(n *ast.CreateXmlIndexStmt) error {
@@ -2494,6 +2570,9 @@ func (c *Catalog) execDropSchema(n *ast.DropStmt) error {
 			continue
 		}
 		name := ref.Object
+		if isBuiltInSchema(name) {
+			return mssqlErr(ErrSecurableNotFound, "Cannot drop the schema '%s', because it does not exist or you do not have permission.", name)
+		}
 		schema := c.GetSchema(name)
 		if schema == nil {
 			if n.IfExists {
@@ -2508,6 +2587,17 @@ func (c *Catalog) execDropSchema(n *ast.DropStmt) error {
 		c.removeSchema(schema.Name)
 	}
 	return nil
+}
+
+func isBuiltInSchema(name string) bool {
+	switch normalize(name) {
+	case "dbo", "guest", "information_schema", "sys",
+		"db_owner", "db_accessadmin", "db_securityadmin", "db_ddladmin",
+		"db_backupoperator", "db_datareader", "db_datawriter",
+		"db_denydatareader", "db_denydatawriter":
+		return true
+	}
+	return false
 }
 
 func (c *Catalog) execDropIndex(n *ast.DropStmt) error {
@@ -2701,6 +2791,13 @@ func (c *Catalog) execDropObjects(n *ast.DropStmt, wantKind objectKind, sqlKind 
 			seenTables[resolvedTable] = true
 			targets = append(targets, dropTarget{cat: targetCat, schema: schema, name: resolvedTable.Name, table: resolvedTable})
 		} else {
+			if wantKind == kindView {
+				if consumer, bound := schemaBoundObjectConsumer(targetCat, schema.Name, objName, func(sName, oName string) bool {
+					return seenOther[otherKey{cat: targetCat, schema: normalize(sName), obj: normalize(oName)}]
+				}); bound {
+					return mssqlErr(ErrDropSchemaNotEmpty, "Cannot DROP VIEW '%s' because it is being referenced by object '%s'.", objName, consumer)
+				}
+			}
 			seenOther[otherKey{cat: targetCat, schema: normalize(schema.Name), obj: normalize(objName)}] = true
 			targets = append(targets, dropTarget{cat: targetCat, schema: schema, name: objName})
 		}

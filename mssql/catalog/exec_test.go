@@ -629,4 +629,51 @@ CREATE TRIGGER [dbo].[tr_t] ON [dbo].[t] AFTER INSERT AS BEGIN SELECT 1; END;
 	require.NoError(t, err)
 	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ADD [id2] INT IDENTITY(1,1)`, ErrMultipleIdentityColumns)
 	require.Nil(t, columnByName(c.GetTable("dbo", "t"), "id2"))
+
+	// 42. CREATE INDEX WITH (DROP_EXISTING = ON) validates constraint-backed indexes before replacing them.
+	c, err = LoadSQL(`CREATE TABLE [dbo].[p] ([a] INT NOT NULL, [b] INT NOT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([a]));`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `CREATE UNIQUE CLUSTERED INDEX [PK_p] ON [dbo].[p] ([b]) WITH (DROP_EXISTING = ON)`, ErrDropExistingConstraintMismatch)
+	require.Equal(t, []string{"a"}, indexByName(c.GetTable("dbo", "p"), "PK_p").Expressions)
+	execExpectCode(t, c, `CREATE CLUSTERED INDEX [PK_p] ON [dbo].[p] ([a]) WITH (DROP_EXISTING = ON)`, ErrDropExistingConstraintMismatch)
+	require.True(t, indexByName(c.GetTable("dbo", "p"), "PK_p").Unique)
+	execExpectOK(t, c, `CREATE UNIQUE CLUSTERED INDEX [PK_p] ON [dbo].[p] ([a] DESC) WITH (DROP_EXISTING = ON)`)
+	require.Equal(t, []string{"a"}, indexByName(c.GetTable("dbo", "p"), "PK_p").Expressions)
+	require.Equal(t, []bool{true}, indexByName(c.GetTable("dbo", "p"), "PK_p").Descending)
+
+	// 43. DROP VIEW rejects dropping a view referenced by a WITH SCHEMABINDING view.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[t] ([a] INT NOT NULL);
+GO
+CREATE VIEW [dbo].[v1] WITH SCHEMABINDING AS SELECT [a] FROM [dbo].[t];
+GO
+CREATE VIEW [dbo].[v2] WITH SCHEMABINDING AS SELECT [a] FROM [dbo].[v1];
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `DROP VIEW [dbo].[v1]`, ErrDropSchemaNotEmpty)
+	require.NotNil(t, c.GetView("dbo", "v1"))
+	execExpectOK(t, c, `DROP VIEW [dbo].[v2], [dbo].[v1]`)
+	require.Nil(t, c.GetView("dbo", "v1"))
+	require.Nil(t, c.GetView("dbo", "v2"))
+
+	// 44. ALTER SCHEMA TRANSFER checks transferred constraint names for destination schema collisions.
+	c, err = LoadSQL(`
+CREATE SCHEMA [app];
+GO
+CREATE TABLE [dbo].[t] ([a] INT, CONSTRAINT [ck] CHECK ([a] > 0));
+GO
+CREATE TABLE [app].[u] ([a] INT, CONSTRAINT [ck] CHECK ([a] > 0));
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER SCHEMA [app] TRANSFER [dbo].[t]`, ErrDupObject)
+	require.NotNil(t, c.GetTable("dbo", "t"))
+	require.Nil(t, c.GetTable("app", "t"))
+
+	// 45. DROP SCHEMA rejects dropping built-in schemas like dbo, even with IF EXISTS.
+	c, err = LoadSQL(``)
+	require.NoError(t, err)
+	execExpectCode(t, c, `DROP SCHEMA [dbo]`, ErrSecurableNotFound)
+	require.NotNil(t, c.GetSchema("dbo"))
+	execExpectCode(t, c, `DROP SCHEMA IF EXISTS [dbo]`, ErrSecurableNotFound)
+	require.NotNil(t, c.GetSchema("dbo"))
 }
