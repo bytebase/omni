@@ -172,6 +172,10 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"extract_hour_from_date", `CREATE VIEW v AS SELECT EXTRACT(HOUR FROM DATE '2020-01-01') x FROM dual`, "30076"},
 		{"extract_year_from_date", `CREATE VIEW v AS SELECT EXTRACT(YEAR FROM DATE '2020-01-01') x FROM dual`, ""},
 		{"json_table_bind_path", `CREATE VIEW v AS SELECT * FROM JSON_TABLE('{}', :p COLUMNS (id NUMBER PATH '$.id')) jt`, "01027"},
+		{"quoted_keyword_name", `CREATE VIEW v AS SELECT "CURRENT_DATE" x FROM dual`, "00904"},
+		{"compound_order_lob", `CREATE VIEW v AS SELECT doc FROM t UNION ALL SELECT doc FROM t ORDER BY 1`, "22848"},
+		{"sum_two_arguments", `CREATE VIEW v AS SELECT SUM(id, id) s FROM t`, "00909"},
+		{"upper_two_arguments", `CREATE VIEW v AS SELECT UPPER(id, id) s FROM t`, "00909"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -658,5 +662,15 @@ CREATE VIEW v AS SELECT * FROM t CROSS JOIN u;
 	v := c.Metadata().GetSchemas()[0].GetViews()[0]
 	if want := `SELECT "A","U"."ID" FROM t CROSS JOIN u`; v.GetDefinition() != want {
 		t.Errorf("definition = %q, want %q", v.GetDefinition(), want)
+	}
+}
+
+func TestViewQuerySubstrbBytes(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE t (c VARCHAR2(100 BYTE)); CREATE VIEW v AS SELECT SUBSTRB(c, 1, 2) x FROM t;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns()[0].GetType(); got != "VARCHAR2(2 BYTE)" {
+		t.Errorf("type = %q, want VARCHAR2(2 BYTE)", got)
 	}
 }

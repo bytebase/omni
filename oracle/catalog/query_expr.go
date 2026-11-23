@@ -412,7 +412,8 @@ func (a *queryAnalyzer) columnRef(n *ast.ColumnRef, sc *qscope) (qtype, bool, er
 		return c.typ, c.notNull, nil
 	}
 	if n.Table == "" {
-		if t, ok := keywordValues[n.Column]; ok {
+		if t, ok := keywordValues[n.Column]; ok && !strings.Contains(a.e.nodeText(n), `"`) {
+			// A quoted name is a column's, never the keyword's.
 			switch n.Column {
 			case "LEVEL", "CONNECT_BY_ISLEAF", "CONNECT_BY_ISCYCLE":
 				if !sc.inHierarchical() {

@@ -310,16 +310,22 @@ func (a *queryAnalyzer) query(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 // compoundOrderItem checks an ORDER BY item of a compound query: a
 // position, or a name or expression of the first branch's result.
 func (a *queryAnalyzer) compoundOrderItem(expr ast.ExprNode, cols []qcol) error {
+	lobKey := func(c qcol) error {
+		if c.typ.isLOB() {
+			return oraError("22848", "cannot use %s type as comparison key", c.typ.kind)
+		}
+		return nil
+	}
 	if n, ok := unparen(expr).(*ast.NumberLiteral); ok && !n.IsFloat {
 		if n.Ival < 1 || int(n.Ival) > len(cols) {
 			return oraError("01785", "ORDER BY item must be the number of a SELECT-list expression")
 		}
-		return nil
+		return lobKey(cols[n.Ival-1])
 	}
 	if ref, ok := unparen(expr).(*ast.ColumnRef); ok && ref.Table == "" {
 		for _, c := range cols {
 			if c.name == ref.Column {
-				return nil
+				return lobKey(c)
 			}
 		}
 		return oraError("00904", "%q: invalid identifier", ref.Column)

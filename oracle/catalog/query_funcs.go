@@ -97,6 +97,13 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 			return simpleType("XMLTYPE"), false, nil
 		}
 	}
+	if n.FuncName.Schema == "" {
+		if _, declared := a.plsqlFuncs[name]; !declared {
+			if err := checkArity(name, n); err != nil {
+				return qtype{}, false, err
+			}
+		}
+	}
 	aggregate := isAggregateCall(n)
 	if aggregate && !clause.allowsAggregate() {
 		return qtype{}, false, oraError("00934", "group function is not allowed here")
@@ -219,6 +226,10 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 			if lit, ok := literalInt(argNode(n, 2)); ok {
 				if t.isNational() {
 					return characterType("NVARCHAR2", lit, false), false, nil
+				}
+				if name == "SUBSTRB" {
+					// SUBSTRB counts bytes.
+					return varchar2Bytes(lit), false, nil
 				}
 				return varchar2Bytes(lit * dbCharBytes), false, nil
 			}
@@ -768,4 +779,40 @@ func numberFormatWidth(format string) (int, bool) {
 		}
 	}
 	return len(format), true
+}
+
+// builtinArity is how many arguments a built-in function takes, at least
+// and at most (-1 for no bound).
+var builtinArity = map[string][2]int{
+	"COUNT": {1, 1}, "SUM": {1, 1}, "AVG": {1, 1}, "MIN": {1, 1}, "MAX": {1, 1},
+	"STDDEV": {1, 1}, "STDDEV_POP": {1, 1}, "STDDEV_SAMP": {1, 1}, "VARIANCE": {1, 1},
+	"VAR_POP": {1, 1}, "VAR_SAMP": {1, 1}, "MEDIAN": {1, 1}, "ANY_VALUE": {1, 1},
+	"UPPER": {1, 1}, "LOWER": {1, 1}, "INITCAP": {1, 1}, "LENGTH": {1, 1}, "LENGTHB": {1, 1},
+	"ASCII": {1, 1}, "CHR": {1, 1}, "ABS": {1, 1}, "CEIL": {1, 1}, "FLOOR": {1, 1},
+	"SIGN": {1, 1}, "SQRT": {1, 1}, "EXP": {1, 1}, "LN": {1, 1}, "SIN": {1, 1}, "COS": {1, 1},
+	"TAN": {1, 1}, "ASIN": {1, 1}, "ACOS": {1, 1}, "ATAN": {1, 1}, "SINH": {1, 1}, "COSH": {1, 1},
+	"TANH": {1, 1}, "LAST_DAY": {1, 1}, "VSIZE": {1, 1}, "RAWTOHEX": {1, 1}, "HEXTORAW": {1, 1},
+	"MOD": {2, 2}, "POWER": {2, 2}, "ATAN2": {2, 2}, "REMAINDER": {2, 2}, "LOG": {2, 2},
+	"NVL": {2, 2}, "NULLIF": {2, 2}, "CONCAT": {2, 2}, "ADD_MONTHS": {2, 2},
+	"MONTHS_BETWEEN": {2, 3}, "NEXT_DAY": {2, 2}, "NVL2": {3, 3}, "TRANSLATE": {3, 3},
+	"ROUND": {1, 2}, "TRUNC": {1, 2}, "LTRIM": {1, 2}, "RTRIM": {1, 2},
+	"SUBSTR": {2, 3}, "SUBSTRB": {2, 3}, "INSTR": {2, 4}, "LPAD": {2, 3}, "RPAD": {2, 3},
+	"REPLACE": {2, 3}, "COALESCE": {2, -1}, "GREATEST": {1, -1}, "LEAST": {1, -1},
+}
+
+// checkArity refuses a built-in call with the wrong number of arguments
+// (ORA-00909).
+func checkArity(name string, n *ast.FuncCallExpr) error {
+	bounds, ok := builtinArity[name]
+	if !ok {
+		return nil
+	}
+	count := len(listItems(n.Args))
+	if n.Star {
+		count = 1
+	}
+	if count < bounds[0] || bounds[1] >= 0 && count > bounds[1] {
+		return oraError("00909", "invalid number of arguments")
+	}
+	return nil
 }
