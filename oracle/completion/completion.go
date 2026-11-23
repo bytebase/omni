@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode"
 
+	omnianalysis "github.com/bytebase/omni/analysis"
 	metadatapb "github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/oracle"
 	"github.com/bytebase/omni/oracle/analysis"
@@ -16,69 +17,27 @@ import (
 )
 
 // CandidateType classifies an Oracle completion candidate.
-type CandidateType int
+type CandidateType = omnianalysis.CandidateType
 
 const (
-	CandidateKeyword CandidateType = iota
-	CandidateSchema
-	CandidateTable
-	CandidateView
-	CandidateMaterializedView
-	CandidateColumn
-	CandidateFunction
-	CandidateProcedure
-	CandidatePackage
-	CandidateSequence
-	CandidateType_
-	CandidateIndex
-	CandidateTrigger
-	CandidateSynonym
-	CandidateDatabaseLink
-	CandidateConstraint
-	CandidateVariable
+	CandidateKeyword          = omnianalysis.CandidateKeyword
+	CandidateSchema           = omnianalysis.CandidateSchema
+	CandidateTable            = omnianalysis.CandidateTable
+	CandidateView             = omnianalysis.CandidateView
+	CandidateMaterializedView = omnianalysis.CandidateMaterializedView
+	CandidateColumn           = omnianalysis.CandidateColumn
+	CandidateFunction         = omnianalysis.CandidateFunction
+	CandidateProcedure        = omnianalysis.CandidateProcedure
+	CandidatePackage          = omnianalysis.CandidatePackage
+	CandidateSequence         = omnianalysis.CandidateSequence
+	CandidateType_            = omnianalysis.CandidateType_
+	CandidateIndex            = omnianalysis.CandidateIndex
+	CandidateTrigger          = omnianalysis.CandidateTrigger
+	CandidateSynonym          = omnianalysis.CandidateSynonym
+	CandidateDatabaseLink     = omnianalysis.CandidateDatabaseLink
+	CandidateConstraint       = omnianalysis.CandidateConstraint
+	CandidateVariable         = omnianalysis.CandidateVariable
 )
-
-// String returns the lower-case kind name of CandidateType.
-func (t CandidateType) String() string {
-	switch t {
-	case CandidateKeyword:
-		return "keyword"
-	case CandidateSchema:
-		return "schema"
-	case CandidateTable:
-		return "table"
-	case CandidateView:
-		return "view"
-	case CandidateMaterializedView:
-		return "materialized_view"
-	case CandidateColumn:
-		return "column"
-	case CandidateFunction:
-		return "function"
-	case CandidateProcedure:
-		return "procedure"
-	case CandidatePackage:
-		return "package"
-	case CandidateSequence:
-		return "sequence"
-	case CandidateType_:
-		return "type"
-	case CandidateIndex:
-		return "index"
-	case CandidateTrigger:
-		return "trigger"
-	case CandidateSynonym:
-		return "synonym"
-	case CandidateDatabaseLink:
-		return "database_link"
-	case CandidateConstraint:
-		return "constraint"
-	case CandidateVariable:
-		return "variable"
-	default:
-		return "unknown"
-	}
-}
 
 // Candidate is a single completion suggestion. Text holds the unquoted
 // identifier or keyword; callers that require identifier quoting apply it at

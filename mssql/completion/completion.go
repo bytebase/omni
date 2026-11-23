@@ -4,29 +4,30 @@ package completion
 import (
 	"strings"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/mssql/catalog"
 	"github.com/bytebase/omni/mssql/parser"
 )
 
 // CandidateType classifies a completion candidate.
-type CandidateType int
+type CandidateType = analysis.CandidateType
 
 const (
-	CandidateKeyword   CandidateType = iota // SQL keyword
-	CandidateSchema                         // schema name
-	CandidateTable                          // table name
-	CandidateView                           // view name
-	CandidateColumn                         // column name
-	CandidateFunction                       // function name
-	CandidateProcedure                      // stored procedure name
-	CandidateIndex                          // index name
-	CandidateTrigger                        // trigger name
-	CandidateSequence                       // sequence name
-	CandidateType_                          // SQL type name
-	CandidateLogin                          // login name
-	CandidateUser                           // user name
-	CandidateRole                           // role name
-	CandidateDatabase                       // database name
+	CandidateKeyword   = analysis.CandidateKeyword   // SQL keyword
+	CandidateSchema    = analysis.CandidateSchema    // schema name
+	CandidateTable     = analysis.CandidateTable     // table name
+	CandidateView      = analysis.CandidateView      // view name
+	CandidateColumn    = analysis.CandidateColumn    // column name
+	CandidateFunction  = analysis.CandidateFunction  // function name
+	CandidateProcedure = analysis.CandidateProcedure // stored procedure name
+	CandidateIndex     = analysis.CandidateIndex     // index name
+	CandidateTrigger   = analysis.CandidateTrigger   // trigger name
+	CandidateSequence  = analysis.CandidateSequence  // sequence name
+	CandidateType_     = analysis.CandidateType_     // SQL type name
+	CandidateLogin     = analysis.CandidateLogin     // login name
+	CandidateUser      = analysis.CandidateUser      // user name
+	CandidateRole      = analysis.CandidateRole      // role name
+	CandidateDatabase  = analysis.CandidateDatabase  // database name
 )
 
 // Candidate is a single completion suggestion.
