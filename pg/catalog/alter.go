@@ -2762,6 +2762,9 @@ func (c *Catalog) dropNotNullConstraintTree(rel *Relation, colName string, propa
 		return errUndefinedColumn(colName)
 	}
 	col := rel.Columns[idx]
+	if !col.NotNull {
+		return nil
+	}
 	var nnCon *Constraint
 	for _, con := range c.consByRel[rel.OID] {
 		if con.Type == ConstraintNotNull && len(con.Columns) == 1 && con.Columns[0] == col.AttNum {

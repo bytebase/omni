@@ -640,6 +640,36 @@ CREATE TABLE t_ty OF ty_nn (x WITH OPTIONS CONSTRAINT nn NOT NULL);
 			t.Fatalf("expected x to remain NOT NULL after dropping CHECK t_add_chk_x_not_null")
 		}
 	}
+
+	// No-op DROP NOT NULL on a nullable parent does not disturb children's NOT NULL inheritance count.
+	noopDropSetup := `
+CREATE TABLE p1_np (x int);
+CREATE TABLE p2_np (x int NOT NULL);
+CREATE TABLE c_np () INHERITS (p1_np, p2_np);
+`
+	if got, c := execCodeVersion(t, PG18, noopDropSetup, "ALTER TABLE ONLY p1_np ALTER x DROP NOT NULL"); got != "" {
+		t.Fatalf("PG18 no-op ONLY DROP NOT NULL: got %q, want ok", got)
+	} else {
+		if res, err := c.Exec("ALTER TABLE c_np DROP CONSTRAINT c_np_x_not_null", nil); err != nil {
+			t.Fatal(err)
+		} else if len(res) == 0 || res[0].Error == nil {
+			t.Fatalf("expected child DROP CONSTRAINT to fail while p2_np still enforces NOT NULL")
+		}
+		if res, err := c.Exec("ALTER TABLE p2_np DROP CONSTRAINT p2_np_x_not_null", nil); err != nil {
+			t.Fatal(err)
+		} else if len(res) > 0 && res[0].Error != nil {
+			t.Fatalf("PG18 DROP CONSTRAINT p2_np_x_not_null: %v", res[0].Error)
+		}
+		ch := c.GetRelation("public", "c_np")
+		if ch.Columns[0].NotNull {
+			t.Fatalf("expected c_np.x to become nullable after p2_np drops p2_np_x_not_null")
+		}
+	}
+
+	// Explicit table constraint colliding with an explicit NOT NULL constraint name is rejected.
+	if got, _ := execCodeVersion(t, PG18, "", "CREATE TABLE t_dup_chk (x int CONSTRAINT nn NOT NULL, CONSTRAINT nn CHECK (x > 0))"); got != CodeDuplicateObject {
+		t.Fatalf("PG18 CREATE TABLE duplicate explicit NOT NULL and CHECK name: got %q, want %q", got, CodeDuplicateObject)
+	}
 }
 
 func TestPG18PartitionDetachPKNameAndJsonExpr(t *testing.T) {

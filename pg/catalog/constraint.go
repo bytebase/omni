@@ -160,7 +160,11 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 	}
 
 	name := def.Name
-	if name == "" {
+	if name != "" {
+		if err := c.checkNotNullConstraintNameFree(rel.OID, name); err != nil {
+			return err
+		}
+	} else {
 		if existingIdx != nil {
 			name = existingIdx.Name
 		} else {
@@ -459,7 +463,11 @@ func (c *Catalog) addFKConstraint(schema *Schema, rel *Relation, def ConstraintD
 	}
 
 	name := def.Name
-	if name == "" {
+	if name != "" {
+		if err := c.checkNotNullConstraintNameFree(rel.OID, name); err != nil {
+			return err
+		}
+	} else {
 		name = generateConstraintName(rel.Name, def.Columns, ConstraintFK)
 	}
 
@@ -583,7 +591,11 @@ func (c *Catalog) addCheckConstraint(rel *Relation, def ConstraintDef) error {
 	//   0 or 2+ columns: {table}_check
 	// With numeric suffix for uniqueness: _check, _check1, _check2, etc.
 	name := def.Name
-	if name == "" {
+	if name != "" {
+		if err := c.checkNotNullConstraintNameFree(rel.OID, name); err != nil {
+			return err
+		}
+	} else {
 		baseName := rel.Name + "_check"
 		if len(cols) == 1 {
 			// Find the single referenced column name.
@@ -819,7 +831,11 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 	allRawCols = append(allRawCols, def.Columns...)
 	allRawCols = append(allRawCols, def.IncludeColumns...)
 	chosenCols := chooseIndexColumnNames(allRawCols)
-	if name == "" {
+	if name != "" {
+		if err := c.checkNotNullConstraintNameFree(rel.OID, name); err != nil {
+			return err
+		}
+	} else {
 		name = c.chooseConstraintAndIndexName(schema, rel, chosenCols, ConstraintExclude)
 	}
 
@@ -1106,6 +1122,20 @@ func (c *Catalog) removeNotNullConstraint(schema *Schema, rel *Relation, attnum 
 			return
 		}
 	}
+}
+
+// checkNotNullConstraintNameFree rejects an explicit table constraint name
+// that collides with an already-registered PG 18 NOT NULL constraint on rel.
+func (c *Catalog) checkNotNullConstraintNameFree(relOID uint32, name string) error {
+	if c.Version() < PG18 || name == "" {
+		return nil
+	}
+	for _, con := range c.consByRel[relOID] {
+		if con.Type == ConstraintNotNull && con.Name == name {
+			return errDuplicateObject("constraint", name)
+		}
+	}
+	return nil
 }
 
 // chooseNotNullConstraintName picks PostgreSQL 18's default NOT NULL
