@@ -17,7 +17,8 @@ import (
 // The corpus under testdata/query-span is Bytebase's MySQL query-span fixture,
 // recorded from the resolver masking ran on before this package existed. It is
 // the masking-parity bar for this package and must be reproduced, never
-// re-recorded against this implementation.
+// re-recorded against this implementation. An entry changes only where
+// testdata/span.tsv shows MySQL answers otherwise (testdata/README.md).
 //
 // The fixture carries three fields this engine never sets —
 // sourcefieldpaths, predicatepaths and selectasterisk — because the shape is
