@@ -856,6 +856,11 @@ func widenFirst(args []qtype) qtype {
 		if first.isNational() {
 			n := 0
 			for _, t := range args {
+				if !t.isNull() && !t.isCharacter() {
+					// A converted number or datetime: its character
+					// length is not modeled.
+					return simpleType("UNKNOWN")
+				}
 				n = max(n, t.chars)
 			}
 			return characterType("NVARCHAR2", n, false)

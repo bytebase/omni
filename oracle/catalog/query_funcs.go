@@ -791,6 +791,14 @@ func (a *queryAnalyzer) windowSpec(w *ast.WindowSpec, sc *qscope, seen map[strin
 		}
 		orderTypes = append(orderTypes, t)
 	}
+	if w.Frame != nil && len(listItems(w.OrderBy)) == 0 && w.WindowName != "" {
+		// The frame applies to the ordering the named window defines.
+		inherited, err := a.inheritedOrderTypes(w.WindowName, sc)
+		if err != nil {
+			return err
+		}
+		orderTypes = inherited
+	}
 	if f := w.Frame; f != nil {
 		for _, b := range []*ast.WindowBound{f.Start, f.End} {
 			if b == nil || b.Value == nil {
@@ -838,6 +846,40 @@ func (a *queryAnalyzer) windowSpec(w *ast.WindowSpec, sc *qscope, seen map[strin
 		}
 	}
 	return oraError("32784", "window %s is not defined", w.WindowName)
+}
+
+// inheritedOrderTypes is the types of the ordering keys a named window
+// defines, directly or through the window it names in turn.
+func (a *queryAnalyzer) inheritedOrderTypes(name string, sc *qscope) ([]qtype, error) {
+	seen := map[string]bool{}
+	for name != "" && !seen[name] {
+		seen[name] = true
+		var def *ast.WindowSpec
+		var defScope *qscope
+		for s := sc; s != nil && def == nil; s = s.parent {
+			def, defScope = s.windows[name], s
+		}
+		if def == nil {
+			return nil, nil
+		}
+		if items := listItems(def.OrderBy); len(items) > 0 {
+			var types []qtype
+			for _, item := range items {
+				sb, ok := item.(*ast.SortBy)
+				if !ok {
+					continue
+				}
+				t, _, err := a.expr(sb.Expr, defScope, clauseAggArg)
+				if err != nil {
+					return nil, err
+				}
+				types = append(types, t)
+			}
+			return types, nil
+		}
+		name = def.WindowName
+	}
+	return nil, nil
 }
 
 func isTrimMode(word string) bool {

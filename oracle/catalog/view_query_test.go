@@ -1150,3 +1150,32 @@ CREATE VIEW p AS SELECT id FROM t;
 		}
 	}
 }
+
+func TestViewQueryRound54(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TABLE t (id NUMBER, n NVARCHAR2(1), d DATE);
+CREATE VIEW v AS SELECT NVL(n, 12345) x FROM t;
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns()[0].GetType(); got != "" {
+		t.Errorf("NVL of NVARCHAR2(1) and a number: type %q, want unknown", got)
+	}
+	c.SetServerConfig(StandardOracle23ServerConfig())
+	for _, tc := range []struct{ sql, code string }{
+		{`CREATE VIEW w1 AS SELECT SUM(id) OVER w2 x FROM t WINDOW w AS (ORDER BY id), w2 AS (w RANGE INTERVAL '1' DAY PRECEDING)`, "00902"},
+		{`CREATE VIEW w2 AS SELECT SUM(id) OVER w2 x FROM t WINDOW w AS (ORDER BY d), w2 AS (w RANGE INTERVAL '1' DAY PRECEDING)`, ""},
+		{`CREATE VIEW w3 AS SELECT SUM(id) OVER w2 x FROM t WINDOW w AS (ORDER BY id), w2 AS (w RANGE 1 PRECEDING)`, ""},
+	} {
+		results, err := c.Exec(tc.sql, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var refusal *Error
+		if tc.code == "" && results[0].Error != nil ||
+			tc.code != "" && (!errors.As(results[0].Error, &refusal) || refusal.Code != tc.code) {
+			t.Errorf("%s: %v, want %q", tc.sql, results[0].Error, tc.code)
+		}
+	}
+}
