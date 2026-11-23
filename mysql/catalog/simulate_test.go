@@ -13,6 +13,7 @@ import (
 
 	gomysql "github.com/go-sql-driver/mysql"
 
+	"github.com/bytebase/omni/enginetest/compat"
 	"github.com/bytebase/omni/enginetest/simulate"
 	"github.com/bytebase/omni/mysql/internal/testcontainer"
 	mysqlparser "github.com/bytebase/omni/mysql/parser"
@@ -57,12 +58,14 @@ var simulationFixtures = []string{
 
 // simulationFamilies are the leading words of the statements the file holds:
 // DDL on tables, indexes and views, whose whole effect is in the database a
-// row reads back. Statements on databases, routines, triggers, events,
-// tablespaces, accounts and the server are not simulated here yet: what they
-// change is outside that database, or is no table or view text. Note that
-// "CREATE DEFINER " (kept for views) also admits each fixture's
-// `CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4() COMMIT;` row, which stays open
-// until simulationForms reads stored routines in addition to SHOW FULL TABLES.
+// row reads back. Statements on stored routines, triggers and events are
+// simulated in TestProgramSimulation (testdata/programs/simulate.tsv) instead,
+// where programSimulationForms reads routines, triggers and events in addition
+// to SHOW FULL TABLES, so simulated excludes stored-program DDL even when it
+// starts with a shared prefix like "CREATE DEFINER " or "ALTER DEFINER ".
+// Statements on databases, tablespaces, accounts and the server are not
+// simulated here yet: what they change is outside that database, or is no
+// table or view text.
 var simulationFamilies = []string{
 	"ALTER TABLE ", "CREATE TABLE ", "DROP TABLE ", "RENAME TABLE ", "TRUNCATE ",
 	"CREATE INDEX ", "CREATE UNIQUE ", "CREATE FULLTEXT ", "CREATE SPATIAL ", "DROP INDEX ",
@@ -71,6 +74,9 @@ var simulationFamilies = []string{
 }
 
 func simulated(statement string) bool {
+	if programSimulatedStatement.MatchString(statement) {
+		return false
+	}
 	return slices.ContainsFunc(simulationFamilies, func(words string) bool { return strings.HasPrefix(statement, words) })
 }
 
@@ -235,4 +241,52 @@ func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answe
 		plan = "nothing, though from there it would run: " + GenerateMigrationWithNormalizer(want, c, back, n).SQL()
 	}
 	return simulate.Omni{Why: "to store what MySQL stores, the catalog would run: " + strings.Join(strings.Fields(plan), " ")}
+}
+
+func TestSimulationExcludesProgramDDL(t *testing.T) {
+	for _, stmt := range []string{
+		"CREATE DEFINER = utf8mb4 VIEW utf8mb4 AS SELECT utf8mb4;",
+		"ALTER DEFINER = utf8mb4 VIEW utf8mb4 AS SELECT utf8mb4;",
+	} {
+		if !simulated(stmt) {
+			t.Errorf("simulated(%q) = false, want true", stmt)
+		}
+		if programSimulated(stmt) {
+			t.Errorf("programSimulated(%q) = true, want false", stmt)
+		}
+	}
+	for _, stmt := range []string{
+		"CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4() COMMIT;",
+		"CREATE DEFINER = utf8mb4 FUNCTION utf8mb4() RETURNS INT DETERMINISTIC RETURN 1;",
+		"CREATE DEFINER = utf8mb4 TRIGGER utf8mb4 BEFORE INSERT ON utf8mb4 FOR EACH ROW COMMIT;",
+		"CREATE DEFINER = utf8mb4 EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;",
+		"ALTER DEFINER = utf8mb4 EVENT utf8mb4 DISABLE;",
+	} {
+		if simulated(stmt) {
+			t.Errorf("simulated(%q) = true, want false", stmt)
+		}
+		if !programSimulated(stmt) {
+			t.Errorf("programSimulated(%q) = false, want true", stmt)
+		}
+	}
+
+	f, err := compat.ReadFile(filepath.Join("..", "parser", "testdata", "compat.tsv"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sawDefinerProc := false
+	for _, r := range f.Rows {
+		if r.Expected != compat.Accept {
+			continue
+		}
+		if simulated(r.Statement) && programSimulated(r.Statement) {
+			t.Errorf("compat.tsv row %s matches both simulated and programSimulated: %s", r.Rule, r.Statement)
+		}
+		if r.Statement == "CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4() COMMIT;" && programSimulated(r.Statement) {
+			sawDefinerProc = true
+		}
+	}
+	if !sawDefinerProc {
+		t.Errorf("expected CREATE DEFINER PROCEDURE row from compat.tsv to remain covered by programSimulated")
+	}
 }

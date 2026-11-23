@@ -402,8 +402,6 @@ ok:75c7b3d9b21b	ok:75c7b3d9b21b	engine	one_table@missing	standalone_alter_comman
 1054	1054	engine	one_table@missing	view_or_trigger_or_sp_or_event/definer_init_lex_create_info_definer_tail!insert	CREATE DEFINER = utf8mb4 VIEW utf8mb4 AS SELECT utf8mb4 zzz;
 1054	1054	engine	one_table@missing	view_or_trigger_or_sp_or_event/view_replace_or_algorithm_definer_opt_init_lex_create_info_view_tail	CREATE OR REPLACE VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	one_table@missing	view_or_trigger_or_sp_or_event/view_replace_or_algorithm_definer_opt_init_lex_create_info_view_tail!insert	CREATE OR REPLACE VIEW utf8mb4 AS SELECT utf8mb4 zzz;
-ok	ok:75c7b3d9b21b	engine	one_table@missing	definer_tail/sp_tail	CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4() COMMIT;
-1054	1054	engine	one_table@missing	definer_tail/event_tail	CREATE DEFINER = utf8mb4 EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
 1054	1054	engine	one_table@missing	view_replace_or_algorithm/view_replace_view_algorithm	CREATE OR REPLACE ALGORITHM = UNDEFINED VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	one_table@missing	view_replace_or_algorithm/view_algorithm	CREATE ALGORITHM = UNDEFINED VIEW utf8mb4 AS SELECT utf8mb4;
 1146	1146	engine	one_table@missing	view_algorithm/ALGORITHM_SYM_EQ_MERGE_SYM	ALTER ALGORITHM = MERGE VIEW utf8mb4 AS SELECT utf8mb4;
@@ -815,8 +813,6 @@ ok:ef0ffd165948	ok:ef0ffd165948	engine	one_table@table	signed_literal_or_null/nu
 1054	1054	engine	one_table@table	view_or_trigger_or_sp_or_event/definer_init_lex_create_info_definer_tail!insert	CREATE DEFINER = utf8mb4 VIEW utf8mb4 AS SELECT utf8mb4 zzz;
 1054	1054	engine	one_table@table	view_or_trigger_or_sp_or_event/view_replace_or_algorithm_definer_opt_init_lex_create_info_view_tail	CREATE OR REPLACE VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	one_table@table	view_or_trigger_or_sp_or_event/view_replace_or_algorithm_definer_opt_init_lex_create_info_view_tail!insert	CREATE OR REPLACE VIEW utf8mb4 AS SELECT utf8mb4 zzz;
-ok	ok:5873bd311d71	engine	one_table@table	definer_tail/sp_tail	CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4() COMMIT;
-1054	1054	engine	one_table@table	definer_tail/event_tail	CREATE DEFINER = utf8mb4 EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
 1054	1054	engine	one_table@table	view_replace_or_algorithm/view_replace_view_algorithm	CREATE OR REPLACE ALGORITHM = UNDEFINED VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	one_table@table	view_replace_or_algorithm/view_algorithm	CREATE ALGORITHM = UNDEFINED VIEW utf8mb4 AS SELECT utf8mb4;
 1347	1347	engine	one_table@table	view_algorithm/ALGORITHM_SYM_EQ_MERGE_SYM	ALTER ALGORITHM = MERGE VIEW utf8mb4 AS SELECT utf8mb4;
@@ -1228,8 +1224,6 @@ ok:c57a3972de72	ok:c57a3972de72	engine	one_table@column	opt_table/TABLE_SYM	TRUN
 1054	1054	engine	one_table@column	view_or_trigger_or_sp_or_event/definer_init_lex_create_info_definer_tail!insert	CREATE DEFINER = utf8mb4 VIEW utf8mb4 AS SELECT utf8mb4 zzz;
 1054	1054	engine	one_table@column	view_or_trigger_or_sp_or_event/view_replace_or_algorithm_definer_opt_init_lex_create_info_view_tail	CREATE OR REPLACE VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	one_table@column	view_or_trigger_or_sp_or_event/view_replace_or_algorithm_definer_opt_init_lex_create_info_view_tail!insert	CREATE OR REPLACE VIEW utf8mb4 AS SELECT utf8mb4 zzz;
-ok	ok:c57a3972de72	engine	one_table@column	definer_tail/sp_tail	CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4() COMMIT;
-1054	1054	engine	one_table@column	definer_tail/event_tail	CREATE DEFINER = utf8mb4 EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
 1054	1054	engine	one_table@column	view_replace_or_algorithm/view_replace_view_algorithm	CREATE OR REPLACE ALGORITHM = UNDEFINED VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	one_table@column	view_replace_or_algorithm/view_algorithm	CREATE ALGORITHM = UNDEFINED VIEW utf8mb4 AS SELECT utf8mb4;
 1347	1347	engine	one_table@column	view_algorithm/ALGORITHM_SYM_EQ_MERGE_SYM	ALTER ALGORITHM = MERGE VIEW utf8mb4 AS SELECT utf8mb4;
@@ -1641,8 +1635,6 @@ ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	opt_table/TABLE_SYM	TRUNC
 1054	1054	engine	one_table@index	view_or_trigger_or_sp_or_event/definer_init_lex_create_info_definer_tail!insert	CREATE DEFINER = utf8mb4 VIEW utf8mb4 AS SELECT utf8mb4 zzz;
 1054	1054	engine	one_table@index	view_or_trigger_or_sp_or_event/view_replace_or_algorithm_definer_opt_init_lex_create_info_view_tail	CREATE OR REPLACE VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	one_table@index	view_or_trigger_or_sp_or_event/view_replace_or_algorithm_definer_opt_init_lex_create_info_view_tail!insert	CREATE OR REPLACE VIEW utf8mb4 AS SELECT utf8mb4 zzz;
-ok	ok:ae98cf37c226	engine	one_table@index	definer_tail/sp_tail	CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4() COMMIT;
-1054	1054	engine	one_table@index	definer_tail/event_tail	CREATE DEFINER = utf8mb4 EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
 1054	1054	engine	one_table@index	view_replace_or_algorithm/view_replace_view_algorithm	CREATE OR REPLACE ALGORITHM = UNDEFINED VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	one_table@index	view_replace_or_algorithm/view_algorithm	CREATE ALGORITHM = UNDEFINED VIEW utf8mb4 AS SELECT utf8mb4;
 1347	1347	engine	one_table@index	view_algorithm/ALGORITHM_SYM_EQ_MERGE_SYM	ALTER ALGORITHM = MERGE VIEW utf8mb4 AS SELECT utf8mb4;
@@ -2054,8 +2046,6 @@ ok:07a6367dc197	ok:07a6367dc197	engine	objects@view	standalone_alter_commands/RE
 1054	1054	engine	objects@view	view_or_trigger_or_sp_or_event/definer_init_lex_create_info_definer_tail!insert	CREATE DEFINER = utf8mb4 VIEW utf8mb4 AS SELECT utf8mb4 zzz;
 1054	1054	engine	objects@view	view_or_trigger_or_sp_or_event/view_replace_or_algorithm_definer_opt_init_lex_create_info_view_tail	CREATE OR REPLACE VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	objects@view	view_or_trigger_or_sp_or_event/view_replace_or_algorithm_definer_opt_init_lex_create_info_view_tail!insert	CREATE OR REPLACE VIEW utf8mb4 AS SELECT utf8mb4 zzz;
-ok	ok:07a6367dc197	engine	objects@view	definer_tail/sp_tail	CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4() COMMIT;
-1054	1054	engine	objects@view	definer_tail/event_tail	CREATE DEFINER = utf8mb4 EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
 1054	1054	engine	objects@view	view_replace_or_algorithm/view_replace_view_algorithm	CREATE OR REPLACE ALGORITHM = UNDEFINED VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	objects@view	view_replace_or_algorithm/view_algorithm	CREATE ALGORITHM = UNDEFINED VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	objects@view	view_algorithm/ALGORITHM_SYM_EQ_MERGE_SYM	ALTER ALGORITHM = MERGE VIEW utf8mb4 AS SELECT utf8mb4;
@@ -2467,8 +2457,6 @@ ok:41dcebc79f35	ok:41dcebc79f35	engine	objects@partitioned	opt_table/TABLE_SYM	T
 1054	1054	engine	objects@partitioned	view_or_trigger_or_sp_or_event/definer_init_lex_create_info_definer_tail!insert	CREATE DEFINER = utf8mb4 VIEW utf8mb4 AS SELECT utf8mb4 zzz;
 1054	1054	engine	objects@partitioned	view_or_trigger_or_sp_or_event/view_replace_or_algorithm_definer_opt_init_lex_create_info_view_tail	CREATE OR REPLACE VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	objects@partitioned	view_or_trigger_or_sp_or_event/view_replace_or_algorithm_definer_opt_init_lex_create_info_view_tail!insert	CREATE OR REPLACE VIEW utf8mb4 AS SELECT utf8mb4 zzz;
-ok	ok:41dcebc79f35	engine	objects@partitioned	definer_tail/sp_tail	CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4() COMMIT;
-1054	1054	engine	objects@partitioned	definer_tail/event_tail	CREATE DEFINER = utf8mb4 EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
 1054	1054	engine	objects@partitioned	view_replace_or_algorithm/view_replace_view_algorithm	CREATE OR REPLACE ALGORITHM = UNDEFINED VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	objects@partitioned	view_replace_or_algorithm/view_algorithm	CREATE ALGORITHM = UNDEFINED VIEW utf8mb4 AS SELECT utf8mb4;
 1347	1347	engine	objects@partitioned	view_algorithm/ALGORITHM_SYM_EQ_MERGE_SYM	ALTER ALGORITHM = MERGE VIEW utf8mb4 AS SELECT utf8mb4;
@@ -2880,8 +2868,6 @@ ok:ec2b7d441bb7	ok:ec2b7d441bb7	engine	objects@fk	opt_table/TABLE_SYM	TRUNCATE T
 1054	1054	engine	objects@fk	view_or_trigger_or_sp_or_event/definer_init_lex_create_info_definer_tail!insert	CREATE DEFINER = utf8mb4 VIEW utf8mb4 AS SELECT utf8mb4 zzz;
 1054	1054	engine	objects@fk	view_or_trigger_or_sp_or_event/view_replace_or_algorithm_definer_opt_init_lex_create_info_view_tail	CREATE OR REPLACE VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	objects@fk	view_or_trigger_or_sp_or_event/view_replace_or_algorithm_definer_opt_init_lex_create_info_view_tail!insert	CREATE OR REPLACE VIEW utf8mb4 AS SELECT utf8mb4 zzz;
-ok	ok:ec2b7d441bb7	engine	objects@fk	definer_tail/sp_tail	CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4() COMMIT;
-1054	1054	engine	objects@fk	definer_tail/event_tail	CREATE DEFINER = utf8mb4 EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
 1054	1054	engine	objects@fk	view_replace_or_algorithm/view_replace_view_algorithm	CREATE OR REPLACE ALGORITHM = UNDEFINED VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	objects@fk	view_replace_or_algorithm/view_algorithm	CREATE ALGORITHM = UNDEFINED VIEW utf8mb4 AS SELECT utf8mb4;
 1347	1347	engine	objects@fk	view_algorithm/ALGORITHM_SYM_EQ_MERGE_SYM	ALTER ALGORITHM = MERGE VIEW utf8mb4 AS SELECT utf8mb4;
