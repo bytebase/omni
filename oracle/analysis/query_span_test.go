@@ -258,7 +258,7 @@ func TestResolveQuerySpanSynonym(t *testing.T) {
 		return span
 	}
 
-	for _, statement := range []string{"SELECT A FROM S", "SELECT S.A FROM S", "SELECT A FROM DB.S2", "SELECT A FROM PUB_T"} {
+	for _, statement := range []string{"SELECT A FROM S", "SELECT S.A FROM S", "SELECT DB.S.A FROM DB.S", "SELECT DB.S.A FROM S", "SELECT A FROM DB.S2", "SELECT A FROM PUB_T"} {
 		span := resolve(statement)
 		require.Nil(t, span.NotFoundError, statement)
 		require.Equal(t, ColumnSet{{Database: "DB", Table: "T"}: true}, span.SourceColumns, statement)

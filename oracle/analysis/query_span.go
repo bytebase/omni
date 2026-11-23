@@ -40,6 +40,18 @@ type accessResource struct {
 	Unqualified bool
 }
 
+// synonymTable is a table read through a synonym, under the synonym's
+// schema and name.
+type synonymTable struct {
+	spanTable
+	database, name string
+}
+
+func (t *synonymTable) GetTableName() string    { return t.name }
+func (t *synonymTable) GetDatabaseName() string { return t.database }
+func (*synonymTable) GetSchemaName() string     { return "" }
+func (*synonymTable) GetServerName() string     { return "" }
+
 // maxSynonymChain bounds the synonyms one name resolves through; Oracle
 // refuses a loop (ORA-01775).
 const maxSynonymChain = 32
@@ -1081,9 +1093,10 @@ func (q *querySpanExtractor) extractTableExpr(expr oracleast.TableExpr) (spanTab
 		if dbLink == "" && errors.As(err, &notFound) && notFound.Table != nil {
 			if target, ok := q.resolveSynonym(database, expr.Name.Name, expr.Name.Schema == ""); ok {
 				tableSource, err = q.plsqlFindTableSchema(splitDBLink(target.LinkedServer), target.Database, target.Table)
-				// The synonym's name qualifies its columns, as a table's does.
-				if err == nil && (expr.Alias == nil || expr.Alias.Name == "") {
-					return aliasTableSource(tableSource, &oracleast.Alias{Name: expr.Name.Name}), nil
+				// The synonym's name qualifies its columns, as a table's
+				// does, with or without its schema.
+				if err == nil && tableSource != nil && (expr.Alias == nil || expr.Alias.Name == "") {
+					return &synonymTable{spanTable: tableSource, database: database, name: expr.Name.Name}, nil
 				}
 			}
 		}
