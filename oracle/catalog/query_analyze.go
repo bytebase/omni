@@ -1322,7 +1322,7 @@ func (a *queryAnalyzer) selectTarget(rt *ast.ResTarget, sc *qscope, top bool) ([
 				// A name * lists twice is written with its item, so the
 				// stored text reads the same columns; an item without a
 				// name leaves the star as written.
-				if it.rel == nil || it.rel.name == "" {
+				if it.rel == nil || it.rel.name == "" || relColumnCount(it.rel, c.name) > 1 {
 					expandable = false
 				} else {
 					name = quoteIdent(it.rel.name) + "." + name
@@ -1354,6 +1354,10 @@ func (a *queryAnalyzer) selectTarget(rt *ast.ResTarget, sc *qscope, top bool) ([
 					}
 					parts = append(parts, quoteIdent(c.name))
 				} else {
+					// A name the item holds twice cannot be told apart.
+					if _, _, err := a.lookupQualified(sc.from, &ast.ColumnRef{Schema: x.Schema, Table: x.Table, Column: c.name}); err != nil {
+						expandable = false
+					}
 					parts = append(parts, qual+quoteIdent(c.name))
 				}
 				c.merged = false
@@ -2001,4 +2005,15 @@ func containsSubquery(x ast.Node) bool {
 		return !found
 	})
 	return found
+}
+
+// relColumnCount counts a relation's columns of a name.
+func relColumnCount(r *qrel, name string) int {
+	n := 0
+	for _, c := range r.cols {
+		if c.name == name {
+			n++
+		}
+	}
+	return n
 }

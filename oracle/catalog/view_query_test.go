@@ -864,3 +864,22 @@ func TestViewQueryStarOverUnnamedDuplicates(t *testing.T) {
 		t.Errorf("definition = %q, want %q", v.GetDefinition(), want)
 	}
 }
+
+func TestViewQueryStarOverDuplicatesInOneItem(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE VIEW v (a, b) AS SELECT q.* FROM (SELECT 1 id, 2 id FROM dual) q;
+CREATE VIEW w (a, b) AS SELECT * FROM (SELECT 1 id, 2 id FROM dual) q;
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		"V": "SELECT q.* FROM (SELECT 1 id, 2 id FROM dual) q",
+		"W": "SELECT * FROM (SELECT 1 id, 2 id FROM dual) q",
+	}
+	for _, v := range c.Metadata().GetSchemas()[0].GetViews() {
+		if v.GetDefinition() != want[v.GetName()] {
+			t.Errorf("%s = %q, want %q", v.GetName(), v.GetDefinition(), want[v.GetName()])
+		}
+	}
+}
