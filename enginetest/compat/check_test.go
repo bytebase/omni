@@ -733,8 +733,10 @@ func TestCheckEverySiteRuleOfAnyGrammar(t *testing.T) {
 	if rec := run(t, s); rec.fatal != "" || !rec.failed("to add") {
 		t.Errorf("a rule of one grammar: %q, %q", rec.fatal, rec.errors)
 	}
-	write(t, s.Tokens, "NAME\ta\nopt_tmp\t(every site)\n")
-	if rec := run(t, s); !rec.failed("opt_tmp the form (every site), which only a rule takes, and no grammar of the suite has") {
-		t.Errorf("a rule of no grammar: %q, %q", rec.fatal, rec.errors)
+	for _, form := range []string{"(every site)", "(every alternative)"} {
+		write(t, s.Tokens, "NAME\ta\nopt_tmp\t"+form+"\n")
+		if rec := run(t, s); !rec.failed("opt_tmp the form (every site) or (every alternative), which only a rule takes, and no grammar of the suite has") {
+			t.Errorf("a rule of no grammar given %s: %q, %q", form, rec.fatal, rec.errors)
+		}
 	}
 }

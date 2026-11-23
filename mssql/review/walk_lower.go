@@ -50,7 +50,7 @@ func (b *builder) statement(n ast.Node) bool {
 		}
 		if v.ExternalName == "" {
 			defer b.enterModule(b.moduleSchema(v.Name, v.Loc, v.OrAlter))()
-			b.moduleBody(v.Body, paramNames(v.Params), nil, "", "")
+			b.moduleBody(v.Body, paramNames(v.Params), typedParams(v.Params), nil, "", "")
 		}
 		return true
 	case *ast.CreateFunctionStmt:
@@ -660,7 +660,7 @@ func (b *builder) createFunction(v *ast.CreateFunctionStmt) bool {
 		params = append(params, rt.Variable)
 		tableVars = append(tableVars, &ast.VariableDecl{Name: rt.Variable, IsTable: true, TableDef: rt.Columns})
 	}
-	b.moduleBody(v.Body, params, tableVars, "", "")
+	b.moduleBody(v.Body, params, typedParams(v.Params), tableVars, "", "")
 	return true
 }
 

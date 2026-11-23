@@ -436,13 +436,17 @@ var queryFeatures = []struct{ feature, query string }{
 	{"view", "CREATE VIEW _v WITH SCHEMABINDING AS SELECT COUNT_BIG(*) AS n, customer_id FROM dbo.orders GROUP BY customer_id"},
 	{"view", "CREATE VIEW _v WITH SCHEMABINDING AS SELECT name FROM sys.objects"},
 	// COLLATE: a collation is one sys.fn_helpcollations() lists, in any
-	// case. A column's collation is checked while SQL Server parses, before
+	// case, or a compatibility collation, which no version lists and each
+	// takes. (A SQL Server 2025 _160 collation has no row: SQL Server 2022
+	// refuses it, and the catalog takes it; TestUnknownCollation pins those.)
+	// A column's collation is checked while SQL Server parses, before
 	// any name resolves; an operator's as its expression is bound, after the
 	// operand's type. A table row names a column in brackets, as SQL Server
 	// stores it, since the diff does not equate [c] with c in an expression.
 	{"collate", "SELECT name COLLATE a AS n FROM customers"},
 	{"collate", "SELECT name COLLATE latin1_general_bin2 AS n FROM customers"},
 	{"collate", "SELECT name COLLATE database_default AS n FROM customers"},
+	{"collate", "SELECT name COLLATE Compatibility_52_409_30003 AS n FROM customers"},
 	{"collate", "SELECT name COLLATE Latin1_General_CI_AS_WS_KS AS n FROM customers"},
 	{"collate", "SELECT name COLLATE Latin1_General_CI_AS_KS_WS AS n FROM customers"},
 	{"collate", "SELECT 'x' COLLATE a AS c FROM nope"},
@@ -450,6 +454,7 @@ var queryFeatures = []struct{ feature, query string }{
 	{"collate", "SELECT * FROM OPENJSON(N'[]') WITH (c NVARCHAR(10) COLLATE a)"},
 	{"collate", "CREATE TABLE t (c NVARCHAR(10) COLLATE latin1_general_100_ci_as_sc_utf8)"},
 	{"collate", "CREATE TABLE t (c NVARCHAR(10) COLLATE database_default)"},
+	{"collate", "CREATE TABLE t (c NVARCHAR(10) COLLATE compatibility_52_409_30003)"},
 	{"collate", "CREATE TABLE t (c NVARCHAR(10) COLLATE a)"},
 	{"collate", "CREATE TABLE nope.t (c NVARCHAR(10) COLLATE a)"},
 	{"collate", "CREATE TABLE customers (c nope COLLATE a)"},

@@ -256,4 +256,61 @@ func TestGuard(t *testing.T) {
 	if p := Guard(agreed, repinned); len(p) != 0 {
 		t.Errorf("a pin bump's new expected cell: %q", p)
 	}
+	unsaid := parse(header + "c.t.a\t~\tengine\tfx\tc.s\tlineage\tQ\n")
+	if p := Guard(unsaid, parse(header+"-\t~\tengine\tfx\tc.s\tlineage\tQ\n")); len(p) != 0 {
+		t.Errorf("a move where the engine states nothing: %q", p)
+	}
+	stated := parse(header + "c.t.a c.t.b\tc.t.a ~\tengine\tfx\tc.s\tlineage\tQ\n")
+	if p := Guard(stated, parse(header+"c.t.b\tc.t.a ~\tengine\tfx\tc.s\tlineage\tQ\n")); len(p) != 1 || !strings.Contains(p[0], "a regression") {
+		t.Errorf("losing a stated source: %q", p)
+	}
+}
+
+func TestAgrees(t *testing.T) {
+	for _, c := range []struct {
+		aspect, omni, expected string
+		want                   bool
+	}{
+		{Results, "a, b", "a, b", true},
+		{Results, "a, b", "a, c", false},
+		{Lineage, "x.t.a | x.t.b", "x.t.a | x.t.b", true},
+		{Lineage, "x.t.a | x.t.b", "x.t.a | ~", true},
+		{Lineage, "x.t.a | -", "x.t.a | ~", true},
+		{Lineage, "x.t.a | x.t.b x.v.b", "x.t.a | x.v.b ~", true},
+		{Lineage, "x.t.a | x.t.b", "x.t.a | x.v.b ~", false},
+		{Lineage, "x.t.a | x.t.b", "x.t.a | x.t.c", false},
+		{Lineage, "x.t.a", "x.t.a | ~", false},
+		{Lineage, "-", "~", true},
+		{Lineage, "-", "x.t.a | ~", false},
+		{Lineage, "x.t.a", "~", true},
+		{Tables, "x.t, x.v", "x.t, ~", true},
+		{Tables, "x.v", "x.t, ~", false},
+		{Tables, "x.t, x.v", "x.t", false},
+		{Tables, "-", "~", true},
+		{Tables, "x.t", "error:1146", false},
+		{Lineage, "error:omni", "~", false},
+	} {
+		if got := Agrees(c.aspect, c.omni, c.expected); got != c.want {
+			t.Errorf("Agrees(%s, %q, %q) = %v, want %v", c.aspect, c.omni, c.expected, got, c.want)
+		}
+	}
+}
+
+func TestCheckHoldsAnUnstatedSourceAsAgreement(t *testing.T) {
+	engine := Answer{Results: []string{"a", "_col1"}, Lineage: [][]string{{"c.s.t.a"}, {Unstated}}, Tables: []string{"c.s.t"}}
+	if rec := run(t, suite(t, rows(answer, engine), engine, answer, nil)); !rec.passed() {
+		t.Errorf("want a pass, got %q %q", rec.errors, rec.fatal)
+	}
+	// omni moving inside what the engine leaves unstated still agrees, but
+	// is committed, not passed.
+	moved := Answer{Results: []string{"a", "_col1"}, Lineage: [][]string{{"c.s.t.a"}, {}}, Tables: []string{"c.s.t"}}
+	rec := run(t, suite(t, rows(answer, engine), engine, moved, nil))
+	if !rec.failed("states nothing, and still agrees") || rec.failed("a regression") {
+		t.Errorf("want the move reported for -update-compat, got %q %q", rec.errors, rec.fatal)
+	}
+	// Losing a source the engine does state is a regression.
+	lost := Answer{Results: []string{"a", "_col1"}, Lineage: [][]string{{}, {"c.s.t.a"}}, Tables: []string{"c.s.t"}}
+	if rec := run(t, suite(t, rows(answer, engine), engine, lost, nil)); !rec.failed("a regression") {
+		t.Errorf("want a regression, got %q %q", rec.errors, rec.fatal)
+	}
 }

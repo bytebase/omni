@@ -538,6 +538,12 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 	if b.defTextFails(r, d, "declares") {
 		return true
 	}
+	// The table's expressions are bound before its name is resolved, once
+	// its column types are found: CREATE TABLE nope.t (c NVARCHAR(10)
+	// DEFAULT (N'x' COLLATE a)) is 448 (measured, mssql/catalog).
+	if systemTypes(d) && b.tableCollateFails(d, nil) {
+		return true
+	}
 	b.schemaNeeds(r)
 	b.lacksObject(r, kindTable)
 	b.defNameChecks(r, d)
@@ -666,6 +672,11 @@ func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTab
 		d.addColumn(a.Column)
 		b.defNameChecks(r, d)
 		b.addConstraintChecks(r, path, known, d)
+		// The column's expressions are bound once the table and the free
+		// name are found (4902, 2705 first; measured, mssql/catalog).
+		if known && b.see(spaceColumn, path, cn).fact == walk.Absent && systemTypes(d) && b.tableCollateFails(d, b.columnType(r)) {
+			return true
+		}
 		b.defEffects(r, path, known, d)
 		b.markTableDirty(path)
 	case ast.ATAddIndex:
@@ -718,6 +729,9 @@ func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTab
 		d := &tableDef{constraints: []*ast.ConstraintDef{c}}
 		b.defNameChecks(r, d)
 		b.addConstraintChecks(r, path, known, d)
+		if b.constraintBinds(r, path, known, c) && b.tableCollateFails(d, b.columnType(r)) {
+			return true
+		}
 		b.defEffects(r, path, known, d)
 	case ast.ATDropIndex:
 		// DROP INDEX name as a table element: the index must be one of the
