@@ -164,6 +164,12 @@ spec, which leaves its own body `INVALID` but not the spec's callers.
 - `CREATE TABLE pts (p nope_type)`: the catalog takes an unknown column type,
   as a catalog loaded from metadata holds no types (Oracle: `ORA-00902`).
 
+Rules the checker leaves to Oracle, as no recorded row pins them yet (a
+row added for one is the way to take it on): a type body that leaves out a
+method its spec declares (`PLS-00538`), invalidation that passes through a
+view to the units that read it, and `DROP TYPE` of a type other types or
+tables use without `FORCE` (`ORA-02303`).
+
 ```bash
 go test ./oracle/catalog/ -run '^TestProgramSimulation$' -update-compat
 OMNI_RECORD=1 go test -v -timeout 30m ./oracle/catalog/ -run '^TestProgramSimulation$'
