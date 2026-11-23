@@ -24,6 +24,11 @@ func TestSQLFunctionBodyAccepts(t *testing.T) {
 		`CREATE FUNCTION f("X" int) RETURNS int LANGUAGE plpgsql AS $$ BEGIN "X" := 2; RETURN "X"; END $$`,
 		// SELECT INTO may target a record field.
 		`CREATE TABLE t(x int); CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE r t%ROWTYPE; BEGIN SELECT 1 INTO r.x; RETURN r.x; END $$`,
+		// A composite parameter's fields.
+		`CREATE TYPE pair AS (a int, b int); CREATE FUNCTION f(v pair) RETURNS int LANGUAGE sql AS 'SELECT v.a'`,
+		`CREATE TYPE pair AS (a int, b int); CREATE FUNCTION f(v pair) RETURNS SETOF pair LANGUAGE sql AS 'SELECT v.*'`,
+		`CREATE TYPE pair AS (a int, b int); CREATE FUNCTION f(v pair) RETURNS int LANGUAGE sql AS 'SELECT f.v.b'`,
+		`CREATE TYPE pair AS (a int, b int); CREATE FUNCTION f(v pair) RETURNS int LANGUAGE sql RETURN (v).a + v.b`,
 		// CALL chooses among every routine on the search path.
 		`CREATE SCHEMA s1; CREATE SCHEMA s2; CREATE FUNCTION s1.p(bigint) RETURNS int LANGUAGE sql AS 'SELECT 1'; CREATE PROCEDURE s2.p(int) LANGUAGE sql AS 'SELECT 1'; SET search_path = s1, s2; CALL p(1)`,
 		// A replacement's body sees the defaults it adds.

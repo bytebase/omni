@@ -5745,6 +5745,12 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 					return nil
 				}
 			}
+			// A field or all fields of a composite parameter: param.field,
+			// param.*. Its type is left unresolved.
+			// pg: src/backend/executor/functions.c — sql_fn_post_column_ref
+			if b.fn.lookup(qual) > 0 {
+				return nil
+			}
 			if !c.snapshot {
 				if isOld && b.isOnSelect {
 					return &Error{
@@ -5777,6 +5783,10 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 				return err
 			}
 			items = items[1:]
+		}
+		if len(items) == 3 && b.fn != nil && stringVal(items[0]) == b.fn.name && b.fn.lookup(stringVal(items[1])) > 0 {
+			// fname.param.field or fname.param.*, of a composite parameter.
+			return nil
 		}
 		if len(items) == 3 {
 			schName := stringVal(items[0])
