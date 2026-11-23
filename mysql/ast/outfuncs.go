@@ -902,9 +902,6 @@ func writeCreateIndexStmt(sb *strings.Builder, n *CreateIndexStmt) {
 	if n.Spatial {
 		sb.WriteString(" :spatial true")
 	}
-	if n.IfNotExists {
-		sb.WriteString(" :if_not_exists true")
-	}
 	if n.IndexName != "" {
 		fmt.Fprintf(sb, " :name %s", n.IndexName)
 	}

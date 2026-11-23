@@ -46,9 +46,9 @@ DROP DATABASE IF db1
 -- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md §2.6
 CREATE TABLE IF NOT EXISTS t (id INT)
 
--- @name: CREATE INDEX IF NOT EXISTS accepted
--- @valid: true
--- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md §2.6
+-- @name: CREATE INDEX IF NOT EXISTS rejected
+-- @valid: false
+-- @source: sql_yacc.yy create_index_stmt has no opt_if_not_exists; mysql:8.0.46 and mysql:8.4.13 answer 1064
 CREATE INDEX IF NOT EXISTS idx ON t (id)
 
 -- @name: DROP TABLE IF EXISTS accepted

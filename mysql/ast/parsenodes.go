@@ -360,18 +360,17 @@ func (s *DropTableStmt) stmtNode() {}
 
 // CreateIndexStmt represents a CREATE INDEX statement.
 type CreateIndexStmt struct {
-	Loc         Loc
-	Unique      bool
-	Fulltext    bool
-	Spatial     bool
-	IfNotExists bool
-	IndexName   string
-	Table       *TableRef
-	IndexType   string // BTREE, HASH
-	Columns     []*IndexColumn
-	Options     []*IndexOption
-	Algorithm   string
-	Lock        string
+	Loc       Loc
+	Unique    bool
+	Fulltext  bool
+	Spatial   bool
+	IndexName string
+	Table     *TableRef
+	IndexType string // BTREE, HASH
+	Columns   []*IndexColumn
+	Options   []*IndexOption
+	Algorithm string
+	Lock      string
 }
 
 func (s *CreateIndexStmt) nodeTag()  {}

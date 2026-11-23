@@ -158,10 +158,7 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 					}
 				}
 			case *ast.CreateIndexStmt:
-				// IF NOT EXISTS may leave an index of the name as it was.
-				if !v.IfNotExists {
-					touch(v.Table, v.IndexName, v.Unique)
-				}
+				touch(v.Table, v.IndexName, v.Unique)
 			case *ast.RenameTableStmt:
 				for _, pair := range v.Pairs {
 					if pair != nil {

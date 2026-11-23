@@ -4356,10 +4356,16 @@ func TestParseCreateIndex(t *testing.T) {
 		}
 	})
 
+	// create_index_stmt has no opt_if_not_exists: mysql:8.0.46 and
+	// mysql:8.4.13 answer 1064 (testdata/compat.tsv, suite:create-index-if-not-exists).
 	t.Run("if not exists", func(t *testing.T) {
-		stmt := parseCreateIndex(t, "CREATE INDEX IF NOT EXISTS idx_id ON t (id)")
-		if !stmt.IfNotExists {
-			t.Errorf("IfNotExists = false, want true")
+		for _, sql := range []string{
+			"CREATE INDEX IF NOT EXISTS idx_id ON t (id)",
+			"CREATE UNIQUE INDEX IF NOT EXISTS idx_id ON t (id)",
+			"CREATE FULLTEXT INDEX IF NOT EXISTS idx_id ON t (s)",
+			"CREATE SPATIAL INDEX IF NOT EXISTS idx_id ON t (g)",
+		} {
+			ParseExpectError(t, sql)
 		}
 	})
 
