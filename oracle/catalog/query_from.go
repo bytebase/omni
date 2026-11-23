@@ -913,19 +913,33 @@ func (a *queryAnalyzer) matchRecognize(n *ast.MatchRecognizeClause, sc *qscope) 
 		measures = append(measures, qcol{name: rt.Name, typ: t})
 	}
 	if strings.HasPrefix(strings.ToUpper(n.RowsPerMatch), "ALL ROWS") {
+		// Partition columns, ordering columns, measures, then the rest of
+		// the input in its order.
+		var order []qcol
+		for _, item := range listItems(n.OrderBy) {
+			if sb, ok := item.(*ast.SortBy); ok {
+				if ref, ok := unparen(sb.Expr).(*ast.ColumnRef); ok {
+					if c, found, _ := a.lookupIn(src, ref.Column); found {
+						c.name = ref.Column
+						order = append(order, c)
+					}
+				}
+			}
+		}
+		taken := map[string]bool{}
+		for _, c := range append(append([]qcol{}, partition...), order...) {
+			if !taken[c.name] {
+				rel.cols = append(rel.cols, c)
+				taken[c.name] = true
+			}
+		}
 		rel.cols = append(rel.cols, measures...)
 		for _, it := range src.items {
 			c := src.itemCol(it)
-			if c.hidden {
+			if c.hidden || taken[c.name] {
 				continue
 			}
 			rel.cols = append(rel.cols, c)
-		}
-		// Partition and order columns lead, then the measures, then the
-		// rest of the input in its order.
-		rel.cols = append(append([]qcol{}, rel.cols[len(measures):]...), measures...)
-		if len(measures) > 0 {
-			rel.cols = reorderMatchRecognize(rel.cols, partition, measures)
 		}
 	} else {
 		rel.cols = append(append(rel.cols, partition...), measures...)
@@ -941,20 +955,6 @@ func (a *queryAnalyzer) matchRecognize(n *ast.MatchRecognizeClause, sc *qscope) 
 		seen[c.name] = true
 	}
 	return relFrom(rel), nil
-}
-
-func reorderMatchRecognize(cols, partition, measures []qcol) []qcol {
-	isMeasure := map[string]bool{}
-	for _, m := range measures {
-		isMeasure[m.name] = true
-	}
-	var out []qcol
-	for _, c := range cols {
-		if !isMeasure[c.name] {
-			out = append(out, c)
-		}
-	}
-	return append(out, measures...)
 }
 
 // measureType types a MATCH_RECOGNIZE measure: FIRST, LAST, PREV, NEXT and

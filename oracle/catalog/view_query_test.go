@@ -75,7 +75,7 @@ func TestViewQueryValidation(t *testing.T) {
 }
 
 func TestViewQueryRefusals(t *testing.T) {
-	const fixture = `CREATE TABLE t (id NUMBER, n NUMBER(5,-1), m NUMBER(*,-2), doc CLOB, "USER" VARCHAR2(20)); CREATE TABLE u (id DATE);`
+	const fixture = `CREATE TABLE t (id NUMBER, n NUMBER(5,-1), m NUMBER(*,-2), doc CLOB, "USER" VARCHAR2(20), d DATE); CREATE TABLE u (id DATE);`
 	cases := []struct {
 		name, sql, code string
 	}{
@@ -138,6 +138,9 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"sum_of_date", `CREATE VIEW v AS SELECT SUM(DATE '2020-01-01') s FROM dual`, "00932"},
 		{"keyword_named_column_not_grouped", `CREATE VIEW v AS SELECT "USER", COUNT(*) c FROM t`, "00937"},
 		{"using_incompatible_keys", `CREATE VIEW v AS SELECT id FROM t JOIN u USING (id)`, "00932"},
+		{"subquery_comparison_types", `CREATE VIEW v AS SELECT id FROM t WHERE id = (SELECT d FROM t)`, "00932"},
+		{"in_subquery_types", `CREATE VIEW v AS SELECT id FROM t WHERE id IN (SELECT d FROM t)`, "00932"},
+		{"recursive_member_distinct", `CREATE VIEW v AS WITH r(n) AS (SELECT 1 FROM dual UNION ALL SELECT DISTINCT n + 1 FROM r WHERE n < 5) SELECT n FROM r`, "32486"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -368,6 +371,30 @@ func TestViewQueryTypesRound14(t *testing.T) {
 	for i, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
 		if col.GetType() != want[i] {
 			t.Errorf("%s type = %s, want %s", col.GetName(), col.GetType(), want[i])
+		}
+	}
+}
+
+func TestViewQueryTypesRound15(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TABLE t (id NUMBER, grp VARCHAR2(10), val DATE);
+CREATE VIEW v AS SELECT REPLACE(123, '2', '45') x FROM dual;
+CREATE VIEW w AS SELECT * FROM t MATCH_RECOGNIZE (PARTITION BY grp ORDER BY id MEASURES FIRST(a.val) AS first_val ALL ROWS PER MATCH PATTERN (a) DEFINE a AS id > 0);
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range c.Metadata().GetSchemas()[0].GetViews() {
+		var got []string
+		for _, col := range v.GetColumns() {
+			got = append(got, col.GetName()+" "+col.GetType())
+		}
+		want := map[string]string{
+			"V": "X VARCHAR2(40 BYTE)",
+			"W": "GRP VARCHAR2(10 BYTE),ID NUMBER,FIRST_VAL DATE,VAL DATE",
+		}[v.GetName()]
+		if strings.Join(got, ",") != want {
+			t.Errorf("%s columns = %q, want %q", v.GetName(), strings.Join(got, ","), want)
 		}
 	}
 }

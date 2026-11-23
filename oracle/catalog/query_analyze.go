@@ -432,6 +432,16 @@ func (a *queryAnalyzer) analyzeCTE(d *cteDef, outer *qscope, env *cteEnv) error 
 		if len(ops) < 2 || !last.all || last.op != ast.SETOP_UNION {
 			return oraError("32040", "recursive WITH clause must use a UNION ALL operation")
 		}
+		// The recursive member may not be DISTINCT, grouped or a MODEL.
+		member := last.sel
+		if member.Distinct || member.UniqueKw || len(listItems(member.GroupClause)) > 0 || member.HavingClause != nil || member.ModelClause != nil {
+			return oraError("32486", "unsupported operation in recursive branch of recursive WITH clause")
+		}
+		for _, item := range listItems(member.TargetList) {
+			if rt, ok := item.(*ast.ResTarget); ok && rt.Expr != nil && containsAggregate(rt.Expr, false) {
+				return oraError("32486", "unsupported operation in recursive branch of recursive WITH clause")
+			}
+		}
 		var anchorCols []qcol
 		for i, op := range ops[:len(ops)-1] {
 			anchorBlock := *op.sel

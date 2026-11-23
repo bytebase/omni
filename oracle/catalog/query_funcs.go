@@ -235,6 +235,10 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		if t.isLOB() {
 			return t, false, nil
 		}
+		if !t.isCharacter() && !t.isNull() && t.kind != "UNKNOWN" {
+			// A number or date is converted to characters first.
+			return varchar2Bytes(concatLength(t)), false, nil
+		}
 		if t.kind == "CHAR" {
 			t.kind = "VARCHAR2"
 		}

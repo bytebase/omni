@@ -140,11 +140,10 @@ func (a *queryAnalyzer) expr(x ast.ExprNode, sc *qscope, clause exprClause) (qty
 		if _, _, err := a.expr(n.Expr, sc, clause); err != nil {
 			return qtype{}, false, err
 		}
-		width := operandWidth(n.Expr)
 		for _, item := range listItems(n.List) {
 			if ex, ok := item.(ast.ExprNode); ok {
 				if sq, ok := ex.(*ast.SubqueryExpr); ok {
-					if err := a.subquery(sq, sc, width); err != nil {
+					if err := a.compareWithSubquery(n.Expr, sq, sc, clause); err != nil {
 						return qtype{}, false, err
 					}
 					continue
@@ -245,19 +244,57 @@ func (a *queryAnalyzer) expr(x ast.ExprNode, sc *qscope, clause exprClause) (qty
 // subquery analyzes a subquery in a condition. want is the number of columns
 // it must return, or -1 for any.
 func (a *queryAnalyzer) subquery(sq *ast.SubqueryExpr, sc *qscope, want int) error {
+	_, err := a.subqueryColumns(sq, sc, want)
+	return err
+}
+
+// subqueryColumns analyzes a subquery in a condition and returns its
+// columns; want is the number it must return, or -1 for any.
+func (a *queryAnalyzer) subqueryColumns(sq *ast.SubqueryExpr, sc *qscope, want int) ([]qcol, error) {
 	sel, ok := sq.Subquery.(*ast.SelectStmt)
 	if !ok {
-		return nil
+		return nil, nil
 	}
 	res, err := a.query(sel, sc, sc.ctes, false)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	switch {
 	case want >= 0 && len(res.cols) > want:
-		return oraError("00913", "too many values")
+		return nil, oraError("00913", "too many values")
 	case want >= 0 && len(res.cols) < want:
-		return oraError("00947", "not enough values")
+		return nil, oraError("00947", "not enough values")
+	}
+	return res.cols, nil
+}
+
+// compareWithSubquery checks a left operand against a subquery's columns,
+// position by position, as a comparison of values would.
+func (a *queryAnalyzer) compareWithSubquery(left ast.ExprNode, sq *ast.SubqueryExpr, sc *qscope, clause exprClause) error {
+	operands := []ast.ExprNode{left}
+	if row, ok := unparen(left).(*ast.FuncCallExpr); ok && (row.FuncName == nil || row.FuncName.Name == "") {
+		operands = nil
+		for _, item := range listItems(row.Args) {
+			if ex, ok := item.(ast.ExprNode); ok {
+				operands = append(operands, ex)
+			}
+		}
+	}
+	cols, err := a.subqueryColumns(sq, sc, len(operands))
+	if err != nil {
+		return err
+	}
+	for i, x := range operands {
+		if i >= len(cols) {
+			break
+		}
+		t, _, err := a.expr(x, sc, clause)
+		if err != nil {
+			return err
+		}
+		if err := comparable(t, cols[i].typ, nil); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -319,7 +356,7 @@ func (a *queryAnalyzer) binary(n *ast.BinaryExpr, sc *qscope, clause exprClause)
 		// A subquery compared with a value, or quantified by ANY, SOME or
 		// ALL, returns as many columns as the left side holds.
 		if sq := comparedSubquery(n.Right); sq != nil {
-			if err := a.subquery(sq, sc, operandWidth(n.Left)); err != nil {
+			if err := a.compareWithSubquery(n.Left, sq, sc, clause); err != nil {
 				return qtype{}, false, err
 			}
 			return simpleType("BOOLEAN"), false, nil
@@ -848,14 +885,6 @@ func comparedSubquery(x ast.ExprNode) *ast.SubqueryExpr {
 	return nil
 }
 
-// operandWidth is how many values an operand holds: a row constructor's
-// width, else one.
-func operandWidth(x ast.ExprNode) int {
-	if row, ok := unparen(x).(*ast.FuncCallExpr); ok && (row.FuncName == nil || row.FuncName.Name == "") {
-		return len(listItems(row.Args))
-	}
-	return 1
-}
 
 // charCapacity is how many characters a value holds once converted to
 // characters: a character type's length, a number's 40, a datetime's 75.
