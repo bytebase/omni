@@ -27,6 +27,8 @@ type qcol struct {
 	// expr marks a result column computed by an expression rather than read
 	// from a column, which a view must alias (ORA-00998).
 	expr bool
+	// merged marks a t.* column that is a USING or NATURAL key.
+	merged bool
 }
 
 // A qrel is a FROM item a column can be qualified by.
@@ -769,6 +771,11 @@ func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 		exprs = append(exprs, sel.HavingClause)
 	}
 	exprs = append(exprs, starRefs...)
+	// QUALIFY is evaluated after grouping; a select alias it names is a
+	// selected value.
+	if sel.QualifyClause != nil {
+		exprs = append(exprs, sel.QualifyClause)
+	}
 	// A named window's expressions are evaluated after grouping too.
 	for _, w := range sel.WindowDefs {
 		if w == nil || w.Spec == nil {
@@ -818,6 +825,11 @@ func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 	}
 	if grouped && sel.ModelClause == nil {
 		for _, x := range exprs {
+			for _, c := range cols {
+				if _, found, _ := a.lookupIn(sc.from, c.name); !found {
+					groupKeys = append(groupKeys, a.groupKey(&ast.ColumnRef{Column: c.name, Loc: ast.NoLoc()}, sc))
+				}
+			}
 			keyOf := func(n ast.Node) string {
 				if ref, ok := n.(*ast.ColumnRef); ok && sc.parent != nil && !a.resolvesLocally(ref, sc) {
 					if _, found, _ := a.resolveColumn(ref, sc.parent); found {
@@ -1230,8 +1242,13 @@ func (a *queryAnalyzer) selectTarget(rt *ast.ResTarget, sc *qscope, top bool) ([
 			qual := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(a.e.nodeText(x)), "*"))
 			for _, c := range items {
 				c.expr = false
+				if c.merged {
+					parts = append(parts, quoteIdent(c.name))
+				} else {
+					parts = append(parts, qual+quoteIdent(c.name))
+				}
+				c.merged = false
 				cols = append(cols, c)
-				parts = append(parts, qual+quoteIdent(c.name))
 			}
 			if top {
 				a.edits = append(a.edits, textEdit{start: x.Loc.Start, end: x.Loc.End, text: strings.Join(parts, ",")})
@@ -1335,7 +1352,12 @@ func (a *queryAnalyzer) qualifiedStar(sc *qscope, ref *ast.ColumnRef) ([]qcol, e
 		if r.cols[i].hidden {
 			continue
 		}
-		cols = append(cols, r.col(i))
+		c := r.col(i)
+		if r.merged[c.name] {
+			// A USING or NATURAL key takes no qualifier.
+			c.merged = true
+		}
+		cols = append(cols, c)
 	}
 	return cols, nil
 }

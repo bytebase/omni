@@ -165,6 +165,9 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"row_comparison_types", `CREATE VIEW v AS SELECT 1 x FROM dual WHERE (1, DATE '2020-01-01') = (1, 1)`, "00932"},
 		{"row_comparison_width", `CREATE VIEW v AS SELECT 1 x FROM dual WHERE (1, 2) = (1, 2, 3)`, "00913"},
 		{"date_times_number", `CREATE VIEW v AS SELECT DATE '2020-01-01' * 2 x FROM dual`, "00932"},
+		{"qualify_not_grouped", `CREATE VIEW v AS SELECT id, COUNT(*) c FROM t GROUP BY id QUALIFY ROW_NUMBER() OVER (ORDER BY n) = 1`, "00979"},
+		{"qualify_grouped_alias", `CREATE VIEW v AS SELECT id, COUNT(*) c FROM t GROUP BY id QUALIFY ROW_NUMBER() OVER (ORDER BY c) = 1`, ""},
+		{"number_minus_date", `CREATE VIEW v AS SELECT 1 - DATE '2020-01-01' x FROM dual`, "00932"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -582,5 +585,24 @@ func TestViewQueryTypesRound25(t *testing.T) {
 		if col.GetType() != want[i] {
 			t.Errorf("%s type = %q, want %q", col.GetName(), col.GetType(), want[i])
 		}
+	}
+}
+
+func TestViewQueryQualifiedStarUsingKey(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TABLE t (id NUMBER, n NUMBER);
+CREATE TABLE u (id NUMBER);
+CREATE VIEW v AS SELECT t.* FROM t JOIN u USING (id);
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := c.Metadata().GetSchemas()[0].GetViews()[0]
+	if want := `SELECT "ID",t."N" FROM t JOIN u USING (id)`; v.GetDefinition() != want {
+		t.Fatalf("definition = %q, want %q", v.GetDefinition(), want)
+	}
+	// The stored text loads again.
+	if _, err := LoadSQL("CREATE TABLE t (id NUMBER, n NUMBER); CREATE TABLE u (id NUMBER); CREATE VIEW v AS " + v.GetDefinition()); err != nil {
+		t.Fatal(err)
 	}
 }

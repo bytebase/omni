@@ -557,6 +557,10 @@ func arithmeticType(op string, l, r qtype) (qtype, error) {
 	if op == "+" && l.isDatetime() && r.isDatetime() {
 		return qtype{}, oraError("00975", "date + date not allowed")
 	}
+	if op == "-" && r.isDatetime() && (l.isNumeric() || l.isInterval()) {
+		// A datetime subtracts only from a datetime.
+		return qtype{}, oraError("00932", "expression is of data type %s, which is incompatible with expected data type NUMBER", r.kind)
+	}
 	return arithmeticResult(op, l, r), nil
 }
 
