@@ -304,6 +304,36 @@ func (b *builder) applyAlterMeta(r tableRef, v *ast.AlterTableStmt, d *alterDelt
 		for newK, bt := range renamedTypes {
 			b.w.colTypes[colKey(r.db, r.name, newK)] = bt
 		}
+		if len(d.renamedFrom) > 0 {
+			for _, im := range b.w.tableIndexes[rel] {
+				if im == nil {
+					continue
+				}
+				for i, col := range im.cols {
+					if newK, ok := d.renamedFrom[col]; ok {
+						im.cols[i] = newK
+					}
+				}
+			}
+			for _, cols := range b.w.tableFKs[rel] {
+				for i, col := range cols {
+					if newK, ok := d.renamedFrom[col]; ok {
+						cols[i] = newK
+					}
+				}
+			}
+			if pi := b.w.partitionState[rel]; pi != nil && pi.cols != nil {
+				rewritten := make(map[string]bool, len(pi.cols))
+				for col := range pi.cols {
+					if newK, ok := d.renamedFrom[col]; ok {
+						rewritten[newK] = true
+					} else {
+						rewritten[col] = true
+					}
+				}
+				pi.cols = rewritten
+			}
+		}
 		for k, bt := range d.addedCols {
 			if bt != "" {
 				b.w.colTypes[colKey(r.db, r.name, k)] = bt
@@ -1303,6 +1333,22 @@ func (b *builder) moveTable(from, to tableRef, kind string) {
 		if refs, ok := b.w.referencedByFK[fk]; ok {
 			delete(b.w.referencedByFK, fk)
 			b.w.referencedByFK[tk] = refs
+		}
+		for _, refs := range b.w.referencedByFK {
+			var movedRefs []fkRefKey
+			for ref := range refs {
+				if ref.child == fk {
+					movedRefs = append(movedRefs, ref)
+					delete(refs, ref)
+				}
+			}
+			for _, ref := range movedRefs {
+				fkName := ref.fk
+				if old != "" && renamed != "" && strings.HasPrefix(fkName, old) {
+					fkName = renamed + strings.TrimPrefix(fkName, old)
+				}
+				refs[fkRefKey{child: tk, fk: fkName}] = true
+			}
 		}
 		movedCols := make(map[string]string)
 		for ck, bt := range b.w.colTypes {

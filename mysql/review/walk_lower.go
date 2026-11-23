@@ -342,7 +342,7 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 			b.foreignKeyTarget(r, c)
 		}
 	}
-	b.created(v, r)
+	b.created(v, r, prior == walk.Unknown)
 	// A table that may have been there keeps an engine the walk does not
 	// know.
 	ignores := !b.fks || prior == walk.Unknown
@@ -654,7 +654,10 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 // May-effects. A table copied with LIKE or filled from a query holds what
 // the walk does not follow. A table with no primary key may get an
 // invisible one, with its column (sql_generate_invisible_primary_key).
-func (b *builder) created(v *ast.CreateTableStmt, r tableRef) {
+// When optional is true (CREATE TABLE IF NOT EXISTS over an unknown prior
+// state), side metadata stays unknown because the existing table may have
+// kept its own definition.
+func (b *builder) created(v *ast.CreateTableStmt, r tableRef, optional bool) {
 	path := tablePath(r.db, r.name)
 	b.Set(relKey(r.db, r.name), walk.Present, relTable)
 	b.Clear(walk.Scope{Parent: path, Deep: true})
@@ -675,6 +678,9 @@ func (b *builder) created(v *ast.CreateTableStmt, r tableRef) {
 	if !primary {
 		b.Set(idxKey(r.db, r.name, primaryIndex), walk.Unknown, "")
 		b.Set(colKey(r.db, r.name, gipkColumn), walk.Unknown, "")
+	}
+	if optional {
+		return
 	}
 	rel := relKey(r.db, r.name)
 	eng := engineOf(v.Options)

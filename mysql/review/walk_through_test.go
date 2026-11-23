@@ -680,12 +680,17 @@ func TestWalkThroughMySQLRefusalFamilies(t *testing.T) {
 		{"event rename to new name", "ALTER EVENT ev RENAME TO ev2;"},
 		{"valid srs", "CREATE SPATIAL REFERENCE SYSTEM 4326 NAME 'WGS 84' DEFINITION 'GEOGCS[\"WGS 84\"]';"},
 		{"alter table rename col then partition by it", "ALTER TABLE plain RENAME COLUMN id TO id2 PARTITION BY HASH (id2);"},
+		{"rename pk col then partition in next stmt", "CREATE TABLE x (a INT PRIMARY KEY);\nALTER TABLE x RENAME COLUMN a TO b;\nALTER TABLE x PARTITION BY HASH (b);"},
+		{"swap cols then partition by renamed pk", "CREATE TABLE x (a INT PRIMARY KEY, b INT);\nALTER TABLE x RENAME COLUMN a TO b, RENAME COLUMN b TO a;\nALTER TABLE x PARTITION BY HASH (b);"},
+		{"rename child drop child then partition parent", "RENAME TABLE child TO child2;\nDROP TABLE child2;\nALTER TABLE parent PARTITION BY HASH (id);"},
+		{"rename child drop fk then partition parent", "RENAME TABLE child TO child2;\nALTER TABLE child2 DROP FOREIGN KEY fk_pid;\nALTER TABLE parent PARTITION BY HASH (id);"},
 		{"other specs ignores snapshot partitioning", "ALTER TABLE plain ADD PARTITION (PARTITION p0 VALUES LESS THAN (10));"},
+		{"other specs optional create table preserves partition uncertainty", "DROP TEMPORARY TABLE IF EXISTS x;\nCREATE TABLE IF NOT EXISTS x (a INT);\nALTER TABLE x ADD PARTITION (PARTITION p1 VALUES LESS THAN (20));"},
 	}
 	for _, tc := range accepted {
 		t.Run("accept/"+tc.name, func(t *testing.T) {
 			tgt := target
-			if tc.name == "other specs ignores snapshot partitioning" {
+			if strings.HasPrefix(tc.name, "other specs ") {
 				tgt.OtherSpecs = true
 			}
 			noFinding(t, tc.sql, tgt)
