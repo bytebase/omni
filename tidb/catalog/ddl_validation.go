@@ -261,9 +261,36 @@ func intTypeRank(dt string) int {
 	return 0
 }
 
+func normalizeDataTypeAlias(dt string) string {
+	switch strings.ToLower(strings.TrimSpace(dt)) {
+	case "bool", "boolean", "int1":
+		return "tinyint"
+	case "int2":
+		return "smallint"
+	case "int3":
+		return "mediumint"
+	case "integer", "int4":
+		return "int"
+	case "int8":
+		return "bigint"
+	case "numeric", "dec", "fixed":
+		return "decimal"
+	case "real", "double precision":
+		return "double"
+	case "character", "nchar", "national char", "national character":
+		return "char"
+	case "character varying", "nvarchar", "national varchar", "national character varying":
+		return "varchar"
+	case "serial":
+		return "bigint"
+	default:
+		return strings.ToLower(strings.TrimSpace(dt))
+	}
+}
+
 func modifyColumnTypeNeedsReorg(oldCol, newCol *Column) bool {
-	oldDT := strings.ToLower(oldCol.DataType)
-	newDT := strings.ToLower(newCol.DataType)
+	oldDT := normalizeDataTypeAlias(oldCol.DataType)
+	newDT := normalizeDataTypeAlias(newCol.DataType)
 	oldRank := intTypeRank(oldDT)
 	newRank := intTypeRank(newDT)
 	if oldRank > 0 && newRank > 0 {

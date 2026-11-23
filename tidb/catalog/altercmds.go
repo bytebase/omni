@@ -92,14 +92,98 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	snapshot := cloneTable(tbl)
 	origKey := key
 
-	for _, cmd := range stmt.Commands {
+	for i := 0; i < len(stmt.Commands); {
+		cmd := stmt.Commands[i]
+		// Combine contiguous charset/collation ATTableOption commands in the
+		// same option run, matching TiDB's GetCharsetAndCollateInTableOption:
+		// `CHARSET=gbk COLLATE=gbk_bin` must resolve and validate as a pair
+		// rather than validating an intermediate default collation first.
+		if isCharsetOrCollateOptionCmd(cmd) {
+			end := i + 1
+			for end < len(stmt.Commands) && stmt.Commands[end] != nil && stmt.Commands[end].Type == nodes.ATTableOption {
+				end++
+			}
+			if err := c.execAlterTableOptionRun(tbl, stmt.Commands[i:end]); err != nil {
+				undoAlter(db, origKey, tbl, snapshot)
+				return err
+			}
+			i = end
+			continue
+		}
 		if err := c.execAlterCmd(db, tbl, cmd); err != nil {
 			undoAlter(db, origKey, tbl, snapshot)
 			return err
 		}
+		i++
 	}
 	// Clear transient cleanup tracking after successful multi-command ALTER.
 	tbl.droppedByCleanup = nil
+	return nil
+}
+
+func isCharsetOptionName(name string) bool {
+	switch toLower(name) {
+	case "charset", "character set", "default charset", "default character set":
+		return true
+	}
+	return false
+}
+
+func isCollateOptionName(name string) bool {
+	switch toLower(name) {
+	case "collate", "default collate":
+		return true
+	}
+	return false
+}
+
+func isCharsetOrCollateOptionCmd(cmd *nodes.AlterTableCmd) bool {
+	if cmd == nil || cmd.Type != nodes.ATTableOption || cmd.Option == nil {
+		return false
+	}
+	return isCharsetOptionName(cmd.Option.Name) || isCollateOptionName(cmd.Option.Name)
+}
+
+// execAlterTableOptionRun applies a contiguous run of ATTableOption commands,
+// resolving any charset and collation options in the run together once (just
+// as TiDB's GetCharsetAndCollateInTableOption does) while applying all other
+// options in order.
+func (c *Catalog) execAlterTableOptionRun(tbl *Table, cmds []*nodes.AlterTableCmd) error {
+	var csOpt, collOpt string
+	var hasCharsetOrCollate bool
+	for _, cmd := range cmds {
+		if cmd == nil || cmd.Option == nil {
+			continue
+		}
+		switch {
+		case isCharsetOptionName(cmd.Option.Name):
+			csOpt = cmd.Option.Value
+			hasCharsetOrCollate = true
+		case isCollateOptionName(cmd.Option.Name):
+			collOpt = cmd.Option.Value
+			hasCharsetOrCollate = true
+		}
+	}
+	charsetApplied := false
+	for _, cmd := range cmds {
+		if isCharsetOrCollateOptionCmd(cmd) {
+			if !charsetApplied && hasCharsetOrCollate {
+				cs, coll, err := resolveCharsetCollation(csOpt, collOpt)
+				if err != nil {
+					return err
+				}
+				if err := checkAlterTableCharset(tbl.Charset, tbl.Collation, cs, coll); err != nil {
+					return err
+				}
+				tbl.Charset, tbl.Collation = cs, coll
+				charsetApplied = true
+			}
+			continue
+		}
+		if err := c.alterTableOption(tbl, cmd); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

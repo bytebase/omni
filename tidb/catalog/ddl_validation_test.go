@@ -90,6 +90,16 @@ func TestDDLValidation(t *testing.T) {
 		assertCode(t, c, "ALTER TABLE t MODIFY b INT UNSIGNED", ErrUnsupportedDDL)
 		// Widening a PK integer column or modifying a non-PK column succeeds.
 		execAll(t, c, "ALTER TABLE t MODIFY b BIGINT; ALTER TABLE t MODIFY c TINYINT;")
+		// Type aliases on PK columns (BOOLEAN->tinyint, NUMERIC->decimal) must
+		// normalize consistently so same-type MODIFY succeeds.
+		execAll(t, c, `
+			CREATE TABLE t_bool_pk (a BOOLEAN PRIMARY KEY);
+			ALTER TABLE t_bool_pk MODIFY a BOOLEAN;
+			ALTER TABLE t_bool_pk MODIFY a TINYINT;
+			CREATE TABLE t_num_pk (a NUMERIC(10, 2) PRIMARY KEY);
+			ALTER TABLE t_num_pk MODIFY a NUMERIC(10, 2);
+			ALTER TABLE t_num_pk MODIFY a DECIMAL(10, 2);
+		`)
 	})
 
 	t.Run("alter_charset_compatibility_8200", func(t *testing.T) {
@@ -99,6 +109,18 @@ func TestDDLValidation(t *testing.T) {
 		assertCode(t, c, "ALTER TABLE t CONVERT TO CHARSET 'binary'", ErrUnsupportedDDL)
 		assertCode(t, c, "ALTER TABLE t CHARSET 'latin1'", ErrUnsupportedDDL)
 		execAll(t, c, "ALTER TABLE t CHARSET 'utf8mb4' COLLATE 'utf8mb4_general_ci';")
+		// Paired CHARSET + COLLATE options must resolve together before validation
+		// so an unchanged non-default collation (e.g. gbk_bin) is accepted.
+		execAll(t, c, `
+			CREATE TABLE t_gbk (a VARCHAR(10)) CHARSET=gbk COLLATE=gbk_bin;
+			ALTER TABLE t_gbk CHARSET=gbk COLLATE=gbk_bin;
+			ALTER TABLE t_gbk COLLATE=gbk_bin CHARSET=gbk;
+			ALTER TABLE t_gbk COMMENT='ok' CHARSET=gbk COLLATE=gbk_bin;
+		`)
+		// Changing collation alone on gbk_bin -> gbk_chinese_ci is still refused.
+		assertCode(t, c, "ALTER TABLE t_gbk CHARSET=gbk", ErrUnsupportedDDL)
+		// Mismatched charset + collation pair still fails with 1253.
+		assertCode(t, c, "ALTER TABLE t_gbk CHARSET=gbk COLLATE=utf8mb4_bin", ErrCollationCharsetMismatch)
 	})
 
 	t.Run("unsupported_alter_specs_and_options_8200", func(t *testing.T) {
