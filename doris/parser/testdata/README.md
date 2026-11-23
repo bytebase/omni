@@ -18,8 +18,10 @@ a fresh server wrote the same file.
 | `DorisLegacyParser.g4`, near-misses | 5,883 | 5,883 | 0 | 0 |
 | `DorisParser.g4`, an optional clause at every site, with near-misses | 157 | 157 | 0 | 0 |
 | `DorisLegacyParser.g4`, an optional clause at every site, with near-misses | 270 | 270 | 0 | 0 |
+| `DorisParser.g4`, every form of a keyword choice at every site, with near-misses | 146 | 146 | 0 | 0 |
+| `DorisLegacyParser.g4`, every form of a keyword choice at every site, with near-misses | 258 | 258 | 0 | 0 |
 
-Every row agrees: the 16,394 generated rows and the 346 `suite:` rows below.
+Every row agrees: the 16,798 generated rows and the 355 `suite:` rows below.
 #1461 closed the last 201 of them, the tails the grammar derives and omni read
 loosely: `INTERVAL 1 a` with a unit that is not one, `opt_partition`'s
 argument lists, the identifier set `nonReserved`, `EXPLAIN`'s table, function
@@ -32,6 +34,13 @@ The optional clauses `../../testdata/tokens.tsv` names with `(every site)`,
 at each alternative that can write them, not only at the one the clause's
 own row reaches. Their 427 rows agreed when first recorded, 2026-11-23.
 
+The keyword and name choices it names with `(every alternative)` (`wildWhere`,
+`partitionSpec`, `limitClause`, `from_or_in`, `opt_var_type`,
+`partition_names` and the rest) get a row for each of their forms at each
+site that names them. Their 404 rows found two false rejections, 2026-11-23:
+`SHOW ROUTINE LOAD WHERE ...`, and `BUILD INDEX ... PARTITION(*)` with the
+other `partitionSpec` forms.
+
 24 of `DorisParser.g4`'s alternatives get no row: its other entry points,
 `singleStatement` and `expressionWithEof`, and `selectHint`, which Doris reads
 apart from a hint comment. 7 of `DorisLegacyParser.g4`'s need a token its
@@ -40,9 +49,10 @@ scanner never makes (`../../testdata/tokens.tsv`).
 ## Suites
 
 `suite:conformance` holds the 339 cases of the container test that compared
-`Parse` with a running Doris (`TestDorisSyntaxConformance`), and
+`Parse` with a running Doris (`TestDorisSyntaxConformance`) and 9 added
+since (the `BUILD INDEX` partition forms and `SHOW ROUTINE LOAD WHERE`), and
 `suite:comments` holds the 7 `//` and `#` lines Doris has no comment for, each
-judged by the same recording; all 346 agree. A statement added to a suite is a
+judged by the same recording; all 355 agree. A statement added to a suite is a
 row with `?` in both verdict cells, judged by a recording:
 
 ```text
