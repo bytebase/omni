@@ -4,11 +4,12 @@
 -- uses for a materialized view's storage; a name that holds a line break; a
 -- dictionary, and a table that reads it; a view, and a view over it under a name
 -- that sorts first; two materialized views, the first holding the other's name
--- in a literal; and a materialized view with its own engine, whose inner table
--- only the server names.
+-- in a literal; row policies, one of them on the whole database; and a
+-- materialized view with its own engine, whose inner table only the server
+-- names.
 --
 -- $database stands for the database the test created, which the dictionary's
--- source and the materialized view's literal name.
+-- source, the materialized view's literal and a row policy name.
 CREATE TABLE src (
   id UInt64,
   name String,
@@ -152,5 +153,17 @@ mv`;
 -- sorts first: creating it needs the dictionary table, which loads the
 -- dictionary.
 CREATE MATERIALIZED VIEW a_dict TO target AS SELECT id, 'z' AS name FROM dict_table;
+
+-- Row policies: one a role reads through, a restrictive one whose name needs
+-- backquotes and that applies to everyone but that role, and one on every table
+-- of the database. A row policy is an access entity that outlives the database,
+-- so the dump states each with OR REPLACE.
+CREATE ROLE omni_dump_reader;
+
+CREATE ROW POLICY tenant ON src FOR SELECT USING name != '' TO omni_dump_reader;
+
+CREATE ROW POLICY `odd policy` ON src AS RESTRICTIVE FOR SELECT USING id > 0 TO ALL EXCEPT omni_dump_reader;
+
+CREATE ROW POLICY everything ON $database.* USING 1 TO omni_dump_reader;
 
 CREATE MATERIALIZED VIEW mv_own ENGINE = MergeTree ORDER BY id AS SELECT id FROM src; -- not restorable: TestDumpGaps

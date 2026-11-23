@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 
 	clickhouse "github.com/ClickHouse/clickhouse-go/v2"
@@ -127,8 +128,13 @@ func TestSyncInstance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	access, err := os.ReadFile(filepath.Join("testdata", "sync", "access.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	d := openTestDriver(t)
 	execCorpus(t, d.db, string(corpus))
+	execCorpus(t, d.db, strings.ReplaceAll(string(access), "$database", testcontainer.Database(t)))
 
 	instance, err := d.SyncInstance(context.Background())
 	if err != nil {
@@ -147,16 +153,24 @@ func TestSyncInstance(t *testing.T) {
 		}
 	}
 	sort.Strings(databases)
-	roles := make([]string, 0, len(instance.Roles))
-	for _, role := range instance.Roles {
-		roles = append(roles, role.Name)
+	// A role's attribute is one access statement per line, which the golden
+	// file holds as a list.
+	type role struct {
+		Name       string   `json:"name"`
+		ValidUntil *string  `json:"validUntil,omitempty"`
+		Attribute  []string `json:"attribute"`
 	}
-	for i := 1; i < len(roles); i++ {
-		if roles[i-1] > roles[i] {
-			t.Errorf("roles are not ordered: %q before %q", roles[i-1], roles[i])
+	var roles []role
+	for i, r := range instance.Roles {
+		if i > 0 && instance.Roles[i-1].Name > r.Name {
+			t.Errorf("roles are not ordered: %q before %q", instance.Roles[i-1].Name, r.Name)
 		}
+		if r.Attribute == nil {
+			t.Errorf("role %q carries no attribute", r.Name)
+			continue
+		}
+		roles = append(roles, role{Name: r.Name, ValidUntil: r.ValidUntil, Attribute: strings.Split(*r.Attribute, "\n")})
 	}
-	sort.Strings(roles)
 	out, err := json.MarshalIndent(map[string]any{
 		"version":   instance.Version,
 		"databases": databases,
@@ -221,5 +235,50 @@ func TestWrapDatabaseNotFound(t *testing.T) {
 	other := &clickhouse.Exception{Code: 60, Message: "Unknown table"}
 	if err := wrapDatabaseNotFound(other); errors.Is(err, driver.ErrNotFound) {
 		t.Errorf("wrapDatabaseNotFound(60) = %v, want the engine's own error", err)
+	}
+}
+
+// TestSyncInstanceAccessDenied holds the roles a login reads when it may list
+// the users and nothing else of the server's access entities: the users alone,
+// with no attribute, which is what the sync read before it read more.
+func TestSyncInstanceAccessDenied(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDriver(t)
+	execCorpus(t, d.db, `CREATE ROLE omni_hidden;
+CREATE USER omni_users_only IDENTIFIED WITH no_password;
+GRANT SELECT ON system.users TO omni_users_only;`)
+	impersonate(t, d, "omni_users_only")
+
+	roles, err := d.getInstanceRoles(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, role := range roles {
+		names = append(names, role.Name)
+		if role.Attribute != nil || role.ValidUntil != nil {
+			t.Errorf("role %q carries an attribute or an expiry the login may not read", role.Name)
+		}
+	}
+	if diff := cmp.Diff([]string{"default", "omni_users_only"}, names); diff != "" {
+		t.Errorf("roles differ (-want +got):\n%s", diff)
+	}
+}
+
+// impersonate makes every later statement of d run as user: the pool keeps one
+// session, and EXECUTE AS switches it.
+func impersonate(t *testing.T, d *Driver, user string) {
+	t.Helper()
+	d.db.SetMaxOpenConns(1)
+	d.db.SetMaxIdleConns(1)
+	if _, err := d.db.ExecContext(context.Background(), "EXECUTE AS "+user); err != nil {
+		t.Fatal(err)
+	}
+	var current string
+	if err := d.db.QueryRowContext(context.Background(), "SELECT currentUser()").Scan(&current); err != nil {
+		t.Fatal(err)
+	}
+	if current != user {
+		t.Fatalf("the session runs as %q, want %q", current, user)
 	}
 }

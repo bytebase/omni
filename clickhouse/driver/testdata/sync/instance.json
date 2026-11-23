@@ -4,7 +4,46 @@
     "omni_testsyncinstance"
   ],
   "roles": [
-    "default"
+    {
+      "name": "default",
+      "attribute": [
+        "CREATE USER default IDENTIFIED WITH plaintext_password SETTINGS PROFILE `default`",
+        "GRANT CHECK, SHOW, SELECT, INSERT, ALTER, CREATE, DROP, UNDROP TABLE, TRUNCATE, OPTIMIZE, BACKUP, KILL QUERY, KILL TRANSACTION, MOVE PARTITION BETWEEN SHARDS, ROLE ADMIN, CREATE ROW POLICY, ALTER ROW POLICY, DROP ROW POLICY, CREATE MASKING POLICY, ALTER MASKING POLICY, DROP MASKING POLICY, CREATE QUOTA, ALTER QUOTA, DROP QUOTA, CREATE SETTINGS PROFILE, ALTER SETTINGS PROFILE, DROP SETTINGS PROFILE, ALLOW SQL SECURITY NONE, SHOW ACCESS, SHOW HANDLERS, SYSTEM, dictGet, displaySecretsInShowAndSelect, INTROSPECTION, CLUSTER, FILE, URL, REMOTE, MONGO, REDIS, MYSQL, POSTGRES, SQLITE, ODBC, JDBC, HDFS, S3, HIVE, AZURE, KAFKA, NATS, RABBITMQ, YTSAURUS, ARROW FLIGHT, BIGQUERY, DISK, SOURCES, AI FUNCTIONS ON *.* TO default WITH GRANT OPTION",
+        "GRANT SOURCES ON *.* TO default WITH GRANT OPTION",
+        "GRANT TABLE ENGINE ON * TO default WITH GRANT OPTION",
+        "GRANT SET DEFINER ON * TO default WITH GRANT OPTION",
+        "GRANT CREATE USER, ALTER USER, DROP USER, CREATE ROLE, ALTER ROLE, DROP ROLE, IMPERSONATE ON * TO default WITH GRANT OPTION",
+        "GRANT ALTER NAMED COLLECTION, CREATE NAMED COLLECTION, DROP NAMED COLLECTION, SHOW NAMED COLLECTIONS, NAMED COLLECTION ON * TO default WITH GRANT OPTION",
+        "CREATE QUOTA default KEYED BY user_name FOR INTERVAL 1 hour TRACKING ONLY TO default",
+        "CREATE QUOTA omni_everyone FOR INTERVAL 1 day MAX errors = 10 TO ALL EXCEPT omni_analyst"
+      ]
+    },
+    {
+      "name": "omni_analyst",
+      "validUntil": "2030-01-02 03:04:05",
+      "attribute": [
+        "CREATE USER omni_analyst IDENTIFIED WITH sha256_password VALID UNTIL '2030-01-02 03:04:05' DEFAULT ROLE omni_reader",
+        "GRANT INSERT(id) ON omni_testsyncinstance.events TO omni_analyst WITH GRANT OPTION",
+        "GRANT omni_reader TO omni_analyst",
+        "CREATE QUOTA omni_hourly FOR INTERVAL 1 hour MAX queries = 100 TO omni_analyst"
+      ]
+    },
+    {
+      "name": "omni_reader",
+      "attribute": [
+        "CREATE ROLE omni_reader SETTINGS max_threads = 2",
+        "GRANT SELECT ON omni_testsyncinstance.* TO omni_reader",
+        "CREATE QUOTA omni_everyone FOR INTERVAL 1 day MAX errors = 10 TO ALL EXCEPT omni_analyst",
+        "CREATE SETTINGS PROFILE `omni_limited` SETTINGS max_memory_usage = 1000000 MIN 1 MAX 2000000 TO omni_reader"
+      ]
+    },
+    {
+      "name": "omni_service",
+      "attribute": [
+        "CREATE USER omni_service IDENTIFIED WITH plaintext_password VALID UNTIL '2031-01-01 00:00:00', sha256_password",
+        "CREATE QUOTA omni_everyone FOR INTERVAL 1 day MAX errors = 10 TO ALL EXCEPT omni_analyst"
+      ]
+    }
   ],
   "version": "26.8.38.9"
 }
