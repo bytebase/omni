@@ -212,6 +212,20 @@ var programFeatures = []struct{ kind, statement string }{
 	{"ddl-trigger", "CREATE TRIGGER t ON DATABASE FOR CREATE_TABLE AS SELECT nope FROM customers"},
 	{"ddl-trigger", "CREATE TRIGGER t ON DATABASE FOR CREATE_TABLE AS INSERT INTO audit (what) VALUES (EVENTDATA().value('(/EVENT_INSTANCE/ObjectName)[1]', 'nvarchar(100)'))"},
 	{"ddl-trigger", "DROP TRIGGER nope ON DATABASE"},
+	// COLLATE in a body: a column's collation is checked as the body is
+	// parsed, an operator's as its statement is bound, so not in a statement
+	// that names a missing table.
+	{"procedure", "CREATE PROCEDURE p AS CREATE TABLE #t (c NVARCHAR(10) COLLATE a)"},
+	{"procedure", "CREATE PROCEDURE p AS DECLARE @t TABLE (c NVARCHAR(10) COLLATE a)"},
+	{"procedure", "CREATE PROCEDURE p AS ALTER TABLE missing_t ADD c NVARCHAR(10) COLLATE a"},
+	{"procedure", "CREATE PROCEDURE p AS SELECT name COLLATE a FROM customers"},
+	{"procedure", "CREATE PROCEDURE p AS SELECT name COLLATE latin1_general_ci_as FROM customers"},
+	{"procedure", "CREATE PROCEDURE p AS SELECT 'x' COLLATE a FROM missing_t"},
+	{"procedure", "CREATE PROCEDURE p @x NVARCHAR(10) AS SELECT @x COLLATE a"},
+	{"scalar-function", "CREATE FUNCTION f() RETURNS NVARCHAR(10) AS BEGIN RETURN N'x' COLLATE a END"},
+	{"inline-function", "CREATE FUNCTION f() RETURNS TABLE AS RETURN SELECT name COLLATE a AS n FROM customers"},
+	{"multi-statement-function", "CREATE FUNCTION f() RETURNS @r TABLE (c NVARCHAR(10) COLLATE a) AS BEGIN RETURN END"},
+	{"trigger", "CREATE TRIGGER tr ON customers AFTER INSERT AS SELECT name COLLATE a FROM inserted"},
 }
 
 // TestProgramBinding pins module bindings beyond the simulated rows.

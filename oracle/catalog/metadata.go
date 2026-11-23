@@ -2898,10 +2898,35 @@ func (e *oracleMetadataExtractor) extractCreateView(n *ast.CreateViewStmt) {
 					e.setError(oraError("54039", "view must have at least one column that is not invisible"))
 					return
 				}
-			} else if queryHasUnaliasedExpression(n.Query) {
-				e.setError(oraError("00998", "must name this expression with a column alias"))
-				return
 			}
+		}
+	}
+	if !n.Materialized && n.IfNotExists && !n.OrReplace && e.views[viewName] != nil {
+		// IF NOT EXISTS keeps the view there, whatever the new query reads.
+		return
+	}
+	// Derive the view's columns and the text Oracle stores, which expands
+	// the outermost *. A query the catalog cannot resolve is refused when
+	// the server configuration validates view queries, and otherwise keeps
+	// its text without derived columns.
+	var derived []qcol
+	var derivedText string
+	derivedOK := false
+	if !n.Materialized {
+		cols, text, err := e.analyzeViewQuery(n.Query, viewName)
+		if err == nil {
+			err = e.checkViewColumns(n, cols)
+		}
+		switch {
+		case err == nil:
+			derived, derivedText, derivedOK = cols, text, true
+		case n.Force:
+		case e.serverConfig.ValidateViewQueries:
+			e.setError(err)
+			return
+		case queryHasUnaliasedExpression(n.Query) && (n.Columns == nil || n.Columns.Len() == 0):
+			e.setError(oraError("00998", "must name this expression with a column alias"))
+			return
 		}
 		if e.views[viewName] != nil && !n.OrReplace {
 			if n.IfNotExists {
@@ -2913,11 +2938,14 @@ func (e *oracleMetadataExtractor) extractCreateView(n *ast.CreateViewStmt) {
 	}
 
 	definition := e.nodeText(n.Query)
+	if derivedOK {
+		definition = derivedText
+	}
 	if n.WithReadOnly {
 		definition = strings.TrimSpace(definition) + " WITH READ ONLY"
 	} else if n.WithCheckOpt {
 		restriction := " WITH CHECK OPTION"
-		if n.ConstraintName != "" {
+		if n.ConstraintName != "" && !derivedOK {
 			restriction += ` CONSTRAINT "` + n.ConstraintName + `"`
 		}
 		definition = strings.TrimSpace(definition) + restriction
@@ -2948,7 +2976,17 @@ func (e *oracleMetadataExtractor) extractCreateView(n *ast.CreateViewStmt) {
 		Definition:        definition,
 		DependencyColumns: viewDependencyColumns(n.Query, e.currentSchema),
 	}
-	if n.Columns != nil && n.Columns.Len() > 0 {
+	if derivedOK {
+		var explicit []string
+		var invisible map[int]bool
+		if n.Columns != nil && n.Columns.Len() > 0 {
+			invisible = viewInvisibleAliasPositions(e.schemaText, n)
+			for _, item := range n.Columns.Items {
+				explicit = append(explicit, viewColumnItemName(e, item))
+			}
+		}
+		view.Columns = viewColumnsFor(derived, explicit, invisible)
+	} else if n.Columns != nil && n.Columns.Len() > 0 {
 		invisible := viewInvisibleAliasPositions(e.schemaText, n)
 		for i, item := range n.Columns.Items {
 			colName := ""
@@ -4052,9 +4090,18 @@ type viewDependencyVisitor struct {
 	scopes  []map[string]bool
 	markers []bool
 	result  *[]*metadatapb.DependencyColumn
+	// visited holds the nodes walked: a node two fields share (TABLE()'s
+	// Expr and FunctionCall) is walked once.
+	visited map[ast.Node]bool
 }
 
 func (v *viewDependencyVisitor) Visit(node ast.Node) ast.Visitor {
+	if node != nil {
+		if v.visited[node] {
+			return nil
+		}
+		v.visited[node] = true
+	}
 	if node == nil {
 		if len(v.markers) > 0 {
 			marker := v.markers[len(v.markers)-1]
@@ -4120,6 +4167,28 @@ func viewDependencyColumns(query ast.StmtNode, schema string) []*metadatapb.Depe
 		return nil
 	}
 	var result []*metadatapb.DependencyColumn
-	ast.Walk(&viewDependencyVisitor{schema: schema, seen: map[string]bool{}, result: &result}, query)
+	ast.Walk(&viewDependencyVisitor{schema: schema, seen: map[string]bool{}, result: &result, visited: map[ast.Node]bool{}}, query)
 	return result
+}
+
+func viewColumnItemName(e *oracleMetadataExtractor, item ast.Node) string {
+	switch v := item.(type) {
+	case *ast.String:
+		return v.Str
+	default:
+		return strings.TrimSpace(e.nodeText(item))
+	}
+}
+
+// checkViewColumns applies a view's column rules to its query's columns:
+// an explicit column list names each (ORA-01730), and without one each
+// expression needs an alias (ORA-00998) and names are unique (ORA-00957).
+func (e *oracleMetadataExtractor) checkViewColumns(n *ast.CreateViewStmt, cols []qcol) error {
+	if n.Columns != nil && n.Columns.Len() > 0 {
+		if n.Columns.Len() != len(cols) {
+			return oraError("01730", "invalid number of column names specified")
+		}
+		return nil
+	}
+	return checkViewColumnNames(cols)
 }

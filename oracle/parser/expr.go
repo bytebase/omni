@@ -1056,20 +1056,27 @@ func (p *Parser) parseIntervalExpr() (nodes.ExprNode, error) {
 	}
 
 	var from, to string
-
-	if p.isIntervalField() {
-		from = p.cur.Str
-		p.advance()
+	fromPrec, toPrec := -1, -1
+	precision := func() int {
 		// Optional precision: ( n )
+		prec := -1
 		if p.cur.Type == '(' {
 			p.advance()
 			if p.cur.Type == tokICONST {
+				prec = int(p.cur.Ival)
 				p.advance()
 			}
 			if p.cur.Type == ')' {
 				p.advance()
 			}
 		}
+		return prec
+	}
+
+	if p.isIntervalField() {
+		from = p.cur.Str
+		p.advance()
+		fromPrec = precision()
 	}
 
 	// Optional TO field
@@ -1078,24 +1085,17 @@ func (p *Parser) parseIntervalExpr() (nodes.ExprNode, error) {
 		if p.isIntervalField() {
 			to = p.cur.Str
 			p.advance()
-			// Optional precision: ( n )
-			if p.cur.Type == '(' {
-				p.advance()
-				if p.cur.Type == tokICONST {
-					p.advance()
-				}
-				if p.cur.Type == ')' {
-					p.advance()
-				}
-			}
+			toPrec = precision()
 		}
 	}
 
 	return &nodes.IntervalExpr{
-		Value: value,
-		From:  from,
-		To:    to,
-		Loc:   nodes.Loc{Start: start, End: p.prev.End},
+		Value:         value,
+		From:          from,
+		FromPrecision: fromPrec,
+		To:            to,
+		ToPrecision:   toPrec,
+		Loc:           nodes.Loc{Start: start, End: p.prev.End},
 	}, nil
 }
 
@@ -3029,10 +3029,10 @@ func (p *Parser) parseJsonObjectOrArray(name string) (nodes.ExprNode, error) {
 			}
 			p.advance() // consume ','
 		}
-		if err := p.parseJSONConstructorClauses(name == "JSON_OBJECT", name == "JSON_OBJECT"); err != nil {
+		if err := p.parseJSONConstructorClauses(fc, name == "JSON_OBJECT", name == "JSON_OBJECT"); err != nil {
 			return nil, err
 		}
-	} else if err := p.parseJSONConstructorClauses(name == "JSON_OBJECT", name == "JSON_OBJECT"); err != nil {
+	} else if err := p.parseJSONConstructorClauses(fc, name == "JSON_OBJECT", name == "JSON_OBJECT"); err != nil {
 		return nil, err
 	}
 
@@ -3223,8 +3223,18 @@ func (p *Parser) parseJsonPathFunc(name string) (nodes.ExprNode, error) {
 		}
 	}
 
-	// Skip trailing keywords: RETURNING type, error clauses, wrapper clauses
-	// These may include keywords like RETURNING, ERROR, NULL, DEFAULT, EMPTY, etc.
+	// RETURNING type, kept for what the function returns.
+	if p.cur.Type == kwRETURNING {
+		p.advance()
+		tn, err := p.parseTypeName()
+		if err != nil {
+			return nil, err
+		}
+		fc.Returning = tn
+	}
+
+	// Skip trailing keywords: error clauses, wrapper clauses
+	// These may include keywords like ERROR, NULL, DEFAULT, EMPTY, etc.
 	// We consume everything until the closing paren.
 	depth := 0
 	for p.cur.Type != tokEOF {

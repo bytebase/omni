@@ -469,6 +469,7 @@ func TestWalkThroughOceanBaseQueries(t *testing.T) {
 func TestWalkThroughOceanBaseChecks(t *testing.T) {
 	schema := oceanBaseSchema()
 	schema.Schemas[0].Tables[0].CheckConstraints = []*metadata.CheckConstraintMetadata{{Name: "ck", Expression: "(`a` > 0)"}}
+	schema.Schemas[0].Tables[0].Indexes = append(schema.Schemas[0].Tables[0].Indexes, &metadata.IndexMetadata{Name: "u", Unique: true})
 	shop := review.Target{Schema: schema, LowerCaseTableNames: 1}
 	for _, c := range []struct {
 		sql       string
@@ -485,6 +486,10 @@ func TestWalkThroughOceanBaseChecks(t *testing.T) {
 		{"ALTER TABLE t DROP CONSTRAINT (fk1);", 0, "Check constraint `fk1` doesn't exist in `t`."},
 		{"ALTER TABLE t DROP CONSTRAINT nosuch;", 0, "Constraint `nosuch` doesn't exist in `t`."},
 		{"ALTER TABLE t ALTER CONSTRAINT nosuch NOT ENFORCED;", 0, "Constraint `nosuch` doesn't exist in `t`."},
+		// An index neither unique nor primary is no constraint.
+		{"ALTER TABLE t DROP CONSTRAINT (i);", 0, "Check constraint `i` doesn't exist in `t`."},
+		{"ALTER TABLE t DROP CONSTRAINT i;", 0, "Constraint `i` doesn't exist in `t`."},
+		{"ALTER TABLE t ALTER CONSTRAINT i ENFORCED;", 0, "Constraint `i` doesn't exist in `t`."},
 	} {
 		oneFindingOB(t, c.sql, c.statement, c.message, shop)
 	}
@@ -494,9 +499,11 @@ func TestWalkThroughOceanBaseChecks(t *testing.T) {
 		"ALTER TABLE t DROP CONSTRAINT ck;",
 		"ALTER TABLE t DROP CONSTRAINT fk1;",
 		"ALTER TABLE t DROP CONSTRAINT (ck);",
-		// An index of the name may be a unique key.
-		"ALTER TABLE t DROP CONSTRAINT (i);",
-		"ALTER TABLE t DROP CONSTRAINT i;",
+		// A unique key is a constraint, and so may be an index the walk
+		// created.
+		"ALTER TABLE t DROP CONSTRAINT (u);",
+		"ALTER TABLE t DROP CONSTRAINT u;",
+		"CREATE INDEX i2 ON t (a);\nALTER TABLE t DROP CONSTRAINT i2;",
 		"ALTER TABLE t ADD CONSTRAINT c2 CHECK (a > 0);\nALTER TABLE t DROP CHECK c2;",
 		"ALTER TABLE t ADD CHECK (a > 0);\nALTER TABLE t DROP CHECK t_OBCHECK_1;",
 		"ALTER TABLE t ADD COLUMN b int CHECK (b > 0);\nALTER TABLE t DROP CHECK t_OBCHECK_1;",
@@ -512,4 +519,46 @@ func TestWalkThroughOceanBaseChecks(t *testing.T) {
 	}
 	// MySQL's walk does not follow CHECK constraints.
 	noFinding(t, "ALTER TABLE t DROP CHECK nosuch;", review.Target{Schema: schema, LowerCaseTableNames: 1})
+}
+
+// TestWalkThroughOceanBaseCheckColumns pins the columns a synced CHECK
+// constraint reads: a constraint on several columns keeps each from DROP
+// COLUMN, and any keeps its columns from RENAME COLUMN (3959).
+func TestWalkThroughOceanBaseCheckColumns(t *testing.T) {
+	schema := oceanBaseSchema()
+	schema.Schemas[0].Tables = append(schema.Schemas[0].Tables, &metadata.TableMetadata{
+		Name:    "b",
+		Columns: []*metadata.ColumnMetadata{{Name: "s"}, {Name: "e"}, {Name: "n"}},
+		CheckConstraints: []*metadata.CheckConstraintMetadata{
+			{Name: "chk_dates", Expression: "(`s` <= `e`)"},
+			{Name: "chk_n", Expression: "((`n` > 0) and (`n` < 10))"},
+		},
+	})
+	shop := review.Target{Schema: schema, LowerCaseTableNames: 1}
+	for _, c := range []struct {
+		sql       string
+		statement int
+		message   string
+	}{
+		{"ALTER TABLE b DROP COLUMN s;", 0, "Column `s` is read by a CHECK constraint on `b`."},
+		{"ALTER TABLE b DROP COLUMN n, DROP COLUMN e;", 0, "Column `e` is read by a CHECK constraint on `b`."},
+		{"ALTER TABLE b DROP COLUMN s, DROP COLUMN e;", 0, "Column `s` is read by a CHECK constraint on `b`."},
+		{"ALTER TABLE b RENAME COLUMN n TO m;", 0, "Column `n` is read by a CHECK constraint on `b`."},
+		{"INSERT INTO b VALUES (1, 2, 3);\nALTER TABLE b DROP COLUMN s;", 1, "Column `s` is read by a CHECK constraint on `b`."},
+	} {
+		oneFindingOB(t, c.sql, c.statement, c.message, shop)
+	}
+	for _, sql := range []string{
+		// A constraint on the dropped column alone goes with it.
+		"ALTER TABLE b DROP COLUMN n;",
+		"ALTER TABLE b CHANGE COLUMN n m INT;",
+		"ALTER TABLE b DROP CHECK chk_dates, DROP COLUMN s;",
+		"ALTER TABLE b DROP COLUMN s, DROP CONSTRAINT chk_dates;",
+		"ALTER TABLE b DROP CHECK chk_dates;\nALTER TABLE b DROP COLUMN s;",
+		// After a statement that may change a table, the synced constraints
+		// are not followed.
+		"ALTER TABLE b ADD COLUMN x INT;\nALTER TABLE b DROP COLUMN s;",
+	} {
+		noFindingOB(t, sql, shop)
+	}
 }

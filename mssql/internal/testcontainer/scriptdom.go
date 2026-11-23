@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -88,8 +89,44 @@ var harness struct {
 	err  error
 }
 
-// packageVersion reads the ScriptDOM version harness.csproj references.
-var packageVersion = regexp.MustCompile(`Include="Microsoft\.SqlServer\.TransactSql\.ScriptDom" Version="([^"]+)"`)
+// packageVersion reads the ScriptDOM version harness.csproj references. Only
+// an exact version, [v], matches: NuGet reads a bare version as a minimum and
+// restores the lowest version the feed holds at or above it, which need not
+// be the pin (no ScriptDOM 161.9142.0 was ever published, so a reference to
+// it restored 161.9142.1).
+var packageVersion = regexp.MustCompile(`Include="Microsoft\.SqlServer\.TransactSql\.ScriptDom" Version="\[([^\],"]+)\]"`)
+
+// harnessVersions checks that harness.csproj references ScriptDOM at exactly
+// the pin's version and that packages.lock.json resolves it there. The
+// project restores in locked mode, so a build whose resolution differs from
+// the lock file fails.
+func harnessVersions(pin enginetest.Pin) error {
+	csproj, err := os.ReadFile(filepath.Join(harnessDir, "harness.csproj"))
+	if err != nil {
+		return err
+	}
+	m := packageVersion.FindSubmatch(csproj)
+	if m == nil || string(m[1]) != pin.Tag {
+		return fmt.Errorf("mssql/scriptdom/harness.csproj does not reference ScriptDOM at exactly [%s], which pins.tsv pins", pin.Tag)
+	}
+	data, err := os.ReadFile(filepath.Join(harnessDir, "packages.lock.json"))
+	if err != nil {
+		return err
+	}
+	var lock struct {
+		Dependencies map[string]map[string]struct {
+			Resolved string `json:"resolved"`
+		} `json:"dependencies"`
+	}
+	if err := json.Unmarshal(data, &lock); err != nil {
+		return fmt.Errorf("mssql/scriptdom/packages.lock.json: %w", err)
+	}
+	resolved := lock.Dependencies["net8.0"]["Microsoft.SqlServer.TransactSql.ScriptDom"].Resolved
+	if resolved != pin.Tag {
+		return fmt.Errorf("mssql/scriptdom/packages.lock.json resolves ScriptDOM %q, not %s, which pins.tsv pins", resolved, pin.Tag)
+	}
+	return nil
+}
 
 // liveScriptDOM starts the harness on first use: it builds and runs inside
 // the pinned SDK image, named by its digest, so the only host requirement is
@@ -107,13 +144,8 @@ func liveScriptDOM(t testing.TB, pin enginetest.Pin) driver.Connector {
 }
 
 func startHarness(pin enginetest.Pin) error {
-	csproj, err := os.ReadFile(filepath.Join(harnessDir, "harness.csproj"))
-	if err != nil {
+	if err := harnessVersions(pin); err != nil {
 		return err
-	}
-	m := packageVersion.FindSubmatch(csproj)
-	if m == nil || string(m[1]) != pin.Tag {
-		return fmt.Errorf("mssql/scriptdom/harness.csproj does not reference ScriptDOM %s, which pins.tsv pins", pin.Tag)
 	}
 	// --user keeps bin/, obj/ and the NuGet cache owned by the invoking user;
 	// the cache persists across runs, per uid, since runners and developers

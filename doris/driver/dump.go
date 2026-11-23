@@ -608,7 +608,15 @@ func (d *Driver) dumpStatement(ctx context.Context, kind, name, table string) (s
 	if err := rows.Scan(dest...); err != nil {
 		return "", fmt.Errorf("%s: %w", query, err)
 	}
-	return strings.TrimSuffix(strings.TrimSpace(values[statementColumn].String), ";"), nil
+	stmt := strings.TrimSuffix(strings.TrimSpace(values[statementColumn].String), ";")
+	if kind == dumpFunction || kind == dumpGlobalFunction {
+		source, err := aliasFunctionSource(stmt)
+		if err != nil {
+			return "", fmt.Errorf("%s: %w", query, err)
+		}
+		return source, nil
+	}
+	return stmt, nil
 }
 
 // dumpDefinitionReads returns the objects in database that a view's or a

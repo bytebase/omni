@@ -25,7 +25,7 @@ func TestWalkSimulation(t *testing.T) {
 		path     string
 		minFound int
 	}{
-		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 3140},
+		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 3265},
 		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 275},
 		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 3845},
 	} {

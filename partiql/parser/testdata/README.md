@@ -9,8 +9,8 @@ the generated rows from the grammar, and asks the judge again on every run.
 
 | Rows | Total | Agree | Only the judge accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative of the grammar | 632 | 632 | 0 | 0 |
-| Near-misses: a token dropped, the end cut off, a word inserted, a keyword swapped | 1,217 | 1,217 | 0 | 0 |
+| One per alternative of the grammar | 660 | 660 | 0 | 0 |
+| Near-misses: a token dropped, the end cut off, a word inserted, a keyword swapped | 1,243 | 1,243 | 0 | 0 |
 | `suite:dynamodb-docs`: the statements DynamoDB's developer guide prints | 61 | 61 | 0 | 0 |
 
 - **The grammar** is `../../testdata/PartiQLParser.g4` with its lexer grammar
@@ -26,7 +26,14 @@ the generated rows from the grammar, and asks the judge again on every run.
   Three rows name a rule: `exprTerm` is written `a`, since the grammar lists
   `CURRENT_USER` before a name and every expression row would carry it, and
   `explainOption` and `patternRestrictor` are written with a word the
-  reference parser takes.
+  reference parser takes. Rows of the form `(every site)` name optional
+  clauses that get a row at every alternative naming them, not only at the
+  one their own row reaches: `NOT` before a predicate, a set operator's
+  `OUTER` and `DISTINCT`/`ALL`, a join's `OUTER` and type, `SELECT
+  DISTINCT`, a time's precision and `WITH TIME ZONE`, a type's length, a
+  table's `AS`/`AT`/`BY` alias, a DML statement's `WHERE` and `RETURNING`,
+  a graph pattern's restrictor, path variable, `WHERE` and quantifier, and
+  `@` before a variable.
 - **Two alternatives have no row:** `tableName` and `tableConstraintName`,
   which no rule uses.
 - **The DynamoDB rows** are `../aws-corpus/index.json`'s examples, each on one
@@ -58,7 +65,7 @@ PartiQL has no server CI can start, so no row is an engine's answer.
   the grammar does not derive would be a `docs` row of
   `../../testdata/grammar-overrides.tsv`, accepted and cited to its page. At
   this pin there is none: the grammar derives all 61.
-- **31 statements are the reference parser's, not the grammar's.** The grammar
+- **35 statements are the reference parser's, not the grammar's.** The grammar
   derives them and the parser built from it refuses them in the visitor that
   reads the parse tree (`PartiQLParserDefault.kt`): an `EXPLAIN` parameter
   that is not `TYPE` or `FORMAT`, `LAG` with no `ORDER BY`, a `DATE` string
@@ -76,7 +83,7 @@ path step `[NULL]` and a word after a FROM-clause `MATCH`.
 
 ## What the judge cannot decide
 
-- **The rest of the visitor.** The 31 overrides are the checks read off
+- **The rest of the visitor.** The 35 overrides are the checks read off
   `PartiQLParserDefault.kt` for the rows this file holds. Running the
   reference parser on every row would find any other; that needs a JVM.
 - **`TRIM(a FROM a)`.** The grammar reads `a` as the trim specification or as

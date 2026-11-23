@@ -1,6 +1,7 @@
 package review
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
@@ -43,6 +44,11 @@ const (
 
 // primaryIndex is the key of the primary key in a table's index space.
 const primaryIndex = "primary"
+
+// plainIndex is the kind of an OceanBase index that is neither unique nor
+// the primary key, which DROP CONSTRAINT and ALTER CONSTRAINT do not find
+// (3940, 3821, verified on 4.3.5). Any other index has no kind.
+const plainIndex = "plain index"
 
 // pkIncrement is the hidden column of an OceanBase table without a primary
 // key, which information_schema does not list: AFTER it and ALTER COLUMN
@@ -106,11 +112,17 @@ type mysqlSnapshot struct {
 	// tableForeignKeys holds each table's foreign keys.
 	tableForeignKeys map[string]map[string]bool
 	// checks holds each table's CHECK constraints, on OceanBase.
-	checks     map[string]map[string]bool
-	triggers   map[string]string // key → the spelling the sync lists
-	procedures map[string]bool
-	functions  map[string]bool
-	events     map[string]bool
+	checks map[string]map[string]bool
+	// checkColumns holds, on OceanBase, the columns each CHECK constraint
+	// reads, for the constraints whose expression parses.
+	checkColumns map[string]map[string][]string
+	// plainIndexes holds each table's indexes of kind plainIndex, on
+	// OceanBase.
+	plainIndexes map[string]map[string]bool
+	triggers     map[string]string // key → the spelling the sync lists
+	procedures   map[string]bool
+	functions    map[string]bool
+	events       map[string]bool
 	// triggered lists the relation keys of the tables with a trigger.
 	triggered map[string]bool
 	// materialized lists the relation keys of the snapshot's materialized
@@ -148,6 +160,8 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables, oceanBase
 		triggers:         make(map[string]string),
 		tableForeignKeys: make(map[string]map[string]bool),
 		checks:           make(map[string]map[string]bool),
+		checkColumns:     make(map[string]map[string][]string),
+		plainIndexes:     make(map[string]map[string]bool),
 		procedures:       make(map[string]bool),
 		functions:        make(map[string]bool),
 		events:           make(map[string]bool),
@@ -242,6 +256,14 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables, oceanBase
 					continue
 				}
 				set(idx, spaceIndex, tk, i.GetName())
+				if oceanBase && !i.GetUnique() {
+					if ik, ok := nameKey(spaceIndex, i.GetName(), foldTables); ok && ik != primaryIndex {
+						if s.plainIndexes[tk] == nil {
+							s.plainIndexes[tk] = make(map[string]bool)
+						}
+						s.plainIndexes[tk][ik] = true
+					}
+				}
 			}
 			s.indexes[tk] = idx
 			if leadsKnown {
@@ -262,10 +284,29 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables, oceanBase
 			s.tableForeignKeys[tk] = fks
 			if oceanBase {
 				checks := make(map[string]bool)
+				reads := make(map[string][]string)
 				for _, c := range t.GetCheckConstraints() {
 					set(checks, spaceTableCheck, tk, c.GetName())
+					ck, ok := nameKey(spaceTableCheck, c.GetName(), foldTables)
+					if !ok {
+						continue
+					}
+					// Feature extraction from an expression the engine
+					// accepted: one that does not parse claims no column.
+					columns, ok := expressionColumns(c.GetExpression())
+					if !ok {
+						continue
+					}
+					var keys []string
+					for _, col := range columns {
+						if k, ok := nameKey(spaceColumn, col, foldTables); ok && !slices.Contains(keys, k) {
+							keys = append(keys, k)
+						}
+					}
+					reads[ck] = keys
 				}
 				s.checks[tk] = checks
+				s.checkColumns[tk] = reads
 			}
 			if len(fkColSet) > 0 {
 				s.fkCols[tk] = fkColSet
@@ -375,6 +416,9 @@ func (s *mysqlSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 	case spaceColumn, spaceIndex, spaceTableForeignKey, spaceTableCheck:
 		if len(path) != 2 {
 			return walk.Unknown, ""
+		}
+		if k.Space == spaceIndex && s.plainIndexes[path[1]][k.Name] {
+			return walk.Present, plainIndex
 		}
 		switch {
 		case s.oceanBase:

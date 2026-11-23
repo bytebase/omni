@@ -2158,7 +2158,13 @@ func (b *binder) expr(n ast.Node, sc *qscope, x ectx) (qtype, error) {
 			return qtUnknown, err
 		}
 		if t != qtString && t != qtUnknown {
-			return qtUnknown, mssqlErr(447, "Expression type %s is invalid for COLLATE clause.", t.typeName())
+			return qtUnknown, mssqlErr(ErrCollateInvalidType, "Expression type %s is invalid for COLLATE clause.", t.typeName())
+		}
+		// A COLLATE operator's name is checked as its expression is bound,
+		// after the type: SELECT 1 COLLATE a is 447 and SELECT 'x' FROM nope
+		// WHERE 'a' = 'b' COLLATE a is 208, not 448 (measured).
+		if err := checkCollation(e.Collation, true); err != nil {
+			return qtUnknown, err
 		}
 		return qtString, nil
 	case *ast.NextValueForExpr:

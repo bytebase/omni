@@ -512,6 +512,19 @@ const simHelperPkgBody = `CREATE OR REPLACE PACKAGE BODY system.omni_sim AS
 END omni_sim;`
 
 func simulationEngine(t testing.TB) func(simulate.Fixture, string) (simulate.Answer, error) {
+	return simulationEngineWith(t, func(ctx context.Context, userDB *sql.DB) (simulate.Answer, error) {
+		var raw sql.NullString
+		if err := userDB.QueryRowContext(ctx, "SELECT system.omni_sim.dump_forms FROM dual").Scan(&raw); err != nil {
+			return simulate.Answer{}, fmt.Errorf("read stored schema: %w", err)
+		}
+		return simulate.Answer{Forms: parseSimulationForms(raw.String)}, nil
+	})
+}
+
+// simulationEngineWith makes the scratch account and its helper package,
+// and returns the function that builds a fixture, runs one statement on it,
+// and, when Oracle takes the statement, reads what is stored with dump.
+func simulationEngineWith(t testing.TB, dump func(context.Context, *sql.DB) (simulate.Answer, error)) func(simulate.Fixture, string) (simulate.Answer, error) {
 	ctx := context.Background()
 	sysDB := testcontainer.Open(t, "system")
 	t.Cleanup(func() { _ = sysDB.Close() })
@@ -544,11 +557,7 @@ func simulationEngine(t testing.TB) func(simulate.Fixture, string) (simulate.Ans
 			}
 			return simulate.Answer{Code: strconv.Itoa(oe.ErrCode)}, nil
 		}
-		var raw sql.NullString
-		if err := userDB.QueryRowContext(ctx, "SELECT system.omni_sim.dump_forms FROM dual").Scan(&raw); err != nil {
-			return simulate.Answer{}, fmt.Errorf("read stored schema: %w", err)
-		}
-		return simulate.Answer{Forms: parseSimulationForms(raw.String)}, nil
+		return dump(ctx, userDB)
 	}
 }
 

@@ -970,6 +970,11 @@ func oracleParserCode(code int, rev5 bool) bool {
 		code >= 2000 && code <= 2099 || code >= 3046 && code <= 3050) && !oracleResolved[code]
 }
 
+// OracleParserCode reports whether an ORA- error number is one Oracle's
+// SQL parser raises, as the compat judge reads it (judge revision 5): a
+// catalog simulation counts omni's parse error as that refusal.
+func OracleParserCode(code int) bool { return oracleParserCode(code, true) }
+
 // oracleStatementRev5 are additional statement-parser and structural syntax
 // error codes classified in judge revision 5, each measured on the pinned
 // server (0 false rejects across all valid compat.tsv rows):

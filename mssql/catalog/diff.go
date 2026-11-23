@@ -1378,8 +1378,13 @@ func canonicalizeSQLExpr(expr string) string {
 			}
 			continue
 		}
-		if ch == '\'' {
+		// A Unicode string literal, N'...', is one token, so SQL Server's
+		// (N'x') collapses as ('x') does.
+		if ch == '\'' || ((ch == 'N' || ch == 'n') && i+1 < len(expr) && expr[i+1] == '\'' && (i == 0 || !isExprWordByte(expr[i-1]))) {
 			start := i
+			if ch != '\'' {
+				i++
+			}
 			i++
 			for i < len(expr) {
 				if expr[i] == '\'' {
@@ -1454,7 +1459,7 @@ func canonicalizeSQLExpr(expr string) string {
 		if tok == "" || tok == "(" || tok == ")" || tok == "," {
 			return false
 		}
-		if tok[0] == '\'' || tok[0] == '[' || tok[0] == '"' {
+		if tok[0] == '\'' || tok[0] == '[' || tok[0] == '"' || len(tok) > 1 && (tok[0] == 'N' || tok[0] == 'n') && tok[1] == '\'' {
 			return true
 		}
 		for i := 0; i < len(tok); i++ {
@@ -1517,6 +1522,10 @@ func canonicalizeSQLExpr(expr string) string {
 		b.WriteString(tok)
 	}
 	return b.String()
+}
+
+func isExprWordByte(c byte) bool {
+	return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '@' || c == '#' || c == '$'
 }
 
 func needsExprSpace(prev, cur string) bool {

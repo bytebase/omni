@@ -179,7 +179,7 @@ ok:8f7dec70eb31	ok:8f7dec70eb31	engine	one_table@missing	createTableStatement(FI
 4902	4902	engine	one_table@missing	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4902	4902	engine	one_table@missing	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4902	4902	engine	one_table@missing	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
-4902	448	engine	one_table@missing	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
+448	448	engine	one_table@missing	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4902	4902	engine	one_table@missing	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4902	4902	engine	one_table@missing	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4902	4902	engine	one_table@missing	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -219,7 +219,7 @@ ok:8f7dec70eb31	ok:8f7dec70eb31	engine	one_table@missing	createTableStatement(FI
 4902	4902	engine	one_table@missing	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4902	4902	engine	one_table@missing	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4902	4902	engine	one_table@missing	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
-4902	448	engine	one_table@missing	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
+448	448	engine	one_table@missing	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4902	4902	engine	one_table@missing	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4902	4902	engine	one_table@missing	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4902	4902	engine	one_table@missing	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -445,7 +445,7 @@ ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	constraintEnforcement/NoC
 1921	1921	engine	one_table@table	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 33411	33411	engine	one_table@table	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 13591	13591	engine	one_table@table	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
-4924	448	engine	one_table@table	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
+448	448	engine	one_table@table	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4924	4924	engine	one_table@table	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4924	4924	engine	one_table@table	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4924	4924	engine	one_table@table	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -485,7 +485,7 @@ ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	alterTableDropTableElemen
 ok:8cdc0a1f9ace	ok:8cdc0a1f9ace	engine	one_table@table	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 ok:ccc3e812d051	ok:ccc3e812d051	engine	one_table@table	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 2715	2715	engine	one_table@table	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
-2715	448	engine	one_table@table	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
+448	448	engine	one_table@table	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 2715	2715	engine	one_table@table	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 2715	2715	engine	one_table@table	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 2715	2715	engine	one_table@table	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -711,7 +711,7 @@ ok:899120d16816	ok:899120d16816	engine	one_table@column	constraintEnforcement/No
 1921	1921	engine	one_table@column	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 33411	33411	engine	one_table@column	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 13591	13591	engine	one_table@column	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
-2715	448	engine	one_table@column	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
+448	448	engine	one_table@column	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 2761	2761	engine	one_table@column	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 2715	2715	engine	one_table@column	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 2715	2715	engine	one_table@column	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -751,7 +751,7 @@ ok:c1bdaacd0fe9	ok:c1bdaacd0fe9	engine	one_table@column	tableElement/tableConstr
 2705	2705	engine	one_table@column	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 2705	2705	engine	one_table@column	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 2705	2705	engine	one_table@column	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
-2705	448	engine	one_table@column	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
+448	448	engine	one_table@column	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 2705	2705	engine	one_table@column	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 2705	2705	engine	one_table@column	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 2705	2705	engine	one_table@column	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -977,7 +977,7 @@ ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	constraintEnforcement/NoC
 1921	1921	engine	one_table@index	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 33411	33411	engine	one_table@index	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 13591	13591	engine	one_table@index	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
-2715	448	engine	one_table@index	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
+448	448	engine	one_table@index	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 2761	2761	engine	one_table@index	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 2715	2715	engine	one_table@index	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 2715	2715	engine	one_table@index	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -1017,7 +1017,7 @@ ok:c5b4fe588b97	ok:c5b4fe588b97	engine	one_table@index	tableElement/tableConstra
 2705	2705	engine	one_table@index	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 2705	2705	engine	one_table@index	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 2705	2705	engine	one_table@index	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
-2705	448	engine	one_table@index	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
+448	448	engine	one_table@index	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 2705	2705	engine	one_table@index	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 2705	2705	engine	one_table@index	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 2705	2705	engine	one_table@index	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -1243,7 +1243,7 @@ ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)
 4909	4909	engine	objects@view	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4909	4909	engine	objects@view	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	4909	engine	objects@view	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
-4909	448	engine	objects@view	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
+448	448	engine	objects@view	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4909	4909	engine	objects@view	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	4909	engine	objects@view	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@view	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -1283,7 +1283,7 @@ ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)
 4909	4909	engine	objects@view	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4909	4909	engine	objects@view	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	4909	engine	objects@view	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
-4909	448	engine	objects@view	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
+448	448	engine	objects@view	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4909	4909	engine	objects@view	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@view	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	4909	engine	objects@view	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -1509,7 +1509,7 @@ ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	constraintEnforcement/NoCheck	
 1921	1921	engine	objects@fk	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 33411	33411	engine	objects@fk	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 13591	13591	engine	objects@fk	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
-2715	448	engine	objects@fk	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
+448	448	engine	objects@fk	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 2761	2761	engine	objects@fk	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 2715	2715	engine	objects@fk	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 2715	2715	engine	objects@fk	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -1549,7 +1549,7 @@ ok:a597d2209282	ok:a597d2209282	engine	objects@fk	tableElement/tableConstraint	A
 2705	2705	engine	objects@fk	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 2705	2705	engine	objects@fk	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 2705	2705	engine	objects@fk	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
-2705	448	engine	objects@fk	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
+448	448	engine	objects@fk	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 2705	2705	engine	objects@fk	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 2705	2705	engine	objects@fk	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 2705	2705	engine	objects@fk	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -1775,7 +1775,7 @@ ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	constraintEnforcement/NoCh
 1921	1921	engine	objects@schema	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 33411	33411	engine	objects@schema	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 13591	13591	engine	objects@schema	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
-4924	448	engine	objects@schema	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
+448	448	engine	objects@schema	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4924	4924	engine	objects@schema	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4924	4924	engine	objects@schema	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4924	4924	engine	objects@schema	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -1815,7 +1815,7 @@ ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	alterTableDropTableElement
 ok:e8519f0f49c4	ok:e8519f0f49c4	engine	objects@schema	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 ok:a0e4c99fe8e4	ok:a0e4c99fe8e4	engine	objects@schema	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 2715	2715	engine	objects@schema	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
-2715	448	engine	objects@schema	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
+448	448	engine	objects@schema	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 2715	2715	engine	objects@schema	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 2715	2715	engine	objects@schema	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 2715	2715	engine	objects@schema	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -2041,7 +2041,7 @@ ok:05f99f60b270	ok:05f99f60b270	engine	objects@sequence	sequenceMinMaxOptionList
 4909	4909	engine	objects@sequence	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4909	4909	engine	objects@sequence	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	4909	engine	objects@sequence	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
-4909	448	engine	objects@sequence	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
+448	448	engine	objects@sequence	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4909	4909	engine	objects@sequence	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	4909	engine	objects@sequence	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@sequence	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -2081,7 +2081,7 @@ ok:05f99f60b270	ok:05f99f60b270	engine	objects@sequence	sequenceMinMaxOptionList
 4909	4909	engine	objects@sequence	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4909	4909	engine	objects@sequence	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	4909	engine	objects@sequence	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
-4909	448	engine	objects@sequence	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
+448	448	engine	objects@sequence	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4909	4909	engine	objects@sequence	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@sequence	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	4909	engine	objects@sequence	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -2307,7 +2307,7 @@ ok:6765ddf8085d	ok:6765ddf8085d	engine	objects@synonym	dropSchemaStatement(If_Ex
 4909	4909	engine	objects@synonym	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4909	4909	engine	objects@synonym	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	4909	engine	objects@synonym	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
-4909	448	engine	objects@synonym	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
+448	448	engine	objects@synonym	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4909	4909	engine	objects@synonym	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	4909	engine	objects@synonym	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@synonym	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -2347,7 +2347,7 @@ ok:6765ddf8085d	ok:6765ddf8085d	engine	objects@synonym	dropSchemaStatement(If_Ex
 4909	4909	engine	objects@synonym	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4909	4909	engine	objects@synonym	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	4909	engine	objects@synonym	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
-4909	448	engine	objects@synonym	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
+448	448	engine	objects@synonym	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4909	4909	engine	objects@synonym	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@synonym	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	4909	engine	objects@synonym	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -2573,7 +2573,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 4909	4909	engine	objects@procedure	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4909	4909	engine	objects@procedure	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	4909	engine	objects@procedure	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
-4909	448	engine	objects@procedure	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
+448	448	engine	objects@procedure	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4909	4909	engine	objects@procedure	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	4909	engine	objects@procedure	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@procedure	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -2613,7 +2613,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 4909	4909	engine	objects@procedure	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4909	4909	engine	objects@procedure	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	4909	engine	objects@procedure	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
-4909	448	engine	objects@procedure	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
+448	448	engine	objects@procedure	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4909	4909	engine	objects@procedure	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@procedure	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	4909	engine	objects@procedure	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -2839,7 +2839,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 4909	4909	engine	objects@function	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4909	4909	engine	objects@function	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	4909	engine	objects@function	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
-4909	448	engine	objects@function	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
+448	448	engine	objects@function	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4909	4909	engine	objects@function	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	4909	engine	objects@function	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@function	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -2879,7 +2879,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 4909	4909	engine	objects@function	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4909	4909	engine	objects@function	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	4909	engine	objects@function	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
-4909	448	engine	objects@function	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
+448	448	engine	objects@function	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4909	4909	engine	objects@function	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@function	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	4909	engine	objects@function	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -3105,7 +3105,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_E
 4909	4909	engine	objects@trigger	tableOption/fileStreamOnTableOption_FILESTREAM_ON	ALTER TABLE a SET(FILESTREAM_ON = 'a')
 4909	4909	engine	objects@trigger	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	4909	engine	objects@trigger	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
-4909	448	engine	objects@trigger	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
+448	448	engine	objects@trigger	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
 4909	4909	engine	objects@trigger	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	4909	engine	objects@trigger	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@trigger	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -3145,7 +3145,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_E
 4909	4909	engine	objects@trigger	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
 4909	4909	engine	objects@trigger	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	4909	engine	objects@trigger	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
-4909	448	engine	objects@trigger	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
+448	448	engine	objects@trigger	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
 4909	4909	engine	objects@trigger	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@trigger	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	4909	engine	objects@trigger	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS

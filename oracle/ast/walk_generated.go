@@ -987,6 +987,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Over != nil {
 			Walk(v, n.Over)
 		}
+		if n.Returning != nil {
+			Walk(v, n.Returning)
+		}
 	case *GrantStmt:
 		walkList(v, n.Privileges)
 		if n.OnObject != nil {

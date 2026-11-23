@@ -1054,6 +1054,12 @@ func (c *Catalog) execCreateTable(n *ast.CreateTableStmt, source string) error {
 				return mssqlErr(ErrUnknownColumnType, "Column, parameter, or variable #%d: Cannot find data type %s.", idx+1, typeName)
 			}
 		}
+		// The table's expressions are bound next, before its name is
+		// resolved: CREATE TABLE nope.t (c NVARCHAR(1) DEFAULT (N'x'
+		// COLLATE a)) is 448 (measured).
+		if err := checkCreateTableExprCollations(n); err != nil {
+			return err
+		}
 	}
 
 	schemaName, tableName := tableRefSchemaObject(n.Name, c.defaultSchema)
@@ -2403,6 +2409,14 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 				}
 			}
 		}
+		if !c.lenientMetadataLoad {
+			class := tableColumnClass(table, action.Column)
+			for _, expr := range columnDefExprs(action.Column) {
+				if err := checkExprCollations(expr, class); err != nil {
+					return err
+				}
+			}
+		}
 		c.extractColumn(action.Column, table, schemaName, source)
 		return nil
 
@@ -2483,7 +2497,7 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 		col.Type = newType
 		col.Nullable = newNullable
 		if action.Collation != "" {
-			col.Collation = action.Collation
+			col.Collation = storedCollation(action.Collation)
 		} else if !isCharacterDataType(action.DataType) {
 			col.Collation = ""
 		}
@@ -2745,6 +2759,11 @@ func (c *Catalog) execAlterTableAddConstraint(table *metadata.TableMetadata, sch
 		if col.Default != "" {
 			return mssqlErr(ErrColumnAlreadyHasDefault, "Column already has a DEFAULT bound to it.")
 		}
+		if !c.lenientMetadataLoad {
+			if err := checkExprCollations(n.Expr, tableColumnClass(table, nil)); err != nil {
+				return err
+			}
+		}
 		if n.Name != "" {
 			if schema := c.GetSchema(schemaName); schema != nil && c.lookupSchemaObject(schema, n.Name, false) != kindNone {
 				return mssqlErr(ErrDupObject, "There is already an object named '%s' in the database.", n.Name)
@@ -2786,6 +2805,11 @@ func (c *Catalog) execAlterTableAddConstraint(table *metadata.TableMetadata, sch
 		return nil
 
 	case ast.ConstraintCheck:
+		if !c.lenientMetadataLoad {
+			if err := checkExprCollations(n.Expr, tableColumnClass(table, nil)); err != nil {
+				return err
+			}
+		}
 		if n.Name != "" {
 			if schema := c.GetSchema(schemaName); schema != nil && c.lookupSchemaObject(schema, n.Name, false) != kindNone {
 				return mssqlErr(ErrDupObject, "There is already an object named '%s' in the database.", n.Name)

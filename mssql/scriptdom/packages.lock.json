@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net8.0": {
+      "Microsoft.SqlServer.TransactSql.ScriptDom": {
+        "type": "Direct",
+        "requested": "[161.9142.1, 161.9142.1]",
+        "resolved": "161.9142.1",
+        "contentHash": "SXKtFoDyDJSHiX7xpQMPGfjiLgMFidONN3heG5NWdHYNlklSxAXTdh06dN6GMdzkx1pxPFVIJpdDKh07oM29tw=="
+      }
+    }
+  }
+}
