@@ -181,8 +181,12 @@ func nextNonSpaceChar(sql string, pos int) byte {
 // Split splits SQL text into segments at top-level semicolons.
 // It is a pure lexical scanner that does not parse SQL, so it works
 // on both valid and invalid SQL. Segments do NOT include the trailing
-// semicolon delimiter. Empty segments (whitespace/comments only) are
-// filtered out. Returns nil for empty input.
+// semicolon delimiter. A segment holding no statement (a lone delimiter,
+// or only whitespace and comments before one or at the end of the input)
+// is returned too, and its Empty reports true, so a caller can account for
+// every delimiter; callers that want statements skip it. The whitespace and
+// comments before a DELIMITER directive belong to no segment. Returns nil
+// for empty input.
 func Split(sql string) []Segment {
 	if len(sql) == 0 {
 		return nil
@@ -432,9 +436,7 @@ func Split(sql string) []Segment {
 					ByteStart: stmtStart,
 					ByteEnd:   i,
 				}
-				if !seg.Empty() {
-					segments = append(segments, seg)
-				}
+				segments = append(segments, seg)
 				i += len(delim)
 				stmtStart = i
 				atStmtStart = true
@@ -486,9 +488,7 @@ func Split(sql string) []Segment {
 			ByteStart: stmtStart,
 			ByteEnd:   len(sql),
 		}
-		if !seg.Empty() {
-			segments = append(segments, seg)
-		}
+		segments = append(segments, seg)
 	}
 
 	if len(segments) == 0 {

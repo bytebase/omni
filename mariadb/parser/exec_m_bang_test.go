@@ -66,7 +66,7 @@ func TestMBangCommentRunsItsBody(t *testing.T) {
 	if segs := Split("/*M! SELECT 1 */"); len(segs) != 1 {
 		t.Errorf("Split dropped the statement held in a /*M! comment: %+v", segs)
 	}
-	if segs := Split(`/*M!999999\- enable the sandbox mode */`); len(segs) != 0 {
+	if segs := nonEmptySegments(`/*M!999999\- enable the sandbox mode */`); len(segs) != 0 {
 		t.Errorf("Split kept mariadb-dump's sandbox marker as a statement: %+v", segs)
 	}
 }

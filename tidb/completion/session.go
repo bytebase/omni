@@ -463,6 +463,9 @@ func hasFunctionInvocationRule(stmt string, pos int) bool {
 
 func currentStatement(statement string, pos int) (string, int) {
 	for _, seg := range parser.Split(statement) {
+		if seg.Empty() {
+			continue
+		}
 		if pos >= seg.ByteStart && pos <= seg.ByteEnd {
 			return seg.Text, pos - seg.ByteStart
 		}
