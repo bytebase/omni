@@ -518,8 +518,10 @@ FROM t`,
 		require.NoError(t, err)
 		require.Equal(t, Select, valuesSpan.Type)
 		require.Equal(t, []QuerySpanResult{
+			// MariaDB names a VALUES column by its first row's text as
+			// written (span.tsv).
 			{Name: "1", SourceColumns: ColumnSet{}, IsPlainField: true},
-			{Name: "2+3", SourceColumns: ColumnSet{}, IsPlainField: false},
+			{Name: "2 + 3", SourceColumns: ColumnSet{}, IsPlainField: false},
 		}, valuesSpan.Results)
 	})
 }

@@ -1,0 +1,335 @@
+# pin: default mariadb:11.8.8 sha256:24e76fcec8c003a0362d0dd53f4806e7e79458d7fdeaf47437760e19496f5a9c mariadb-11.8.8
+# columns: omni, expected, source, fixture, session, aspect, statement
+id, amount	id, amount	engine	base	shop	results	SELECT id, amount FROM orders
+shop.orders.id | shop.orders.amount	shop.orders.id | shop.orders.amount	engine	base	shop	lineage	SELECT id, amount FROM orders
+shop.orders	shop.orders	engine	base	shop	tables	SELECT id, amount FROM orders
+order_id, amount	order_id, amount	engine	base	shop	results	SELECT o.id AS order_id, o.amount FROM orders o
+shop.orders.id | shop.orders.amount	shop.orders.id | shop.orders.amount	engine	base	shop	lineage	SELECT o.id AS order_id, o.amount FROM orders o
+shop.orders	shop.orders	engine	base	shop	tables	SELECT o.id AS order_id, o.amount FROM orders o
+id + customer_id, upper(status)	id + customer_id, upper(status)	engine	base	shop	results	SELECT id + customer_id, upper(status) FROM orders
+shop.orders.customer_id shop.orders.id | shop.orders.status	shop.orders.customer_id shop.orders.id ~ | shop.orders.status ~	engine	base	shop	lineage	SELECT id + customer_id, upper(status) FROM orders
+shop.orders	shop.orders	engine	base	shop	tables	SELECT id + customer_id, upper(status) FROM orders
+error:1054	error:1054	engine	base	shop	results	SELECT CAST(amount AS CHAR) AS a, concat(name, '@', region) AS b FROM customers
+error:1054	error:1054	engine	base	shop	lineage	SELECT CAST(amount AS CHAR) AS a, concat(name, '@', region) AS b FROM customers
+error:1054	error:1054	engine	base	shop	tables	SELECT CAST(amount AS CHAR) AS a, concat(name, '@', region) AS b FROM customers
+1, b	1, b	engine	base	shop	results	SELECT 1, 'a' AS b
+- | -	- | -	engine	base	shop	lineage	SELECT 1, 'a' AS b
+-	-	engine	base	shop	tables	SELECT 1, 'a' AS b
+count(*)	count(*)	engine	base	shop	results	SELECT count(*) FROM orders
+-	-	engine	base	shop	lineage	SELECT count(*) FROM orders
+shop.orders	shop.orders	engine	base	shop	tables	SELECT count(*) FROM orders
+region	region	engine	base	shop	results	SELECT DISTINCT region FROM customers
+shop.customers.region	shop.customers.region	engine	base	shop	lineage	SELECT DISTINCT region FROM customers
+shop.customers	shop.customers	engine	base	shop	tables	SELECT DISTINCT region FROM customers
+name	name	engine	base	shop	results	SELECT name FROM customers ORDER BY region LIMIT 2
+shop.customers.name	shop.customers.name	engine	base	shop	lineage	SELECT name FROM customers ORDER BY region LIMIT 2
+shop.customers	shop.customers	engine	base	shop	tables	SELECT name FROM customers ORDER BY region LIMIT 2
+label	label	engine	base	shop	results	SELECT CASE WHEN amount > 5 THEN status ELSE 'small' END AS label FROM orders
+shop.orders.amount shop.orders.status	shop.orders.amount shop.orders.status ~	engine	base	shop	lineage	SELECT CASE WHEN amount > 5 THEN status ELSE 'small' END AS label FROM orders
+shop.orders	shop.orders	engine	base	shop	tables	SELECT CASE WHEN amount > 5 THEN status ELSE 'small' END AS label FROM orders
+contact	contact	engine	base	shop	results	SELECT coalesce(email, name) AS contact FROM customers
+shop.customers.email shop.customers.name	shop.customers.email shop.customers.name ~	engine	base	shop	lineage	SELECT coalesce(email, name) AS contact FROM customers
+shop.customers	shop.customers	engine	base	shop	tables	SELECT coalesce(email, name) AS contact FROM customers
+id, amount	id, amount	engine	base	shop	results	SELECT amount AS id, id AS amount FROM orders
+shop.orders.amount | shop.orders.id	shop.orders.amount | shop.orders.id	engine	base	shop	lineage	SELECT amount AS id, id AS amount FROM orders
+shop.orders	shop.orders	engine	base	shop	tables	SELECT amount AS id, id AS amount FROM orders
+id   +   1, -amount, id IN (1, 2), NOT id	id   +   1, -amount, id IN (1, 2), NOT id	engine	base	shop	results	SELECT id   +   1, -amount, id IN (1, 2), NOT id FROM orders
+shop.orders.id | shop.orders.amount | shop.orders.id | shop.orders.id	shop.orders.id ~ | shop.orders.amount ~ | shop.orders.id ~ | shop.orders.id ~	engine	base	shop	lineage	SELECT id   +   1, -amount, id IN (1, 2), NOT id FROM orders
+shop.orders	shop.orders	engine	base	shop	tables	SELECT id   +   1, -amount, id IN (1, 2), NOT id FROM orders
+x, 2.50, NULL, TRUE, y	x, 2.50, NULL, TRUE, y	engine	base	shop	results	SELECT 'x', 2.50, NULL, TRUE, _utf8mb4'y'
+- | - | - | - | -	- | - | - | - | -	engine	base	shop	lineage	SELECT 'x', 2.50, NULL, TRUE, _utf8mb4'y'
+-	-	engine	base	shop	tables	SELECT 'x', 2.50, NULL, TRUE, _utf8mb4'y'
+error:1064	error:1064	engine	base	shop	results	TABLE customers
+error:1064	error:1064	engine	base	shop	lineage	TABLE customers
+error:1064	error:1064	engine	base	shop	tables	TABLE customers
+1, 2 + 3	1, 2 + 3	engine	base	shop	results	VALUES (1, 2 + 3), (4, 5)
+- | -	- | -	engine	base	shop	lineage	VALUES (1, 2 + 3), (4, 5)
+-	-	engine	base	shop	tables	VALUES (1, 2 + 3), (4, 5)
+id, customer_id, amount, status, created_at	id, customer_id, amount, status, created_at	engine	base	shop	results	SELECT * FROM orders
+shop.orders.id | shop.orders.customer_id | shop.orders.amount | shop.orders.status | shop.orders.created_at	shop.orders.id | shop.orders.customer_id | shop.orders.amount | shop.orders.status | shop.orders.created_at	engine	base	shop	lineage	SELECT * FROM orders
+shop.orders	shop.orders	engine	base	shop	tables	SELECT * FROM orders
+id, customer_id, amount, status, created_at	id, customer_id, amount, status, created_at	engine	base	shop	results	SELECT o.* FROM orders o
+shop.orders.id | shop.orders.customer_id | shop.orders.amount | shop.orders.status | shop.orders.created_at	shop.orders.id | shop.orders.customer_id | shop.orders.amount | shop.orders.status | shop.orders.created_at	engine	base	shop	lineage	SELECT o.* FROM orders o
+shop.orders	shop.orders	engine	base	shop	tables	SELECT o.* FROM orders o
+id, customer_id, amount, status, created_at, amount	id, customer_id, amount, status, created_at, amount	engine	base	shop	results	SELECT *, amount FROM orders
+shop.orders.id | shop.orders.customer_id | shop.orders.amount | shop.orders.status | shop.orders.created_at | shop.orders.amount	shop.orders.id | shop.orders.customer_id | shop.orders.amount | shop.orders.status | shop.orders.created_at | shop.orders.amount	engine	base	shop	lineage	SELECT *, amount FROM orders
+shop.orders	shop.orders	engine	base	shop	tables	SELECT *, amount FROM orders
+id, name, region, email, amount	id, name, region, email, amount	engine	base	shop	results	SELECT c.*, o.amount FROM customers c JOIN orders o ON o.customer_id = c.id
+shop.customers.id | shop.customers.name | shop.customers.region | shop.customers.email | shop.orders.amount	shop.customers.id | shop.customers.name | shop.customers.region | shop.customers.email | shop.orders.amount	engine	base	shop	lineage	SELECT c.*, o.amount FROM customers c JOIN orders o ON o.customer_id = c.id
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT c.*, o.amount FROM customers c JOIN orders o ON o.customer_id = c.id
+id, name, region, email	id, name, region, email	engine	base	shop	results	SELECT * FROM (SELECT * FROM customers) c
+shop.customers.id | shop.customers.name | shop.customers.region | shop.customers.email	shop.customers.id | shop.customers.name | shop.customers.region | shop.customers.email	engine	base	shop	lineage	SELECT * FROM (SELECT * FROM customers) c
+shop.customers	shop.customers	engine	base	shop	tables	SELECT * FROM (SELECT * FROM customers) c
+id	id	engine	base	shop	results	SELECT id FROM shop.orders
+shop.orders.id	shop.orders.id	engine	base	shop	lineage	SELECT id FROM shop.orders
+shop.orders	shop.orders	engine	base	shop	tables	SELECT id FROM shop.orders
+amount, status	amount, status	engine	base	shop	results	SELECT shop.orders.amount, orders.status FROM shop.orders
+shop.orders.amount | shop.orders.status	shop.orders.amount | shop.orders.status	engine	base	shop	lineage	SELECT shop.orders.amount, orders.status FROM shop.orders
+shop.orders	shop.orders	engine	base	shop	tables	SELECT shop.orders.amount, orders.status FROM shop.orders
+name, salary	name, salary	engine	base	shop	results	SELECT s.name, s.salary FROM hr.staff s
+hr.staff.name | hr.staff.salary	hr.staff.name | hr.staff.salary	engine	base	shop	lineage	SELECT s.name, s.salary FROM hr.staff s
+hr.staff	hr.staff	engine	base	shop	tables	SELECT s.name, s.salary FROM hr.staff s
+id, name	id, name	engine	base	shop	results	SELECT o.id, s.name FROM orders o JOIN hr.staff s ON s.id = o.customer_id
+shop.orders.id | hr.staff.name	shop.orders.id | hr.staff.name	engine	base	shop	lineage	SELECT o.id, s.name FROM orders o JOIN hr.staff s ON s.id = o.customer_id
+hr.staff, shop.orders	hr.staff, shop.orders	engine	base	shop	tables	SELECT o.id, s.name FROM orders o JOIN hr.staff s ON s.id = o.customer_id
+ID, Amount	ID, Amount	engine	base	shop	results	SELECT ID, Amount FROM orders
+shop.orders.id | shop.orders.amount	shop.orders.id | shop.orders.amount	engine	base	shop	lineage	SELECT ID, Amount FROM orders
+shop.orders	shop.orders	engine	base	shop	tables	SELECT ID, Amount FROM orders
+id, AMOUNT	id, AMOUNT	engine	base	shop	results	SELECT `id`, `AMOUNT` FROM `orders`
+shop.orders.id | shop.orders.amount	shop.orders.id | shop.orders.amount	engine	base	shop	lineage	SELECT `id`, `AMOUNT` FROM `orders`
+shop.orders	shop.orders	engine	base	shop	tables	SELECT `id`, `AMOUNT` FROM `orders`
+ID	ID	engine	base	shop	results	SELECT O.ID FROM orders O
+shop.orders.id	shop.orders.id	engine	base	shop	lineage	SELECT O.ID FROM orders O
+shop.orders	shop.orders	engine	base	shop	tables	SELECT O.ID FROM orders O
+id, status	id, status	engine	base	shop	results	SELECT shop.o.id, shop.orders.status FROM orders o JOIN shop.orders ON orders.id = o.id
+shop.orders.id | shop.orders.status	shop.orders.id | shop.orders.status	engine	base	shop	lineage	SELECT shop.o.id, shop.orders.status FROM orders o JOIN shop.orders ON orders.id = o.id
+shop.orders	shop.orders	engine	base	shop	tables	SELECT shop.o.id, shop.orders.status FROM orders o JOIN shop.orders ON orders.id = o.id
+Id, CamelCol, lower_col	Id, CamelCol, lower_col	engine	base	shop	results	SELECT `Id`, `CamelCol`, lower_col FROM `MixedCase`
+shop.MixedCase.Id | shop.MixedCase.CamelCol | shop.MixedCase.lower_col	shop.MixedCase.Id | shop.MixedCase.CamelCol | shop.MixedCase.lower_col	engine	base	shop	lineage	SELECT `Id`, `CamelCol`, lower_col FROM `MixedCase`
+shop.MixedCase	shop.MixedCase	engine	base	shop	tables	SELECT `Id`, `CamelCol`, lower_col FROM `MixedCase`
+Id, CamelCol, lower_col	Id, CamelCol, lower_col	engine	base	shop	results	SELECT * FROM `MixedCase`
+shop.MixedCase.Id | shop.MixedCase.CamelCol | shop.MixedCase.lower_col	shop.MixedCase.Id | shop.MixedCase.CamelCol | shop.MixedCase.lower_col	engine	base	shop	lineage	SELECT * FROM `MixedCase`
+shop.MixedCase	shop.MixedCase	engine	base	shop	tables	SELECT * FROM `MixedCase`
+id, note	id, note	engine	base	shop	results	SELECT * FROM mixedcase
+shop.mixedcase.id | shop.mixedcase.note	shop.mixedcase.id | shop.mixedcase.note	engine	base	shop	lineage	SELECT * FROM mixedcase
+shop.mixedcase	shop.mixedcase	engine	base	shop	tables	SELECT * FROM mixedcase
+camelcol, LOWER_COL	camelcol, LOWER_COL	engine	base	shop	results	SELECT m.camelcol, m.LOWER_COL FROM `MixedCase` m
+shop.MixedCase.CamelCol | shop.MixedCase.lower_col	shop.MixedCase.CamelCol | shop.MixedCase.lower_col	engine	base	shop	lineage	SELECT m.camelcol, m.LOWER_COL FROM `MixedCase` m
+shop.MixedCase	shop.MixedCase	engine	base	shop	tables	SELECT m.camelcol, m.LOWER_COL FROM `MixedCase` m
+name	name	engine	base	shop	results	SELECT orders.name FROM customers AS orders
+shop.customers.name	shop.customers.name	engine	base	shop	lineage	SELECT orders.name FROM customers AS orders
+shop.customers	shop.customers	engine	base	shop	tables	SELECT orders.name FROM customers AS orders
+amount	amount	engine	base	shop	results	SELECT customers.amount FROM orders customers
+shop.orders.amount	shop.orders.amount	engine	base	shop	lineage	SELECT customers.amount FROM orders customers
+shop.orders	shop.orders	engine	base	shop	tables	SELECT customers.amount FROM orders customers
+id	id	engine	base	shop	results	SELECT o.id FROM customers o JOIN orders c ON c.customer_id = o.id
+shop.customers.id	shop.customers.id	engine	base	shop	lineage	SELECT o.id FROM customers o JOIN orders c ON c.customer_id = o.id
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT o.id FROM customers o JOIN orders c ON c.customer_id = o.id
+id	id	engine	base	shop	results	SELECT * FROM (SELECT amount AS id FROM orders) orders
+shop.orders.amount	shop.orders.amount	engine	base	shop	lineage	SELECT * FROM (SELECT amount AS id FROM orders) orders
+shop.orders	shop.orders	engine	base	shop	tables	SELECT * FROM (SELECT amount AS id FROM orders) orders
+id, name	id, name	engine	base	shop	results	SELECT o.id, c.name FROM orders o JOIN customers c ON c.id = o.customer_id
+shop.orders.id | shop.customers.name	shop.orders.id | shop.customers.name	engine	base	shop	lineage	SELECT o.id, c.name FROM orders o JOIN customers c ON c.id = o.customer_id
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT o.id, c.name FROM orders o JOIN customers c ON c.id = o.customer_id
+id, name	id, name	engine	base	shop	results	SELECT o.id, c.name FROM orders o LEFT JOIN customers c ON c.id = o.customer_id
+shop.orders.id | shop.customers.name	shop.orders.id | shop.customers.name	engine	base	shop	lineage	SELECT o.id, c.name FROM orders o LEFT JOIN customers c ON c.id = o.customer_id
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT o.id, c.name FROM orders o LEFT JOIN customers c ON c.id = o.customer_id
+id, name	id, name	engine	base	shop	results	SELECT o.id, c.name FROM customers c RIGHT JOIN orders o ON c.id = o.customer_id
+shop.orders.id | shop.customers.name	shop.orders.id | shop.customers.name	engine	base	shop	lineage	SELECT o.id, c.name FROM customers c RIGHT JOIN orders o ON c.id = o.customer_id
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT o.id, c.name FROM customers c RIGHT JOIN orders o ON c.id = o.customer_id
+id, name	id, name	engine	base	shop	results	SELECT o.id, c.name FROM orders o CROSS JOIN customers c
+shop.orders.id | shop.customers.name	shop.orders.id | shop.customers.name	engine	base	shop	lineage	SELECT o.id, c.name FROM orders o CROSS JOIN customers c
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT o.id, c.name FROM orders o CROSS JOIN customers c
+id, name	id, name	engine	base	shop	results	SELECT o.id, c.name FROM orders o, customers c WHERE c.id = o.customer_id
+shop.orders.id | shop.customers.name	shop.orders.id | shop.customers.name	engine	base	shop	lineage	SELECT o.id, c.name FROM orders o, customers c WHERE c.id = o.customer_id
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT o.id, c.name FROM orders o, customers c WHERE c.id = o.customer_id
+id, name	id, name	engine	base	shop	results	SELECT o.id, c.name FROM orders o STRAIGHT_JOIN customers c ON c.id = o.customer_id
+shop.orders.id | shop.customers.name	shop.orders.id | shop.customers.name	engine	base	shop	lineage	SELECT o.id, c.name FROM orders o STRAIGHT_JOIN customers c ON c.id = o.customer_id
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT o.id, c.name FROM orders o STRAIGHT_JOIN customers c ON c.id = o.customer_id
+id	id	engine	base	shop	results	SELECT id FROM orders JOIN customers USING (id)
+shop.customers.id shop.orders.id	shop.orders.id	engine	base	shop	lineage	SELECT id FROM orders JOIN customers USING (id)
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT id FROM orders JOIN customers USING (id)
+id, customer_id, amount, status, created_at, name, region, email	id, customer_id, amount, status, created_at, name, region, email	engine	base	shop	results	SELECT * FROM orders JOIN customers USING (id)
+shop.customers.id shop.orders.id | shop.orders.customer_id | shop.orders.amount | shop.orders.status | shop.orders.created_at | shop.customers.name | shop.customers.region | shop.customers.email	shop.orders.id | shop.orders.customer_id | shop.orders.amount | shop.orders.status | shop.orders.created_at | shop.customers.name | shop.customers.region | shop.customers.email	engine	base	shop	lineage	SELECT * FROM orders JOIN customers USING (id)
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT * FROM orders JOIN customers USING (id)
+id, customer_id, amount, status, created_at, name, region, email	id, customer_id, amount, status, created_at, name, region, email	engine	base	shop	results	SELECT * FROM orders o LEFT JOIN customers c USING (id)
+shop.customers.id shop.orders.id | shop.orders.customer_id | shop.orders.amount | shop.orders.status | shop.orders.created_at | shop.customers.name | shop.customers.region | shop.customers.email	shop.orders.id | shop.orders.customer_id | shop.orders.amount | shop.orders.status | shop.orders.created_at | shop.customers.name | shop.customers.region | shop.customers.email	engine	base	shop	lineage	SELECT * FROM orders o LEFT JOIN customers c USING (id)
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT * FROM orders o LEFT JOIN customers c USING (id)
+id, customer_id, amount, status, created_at, name, region, email	id, customer_id, amount, status, created_at, name, region, email	engine	base	shop	results	SELECT * FROM orders NATURAL JOIN customers
+shop.customers.id shop.orders.id | shop.orders.customer_id | shop.orders.amount | shop.orders.status | shop.orders.created_at | shop.customers.name | shop.customers.region | shop.customers.email	shop.orders.id | shop.orders.customer_id | shop.orders.amount | shop.orders.status | shop.orders.created_at | shop.customers.name | shop.customers.region | shop.customers.email	engine	base	shop	lineage	SELECT * FROM orders NATURAL JOIN customers
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT * FROM orders NATURAL JOIN customers
+id, name	id, name	engine	base	shop	results	SELECT id, name FROM orders NATURAL LEFT JOIN customers
+shop.customers.id shop.orders.id | shop.customers.name	shop.orders.id | shop.customers.name	engine	base	shop	lineage	SELECT id, name FROM orders NATURAL LEFT JOIN customers
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT id, name FROM orders NATURAL LEFT JOIN customers
+sku, status, region	sku, status, region	engine	base	shop	results	SELECT i.sku, o.status, c.region FROM items i JOIN orders o ON o.id = i.order_id JOIN customers c ON c.id = o.customer_id
+shop.items.sku | shop.orders.status | shop.customers.region	shop.items.sku | shop.orders.status | shop.customers.region	engine	base	shop	lineage	SELECT i.sku, o.status, c.region FROM items i JOIN orders o ON o.id = i.order_id JOIN customers c ON c.id = o.customer_id
+shop.customers, shop.items, shop.orders	shop.customers, shop.items, shop.orders	engine	base	shop	tables	SELECT i.sku, o.status, c.region FROM items i JOIN orders o ON o.id = i.order_id JOIN customers c ON c.id = o.customer_id
+id, id	id, id	engine	base	shop	results	SELECT a.id, b.id FROM orders a JOIN orders b ON b.customer_id = a.customer_id
+shop.orders.id | shop.orders.id	shop.orders.id | shop.orders.id	engine	base	shop	lineage	SELECT a.id, b.id FROM orders a JOIN orders b ON b.customer_id = a.customer_id
+shop.orders	shop.orders	engine	base	shop	tables	SELECT a.id, b.id FROM orders a JOIN orders b ON b.customer_id = a.customer_id
+id	id	engine	base	shop	results	SELECT o.id FROM orders o JOIN (customers c JOIN items i ON i.order_id = c.id) ON c.id = o.customer_id
+shop.orders.id	shop.orders.id	engine	base	shop	lineage	SELECT o.id FROM orders o JOIN (customers c JOIN items i ON i.order_id = c.id) ON c.id = o.customer_id
+shop.customers, shop.items, shop.orders	shop.customers, shop.items, shop.orders	engine	base	shop	tables	SELECT o.id FROM orders o JOIN (customers c JOIN items i ON i.order_id = c.id) ON c.id = o.customer_id
+id, who	id, who	engine	base	shop	results	SELECT id, (SELECT name FROM customers c WHERE c.id = o.customer_id) AS who FROM orders o
+shop.orders.id | shop.customers.name	shop.orders.id | ~	engine	base	shop	lineage	SELECT id, (SELECT name FROM customers c WHERE c.id = o.customer_id) AS who FROM orders o
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT id, (SELECT name FROM customers c WHERE c.id = o.customer_id) AS who FROM orders o
+id, top	id, top	engine	base	shop	results	SELECT id, (SELECT max(amount) FROM orders) AS top FROM customers
+shop.customers.id | shop.orders.amount	shop.customers.id | ~	engine	base	shop	lineage	SELECT id, (SELECT max(amount) FROM orders) AS top FROM customers
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT id, (SELECT max(amount) FROM orders) AS top FROM customers
+id	id	engine	base	shop	results	SELECT id FROM orders WHERE customer_id IN (SELECT id FROM customers WHERE region = 'east')
+shop.orders.id	shop.orders.id	engine	base	shop	lineage	SELECT id FROM orders WHERE customer_id IN (SELECT id FROM customers WHERE region = 'east')
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT id FROM orders WHERE customer_id IN (SELECT id FROM customers WHERE region = 'east')
+id	id	engine	base	shop	results	SELECT id FROM orders o WHERE EXISTS (SELECT 1 FROM items i WHERE i.order_id = o.id)
+shop.orders.id	shop.orders.id	engine	base	shop	lineage	SELECT id FROM orders o WHERE EXISTS (SELECT 1 FROM items i WHERE i.order_id = o.id)
+shop.items, shop.orders	shop.items, shop.orders	engine	base	shop	tables	SELECT id FROM orders o WHERE EXISTS (SELECT 1 FROM items i WHERE i.order_id = o.id)
+k, v	k, v	engine	base	shop	results	SELECT d.k, d.v FROM (SELECT id AS k, amount AS v FROM orders) d
+shop.orders.id | shop.orders.amount	shop.orders.id | shop.orders.amount	engine	base	shop	lineage	SELECT d.k, d.v FROM (SELECT id AS k, amount AS v FROM orders) d
+shop.orders	shop.orders	engine	base	shop	tables	SELECT d.k, d.v FROM (SELECT id AS k, amount AS v FROM orders) d
+k	k	engine	base	shop	results	SELECT d.k FROM (SELECT id AS k FROM orders LIMIT 2) d
+shop.orders.id	shop.orders.id	engine	base	shop	lineage	SELECT d.k FROM (SELECT id AS k FROM orders LIMIT 2) d
+shop.orders	shop.orders	engine	base	shop	tables	SELECT d.k FROM (SELECT id AS k FROM orders LIMIT 2) d
+total	total	engine	base	shop	results	SELECT x.total FROM (SELECT customer_id, sum(amount) AS total FROM orders GROUP BY customer_id) x
+shop.orders.amount	shop.orders.amount ~	engine	base	shop	lineage	SELECT x.total FROM (SELECT customer_id, sum(amount) AS total FROM orders GROUP BY customer_id) x
+shop.orders	shop.orders	engine	base	shop	tables	SELECT x.total FROM (SELECT customer_id, sum(amount) AS total FROM orders GROUP BY customer_id) x
+a, b	a, b	engine	base	shop	results	SELECT d.a, d.b FROM (SELECT id, name FROM customers) AS d (a, b)
+shop.customers.id | shop.customers.name	shop.customers.id | shop.customers.name	engine	base	shop	lineage	SELECT d.a, d.b FROM (SELECT id, name FROM customers) AS d (a, b)
+shop.customers	shop.customers	engine	base	shop	tables	SELECT d.a, d.b FROM (SELECT id, name FROM customers) AS d (a, b)
+error:1064	error:1064	engine	base	shop	results	SELECT o.id, l.n FROM orders o, LATERAL (SELECT count(*) AS n FROM items i WHERE i.order_id = o.id) l
+error:1064	error:1064	engine	base	shop	lineage	SELECT o.id, l.n FROM orders o, LATERAL (SELECT count(*) AS n FROM items i WHERE i.order_id = o.id) l
+error:1064	error:1064	engine	base	shop	tables	SELECT o.id, l.n FROM orders o, LATERAL (SELECT count(*) AS n FROM items i WHERE i.order_id = o.id) l
+error:1064	error:1064	engine	base	shop	results	SELECT o.id, l.sku FROM orders o JOIN LATERAL (SELECT sku FROM items i WHERE i.order_id = o.id LIMIT 1) l ON true
+error:1064	error:1064	engine	base	shop	lineage	SELECT o.id, l.sku FROM orders o JOIN LATERAL (SELECT sku FROM items i WHERE i.order_id = o.id LIMIT 1) l ON true
+error:1064	error:1064	engine	base	shop	tables	SELECT o.id, l.sku FROM orders o JOIN LATERAL (SELECT sku FROM items i WHERE i.order_id = o.id LIMIT 1) l ON true
+k	k	engine	base	shop	results	SELECT y.k FROM (SELECT x.k FROM (SELECT id AS k FROM customers) x) y
+shop.customers.id	shop.customers.id	engine	base	shop	lineage	SELECT y.k FROM (SELECT x.k FROM (SELECT id AS k FROM customers) x) y
+shop.customers	shop.customers	engine	base	shop	tables	SELECT y.k FROM (SELECT x.k FROM (SELECT id AS k FROM customers) x) y
+id, name	id, name	engine	base	shop	results	WITH c AS (SELECT id, name FROM customers) SELECT id, name FROM c
+shop.customers.id | shop.customers.name	shop.customers.id | shop.customers.name	engine	base	shop	lineage	WITH c AS (SELECT id, name FROM customers) SELECT id, name FROM c
+shop.customers	shop.customers	engine	base	shop	tables	WITH c AS (SELECT id, name FROM customers) SELECT id, name FROM c
+k, v	k, v	engine	base	shop	results	WITH c (k, v) AS (SELECT id, amount FROM orders) SELECT k, v FROM c
+shop.orders.id | shop.orders.amount	shop.orders.id | shop.orders.amount	engine	base	shop	lineage	WITH c (k, v) AS (SELECT id, amount FROM orders) SELECT k, v FROM c
+shop.orders	shop.orders	engine	base	shop	tables	WITH c (k, v) AS (SELECT id, amount FROM orders) SELECT k, v FROM c
+id, name	id, name	engine	base	shop	results	WITH a AS (SELECT id, customer_id FROM orders), b AS (SELECT a.id, c.name FROM a JOIN customers c ON c.id = a.customer_id) SELECT * FROM b
+shop.orders.id | shop.customers.name	shop.orders.id | shop.customers.name	engine	base	shop	lineage	WITH a AS (SELECT id, customer_id FROM orders), b AS (SELECT a.id, c.name FROM a JOIN customers c ON c.id = a.customer_id) SELECT * FROM b
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	WITH a AS (SELECT id, customer_id FROM orders), b AS (SELECT a.id, c.name FROM a JOIN customers c ON c.id = a.customer_id) SELECT * FROM b
+id, id	id, id	engine	base	shop	results	WITH c AS (SELECT id FROM customers) SELECT x.id, y.id FROM c x JOIN c y ON y.id = x.id
+shop.customers.id | shop.customers.id	shop.customers.id | shop.customers.id	engine	base	shop	lineage	WITH c AS (SELECT id FROM customers) SELECT x.id, y.id FROM c x JOIN c y ON y.id = x.id
+shop.customers	shop.customers	engine	base	shop	tables	WITH c AS (SELECT id FROM customers) SELECT x.id, y.id FROM c x JOIN c y ON y.id = x.id
+n	n	engine	base	shop	results	WITH RECURSIVE r (n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r
+-	~	engine	base	shop	lineage	WITH RECURSIVE r (n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r
+-	-	engine	base	shop	tables	WITH RECURSIVE r (n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r
+id, name	id, name	engine	base	shop	results	WITH RECURSIVE r (id, name) AS (SELECT id, name FROM customers WHERE id = 1 UNION ALL SELECT c.id, c.name FROM customers c JOIN r ON c.id = r.id + 1) SELECT id, name FROM r
+shop.customers.id | shop.customers.name	shop.customers.id | shop.customers.name	engine	base	shop	lineage	WITH RECURSIVE r (id, name) AS (SELECT id, name FROM customers WHERE id = 1 UNION ALL SELECT c.id, c.name FROM customers c JOIN r ON c.id = r.id + 1) SELECT id, name FROM r
+shop.customers	shop.customers	engine	base	shop	tables	WITH RECURSIVE r (id, name) AS (SELECT id, name FROM customers WHERE id = 1 UNION ALL SELECT c.id, c.name FROM customers c JOIN r ON c.id = r.id + 1) SELECT id, name FROM r
+id, name	id, name	engine	base	shop	results	WITH orders AS (SELECT id, name FROM customers) SELECT id, name FROM orders
+shop.customers.id | shop.customers.name	shop.customers.id | shop.customers.name	engine	base	shop	lineage	WITH orders AS (SELECT id, name FROM customers) SELECT id, name FROM orders
+shop.customers	shop.customers	engine	base	shop	tables	WITH orders AS (SELECT id, name FROM customers) SELECT id, name FROM orders
+id	id	engine	base	shop	results	WITH c AS (SELECT id, amount FROM orders) SELECT id FROM c WHERE amount > (SELECT avg(amount) FROM c)
+shop.orders.id	shop.orders.id	engine	base	shop	lineage	WITH c AS (SELECT id, amount FROM orders) SELECT id FROM c WHERE amount > (SELECT avg(amount) FROM c)
+shop.orders	shop.orders	engine	base	shop	tables	WITH c AS (SELECT id, amount FROM orders) SELECT id FROM c WHERE amount > (SELECT avg(amount) FROM c)
+id	id	engine	base	shop	results	WITH RECURSIVE c AS (SELECT id FROM orders), orders AS (SELECT 1 AS id) SELECT id FROM c
+shop.orders.id	~	engine	base	shop	lineage	WITH RECURSIVE c AS (SELECT id FROM orders), orders AS (SELECT 1 AS id) SELECT id FROM c
+-	-	engine	base	shop	tables	WITH RECURSIVE c AS (SELECT id FROM orders), orders AS (SELECT 1 AS id) SELECT id FROM c
+id	id	engine	base	shop	results	SELECT id FROM orders UNION SELECT id FROM customers
+shop.customers.id shop.orders.id	shop.customers.id shop.orders.id	engine	base	shop	lineage	SELECT id FROM orders UNION SELECT id FROM customers
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT id FROM orders UNION SELECT id FROM customers
+id, status	id, status	engine	base	shop	results	SELECT id, status FROM orders UNION ALL SELECT id, name FROM customers
+shop.customers.id shop.orders.id | shop.customers.name shop.orders.status	shop.customers.id shop.orders.id | shop.customers.name shop.orders.status	engine	base	shop	lineage	SELECT id, status FROM orders UNION ALL SELECT id, name FROM customers
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT id, status FROM orders UNION ALL SELECT id, name FROM customers
+name	name	engine	base	shop	results	SELECT name FROM customers INTERSECT SELECT status FROM orders
+shop.customers.name shop.orders.status	shop.customers.name shop.orders.status	engine	base	shop	lineage	SELECT name FROM customers INTERSECT SELECT status FROM orders
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT name FROM customers INTERSECT SELECT status FROM orders
+id	id	engine	base	shop	results	SELECT id FROM orders EXCEPT SELECT customer_id FROM orders
+shop.orders.customer_id shop.orders.id	shop.orders.customer_id shop.orders.id	engine	base	shop	lineage	SELECT id FROM orders EXCEPT SELECT customer_id FROM orders
+shop.orders	shop.orders	engine	base	shop	tables	SELECT id FROM orders EXCEPT SELECT customer_id FROM orders
+k	k	engine	base	shop	results	SELECT id AS k FROM orders UNION SELECT 1 ORDER BY k
+shop.orders.id	shop.orders.id	engine	base	shop	lineage	SELECT id AS k FROM orders UNION SELECT 1 ORDER BY k
+shop.orders	shop.orders	engine	base	shop	tables	SELECT id AS k FROM orders UNION SELECT 1 ORDER BY k
+id	id	engine	base	shop	results	(SELECT id FROM orders LIMIT 1) UNION (SELECT id FROM customers LIMIT 1)
+shop.customers.id shop.orders.id	shop.customers.id shop.orders.id	engine	base	shop	lineage	(SELECT id FROM orders LIMIT 1) UNION (SELECT id FROM customers LIMIT 1)
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	(SELECT id FROM orders LIMIT 1) UNION (SELECT id FROM customers LIMIT 1)
+id	id	engine	base	shop	results	SELECT u.id FROM (SELECT id FROM orders UNION SELECT id FROM customers) u
+shop.customers.id shop.orders.id	shop.customers.id shop.orders.id	engine	base	shop	lineage	SELECT u.id FROM (SELECT id FROM orders UNION SELECT id FROM customers) u
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT u.id FROM (SELECT id FROM orders UNION SELECT id FROM customers) u
+id, doubled	id, doubled	engine	base	shop	results	SELECT id, doubled FROM big_orders
+shop.orders.id | shop.orders.amount	shop.orders.id | shop.orders.amount ~	engine	base	shop	lineage	SELECT id, doubled FROM big_orders
+shop.big_orders, shop.orders	shop.orders, ~	engine	base	shop	tables	SELECT id, doubled FROM big_orders
+status, doubled	status, doubled	engine	base	shop	results	SELECT b.status, b.doubled FROM big_orders b
+shop.orders.status | shop.orders.amount	shop.orders.status | shop.orders.amount ~	engine	base	shop	lineage	SELECT b.status, b.doubled FROM big_orders b
+shop.big_orders, shop.orders	shop.orders, ~	engine	base	shop	tables	SELECT b.status, b.doubled FROM big_orders b
+id, doubled, status, customer_id	id, doubled, status, customer_id	engine	base	shop	results	SELECT * FROM big_orders
+shop.orders.id | shop.orders.amount | shop.orders.status | shop.orders.customer_id	shop.orders.id | shop.orders.amount ~ | shop.orders.status | shop.orders.customer_id	engine	base	shop	lineage	SELECT * FROM big_orders
+shop.big_orders, shop.orders	shop.orders, ~	engine	base	shop	tables	SELECT * FROM big_orders
+customer_id, total, n	customer_id, total, n	engine	base	shop	results	SELECT customer_id, total, n FROM customer_totals
+shop.orders.customer_id | shop.orders.amount | -	shop.orders.customer_id | shop.orders.amount ~ | -	engine	base	shop	lineage	SELECT customer_id, total, n FROM customer_totals
+shop.customer_totals, shop.orders	shop.customer_totals, ~	engine	base	shop	tables	SELECT customer_id, total, n FROM customer_totals
+id, doubled, name	id, doubled, name	engine	base	shop	results	SELECT * FROM order_names
+shop.orders.id | shop.orders.amount | shop.customers.name	shop.orders.id | shop.orders.amount ~ | shop.customers.name	engine	base	shop	lineage	SELECT * FROM order_names
+shop.big_orders, shop.customers, shop.order_names, shop.orders	shop.customers, shop.orders, ~	engine	base	shop	tables	SELECT * FROM order_names
+name, region	name, region	engine	base	shop	results	SELECT o.name, c.region FROM order_names o JOIN customers c ON c.name = o.name
+shop.customers.name | shop.customers.region	shop.customers.name | shop.customers.region	engine	base	shop	lineage	SELECT o.name, c.region FROM order_names o JOIN customers c ON c.name = o.name
+shop.big_orders, shop.customers, shop.order_names, shop.orders	shop.customers, shop.orders, ~	engine	base	shop	tables	SELECT o.name, c.region FROM order_names o JOIN customers c ON c.name = o.name
+a, b	a, b	engine	base	shop	results	SELECT a, b FROM renamed
+shop.customers.id | shop.customers.name	shop.customers.id | shop.customers.name	engine	base	shop	lineage	SELECT a, b FROM renamed
+shop.customers, shop.renamed	shop.customers, ~	engine	base	shop	tables	SELECT a, b FROM renamed
+id	id	engine	base	shop	results	SELECT id FROM all_ids
+shop.customers.id shop.orders.id	shop.customers.id shop.orders.id	engine	base	shop	lineage	SELECT id FROM all_ids
+shop.all_ids, shop.customers, shop.orders	shop.all_ids, ~	engine	base	shop	tables	SELECT id FROM all_ids
+id, salary, dept	id, salary, dept	engine	base	shop	results	SELECT * FROM staff_pay
+hr.staff.id | hr.staff.salary | hr.depts.name	hr.staff.id | hr.staff.salary | hr.depts.name	engine	base	shop	lineage	SELECT * FROM staff_pay
+hr.depts, hr.staff, shop.staff_pay	hr.depts, hr.staff, ~	engine	base	shop	tables	SELECT * FROM staff_pay
+name	name	engine	base	shop	results	SELECT name FROM hr.rich
+hr.staff.name	hr.staff.name	engine	base	shop	lineage	SELECT name FROM hr.rich
+hr.rich, hr.staff	hr.staff, ~	engine	base	shop	tables	SELECT name FROM hr.rich
+VipName	VipName	engine	base	shop	results	SELECT VipName FROM hr.`Rich_Names`
+hr.staff.name	hr.staff.name	engine	base	shop	lineage	SELECT VipName FROM hr.`Rich_Names`
+hr.Rich_Names, hr.rich, hr.staff	hr.staff, ~	engine	base	shop	tables	SELECT VipName FROM hr.`Rich_Names`
+id, total	id, total	engine	base	shop	results	SELECT b.id, t.total FROM big_orders b JOIN customer_totals t ON t.customer_id = b.customer_id
+shop.orders.id | shop.orders.amount	shop.orders.id | shop.orders.amount ~	engine	base	shop	lineage	SELECT b.id, t.total FROM big_orders b JOIN customer_totals t ON t.customer_id = b.customer_id
+shop.big_orders, shop.customer_totals, shop.orders	shop.customer_totals, shop.orders, ~	engine	base	shop	tables	SELECT b.id, t.total FROM big_orders b JOIN customer_totals t ON t.customer_id = b.customer_id
+doubled	doubled	engine	base	shop	results	SELECT d.doubled FROM (SELECT doubled FROM big_orders) d
+shop.orders.amount	shop.orders.amount ~	engine	base	shop	lineage	SELECT d.doubled FROM (SELECT doubled FROM big_orders) d
+shop.big_orders, shop.orders	shop.orders, ~	engine	base	shop	tables	SELECT d.doubled FROM (SELECT doubled FROM big_orders) d
+doubled	doubled	engine	base	shop	results	WITH v AS (SELECT * FROM big_orders) SELECT doubled FROM v
+shop.orders.amount	shop.orders.amount ~	engine	base	shop	lineage	WITH v AS (SELECT * FROM big_orders) SELECT doubled FROM v
+shop.big_orders, shop.orders	shop.orders, ~	engine	base	shop	tables	WITH v AS (SELECT * FROM big_orders) SELECT doubled FROM v
+id, rn	id, rn	engine	base	shop	results	SELECT id, row_number() OVER (ORDER BY amount) AS rn FROM orders
+shop.orders.id | shop.orders.amount	shop.orders.id | shop.orders.amount ~	engine	base	shop	lineage	SELECT id, row_number() OVER (ORDER BY amount) AS rn FROM orders
+shop.orders	shop.orders	engine	base	shop	tables	SELECT id, row_number() OVER (ORDER BY amount) AS rn FROM orders
+id, running	id, running	engine	base	shop	results	SELECT id, sum(amount) OVER (PARTITION BY customer_id) AS running FROM orders
+shop.orders.id | shop.orders.amount shop.orders.customer_id	shop.orders.id | shop.orders.amount shop.orders.customer_id ~	engine	base	shop	lineage	SELECT id, sum(amount) OVER (PARTITION BY customer_id) AS running FROM orders
+shop.orders	shop.orders	engine	base	shop	tables	SELECT id, sum(amount) OVER (PARTITION BY customer_id) AS running FROM orders
+id, r	id, r	engine	base	shop	results	SELECT id, rank() OVER w AS r FROM orders WINDOW w AS (PARTITION BY status ORDER BY amount)
+shop.orders.id | shop.orders.amount shop.orders.status	shop.orders.id | shop.orders.amount shop.orders.status ~	engine	base	shop	lineage	SELECT id, rank() OVER w AS r FROM orders WINDOW w AS (PARTITION BY status ORDER BY amount)
+shop.orders	shop.orders	engine	base	shop	tables	SELECT id, rank() OVER w AS r FROM orders WINDOW w AS (PARTITION BY status ORDER BY amount)
+id, prev	id, prev	engine	base	shop	results	SELECT id, lag(amount) OVER (ORDER BY id) AS prev FROM orders
+shop.orders.id | shop.orders.amount shop.orders.id	shop.orders.id | shop.orders.amount shop.orders.id ~	engine	base	shop	lineage	SELECT id, lag(amount) OVER (ORDER BY id) AS prev FROM orders
+shop.orders	shop.orders	engine	base	shop	tables	SELECT id, lag(amount) OVER (ORDER BY id) AS prev FROM orders
+customer_id, sum(amount), count(*)	customer_id, sum(amount), count(*)	engine	base	shop	results	SELECT customer_id, sum(amount), count(*) FROM orders GROUP BY customer_id
+shop.orders.customer_id | shop.orders.amount | -	shop.orders.customer_id | shop.orders.amount ~ | -	engine	base	shop	lineage	SELECT customer_id, sum(amount), count(*) FROM orders GROUP BY customer_id
+shop.orders	shop.orders	engine	base	shop	tables	SELECT customer_id, sum(amount), count(*) FROM orders GROUP BY customer_id
+status, a	status, a	engine	base	shop	results	SELECT status, avg(amount) AS a FROM orders GROUP BY status HAVING count(*) > 1
+shop.orders.status | shop.orders.amount	shop.orders.status | shop.orders.amount ~	engine	base	shop	lineage	SELECT status, avg(amount) AS a FROM orders GROUP BY status HAVING count(*) > 1
+shop.orders	shop.orders	engine	base	shop	tables	SELECT status, avg(amount) AS a FROM orders GROUP BY status HAVING count(*) > 1
+region, names	region, names	engine	base	shop	results	SELECT region, group_concat(name ORDER BY name) AS names FROM customers GROUP BY region
+shop.customers.region | shop.customers.name	shop.customers.region | shop.customers.name ~	engine	base	shop	lineage	SELECT region, group_concat(name ORDER BY name) AS names FROM customers GROUP BY region
+shop.customers	shop.customers	engine	base	shop	tables	SELECT region, group_concat(name ORDER BY name) AS names FROM customers GROUP BY region
+max(amount)	max(amount)	engine	base	shop	results	SELECT max(amount) FROM orders WHERE status = 'open'
+shop.orders.amount	shop.orders.amount ~	engine	base	shop	lineage	SELECT max(amount) FROM orders WHERE status = 'open'
+shop.orders	shop.orders	engine	base	shop	tables	SELECT max(amount) FROM orders WHERE status = 'open'
+buyers	buyers	engine	base	shop	results	SELECT count(DISTINCT customer_id) AS buyers FROM orders
+shop.orders.customer_id	shop.orders.customer_id ~	engine	base	shop	lineage	SELECT count(DISTINCT customer_id) AS buyers FROM orders
+shop.orders	shop.orders	engine	base	shop	tables	SELECT count(DISTINCT customer_id) AS buyers FROM orders
+region, sum(o.amount)	region, sum(o.amount)	engine	base	shop	results	SELECT c.region, sum(o.amount) FROM customers c JOIN orders o ON o.customer_id = c.id GROUP BY c.region
+shop.customers.region | shop.orders.amount	shop.customers.region | shop.orders.amount ~	engine	base	shop	lineage	SELECT c.region, sum(o.amount) FROM customers c JOIN orders o ON o.customer_id = c.id GROUP BY c.region
+shop.customers, shop.orders	shop.customers, shop.orders	engine	base	shop	tables	SELECT c.region, sum(o.amount) FROM customers c JOIN orders o ON o.customer_id = c.id GROUP BY c.region
+customer_id, sum(amount)	customer_id, sum(amount)	engine	base	shop	results	SELECT customer_id, sum(amount) FROM orders GROUP BY customer_id WITH ROLLUP
+shop.orders.customer_id | shop.orders.amount	shop.orders.customer_id | shop.orders.amount ~	engine	base	shop	lineage	SELECT customer_id, sum(amount) FROM orders GROUP BY customer_id WITH ROLLUP
+shop.orders	shop.orders	engine	base	shop	tables	SELECT customer_id, sum(amount) FROM orders GROUP BY customer_id WITH ROLLUP
+error:1054	error:1054	engine	base	shop	results	SELECT nope FROM orders
+error:1054	error:1054	engine	base	shop	lineage	SELECT nope FROM orders
+error:1054	error:1054	engine	base	shop	tables	SELECT nope FROM orders
+error:1146	error:1146	engine	base	shop	results	SELECT id FROM no_such_table
+error:1146	error:1146	engine	base	shop	lineage	SELECT id FROM no_such_table
+error:1146	error:1146	engine	base	shop	tables	SELECT id FROM no_such_table
+id	error:1052	engine	base	shop	results	SELECT id FROM orders JOIN customers ON customers.id = orders.customer_id
+shop.orders.id	error:1052	engine	base	shop	lineage	SELECT id FROM orders JOIN customers ON customers.id = orders.customer_id
+shop.customers, shop.orders	error:1052	engine	base	shop	tables	SELECT id FROM orders JOIN customers ON customers.id = orders.customer_id
+name, salary	name, salary	engine	base	hr	results	SELECT name, salary FROM staff
+hr.staff.name | hr.staff.salary	hr.staff.name | hr.staff.salary	engine	base	hr	lineage	SELECT name, salary FROM staff
+hr.staff	hr.staff	engine	base	hr	tables	SELECT name, salary FROM staff
+name, dept	name, dept	engine	base	hr	results	SELECT s.name, d.name AS dept FROM staff s JOIN depts d ON d.id = s.dept_id
+hr.staff.name | hr.depts.name	hr.staff.name | hr.depts.name	engine	base	hr	lineage	SELECT s.name, d.name AS dept FROM staff s JOIN depts d ON d.id = s.dept_id
+hr.depts, hr.staff	hr.depts, hr.staff	engine	base	hr	tables	SELECT s.name, d.name AS dept FROM staff s JOIN depts d ON d.id = s.dept_id
+amount	amount	engine	base	hr	results	SELECT o.amount FROM shop.orders o
+shop.orders.amount	shop.orders.amount	engine	base	hr	lineage	SELECT o.amount FROM shop.orders o
+shop.orders	shop.orders	engine	base	hr	tables	SELECT o.amount FROM shop.orders o
+name, salary	name, salary	engine	base	hr	results	SELECT * FROM rich
+hr.staff.name | hr.staff.salary	hr.staff.name | hr.staff.salary	engine	base	hr	lineage	SELECT * FROM rich
+hr.rich, hr.staff	hr.staff, ~	engine	base	hr	tables	SELECT * FROM rich
+id, salary, dept	id, salary, dept	engine	base	hr	results	SELECT * FROM shop.staff_pay
+hr.staff.id | hr.staff.salary | hr.depts.name	hr.staff.id | hr.staff.salary | hr.depts.name	engine	base	hr	lineage	SELECT * FROM shop.staff_pay
+hr.depts, hr.staff, shop.staff_pay	hr.depts, hr.staff, ~	engine	base	hr	tables	SELECT * FROM shop.staff_pay
+name	name	engine	base	hr	results	SELECT name FROM staff UNION SELECT name FROM shop.customers
+hr.staff.name shop.customers.name	hr.staff.name shop.customers.name	engine	base	hr	lineage	SELECT name FROM staff UNION SELECT name FROM shop.customers
+hr.staff, shop.customers	hr.staff, shop.customers	engine	base	hr	tables	SELECT name FROM staff UNION SELECT name FROM shop.customers

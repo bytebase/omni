@@ -453,6 +453,7 @@ func volatileFunction(node ast.Node, fullSQL string) string {
 // target when it changes more than one table.
 func statementReads(databaseName string, node ast.Node, fullSQL string, targets []DMLTarget) ColumnSet {
 	result := make(ColumnSet)
+	scope := &accessScope{defaultDatabase: databaseName}
 	// A target reads only its own rows, unless the statement changes another
 	// table too, whose rows pick its rows.
 	target := make(map[string]bool)
@@ -473,24 +474,24 @@ func statementReads(databaseName string, node ast.Node, fullSQL string, targets 
 	case *ast.UpdateStmt:
 		loc, tables = n.Loc, n.Tables
 		for _, assign := range n.SetList {
-			collectAccessTablesFromExpr(result, assign.Value, databaseName)
+			collectAccessTablesFromExpr(result, assign.Value, scope)
 		}
-		collectAccessTablesFromExpr(result, n.Where, databaseName)
-		collectAccessTablesFromOrderBy(result, n.OrderBy, databaseName)
+		collectAccessTablesFromExpr(result, n.Where, scope)
+		collectAccessTablesFromOrderBy(result, n.OrderBy, scope)
 	case *ast.DeleteStmt:
 		loc, tables = n.Loc, n.Tables
 		if len(n.Using) > 0 {
 			tables = n.Using
 		}
-		collectAccessTablesFromExpr(result, n.Where, databaseName)
-		collectAccessTablesFromOrderBy(result, n.OrderBy, databaseName)
+		collectAccessTablesFromExpr(result, n.Where, scope)
+		collectAccessTablesFromOrderBy(result, n.OrderBy, scope)
 	default:
 		return result
 	}
 	cteNames := make(map[string]bool)
 	for _, cte := range parseCTEs(withClause(fullSQL, loc)) {
 		cteNames[cte.Name] = true
-		collectAccessTablesFromNode(result, cte.Select, databaseName)
+		collectAccessTablesFromNode(result, cte.Select, scope)
 	}
 	var walk func(expr ast.TableExpr)
 	walk = func(expr ast.TableExpr) {
@@ -503,15 +504,15 @@ func statementReads(databaseName string, node ast.Node, fullSQL string, targets 
 			if target[key] || (e.Schema == "" && cteNames[e.Name]) {
 				return
 			}
-			collectAccessTablesFromTableRef(result, e, databaseName)
+			collectAccessTablesFromTableRef(result, e, scope)
 		case *ast.JoinClause:
 			walk(e.Left)
 			walk(e.Right)
 			if on, ok := e.Condition.(*ast.OnCondition); ok {
-				collectAccessTablesFromExpr(result, on.Expr, databaseName)
+				collectAccessTablesFromExpr(result, on.Expr, scope)
 			}
 		default:
-			collectAccessTablesFromTableExpr(result, expr, databaseName)
+			collectAccessTablesFromTableExpr(result, expr, scope)
 		}
 	}
 	for _, table := range tables {
