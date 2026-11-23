@@ -126,8 +126,8 @@ func TestParse_StrictReturnsAllErrors(t *testing.T) {
 }
 
 // TestParse_UnterminatedCommentReported verifies a whole-input unterminated
-// block comment surfaces a diagnostic. The comment lexes to EOF, so Split drops
-// its (empty) segment — but the lex error must still be reported, because
+// block comment surfaces a diagnostic. The comment lexes to EOF, so parseAll
+// skips its (empty) segment — but the lex error must still be reported, because
 // bytebase's Diagnose promises to flag every lexer error. Lex errors are
 // therefore collected from a single full-input pass, not per surviving segment.
 func TestParse_UnterminatedCommentReported(t *testing.T) {

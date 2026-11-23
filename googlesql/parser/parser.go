@@ -964,15 +964,19 @@ func ParseBestEffortWithDialect(input string, dialect Dialect) *ParseResult {
 // complete: it reports every unterminated string/bytes/identifier/comment and
 // invalid byte regardless of (a) which statement it lands in, (b) whether the
 // per-statement parser stopped early on the first error-recovery boundary, or
-// (c) whether Split dropped the containing chunk as "empty" (an unterminated
-// block comment lexes to EOF, so its segment is filtered — yet the lex error
-// must still surface). The result is in source order.
+// (c) whether the loop skipped the containing chunk as empty (an unterminated
+// block comment lexes to EOF, so its segment holds no statement — yet the lex
+// error must still surface). The result is in source order.
 func parseAll(input string, strictTrailing bool, dialect Dialect) *ParseResult {
 	file := &ast.File{Loc: ast.Loc{Start: 0, End: len(input)}}
 	result := &ParseResult{File: file}
 
 	lexErrs := collectLexErrors(input)
 	for _, seg := range Split(input) {
+		if seg.Empty() {
+			// A lone ';' or a comment holds no statement to parse.
+			continue
+		}
 		node, errs := parseSingleWithDialect(seg.Text, seg.ByteStart, strictTrailing, dialect)
 		if node != nil && strictTrailing && hasLexErrorIn(lexErrs, seg.ByteStart, seg.ByteEnd) {
 			// The segment lexed with an error (an unterminated comment after
@@ -1013,7 +1017,7 @@ func hasLexErrorIn(errs []ParseError, start, end int) bool {
 // lex error as a ParseError with absolute byte offsets. It is the single source
 // of lex diagnostics for ParseBestEffort: a full pass cannot miss an error the
 // way the per-segment parse path can (early recovery-stop, empty-segment
-// filtering). The lexer hides string/bytes/identifier/comment content, so this
+// skipping). The lexer hides string/bytes/identifier/comment content, so this
 // pass sees exactly the same token stream the per-segment lexers would, only
 // complete.
 func collectLexErrors(input string) []ParseError {
@@ -1034,7 +1038,7 @@ func collectLexErrors(input string) []ParseError {
 //
 // Lex errors are NOT promoted here — they are collected once over the whole
 // input by ParseBestEffort (see collectLexErrors) so none is lost to an early
-// recovery-stop within this segment or to Split dropping an error-only chunk.
+// recovery-stop within this segment or to parseAll skipping an error-only chunk.
 //
 // segText is the statement text without the trailing ';' (from Segment.Text).
 // baseOffset is segText's byte offset within the original input; it is passed
