@@ -222,7 +222,8 @@ func (c *plChecker) sqlCall(n *ast.FuncCallExpr) error {
 }
 
 // readsUnknown reports a statement that reads a relation the catalog
-// cannot know: a dictionary view or a database link's table.
+// cannot know: a dictionary view, a database link's table, or a
+// materialized view whose columns it does not keep.
 func (c *plChecker) readsUnknown(n ast.Node) bool {
 	unknown := false
 	ast.Inspect(n, func(x ast.Node) bool {
@@ -231,6 +232,11 @@ func (c *plChecker) readsUnknown(n ast.Node) bool {
 			return !unknown
 		}
 		if ref.Dblink != "" || ref.Name.DBLink != "" || ref.Name.Schema != "" && c.e.isForeignSchema(ref.Name.Schema) {
+			unknown = true
+		}
+		if target := c.e.resolveSynonymTarget(ref.Name.Name, ""); c.e.materializedViews[target] != nil && c.e.tables[target] == nil {
+			// A materialized view whose columns the catalog does not keep.
+			c.readVia(ref.Name.Name, target)
 			unknown = true
 		}
 		if ref.Name.Schema == "" && !c.e.objectExistsInNamespace(ref.Name.Name) {

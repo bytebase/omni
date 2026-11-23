@@ -117,6 +117,8 @@ type unitBook struct {
 // objectType is a CREATE TYPE the catalog holds: its spec, its body, or
 // both, as Oracle creates a body without a spec, INVALID.
 type objectType struct {
+	// under is the supertype a subtype is created UNDER.
+	under   string
 	spec    bool
 	final   bool
 	body    bool
@@ -259,6 +261,9 @@ func (e *oracleMetadataExtractor) extractCreateType(n *ast.CreateTypeStmt) {
 		return
 	}
 	t := &objectType{spec: true, final: true}
+	if n.Under != nil {
+		t.under = n.Under.Name
+	}
 	if old != nil {
 		t.body = old.body
 	}

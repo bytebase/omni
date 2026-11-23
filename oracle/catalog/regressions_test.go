@@ -3431,3 +3431,39 @@ func TestTypesConstructorsPipesAndWhen(t *testing.T) {
 		}
 	}
 }
+
+// TestSubtypesIteratorsAndPackageBodies holds four more readings: static
+// SQL reads a materialized view, a subtype's body reads inherited
+// attributes, a generalized FOR loop declares every iterand, and a body
+// that leaves out a parameterless spec procedure is PLS-00323.
+func TestSubtypesIteratorsAndPackageBodies(t *testing.T) {
+	status := func(c *Catalog, kind, name string) string {
+		for _, u := range c.unitStates() {
+			if u.kind == kind && u.name == name {
+				return strings.TrimSpace(u.status + " " + u.err)
+			}
+		}
+		return "missing"
+	}
+	c, err := LoadSQL("CREATE TABLE t (id NUMBER PRIMARY KEY);\nCREATE MATERIALIZED VIEW mv AS SELECT id FROM t;\n" +
+		"CREATE PROCEDURE reads_mv IS n NUMBER; BEGIN SELECT COUNT(*) INTO n FROM mv; END;\n/\n" +
+		"CREATE TYPE base_t AS OBJECT (a NUMBER) NOT FINAL;\n/\n" +
+		"CREATE TYPE sub_t UNDER base_t (MEMBER FUNCTION f RETURN NUMBER);\n/\n" +
+		"CREATE TYPE BODY sub_t AS MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN SELF.a + a; END; END;\n/\n" +
+		"CREATE PROCEDURE pairs IS TYPE nt IS TABLE OF NUMBER; xs nt := nt(10, 20); BEGIN FOR i, v IN PAIRS OF xs LOOP DBMS_OUTPUT.PUT_LINE(i + v); END LOOP; END;\n/\n" +
+		"CREATE PACKAGE pk AS PROCEDURE run; END;\n/\n" +
+		"CREATE PACKAGE BODY pk AS PROCEDURE other IS BEGIN NULL; END; END;\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []struct{ kind, name, status string }{
+		{unitProcedure, "READS_MV", "VALID"},
+		{unitTypeBody, "SUB_T", "VALID"},
+		{unitProcedure, "PAIRS", "VALID"},
+		{unitPackageBody, "PK", "INVALID PLS-00323"},
+	} {
+		if got := status(c, want.kind, want.name); got != want.status {
+			t.Errorf("%s %s: %s, want %s", want.kind, want.name, got, want.status)
+		}
+	}
+}

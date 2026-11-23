@@ -43,9 +43,6 @@ func (c *plChecker) packageBody(n *ast.CreatePackageStmt) {
 			continue
 		}
 		for _, sig := range sym.subprograms {
-			if sig.text == "" {
-				continue
-			}
 			found := false
 			for _, d := range defined[name] {
 				if d == sig.text {
@@ -174,16 +171,26 @@ func (c *plChecker) typeBody(n *ast.CreateTypeStmt) {
 		return
 	}
 	attrs := map[string]bool{}
-	for _, a := range t.attrs {
-		attrs[a] = true
-		c.declare(a, &plSym{kind: plVariable})
-	}
 	methods := map[string]bool{}
-	for _, m := range t.methods {
-		methods[m] = true
-		attrs[m] = true
-		// A method may call another, or itself, without SELF.
-		c.declare(m, &plSym{kind: plSubprogram})
+	// A subtype's body reads the attributes and methods it inherits.
+	seen := map[string]bool{}
+	for name, ty := c.name, t; ty != nil && !seen[name]; name, ty = ty.under, c.e.units.types[ty.under] {
+		seen[name] = true
+		for _, a := range ty.attrs {
+			attrs[a] = true
+			c.declare(a, &plSym{kind: plVariable})
+		}
+		for _, m := range ty.methods {
+			if name == c.name {
+				methods[m] = true
+			}
+			attrs[m] = true
+			// A method may call another, or itself, without SELF.
+			c.declare(m, &plSym{kind: plSubprogram})
+		}
+		if ty.under == "" {
+			break
+		}
 	}
 	c.declare("SELF", &plSym{kind: plVariable, fields: attrs})
 	for _, item := range listItems(n.Body) {

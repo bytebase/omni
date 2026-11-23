@@ -161,6 +161,14 @@ func (c *plChecker) cursor(name string) {
 func (c *plChecker) loop(s *ast.PLSQLLoop) {
 	c.push()
 	defer c.pop()
+	if s.Iteration != nil {
+		// FOR i, v IN PAIRS OF xs: every iterand is the loop's own.
+		for _, item := range listItems(s.Iteration.Iterands) {
+			if it, ok := item.(*ast.PLSQLIterand); ok {
+				c.declare(it.Name, &plSym{kind: plInParam})
+			}
+		}
+	}
 	switch s.Type {
 	case ast.LOOP_WHILE:
 		c.expr(s.Condition)
