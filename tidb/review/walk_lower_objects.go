@@ -75,7 +75,7 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	if kind == relSequence {
 		return false
 	}
-	if b.tooLong(v.IndexName, rng) {
+	if b.tooLong(v.IndexName, rng) || b.indexFuncFails(v.Columns, rng) {
 		return true
 	}
 	k, ok := b.key(spaceIndex, v.IndexName)
@@ -102,6 +102,7 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 		}
 	}
 	b.Set(ik, walk.Present, "")
+	b.Set(indexSetKey(r.db, r.name), walk.Unknown, "")
 	return true
 }
 
@@ -119,6 +120,10 @@ func (b *builder) dropIndex(v *ast.DropIndexStmt) bool {
 	if !ok {
 		return lowered
 	}
+	if b.dropIndexFKFails(r, v.Name, b.anchor()) {
+		return true
+	}
+	b.Set(indexSetKey(r.db, r.name), walk.Unknown, "")
 	return b.dropIndexName(r, v.Name, b.anchor(), v.IfExists)
 }
 

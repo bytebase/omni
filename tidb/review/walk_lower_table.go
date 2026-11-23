@@ -45,6 +45,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		// and AUTO_RANDOM column no longer holds.
 		b.Set(tableCharsetKey(r.db, r.name), walk.Unknown, "")
 		b.Set(autoRandomKey(r.db, r.name), walk.Unknown, "")
+		b.Set(idCacheKey(r.db, r.name), walk.Unknown, "")
 		return true
 	}
 	// TiDB runs ALTER TABLE <view> COMPACT [TIFLASH REPLICA] without 1347
@@ -71,7 +72,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	}
 	b.Order = walk.Lookups
 	b.fks = true
-	if b.alterTextFails(v, r) || b.charsetChangeFails(v, r) || b.autoRandomFails(v, r) {
+	if b.alterTextFails(v, r) || b.alterTextShapeFails(v) || b.charsetChangeFails(v, r) || b.autoRandomFails(v, r) || b.alterShapeFails(v, r) {
 		return true
 	}
 	parted := b.partitioning(r)
@@ -99,6 +100,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	b.Next()
 	b.charsetEffects(v, r)
 	b.autoRandomEffects(v, r)
+	b.shapeEffects(v, r)
 	if rename != nil {
 		b.Next()
 		return b.alterRename(r, rename)
@@ -754,6 +756,10 @@ func (b *builder) renameTable(v *ast.RenameTableStmt) bool {
 // characters is a note (verified).
 func (b *builder) dropTable(v *ast.DropTableStmt) bool {
 	b.Order = walk.Lookups
+	// dropped lists the base tables the statement drops, while the walk
+	// knows what each name is; known is false once it doesn't.
+	var dropped []tableRef
+	known := !v.Temporary
 	for _, t := range v.Tables {
 		b.Next()
 		r, st := b.ref(t)
@@ -779,12 +785,20 @@ func (b *builder) dropTable(v *ast.DropTableStmt) bool {
 			b.Set(tk, walk.Absent, "")
 			continue
 		case walk.Unknown:
+			known = false
 			b.Set(tk, walk.Unknown, "")
 			b.Set(k, walk.Unknown, "")
 			b.Forget(path)
 			continue
 		}
 		f, kind := b.l.Lookup(k)
+		switch {
+		case f == walk.Present && kind == relTable:
+			dropped = append(dropped, r)
+		case f == walk.Absent && v.IfExists:
+		default:
+			known = false
+		}
 		if !v.IfExists {
 			// A view is no table to DROP TABLE (1051).
 			b.needKind(k, []string{relTable}, r.rng, notFound("table", r.written, ""), r.written, "table")
@@ -802,6 +816,22 @@ func (b *builder) dropTable(v *ast.DropTableStmt) bool {
 			b.Clear(path)
 		}
 	}
+	if known {
+		// A table a foreign key of a table the statement keeps references
+		// fails (3730).
+		for _, r := range dropped {
+			if b.referencedFail(r, func(child string) bool {
+				for _, d := range dropped {
+					if d.db == b.w.snap.db && d.name == child {
+						return false
+					}
+				}
+				return true
+			}) {
+				return true
+			}
+		}
+	}
 	return true
 }
 
@@ -816,8 +846,11 @@ func (b *builder) truncate(v *ast.TruncateStmt) bool {
 		case refUnknown:
 			continue
 		}
-		if f, temp, _ := b.resolve(r); !temp && f != walk.Unknown {
+		if f, temp, kind := b.resolve(r); !temp && f != walk.Unknown {
 			b.needKind(relKey(r.db, r.name), []string{relTable}, r.rng, notFound("table", r.written, ""), r.written, "table")
+			if f == walk.Present && kind == relTable && b.referencedFail(r, func(string) bool { return true }) {
+				return true
+			}
 		}
 	}
 	return true

@@ -343,3 +343,10 @@ var tidbBuiltinFunctions = map[string]bool{
 	"vec_l2_norm":                true,
 	"vec_negative_inner_product": true,
 }
+
+// IsBuiltinFunction reports whether name, compared without case, is one of
+// TiDB v8.5.5's native functions: an unqualified call of any other name
+// fails with 1305, since TiDB has no stored functions.
+func IsBuiltinFunction(name string) bool {
+	return tidbBuiltinFunctions[toLower(name)]
+}
