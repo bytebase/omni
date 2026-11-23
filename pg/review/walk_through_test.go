@@ -945,6 +945,12 @@ func TestWalkThroughSyncedColumnAndDependencyChecks(t *testing.T) {
 					},
 				},
 				{
+					Name: "u",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "n", Position: 1, Type: "boolean", Nullable: true},
+					},
+				},
+				{
 					Name: "parted",
 					Columns: []*metadata.ColumnMetadata{
 						{Name: "k", Position: 1, Type: "integer", Nullable: false},
@@ -960,6 +966,7 @@ func TestWalkThroughSyncedColumnAndDependencyChecks(t *testing.T) {
 			},
 			Functions: []*metadata.FunctionMetadata{
 				{Name: "tf", Definition: "CREATE OR REPLACE FUNCTION public.tf() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$"},
+				{Name: "tf2", Definition: "CREATE OR REPLACE FUNCTION public.tf2() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$"},
 				{Name: "with_def", Definition: "CREATE OR REPLACE FUNCTION public.with_def(a integer, b integer DEFAULT 1) RETURNS integer LANGUAGE sql IMMUTABLE AS 'SELECT a + b'"},
 			},
 		}},
@@ -1031,6 +1038,9 @@ func TestWalkThroughSyncedColumnAndDependencyChecks(t *testing.T) {
 		"ALTER TABLE child DROP CONSTRAINT child_tid_fkey;\nDROP TABLE t;",
 		"DROP FUNCTION tf() CASCADE;",
 		"DROP TRIGGER tr_t ON t;\nDROP FUNCTION tf();",
+		"CREATE OR REPLACE TRIGGER tr_t BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION public.tf2();\nDROP FUNCTION public.tf();",
+		"ALTER TABLE t RENAME TO old_t;\nALTER TABLE u RENAME TO t;\nALTER TABLE t ADD CHECK (n);",
+		"ALTER TYPE public.pair RENAME ATTRIBUTE x TO y;\nALTER TYPE public.pair ADD ATTRIBUTE x integer;",
 		"ALTER TYPE pair ADD ATTRIBUTE x text, DROP ATTRIBUTE x;",
 		"ALTER TYPE pair ALTER ATTRIBUTE x TYPE pair[];",
 		"ALTER TABLE t_n_idx ALTER COLUMN flag SET STATISTICS 10;",

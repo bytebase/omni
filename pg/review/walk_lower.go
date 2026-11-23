@@ -2566,6 +2566,8 @@ func (b *builder) renamed(from, to walk.Key) {
 		}
 		w.modifiedViews[from] = true
 		w.modifiedViews[to] = true
+		w.dirtyTables[from] = true
+		w.dirtyTables[to] = true
 		w.unlist(to)
 		if !slices.Contains(w.made, from) {
 			w.made = append(w.made, to)
@@ -3760,6 +3762,11 @@ func (b *builder) createTrigger(v *ast.CreateTrigStmt) bool {
 		if fnParts := nameParts(v.Funcname); len(fnParts) > 0 {
 			b.checkRoutineName(fnParts, ast.OBJECT_FUNCTION, false, false)
 		}
+	}
+	if r.fact == walk.Present {
+		b.session(func() { b.w.dirtyTables[r.key] = true })
+	} else {
+		b.session(func() { b.w.allDirty = true })
 	}
 	return true
 }
@@ -5106,6 +5113,7 @@ func (b *builder) renameAttribute(v *ast.RenameStmt) bool {
 		return true
 	}
 	b.forget(walk.Scope{Space: spaceColumn, Parent: tableOf(r.key)})
+	b.session(func() { b.w.dirtyTypes[r.key] = true })
 	return true
 }
 

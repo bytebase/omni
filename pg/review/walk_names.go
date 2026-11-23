@@ -439,6 +439,14 @@ func (b *builder) resolveRoutine(parts []string, objType ast.ObjectType) resolve
 	return resolved{fact: walk.Absent, keys: keys}
 }
 
+// routineInSchema resolves a routine in one schema. Like inSchema for
+// relations, pg_catalog is never synced: PostgreSQL refuses to create user
+// objects in pg_catalog unless allow_system_table_mods is enabled
+// (pg: src/backend/catalog/namespace.c — QualifiedNameGetCreationNamespace).
+// Assuming that developer setting is off, implicit pg_catalog lookup treats
+// built-in/system routine names (pg_*, builtinCatalogFunctions, builtinCalls,
+// IsSystemFunction) as Unknown and other names as Absent, while names
+// explicitly qualified with pg_catalog are never judged (see resolveRoutine).
 func (b *builder) routineInSchema(schema, name string, objType ast.ObjectType) resolved {
 	if schema == "pg_catalog" {
 		if strings.HasPrefix(name, "pg_") {
@@ -447,7 +455,7 @@ func (b *builder) routineInSchema(schema, name string, objType ast.ObjectType) r
 		if objType == ast.OBJECT_PROCEDURE {
 			return resolved{fact: walk.Absent}
 		}
-		if builtinCatalogFunctions[name] || builtinCalls[strings.ToLower(name)] {
+		if builtinCatalogFunctions[name] || !trustedRoutineName(name) {
 			return resolved{}
 		}
 		return resolved{fact: walk.Absent}
