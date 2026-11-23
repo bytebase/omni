@@ -235,6 +235,8 @@ func TestProgramBinding(t *testing.T) {
 		{"qualified UPDATE target in its FROM", nil, "CREATE PROCEDURE p AS UPDATE dbo.t SET id = id + 1 FROM dbo.t", 0},
 		{"INSERT skips a table variable's computed column", nil, "CREATE PROCEDURE p AS BEGIN DECLARE @t TABLE (id INT, doubled AS id * 2); INSERT INTO @t VALUES (1); END", 0},
 		{"method receiver is bound", nil, "CREATE VIEW v AS SELECT CAST(nope AS xml).value('(/x)[1]', 'int') AS x FROM t", ErrInvalidColumnName},
+		{"table variable target in its FROM", nil, "CREATE PROCEDURE p AS BEGIN DECLARE @t TABLE (id INT); UPDATE @t SET id = id + 1 FROM @t; END", 0},
+		{"INSERT through a view projecting an identity", []string{"CREATE TABLE ti (id INT IDENTITY(1,1) NOT NULL, payload INT NULL)", "CREATE VIEW vi AS SELECT id, payload FROM ti"}, "CREATE PROCEDURE p AS INSERT INTO vi VALUES (1)", 0},
 		{"recursive call binds the new signature", []string{"CREATE FUNCTION dbo.f(@x INT) RETURNS INT AS BEGIN RETURN @x END"}, "ALTER FUNCTION dbo.f(@x INT, @y INT) RETURNS INT AS BEGIN RETURN CASE WHEN @x <= 0 THEN @y ELSE dbo.f(@x - 1, @y) END; END", 0},
 		{"recursive call with the old signature", []string{"CREATE FUNCTION dbo.f(@x INT) RETURNS INT AS BEGIN RETURN @x END"}, "ALTER FUNCTION dbo.f(@x INT, @y INT) RETURNS INT AS BEGIN RETURN dbo.f(@x); END", 313},
 	}

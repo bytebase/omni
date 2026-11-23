@@ -611,6 +611,13 @@ func (pb *programBinder) dmlScope(wc *ast.WithClause, target ast.Node, fromClaus
 			}
 		}
 	}
+	if v, ok := target.(*ast.TableVarRef); ok && v.Alias == "" {
+		for _, r := range sc.rels {
+			if strings.EqualFold(r.name, v.Name) {
+				return sc, r, nil
+			}
+		}
+	}
 	rels, err := pb.tableExpr(target, sc, nil)
 	if err != nil {
 		return nil, nil, err
@@ -655,7 +662,9 @@ func (pb *programBinder) insert(s *ast.InsertStmt) error {
 			}
 		}
 		width = len(cols)
-	} else if !target.opaque {
+	} else if _, tableVar := s.Relation.(*ast.TableVarRef); !target.opaque && (target.table != nil || tableVar) {
+		// A view's columns do not say which an INSERT fills by itself
+		// (an identity it projects), so its width is not checked.
 		width = insertColumns(target)
 	}
 	switch src := s.Source.(type) {
