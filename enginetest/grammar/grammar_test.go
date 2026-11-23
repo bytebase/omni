@@ -372,8 +372,12 @@ IfNotExists:
 	if render(got) != want {
 		t.Errorf("rows:\n%s\nwant:\n%s", render(got), want)
 	}
-	if _, err := ReadBison(src, tokens(map[string]string{"identifier": "a", "IF": EverySite})); err == nil {
-		t.Errorf("a token given %s: no error", EverySite)
+	g, err := ReadBison(src, tokens(map[string]string{"identifier": "a", "IF": EverySite}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := g.EverySiteAbsent(); len(got) != 1 || got[0] != "IF" {
+		t.Errorf("a token given %s: absent %q, want [IF]", EverySite, got)
 	}
 
 	// A rule that only names a nullable rule writes the clause that rule

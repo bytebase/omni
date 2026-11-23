@@ -28,7 +28,9 @@ design is `docs/specs/2026-11-11-engine-compatibility-without-servers-design.md`
   `TestDorisLegacyParserIsTheConversion` holds it to the conversion.
 - **`tokens.tsv`** gives the text each token class of `DorisLexer.g4` is written
   as, citing its lexer rule, and the tokens of `sql_scanner.flex` that
-  `DorisLexer.g4` has no match for.
+  `DorisLexer.g4` has no match for. Its `(every site)` rows name the optional
+  clauses each grammar writes at many sites; a rule one of the two grammars
+  lacks is no error, a rule neither has is.
 
 | File | SHA-256 |
 | --- | --- |

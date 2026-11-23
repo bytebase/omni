@@ -2,6 +2,7 @@ package grammar
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -132,12 +133,23 @@ func (g *Grammar) sampleRules(tokens *Tokens) error {
 		g.ruleText[r.name] = form
 		delete(g.termText, r.name)
 	}
+	return nil
+}
+
+// EverySiteAbsent returns, sorted, the names tokens.tsv gives the form
+// EverySite that name no rule of this grammar. A token table can serve more
+// than one grammar, as Doris's serves its ANTLR parser and its converted CUP
+// one, so a name only some of them have is no error here: the caller fails a
+// name none of its grammars has (compat.Check does).
+func (g *Grammar) EverySiteAbsent() []string {
+	var absent []string
 	for name := range g.everySite {
 		if _, ok := g.byName[name]; !ok {
-			return fmt.Errorf("tokens.tsv gives %s the form %s, which only a rule takes, and the grammar has no rule %s", name, EverySite, name)
+			absent = append(absent, name)
 		}
 	}
-	return nil
+	sort.Strings(absent)
+	return absent
 }
 
 // newGrammar returns an empty grammar holding the token table's forms.

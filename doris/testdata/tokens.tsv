@@ -23,3 +23,43 @@ NUMERIC_OVERFLOW	(unreachable)	sql_scanner.flex:807 a number too large for its l
 COMMENTED_PLAN_HINTS	(unreachable)	sql_parser.cup declares it and sql_scanner.flex never makes it
 FLOATINGPOINT_LITERAL	(unreachable)	sql_parser.cup declares it and sql_scanner.flex never makes it
 KW_TREE	(unreachable)	sql_parser.cup declares it and sql_scanner.flex never makes it
+# Optional clauses tried at every site the grammar allows them, and not only
+# at the one its own row reaches. In DorisParser.g4 each is an inline (...)?
+# group, which the reader lowers to a rule named after the rule that holds it
+# and the group; in DorisLegacyParser.g4 each is an opt_ rule. Each note cites
+# the first site.
+alterTableClause(FORCE)?	(every site)	DorisParser.g4:640 FORCE
+alterTableClause(IF_EXISTS)?	(every site)	DorisParser.g4:640 IF EXISTS
+alterTableClause(TEMPORARY)?	(every site)	DorisParser.g4:635 TEMPORARY
+createOrReplaceBranchClause(IF_NOT_EXISTS)?	(every site)	DorisParser.g4:676 IF NOT EXISTS
+createOrReplaceTagClause(IF_NOT_EXISTS)?	(every site)	DorisParser.g4:671 IF NOT EXISTS
+dropBranchClause(IF_EXISTS)?	(every site)	DorisParser.g4:707 IF EXISTS
+dropTagClause(IF_EXISTS)?	(every site)	DorisParser.g4:711 IF EXISTS
+fixedPartitionDef(IF_NOT_EXISTS)?	(every site)	DorisParser.g4:1448 IF NOT EXISTS
+inPartitionDef(IF_NOT_EXISTS)?	(every site)	DorisParser.g4:1456 IF NOT EXISTS
+indexDef(IF_NOT_EXISTS)?	(every site)	DorisParser.g4:1432 IF NOT EXISTS
+lessThanPartitionDef(IF_NOT_EXISTS)?	(every site)	DorisParser.g4:1444 IF NOT EXISTS
+materializedViewStatement(IF_EXISTS)?	(every site)	DorisParser.g4:107 IF EXISTS
+materializedViewStatement(IF_NOT_EXISTS)?	(every site)	DorisParser.g4:92 IF NOT EXISTS
+partitionSpec(TEMPORARY)?	(every site)	DorisParser.g4:963 TEMPORARY
+specifiedPartition(TEMPORARY)?	(every site)	DorisParser.g4:1664 TEMPORARY
+statement(IF_EXISTS)?	(every site)	DorisParser.g4:44 IF EXISTS
+statement(OR_REPLACE)?	(every site)	DorisParser.g4:43 OR REPLACE
+supportedCreateStatement(IF_NOT_EXISTS)?	(every site)	DorisParser.g4:168 IF NOT EXISTS
+supportedCreateStatement(OR_REPLACE)?	(every site)	DorisParser.g4:181 OR REPLACE
+supportedDropStatement(IF_EXISTS)?	(every site)	DorisParser.g4:215 IF EXISTS
+unsupportedAlterStatement(IF_EXISTS)?	(every site)	DorisParser.g4:587 IF EXISTS
+unsupportedCreateStatement(IF_NOT_EXISTS)?	(every site)	DorisParser.g4:794 IF NOT EXISTS
+unsupportedDropStatement(FORCE)?	(every site)	DorisParser.g4:728 FORCE
+unsupportedDropStatement(IF_EXISTS)?	(every site)	DorisParser.g4:728 IF EXISTS
+unsupportedDropStatement(TEMPORARY)?	(every site)	DorisParser.g4:732 TEMPORARY
+unsupportedJobStatement(IF_EXISTS)?	(every site)	DorisParser.g4:456 IF EXISTS
+unsupportedOtherStatement(FORCE)?	(every site)	DorisParser.g4:245 FORCE
+unsupportedShowStatement(FULL)?	(every site)	DorisParser.g4:276 FULL
+unsupportedShowStatement(TEMPORARY)?	(every site)	DorisParser.g4:320 TEMPORARY
+opt_if_not_exists	(every site)	DorisLegacyParser.g4:1343 (sql_parser.cup:4253) IF NOT EXISTS
+opt_if_exists	(every site)	DorisLegacyParser.g4:1337 (sql_parser.cup:4243) IF EXISTS
+opt_or_replace	(every site)	DorisLegacyParser.g4:1331 (sql_parser.cup:4233) OR REPLACE
+opt_tmp	(every site)	DorisLegacyParser.g4:1514 (sql_parser.cup:4915) TEMPORARY
+opt_force	(every site)	DorisLegacyParser.g4:1361 (sql_parser.cup:4285) FORCE
+opt_full	(every site)	DorisLegacyParser.g4:1582 (sql_parser.cup:5008) FULL or EXTENDED

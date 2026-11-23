@@ -4327,6 +4327,7 @@ reject	reject	engine	addPartitionClause/ADD_(TEMPORARY)?_(singleItemListPartitio
 reject	reject	engine	addPartitionClause/ADD_(TEMPORARY)?_(singleItemListPartitionDesc|multiIte~~4001bf03!truncate	ALTER SYSTEM ADD PARTITION a VALUES IN(NULL
 reject	reject	engine	addPartitionClause/ADD_(TEMPORARY)?_(singleItemListPartitionDesc|multiIte~~4001bf03!insert	ALTER SYSTEM ADD PARTITION a VALUES IN(NULL) zzz;
 reject	reject	engine	addPartitionClause/ADD_(TEMPORARY)?_(singleItemListPartitionDesc|multiIte~~4001bf03!swap	ALTER SYSTEM ADMIN PARTITION a VALUES IN(NULL);
+accept	accept	engine	addPartitionClause/ADD_(TEMPORARY)?_(singleItemListPartitionDesc|multiIte~~4001bf03+addPartitionClause(TEMPORARY)?	ALTER SYSTEM ADD TEMPORARY PARTITION a VALUES IN(NULL);
 accept	accept	engine	addPartitionClause(TEMPORARY)?/%empty	ALTER SYSTEM ADD PARTITION a VALUES LESS THAN MAXVALUE;
 reject	reject	engine	addPartitionClause(TEMPORARY)?/%empty!insert	ALTER SYSTEM ADD zzz PARTITION a VALUES LESS THAN MAXVALUE;
 accept	accept	engine	addPartitionClause(TEMPORARY)?/TEMPORARY	ALTER SYSTEM ADD TEMPORARY PARTITION a VALUES LESS THAN MAXVALUE;
@@ -4401,6 +4402,11 @@ reject	reject	engine	dropPartitionClause/DROP_(TEMPORARY)?_PARTITIONS_(IF_EXISTS
 reject	reject	engine	dropPartitionClause/DROP_(TEMPORARY)?_PARTITIONS_(IF_EXISTS)?_multiRangePar~6dd083ea!truncate	ALTER SYSTEM DROP PARTITIONS START('a') END('a') EVERY(1
 reject	reject	engine	dropPartitionClause/DROP_(TEMPORARY)?_PARTITIONS_(IF_EXISTS)?_multiRangePar~6dd083ea!insert	ALTER SYSTEM DROP PARTITIONS START('a') END('a') EVERY(1) zzz;
 reject	reject	engine	dropPartitionClause/DROP_(TEMPORARY)?_PARTITIONS_(IF_EXISTS)?_multiRangePar~6dd083ea!swap	ALTER SYSTEM DUAL PARTITIONS START('a') END('a') EVERY(1);
+accept	accept	engine	dropPartitionClause/DROP_(TEMPORARY)?_PARTITIONS_(IF_EXISTS)?_multiRangePar~6dd083ea+dropPartitionClause(TEMPORARY)?	ALTER SYSTEM DROP TEMPORARY PARTITIONS START('a') END('a') EVERY(1);
+accept	accept	engine	dropPartitionClause/DROP_(TEMPORARY)?_PARTITIONS_(IF_EXISTS)?_multiRangePar~6dd083ea+dropPartitionClause(IF_EXISTS)?	ALTER SYSTEM DROP PARTITIONS IF EXISTS START('a') END('a') EVERY(1);
+reject	reject	engine	dropPartitionClause/DROP_(TEMPORARY)?_PARTITIONS_(IF_EXISTS)?_multiRangePar~6dd083ea+dropPartitionClause(IF_EXISTS)?!drop-3	ALTER SYSTEM DROP PARTITIONS EXISTS START('a') END('a') EVERY(1);
+reject	reject	engine	dropPartitionClause/DROP_(TEMPORARY)?_PARTITIONS_(IF_EXISTS)?_multiRangePar~6dd083ea+dropPartitionClause(IF_EXISTS)?!drop-4	ALTER SYSTEM DROP PARTITIONS IF START('a') END('a') EVERY(1);
+accept	accept	engine	dropPartitionClause/DROP_(TEMPORARY)?_PARTITIONS_(IF_EXISTS)?_multiRangePar~6dd083ea+dropPartitionClause(FORCE)?	ALTER SYSTEM DROP PARTITIONS START('a') END('a') EVERY(1) FORCE;
 accept	accept	engine	dropPartitionClause/DROP_(TEMPORARY)?_PARTITIONS_(IF_EXISTS)?_WHERE_express~89970379	ALTER SYSTEM DROP PARTITIONS WHERE CURRENT_USER;
 reject	reject	engine	dropPartitionClause/DROP_(TEMPORARY)?_PARTITIONS_(IF_EXISTS)?_WHERE_express~89970379!drop-1	ALTER SYSTEM PARTITIONS WHERE CURRENT_USER;
 reject	reject	engine	dropPartitionClause/DROP_(TEMPORARY)?_PARTITIONS_(IF_EXISTS)?_WHERE_express~89970379!drop-2	ALTER SYSTEM DROP WHERE CURRENT_USER;
@@ -4409,6 +4415,11 @@ reject	reject	engine	dropPartitionClause/DROP_(TEMPORARY)?_PARTITIONS_(IF_EXISTS
 reject	reject	engine	dropPartitionClause/DROP_(TEMPORARY)?_PARTITIONS_(IF_EXISTS)?_WHERE_express~89970379!truncate	ALTER SYSTEM DROP PARTITIONS WHERE
 reject	reject	engine	dropPartitionClause/DROP_(TEMPORARY)?_PARTITIONS_(IF_EXISTS)?_WHERE_express~89970379!insert	ALTER SYSTEM DROP PARTITIONS WHERE CURRENT_USER zzz;
 reject	reject	engine	dropPartitionClause/DROP_(TEMPORARY)?_PARTITIONS_(IF_EXISTS)?_WHERE_express~89970379!swap	ALTER SYSTEM DUAL PARTITIONS WHERE CURRENT_USER;
+accept	accept	engine	dropPartitionClause/DROP_(TEMPORARY)?_PARTITIONS_(IF_EXISTS)?_WHERE_express~89970379+dropPartitionClause(TEMPORARY)?	ALTER SYSTEM DROP TEMPORARY PARTITIONS WHERE CURRENT_USER;
+accept	accept	engine	dropPartitionClause/DROP_(TEMPORARY)?_PARTITIONS_(IF_EXISTS)?_WHERE_express~89970379+dropPartitionClause(IF_EXISTS)?	ALTER SYSTEM DROP PARTITIONS IF EXISTS WHERE CURRENT_USER;
+reject	reject	engine	dropPartitionClause/DROP_(TEMPORARY)?_PARTITIONS_(IF_EXISTS)?_WHERE_express~89970379+dropPartitionClause(IF_EXISTS)?!drop-3	ALTER SYSTEM DROP PARTITIONS EXISTS WHERE CURRENT_USER;
+reject	reject	engine	dropPartitionClause/DROP_(TEMPORARY)?_PARTITIONS_(IF_EXISTS)?_WHERE_express~89970379+dropPartitionClause(IF_EXISTS)?!drop-4	ALTER SYSTEM DROP PARTITIONS IF WHERE CURRENT_USER;
+accept	accept	engine	dropPartitionClause/DROP_(TEMPORARY)?_PARTITIONS_(IF_EXISTS)?_WHERE_express~89970379+dropPartitionClause(FORCE)?	ALTER SYSTEM DROP PARTITIONS WHERE CURRENT_USER FORCE;
 accept	accept	engine	dropPartitionClause/DROP_ALL_TEMPORARY_PARTITIONS_(FORCE)?	ALTER SYSTEM DROP ALL TEMPORARY PARTITIONS;
 reject	reject	engine	dropPartitionClause/DROP_ALL_TEMPORARY_PARTITIONS_(FORCE)?!drop-1	ALTER SYSTEM ALL TEMPORARY PARTITIONS;
 reject	reject	engine	dropPartitionClause/DROP_ALL_TEMPORARY_PARTITIONS_(FORCE)?!drop-2	ALTER SYSTEM DROP TEMPORARY PARTITIONS;
@@ -4417,6 +4428,7 @@ reject	reject	engine	dropPartitionClause/DROP_ALL_TEMPORARY_PARTITIONS_(FORCE)?!
 reject	reject	engine	dropPartitionClause/DROP_ALL_TEMPORARY_PARTITIONS_(FORCE)?!truncate	ALTER SYSTEM DROP ALL TEMPORARY
 reject	reject	engine	dropPartitionClause/DROP_ALL_TEMPORARY_PARTITIONS_(FORCE)?!insert	ALTER SYSTEM DROP ALL TEMPORARY PARTITIONS zzz;
 reject	reject	engine	dropPartitionClause/DROP_ALL_TEMPORARY_PARTITIONS_(FORCE)?!swap	ALTER SYSTEM DUAL ALL TEMPORARY PARTITIONS;
+accept	accept	engine	dropPartitionClause/DROP_ALL_TEMPORARY_PARTITIONS_(FORCE)?+dropPartitionClause(FORCE)?	ALTER SYSTEM DROP ALL TEMPORARY PARTITIONS FORCE;
 accept	accept	engine	dropPartitionClause(TEMPORARY)?/%empty	ALTER SYSTEM DROP PARTITION a;
 reject	reject	engine	dropPartitionClause(TEMPORARY)?/%empty!insert	ALTER SYSTEM DROP zzz PARTITION a;
 accept	accept	engine	dropPartitionClause(TEMPORARY)?/TEMPORARY	ALTER SYSTEM DROP TEMPORARY PARTITION a;
@@ -4432,6 +4444,9 @@ reject	reject	engine	dropPartitionClause(PARTITION_(IF_EXISTS)?_identifier|PA~6c
 reject	reject	engine	dropPartitionClause(PARTITION_(IF_EXISTS)?_identifier|PA~6cc2dd25)/PARTITIONS_(IF_EXISTS)?_identifierList!truncate	ALTER SYSTEM DROP PARTITIONS(a
 reject	reject	engine	dropPartitionClause(PARTITION_(IF_EXISTS)?_identifier|PA~6cc2dd25)/PARTITIONS_(IF_EXISTS)?_identifierList!insert	ALTER SYSTEM DROP PARTITIONS(a) zzz;
 reject	reject	engine	dropPartitionClause(PARTITION_(IF_EXISTS)?_identifier|PA~6cc2dd25)/PARTITIONS_(IF_EXISTS)?_identifierList!swap	ALTER SYSTEM DROP PASSWORD(a);
+accept	accept	engine	dropPartitionClause(PARTITION_(IF_EXISTS)?_identifier|PA~6cc2dd25)/PARTITIONS_(IF_EXISTS)?_identifierList+dropPartitionClause(IF_EXISTS)?	ALTER SYSTEM DROP PARTITIONS IF EXISTS(a);
+reject	reject	engine	dropPartitionClause(PARTITION_(IF_EXISTS)?_identifier|PA~6cc2dd25)/PARTITIONS_(IF_EXISTS)?_identifierList+dropPartitionClause(IF_EXISTS)?!drop-2	ALTER SYSTEM DROP PARTITIONS EXISTS(a);
+reject	reject	engine	dropPartitionClause(PARTITION_(IF_EXISTS)?_identifier|PA~6cc2dd25)/PARTITIONS_(IF_EXISTS)?_identifierList+dropPartitionClause(IF_EXISTS)?!drop-3	ALTER SYSTEM DROP PARTITIONS IF(a);
 accept	accept	engine	dropPartitionClause(IF_EXISTS)?/%empty	ALTER SYSTEM DROP PARTITION a;
 reject	reject	engine	dropPartitionClause(IF_EXISTS)?/%empty!insert	ALTER SYSTEM DROP PARTITION zzz a;
 accept	accept	engine	dropPartitionClause(IF_EXISTS)?/IF_EXISTS	ALTER SYSTEM DROP PARTITION IF EXISTS a;
@@ -6127,6 +6142,9 @@ reject	reject	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_DEFAULT_ROL
 reject	reject	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_DEFAULT_ROLE_(NONE|ALL|roleList)!truncate	ALTER USER a DEFAULT ROLE
 reject	reject	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_DEFAULT_ROLE_(NONE|ALL|roleList)!insert	ALTER USER a DEFAULT ROLE NONE zzz;
 reject	reject	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_DEFAULT_ROLE_(NONE|ALL|roleList)!swap	ANALYZE USER a DEFAULT ROLE NONE;
+accept	accept	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_DEFAULT_ROLE_(NONE|ALL|roleList)+alterUserStatement(IF_EXISTS)?	ALTER USER IF EXISTS a DEFAULT ROLE NONE;
+reject	reject	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_DEFAULT_ROLE_(NONE|ALL|roleList)+alterUserStatement(IF_EXISTS)?!drop-3	ALTER USER EXISTS a DEFAULT ROLE NONE;
+reject	reject	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_DEFAULT_ROLE_(NONE|ALL|roleList)+alterUserStatement(IF_EXISTS)?!drop-4	ALTER USER IF a DEFAULT ROLE NONE;
 accept	accept	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_SET_properties	ALTER USER a SET PROPERTIES('a' = 'a');
 reject	reject	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_SET_properties!drop-1	USER a SET PROPERTIES('a' = 'a');
 reject	reject	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_SET_properties!drop-3	ALTER USER SET PROPERTIES('a' = 'a');
@@ -6140,6 +6158,9 @@ reject	reject	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_SET_propert
 reject	reject	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_SET_properties!truncate	ALTER USER a SET PROPERTIES('a' = 'a'
 reject	reject	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_SET_properties!insert	ALTER USER a SET PROPERTIES('a' = 'a') zzz;
 reject	reject	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_SET_properties!swap	ANALYZE USER a SET PROPERTIES('a' = 'a');
+accept	accept	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_SET_properties+alterUserStatement(IF_EXISTS)?	ALTER USER IF EXISTS a SET PROPERTIES('a' = 'a');
+reject	reject	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_SET_properties+alterUserStatement(IF_EXISTS)?!drop-3	ALTER USER EXISTS a SET PROPERTIES('a' = 'a');
+reject	reject	engine	alterUserStatement/ALTER_USER_(IF_EXISTS)?_user_SET_properties+alterUserStatement(IF_EXISTS)?!drop-4	ALTER USER IF a SET PROPERTIES('a' = 'a');
 accept	accept	engine	alterUserStatement(IF_EXISTS)?/%empty	ALTER USER a IDENTIFIED BY 'a';
 reject	reject	engine	alterUserStatement(IF_EXISTS)?/%empty!insert	ALTER USER zzz a IDENTIFIED BY 'a';
 accept	accept	engine	alterUserStatement(IF_EXISTS)?/IF_EXISTS	ALTER USER IF EXISTS a IDENTIFIED BY 'a';
@@ -7244,6 +7265,13 @@ accept	accept	engine	showSmallFilesStatement(FROM|IN)/IN	SHOW FILE IN a;
 reject	reject	engine	showSmallFilesStatement(FROM|IN)/IN!insert	SHOW FILE IN zzz a;
 reject	reject	engine	showSmallFilesStatement(FROM|IN)/IN!swap	SHOW FILE INACTIVE a;
 accept	accept	engine	createPipeStatement/CREATE_orReplace_PIPE_ifNotExists_qualifiedName_(proper~aa63b0ee	CREATE PIPE a AS INSERT INTO a SELECT CURRENT_USER;
+accept	accept	engine	createPipeStatement/CREATE_orReplace_PIPE_ifNotExists_qualifiedName_(proper~aa63b0ee+orReplace	CREATE OR REPLACE PIPE a AS INSERT INTO a SELECT CURRENT_USER;
+reject	reject	engine	createPipeStatement/CREATE_orReplace_PIPE_ifNotExists_qualifiedName_(proper~aa63b0ee+orReplace!drop-2	CREATE REPLACE PIPE a AS INSERT INTO a SELECT CURRENT_USER;
+reject	reject	engine	createPipeStatement/CREATE_orReplace_PIPE_ifNotExists_qualifiedName_(proper~aa63b0ee+orReplace!drop-3	CREATE OR PIPE a AS INSERT INTO a SELECT CURRENT_USER;
+accept	accept	engine	createPipeStatement/CREATE_orReplace_PIPE_ifNotExists_qualifiedName_(proper~aa63b0ee+ifNotExists	CREATE PIPE IF NOT EXISTS a AS INSERT INTO a SELECT CURRENT_USER;
+reject	reject	engine	createPipeStatement/CREATE_orReplace_PIPE_ifNotExists_qualifiedName_(proper~aa63b0ee+ifNotExists!drop-3	CREATE PIPE NOT EXISTS a AS INSERT INTO a SELECT CURRENT_USER;
+reject	reject	engine	createPipeStatement/CREATE_orReplace_PIPE_ifNotExists_qualifiedName_(proper~aa63b0ee+ifNotExists!drop-4	CREATE PIPE IF EXISTS a AS INSERT INTO a SELECT CURRENT_USER;
+reject	reject	engine	createPipeStatement/CREATE_orReplace_PIPE_ifNotExists_qualifiedName_(proper~aa63b0ee+ifNotExists!drop-5	CREATE PIPE IF NOT a AS INSERT INTO a SELECT CURRENT_USER;
 accept	accept	engine	createPipeStatement(properties)?/%empty	CREATE PIPE a AS INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	createPipeStatement(properties)?/%empty!insert	CREATE PIPE a zzz AS INSERT INTO a SELECT CURRENT_USER;
 accept	accept	engine	createPipeStatement(properties)?/properties	CREATE PIPE a PROPERTIES('a' = 'a') AS INSERT INTO a SELECT CURRENT_USER;
@@ -8435,6 +8463,7 @@ reject	reject	engine	partitionNames/(TEMPORARY)?_(PARTITION|PARTITIONS)_(_identi
 reject	reject	engine	partitionNames/(TEMPORARY)?_(PARTITION|PARTITIONS)_(_identifierOrStrin~6789f515!truncate	ALTER SYSTEM PARTITION(a
 reject	reject	engine	partitionNames/(TEMPORARY)?_(PARTITION|PARTITIONS)_(_identifierOrStrin~6789f515!insert	ALTER SYSTEM PARTITION(a) zzz;
 accept	accept	engine	partitionNames/(TEMPORARY)?_(PARTITION|PARTITIONS)_(_identifierOrStrin~6789f515!swap	ALTER SYSTEM PARTITIONS(a);
+accept	accept	engine	partitionNames/(TEMPORARY)?_(PARTITION|PARTITIONS)_(_identifierOrStrin~6789f515+partitionNames(TEMPORARY)?	ALTER SYSTEM TEMPORARY PARTITION(a);
 accept	accept	engine	partitionNames/(TEMPORARY)?_(PARTITION|PARTITIONS)_identifierOrString	ALTER SYSTEM PARTITION a;
 accept	accept	engine	partitionNames/keyPartitions	ALTER SYSTEM PARTITION(a = NULL);
 reject	reject	engine	partitionNames/keyPartitions!drop-1	ALTER SYSTEM(a = NULL);

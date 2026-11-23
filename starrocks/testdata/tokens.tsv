@@ -18,3 +18,17 @@ BINARY_DOUBLE_QUOTED_TEXT	X"00"	StarRocksLex.g4:556 X and a double-quoted string
 ATTACHMENT	$$a$$	StarRocksLex.g4:610 text between $$ and $$
 CONCAT	(unreachable)	StarRocksLex.g4:24 declared in tokens { }, made of || only under sql_mode PIPES_AS_CONCAT (StarRocksLex.g4:514)
 .	SELECT	StarRocks.g4:2081 translateSQL is any tokens (.+), a statement of the dialect TRANSLATE names
+# Optional clauses tried at every site the grammar allows them, and not only
+# at the one its own row reaches: the rules ifNotExists and orReplace, and the
+# inline (...)? groups a rule writes at more than one of its alternatives,
+# which the reader lowers to a rule named after the rule that holds it and
+# the group. A group only one alternative writes already has its row there.
+# Each note cites the first site.
+ifNotExists	(every site)	StarRocks.g4:484 IF NOT EXISTS, at StarRocks.g4:1415 and 1914
+orReplace	(every site)	StarRocks.g4:481 OR REPLACE, at StarRocks.g4:1415 and 1914
+alterUserStatement(IF_EXISTS)?	(every site)	StarRocks.g4:1632 IF EXISTS
+dropPartitionClause(IF_EXISTS)?	(every site)	StarRocks.g4:1158 IF EXISTS
+addPartitionClause(TEMPORARY)?	(every site)	StarRocks.g4:1153 TEMPORARY
+dropPartitionClause(TEMPORARY)?	(every site)	StarRocks.g4:1158 TEMPORARY
+partitionNames(TEMPORARY)?	(every site)	StarRocks.g4:2269 TEMPORARY
+dropPartitionClause(FORCE)?	(every site)	StarRocks.g4:1158 FORCE
