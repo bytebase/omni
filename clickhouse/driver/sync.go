@@ -40,7 +40,8 @@ var (
 )
 
 // SyncInstance syncs the instance: the server version, its user databases
-// without their tables, and its users as roles.
+// without their tables, and its users and roles, each with the access
+// statements the server states for it (getInstanceRoles).
 func (d *Driver) SyncInstance(ctx context.Context) (*driver.Instance, error) {
 	version, err := d.getVersion(ctx)
 	if err != nil {
@@ -387,32 +388,4 @@ func convertYesNo(s string) (bool, error) {
 // formatErrorWithQuery is Bytebase's db/util.FormatErrorWithQuery.
 func formatErrorWithQuery(err error, query string) error {
 	return fmt.Errorf("failed to execute query %q: %w", query, err)
-}
-
-// getInstanceRoles reads the server's users.
-func (d *Driver) getInstanceRoles(ctx context.Context) ([]*driver.Role, error) {
-	query := `
-		SELECT
-			name
-		FROM system.users
-		ORDER BY name
-	`
-	roleRows, err := d.db.QueryContext(ctx, query)
-	if err != nil {
-		return nil, formatErrorWithQuery(err, query)
-	}
-	defer roleRows.Close()
-
-	var instanceRoles []*driver.Role
-	for roleRows.Next() {
-		var user string
-		if err := roleRows.Scan(&user); err != nil {
-			return nil, err
-		}
-		instanceRoles = append(instanceRoles, &driver.Role{Name: user})
-	}
-	if err := roleRows.Err(); err != nil {
-		return nil, formatErrorWithQuery(err, query)
-	}
-	return instanceRoles, nil
 }

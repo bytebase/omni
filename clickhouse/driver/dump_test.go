@@ -87,6 +87,33 @@ func TestDumpRestores(t *testing.T) {
 	if diff := cmp.Diff(source, restored, protocmp.Transform()); diff != "" {
 		t.Errorf("the restored catalog differs from the source (-source +restored):\n%s", diff)
 	}
+
+	// The sync reads no row policy, so the restored database's dump holds them
+	// to the source's, with every object beside them.
+	var again strings.Builder
+	require.NoError(t, d.Dump(ctx, &again, restored))
+	require.Equal(t, dump.String(), again.String(), "the restored database's dump differs from the source's")
+}
+
+// TestDumpRowPoliciesDenied holds a dump by a login that may read the database's
+// tables but not its row policies: every object, and a comment that says the
+// policies are left out.
+func TestDumpRowPoliciesDenied(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDriver(t)
+	database := testcontainer.Database(t)
+	execCorpus(t, d.db, `CREATE TABLE t (id UInt64) ENGINE = MergeTree ORDER BY id;
+CREATE ROW POLICY hidden ON t USING id > 0 TO ALL;
+CREATE USER omni_no_policies IDENTIFIED WITH no_password;
+GRANT SELECT, SHOW ON `+dumpIdentifier(database)+`.* TO omni_no_policies;
+GRANT SELECT ON system.tables TO omni_no_policies;`)
+	impersonate(t, d, "omni_no_policies")
+
+	var dumped strings.Builder
+	require.NoError(t, d.Dump(ctx, &dumped, nil))
+	require.Contains(t, dumped.String(), "CREATE TABLE "+database+".t\n")
+	require.Contains(t, dumped.String(), "-- Row policies are left out")
+	require.NotContains(t, dumped.String(), "hidden")
 }
 
 // TestDumpMissing holds a database the server does not have to driver.ErrNotFound:
@@ -191,17 +218,25 @@ func countTables(t *testing.T, db *sql.DB, database, condition string, n int) {
 }
 
 // recreateDatabase replaces database with an empty one of the same name, which
-// is what a restore applies a dump to.
+// is what a restore applies a dump to, and drops the row policies on it, which
+// outlive the database.
 func recreateDatabase(t *testing.T, d *Driver, name string) {
 	t.Helper()
 	ctx := context.Background()
 	conn, err := d.db.Conn(ctx)
 	require.NoError(t, err)
 	defer func() { _ = conn.Close() }()
-	for _, statement := range []string{
+	statements := []string{
 		"DROP DATABASE IF EXISTS " + dumpIdentifier(name),
 		"CREATE DATABASE " + dumpIdentifier(name),
-	} {
+	}
+	policies, denied, err := dumpRowPolicies(ctx, conn, name)
+	require.NoError(t, err)
+	require.False(t, denied)
+	for _, p := range policies {
+		statements = append(statements, "DROP ROW POLICY "+p.target)
+	}
+	for _, statement := range statements {
 		if _, err := conn.ExecContext(ctx, statement); err != nil {
 			t.Fatalf("%s: %v", statement, err)
 		}

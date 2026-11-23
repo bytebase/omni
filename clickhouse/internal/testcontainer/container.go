@@ -256,7 +256,8 @@ func waitForAnswer(ctx context.Context, pin enginetest.Pin) error {
 }
 
 // empty drops every database but the image's own, creates database empty,
-// and drops every account and role but the image's default.
+// and drops every account, role, row policy, quota and settings profile but
+// the image's own.
 func empty(ctx context.Context, database string) error {
 	db := sql.OpenDB(connector("default"))
 	defer db.Close()
@@ -289,6 +290,32 @@ func empty(ctx context.Context, database string) error {
 	for _, name := range roles {
 		stmts = append(stmts, "DROP ROLE IF EXISTS `"+escape(name)+"`")
 	}
+	// A row policy outlives the table and the database it names. The image's
+	// own quota and settings profiles live in users.xml, which DROP cannot
+	// change; every other one is a test's.
+	policies, err := rows(ctx, db, "SELECT short_name, database, table FROM system.row_policies WHERE storage != 'users_xml'")
+	if err != nil {
+		return err
+	}
+	for _, p := range policies {
+		table := "*"
+		if p[2] != "" {
+			table = "`" + escape(p[2]) + "`"
+		}
+		stmts = append(stmts, "DROP ROW POLICY IF EXISTS `"+escape(p[0])+"` ON `"+escape(p[1])+"`."+table)
+	}
+	for _, kind := range []struct{ table, drop string }{
+		{"system.quotas", "DROP QUOTA IF EXISTS "},
+		{"system.settings_profiles", "DROP SETTINGS PROFILE IF EXISTS "},
+	} {
+		entities, err := names(ctx, db, "SELECT name FROM "+kind.table+" WHERE storage != 'users_xml'")
+		if err != nil {
+			return err
+		}
+		for _, name := range entities {
+			stmts = append(stmts, kind.drop+"`"+escape(name)+"`")
+		}
+	}
 	for _, stmt := range stmts {
 		if _, err := db.ExecContext(ctx, stmt); err != nil {
 			return fmt.Errorf("%s: %w", stmt, err)
@@ -306,20 +333,41 @@ var systemDatabases = map[string]bool{
 }
 
 func names(ctx context.Context, db *sql.DB, query string) ([]string, error) {
-	rows, err := db.QueryContext(ctx, query)
+	found, err := rows(ctx, db, query)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(found))
+	for _, row := range found {
+		out = append(out, row[0])
+	}
+	return out, nil
+}
+
+// rows answers a query whose columns are all strings.
+func rows(ctx context.Context, db *sql.DB, query string) ([][]string, error) {
+	result, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", query, err)
 	}
-	defer rows.Close()
-	var out []string
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
+	defer result.Close()
+	columns, err := result.Columns()
+	if err != nil {
+		return nil, err
+	}
+	var out [][]string
+	for result.Next() {
+		row := make([]string, len(columns))
+		dest := make([]any, len(columns))
+		for i := range row {
+			dest[i] = &row[i]
+		}
+		if err := result.Scan(dest...); err != nil {
 			return nil, err
 		}
-		out = append(out, name)
+		out = append(out, row)
 	}
-	return out, rows.Err()
+	return out, result.Err()
 }
 
 func escape(name string) string {

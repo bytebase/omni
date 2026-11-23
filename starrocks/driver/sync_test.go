@@ -99,11 +99,25 @@ func readGolden(t *testing.T, path string) *metadatapb.DatabaseSchemaMetadata {
 	return m
 }
 
+// TestSyncInstance holds SyncInstance to testdata/sync/instance.json: the
+// databases, and every account and role with the GRANT statements the server
+// states for it. The accounts cover a role granted to a user, as a default
+// role and not, privileges on a database and a table, and a host pattern; the
+// image's own root account and built-in roles are there too.
 func TestSyncInstance(t *testing.T) {
 	testcontainer.ResetToInitial(t)
+	t.Cleanup(func() { testcontainer.Reset(t, testcontainer.DropInstanceObjects) })
 	testcontainer.Reset(t, func(ctx context.Context, db *sql.DB) error {
 		for _, stmt := range []string{
 			"CREATE DATABASE sync_inst_db",
+			"CREATE TABLE sync_inst_db.t (k INT, v INT) DUPLICATE KEY(k) DISTRIBUTED BY HASH(k) BUCKETS 1 PROPERTIES (\"replication_num\" = \"1\")",
+			"CREATE ROLE sync_reader COMMENT 'reads sync_inst_db'",
+			"GRANT SELECT ON ALL TABLES IN DATABASE sync_inst_db TO ROLE sync_reader",
+			"CREATE USER 'sync_app'@'%' IDENTIFIED BY 'sync-pw' DEFAULT ROLE sync_reader",
+			"GRANT INSERT ON TABLE sync_inst_db.t TO USER 'sync_app'@'%'",
+			"CREATE USER 'sync_ops'@'10.0.0.%'",
+			"GRANT CREATE TABLE ON DATABASE sync_inst_db TO USER 'sync_ops'@'10.0.0.%'",
+			"GRANT sync_reader TO USER 'sync_ops'@'10.0.0.%'",
 		} {
 			if _, err := db.ExecContext(ctx, stmt); err != nil {
 				return err

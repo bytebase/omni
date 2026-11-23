@@ -99,11 +99,28 @@ func readGolden(t *testing.T, path string) *metadatapb.DatabaseSchemaMetadata {
 	return m
 }
 
+// TestSyncInstance holds SyncInstance to testdata/sync/instance.json: the
+// databases, and every account and role with the privileges the server states
+// for it. The accounts cover a role granted to a user, privileges on a catalog,
+// a database, a table, a column, a resource and a workload group, a host
+// pattern and a comment; the image's own root and admin accounts and admin and
+// operator roles are there too.
 func TestSyncInstance(t *testing.T) {
 	testcontainer.ResetToInitial(t)
+	t.Cleanup(func() { testcontainer.Reset(t, testcontainer.DropInstanceObjects) })
 	testcontainer.Reset(t, func(ctx context.Context, db *sql.DB) error {
 		for _, stmt := range []string{
 			"CREATE DATABASE sync_inst_db",
+			"CREATE TABLE sync_inst_db.t (k INT, v INT) DUPLICATE KEY(k) DISTRIBUTED BY HASH(k) BUCKETS 1 PROPERTIES (\"replication_num\" = \"1\")",
+			"CREATE ROLE sync_reader COMMENT 'reads sync_inst_db'",
+			"GRANT SELECT_PRIV ON internal.sync_inst_db.* TO ROLE 'sync_reader'",
+			"CREATE USER 'sync_app'@'%' IDENTIFIED BY 'sync-pw' DEFAULT ROLE 'sync_reader'",
+			"GRANT LOAD_PRIV ON internal.sync_inst_db.t TO 'sync_app'@'%'",
+			"GRANT USAGE_PRIV ON WORKLOAD GROUP 'normal' TO 'sync_app'@'%'",
+			"CREATE USER 'sync_ops'@'10.0.0.%' COMMENT 'operations'",
+			"GRANT CREATE_PRIV ON internal.*.* TO 'sync_ops'@'10.0.0.%'",
+			"GRANT SELECT_PRIV(v) ON internal.sync_inst_db.t TO 'sync_ops'@'10.0.0.%'",
+			"GRANT USAGE_PRIV ON RESOURCE '*' TO 'sync_ops'@'10.0.0.%'",
 		} {
 			if _, err := db.ExecContext(ctx, stmt); err != nil {
 				return err

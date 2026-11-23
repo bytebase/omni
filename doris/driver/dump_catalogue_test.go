@@ -125,8 +125,8 @@ func TestRoutineProbeRefusals(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got := routineProbeRefused(test.ctx, test.relation, test.err); got != test.want {
-				t.Errorf("routineProbeRefused(%v) = %v, want %v", test.err, got, test.want)
+			if got := probeRefused(test.ctx, test.relation, test.err); got != test.want {
+				t.Errorf("probeRefused(%v) = %v, want %v", test.err, got, test.want)
 			}
 		})
 	}
