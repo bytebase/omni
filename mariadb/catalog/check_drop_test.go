@@ -28,6 +28,28 @@ func TestDropColumnReadByCheck(t *testing.T) {
 		{"ALTER TABLE bookings DROP COLUMN IF EXISTS nothing", "", []string{"chk_dates", "chk_note", "chk_always"}},
 		{"ALTER TABLE bookings ADD COLUMN floor INT", "", []string{"chk_dates", "chk_note", "chk_always"}},
 	}
+	t.Run("a rename in an earlier statement", func(t *testing.T) {
+		c, err := LoadSQL(fixture + "\nALTER TABLE bookings RENAME COLUMN starts TO begins;\nALTER TABLE bookings DROP COLUMN guests;")
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := c.ShowCreateTable("d", "bookings")
+		if !strings.Contains(got, "CONSTRAINT `chk_dates` CHECK (`begins` <= `ends`)") {
+			t.Fatalf("chk_dates does not follow the rename:\n%s", got)
+		}
+		results, err := c.Exec("ALTER TABLE bookings DROP COLUMN begins", nil)
+		var e *Error
+		if err != nil || len(results) != 1 || !errors.As(results[0].Error, &e) || e.Code != 1054 || e.Message != "Unknown column 'begins' in 'CHECK'" {
+			t.Fatalf("DROP COLUMN begins: %v %v", results, err)
+		}
+		results, err = c.Exec("ALTER TABLE bookings DROP COLUMN begins, DROP COLUMN ends", nil)
+		if err != nil || len(results) != 1 || results[0].Error != nil {
+			t.Fatalf("DROP COLUMN begins, DROP COLUMN ends: %v %v", results, err)
+		}
+		if got := c.ShowCreateTable("d", "bookings"); strings.Contains(got, "chk_dates") {
+			t.Fatalf("chk_dates outlives its columns:\n%s", got)
+		}
+	})
 	for _, tc := range cases {
 		t.Run(tc.stmt, func(t *testing.T) {
 			c, err := LoadSQL(fixture)

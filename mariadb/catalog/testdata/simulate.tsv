@@ -5063,5 +5063,9 @@ ok:a34595e0c007	ok:a34595e0c007	engine	features@check	check:drop	ALTER TABLE boo
 1064	1064	engine	features@check	check:drop	ALTER TABLE bookings DROP CHECK chk_dates, DROP COLUMN starts
 1054	1054	engine	features@check	check:drop	ALTER TABLE bookings RENAME COLUMN starts TO begins, DROP COLUMN ends
 1054	1054	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN starts, ADD COLUMN starts DATE
+ok:9cae975e0516	ok:9cae975e0516	engine	features@check	check:drop	ALTER TABLE bookings RENAME COLUMN guests TO people
+ok:e22f573569ad	ok:e22f573569ad	engine	features@check	check:drop	ALTER TABLE bookings RENAME COLUMN note TO memo
+ok:e73f08093c12	ok:e73f08093c12	engine	features@check	check:drop	ALTER TABLE bookings CHANGE COLUMN starts begins DATE
+ok:ebda42c9961b	ok:ebda42c9961b	engine	features@check	check:drop	ALTER TABLE bookings RENAME COLUMN starts TO begins, DROP COLUMN note
 ok:a5c40f112f70	ok:a5c40f112f70	engine	features@check	check:drop	ALTER TABLE rooms DROP COLUMN beds
 ok:5410703c689b	ok:5410703c689b	engine	features@check	check:drop	ALTER TABLE rooms ADD COLUMN floor INT

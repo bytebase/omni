@@ -2212,10 +2212,9 @@ func isImplicitJSONCheck(con *Constraint) bool {
 // information_schema.CHECK_CONSTRAINTS still calls it a — and still a after
 // a second rename to w. A JSON column's check behaves the same way.
 //
-// The expression is rewritten only for the json_valid check, which the catalog
-// wrote itself. Rewriting the column references inside a check a statement
-// declared is the general stored-expression rewrite the catalog does not do:
-// measured, the server turns CHECK (`a` > 0) into CHECK (`z` > 0) there too.
+// The json_valid check, which the catalog wrote itself, is written anew here;
+// renameCheckColumnRefs rewrites what a declared check reads, as the server
+// turns CHECK (`a` > 0) into CHECK (`z` > 0).
 //
 // Checks are found by the column they belong to, since another constraint may
 // carry the old name.
@@ -2770,6 +2769,7 @@ func updateColumnRefsInIndexes(tbl *Table, oldName, newName string) {
 	}
 	renamePartitionKeyColumn(tbl, oldName, newName)
 	moveColumnChecks(tbl, oldName, newName)
+	renameCheckColumnRefs(tbl, oldName, newName)
 	// What a generated expression reads follows the column too. The server
 	// rewrites the expression's own text, which this does not do yet, but the
 	// recorded names have to keep pointing at the column or the dependency
