@@ -51,10 +51,6 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 
 	// Check for duplicate key name.
 	if indexNameExists(tbl, stmt.IndexName) {
-		if stmt.IfNotExists {
-			undoAlter(db, tableKey, tbl, snapshot)
-			return nil
-		}
 		return rollback(errDupKeyName(stmt.IndexName))
 	}
 

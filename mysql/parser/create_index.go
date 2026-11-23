@@ -26,19 +26,9 @@ func (p *Parser) parseCreateIndexStmt(start int, unique bool, fulltext bool, spa
 		Spatial:  spatial,
 	}
 
-	// IF NOT EXISTS (MySQL 8.0.27+)
-	if p.cur.Type == kwIF {
-		p.advance()
-		if _, err := p.expect(kwNOT); err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(kwEXISTS_KW); err != nil {
-			return nil, err
-		}
-		stmt.IfNotExists = true
-	}
-
-	// index_name
+	// index_name. create_index_stmt in sql_yacc.yy (8.0 and 8.4) has no
+	// opt_if_not_exists: mysql:8.0.46 and mysql:8.4.13 answer 1064 to
+	// CREATE INDEX IF NOT EXISTS, and IF, a reserved word, is no name.
 	name, _, err := p.parseIdent()
 	if err != nil {
 		return nil, err

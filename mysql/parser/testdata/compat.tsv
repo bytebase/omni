@@ -12393,3 +12393,7 @@ accept	accept	engine	opt_force/FORCE_SYM	ALTER RESOURCE GROUP utf8mb4 FORCE;
 reject	reject	engine	opt_force/FORCE_SYM!insert	ALTER RESOURCE GROUP utf8mb4 FORCE zzz;
 reject	reject	engine	opt_force/FORCE_SYM!swap	ALTER RESOURCE GROUP utf8mb4 FOREIGN;
 reject	reject	engine	json_attribute/TEXT_STRING_sys	ALTER TABLESPACE utf8mb4 ENGINE_ATTRIBUTE 's';
+reject	reject	engine	suite:create-index-if-not-exists	CREATE INDEX IF NOT EXISTS utf8mb4 ON utf8mb4(utf8mb4);
+reject	reject	engine	suite:create-index-if-not-exists	CREATE UNIQUE INDEX IF NOT EXISTS utf8mb4 ON utf8mb4(utf8mb4);
+reject	reject	engine	suite:create-index-if-not-exists	CREATE FULLTEXT INDEX IF NOT EXISTS utf8mb4 ON utf8mb4(utf8mb4);
+reject	reject	engine	suite:create-index-if-not-exists	CREATE SPATIAL INDEX IF NOT EXISTS utf8mb4 ON utf8mb4(utf8mb4);

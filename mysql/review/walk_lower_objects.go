@@ -48,10 +48,7 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 		return true
 	}
 	ik := idxKey(r.db, r.name, k)
-	if v.IfNotExists {
-		b.Next()
-		b.Optional()
-	} else if !b.isFKGenerated(ik) {
+	if !b.isFKGenerated(ik) {
 		b.need(ik, walk.Absent, nil, rng, "", alreadyExists("index", ident(v.IndexName), r.written)) // 1061
 	}
 	rel := relKey(r.db, r.name)

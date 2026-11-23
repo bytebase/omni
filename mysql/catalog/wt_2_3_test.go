@@ -17,17 +17,16 @@ func TestWalkThrough_2_3_CreateIndexDupName(t *testing.T) {
 }
 
 // TestWalkThrough_2_3_CreateIndexIfNotExists tests that CREATE INDEX IF NOT EXISTS
-// on an existing index returns no error.
+// is a syntax error: MySQL's create_index_stmt has no IF NOT EXISTS
+// (mysql:8.0.46 and mysql:8.4.13 answer 1064).
 func TestWalkThrough_2_3_CreateIndexIfNotExists(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (id INT, name VARCHAR(100))")
 	wtExec(t, c, "CREATE INDEX idx_name ON t (name)")
 
-	results, err := c.Exec("CREATE INDEX IF NOT EXISTS idx_name ON t (id)", nil)
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
+	if _, err := c.Exec("CREATE INDEX IF NOT EXISTS idx_name ON t (id)", nil); err == nil {
+		t.Fatal("expected a syntax error")
 	}
-	assertNoError(t, results[0].Error)
 }
 
 // TestWalkThrough_2_3_DropIndexUnknown tests that DROP INDEX on a nonexistent

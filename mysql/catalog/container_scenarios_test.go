@@ -2272,9 +2272,8 @@ func TestContainer_Section_2_8_CreateDropIndex(t *testing.T) {
 	})
 
 	// Scenario 5: CREATE INDEX IF NOT EXISTS
-	// Note: MySQL 8.0 does NOT support IF NOT EXISTS on CREATE INDEX (syntax error).
-	// Our parser accepts it, and the catalog handles it gracefully (no-op on duplicate).
-	// This is marked [~] partial — omni is more permissive than MySQL 8.0 here.
+	// MySQL 8.0 has no IF NOT EXISTS on CREATE INDEX (a syntax error), and
+	// omni refuses it at parse as well.
 	t.Run("create_index_if_not_exists", func(t *testing.T) {
 		// Verify MySQL 8.0 rejects this syntax.
 		ctr.execSQL("DROP TABLE IF EXISTS t_ci5")
@@ -2286,17 +2285,14 @@ func TestContainer_Section_2_8_CreateDropIndex(t *testing.T) {
 		}
 		t.Logf("container correctly rejects CREATE INDEX IF NOT EXISTS: %v", ctrErr)
 
-		// Omni accepts IF NOT EXISTS as an extension — verify it doesn't error.
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
 		c.SetCurrentDatabase("test")
 		c.Exec("CREATE TABLE t_ci5 (id INT PRIMARY KEY, val INT)", nil)
 		c.Exec("CREATE INDEX idx_val ON t_ci5 (val)", nil)
-		results, _ := c.Exec("CREATE INDEX IF NOT EXISTS idx_val ON t_ci5 (val)", nil)
-		if results[0].Error != nil {
-			t.Errorf("omni: unexpected error for IF NOT EXISTS: %v", results[0].Error)
+		if _, err := c.Exec("CREATE INDEX IF NOT EXISTS idx_val ON t_ci5 (val)", nil); err == nil {
+			t.Error("omni: expected a syntax error for CREATE INDEX IF NOT EXISTS")
 		}
-		// This is a known divergence from MySQL 8.0 behavior.
 	})
 
 	// Scenario 6: CREATE INDEX — duplicate name → error 1061
