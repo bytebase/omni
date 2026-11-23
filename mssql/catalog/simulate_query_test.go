@@ -458,10 +458,17 @@ func TestViewBinding(t *testing.T) {
 		{"alias type is not refused by type", nil, "CREATE VIEW v AS SELECT SUM(amount) AS total, MAX(TRIM(code)) AS c FROM w", 0},
 		{"statement CTE in every set operand", nil, "CREATE VIEW v AS WITH c AS (SELECT 1 AS a) SELECT a FROM c UNION ALL SELECT a FROM c", 0},
 		{"one-part name falls back to dbo", []string{"CREATE SCHEMA app"}, "CREATE VIEW app.v AS SELECT id FROM u", 0},
+		{"a number plus a string is a number", nil, "CREATE VIEW v AS SELECT SUM(id + '1') AS total FROM t", 0},
+		{"LAG keeps its value's type", nil, "CREATE VIEW v AS SELECT TRIM(LAG(name) OVER (ORDER BY id)) AS prev FROM x", 0},
+		{"parenthesized grouping expression", nil, "CREATE VIEW v AS SELECT id + 1 AS n FROM t GROUP BY (id + 1)", 0},
+		{"spatial instance method", nil, "CREATE VIEW v AS SELECT geo.STAsText() AS wkt FROM x", 0},
+		{"FOR SYSTEM_TIME through a view", []string{"CREATE VIEW tv AS SELECT id FROM tt"}, "CREATE VIEW h AS SELECT id FROM dbo.tv FOR SYSTEM_TIME AS OF '2020-01-01'", 0},
+		{"window defined after it is named", nil, "CREATE VIEW v AS SELECT ROW_NUMBER() OVER w1 AS rn FROM t WINDOW w1 AS (w2), w2 AS (ORDER BY id)", 0},
+		{"window that names itself", nil, "CREATE VIEW v AS SELECT ROW_NUMBER() OVER w1 AS rn FROM t WINDOW w1 AS (w2), w2 AS (w1)", 5362},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			c, err := LoadSQL("CREATE TABLE t (id INT NOT NULL, g UNIQUEIDENTIFIER ROWGUIDCOL NULL);\nCREATE TABLE u (id INT NOT NULL);\nCREATE TABLE w (amount INT NULL, code INT NULL);")
+			c, err := LoadSQL("CREATE TABLE t (id INT NOT NULL, g UNIQUEIDENTIFIER ROWGUIDCOL NULL);\nCREATE TABLE u (id INT NOT NULL);\nCREATE TABLE w (amount INT NULL, code INT NULL);\nCREATE TABLE x (id INT NOT NULL, name VARCHAR(50) NULL, geo GEOGRAPHY NULL);\nCREATE TABLE tt (id INT NOT NULL PRIMARY KEY, vf DATETIME2 GENERATED ALWAYS AS ROW START NOT NULL, vt DATETIME2 GENERATED ALWAYS AS ROW END NOT NULL, PERIOD FOR SYSTEM_TIME (vf, vt)) WITH (SYSTEM_VERSIONING = ON);")
 			if err != nil {
 				t.Fatal(err)
 			}

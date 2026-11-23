@@ -616,17 +616,17 @@ func (b *binder) windowClause(sel *ast.SelectStmt, sc *qscope, blk *qblock) erro
 			blk.windows[strings.ToUpper(def.Name)] = def
 		}
 	}
-	for i, def := range defs {
-		if def.RefName != "" {
-			ok := false
-			for _, prev := range defs[:i] {
-				if strings.EqualFold(prev.Name, def.RefName) {
-					ok = true
-				}
+	for _, def := range defs {
+		// A definition may name a window defined before or after it, but
+		// not one that leads back to it.
+		seen := map[string]bool{strings.ToUpper(def.Name): true}
+		for ref := def.RefName; ref != ""; {
+			next, ok := blk.windows[strings.ToUpper(ref)]
+			if !ok || seen[strings.ToUpper(ref)] {
+				return mssqlErr(5362, "Window '%s' is not defined, or its definition refers to itself.", ref)
 			}
-			if !ok {
-				return mssqlErr(5362, "Window '%s' is not defined, or is defined after it is referenced.", def.RefName)
-			}
+			seen[strings.ToUpper(ref)] = true
+			ref = next.RefName
 		}
 		x := ectx{clause: clOrder, block: blk}
 		if _, err := b.expr(def.PartitionBy, sc, x); err != nil {
@@ -717,6 +717,7 @@ func (b *binder) hasLocalColumn(n ast.Node, blk *qblock) bool {
 // written as the relation and column it binds to, to compare an expression
 // with a GROUP BY expression: t.a + 1 and a + 1 are the same expression.
 func (b *binder) normText(n ast.Node) string {
+	n = unparen(n)
 	loc := ast.NodeLoc(n)
 	if loc.Start < 0 || loc.End > len(b.source) || loc.Start > loc.End {
 		return ""
@@ -1371,8 +1372,13 @@ func (b *binder) objectRel(ref *ast.TableRef, alias string, hints *ast.List, out
 		if b.schemaBound && !isSchemaBound(v.Definition) {
 			return nil, mssqlErr(4513, "Cannot schema bind view '%s'. '%s.%s' is not schema bound.", b.object, schema.Name, v.Name)
 		}
-		if err := b.temporal(ref, schema.Name, v.Name, outer); err != nil {
-			return nil, err
+		// FOR SYSTEM_TIME on a view applies to the temporal tables it reads.
+		if ref.Temporal != nil {
+			for _, e := range []ast.ExprNode{ref.Temporal.Start, ref.Temporal.End} {
+				if _, err := b.expr(e, outer, ectx{clause: clOther}); err != nil {
+					return nil, err
+				}
+			}
 		}
 		r := b.viewRel(v, schema.Name)
 		r.name, r.schema = ref.Object, schema.Name
@@ -2023,7 +2029,9 @@ func (b *binder) expr(n ast.Node, sc *qscope, x ectx) (qtype, error) {
 		}
 		switch e.Op {
 		case ast.BinOpAdd:
-			if lt == qtString || rt == qtString {
+			// A string and a number add as numbers, by type precedence; the
+			// classes cannot tell which number, so only two strings concatenate.
+			if lt == qtString && rt == qtString {
 				return qtString, nil
 			}
 			if lt == qtNumber && rt == qtNumber {
@@ -2255,6 +2263,12 @@ func (b *binder) funcCall(f *ast.FuncCallExpr, sc *qscope, x ectx) (qtype, error
 	switch {
 	case stringFunctions[name]:
 		return qtString, nil
+	case name == "LAG" || name == "LEAD" || name == "FIRST_VALUE" || name == "LAST_VALUE":
+		// Navigation functions return their value's type.
+		if len(argTypes) > 0 {
+			return argTypes[0], nil
+		}
+		return qtUnknown, nil
 	case name == "COUNT" || name == "COUNT_BIG" || name == "LEN" || windowFunctions[name]:
 		return qtNumber, nil
 	case (name == "SUM" || name == "AVG" || name == "MIN" || name == "MAX") && len(argTypes) == 1:
@@ -2308,10 +2322,12 @@ var xmlMethods = map[string]qtype{"VALUE": qtUnknown, "QUERY": qtXML, "EXIST": q
 // scalar function.
 func (b *binder) udfCall(f *ast.FuncCallExpr, sc *qscope, x ectx) (qtype, error) {
 	ref := f.Name
-	if typ, ok := xmlMethods[strings.ToUpper(ref.Object)]; ok && ref.Server == "" {
+	// A method of a column's value: an xml method, or a spatial or other
+	// CLR type's, which the catalog does not model.
+	if ref.Server == "" {
 		target := &ast.ColumnRef{Table: ref.Database, Column: ref.Schema, Loc: ref.Loc}
 		if b.resolves(target, sc) {
-			return typ, b.children(f.Args, sc, x)
+			return xmlMethods[strings.ToUpper(ref.Object)], b.children(f.Args, sc, x)
 		}
 	}
 	if strings.EqualFold(ref.Schema, "$PARTITION") || !b.localObject(ref) || systemSchema(ref.Schema) {
