@@ -2317,24 +2317,17 @@ func dropChecksOfDroppedColumns(tbl *Table, commands []*nodes.AlterTableCmd, bef
 // checkConstraintColumnDeps refuses dropping or renaming a column a CHECK
 // constraint the statement keeps reads (3959). MySQL judges it before the
 // statement runs and before a generated column's dependency on the column
-// (3108), and lets a constraint go with the columns it reads when the
-// statement drops every one of them: on CHECK (age >= 0), DROP COLUMN age
-// drops the constraint too, RENAME COLUMN age TO years is 3959, and DROP
-// CHECK chk, RENAME COLUMN age TO years runs (mysql:8.0.46).
+// (3108), and lets a constraint go with its column only when that column is
+// the one it reads: on CHECK (age >= 0), DROP COLUMN age drops the
+// constraint too, RENAME COLUMN age TO years is 3959, and DROP CHECK chk,
+// RENAME COLUMN age TO years runs. A constraint that reads two columns keeps
+// both, even when the statement drops both: on CHECK (starts <= ends), DROP
+// COLUMN starts, DROP COLUMN ends is 3959 (mysql:8.0.46, mysql:8.4.13).
 func checkConstraintColumnDeps(tbl *Table, commands []*nodes.AlterTableCmd) error {
 	droppedChecks := map[string]bool{}
-	droppedCols := map[string]bool{}
 	for _, cmd := range commands {
-		if cmd == nil {
-			continue
-		}
-		switch cmd.Type {
-		case nodes.ATDropConstraint:
+		if cmd != nil && cmd.Type == nodes.ATDropConstraint {
 			droppedChecks[toLower(cmd.Name)] = true
-		case nodes.ATDropColumn:
-			if tbl.GetColumn(cmd.Name) != nil {
-				droppedCols[toLower(cmd.Name)] = true
-			}
 		}
 	}
 	reads := func(con *Constraint) []string {
@@ -2371,7 +2364,7 @@ func checkConstraintColumnDeps(tbl *Table, commands []*nodes.AlterTableCmd) erro
 			if !slices.Contains(cols, toLower(column)) {
 				continue
 			}
-			if !renames && !slices.ContainsFunc(cols, func(c string) bool { return !droppedCols[c] }) {
+			if !renames && len(cols) == 1 {
 				continue
 			}
 			return &Error{Code: 3959, SQLState: "HY000", Message: fmt.Sprintf(

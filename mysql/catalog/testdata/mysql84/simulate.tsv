@@ -2906,6 +2906,17 @@ ok:0b67f40321c6	ok:0b67f40321c6	engine	features@charset	charset:column	CREATE TA
 1118	1118	engine	features@charset	charset:column	CREATE TABLE n5 (a VARCHAR(16383), b VARCHAR(10)) CHARSET = utf8mb4
 1253	1253	engine	features@charset	charset:column	CREATE TABLE n6 (a VARCHAR(10) CHARACTER SET latin1 COLLATE utf8mb4_bin)
 ok:74d901704017	ok:74d901704017	engine	features@charset	charset:column	CREATE TABLE n7 LIKE notes
+3959	3959	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN starts, DROP COLUMN ends
+3959	3959	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN ends, DROP COLUMN starts
+3959	3959	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN starts
+3959	3959	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN ends
+ok:f9299685f98d	ok:f9299685f98d	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN guests
+3959	3959	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN guests, DROP COLUMN starts
+ok:3c15ddcce23f	ok:3c15ddcce23f	engine	features@check	check:drop	ALTER TABLE bookings DROP CHECK chk_dates, DROP COLUMN starts, DROP COLUMN ends
+ok:3c15ddcce23f	ok:3c15ddcce23f	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN starts, DROP COLUMN ends, DROP CHECK chk_dates
+ok:3c15ddcce23f	ok:3c15ddcce23f	engine	features@check	check:drop	ALTER TABLE bookings DROP CONSTRAINT chk_dates, DROP COLUMN starts, DROP COLUMN ends
+ok:4ab5b753d34d	ok:4ab5b753d34d	engine	features@check	check:drop	ALTER TABLE bookings DROP CHECK chk_dates, DROP COLUMN starts
+3959	3959	engine	features@check	check:drop	ALTER TABLE bookings RENAME COLUMN starts TO begins, DROP COLUMN ends
 ok:215462adec4e	ok:215462adec4e	engine	features@fk	fk:add	ALTER TABLE orders ADD CONSTRAINT fk_email FOREIGN KEY (email) REFERENCES customers (email)
 ok:5a5cb603b308	ok:5a5cb603b308	engine	features@fk	fk:add	ALTER TABLE orders ADD FOREIGN KEY (email) REFERENCES customers (email)
 1826	1826	engine	features@fk	fk:add	ALTER TABLE orders ADD CONSTRAINT fk_customer FOREIGN KEY (email) REFERENCES customers (email)
