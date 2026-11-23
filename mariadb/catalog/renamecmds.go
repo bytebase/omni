@@ -13,6 +13,11 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 		seq := oldDB.Sequences[oldKey]
 		view := oldDB.Views[oldKey]
 		if tbl == nil && seq == nil && view == nil {
+			// RENAME TABLE IF EXISTS skips a missing table with a note
+			// (mariadb:11.8.8).
+			if stmt.IfExists {
+				continue
+			}
 			return errNoSuchTable(oldDB.Name, pair.Old.Name)
 		}
 

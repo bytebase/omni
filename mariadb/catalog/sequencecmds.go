@@ -110,11 +110,13 @@ func (c *Catalog) alterSequence(stmt *nodes.AlterSequenceStmt) error {
 	key := toLower(stmt.Name.Name)
 	seq := db.Sequences[key]
 	if seq == nil {
-		if stmt.IfExists {
-			return nil
-		}
+		// A table or view of the name is 4089 whether or not IF EXISTS is
+		// written: IF EXISTS forgives only a missing name (mariadb:11.8.8).
 		if db.Tables[key] != nil || db.Views[key] != nil {
 			return errNotSequence(4089, db.Name, stmt.Name.Name)
+		}
+		if stmt.IfExists {
+			return nil
 		}
 		return errUnknownSequence(stmt.Name.Name)
 	}
@@ -587,11 +589,17 @@ func (c *Catalog) alterSequenceTable(db *Database, seq *Sequence, key string, st
 				colName = cmd.Column.Name
 			}
 			if !isSequenceColumn(colName) {
+				if cmd.IfExists {
+					continue
+				}
 				return errNoSuchColumn(colName, next.Name)
 			}
 			return errSequenceInvalidTableStructure(curDB.Name, next.Name)
 		case nodes.ATChangeColumn, nodes.ATAlterColumnDefault, nodes.ATRenameColumn:
 			if !isSequenceColumn(cmd.Name) {
+				if cmd.IfExists {
+					continue
+				}
 				return errNoSuchColumn(cmd.Name, next.Name)
 			}
 			return errSequenceInvalidTableStructure(curDB.Name, next.Name)
@@ -617,6 +625,10 @@ func (c *Catalog) alterSequenceTable(db *Database, seq *Sequence, key string, st
 			}
 			return errCantDropKey("CONSTRAINT", cmd.Name)
 		case nodes.ATAlterIndexVisible, nodes.ATAlterIndexInvisible, nodes.ATRenameIndex:
+			// A sequence has no key, so IF EXISTS skips it with a note.
+			if cmd.IfExists {
+				continue
+			}
 			return errKeyDoesNotExist(cmd.Name, next.Name)
 		case nodes.ATAlterCheckEnforced:
 			return c.alterCheckEnforced(synth, cmd)

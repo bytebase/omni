@@ -336,7 +336,8 @@ type AlterTableCmd struct {
 	DropForeignKey bool
 	// IfNotExists is ADD [COLUMN] IF NOT EXISTS, MariaDB's
 	// opt_if_not_exists_table_element before a column: a column already there
-	// is skipped with a note (1060) instead of failing the statement.
+	// is skipped with a note (1060) instead of failing the statement. It is
+	// also ADD PARTITION IF NOT EXISTS, add_partition_rule's opt_if_not_exists.
 	IfNotExists    bool
 	First          bool            // FIRST positioning
 	After          string          // AFTER column positioning
@@ -447,6 +448,7 @@ func (o *IndexOption) nodeTag() {}
 type CreateViewStmt struct {
 	Loc         Loc
 	OrReplace   bool
+	IfNotExists bool
 	Algorithm   string // UNDEFINED, MERGE, TEMPTABLE
 	Definer     string
 	SqlSecurity string // DEFINER, INVOKER
@@ -497,8 +499,9 @@ func (s *TruncateStmt) stmtNode() {}
 
 // RenameTableStmt represents a RENAME TABLE statement.
 type RenameTableStmt struct {
-	Loc   Loc
-	Pairs []*RenameTablePair
+	Loc      Loc
+	IfExists bool // RENAME TABLE IF EXISTS: a pair whose table is missing is skipped
+	Pairs    []*RenameTablePair
 }
 
 func (s *RenameTableStmt) nodeTag()  {}

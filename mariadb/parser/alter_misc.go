@@ -324,11 +324,11 @@ func (p *Parser) parseDropRoutineStmt(start int, isProcedure bool) (*nodes.DropR
 	}
 
 	// IF EXISTS
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		stmt.IfExists = true
+	ifExists, err := p.parseOptIfExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfExists = ifExists
 
 	// Completion: after DROP FUNCTION/PROCEDURE [IF EXISTS], offer function_ref/procedure_ref.
 	p.checkCursor()
@@ -364,11 +364,11 @@ func (p *Parser) parseDropTriggerStmt(start int) (*nodes.DropTriggerStmt, error)
 	}
 
 	// IF EXISTS
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		stmt.IfExists = true
+	ifExists, err := p.parseOptIfExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfExists = ifExists
 
 	// Completion: after DROP TRIGGER [IF EXISTS], offer trigger_ref.
 	p.checkCursor()
@@ -400,11 +400,11 @@ func (p *Parser) parseDropEventStmt(start int) (*nodes.DropEventStmt, error) {
 	}
 
 	// IF EXISTS
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		stmt.IfExists = true
+	ifExists, err := p.parseOptIfExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfExists = ifExists
 
 	// Completion: after DROP EVENT [IF EXISTS], offer event_ref.
 	p.checkCursor()

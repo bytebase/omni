@@ -96,6 +96,10 @@ func TestWalkThroughMariaDB(t *testing.T) {
 	// RENAME TABLE runs its pairs in order.
 	noFinding(t, "RENAME TABLE t TO tmp, r TO t, tmp TO r;\nALTER TABLE r ADD COLUMN zz int;\nALTER TABLE t ADD COLUMN zz int;", shop)
 	oneFinding(t, "RENAME TABLE t TO u;\nCREATE TABLE u (a int);", 1, "Table `u` already exists.", shop)
+	// IF EXISTS skips a pair whose table is missing, or an earlier pair
+	// renamed away (catalog.renameTable does the same).
+	noFinding(t, "RENAME TABLE IF EXISTS t TO zu, t TO zv;\nCREATE TABLE zv (id int);", shop)
+	oneFinding(t, "RENAME TABLE IF EXISTS nope TO zu, t TO zv;\nCREATE TABLE zv (id int);", 1, "Table `zv` already exists.", shop)
 	// MariaDB has no invisible primary key.
 	oneFinding(t, "ALTER TABLE nokey DROP PRIMARY KEY;", 0, "`nokey` has no primary key.", shop)
 	oneFinding(t, "CREATE TABLE g (a int);\nALTER TABLE g DROP PRIMARY KEY;", 1, "`g` has no primary key.", shop)

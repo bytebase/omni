@@ -218,12 +218,16 @@ func (p *Parser) parseTruncateStmt() (*nodes.TruncateStmt, error) {
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/rename-table.html
 //
-//	RENAME TABLE tbl_name TO new_tbl_name [, tbl_name2 TO new_tbl_name2] ...
+//	RENAME TABLE [IF EXISTS] tbl_name TO new_tbl_name [, tbl_name2 TO new_tbl_name2] ...
 func (p *Parser) parseRenameTableStmt(start int) (*nodes.RenameTableStmt, error) {
 	// Already consumed RENAME. rename: RENAME table_or_tables opt_if_exists
 	// table_to_table_list, so TABLE or TABLES is required.
 	if _, ok := p.match(kwTABLE, kwTABLES); !ok {
 		return nil, p.syntaxErrorAtCur()
+	}
+	ifExists, err := p.parseOptIfExists()
+	if err != nil {
+		return nil, err
 	}
 
 	// Completion: after RENAME TABLE, offer table_ref.
@@ -233,7 +237,7 @@ func (p *Parser) parseRenameTableStmt(start int) (*nodes.RenameTableStmt, error)
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	stmt := &nodes.RenameTableStmt{Loc: nodes.Loc{Start: start}}
+	stmt := &nodes.RenameTableStmt{Loc: nodes.Loc{Start: start}, IfExists: ifExists}
 
 	for {
 		pairStart := p.pos()

@@ -1022,6 +1022,9 @@ func writeCreateViewStmt(sb *strings.Builder, n *CreateViewStmt) {
 	if n.OrReplace {
 		sb.WriteString(" :or_replace true")
 	}
+	if n.IfNotExists {
+		sb.WriteString(" :if_not_exists true")
+	}
 	if n.Algorithm != "" {
 		fmt.Fprintf(sb, " :algorithm %s", n.Algorithm)
 	}
@@ -1094,6 +1097,9 @@ func writeTruncateStmt(sb *strings.Builder, n *TruncateStmt) {
 func writeRenameTableStmt(sb *strings.Builder, n *RenameTableStmt) {
 	sb.WriteString("{RENAME_TABLE")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
 	if len(n.Pairs) > 0 {
 		sb.WriteString(" :pairs ")
 		for i, p := range n.Pairs {

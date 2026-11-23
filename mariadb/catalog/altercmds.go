@@ -53,14 +53,17 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 			}
 			return errWrongObject(db.Name, tableName, "BASE TABLE")
 		}
-		// IF EXISTS makes a missing table a note (1146 as a warning).
-		if stmt.IfExists {
+		// IF EXISTS makes a missing table a note (1146 as a warning). So does
+		// DROP PARTITION IF EXISTS: alter_commands' action sets the statement's
+		// one IF EXISTS flag (sql_yacc.yy, mariadb-11.8.8), and mariadb:11.8.8
+		// runs `ALTER TABLE a DROP PARTITION IF EXISTS a` with no table a.
+		if stmt.IfExists || dropsPartitionIfExists(stmt.Commands) {
 			return nil
 		}
 		return errNoSuchTable(db.Name, tableName)
 	}
 
-	return c.alterTableKeepingOptions(db, tbl, key, stmt)
+	return c.alterTableKeepingOptions(db, tbl, key, withoutAbsentIfExists(tbl, stmt))
 }
 
 // alterTableKeepingOptions runs the ALTER and then drops PAGE_CHECKSUM unless the
@@ -2928,6 +2931,19 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 		tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
 		return nil
 	}
+	// ADD PARTITION IF NOT EXISTS naming a partition the table has adds none
+	// of its partitions: mariadb:11.8.8 runs `ADD PARTITION IF NOT EXISTS
+	// (PARTITION p3 ..., PARTITION a ...)` over a table with a partition a and
+	// changes nothing, whatever the bounds.
+	if cmd.IfNotExists {
+		for _, pd := range cmd.PartitionDefs {
+			for _, have := range tbl.Partitioning.Partitions {
+				if toLower(have.Name) == toLower(pd.Name) {
+					return nil
+				}
+			}
+		}
+	}
 	if err := checkAddedPartitionKinds(tbl.Partitioning, cmd.PartitionDefs); err != nil {
 		return err
 	}
@@ -2968,19 +2984,34 @@ func (c *Catalog) alterDropPartition(tbl *Table, cmd *nodes.AlterTableCmd) error
 	if !strings.HasPrefix(tbl.Partitioning.Type, "RANGE") && !strings.HasPrefix(tbl.Partitioning.Type, "LIST") && tbl.Partitioning.Type != "SYSTEM_TIME" {
 		return errOnlyOnRangeListPartitioning("DROP PARTITION")
 	}
-	// MariaDB checks whether the requested drop count would remove all
-	// partitions before checking for duplicate or missing names (measured on
-	// mariadb:11.8.8: DROP PARTITION a, a on a 2-partition table answers 1508,
-	// and on a 3-partition table answers 1507).
-	if len(cmd.PartitionNames) >= len(tbl.Partitioning.Partitions) {
-		return errDropLastPartition()
-	}
 	existing := make(map[string]bool, len(tbl.Partitioning.Partitions))
 	for _, pd := range tbl.Partitioning.Partitions {
 		existing[toLower(pd.Name)] = true
 	}
-	dropSet := make(map[string]bool, len(cmd.PartitionNames))
-	for _, name := range cmd.PartitionNames {
+	names := cmd.PartitionNames
+	if cmd.IfExists {
+		// IF EXISTS leaves out the partitions the table lacks, as notes:
+		// mariadb:11.8.8 runs `DROP PARTITION IF EXISTS zzz` and drops p0 alone
+		// for `DROP PARTITION IF EXISTS zzz, p0`.
+		names = nil
+		for _, name := range cmd.PartitionNames {
+			if existing[toLower(name)] {
+				names = append(names, name)
+			}
+		}
+		if len(names) == 0 {
+			return nil
+		}
+	}
+	// MariaDB checks whether the requested drop count would remove all
+	// partitions before checking for duplicate or missing names (measured on
+	// mariadb:11.8.8: DROP PARTITION a, a on a 2-partition table answers 1508,
+	// and on a 3-partition table answers 1507).
+	if len(names) >= len(tbl.Partitioning.Partitions) {
+		return errDropLastPartition()
+	}
+	dropSet := make(map[string]bool, len(names))
+	for _, name := range names {
 		k := toLower(name)
 		if !existing[k] || dropSet[k] {
 			return errDropPartitionNonExistent()
@@ -3297,6 +3328,56 @@ func (c *Catalog) planAlterCharset(tbl *Table, cmds []*nodes.AlterTableCmd) (alt
 		plan.tableCharset, plan.tableCollation = plan.convertCharset, plan.convertCollation
 	}
 	return plan, nil
+}
+
+// withoutAbsentIfExists returns stmt without the CHANGE, MODIFY, ALTER
+// [COLUMN], RENAME COLUMN and RENAME KEY commands whose IF EXISTS names a
+// column or key the table did not begin the statement with. MariaDB drops
+// them with a note before the ALTER runs (handle_if_exists_options,
+// sql/sql_table.cc, mariadb-11.8.8), so nothing after reads them:
+// mariadb:11.8.8 runs `ALTER TABLE a CHANGE IF EXISTS a a INT` over a table
+// with no column a and changes nothing.
+func withoutAbsentIfExists(tbl *Table, stmt *nodes.AlterTableStmt) *nodes.AlterTableStmt {
+	var kept []*nodes.AlterTableCmd
+	for i, cmd := range stmt.Commands {
+		absent := false
+		if cmd != nil && cmd.IfExists {
+			switch cmd.Type {
+			case nodes.ATChangeColumn, nodes.ATModifyColumn, nodes.ATAlterColumnDefault, nodes.ATRenameColumn:
+				name := cmd.Name
+				if name == "" && cmd.Column != nil {
+					name = cmd.Column.Name
+				}
+				_, present := tbl.colByName[toLower(name)]
+				absent = !present
+			case nodes.ATRenameIndex:
+				absent = !indexNameExists(tbl, cmd.Name)
+			}
+		}
+		if absent && kept == nil {
+			kept = append([]*nodes.AlterTableCmd{}, stmt.Commands[:i]...)
+		}
+		if !absent && kept != nil {
+			kept = append(kept, cmd)
+		}
+	}
+	if kept == nil {
+		return stmt
+	}
+	out := *stmt
+	out.Commands = kept
+	return &out
+}
+
+// dropsPartitionIfExists reports whether an ALTER TABLE holds DROP PARTITION
+// IF EXISTS.
+func dropsPartitionIfExists(cmds []*nodes.AlterTableCmd) bool {
+	for _, cmd := range cmds {
+		if cmd != nil && cmd.Type == nodes.ATDropPartition && cmd.IfExists {
+			return true
+		}
+	}
+	return false
 }
 
 // computeSkippedAlterAdditions identifies ADD COLUMN IF NOT EXISTS and ADD
