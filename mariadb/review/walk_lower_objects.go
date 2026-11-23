@@ -44,6 +44,9 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 		b.fail(rng, nil, review.ReservedName, reservedPrimary) // 1280
 		return true
 	}
+	if b.indexAlgorithmFails(v, r) || b.createUniqueFails(v, r) {
+		return true
+	}
 	ik := idxKey(r.db, r.name, k)
 	idxFact, _ := b.l.Lookup(ik)
 	replacedFKIdx := false
@@ -380,6 +383,9 @@ func (b *builder) createEvent(v *ast.CreateEventStmt) bool {
 	if st != refOK {
 		return st == refFailed
 	}
+	if b.eventScheduleFails(v.Schedule) {
+		return true
+	}
 	if ref := eventScheduleColumnRef(v.Schedule); ref != nil {
 		b.fail(rangeOf(ref.Loc), nil, review.ObjectNotFound, notFound("column", ident(ref.Column), "")) // 1054
 		return true
@@ -395,6 +401,9 @@ func (b *builder) alterEvent(v *ast.AlterEventStmt) bool {
 	ek, st := b.event(v.Schema, v.Name)
 	if st != refOK {
 		return st == refFailed
+	}
+	if b.eventScheduleFails(v.Schedule) {
+		return true
 	}
 	if ref := eventScheduleColumnRef(v.Schedule); ref != nil {
 		b.fail(rangeOf(ref.Loc), nil, review.ObjectNotFound, notFound("column", ident(ref.Column), "")) // 1054
@@ -508,6 +517,10 @@ func (b *builder) set(v *ast.SetStmt) bool {
 		case strings.HasPrefix(name, "@@"):
 			name = name[2:]
 		case global:
+			continue
+		}
+		if name == "sql_mode" && !b.sqlModeOption {
+			b.Session(func() { b.w.sqlModeSet = true })
 			continue
 		}
 		// SET STATEMENT puts a variable it names back after the statement, whatever the

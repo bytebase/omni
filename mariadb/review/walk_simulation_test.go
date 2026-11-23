@@ -24,8 +24,8 @@ func TestWalkSimulation(t *testing.T) {
 		minPct   float64
 		minFound int
 	}{
-		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 95.0, 3932},
-		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 65.0, 129},
+		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 96.0, 3958},
+		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 68.0, 135},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
 			res := walktest.CheckSimulation(t, walktest.Simulation{

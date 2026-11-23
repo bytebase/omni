@@ -107,7 +107,10 @@ type mariadbSnapshot struct {
 	sequences map[string]sequenceValues
 	// fkTables holds the foreign keys and indexes of the InnoDB tables
 	// with a foreign key (syncedFKTable).
-	fkTables    map[string]*fkTable
+	fkTables map[string]*fkTable
+	// tables holds what the sync says of each base table beyond its
+	// names (syncedTable).
+	tables      map[string]*syncedTable
 	indexes     map[string]map[string]bool
 	foreignKeys map[string]bool
 	// tableForeignKeys holds each table's foreign keys.
@@ -144,6 +147,7 @@ func newMariaDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *m
 		columnNames:      make(map[string][]string),
 		sequences:        make(map[string]sequenceValues),
 		fkTables:         make(map[string]*fkTable),
+		tables:           make(map[string]*syncedTable),
 		indexes:          make(map[string]map[string]bool),
 		foreignKeys:      make(map[string]bool),
 		triggers:         make(map[string]string),
@@ -196,6 +200,7 @@ func newMariaDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *m
 			if ft, ok := syncedFKTable(t, foldTables); ok {
 				s.fkTables[tk] = ft
 			}
+			s.tables[tk] = newSyncedTable(s.db, t, foldTables)
 			cols := make(map[string]bool)
 			types := make(map[string]string)
 			for _, c := range t.GetColumns() {

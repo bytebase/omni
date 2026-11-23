@@ -45,6 +45,9 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	} else if failed {
 		return true
 	}
+	if b.alterOptionTextFails(v) {
+		return true
+	}
 	r, st := b.ref(v.Table)
 	switch st {
 	case refFailed:
@@ -147,7 +150,8 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 			}
 		})
 	}
-	if b.alterTextFails(v, r) {
+	if b.alterTextFails(v, r) || b.alterColumnsFail(v) || b.alterAlgorithmFails(v, r) || b.fkEngineFails(v, r) || b.fkColumnFails(v, r) ||
+		b.alterPartitionFails(v, r) || b.alterPartitionColumnsFail(v, r) || b.alterChecksFail(v, r) {
 		return true
 	}
 	if dropIdx, dropCols, ok := alterDropsOnly(v); ok && !sets && b.fkIndexDropFails(r, dropIdx, dropCols, b.anchor()) {
@@ -1277,6 +1281,14 @@ func (b *builder) renameTable(v *ast.RenameTableStmt) bool {
 // sequence too (verified).
 func (b *builder) dropTable(v *ast.DropTableStmt) bool {
 	b.Order = walk.Lookups
+	// The tables the statement drops, whose foreign keys let their
+	// parents go.
+	dropping := make(map[walk.Key]bool)
+	for _, t := range v.Tables {
+		if r, st := b.ref(t); st == refOK {
+			dropping[relKey(r.db, r.name)] = true
+		}
+	}
 	for _, t := range v.Tables {
 		b.Next()
 		r, st := b.ref(t)
@@ -1325,6 +1337,9 @@ func (b *builder) dropTable(v *ast.DropTableStmt) bool {
 			b.Forget(path)
 			b.droppedOwned(r)
 		default:
+			if f == walk.Present && kind == relTable && b.fkParentFails(r, dropping) {
+				return true
+			}
 			b.Set(k, walk.Absent, "")
 			b.Clear(path)
 			b.droppedOwned(r)
@@ -1361,8 +1376,12 @@ func (b *builder) truncate(v *ast.TruncateStmt) bool {
 		case refUnknown:
 			continue
 		}
-		if f, temp, _ := b.resolve(r); !temp && f != walk.Unknown {
+		f, temp, kind := b.resolve(r)
+		if !temp && f != walk.Unknown {
 			b.needKind(relKey(r.db, r.name), []string{relTable}, r.rng, notFound("table", r.written, ""), r.written, "table")
+		}
+		if !temp && f == walk.Present && kind == relTable && b.fkParentFails(r, nil) {
+			return true
 		}
 	}
 	return true

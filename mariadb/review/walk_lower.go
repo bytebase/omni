@@ -24,7 +24,7 @@ func (b *builder) statement(n ast.Node) bool {
 		b.touchTables(v.Table)
 		for _, c := range v.Commands {
 			if c != nil && (c.NewTable != nil || c.ExchangeTable != nil || c.ConvertTable != nil || c.Type == ast.ATRenameTable) {
-				b.Session(func() { clear(b.w.fkTables) })
+				b.Session(func() { clear(b.w.fkTables); clear(b.w.synced) })
 			}
 		}
 	case *ast.CreateIndexStmt:
@@ -38,7 +38,7 @@ func (b *builder) statement(n ast.Node) bool {
 	case *ast.DropTableStmt:
 		b.touchTables(v.Tables...)
 	case *ast.CreateDatabaseStmt, *ast.DropDatabaseStmt, *ast.RenameTableStmt, *ast.DropSequenceStmt:
-		b.Session(func() { clear(b.w.fkTables) })
+		b.Session(func() { clear(b.w.fkTables); clear(b.w.synced) })
 	}
 	switch v := n.(type) {
 	case *ast.CreateDatabaseStmt:
@@ -258,7 +258,7 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 	} else if failed {
 		return true
 	}
-	if b.namesTooLong(v) {
+	if b.namesTooLong(v) || b.optionTextFails(v.Options, nil, v.Columns) {
 		return true
 	}
 	r, st := b.ref(v.Table)
@@ -514,6 +514,9 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 	}
 	if len(v.Columns) == 0 && v.Like == nil && v.Select == nil {
 		b.fail(r.rng, nil, review.UnsupportedForm, "Table "+review.Code(r.written)+" must have at least one column.")
+		return true
+	}
+	if b.createPartitionFails(v, r) || b.createColumnsFail(v, r) {
 		return true
 	}
 	if v.Select != nil {
