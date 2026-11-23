@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"math/big"
 	"slices"
 	"strconv"
 	"strings"
@@ -200,6 +201,10 @@ func hasInboundFKExcludingTables(c *Catalog, targetSchema string, targetTable *m
 // would leave any foreign key (including self-referencing FKs) without a
 // matching primary-key or unique index on the target table.
 func indexReferencedByFK(c *Catalog, targetSchema string, targetTable *metadata.TableMetadata, idx *metadata.IndexMetadata) (string, string, bool) {
+	return indexReferencedByFKExcluding(c, targetSchema, targetTable, idx, nil)
+}
+
+func indexReferencedByFKExcluding(c *Catalog, targetSchema string, targetTable *metadata.TableMetadata, idx *metadata.IndexMetadata, excluded map[*metadata.IndexMetadata]bool) (string, string, bool) {
 	if idx == nil || (!idx.Primary && !idx.Unique) {
 		return "", "", false
 	}
@@ -216,7 +221,7 @@ func indexReferencedByFK(c *Catalog, targetSchema string, targetTable *metadata.
 				if !fkMatchesIndex(fk, idx) {
 					continue
 				}
-				if hasOtherMatchingUniqueIndex(targetTable, idx, fk) {
+				if hasOtherMatchingUniqueIndexExcluding(targetTable, idx, excluded, fk) {
 					continue
 				}
 				return t.Name, fk.Name, true
@@ -614,8 +619,12 @@ func fkMatchesIndex(fk *metadata.ForeignKeyMetadata, idx *metadata.IndexMetadata
 }
 
 func hasOtherMatchingUniqueIndex(table *metadata.TableMetadata, exclude *metadata.IndexMetadata, fk *metadata.ForeignKeyMetadata) bool {
+	return hasOtherMatchingUniqueIndexExcluding(table, exclude, nil, fk)
+}
+
+func hasOtherMatchingUniqueIndexExcluding(table *metadata.TableMetadata, exclude *metadata.IndexMetadata, excluded map[*metadata.IndexMetadata]bool, fk *metadata.ForeignKeyMetadata) bool {
 	for _, other := range table.Indexes {
-		if other == exclude || (!other.Primary && !other.Unique) {
+		if other == exclude || excluded[other] || (!other.Primary && !other.Unique) {
 			continue
 		}
 		if fkMatchesIndex(fk, other) {
@@ -727,7 +736,7 @@ func (c *Catalog) execCreateSchema(n *ast.CreateSchemaStmt, source string) error
 			if err := c.execStatement(item, source); err != nil {
 				c.defaultSchema = previous
 				c.indexCounter = savedIndexCounter
-				c.removeSchema(schema.Name)
+				c.removeSchema(schema)
 				return err
 			}
 		}
@@ -736,9 +745,12 @@ func (c *Catalog) execCreateSchema(n *ast.CreateSchemaStmt, source string) error
 	return nil
 }
 
-func (c *Catalog) removeSchema(name string) {
+func (c *Catalog) removeSchema(target *metadata.SchemaMetadata) {
+	if target == nil {
+		return
+	}
 	for i, s := range c.schemas {
-		if strings.EqualFold(s.Name, name) {
+		if s == target {
 			fold := normalize(s.Name)
 			for _, t := range s.Tables {
 				delete(c.tableByName, tableKey{schema: s.Name, table: t.Name})
@@ -1744,6 +1756,11 @@ func (c *Catalog) execCreateSequence(n *ast.CreateSequenceStmt, source string) e
 	} else if n.Cache != nil {
 		sequence.CacheSize = strings.TrimSpace(nodeText(n.Cache, source))
 	}
+	if !c.lenientMetadataLoad {
+		if err := validateSequenceBounds(sequence, sequenceName, true, ""); err != nil {
+			return err
+		}
+	}
 	schema.Sequences = append(schema.Sequences, sequence)
 	return nil
 }
@@ -1766,31 +1783,101 @@ func (c *Catalog) execAlterSequence(n *ast.AlterSequenceStmt, source string) err
 	if isZeroNumericExpr(n.Increment) {
 		return mssqlErr(ErrSequenceZeroIncrement, "The increment value for sequence object '%s' cannot be zero.", sequenceName)
 	}
-	if strings.TrimSpace(seq.Start) == "" && (n.Increment != nil || n.NoMinVal || n.MinValue != nil || n.NoMaxVal || n.MaxValue != nil) {
-		seq.Start = normalizeSequenceMetadata(seq).start
+	staged := &metadata.SequenceMetadata{
+		Name:        seq.Name,
+		DataType:    seq.DataType,
+		Start:       seq.Start,
+		Increment:   seq.Increment,
+		MinValue:    seq.MinValue,
+		MaxValue:    seq.MaxValue,
+		Cycle:       seq.Cycle,
+		CacheSize:   seq.CacheSize,
+		OwnerTable:  seq.OwnerTable,
+		OwnerColumn: seq.OwnerColumn,
+		Comment:     seq.Comment,
+	}
+	if strings.TrimSpace(staged.Start) == "" && (n.Increment != nil || n.NoMinVal || n.MinValue != nil || n.NoMaxVal || n.MaxValue != nil) {
+		staged.Start = normalizeSequenceMetadata(staged).start
 	}
 	if n.Increment != nil {
-		seq.Increment = strings.TrimSpace(nodeText(n.Increment, source))
+		staged.Increment = strings.TrimSpace(nodeText(n.Increment, source))
 	}
 	if n.NoMinVal {
-		seq.MinValue = ""
+		staged.MinValue = ""
 	} else if n.MinValue != nil {
-		seq.MinValue = strings.TrimSpace(nodeText(n.MinValue, source))
+		staged.MinValue = strings.TrimSpace(nodeText(n.MinValue, source))
 	}
 	if n.NoMaxVal {
-		seq.MaxValue = ""
+		staged.MaxValue = ""
 	} else if n.MaxValue != nil {
-		seq.MaxValue = strings.TrimSpace(nodeText(n.MaxValue, source))
+		staged.MaxValue = strings.TrimSpace(nodeText(n.MaxValue, source))
 	}
 	if n.Cycle != nil {
-		seq.Cycle = *n.Cycle
+		staged.Cycle = *n.Cycle
 	}
 	if n.NoCache {
-		seq.CacheSize = "NO CACHE"
+		staged.CacheSize = "NO CACHE"
 	} else if n.Cache != nil {
-		seq.CacheSize = strings.TrimSpace(nodeText(n.Cache, source))
+		staged.CacheSize = strings.TrimSpace(nodeText(n.Cache, source))
 	} else if n.HasCache {
-		seq.CacheSize = ""
+		staged.CacheSize = ""
+	}
+	restartWith := ""
+	if n.RestartWith != nil {
+		restartWith = strings.TrimSpace(nodeText(n.RestartWith, source))
+	}
+	if err := validateSequenceBounds(staged, sequenceName, false, restartWith); err != nil {
+		return err
+	}
+	seq.Start = staged.Start
+	seq.Increment = staged.Increment
+	seq.MinValue = staged.MinValue
+	seq.MaxValue = staged.MaxValue
+	seq.Cycle = staged.Cycle
+	seq.CacheSize = staged.CacheSize
+	return nil
+}
+
+func parseSequenceBigInt(raw string) (*big.Int, bool) {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return nil, false
+	}
+	s = strings.TrimPrefix(s, "+")
+	v, ok := new(big.Int).SetString(s, 10)
+	return v, ok
+}
+
+func validateSequenceBounds(seq *metadata.SequenceMetadata, seqName string, checkStart bool, restartWith string) error {
+	norm := normalizeSequenceMetadata(seq)
+	if inc, ok := parseSequenceBigInt(norm.increment); ok && inc.Sign() == 0 {
+		return mssqlErr(ErrSequenceZeroIncrement, "The increment value for sequence object '%s' cannot be zero.", seqName)
+	}
+	minVal, hasMin := parseSequenceBigInt(norm.minValue)
+	maxVal, hasMax := parseSequenceBigInt(norm.maxValue)
+	typeMinStr, typeMaxStr := sequenceTypeBounds(norm.dataType)
+	if typeMin, ok := parseSequenceBigInt(typeMinStr); ok && hasMin && minVal.Cmp(typeMin) < 0 {
+		return mssqlErr(ErrSequenceInvalidBounds, "The minimum value for sequence object '%s' is out of range for its data type.", seqName)
+	}
+	if typeMax, ok := parseSequenceBigInt(typeMaxStr); ok && hasMax && maxVal.Cmp(typeMax) > 0 {
+		return mssqlErr(ErrSequenceInvalidBounds, "The maximum value for sequence object '%s' is out of range for its data type.", seqName)
+	}
+	if hasMin && hasMax && minVal.Cmp(maxVal) >= 0 {
+		return mssqlErr(ErrSequenceMinGreaterThanMax, "The minimum value for sequence object '%s' must be less than its maximum value.", seqName)
+	}
+	if checkStart {
+		if startVal, ok := parseSequenceBigInt(norm.start); ok {
+			if (hasMin && startVal.Cmp(minVal) < 0) || (hasMax && startVal.Cmp(maxVal) > 0) {
+				return mssqlErr(ErrSequenceStartOutOfRange, "The start value for sequence object '%s' must be between the minimum and maximum value of the sequence object.", seqName)
+			}
+		}
+	}
+	if restartWith != "" {
+		if rv, ok := parseSequenceBigInt(restartWith); ok {
+			if (hasMin && rv.Cmp(minVal) < 0) || (hasMax && rv.Cmp(maxVal) > 0) {
+				return mssqlErr(ErrSequenceStartOutOfRange, "The start value for sequence object '%s' must be between the minimum and maximum value of the sequence object.", seqName)
+			}
+		}
 	}
 	return nil
 }
@@ -2981,7 +3068,7 @@ func (c *Catalog) execDropSchema(n *ast.DropStmt) error {
 			len(schema.Functions) > 0 || len(schema.Sequences) > 0 || len(schema.Synonyms) > 0 {
 			return mssqlErr(ErrDropSchemaNotEmpty, "Cannot drop schema '%s' because it is being referenced by an object.", name)
 		}
-		c.removeSchema(schema.Name)
+		c.removeSchema(schema)
 	}
 	return nil
 }
@@ -3017,8 +3104,11 @@ func (c *Catalog) execDropIndex(n *ast.DropStmt) error {
 		return nil
 	}
 	type dropIndexTarget struct {
-		table *metadata.TableMetadata
-		idx   *metadata.IndexMetadata
+		cat        *Catalog
+		schemaName string
+		tableName  string
+		table      *metadata.TableMetadata
+		idx        *metadata.IndexMetadata
 	}
 	seen := make(map[*metadata.IndexMetadata]bool)
 	var targets []dropIndexTarget
@@ -3073,19 +3163,21 @@ func (c *Catalog) execDropIndex(n *ast.DropStmt) error {
 		if err := checkDropIndexOptions(n.Options, tableName, indexName, isClustered); err != nil {
 			return err
 		}
-		if _, fkName, referenced := indexReferencedByFK(targetCat, schemaName, table, foundIdx); referenced {
-			return mssqlErr(ErrDropIndexReferencedByFK, "An explicit DROP INDEX is not allowed on index '%s.%s'. It is being used for FOREIGN KEY constraint enforcement (%s).", tableName, indexName, fkName)
-		}
 
 		seen[foundIdx] = true
-		targets = append(targets, dropIndexTarget{table: table, idx: foundIdx})
+		targets = append(targets, dropIndexTarget{cat: targetCat, schemaName: schemaName, tableName: tableName, table: table, idx: foundIdx})
 		if isPrimaryXMLIndex(foundIdx) {
 			for _, sec := range table.Indexes {
 				if sec != foundIdx && !seen[sec] && isSecondaryXMLIndexOf(sec, foundIdx.Name) {
 					seen[sec] = true
-					targets = append(targets, dropIndexTarget{table: table, idx: sec})
+					targets = append(targets, dropIndexTarget{cat: targetCat, schemaName: schemaName, tableName: tableName, table: table, idx: sec})
 				}
 			}
+		}
+	}
+	for _, target := range targets {
+		if _, fkName, referenced := indexReferencedByFKExcluding(target.cat, target.schemaName, target.table, target.idx, seen); referenced {
+			return mssqlErr(ErrDropIndexReferencedByFK, "An explicit DROP INDEX is not allowed on index '%s.%s'. It is being used for FOREIGN KEY constraint enforcement (%s).", target.tableName, target.idx.Name, fkName)
 		}
 	}
 	for _, target := range targets {
@@ -3194,6 +3286,10 @@ func (c *Catalog) execDropObjects(n *ast.DropStmt, wantKind objectKind, sqlKind 
 			return mssqlErr(ErrCannotDropWrongKind, "Cannot use DROP %s with '%s' because '%s' is a %s.", sqlKind, objName, objName, string(kind))
 		}
 		if wantKind == kindTable {
+			periodKey := tableKey{schema: normalizeOrDefault(schema.Name, targetCat.defaultSchema), table: resolvedTable.Name}
+			if targetCat.systemVersionedTables[periodKey] {
+				return mssqlErr(ErrDropSystemVersionedTable, "Drop table operation failed on table '%s.%s' because it is not a supported operation on system-versioned temporal tables.", schema.Name, resolvedTable.Name)
+			}
 			if fkName, referenced := hasInboundFKExcludingTables(targetCat, schema.Name, resolvedTable, seenTables); referenced {
 				return mssqlErr(ErrDropTableReferencedByFK, "Could not drop object '%s' because it is referenced by a FOREIGN KEY constraint '%s'.", objName, fkName)
 			}

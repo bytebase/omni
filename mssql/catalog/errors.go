@@ -80,11 +80,15 @@ const (
 	ErrNoResumableIndexOp         = 10638
 	ErrAlterTableIndexDiskTable   = 10785
 	ErrCheckConstraintWrongKind   = 11415
+	ErrSequenceMinGreaterThanMax  = 11703
+	ErrSequenceStartOutOfRange    = 11704
+	ErrSequenceInvalidBounds      = 11706
 	ErrSequenceZeroIncrement      = 11717
 	ErrSpatialIndexNonSpatialCol  = 12002
 	ErrSystemTimeInvalidCols      = 13501
 	ErrSystemVersioningNoPeriod   = 13510
 	ErrPeriodAlreadyDefined       = 13514
+	ErrDropSystemVersionedTable   = 13552
 	ErrDropPeriodSystemVersioned  = 13554
 	ErrDropPeriodColumn           = 13561
 	ErrSystemVersioningNotEnabled = 13591

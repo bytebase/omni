@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/bytebase/omni/metadata"
 	"github.com/stretchr/testify/require"
 )
 
@@ -802,4 +803,65 @@ CREATE VIEW [dbo].[v] WITH SCHEMABINDING AS SELECT [a] FROM [dbo].[t];
 	require.Nil(t, c.GetTable("app", "t"))
 	execExpectCode(t, c, `ALTER SCHEMA [app] TRANSFER [dbo].[v]`, ErrTransferSchemaBound)
 	require.NotNil(t, c.GetView("dbo", "v"))
+
+	// 55. Multi-target DROP INDEX validates FK dependencies against all staged index drops.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[p] ([a] INT NOT NULL);
+GO
+CREATE UNIQUE INDEX [u1] ON [dbo].[p] ([a]);
+GO
+CREATE UNIQUE INDEX [u2] ON [dbo].[p] ([a]);
+GO
+CREATE TABLE [dbo].[c] ([a] INT REFERENCES [dbo].[p]([a]));
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `DROP INDEX [u1] ON [dbo].[p], [u2] ON [dbo].[p]`, ErrDropIndexReferencedByFK)
+	require.NotNil(t, indexByName(c.GetTable("dbo", "p"), "u1"))
+	require.NotNil(t, indexByName(c.GetTable("dbo", "p"), "u2"))
+	execExpectOK(t, c, `DROP INDEX [u1] ON [dbo].[p]`)
+	require.Nil(t, indexByName(c.GetTable("dbo", "p"), "u1"))
+	require.NotNil(t, indexByName(c.GetTable("dbo", "p"), "u2"))
+
+	// 56. ALTER SEQUENCE validates combined min/max/restart bounds before mutating metadata.
+	c, err = LoadSQL(`CREATE SEQUENCE [dbo].[s] START WITH 1 MINVALUE 1 MAXVALUE 10;`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER SEQUENCE [dbo].[s] MINVALUE 20`, ErrSequenceMinGreaterThanMax)
+	require.Equal(t, "1", c.GetSchema("dbo").Sequences[0].MinValue)
+	require.Equal(t, "10", c.GetSchema("dbo").Sequences[0].MaxValue)
+	execExpectCode(t, c, `ALTER SEQUENCE [dbo].[s] RESTART WITH 20`, ErrSequenceStartOutOfRange)
+	execExpectCode(t, c, `CREATE SEQUENCE [dbo].[bad_seq] MINVALUE 20 MAXVALUE 10`, ErrSequenceMinGreaterThanMax)
+
+	// 57. DROP TABLE rejects dropping a table while SYSTEM_VERSIONING is ON.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[t] (
+    [id] INT NOT NULL PRIMARY KEY,
+    [sys_start] DATETIME2 GENERATED ALWAYS AS ROW START NOT NULL,
+    [sys_end] DATETIME2 GENERATED ALWAYS AS ROW END NOT NULL,
+    PERIOD FOR SYSTEM_TIME ([sys_start], [sys_end])
+) WITH (SYSTEM_VERSIONING = ON);
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `DROP TABLE [dbo].[t]`, ErrDropSystemVersionedTable)
+	require.NotNil(t, c.GetTable("dbo", "t"))
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] SET (SYSTEM_VERSIONING = OFF)`)
+	execExpectOK(t, c, `DROP TABLE [dbo].[t]`)
+	require.Nil(t, c.GetTable("dbo", "t"))
+
+	// 58. DROP SCHEMA removes the exact resolved schema in case-sensitive metadata snapshots.
+	c = New()
+	require.NoError(t, c.LoadMetadata(t.Context(), &metadata.DatabaseSchemaMetadata{
+		Schemas: []*metadata.SchemaMetadata{
+			{
+				Name: "Foo",
+				Tables: []*metadata.TableMetadata{
+					{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int", Position: 1}}},
+				},
+			},
+			{Name: "foo"},
+		},
+	}))
+	execExpectOK(t, c, `DROP SCHEMA [foo]`)
+	require.NotNil(t, c.GetSchema("Foo"))
+	require.NotNil(t, c.GetTable("Foo", "t"))
+	require.Len(t, c.ListSchemaNames(), 1)
 }
