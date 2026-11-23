@@ -297,15 +297,6 @@ func analyzeCollection(s *ast.CollectionStatement) *StatementAnalysis {
 		Collection: s.Collection,
 	}
 
-	if s.Explain || hasExplainCursor(s) {
-		if hasUnsafeStatementArgs(s, "") {
-			a.Operation = OpWrite
-			return a
-		}
-		a.Operation = OpExplain
-		return a
-	}
-
 	switch s.Method {
 	case "find":
 		a.Operation = OpFind
@@ -344,6 +335,20 @@ func analyzeCollection(s *ast.CollectionStatement) *StatementAnalysis {
 		a.Operation = OpWrite
 		a.PredicateFields = nil
 		a.ShapePreserving = false
+	}
+
+	// Only classify as OpExplain when the primary operation is read-only and
+	// explainable; mutating methods (e.g. insertOne().explain(), drop().explain(),
+	// or aggregate with $out/$merge) retain their mutating operation class.
+	if (s.Explain || hasExplainCursor(s)) &&
+		explainableMethods[s.Method] &&
+		a.Operation != OpWrite &&
+		(a.Operation != OpAggregate || !hasWriteOrUnknownStage(a)) {
+		return &StatementAnalysis{
+			Operation:  OpExplain,
+			MethodName: s.Method,
+			Collection: s.Collection,
+		}
 	}
 
 	return a

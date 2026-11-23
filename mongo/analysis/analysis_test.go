@@ -706,6 +706,12 @@ func TestAnalyzeValidateRepairAndUnsafeArgCalls(t *testing.T) {
 	if sa := mustAnalyze(t, `db.users.find({_id: ObjectId("507f1f77bcf86cd799439011")})`); sa.Operation != analysis.OpFind {
 		t.Errorf("find with ObjectId Operation = %v, want OpFind", sa.Operation)
 	}
+	if sa := mustAnalyze(t, `db.users.insertOne({name: "x"}).explain()`); sa.Operation != analysis.OpWrite {
+		t.Errorf("insertOne().explain() Operation = %v, want OpWrite", sa.Operation)
+	}
+	if sa := mustAnalyze(t, `db.users.drop().explain()`); sa.Operation != analysis.OpAdmin {
+		t.Errorf("drop().explain() Operation = %v, want OpAdmin", sa.Operation)
+	}
 }
 
 // ---------------------------------------------------------------------------

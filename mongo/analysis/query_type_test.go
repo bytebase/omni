@@ -112,6 +112,15 @@ func TestClassifyStatement(t *testing.T) {
 		{name: "find with explain suffix", statement: `db.users.find({}).explain()`, want: Explain},
 		{name: "find with sort and explain suffix", statement: `db.users.find({}).sort({a: 1}).explain()`, want: Explain},
 		{name: "explain prefix with find", statement: `db.users.explain().find({})`, want: Explain},
+		{name: "aggregate read-only with explain suffix", statement: `db.users.aggregate([{$match: {}}]).explain()`, want: Explain},
+		{name: "explain prefix with read-only aggregate", statement: `db.users.explain().aggregate([{$match: {}}])`, want: Explain},
+		{name: "insertOne with explain suffix retains DML", statement: `db.users.insertOne({name: "x"}).explain()`, want: DML},
+		{name: "drop with explain suffix retains DDL", statement: `db.users.drop().explain()`, want: DDL},
+		{name: "aggregate $out with explain suffix retains DML", statement: `db.users.aggregate([{$out: "output"}]).explain()`, want: DML},
+		{name: "explain prefix with deleteOne retains DML", statement: `db.users.explain().deleteOne({})`, want: DML},
+		{name: "explain prefix with drop retains DDL", statement: `db.users.explain().drop()`, want: DDL},
+		{name: "explain prefix with aggregate $merge retains DML", statement: `db.users.explain().aggregate([{$merge: {into: "output"}}])`, want: DML},
+		{name: "unknown method with explain suffix retains DML", statement: `db.users.someUnknownMethod().explain()`, want: DML},
 
 		// Bulk operations.
 		{name: "initializeOrderedBulkOp", statement: `db.users.initializeOrderedBulkOp().insert({a: 1}).execute()`, want: DML},
