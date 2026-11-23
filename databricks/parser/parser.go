@@ -12,6 +12,7 @@ type checkpoint struct {
 	gtStart         int
 	gtEnd           int
 	parenDepth      int
+	windowSpecSeen  bool
 	queryDepth      int
 	queryParenDepth int
 	hasTransform    bool
@@ -128,6 +129,7 @@ func (p *Parser) save() checkpoint {
 		gtStart:         p.gtStart,
 		gtEnd:           p.gtEnd,
 		parenDepth:      p.parenDepth,
+		windowSpecSeen:  p.windowSpecSeen,
 		queryDepth:      p.queryDepth,
 		queryParenDepth: p.queryParenDepth,
 		hasTransform:    p.hasTransform,
@@ -148,6 +150,7 @@ func (p *Parser) restore(cp checkpoint) {
 	p.gtStart = cp.gtStart
 	p.gtEnd = cp.gtEnd
 	p.parenDepth = cp.parenDepth
+	p.windowSpecSeen = cp.windowSpecSeen
 	p.queryDepth = cp.queryDepth
 	p.queryParenDepth = cp.queryParenDepth
 	p.hasTransform = cp.hasTransform

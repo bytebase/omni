@@ -168,6 +168,7 @@ func TestValidateQuery(t *testing.T) {
 		{name: "from single-bar pipeline with insert stage", sql: "FROM t | INSERT INTO u", wantErr: true},
 		{name: "from single-bar pipeline with later insert stage", sql: "FROM t | SELECT * | INSERT INTO u", wantErr: true},
 		{name: "from single-bar pipeline with trailing bar", sql: "FROM t | SELECT * |", wantErr: true},
+		{name: "from single-bar aggregate followed by window select", sql: "FROM t | AGGREGATE sum(x) GROUP BY y | SELECT row_number() OVER (ORDER BY y)", readOnly: true, returnsData: true},
 		{name: "from single-bar pipeline missing relation", sql: "FROM | SELECT *", wantErr: true},
 		{name: "parenthesized select with single-bar insert", sql: "(SELECT 1 AS x) | INSERT INTO t", wantErr: true},
 		{name: "explain analyze single-bar pipeline", sql: "EXPLAIN ANALYZE FROM t | SELECT *"},

@@ -111,6 +111,7 @@ func Split(script string) []Segment {
 	atBodyStmtStart := false
 	stmtHead := tokEOF
 	prevTokKind := tokEOF
+	prevIsValue := false
 	parenDepth := 0
 	var caseStack []caseFrame
 
@@ -128,15 +129,61 @@ func Split(script string) []Segment {
 		return true
 	}
 
-	isCaseExprEnd := func(prevKind TokenKind) bool {
+	canFollowLoopDo := func(next Token) bool {
+		if isWord(next, "QUALIFY") {
+			return false
+		}
+		switch next.Kind {
+		case tokEOF, tokSemicolon, tokComma, tokRParen, tokRBracket, tokDot, tokLBracket, tokDoubleColon, tokColon,
+			tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
+			tokPlus, tokMinus, tokAsterisk, tokSlash, tokPercent, kwDIV,
+			tokConcatPipe, tokPipe, tokAmpersand, tokHat, tokShiftLeft, tokShiftRight, tokShiftRightU,
+			tokOperatorPipe,
+			kwDO, kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwSORT, kwCLUSTER, kwDISTRIBUTE,
+			kwWINDOW, kwLIMIT, kwOFFSET, kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS,
+			kwJOIN, kwINNER, kwLEFT, kwRIGHT, kwFULL, kwCROSS, kwNATURAL, kwSEMI, kwANTI, kwLATERAL,
+			kwON, kwUSING, kwAS, kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN:
+			return false
+		}
+		return true
+	}
+
+	canFollowControlThen := func(next TokenKind) bool {
+		switch next {
+		case tokEOF, tokSemicolon, tokComma, tokRParen, tokRBracket, tokDot, tokLBracket, tokDoubleColon, tokColon,
+			tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
+			tokPlus, tokMinus, tokAsterisk, tokSlash, tokPercent, kwDIV,
+			tokConcatPipe, tokPipe, tokAmpersand, tokHat, tokShiftLeft, tokShiftRight, tokShiftRightU,
+			tokOperatorPipe,
+			kwTHEN, kwAND, kwOR, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE, kwBETWEEN, kwAS:
+			return false
+		}
+		return true
+	}
+
+	isExprOperatorOrClause := func(k TokenKind) bool {
+		switch k {
+		case tokEOF, tokSemicolon, tokComma, tokDot, tokColon, tokDoubleColon, tokLParen, tokLBracket,
+			tokEq, tokNeq, tokNeqBang, tokNullSafeEq, tokLT, tokLTE, tokGT, tokGTE,
+			tokPlus, tokMinus, tokAsterisk, tokSlash, tokPercent, kwDIV,
+			tokConcatPipe, tokPipe, tokAmpersand, tokHat, tokTilde, tokShiftLeft, tokShiftRight, tokShiftRightU,
+			tokArrow, tokFatArrow, tokOperatorPipe,
+			kwAND, kwOR, kwNOT, kwIS, kwIN, kwLIKE, kwILIKE, kwRLIKE,
+			kwBETWEEN, kwAS, kwDISTINCT, kwALL, kwEXISTS,
+			kwSELECT, kwFROM, kwWHERE, kwHAVING, kwON, kwUSING, kwINTO,
+			kwJOIN, kwINNER, kwLEFT, kwRIGHT, kwFULL, kwCROSS, kwNATURAL, kwSEMI, kwANTI,
+			kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
+			return true
+		}
+		return false
+	}
+
+	isCaseExprEnd := func() bool {
 		if len(caseStack) == 0 {
 			return false
 		}
 		top := caseStack[len(caseStack)-1]
-		if parenDepth != top.parenDepth || top.phase != caseAfterThen {
-			return false
-		}
-		return canPrecedeCaseEnd(prevKind)
+		return parenDepth == top.parenDepth && top.phase == caseAfterThen && prevIsValue
 	}
 
 	isCaseExprStart := func(prevKind TokenKind) bool {
@@ -233,6 +280,7 @@ func Split(script string) []Segment {
 		atBodyStmtStart = true
 		stmtHead = tokEOF
 		prevTokKind = tokEOF
+		prevIsValue = false
 		parenDepth = 0
 		caseStack = caseStack[:0]
 	}
@@ -316,6 +364,7 @@ func Split(script string) []Segment {
 			pendingLabel = ""
 			stmtHead = tokEOF
 			prevTokKind = tokEOF
+			prevIsValue = false
 			parenDepth = 0
 			caseStack = caseStack[:0]
 			continue
@@ -337,27 +386,32 @@ func Split(script string) []Segment {
 				pendingLabel = ""
 				stmtHead = kwIF
 				atBodyStmtStart = false
+				prevIsValue = false
 				continue
 			case kwCASE:
 				stack = append(stack, compoundFrame{kind: compoundCase})
 				pendingLabel = ""
 				stmtHead = kwCASE
 				atBodyStmtStart = false
+				prevIsValue = false
 				continue
 			case kwWHILE:
 				stack = append(stack, compoundFrame{kind: compoundWhile, label: pendingLabel})
 				pendingLabel = ""
 				stmtHead = kwWHILE
 				atBodyStmtStart = false
+				prevIsValue = false
 				continue
 			case kwREPEAT:
 				stack = append(stack, compoundFrame{kind: compoundRepeat, label: pendingLabel})
 				pendingLabel = ""
+				prevIsValue = false
 				// Body follows REPEAT immediately without a semicolon.
 				continue
 			case kwLOOP:
 				stack = append(stack, compoundFrame{kind: compoundLoop, label: pendingLabel})
 				pendingLabel = ""
+				prevIsValue = false
 				// Body follows LOOP immediately without a semicolon.
 				continue
 			case kwFOR:
@@ -365,10 +419,12 @@ func Split(script string) []Segment {
 				pendingLabel = ""
 				stmtHead = kwFOR
 				atBodyStmtStart = false
+				prevIsValue = false
 				continue
 			case kwELSE:
 				// Body follows ELSE immediately without a semicolon.
 				pendingLabel = ""
+				prevIsValue = false
 				continue
 			case kwDECLARE:
 				pendingLabel = ""
@@ -431,11 +487,13 @@ func Split(script string) []Segment {
 				}
 				stmtHead = kwDECLARE
 				atBodyStmtStart = false
+				prevIsValue = false
 				parenDepth = 0
 				caseStack = caseStack[:0]
 				continue
 			case kwEND:
 				pendingLabel = ""
+				prevIsValue = false
 				top := stack[len(stack)-1]
 				switch top.kind {
 				case compoundBegin:
@@ -461,6 +519,7 @@ func Split(script string) []Segment {
 				pendingLabel = ""
 				stmtHead = tok.Kind
 				atBodyStmtStart = false
+				prevIsValue = false
 				parenDepth = 0
 				caseStack = caseStack[:0]
 				continue
@@ -471,59 +530,90 @@ func Split(script string) []Segment {
 		switch tok.Kind {
 		case tokLParen, tokLBracket:
 			parenDepth++
+			prevIsValue = false
 		case tokRParen, tokRBracket:
 			if parenDepth > 0 {
 				parenDepth--
 			}
+			prevIsValue = true
 		case kwCASE:
-			// Track nested SQL CASE expressions inside IF/ELSEIF/WHEN/UNTIL headers so
+			// Track nested SQL CASE expressions inside control-flow headers so
 			// `IF CASE WHEN ... THEN ... END THEN` doesn't treat the expression's
 			// THEN as the IF body start, while preserving non-reserved identifiers
 			// named `case` (e.g. `IF case = 1 THEN ...`).
-			if (stmtHead == kwIF || stmtHead == kwELSEIF || stmtHead == kwWHEN || stmtHead == kwCASE || stmtHead == kwUNTIL) &&
+			if (stmtHead == kwIF || stmtHead == kwELSEIF || stmtHead == kwWHEN || stmtHead == kwCASE || stmtHead == kwUNTIL || stmtHead == kwWHILE) &&
 				isCaseExprStart(prevKind) {
 				caseStack = append(caseStack, caseFrame{parenDepth: parenDepth, phase: caseExpectWhen})
+				prevIsValue = false
+			} else {
+				prevIsValue = true
 			}
 		case kwEND:
 			if len(caseStack) > 0 {
-				if isCaseExprEnd(prevKind) {
+				if isCaseExprEnd() {
 					caseStack = caseStack[:len(caseStack)-1]
 				}
-			} else if stmtHead == kwUNTIL && parenDepth == 0 {
+				prevIsValue = true
+			} else if stmtHead == kwUNTIL && parenDepth == 0 && prevIsValue && popControlEnd(compoundRepeat, kwREPEAT) {
 				// `REPEAT ... UNTIL <cond> END REPEAT [label];` has no semicolon before END REPEAT.
-				popControlEnd(compoundRepeat, kwREPEAT)
+				prevIsValue = false
+			} else {
+				prevIsValue = true
 			}
 		case kwWHEN:
 			if len(caseStack) > 0 {
 				top := &caseStack[len(caseStack)-1]
-				if parenDepth == top.parenDepth {
+				if parenDepth == top.parenDepth && (top.phase == caseExpectWhen || (top.phase == caseAfterThen && prevIsValue)) {
 					top.phase = caseInWhen
+					prevIsValue = false
+				} else {
+					prevIsValue = true
 				}
 			} else if stmtHead == kwCASE && parenDepth == 0 {
 				stmtHead = kwWHEN
+				prevIsValue = false
+			} else {
+				prevIsValue = true
 			}
 		case kwTHEN:
 			if len(caseStack) > 0 {
 				top := &caseStack[len(caseStack)-1]
-				if parenDepth == top.parenDepth {
+				if parenDepth == top.parenDepth && top.phase == caseInWhen && prevIsValue {
 					top.phase = caseAfterThen
+					prevIsValue = false
+				} else {
+					prevIsValue = true
 				}
-			} else if (stmtHead == kwIF || stmtHead == kwELSEIF || stmtHead == kwWHEN) && parenDepth == 0 {
+			} else if (stmtHead == kwIF || stmtHead == kwELSEIF || stmtHead == kwWHEN) && parenDepth == 0 &&
+				prevIsValue && canFollowControlThen(peekTok(0).Kind) {
 				atBodyStmtStart = true
 				stmtHead = tokEOF
+				prevIsValue = false
+			} else {
+				prevIsValue = true
 			}
 		case kwELSE:
 			if len(caseStack) > 0 {
 				top := &caseStack[len(caseStack)-1]
-				if parenDepth == top.parenDepth {
-					top.phase = caseAfterThen
+				if parenDepth == top.parenDepth && top.phase == caseAfterThen && prevIsValue {
+					prevIsValue = false
+				} else {
+					prevIsValue = true
 				}
+			} else {
+				prevIsValue = true
 			}
 		case kwDO:
-			if (stmtHead == kwWHILE || stmtHead == kwFOR) && parenDepth == 0 && len(caseStack) == 0 {
+			if (stmtHead == kwWHILE || stmtHead == kwFOR) && parenDepth == 0 && len(caseStack) == 0 &&
+				prevIsValue && canFollowLoopDo(peekTok(0)) {
 				atBodyStmtStart = true
 				stmtHead = tokEOF
+				prevIsValue = false
+			} else {
+				prevIsValue = true
 			}
+		default:
+			prevIsValue = !isExprOperatorOrClause(tok.Kind)
 		}
 	}
 

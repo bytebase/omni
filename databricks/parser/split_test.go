@@ -305,6 +305,36 @@ func TestSplit(t *testing.T) {
 			empty:  []bool{false, false},
 		},
 		{
+			name:   "do variable inside WHILE condition with nested WHILE",
+			script: "BEGIN DECLARE do INT DEFAULT 0; WHILE do = 1 DO WHILE false DO SELECT 1; END WHILE; END WHILE; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE do INT DEFAULT 0; WHILE do = 1 DO WHILE false DO SELECT 1; END WHILE; END WHILE; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "do boolean variable directly before DO in WHILE",
+			script: "BEGIN DECLARE do BOOLEAN DEFAULT false; WHILE do DO SELECT 1; END WHILE; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE do BOOLEAN DEFAULT false; WHILE do DO SELECT 1; END WHILE; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "do alias and cursor name inside FOR header",
+			script: "BEGIN FOR do AS SELECT 1 do FROM t WHERE do = 1 DO FOR r AS SELECT 2 do DO SELECT 1; END FOR; END FOR; END; SELECT 2;",
+			want:   []string{"BEGIN FOR do AS SELECT 1 do FROM t WHERE do = 1 DO FOR r AS SELECT 2 do DO SELECT 1; END FOR; END FOR; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "then variable inside IF condition with nested IF",
+			script: "BEGIN DECLARE then INT DEFAULT 1; IF then = 1 THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE then INT DEFAULT 1; IF then = 1 THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "then and else variables inside CASE expression in IF header",
+			script: "BEGIN DECLARE then INT DEFAULT 1; DECLARE else INT DEFAULT 2; IF CASE WHEN then = 1 THEN then ELSE else END = 1 THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE then INT DEFAULT 1; DECLARE else INT DEFAULT 2; IF CASE WHEN then = 1 THEN then ELSE else END = 1 THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
 			name:   "end variable in second WHEN branch and nested CASE",
 			script: "BEGIN DECLARE end INT DEFAULT 1; IF CASE WHEN true THEN CASE WHEN end = 1 THEN t.end + end ELSE (end) END WHEN end = 2 THEN 2 END = 1 THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
 			want:   []string{"BEGIN DECLARE end INT DEFAULT 1; IF CASE WHEN true THEN CASE WHEN end = 1 THEN t.end + end ELSE (end) END WHEN end = 2 THEN 2 END = 1 THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
