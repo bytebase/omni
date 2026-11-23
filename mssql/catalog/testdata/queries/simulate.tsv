@@ -8,6 +8,8 @@ ok:05fd082ad27f	ok:05fd082ad27f	engine	one_table@column	batch(statementOptSemi)*
 263	263	engine	one_table@column	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/commonTableExpression	CREATE VIEW _v AS WITH a AS(SELECT *) SELECT *
 263	263	engine	one_table@column	commonTableExpression(columnNameList)?/columnNameList	CREATE VIEW _v AS WITH a(a) AS(SELECT *) SELECT *
 263	263	engine	one_table@column	xmlNamespacesElement/xmlNamespacesAliasElement	CREATE VIEW _v AS WITH XMLNAMESPACES('a' AS a) SELECT *
+263	263	engine	one_table@column	xmlNamespacesDefaultElement/Default_stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE VIEW _v AS WITH XMLNAMESPACES(DEFAULT N'a') SELECT *
+263	263	engine	one_table@column	xmlNamespacesAliasElement/stringLiteral_As_identifier+stringLiteral/UnicodeStringLiteral	CREATE VIEW _v AS WITH XMLNAMESPACES(N'a' AS a) SELECT *
 1033	1033	engine	one_table@column	select(orderByClause_(offsetClause)?)?/orderByClause_(offsetClause)?	CREATE VIEW _v AS SELECT * ORDER BY 1
 263	263	engine	one_table@column	select(offsetClause)?/offsetClause	CREATE VIEW _v AS SELECT * ORDER BY 1 OFFSET 1 ROW
 176	176	engine	one_table@column	select(forClause)?/forClause	CREATE VIEW _v AS SELECT * FOR BROWSE
@@ -150,6 +152,7 @@ ok:82b75cb99595	ok:82b75cb99595	engine	one_table@column	schemaObjectTableReferen
 7601	7601	engine	one_table@column	fulltextTableReference(fulltextTableOptions)?/fulltextTableOptions	CREATE VIEW _v AS SELECT * FROM CONTAINSTABLE(a, a, 'a', 1)
 7601	7601	engine	one_table@column	fullTextTable/FreeTextTable	CREATE VIEW _v AS SELECT * FROM FREETEXTTABLE(a, a, 'a')
 7601	7601	engine	one_table@column	fulltextTableColumnList/PROPERTY_LeftParenthesis_identifierColumnReferenceExpre~a9369749	CREATE VIEW _v AS SELECT * FROM CONTAINSTABLE(a, PROPERTY(a, 'a'), 'a')
+7601	7601	engine	one_table@column	fulltextTableColumnList/PROPERTY_LeftParenthesis_identifierColumnReferenceExpre~a9369749+stringLiteral/UnicodeStringLiteral	CREATE VIEW _v AS SELECT * FROM CONTAINSTABLE(a, PROPERTY(a, N'a'), 'a')
 41202	41202	engine	one_table@column	fulltextSemanticTableColumnList/starColumnReferenceExpression	CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, *)
 41202	41202	engine	one_table@column	fulltextSemanticTableColumnList/LeftParenthesis_starColumnReferenceExpression_RightParenthesis	CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a,(*))
 41202	41202	engine	one_table@column	fulltextSemanticTableColumnList/LeftParenthesis_identifierColumnReferenceExpression_(Co~a6a01d86	CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a,(a))
@@ -178,6 +181,7 @@ ok:82b75cb99595	ok:82b75cb99595	engine	one_table@column	schemaObjectTableReferen
 ok:ed11fd88d54c	ok:ed11fd88d54c	engine	one_table@column	openJsonParams(Comma_expression)?/Comma_expression	CREATE VIEW _v AS SELECT * FROM OPENJSON(1, 1)
 2715	2715	engine	one_table@column	openJsonSchemaItemList(Comma_openJsonSchemaItem)*/Comma_openJsonSchemaItem_(Comma_openJsonSchemaItem)*	CREATE VIEW _v AS SELECT * FROM OPENJSON(1) WITH(a a, a a)
 2715	2715	engine	one_table@column	openJsonSchemaItem(stringLiteral)?/stringLiteral	CREATE VIEW _v AS SELECT * FROM OPENJSON(1) WITH(a a 'a')
+2715	2715	engine	one_table@column	openJsonSchemaItem(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE VIEW _v AS SELECT * FROM OPENJSON(1) WITH(a a N'a')
 2715	2715	engine	one_table@column	openJsonSchemaItem(As_JSON)?/As_JSON	CREATE VIEW _v AS SELECT * FROM OPENJSON(1) WITH(a a AS JSON)
 ok:e6851bc808e3	ok:e6851bc808e3	engine	one_table@column	nonParameterTableHints/simpleTableHints	CREATE VIEW _v AS SELECT * FROM a WITH(1)
 ok:a706c8580758	ok:a706c8580758	engine	one_table@column	simpleTableHints(oldForceIndex|tableHints)/tableHints	CREATE VIEW _v AS SELECT * FROM a WITH(FORCESEEK)
@@ -209,6 +213,7 @@ ok:a706c8580758	ok:a706c8580758	engine	one_table@column	simpleTableHints(oldForc
 156	156	engine	one_table@column	simpleOptimizerHint/FORCE_Order	CREATE VIEW _v AS SELECT * OPTION(FORCE ORDER)
 156	156	engine	one_table@column	simpleOptimizerHint/HASH_Group	CREATE VIEW _v AS SELECT * OPTION(HASH GROUP)
 156	156	engine	one_table@column	simpleOptimizerHint/Order_Group	CREATE VIEW _v AS SELECT * OPTION(ORDER GROUP)
+156	156	engine	one_table@column	usePlanOptimizerHint/Use_Plan_stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE VIEW _v AS SELECT * OPTION(USE PLAN N'a')
 156	156	engine	one_table@column	optimizeForOptimizerHint(LeftParenthesis_variableValuePair_(C~e8d8e4d2)/LeftParenthesis_variableValuePair_(Comma_variableValueP~d0bbec3f	CREATE VIEW _v AS SELECT * OPTION(OPTIMIZE FOR(@a UNKNOWN))
 156	156	engine	one_table@column	optimizeForOptimizerHint(Comma_variableValuePair)*/Comma_variableValuePair_(Comma_variableValuePair)*	CREATE VIEW _v AS SELECT * OPTION(OPTIMIZE FOR(@a UNKNOWN, @a UNKNOWN))
 156	156	engine	one_table@column	variableValuePair(EqualsSign_possibleNegativeConstant|UNKNOWN)/EqualsSign_possibleNegativeConstant	CREATE VIEW _v AS SELECT * OPTION(OPTIMIZE FOR(@a = 1))
@@ -330,7 +335,9 @@ ok:e1b83eaff11c	ok:e1b83eaff11c	engine	one_table@column	parameterlessCall/Curren
 1033	1033	engine	one_table@column	orderByOption/Desc	CREATE VIEW _v AS SELECT * ORDER BY 1 DESC
 447	447	engine	one_table@column	collationOpt/collation	CREATE VIEW _v AS SELECT 1 COLLATE a
 447	447	engine	one_table@column	collationOpt/collation!insert	CREATE VIEW _v AS SELECT 1 COLLATE a zzz
+ok:f8f3ae70933f	ok:f8f3ae70933f	engine	one_table@column	stringOrIdentifier/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE VIEW _v AS SELECT 1 N'a'
 ok:5cc7f1d389b9	ok:5cc7f1d389b9	engine	one_table@column	stringOrIdentifier/identifier	CREATE VIEW _v AS SELECT 1 a
+13544	13544	engine	one_table@column	stringLiteralOrVariable/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME AS OF N'a'
 137	137	engine	one_table@column	stringLiteralOrVariable/variable	CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME AS OF @a
 137	137	engine	one_table@column	stringLiteralOrVariable/variable!insert	CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME AS OF @a zzz
 ok:de65c8b97d97	ok:de65c8b97d97	engine	one_table@column	openJsonTableReference_OPENJSON/OPENJSON_LeftParenthesis_openJsonParams_RightParenthesi~3d152f0e+simpleTableReferenceAliasOpt	CREATE VIEW _v AS SELECT * FROM OPENJSON(1) a

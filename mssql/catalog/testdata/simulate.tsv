@@ -23,8 +23,10 @@ ok:3dac5ed53107	ok:3dac5ed53107	engine	one_table@missing	create2005Statements(cr
 ok:9c213fc39967	ok:9c213fc39967	engine	one_table@missing	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSequenceStatement_SEQUENCE	CREATE SEQUENCE a
 1088	1088	engine	one_table@missing	createXmlIndexStatement(secondaryXmlIndexStatementBody|secon~89edebe0)/secondarySelectiveXmlIndex	CREATE XML INDEX a ON a(a) USING XML INDEX a FOR(a)
 1088	1088	engine	one_table@missing	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec	ALTER INDEX a ON a FOR(ADD a = 'a')
+1088	1088	engine	one_table@missing	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 1088	1088	engine	one_table@missing	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 1088	1088	engine	one_table@missing	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+1088	1088	engine	one_table@missing	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 1088	1088	engine	one_table@missing	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
 1088	1088	engine	one_table@missing	maxlengthOption(identifier_MAXLENGTH_LeftParenthesis~2e0dd099)?/identifier_MAXLENGTH_LeftParenthesis_integer_RightParenthesis	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY MAXLENGTH(1))
 1088	1088	engine	one_table@missing	promotedSelectiveXmlIndexPathInAlter/REMOVE_identifier	ALTER INDEX a ON a FOR(REMOVE a)
@@ -41,6 +43,7 @@ ok:9c213fc39967	ok:9c213fc39967	engine	one_table@missing	create2005Statements(cr
 4902	4902	engine	one_table@missing	partitionSpecifier(expression|All)/All!swap	ALTER TABLE a REBUILD PARTITION = ALLOW_CONNECTIONS
 15151	15151	engine	one_table@missing	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 15151	15151	engine	one_table@missing	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EXECUTE AS 'a' AS
+15151	15151	engine	one_table@missing	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
 15151	15151	engine	one_table@missing	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon	ALTER SCHEMA a TRANSFER OBJECT :: a
 15151	15151	engine	one_table@missing	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon!truncate	ALTER SCHEMA a TRANSFER OBJECT
 15151	15151	engine	one_table@missing	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
@@ -79,6 +82,7 @@ ok:c9be65ef10f0	ok:c9be65ef10f0	engine	one_table@missing	dropFunctionStatement(I
 ok:c9be65ef10f0	ok:c9be65ef10f0	engine	one_table@missing	dropViewStatement(If_Exists)?/If_Exists	DROP VIEW IF EXISTS a
 ok:c9be65ef10f0	ok:c9be65ef10f0	engine	one_table@missing	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EXISTS a
 3701	3701	engine	one_table@missing	dropTriggerStatement(On_triggerScope)?/On_triggerScope	DROP TRIGGER a ON DATABASE
+3701	3701	engine	one_table@missing	dropTriggerStatement(On_triggerScope)?/On_triggerScope+triggerScope/All_SERVER	DROP TRIGGER a ON ALL SERVER
 3701	3701	engine	one_table@missing	dropObjectList(Comma_dropObject)*/Comma_dropObject_(Comma_dropObject)*	DROP TABLE a, a
 4902	4902	engine	one_table@missing	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1088	1088	engine	one_table@missing	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
@@ -161,6 +165,8 @@ ok:921144a110e1	ok:921144a110e1	engine	one_table@missing	cursorProcedureParamete
 8197	8197	engine	one_table@missing	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
 8197	8197	engine	one_table@missing	dmlTriggerMidSection(INSTEAD|AFTER)/AFTER	CREATE TRIGGER a ON a AFTER INSERT AS SELECT 1
 8197	8197	engine	one_table@missing	dmlTriggerMidSection(Of)?/Of	CREATE TRIGGER a ON a INSTEAD OF INSERT AS SELECT 1
+8197	8197	engine	one_table@missing	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+8197	8197	engine	one_table@missing	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
 8197	8197	engine	one_table@missing	dmlTriggerMidSection(Not_For_Replication)?/Not_For_Replication	CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 8197	8197	engine	one_table@missing	dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR UPDATE AS SELECT 1
 8197	8197	engine	one_table@missing	dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR DELETE AS SELECT 1
@@ -200,6 +206,7 @@ ok:8f7dec70eb31	ok:8f7dec70eb31	engine	one_table@missing	createTableStatement(FI
 4902	4902	engine	one_table@missing	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
 4902	4902	engine	one_table@missing	alterTableDropTableElement(alterTableDropTableElementWithOptions)?/alterTableDropTableElementWithOptions	ALTER TABLE a DROP a WITH(MAXDOP = 1)
 4902	4902	engine	one_table@missing	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff	ALTER TABLE a DROP a WITH(ONLINE = ON)
+4902	4902	engine	one_table@missing	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff+optionOnOff/Off	ALTER TABLE a DROP a WITH(ONLINE = OFF)
 4902	4902	engine	one_table@missing	dropClusteredConstraintOption/MOVE_To_filegroupOrPartitionScheme	ALTER TABLE a DROP a WITH(MOVE TO 'a')
 4902	4902	engine	one_table@missing	alterTableConstraintModificationStatement(All|identifier_(Comma_identifier)*)/All!swap	ALTER TABLE a CHECK CONSTRAINT ALLOW_CONNECTIONS
 4902	4902	engine	one_table@missing	alterTableConstraintModificationStatement(All|identifier_(Comma_identifier)*)/identifier_(Comma_identifier)*	ALTER TABLE a CHECK CONSTRAINT a
@@ -239,11 +246,13 @@ ok:8f7dec70eb31	ok:8f7dec70eb31	engine	one_table@missing	createTableStatement(FI
 4902	4902	engine	one_table@missing	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
 4902	4902	engine	one_table@missing	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4902	4902	engine	one_table@missing	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
+4902	4902	engine	one_table@missing	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 4902	4902	engine	one_table@missing	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4902	4902	engine	one_table@missing	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4902	4902	engine	one_table@missing	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4902	4902	engine	one_table@missing	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 4902	4902	engine	one_table@missing	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+4902	4902	engine	one_table@missing	stringLiteralOrNull/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
 15151	15151	engine	one_table@missing	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 15151	15151	engine	one_table@missing	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 1088	1088	engine	one_table@missing	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/With_xmlNamespaces	CREATE SELECTIVE XML INDEX a ON a(a) WITH XMLNAMESPACES(DEFAULT 'a') FOR(a = 'a')
@@ -262,6 +271,7 @@ ok:c9be65ef10f0	ok:c9be65ef10f0	engine	one_table@missing	dropSequenceStatement_S
 4902	4902	engine	one_table@missing	systemVersioningTableOnOffOption_SYSTEM_VERSIONING(Off|(On_(LeftParenthesis_systemVersi~dd985d07)/On_(LeftParenthesis_systemVersioningTabl~7b7e2f04)?	ALTER TABLE a SET(SYSTEM_VERSIONING = ON)
 4902	4902	engine	one_table@missing	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4902	4902	engine	one_table@missing	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+4902	4902	engine	one_table@missing	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 4902	4902	engine	one_table@missing	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 8168	8168	engine	one_table@missing	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	8168	engine	one_table@missing	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
@@ -289,8 +299,10 @@ ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	statement/truncateTableSt
 2714	2714	engine	one_table@table	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSequenceStatement_SEQUENCE	CREATE SEQUENCE a
 1911	1911	engine	one_table@table	createXmlIndexStatement(secondaryXmlIndexStatementBody|secon~89edebe0)/secondarySelectiveXmlIndex	CREATE XML INDEX a ON a(a) USING XML INDEX a FOR(a)
 2727	2727	engine	one_table@table	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec	ALTER INDEX a ON a FOR(ADD a = 'a')
+2727	2727	engine	one_table@table	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 2727	2727	engine	one_table@table	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 2727	2727	engine	one_table@table	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+2727	2727	engine	one_table@table	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 2727	2727	engine	one_table@table	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
 2727	2727	engine	one_table@table	maxlengthOption(identifier_MAXLENGTH_LeftParenthesis~2e0dd099)?/identifier_MAXLENGTH_LeftParenthesis_integer_RightParenthesis	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY MAXLENGTH(1))
 2727	2727	engine	one_table@table	promotedSelectiveXmlIndexPathInAlter/REMOVE_identifier	ALTER INDEX a ON a FOR(REMOVE a)
@@ -307,6 +319,7 @@ ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	partitionSpecifier(expres
 207	207	engine	one_table@table	partitionSpecifier(expression|All)/All!swap	ALTER TABLE a REBUILD PARTITION = ALLOW_CONNECTIONS
 2714	2714	engine	one_table@table	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 2714	2714	engine	one_table@table	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EXECUTE AS 'a' AS
+2714	2714	engine	one_table@table	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
 15151	15151	engine	one_table@table	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon	ALTER SCHEMA a TRANSFER OBJECT :: a
 15151	15151	engine	one_table@table	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon!truncate	ALTER SCHEMA a TRANSFER OBJECT
 15151	15151	engine	one_table@table	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
@@ -345,6 +358,7 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	dropTableStatement(If_Exi
 3705	3705	engine	one_table@table	dropViewStatement(If_Exists)?/If_Exists	DROP VIEW IF EXISTS a
 3705	3705	engine	one_table@table	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EXISTS a
 3701	3701	engine	one_table@table	dropTriggerStatement(On_triggerScope)?/On_triggerScope	DROP TRIGGER a ON DATABASE
+3701	3701	engine	one_table@table	dropTriggerStatement(On_triggerScope)?/On_triggerScope+triggerScope/All_SERVER	DROP TRIGGER a ON ALL SERVER
 3701	3701	engine	one_table@table	dropObjectList(Comma_dropObject)*/Comma_dropObject_(Comma_dropObject)*	DROP TABLE a, a
 2715	2715	engine	one_table@table	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1911	1911	engine	one_table@table	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
@@ -427,6 +441,8 @@ ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	indexOption/ignoreDupKeyI
 2714	2714	engine	one_table@table	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
 2714	2714	engine	one_table@table	dmlTriggerMidSection(INSTEAD|AFTER)/AFTER	CREATE TRIGGER a ON a AFTER INSERT AS SELECT 1
 2714	2714	engine	one_table@table	dmlTriggerMidSection(Of)?/Of	CREATE TRIGGER a ON a INSTEAD OF INSERT AS SELECT 1
+2714	2714	engine	one_table@table	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+2714	2714	engine	one_table@table	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
 2714	2714	engine	one_table@table	dmlTriggerMidSection(Not_For_Replication)?/Not_For_Replication	CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 2714	2714	engine	one_table@table	dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR UPDATE AS SELECT 1
 2714	2714	engine	one_table@table	dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR DELETE AS SELECT 1
@@ -466,6 +482,7 @@ ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	alterTableDropTableElemen
 ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
 3728	3728	engine	one_table@table	alterTableDropTableElement(alterTableDropTableElementWithOptions)?/alterTableDropTableElementWithOptions	ALTER TABLE a DROP a WITH(MAXDOP = 1)
 3745	3745	engine	one_table@table	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff	ALTER TABLE a DROP a WITH(ONLINE = ON)
+3728	3728	engine	one_table@table	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff+optionOnOff/Off	ALTER TABLE a DROP a WITH(ONLINE = OFF)
 3728	3728	engine	one_table@table	dropClusteredConstraintOption/MOVE_To_filegroupOrPartitionScheme	ALTER TABLE a DROP a WITH(MOVE TO 'a')
 4917	4917	engine	one_table@table	alterTableConstraintModificationStatement(All|identifier_(Comma_identifier)*)/All!swap	ALTER TABLE a CHECK CONSTRAINT ALLOW_CONNECTIONS
 11415	11415	engine	one_table@table	alterTableConstraintModificationStatement(All|identifier_(Comma_identifier)*)/identifier_(Comma_identifier)*	ALTER TABLE a CHECK CONSTRAINT a
@@ -505,11 +522,13 @@ ok:6c971c3a9d9f	ok:6c971c3a9d9f	engine	one_table@table	tableConstraint(uniqueTab
 1909	1909	engine	one_table@table	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
 1911	1911	engine	one_table@table	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 1911	1911	engine	one_table@table	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
+1911	1911	engine	one_table@table	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 2715	2715	engine	one_table@table	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 13930	13930	engine	one_table@table	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 13930	13930	engine	one_table@table	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 1769	1769	engine	one_table@table	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 ok:6c971c3a9d9f	ok:6c971c3a9d9f	engine	one_table@table	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+33411	33411	engine	one_table@table	stringLiteralOrNull/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
 15151	15151	engine	one_table@table	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 15151	15151	engine	one_table@table	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 1911	1911	engine	one_table@table	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/With_xmlNamespaces	CREATE SELECTIVE XML INDEX a ON a(a) WITH XMLNAMESPACES(DEFAULT 'a') FOR(a = 'a')
@@ -528,6 +547,7 @@ ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	ignoreDupKeyIndexOption_I
 13510	13510	engine	one_table@table	systemVersioningTableOnOffOption_SYSTEM_VERSIONING(Off|(On_(LeftParenthesis_systemVersi~dd985d07)/On_(LeftParenthesis_systemVersioningTabl~7b7e2f04)?	ALTER TABLE a SET(SYSTEM_VERSIONING = ON)
 4955	4955	engine	one_table@table	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+2715	2715	engine	one_table@table	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 4924	4924	engine	one_table@table	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 8168	8168	engine	one_table@table	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	8168	engine	one_table@table	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
@@ -555,8 +575,10 @@ ok:899120d16816	ok:899120d16816	engine	one_table@column	statement/truncateTableS
 2714	2714	engine	one_table@column	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSequenceStatement_SEQUENCE	CREATE SEQUENCE a
 6333	6333	engine	one_table@column	createXmlIndexStatement(secondaryXmlIndexStatementBody|secon~89edebe0)/secondarySelectiveXmlIndex	CREATE XML INDEX a ON a(a) USING XML INDEX a FOR(a)
 2727	2727	engine	one_table@column	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec	ALTER INDEX a ON a FOR(ADD a = 'a')
+2727	2727	engine	one_table@column	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 2727	2727	engine	one_table@column	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 2727	2727	engine	one_table@column	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+2727	2727	engine	one_table@column	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 2727	2727	engine	one_table@column	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
 2727	2727	engine	one_table@column	maxlengthOption(identifier_MAXLENGTH_LeftParenthesis~2e0dd099)?/identifier_MAXLENGTH_LeftParenthesis_integer_RightParenthesis	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY MAXLENGTH(1))
 2727	2727	engine	one_table@column	promotedSelectiveXmlIndexPathInAlter/REMOVE_identifier	ALTER INDEX a ON a FOR(REMOVE a)
@@ -573,6 +595,7 @@ ok:899120d16816	ok:899120d16816	engine	one_table@column	partitionSpecifier(expre
 207	207	engine	one_table@column	partitionSpecifier(expression|All)/All!swap	ALTER TABLE a REBUILD PARTITION = ALLOW_CONNECTIONS
 2714	2714	engine	one_table@column	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 2714	2714	engine	one_table@column	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EXECUTE AS 'a' AS
+2714	2714	engine	one_table@column	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
 15151	15151	engine	one_table@column	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon	ALTER SCHEMA a TRANSFER OBJECT :: a
 15151	15151	engine	one_table@column	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon!truncate	ALTER SCHEMA a TRANSFER OBJECT
 15151	15151	engine	one_table@column	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
@@ -611,6 +634,7 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	dropTableStatement(If_Ex
 3705	3705	engine	one_table@column	dropViewStatement(If_Exists)?/If_Exists	DROP VIEW IF EXISTS a
 3705	3705	engine	one_table@column	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EXISTS a
 3701	3701	engine	one_table@column	dropTriggerStatement(On_triggerScope)?/On_triggerScope	DROP TRIGGER a ON DATABASE
+3701	3701	engine	one_table@column	dropTriggerStatement(On_triggerScope)?/On_triggerScope+triggerScope/All_SERVER	DROP TRIGGER a ON ALL SERVER
 3701	3701	engine	one_table@column	dropObjectList(Comma_dropObject)*/Comma_dropObject_(Comma_dropObject)*	DROP TABLE a, a
 2705	2705	engine	one_table@column	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 ok:89c47dbd1788	ok:89c47dbd1788	engine	one_table@column	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
@@ -693,6 +717,8 @@ ok:899120d16816	ok:899120d16816	engine	one_table@column	indexOption/ignoreDupKey
 2714	2714	engine	one_table@column	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
 2714	2714	engine	one_table@column	dmlTriggerMidSection(INSTEAD|AFTER)/AFTER	CREATE TRIGGER a ON a AFTER INSERT AS SELECT 1
 2714	2714	engine	one_table@column	dmlTriggerMidSection(Of)?/Of	CREATE TRIGGER a ON a INSTEAD OF INSERT AS SELECT 1
+2714	2714	engine	one_table@column	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+2714	2714	engine	one_table@column	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
 2714	2714	engine	one_table@column	dmlTriggerMidSection(Not_For_Replication)?/Not_For_Replication	CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 2714	2714	engine	one_table@column	dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR UPDATE AS SELECT 1
 2714	2714	engine	one_table@column	dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR DELETE AS SELECT 1
@@ -732,6 +758,7 @@ ok:f3f91e418855	ok:f3f91e418855	engine	one_table@column	alterTableDropTableEleme
 ok:899120d16816	ok:899120d16816	engine	one_table@column	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
 3728	3728	engine	one_table@column	alterTableDropTableElement(alterTableDropTableElementWithOptions)?/alterTableDropTableElementWithOptions	ALTER TABLE a DROP a WITH(MAXDOP = 1)
 3745	3745	engine	one_table@column	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff	ALTER TABLE a DROP a WITH(ONLINE = ON)
+3728	3728	engine	one_table@column	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff+optionOnOff/Off	ALTER TABLE a DROP a WITH(ONLINE = OFF)
 3728	3728	engine	one_table@column	dropClusteredConstraintOption/MOVE_To_filegroupOrPartitionScheme	ALTER TABLE a DROP a WITH(MOVE TO 'a')
 4917	4917	engine	one_table@column	alterTableConstraintModificationStatement(All|identifier_(Comma_identifier)*)/All!swap	ALTER TABLE a CHECK CONSTRAINT ALLOW_CONNECTIONS
 11415	11415	engine	one_table@column	alterTableConstraintModificationStatement(All|identifier_(Comma_identifier)*)/identifier_(Comma_identifier)*	ALTER TABLE a CHECK CONSTRAINT a
@@ -771,11 +798,13 @@ ok:45511b3ac5ea	ok:45511b3ac5ea	engine	one_table@column	defaultTableConstraint(W
 1909	1909	engine	one_table@column	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
 1921	1921	engine	one_table@column	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 ok:c1bdaacd0fe9	ok:c1bdaacd0fe9	engine	one_table@column	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
+ok:52a4b2c9a386	ok:52a4b2c9a386	engine	one_table@column	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 2705	2705	engine	one_table@column	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 13930	13930	engine	one_table@column	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 13930	13930	engine	one_table@column	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 ok:ff598b39c05d	ok:ff598b39c05d	engine	one_table@column	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 ok:34d8ba350b50	ok:34d8ba350b50	engine	one_table@column	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+33411	33411	engine	one_table@column	stringLiteralOrNull/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
 15151	15151	engine	one_table@column	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 15151	15151	engine	one_table@column	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 6330	6330	engine	one_table@column	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/With_xmlNamespaces	CREATE SELECTIVE XML INDEX a ON a(a) WITH XMLNAMESPACES(DEFAULT 'a') FOR(a = 'a')
@@ -794,6 +823,7 @@ ok:899120d16816	ok:899120d16816	engine	one_table@column	ignoreDupKeyIndexOption_
 13510	13510	engine	one_table@column	systemVersioningTableOnOffOption_SYSTEM_VERSIONING(Off|(On_(LeftParenthesis_systemVersi~dd985d07)/On_(LeftParenthesis_systemVersioningTabl~7b7e2f04)?	ALTER TABLE a SET(SYSTEM_VERSIONING = ON)
 4955	4955	engine	one_table@column	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 ok:899120d16816	ok:899120d16816	engine	one_table@column	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+2705	2705	engine	one_table@column	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 2715	2715	engine	one_table@column	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 8168	8168	engine	one_table@column	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	8168	engine	one_table@column	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
@@ -821,8 +851,10 @@ ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	statement/truncateTableSt
 2714	2714	engine	one_table@index	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSequenceStatement_SEQUENCE	CREATE SEQUENCE a
 6333	6333	engine	one_table@index	createXmlIndexStatement(secondaryXmlIndexStatementBody|secon~89edebe0)/secondarySelectiveXmlIndex	CREATE XML INDEX a ON a(a) USING XML INDEX a FOR(a)
 6333	6333	engine	one_table@index	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec	ALTER INDEX a ON a FOR(ADD a = 'a')
+6333	6333	engine	one_table@index	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 6333	6333	engine	one_table@index	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 6333	6333	engine	one_table@index	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+6333	6333	engine	one_table@index	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 6333	6333	engine	one_table@index	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
 6333	6333	engine	one_table@index	maxlengthOption(identifier_MAXLENGTH_LeftParenthesis~2e0dd099)?/identifier_MAXLENGTH_LeftParenthesis_integer_RightParenthesis	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY MAXLENGTH(1))
 6333	6333	engine	one_table@index	promotedSelectiveXmlIndexPathInAlter/REMOVE_identifier	ALTER INDEX a ON a FOR(REMOVE a)
@@ -839,6 +871,7 @@ ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	partitionSpecifier(expres
 207	207	engine	one_table@index	partitionSpecifier(expression|All)/All!swap	ALTER TABLE a REBUILD PARTITION = ALLOW_CONNECTIONS
 2714	2714	engine	one_table@index	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 2714	2714	engine	one_table@index	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EXECUTE AS 'a' AS
+2714	2714	engine	one_table@index	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
 15151	15151	engine	one_table@index	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon	ALTER SCHEMA a TRANSFER OBJECT :: a
 15151	15151	engine	one_table@index	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon!truncate	ALTER SCHEMA a TRANSFER OBJECT
 15151	15151	engine	one_table@index	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
@@ -877,6 +910,7 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@index	dropTableStatement(If_Exi
 3705	3705	engine	one_table@index	dropViewStatement(If_Exists)?/If_Exists	DROP VIEW IF EXISTS a
 3705	3705	engine	one_table@index	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EXISTS a
 3701	3701	engine	one_table@index	dropTriggerStatement(On_triggerScope)?/On_triggerScope	DROP TRIGGER a ON DATABASE
+3701	3701	engine	one_table@index	dropTriggerStatement(On_triggerScope)?/On_triggerScope+triggerScope/All_SERVER	DROP TRIGGER a ON ALL SERVER
 3701	3701	engine	one_table@index	dropObjectList(Comma_dropObject)*/Comma_dropObject_(Comma_dropObject)*	DROP TABLE a, a
 2705	2705	engine	one_table@index	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1913	1913	engine	one_table@index	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
@@ -959,6 +993,8 @@ ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	indexOption/ignoreDupKeyI
 2714	2714	engine	one_table@index	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
 2714	2714	engine	one_table@index	dmlTriggerMidSection(INSTEAD|AFTER)/AFTER	CREATE TRIGGER a ON a AFTER INSERT AS SELECT 1
 2714	2714	engine	one_table@index	dmlTriggerMidSection(Of)?/Of	CREATE TRIGGER a ON a INSTEAD OF INSERT AS SELECT 1
+2714	2714	engine	one_table@index	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+2714	2714	engine	one_table@index	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
 2714	2714	engine	one_table@index	dmlTriggerMidSection(Not_For_Replication)?/Not_For_Replication	CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 2714	2714	engine	one_table@index	dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR UPDATE AS SELECT 1
 2714	2714	engine	one_table@index	dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR DELETE AS SELECT 1
@@ -998,6 +1034,7 @@ ok:46a01911f0a1	ok:46a01911f0a1	engine	one_table@index	alterTableDropTableElemen
 ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
 3728	3728	engine	one_table@index	alterTableDropTableElement(alterTableDropTableElementWithOptions)?/alterTableDropTableElementWithOptions	ALTER TABLE a DROP a WITH(MAXDOP = 1)
 3745	3745	engine	one_table@index	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff	ALTER TABLE a DROP a WITH(ONLINE = ON)
+3728	3728	engine	one_table@index	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff+optionOnOff/Off	ALTER TABLE a DROP a WITH(ONLINE = OFF)
 3728	3728	engine	one_table@index	dropClusteredConstraintOption/MOVE_To_filegroupOrPartitionScheme	ALTER TABLE a DROP a WITH(MOVE TO 'a')
 4917	4917	engine	one_table@index	alterTableConstraintModificationStatement(All|identifier_(Comma_identifier)*)/All!swap	ALTER TABLE a CHECK CONSTRAINT ALLOW_CONNECTIONS
 11415	11415	engine	one_table@index	alterTableConstraintModificationStatement(All|identifier_(Comma_identifier)*)/identifier_(Comma_identifier)*	ALTER TABLE a CHECK CONSTRAINT a
@@ -1037,11 +1074,13 @@ ok:f7db7e86818d	ok:f7db7e86818d	engine	one_table@index	defaultTableConstraint(Wi
 1909	1909	engine	one_table@index	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
 1921	1921	engine	one_table@index	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 ok:c5b4fe588b97	ok:c5b4fe588b97	engine	one_table@index	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
+ok:b33883055a9b	ok:b33883055a9b	engine	one_table@index	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 2705	2705	engine	one_table@index	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 13930	13930	engine	one_table@index	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 13930	13930	engine	one_table@index	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 ok:a7a4d6c3399e	ok:a7a4d6c3399e	engine	one_table@index	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 ok:d3bb6f6e137e	ok:d3bb6f6e137e	engine	one_table@index	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+33411	33411	engine	one_table@index	stringLiteralOrNull/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
 15151	15151	engine	one_table@index	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 15151	15151	engine	one_table@index	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 1913	1913	engine	one_table@index	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/With_xmlNamespaces	CREATE SELECTIVE XML INDEX a ON a(a) WITH XMLNAMESPACES(DEFAULT 'a') FOR(a = 'a')
@@ -1060,6 +1099,7 @@ ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	ignoreDupKeyIndexOption_I
 13510	13510	engine	one_table@index	systemVersioningTableOnOffOption_SYSTEM_VERSIONING(Off|(On_(LeftParenthesis_systemVersi~dd985d07)/On_(LeftParenthesis_systemVersioningTabl~7b7e2f04)?	ALTER TABLE a SET(SYSTEM_VERSIONING = ON)
 4955	4955	engine	one_table@index	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+2705	2705	engine	one_table@index	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 2715	2715	engine	one_table@index	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 8168	8168	engine	one_table@index	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	8168	engine	one_table@index	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
@@ -1087,8 +1127,10 @@ ok:35bdc4532691	ok:35bdc4532691	engine	objects@view	batch((lastStatementOptSemi)
 2714	2714	engine	objects@view	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSequenceStatement_SEQUENCE	CREATE SEQUENCE a
 6334	6334	engine	objects@view	createXmlIndexStatement(secondaryXmlIndexStatementBody|secon~89edebe0)/secondarySelectiveXmlIndex	CREATE XML INDEX a ON a(a) USING XML INDEX a FOR(a)
 2727	2727	engine	objects@view	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec	ALTER INDEX a ON a FOR(ADD a = 'a')
+2727	2727	engine	objects@view	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 2727	2727	engine	objects@view	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 2727	2727	engine	objects@view	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+2727	2727	engine	objects@view	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 2727	2727	engine	objects@view	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
 2727	2727	engine	objects@view	maxlengthOption(identifier_MAXLENGTH_LeftParenthesis~2e0dd099)?/identifier_MAXLENGTH_LeftParenthesis_integer_RightParenthesis	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY MAXLENGTH(1))
 2727	2727	engine	objects@view	promotedSelectiveXmlIndexPathInAlter/REMOVE_identifier	ALTER INDEX a ON a FOR(REMOVE a)
@@ -1105,6 +1147,7 @@ ok:c27c5d345b68	ok:c27c5d345b68	engine	objects@view	alterIndexStatement(identifi
 4909	4909	engine	objects@view	partitionSpecifier(expression|All)/All!swap	ALTER TABLE a REBUILD PARTITION = ALLOW_CONNECTIONS
 2714	2714	engine	objects@view	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 2714	2714	engine	objects@view	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EXECUTE AS 'a' AS
+2714	2714	engine	objects@view	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
 15151	15151	engine	objects@view	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon	ALTER SCHEMA a TRANSFER OBJECT :: a
 15151	15151	engine	objects@view	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon!truncate	ALTER SCHEMA a TRANSFER OBJECT
 15151	15151	engine	objects@view	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
@@ -1143,6 +1186,7 @@ ok:c27c5d345b68	ok:c27c5d345b68	engine	objects@view	dropSchemaStatement(If_Exist
 ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)?/If_Exists	DROP VIEW IF EXISTS a
 3705	3705	engine	objects@view	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EXISTS a
 3701	3701	engine	objects@view	dropTriggerStatement(On_triggerScope)?/On_triggerScope	DROP TRIGGER a ON DATABASE
+3701	3701	engine	objects@view	dropTriggerStatement(On_triggerScope)?/On_triggerScope+triggerScope/All_SERVER	DROP TRIGGER a ON ALL SERVER
 3705	3705	engine	objects@view	dropObjectList(Comma_dropObject)*/Comma_dropObject_(Comma_dropObject)*	DROP TABLE a, a
 4909	4909	engine	objects@view	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1939	1939	engine	objects@view	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
@@ -1225,6 +1269,8 @@ ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)
 8197	8197	engine	objects@view	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
 8197	8197	engine	objects@view	dmlTriggerMidSection(INSTEAD|AFTER)/AFTER	CREATE TRIGGER a ON a AFTER INSERT AS SELECT 1
 2714	2714	engine	objects@view	dmlTriggerMidSection(Of)?/Of	CREATE TRIGGER a ON a INSTEAD OF INSERT AS SELECT 1
+8197	8197	engine	objects@view	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+8197	8197	engine	objects@view	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
 8197	8197	engine	objects@view	dmlTriggerMidSection(Not_For_Replication)?/Not_For_Replication	CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 8197	8197	engine	objects@view	dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR UPDATE AS SELECT 1
 8197	8197	engine	objects@view	dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR DELETE AS SELECT 1
@@ -1264,6 +1310,7 @@ ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)
 4909	4909	engine	objects@view	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
 4909	4909	engine	objects@view	alterTableDropTableElement(alterTableDropTableElementWithOptions)?/alterTableDropTableElementWithOptions	ALTER TABLE a DROP a WITH(MAXDOP = 1)
 4909	4909	engine	objects@view	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff	ALTER TABLE a DROP a WITH(ONLINE = ON)
+4909	4909	engine	objects@view	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff+optionOnOff/Off	ALTER TABLE a DROP a WITH(ONLINE = OFF)
 4909	4909	engine	objects@view	dropClusteredConstraintOption/MOVE_To_filegroupOrPartitionScheme	ALTER TABLE a DROP a WITH(MOVE TO 'a')
 4909	4909	engine	objects@view	alterTableConstraintModificationStatement(All|identifier_(Comma_identifier)*)/All!swap	ALTER TABLE a CHECK CONSTRAINT ALLOW_CONNECTIONS
 4909	4909	engine	objects@view	alterTableConstraintModificationStatement(All|identifier_(Comma_identifier)*)/identifier_(Comma_identifier)*	ALTER TABLE a CHECK CONSTRAINT a
@@ -1303,11 +1350,13 @@ ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)
 4909	4909	engine	objects@view	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
 4909	4909	engine	objects@view	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4909	4909	engine	objects@view	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
+4909	4909	engine	objects@view	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 4909	4909	engine	objects@view	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	4909	engine	objects@view	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4909	4909	engine	objects@view	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	4909	engine	objects@view	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 4909	4909	engine	objects@view	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+4909	4909	engine	objects@view	stringLiteralOrNull/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
 15151	15151	engine	objects@view	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 15151	15151	engine	objects@view	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 6334	6334	engine	objects@view	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/With_xmlNamespaces	CREATE SELECTIVE XML INDEX a ON a(a) WITH XMLNAMESPACES(DEFAULT 'a') FOR(a = 'a')
@@ -1326,6 +1375,7 @@ ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)
 4909	4909	engine	objects@view	systemVersioningTableOnOffOption_SYSTEM_VERSIONING(Off|(On_(LeftParenthesis_systemVersi~dd985d07)/On_(LeftParenthesis_systemVersioningTabl~7b7e2f04)?	ALTER TABLE a SET(SYSTEM_VERSIONING = ON)
 4909	4909	engine	objects@view	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	4909	engine	objects@view	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+4909	4909	engine	objects@view	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 4909	4909	engine	objects@view	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 8168	8168	engine	objects@view	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	8168	engine	objects@view	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
@@ -1353,8 +1403,10 @@ ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	statement/alterTableStatement	
 2714	2714	engine	objects@fk	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSequenceStatement_SEQUENCE	CREATE SEQUENCE a
 6333	6333	engine	objects@fk	createXmlIndexStatement(secondaryXmlIndexStatementBody|secon~89edebe0)/secondarySelectiveXmlIndex	CREATE XML INDEX a ON a(a) USING XML INDEX a FOR(a)
 2727	2727	engine	objects@fk	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec	ALTER INDEX a ON a FOR(ADD a = 'a')
+2727	2727	engine	objects@fk	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 2727	2727	engine	objects@fk	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 2727	2727	engine	objects@fk	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+2727	2727	engine	objects@fk	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 2727	2727	engine	objects@fk	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
 2727	2727	engine	objects@fk	maxlengthOption(identifier_MAXLENGTH_LeftParenthesis~2e0dd099)?/identifier_MAXLENGTH_LeftParenthesis_integer_RightParenthesis	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY MAXLENGTH(1))
 2727	2727	engine	objects@fk	promotedSelectiveXmlIndexPathInAlter/REMOVE_identifier	ALTER INDEX a ON a FOR(REMOVE a)
@@ -1371,6 +1423,7 @@ ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	partitionSpecifier(expression|
 207	207	engine	objects@fk	partitionSpecifier(expression|All)/All!swap	ALTER TABLE a REBUILD PARTITION = ALLOW_CONNECTIONS
 2714	2714	engine	objects@fk	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 2714	2714	engine	objects@fk	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EXECUTE AS 'a' AS
+2714	2714	engine	objects@fk	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
 15151	15151	engine	objects@fk	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon	ALTER SCHEMA a TRANSFER OBJECT :: a
 15151	15151	engine	objects@fk	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon!truncate	ALTER SCHEMA a TRANSFER OBJECT
 15151	15151	engine	objects@fk	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
@@ -1409,6 +1462,7 @@ ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	dropSchemaStatement(If_Exists)
 3705	3705	engine	objects@fk	dropViewStatement(If_Exists)?/If_Exists	DROP VIEW IF EXISTS a
 3705	3705	engine	objects@fk	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EXISTS a
 3701	3701	engine	objects@fk	dropTriggerStatement(On_triggerScope)?/On_triggerScope	DROP TRIGGER a ON DATABASE
+3701	3701	engine	objects@fk	dropTriggerStatement(On_triggerScope)?/On_triggerScope+triggerScope/All_SERVER	DROP TRIGGER a ON ALL SERVER
 3726	3726	engine	objects@fk	dropObjectList(Comma_dropObject)*/Comma_dropObject_(Comma_dropObject)*	DROP TABLE a, a
 2705	2705	engine	objects@fk	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 ok:6510a2c87b10	ok:6510a2c87b10	engine	objects@fk	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
@@ -1491,6 +1545,8 @@ ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	indexOption/ignoreDupKeyIndexO
 2714	2714	engine	objects@fk	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
 2714	2714	engine	objects@fk	dmlTriggerMidSection(INSTEAD|AFTER)/AFTER	CREATE TRIGGER a ON a AFTER INSERT AS SELECT 1
 2714	2714	engine	objects@fk	dmlTriggerMidSection(Of)?/Of	CREATE TRIGGER a ON a INSTEAD OF INSERT AS SELECT 1
+2714	2714	engine	objects@fk	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+2714	2714	engine	objects@fk	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
 2714	2714	engine	objects@fk	dmlTriggerMidSection(Not_For_Replication)?/Not_For_Replication	CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 2714	2714	engine	objects@fk	dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR UPDATE AS SELECT 1
 2714	2714	engine	objects@fk	dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR DELETE AS SELECT 1
@@ -1530,6 +1586,7 @@ ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	alterTableAlterColumnStatement
 ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
 3728	3728	engine	objects@fk	alterTableDropTableElement(alterTableDropTableElementWithOptions)?/alterTableDropTableElementWithOptions	ALTER TABLE a DROP a WITH(MAXDOP = 1)
 3745	3745	engine	objects@fk	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff	ALTER TABLE a DROP a WITH(ONLINE = ON)
+3728	3728	engine	objects@fk	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff+optionOnOff/Off	ALTER TABLE a DROP a WITH(ONLINE = OFF)
 3728	3728	engine	objects@fk	dropClusteredConstraintOption/MOVE_To_filegroupOrPartitionScheme	ALTER TABLE a DROP a WITH(MOVE TO 'a')
 4917	4917	engine	objects@fk	alterTableConstraintModificationStatement(All|identifier_(Comma_identifier)*)/All!swap	ALTER TABLE a CHECK CONSTRAINT ALLOW_CONNECTIONS
 11415	11415	engine	objects@fk	alterTableConstraintModificationStatement(All|identifier_(Comma_identifier)*)/identifier_(Comma_identifier)*	ALTER TABLE a CHECK CONSTRAINT a
@@ -1569,11 +1626,13 @@ ok:8dfc9979b324	ok:8dfc9979b324	engine	objects@fk	defaultTableConstraint(With_Va
 1909	1909	engine	objects@fk	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
 1921	1921	engine	objects@fk	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 ok:a597d2209282	ok:a597d2209282	engine	objects@fk	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
+ok:cebc739de3fb	ok:cebc739de3fb	engine	objects@fk	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 2705	2705	engine	objects@fk	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 13930	13930	engine	objects@fk	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 13930	13930	engine	objects@fk	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 ok:91ee95387576	ok:91ee95387576	engine	objects@fk	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 ok:6363ae2043b1	ok:6363ae2043b1	engine	objects@fk	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+33411	33411	engine	objects@fk	stringLiteralOrNull/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
 15151	15151	engine	objects@fk	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 15151	15151	engine	objects@fk	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 6330	6330	engine	objects@fk	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/With_xmlNamespaces	CREATE SELECTIVE XML INDEX a ON a(a) WITH XMLNAMESPACES(DEFAULT 'a') FOR(a = 'a')
@@ -1592,6 +1651,7 @@ ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	ignoreDupKeyIndexOption_IGNORE
 13510	13510	engine	objects@fk	systemVersioningTableOnOffOption_SYSTEM_VERSIONING(Off|(On_(LeftParenthesis_systemVersi~dd985d07)/On_(LeftParenthesis_systemVersioningTabl~7b7e2f04)?	ALTER TABLE a SET(SYSTEM_VERSIONING = ON)
 4955	4955	engine	objects@fk	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+2705	2705	engine	objects@fk	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 2715	2715	engine	objects@fk	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 8168	8168	engine	objects@fk	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	8168	engine	objects@fk	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
@@ -1619,8 +1679,10 @@ ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	statement/truncateTableSta
 2714	2714	engine	objects@schema	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSequenceStatement_SEQUENCE	CREATE SEQUENCE a
 1911	1911	engine	objects@schema	createXmlIndexStatement(secondaryXmlIndexStatementBody|secon~89edebe0)/secondarySelectiveXmlIndex	CREATE XML INDEX a ON a(a) USING XML INDEX a FOR(a)
 2727	2727	engine	objects@schema	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec	ALTER INDEX a ON a FOR(ADD a = 'a')
+2727	2727	engine	objects@schema	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 2727	2727	engine	objects@schema	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 2727	2727	engine	objects@schema	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+2727	2727	engine	objects@schema	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 2727	2727	engine	objects@schema	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
 2727	2727	engine	objects@schema	maxlengthOption(identifier_MAXLENGTH_LeftParenthesis~2e0dd099)?/identifier_MAXLENGTH_LeftParenthesis_integer_RightParenthesis	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY MAXLENGTH(1))
 2727	2727	engine	objects@schema	promotedSelectiveXmlIndexPathInAlter/REMOVE_identifier	ALTER INDEX a ON a FOR(REMOVE a)
@@ -1637,6 +1699,7 @@ ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	partitionSpecifier(express
 207	207	engine	objects@schema	partitionSpecifier(expression|All)/All!swap	ALTER TABLE a REBUILD PARTITION = ALLOW_CONNECTIONS
 2714	2714	engine	objects@schema	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 2714	2714	engine	objects@schema	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EXECUTE AS 'a' AS
+2714	2714	engine	objects@schema	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
 ok:f75a0428ee97	ok:f75a0428ee97	engine	objects@schema	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon	ALTER SCHEMA a TRANSFER OBJECT :: a
 15151	15151	engine	objects@schema	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon!truncate	ALTER SCHEMA a TRANSFER OBJECT
 15151	15151	engine	objects@schema	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
@@ -1675,6 +1738,7 @@ ok:cd9e6b6f0770	ok:cd9e6b6f0770	engine	objects@schema	dropTableStatement(If_Exis
 3705	3705	engine	objects@schema	dropViewStatement(If_Exists)?/If_Exists	DROP VIEW IF EXISTS a
 3705	3705	engine	objects@schema	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EXISTS a
 3701	3701	engine	objects@schema	dropTriggerStatement(On_triggerScope)?/On_triggerScope	DROP TRIGGER a ON DATABASE
+3701	3701	engine	objects@schema	dropTriggerStatement(On_triggerScope)?/On_triggerScope+triggerScope/All_SERVER	DROP TRIGGER a ON ALL SERVER
 3701	3701	engine	objects@schema	dropObjectList(Comma_dropObject)*/Comma_dropObject_(Comma_dropObject)*	DROP TABLE a, a
 2715	2715	engine	objects@schema	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1911	1911	engine	objects@schema	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
@@ -1757,6 +1821,8 @@ ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	indexOption/ignoreDupKeyIn
 2714	2714	engine	objects@schema	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
 2714	2714	engine	objects@schema	dmlTriggerMidSection(INSTEAD|AFTER)/AFTER	CREATE TRIGGER a ON a AFTER INSERT AS SELECT 1
 2714	2714	engine	objects@schema	dmlTriggerMidSection(Of)?/Of	CREATE TRIGGER a ON a INSTEAD OF INSERT AS SELECT 1
+2714	2714	engine	objects@schema	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+2714	2714	engine	objects@schema	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
 2714	2714	engine	objects@schema	dmlTriggerMidSection(Not_For_Replication)?/Not_For_Replication	CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 2714	2714	engine	objects@schema	dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR UPDATE AS SELECT 1
 2714	2714	engine	objects@schema	dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR DELETE AS SELECT 1
@@ -1796,6 +1862,7 @@ ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	alterTableDropTableElement
 ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
 3728	3728	engine	objects@schema	alterTableDropTableElement(alterTableDropTableElementWithOptions)?/alterTableDropTableElementWithOptions	ALTER TABLE a DROP a WITH(MAXDOP = 1)
 3745	3745	engine	objects@schema	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff	ALTER TABLE a DROP a WITH(ONLINE = ON)
+3728	3728	engine	objects@schema	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff+optionOnOff/Off	ALTER TABLE a DROP a WITH(ONLINE = OFF)
 3728	3728	engine	objects@schema	dropClusteredConstraintOption/MOVE_To_filegroupOrPartitionScheme	ALTER TABLE a DROP a WITH(MOVE TO 'a')
 4917	4917	engine	objects@schema	alterTableConstraintModificationStatement(All|identifier_(Comma_identifier)*)/All!swap	ALTER TABLE a CHECK CONSTRAINT ALLOW_CONNECTIONS
 11415	11415	engine	objects@schema	alterTableConstraintModificationStatement(All|identifier_(Comma_identifier)*)/identifier_(Comma_identifier)*	ALTER TABLE a CHECK CONSTRAINT a
@@ -1835,11 +1902,13 @@ ok:e26e8eaa6a10	ok:e26e8eaa6a10	engine	objects@schema	tableConstraint(uniqueTabl
 1909	1909	engine	objects@schema	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
 1911	1911	engine	objects@schema	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 1911	1911	engine	objects@schema	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
+1911	1911	engine	objects@schema	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 2715	2715	engine	objects@schema	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 13930	13930	engine	objects@schema	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 13930	13930	engine	objects@schema	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 1769	1769	engine	objects@schema	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 ok:e26e8eaa6a10	ok:e26e8eaa6a10	engine	objects@schema	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+33411	33411	engine	objects@schema	stringLiteralOrNull/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
 15151	15151	engine	objects@schema	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 15151	15151	engine	objects@schema	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 1911	1911	engine	objects@schema	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/With_xmlNamespaces	CREATE SELECTIVE XML INDEX a ON a(a) WITH XMLNAMESPACES(DEFAULT 'a') FOR(a = 'a')
@@ -1858,6 +1927,7 @@ ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	ignoreDupKeyIndexOption_IG
 13510	13510	engine	objects@schema	systemVersioningTableOnOffOption_SYSTEM_VERSIONING(Off|(On_(LeftParenthesis_systemVersi~dd985d07)/On_(LeftParenthesis_systemVersioningTabl~7b7e2f04)?	ALTER TABLE a SET(SYSTEM_VERSIONING = ON)
 4955	4955	engine	objects@schema	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+2715	2715	engine	objects@schema	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 4924	4924	engine	objects@schema	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 8168	8168	engine	objects@schema	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	8168	engine	objects@schema	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
@@ -1885,8 +1955,10 @@ ok:ca6ffa04f178	ok:ca6ffa04f178	engine	objects@sequence	batch((lastStatementOptS
 2714	2714	engine	objects@sequence	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSequenceStatement_SEQUENCE	CREATE SEQUENCE a
 6334	6334	engine	objects@sequence	createXmlIndexStatement(secondaryXmlIndexStatementBody|secon~89edebe0)/secondarySelectiveXmlIndex	CREATE XML INDEX a ON a(a) USING XML INDEX a FOR(a)
 1914	1914	engine	objects@sequence	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec	ALTER INDEX a ON a FOR(ADD a = 'a')
+1914	1914	engine	objects@sequence	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 1914	1914	engine	objects@sequence	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 1914	1914	engine	objects@sequence	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+1914	1914	engine	objects@sequence	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 1914	1914	engine	objects@sequence	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
 1914	1914	engine	objects@sequence	maxlengthOption(identifier_MAXLENGTH_LeftParenthesis~2e0dd099)?/identifier_MAXLENGTH_LeftParenthesis_integer_RightParenthesis	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY MAXLENGTH(1))
 1914	1914	engine	objects@sequence	promotedSelectiveXmlIndexPathInAlter/REMOVE_identifier	ALTER INDEX a ON a FOR(REMOVE a)
@@ -1903,6 +1975,7 @@ ok:ca6ffa04f178	ok:ca6ffa04f178	engine	objects@sequence	batch((lastStatementOptS
 4909	4909	engine	objects@sequence	partitionSpecifier(expression|All)/All!swap	ALTER TABLE a REBUILD PARTITION = ALLOW_CONNECTIONS
 2714	2714	engine	objects@sequence	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 2714	2714	engine	objects@sequence	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EXECUTE AS 'a' AS
+2714	2714	engine	objects@sequence	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
 15151	15151	engine	objects@sequence	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon	ALTER SCHEMA a TRANSFER OBJECT :: a
 15151	15151	engine	objects@sequence	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon!truncate	ALTER SCHEMA a TRANSFER OBJECT
 15151	15151	engine	objects@sequence	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
@@ -1941,6 +2014,7 @@ ok:ba4169ec1613	ok:ba4169ec1613	engine	objects@sequence	dropSchemaStatement(If_E
 3705	3705	engine	objects@sequence	dropViewStatement(If_Exists)?/If_Exists	DROP VIEW IF EXISTS a
 3705	3705	engine	objects@sequence	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EXISTS a
 3701	3701	engine	objects@sequence	dropTriggerStatement(On_triggerScope)?/On_triggerScope	DROP TRIGGER a ON DATABASE
+3701	3701	engine	objects@sequence	dropTriggerStatement(On_triggerScope)?/On_triggerScope+triggerScope/All_SERVER	DROP TRIGGER a ON ALL SERVER
 3705	3705	engine	objects@sequence	dropObjectList(Comma_dropObject)*/Comma_dropObject_(Comma_dropObject)*	DROP TABLE a, a
 4909	4909	engine	objects@sequence	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1914	1914	engine	objects@sequence	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
@@ -2023,6 +2097,8 @@ ok:05f99f60b270	ok:05f99f60b270	engine	objects@sequence	sequenceMinMaxOptionList
 8197	8197	engine	objects@sequence	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
 8197	8197	engine	objects@sequence	dmlTriggerMidSection(INSTEAD|AFTER)/AFTER	CREATE TRIGGER a ON a AFTER INSERT AS SELECT 1
 8197	8197	engine	objects@sequence	dmlTriggerMidSection(Of)?/Of	CREATE TRIGGER a ON a INSTEAD OF INSERT AS SELECT 1
+8197	8197	engine	objects@sequence	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+8197	8197	engine	objects@sequence	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
 8197	8197	engine	objects@sequence	dmlTriggerMidSection(Not_For_Replication)?/Not_For_Replication	CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 8197	8197	engine	objects@sequence	dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR UPDATE AS SELECT 1
 8197	8197	engine	objects@sequence	dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR DELETE AS SELECT 1
@@ -2062,6 +2138,7 @@ ok:05f99f60b270	ok:05f99f60b270	engine	objects@sequence	sequenceMinMaxOptionList
 4909	4909	engine	objects@sequence	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
 4909	4909	engine	objects@sequence	alterTableDropTableElement(alterTableDropTableElementWithOptions)?/alterTableDropTableElementWithOptions	ALTER TABLE a DROP a WITH(MAXDOP = 1)
 4909	4909	engine	objects@sequence	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff	ALTER TABLE a DROP a WITH(ONLINE = ON)
+4909	4909	engine	objects@sequence	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff+optionOnOff/Off	ALTER TABLE a DROP a WITH(ONLINE = OFF)
 4909	4909	engine	objects@sequence	dropClusteredConstraintOption/MOVE_To_filegroupOrPartitionScheme	ALTER TABLE a DROP a WITH(MOVE TO 'a')
 4909	4909	engine	objects@sequence	alterTableConstraintModificationStatement(All|identifier_(Comma_identifier)*)/All!swap	ALTER TABLE a CHECK CONSTRAINT ALLOW_CONNECTIONS
 4909	4909	engine	objects@sequence	alterTableConstraintModificationStatement(All|identifier_(Comma_identifier)*)/identifier_(Comma_identifier)*	ALTER TABLE a CHECK CONSTRAINT a
@@ -2101,11 +2178,13 @@ ok:05f99f60b270	ok:05f99f60b270	engine	objects@sequence	sequenceMinMaxOptionList
 4909	4909	engine	objects@sequence	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
 4909	4909	engine	objects@sequence	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4909	4909	engine	objects@sequence	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
+4909	4909	engine	objects@sequence	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 4909	4909	engine	objects@sequence	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	4909	engine	objects@sequence	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4909	4909	engine	objects@sequence	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	4909	engine	objects@sequence	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 4909	4909	engine	objects@sequence	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+4909	4909	engine	objects@sequence	stringLiteralOrNull/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
 15151	15151	engine	objects@sequence	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 ok:00a15132948b	ok:00a15132948b	engine	objects@sequence	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 6334	6334	engine	objects@sequence	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/With_xmlNamespaces	CREATE SELECTIVE XML INDEX a ON a(a) WITH XMLNAMESPACES(DEFAULT 'a') FOR(a = 'a')
@@ -2124,6 +2203,7 @@ ok:ba4169ec1613	ok:ba4169ec1613	engine	objects@sequence	sequenceNoOptionListElem
 4909	4909	engine	objects@sequence	systemVersioningTableOnOffOption_SYSTEM_VERSIONING(Off|(On_(LeftParenthesis_systemVersi~dd985d07)/On_(LeftParenthesis_systemVersioningTabl~7b7e2f04)?	ALTER TABLE a SET(SYSTEM_VERSIONING = ON)
 4909	4909	engine	objects@sequence	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	4909	engine	objects@sequence	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+4909	4909	engine	objects@sequence	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 4909	4909	engine	objects@sequence	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 8168	8168	engine	objects@sequence	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	8168	engine	objects@sequence	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
@@ -2151,8 +2231,10 @@ ok:9f5b0a656ba7	ok:9f5b0a656ba7	engine	objects@synonym	batch((lastStatementOptSe
 2714	2714	engine	objects@synonym	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSequenceStatement_SEQUENCE	CREATE SEQUENCE a
 6334	6334	engine	objects@synonym	createXmlIndexStatement(secondaryXmlIndexStatementBody|secon~89edebe0)/secondarySelectiveXmlIndex	CREATE XML INDEX a ON a(a) USING XML INDEX a FOR(a)
 1914	1914	engine	objects@synonym	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec	ALTER INDEX a ON a FOR(ADD a = 'a')
+1914	1914	engine	objects@synonym	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 1914	1914	engine	objects@synonym	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 1914	1914	engine	objects@synonym	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+1914	1914	engine	objects@synonym	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 1914	1914	engine	objects@synonym	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
 1914	1914	engine	objects@synonym	maxlengthOption(identifier_MAXLENGTH_LeftParenthesis~2e0dd099)?/identifier_MAXLENGTH_LeftParenthesis_integer_RightParenthesis	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY MAXLENGTH(1))
 1914	1914	engine	objects@synonym	promotedSelectiveXmlIndexPathInAlter/REMOVE_identifier	ALTER INDEX a ON a FOR(REMOVE a)
@@ -2169,6 +2251,7 @@ ok:9f5b0a656ba7	ok:9f5b0a656ba7	engine	objects@synonym	batch((lastStatementOptSe
 4909	4909	engine	objects@synonym	partitionSpecifier(expression|All)/All!swap	ALTER TABLE a REBUILD PARTITION = ALLOW_CONNECTIONS
 2714	2714	engine	objects@synonym	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 2714	2714	engine	objects@synonym	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EXECUTE AS 'a' AS
+2714	2714	engine	objects@synonym	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
 15151	15151	engine	objects@synonym	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon	ALTER SCHEMA a TRANSFER OBJECT :: a
 15151	15151	engine	objects@synonym	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon!truncate	ALTER SCHEMA a TRANSFER OBJECT
 15151	15151	engine	objects@synonym	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
@@ -2207,6 +2290,7 @@ ok:6765ddf8085d	ok:6765ddf8085d	engine	objects@synonym	dropSchemaStatement(If_Ex
 3705	3705	engine	objects@synonym	dropViewStatement(If_Exists)?/If_Exists	DROP VIEW IF EXISTS a
 3705	3705	engine	objects@synonym	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EXISTS a
 3701	3701	engine	objects@synonym	dropTriggerStatement(On_triggerScope)?/On_triggerScope	DROP TRIGGER a ON DATABASE
+3701	3701	engine	objects@synonym	dropTriggerStatement(On_triggerScope)?/On_triggerScope+triggerScope/All_SERVER	DROP TRIGGER a ON ALL SERVER
 3705	3705	engine	objects@synonym	dropObjectList(Comma_dropObject)*/Comma_dropObject_(Comma_dropObject)*	DROP TABLE a, a
 4909	4909	engine	objects@synonym	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1914	1914	engine	objects@synonym	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
@@ -2289,6 +2373,8 @@ ok:6765ddf8085d	ok:6765ddf8085d	engine	objects@synonym	dropSchemaStatement(If_Ex
 8197	8197	engine	objects@synonym	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
 8197	8197	engine	objects@synonym	dmlTriggerMidSection(INSTEAD|AFTER)/AFTER	CREATE TRIGGER a ON a AFTER INSERT AS SELECT 1
 8197	8197	engine	objects@synonym	dmlTriggerMidSection(Of)?/Of	CREATE TRIGGER a ON a INSTEAD OF INSERT AS SELECT 1
+8197	8197	engine	objects@synonym	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+8197	8197	engine	objects@synonym	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
 8197	8197	engine	objects@synonym	dmlTriggerMidSection(Not_For_Replication)?/Not_For_Replication	CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 8197	8197	engine	objects@synonym	dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR UPDATE AS SELECT 1
 8197	8197	engine	objects@synonym	dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR DELETE AS SELECT 1
@@ -2328,6 +2414,7 @@ ok:6765ddf8085d	ok:6765ddf8085d	engine	objects@synonym	dropSchemaStatement(If_Ex
 4909	4909	engine	objects@synonym	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
 4909	4909	engine	objects@synonym	alterTableDropTableElement(alterTableDropTableElementWithOptions)?/alterTableDropTableElementWithOptions	ALTER TABLE a DROP a WITH(MAXDOP = 1)
 4909	4909	engine	objects@synonym	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff	ALTER TABLE a DROP a WITH(ONLINE = ON)
+4909	4909	engine	objects@synonym	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff+optionOnOff/Off	ALTER TABLE a DROP a WITH(ONLINE = OFF)
 4909	4909	engine	objects@synonym	dropClusteredConstraintOption/MOVE_To_filegroupOrPartitionScheme	ALTER TABLE a DROP a WITH(MOVE TO 'a')
 4909	4909	engine	objects@synonym	alterTableConstraintModificationStatement(All|identifier_(Comma_identifier)*)/All!swap	ALTER TABLE a CHECK CONSTRAINT ALLOW_CONNECTIONS
 4909	4909	engine	objects@synonym	alterTableConstraintModificationStatement(All|identifier_(Comma_identifier)*)/identifier_(Comma_identifier)*	ALTER TABLE a CHECK CONSTRAINT a
@@ -2367,11 +2454,13 @@ ok:6765ddf8085d	ok:6765ddf8085d	engine	objects@synonym	dropSchemaStatement(If_Ex
 4909	4909	engine	objects@synonym	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
 4909	4909	engine	objects@synonym	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4909	4909	engine	objects@synonym	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
+4909	4909	engine	objects@synonym	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 4909	4909	engine	objects@synonym	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	4909	engine	objects@synonym	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4909	4909	engine	objects@synonym	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	4909	engine	objects@synonym	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 4909	4909	engine	objects@synonym	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+4909	4909	engine	objects@synonym	stringLiteralOrNull/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
 15151	15151	engine	objects@synonym	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 15151	15151	engine	objects@synonym	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 6334	6334	engine	objects@synonym	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/With_xmlNamespaces	CREATE SELECTIVE XML INDEX a ON a(a) WITH XMLNAMESPACES(DEFAULT 'a') FOR(a = 'a')
@@ -2390,6 +2479,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@synonym	dropSynonymStatement_SYNO
 4909	4909	engine	objects@synonym	systemVersioningTableOnOffOption_SYSTEM_VERSIONING(Off|(On_(LeftParenthesis_systemVersi~dd985d07)/On_(LeftParenthesis_systemVersioningTabl~7b7e2f04)?	ALTER TABLE a SET(SYSTEM_VERSIONING = ON)
 4909	4909	engine	objects@synonym	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	4909	engine	objects@synonym	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+4909	4909	engine	objects@synonym	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 4909	4909	engine	objects@synonym	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 8168	8168	engine	objects@synonym	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	8168	engine	objects@synonym	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
@@ -2417,8 +2507,10 @@ ok:d5c38e36635a	ok:d5c38e36635a	engine	objects@procedure	createOrAlterStatements
 2714	2714	engine	objects@procedure	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSequenceStatement_SEQUENCE	CREATE SEQUENCE a
 6334	6334	engine	objects@procedure	createXmlIndexStatement(secondaryXmlIndexStatementBody|secon~89edebe0)/secondarySelectiveXmlIndex	CREATE XML INDEX a ON a(a) USING XML INDEX a FOR(a)
 1914	1914	engine	objects@procedure	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec	ALTER INDEX a ON a FOR(ADD a = 'a')
+1914	1914	engine	objects@procedure	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 1914	1914	engine	objects@procedure	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 1914	1914	engine	objects@procedure	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+1914	1914	engine	objects@procedure	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 1914	1914	engine	objects@procedure	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
 1914	1914	engine	objects@procedure	maxlengthOption(identifier_MAXLENGTH_LeftParenthesis~2e0dd099)?/identifier_MAXLENGTH_LeftParenthesis_integer_RightParenthesis	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY MAXLENGTH(1))
 1914	1914	engine	objects@procedure	promotedSelectiveXmlIndexPathInAlter/REMOVE_identifier	ALTER INDEX a ON a FOR(REMOVE a)
@@ -2435,6 +2527,7 @@ ok:d5c38e36635a	ok:d5c38e36635a	engine	objects@procedure	createOrAlterStatements
 4909	4909	engine	objects@procedure	partitionSpecifier(expression|All)/All!swap	ALTER TABLE a REBUILD PARTITION = ALLOW_CONNECTIONS
 2714	2714	engine	objects@procedure	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 2714	2714	engine	objects@procedure	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EXECUTE AS 'a' AS
+2714	2714	engine	objects@procedure	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
 15151	15151	engine	objects@procedure	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon	ALTER SCHEMA a TRANSFER OBJECT :: a
 15151	15151	engine	objects@procedure	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon!truncate	ALTER SCHEMA a TRANSFER OBJECT
 15151	15151	engine	objects@procedure	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
@@ -2473,6 +2566,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 3705	3705	engine	objects@procedure	dropViewStatement(If_Exists)?/If_Exists	DROP VIEW IF EXISTS a
 3705	3705	engine	objects@procedure	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EXISTS a
 3701	3701	engine	objects@procedure	dropTriggerStatement(On_triggerScope)?/On_triggerScope	DROP TRIGGER a ON DATABASE
+3701	3701	engine	objects@procedure	dropTriggerStatement(On_triggerScope)?/On_triggerScope+triggerScope/All_SERVER	DROP TRIGGER a ON ALL SERVER
 3705	3705	engine	objects@procedure	dropObjectList(Comma_dropObject)*/Comma_dropObject_(Comma_dropObject)*	DROP TABLE a, a
 4909	4909	engine	objects@procedure	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1914	1914	engine	objects@procedure	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
@@ -2555,6 +2649,8 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 8197	8197	engine	objects@procedure	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
 8197	8197	engine	objects@procedure	dmlTriggerMidSection(INSTEAD|AFTER)/AFTER	CREATE TRIGGER a ON a AFTER INSERT AS SELECT 1
 8197	8197	engine	objects@procedure	dmlTriggerMidSection(Of)?/Of	CREATE TRIGGER a ON a INSTEAD OF INSERT AS SELECT 1
+8197	8197	engine	objects@procedure	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+8197	8197	engine	objects@procedure	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
 8197	8197	engine	objects@procedure	dmlTriggerMidSection(Not_For_Replication)?/Not_For_Replication	CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 8197	8197	engine	objects@procedure	dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR UPDATE AS SELECT 1
 8197	8197	engine	objects@procedure	dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR DELETE AS SELECT 1
@@ -2594,6 +2690,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 4909	4909	engine	objects@procedure	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
 4909	4909	engine	objects@procedure	alterTableDropTableElement(alterTableDropTableElementWithOptions)?/alterTableDropTableElementWithOptions	ALTER TABLE a DROP a WITH(MAXDOP = 1)
 4909	4909	engine	objects@procedure	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff	ALTER TABLE a DROP a WITH(ONLINE = ON)
+4909	4909	engine	objects@procedure	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff+optionOnOff/Off	ALTER TABLE a DROP a WITH(ONLINE = OFF)
 4909	4909	engine	objects@procedure	dropClusteredConstraintOption/MOVE_To_filegroupOrPartitionScheme	ALTER TABLE a DROP a WITH(MOVE TO 'a')
 4909	4909	engine	objects@procedure	alterTableConstraintModificationStatement(All|identifier_(Comma_identifier)*)/All!swap	ALTER TABLE a CHECK CONSTRAINT ALLOW_CONNECTIONS
 4909	4909	engine	objects@procedure	alterTableConstraintModificationStatement(All|identifier_(Comma_identifier)*)/identifier_(Comma_identifier)*	ALTER TABLE a CHECK CONSTRAINT a
@@ -2633,11 +2730,13 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 4909	4909	engine	objects@procedure	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
 4909	4909	engine	objects@procedure	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4909	4909	engine	objects@procedure	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
+4909	4909	engine	objects@procedure	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 4909	4909	engine	objects@procedure	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	4909	engine	objects@procedure	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4909	4909	engine	objects@procedure	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	4909	engine	objects@procedure	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 4909	4909	engine	objects@procedure	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+4909	4909	engine	objects@procedure	stringLiteralOrNull/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
 15151	15151	engine	objects@procedure	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 15151	15151	engine	objects@procedure	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 6334	6334	engine	objects@procedure	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/With_xmlNamespaces	CREATE SELECTIVE XML INDEX a ON a(a) WITH XMLNAMESPACES(DEFAULT 'a') FOR(a = 'a')
@@ -2656,6 +2755,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 4909	4909	engine	objects@procedure	systemVersioningTableOnOffOption_SYSTEM_VERSIONING(Off|(On_(LeftParenthesis_systemVersi~dd985d07)/On_(LeftParenthesis_systemVersioningTabl~7b7e2f04)?	ALTER TABLE a SET(SYSTEM_VERSIONING = ON)
 4909	4909	engine	objects@procedure	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	4909	engine	objects@procedure	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+4909	4909	engine	objects@procedure	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 4909	4909	engine	objects@procedure	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 8168	8168	engine	objects@procedure	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	8168	engine	objects@procedure	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
@@ -2683,8 +2783,10 @@ ok:e8852332e164	ok:e8852332e164	engine	objects@function	batch((lastStatementOptS
 2714	2714	engine	objects@function	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSequenceStatement_SEQUENCE	CREATE SEQUENCE a
 6334	6334	engine	objects@function	createXmlIndexStatement(secondaryXmlIndexStatementBody|secon~89edebe0)/secondarySelectiveXmlIndex	CREATE XML INDEX a ON a(a) USING XML INDEX a FOR(a)
 1914	1914	engine	objects@function	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec	ALTER INDEX a ON a FOR(ADD a = 'a')
+1914	1914	engine	objects@function	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 1914	1914	engine	objects@function	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 1914	1914	engine	objects@function	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+1914	1914	engine	objects@function	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 1914	1914	engine	objects@function	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
 1914	1914	engine	objects@function	maxlengthOption(identifier_MAXLENGTH_LeftParenthesis~2e0dd099)?/identifier_MAXLENGTH_LeftParenthesis_integer_RightParenthesis	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY MAXLENGTH(1))
 1914	1914	engine	objects@function	promotedSelectiveXmlIndexPathInAlter/REMOVE_identifier	ALTER INDEX a ON a FOR(REMOVE a)
@@ -2701,6 +2803,7 @@ ok:e8852332e164	ok:e8852332e164	engine	objects@function	batch((lastStatementOptS
 4909	4909	engine	objects@function	partitionSpecifier(expression|All)/All!swap	ALTER TABLE a REBUILD PARTITION = ALLOW_CONNECTIONS
 2714	2714	engine	objects@function	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 2714	2714	engine	objects@function	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EXECUTE AS 'a' AS
+2714	2714	engine	objects@function	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
 15151	15151	engine	objects@function	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon	ALTER SCHEMA a TRANSFER OBJECT :: a
 15151	15151	engine	objects@function	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon!truncate	ALTER SCHEMA a TRANSFER OBJECT
 15151	15151	engine	objects@function	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
@@ -2739,6 +2842,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 3705	3705	engine	objects@function	dropViewStatement(If_Exists)?/If_Exists	DROP VIEW IF EXISTS a
 3705	3705	engine	objects@function	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EXISTS a
 3701	3701	engine	objects@function	dropTriggerStatement(On_triggerScope)?/On_triggerScope	DROP TRIGGER a ON DATABASE
+3701	3701	engine	objects@function	dropTriggerStatement(On_triggerScope)?/On_triggerScope+triggerScope/All_SERVER	DROP TRIGGER a ON ALL SERVER
 3705	3705	engine	objects@function	dropObjectList(Comma_dropObject)*/Comma_dropObject_(Comma_dropObject)*	DROP TABLE a, a
 4909	4909	engine	objects@function	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1914	1914	engine	objects@function	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
@@ -2821,6 +2925,8 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 8197	8197	engine	objects@function	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
 8197	8197	engine	objects@function	dmlTriggerMidSection(INSTEAD|AFTER)/AFTER	CREATE TRIGGER a ON a AFTER INSERT AS SELECT 1
 8197	8197	engine	objects@function	dmlTriggerMidSection(Of)?/Of	CREATE TRIGGER a ON a INSTEAD OF INSERT AS SELECT 1
+8197	8197	engine	objects@function	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+8197	8197	engine	objects@function	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
 8197	8197	engine	objects@function	dmlTriggerMidSection(Not_For_Replication)?/Not_For_Replication	CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 8197	8197	engine	objects@function	dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR UPDATE AS SELECT 1
 8197	8197	engine	objects@function	dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR DELETE AS SELECT 1
@@ -2860,6 +2966,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 4909	4909	engine	objects@function	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
 4909	4909	engine	objects@function	alterTableDropTableElement(alterTableDropTableElementWithOptions)?/alterTableDropTableElementWithOptions	ALTER TABLE a DROP a WITH(MAXDOP = 1)
 4909	4909	engine	objects@function	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff	ALTER TABLE a DROP a WITH(ONLINE = ON)
+4909	4909	engine	objects@function	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff+optionOnOff/Off	ALTER TABLE a DROP a WITH(ONLINE = OFF)
 4909	4909	engine	objects@function	dropClusteredConstraintOption/MOVE_To_filegroupOrPartitionScheme	ALTER TABLE a DROP a WITH(MOVE TO 'a')
 4909	4909	engine	objects@function	alterTableConstraintModificationStatement(All|identifier_(Comma_identifier)*)/All!swap	ALTER TABLE a CHECK CONSTRAINT ALLOW_CONNECTIONS
 4909	4909	engine	objects@function	alterTableConstraintModificationStatement(All|identifier_(Comma_identifier)*)/identifier_(Comma_identifier)*	ALTER TABLE a CHECK CONSTRAINT a
@@ -2899,11 +3006,13 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 4909	4909	engine	objects@function	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
 4909	4909	engine	objects@function	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4909	4909	engine	objects@function	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
+4909	4909	engine	objects@function	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 4909	4909	engine	objects@function	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	4909	engine	objects@function	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4909	4909	engine	objects@function	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	4909	engine	objects@function	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 4909	4909	engine	objects@function	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+4909	4909	engine	objects@function	stringLiteralOrNull/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
 15151	15151	engine	objects@function	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 15151	15151	engine	objects@function	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 6334	6334	engine	objects@function	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/With_xmlNamespaces	CREATE SELECTIVE XML INDEX a ON a(a) WITH XMLNAMESPACES(DEFAULT 'a') FOR(a = 'a')
@@ -2922,6 +3031,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 4909	4909	engine	objects@function	systemVersioningTableOnOffOption_SYSTEM_VERSIONING(Off|(On_(LeftParenthesis_systemVersi~dd985d07)/On_(LeftParenthesis_systemVersioningTabl~7b7e2f04)?	ALTER TABLE a SET(SYSTEM_VERSIONING = ON)
 4909	4909	engine	objects@function	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	4909	engine	objects@function	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+4909	4909	engine	objects@function	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 4909	4909	engine	objects@function	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 8168	8168	engine	objects@function	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	8168	engine	objects@function	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
@@ -2949,8 +3059,10 @@ ok:67933fa12252	ok:67933fa12252	engine	objects@trigger	batch((lastStatementOptSe
 2714	2714	engine	objects@trigger	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSequenceStatement_SEQUENCE	CREATE SEQUENCE a
 6334	6334	engine	objects@trigger	createXmlIndexStatement(secondaryXmlIndexStatementBody|secon~89edebe0)/secondarySelectiveXmlIndex	CREATE XML INDEX a ON a(a) USING XML INDEX a FOR(a)
 1914	1914	engine	objects@trigger	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec	ALTER INDEX a ON a FOR(ADD a = 'a')
+1914	1914	engine	objects@trigger	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 1914	1914	engine	objects@trigger	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 1914	1914	engine	objects@trigger	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+1914	1914	engine	objects@trigger	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 1914	1914	engine	objects@trigger	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
 1914	1914	engine	objects@trigger	maxlengthOption(identifier_MAXLENGTH_LeftParenthesis~2e0dd099)?/identifier_MAXLENGTH_LeftParenthesis_integer_RightParenthesis	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY MAXLENGTH(1))
 1914	1914	engine	objects@trigger	promotedSelectiveXmlIndexPathInAlter/REMOVE_identifier	ALTER INDEX a ON a FOR(REMOVE a)
@@ -2967,6 +3079,7 @@ ok:67933fa12252	ok:67933fa12252	engine	objects@trigger	batch((lastStatementOptSe
 4909	4909	engine	objects@trigger	partitionSpecifier(expression|All)/All!swap	ALTER TABLE a REBUILD PARTITION = ALLOW_CONNECTIONS
 2714	2714	engine	objects@trigger	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 2714	2714	engine	objects@trigger	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EXECUTE AS 'a' AS
+2714	2714	engine	objects@trigger	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
 15151	15151	engine	objects@trigger	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon	ALTER SCHEMA a TRANSFER OBJECT :: a
 15151	15151	engine	objects@trigger	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon!truncate	ALTER SCHEMA a TRANSFER OBJECT
 15151	15151	engine	objects@trigger	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
@@ -3005,6 +3118,7 @@ ok:46a2bbfa8c1a	ok:46a2bbfa8c1a	engine	objects@trigger	dropSchemaStatement(If_Ex
 3705	3705	engine	objects@trigger	dropViewStatement(If_Exists)?/If_Exists	DROP VIEW IF EXISTS a
 ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_Exists)?/If_Exists	DROP TRIGGER IF EXISTS a
 3701	3701	engine	objects@trigger	dropTriggerStatement(On_triggerScope)?/On_triggerScope	DROP TRIGGER a ON DATABASE
+3701	3701	engine	objects@trigger	dropTriggerStatement(On_triggerScope)?/On_triggerScope+triggerScope/All_SERVER	DROP TRIGGER a ON ALL SERVER
 3705	3705	engine	objects@trigger	dropObjectList(Comma_dropObject)*/Comma_dropObject_(Comma_dropObject)*	DROP TABLE a, a
 4909	4909	engine	objects@trigger	tableDefinition/tableElement_(Comma_tableElement)*!insert	ALTER TABLE a ADD a zzz
 1914	1914	engine	objects@trigger	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/createRelationalIndexStatement	CREATE INDEX a ON a(a)
@@ -3087,6 +3201,8 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_E
 8197	8197	engine	objects@trigger	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
 8197	8197	engine	objects@trigger	dmlTriggerMidSection(INSTEAD|AFTER)/AFTER	CREATE TRIGGER a ON a AFTER INSERT AS SELECT 1
 8197	8197	engine	objects@trigger	dmlTriggerMidSection(Of)?/Of	CREATE TRIGGER a ON a INSTEAD OF INSERT AS SELECT 1
+8197	8197	engine	objects@trigger	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+8197	8197	engine	objects@trigger	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
 8197	8197	engine	objects@trigger	dmlTriggerMidSection(Not_For_Replication)?/Not_For_Replication	CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 8197	8197	engine	objects@trigger	dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR UPDATE AS SELECT 1
 8197	8197	engine	objects@trigger	dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR DELETE AS SELECT 1
@@ -3126,6 +3242,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_E
 4909	4909	engine	objects@trigger	alterTableDropTableElement(If_Exists)?/If_Exists	ALTER TABLE a DROP CONSTRAINT IF EXISTS a
 4909	4909	engine	objects@trigger	alterTableDropTableElement(alterTableDropTableElementWithOptions)?/alterTableDropTableElementWithOptions	ALTER TABLE a DROP a WITH(MAXDOP = 1)
 4909	4909	engine	objects@trigger	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff	ALTER TABLE a DROP a WITH(ONLINE = ON)
+4909	4909	engine	objects@trigger	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff+optionOnOff/Off	ALTER TABLE a DROP a WITH(ONLINE = OFF)
 4909	4909	engine	objects@trigger	dropClusteredConstraintOption/MOVE_To_filegroupOrPartitionScheme	ALTER TABLE a DROP a WITH(MOVE TO 'a')
 4909	4909	engine	objects@trigger	alterTableConstraintModificationStatement(All|identifier_(Comma_identifier)*)/All!swap	ALTER TABLE a CHECK CONSTRAINT ALLOW_CONNECTIONS
 4909	4909	engine	objects@trigger	alterTableConstraintModificationStatement(All|identifier_(Comma_identifier)*)/identifier_(Comma_identifier)*	ALTER TABLE a CHECK CONSTRAINT a
@@ -3165,11 +3282,13 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_E
 4909	4909	engine	objects@trigger	uniqueTableConstraint(Comma_columnWithSortOrder)*/Comma_columnWithSortOrder_(Comma_columnWithSortOrder)*	ALTER TABLE a ADD UNIQUE(a, a)
 4909	4909	engine	objects@trigger	uniqueTableConstraint(uniqueConstraintEnforcement|uniqueCo~6d64c49e)/uniqueConstraintTailOpt+uniqueConstraintTailOpt	ALTER TABLE a ADD UNIQUE(a) ON 'a'
 4909	4909	engine	objects@trigger	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
+4909	4909	engine	objects@trigger	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 4909	4909	engine	objects@trigger	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/%empty!insert	ALTER TABLE a ADD a zzz REFERENCES a
 4909	4909	engine	objects@trigger	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 4909	4909	engine	objects@trigger	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 4909	4909	engine	objects@trigger	foreignConstraintColumnsOpt(columnNameList)?/columnNameList	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 4909	4909	engine	objects@trigger	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_booleanExpre~2c202bc4+replicationClauseOpt	ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+4909	4909	engine	objects@trigger	stringLiteralOrNull/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
 15151	15151	engine	objects@trigger	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
 15151	15151	engine	objects@trigger	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 6334	6334	engine	objects@trigger	createSelectiveXmlIndexStatement_SELECTIVE(With_xmlNamespaces)?/With_xmlNamespaces	CREATE SELECTIVE XML INDEX a ON a(a) WITH XMLNAMESPACES(DEFAULT 'a') FOR(a = 'a')
@@ -3188,6 +3307,7 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_E
 4909	4909	engine	objects@trigger	systemVersioningTableOnOffOption_SYSTEM_VERSIONING(Off|(On_(LeftParenthesis_systemVersi~dd985d07)/On_(LeftParenthesis_systemVersioningTabl~7b7e2f04)?	ALTER TABLE a SET(SYSTEM_VERSIONING = ON)
 4909	4909	engine	objects@trigger	alterTableSwitchStatement_SWITCH(PARTITION_expression)?/PARTITION_expression	ALTER TABLE a SWITCH PARTITION 1 TO a
 4909	4909	engine	objects@trigger	lockEscalationTableOption_LOCK_ESCALATION(Identifier|Table)/Table	ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+4909	4909	engine	objects@trigger	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 4909	4909	engine	objects@trigger	columnStorage_COLUMN_SET((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/For_ALL_SPARSE_COLUMNS	ALTER TABLE a ALTER COLUMN a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 8168	8168	engine	objects@trigger	suite:optional-clauses	ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
 8168	8168	engine	objects@trigger	suite:optional-clauses	ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a

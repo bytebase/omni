@@ -1465,6 +1465,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 < error
 | 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -1476,6 +1486,16 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 < error
 | 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
@@ -1656,6 +1676,16 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+< error
+| 15151 1 16 1 proc=a Cannot execute as the user 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 < error
 | 15151 1 16 1 proc=a Cannot execute as the user 'a', because it does not exist or you do not have permission.
 > exec
@@ -2268,6 +2298,16 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
 > exec
@@ -2899,6 +2939,76 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -3012,6 +3122,16 @@
 | DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENQUERY(a, N'a')
+< error
+| 7202 2 11 1 Could not find server 'a' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -3529,6 +3649,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+< error
+| 8197 4 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+< error
+| 8197 4 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 < error
 | 8197 4 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
@@ -3958,6 +4098,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP a WITH(MOVE TO 'a')
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -4348,6 +4498,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -4401,6 +4561,16 @@
 | DELETE a(1)
 < error
 | 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -4482,6 +4652,26 @@
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH INCREMENTAL = OFF
+< error
+| 2706 6 16 1 Table 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH AUTO_DROP = OFF
+< error
+| 2706 6 16 1 Table 'a' does not exist.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -4607,6 +4797,16 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
@@ -6123,6 +6323,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 < error
 | 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -6134,6 +6344,16 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 < error
 | 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
@@ -6314,6 +6534,16 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+< error
+| 15151 1 16 1 proc=a Cannot execute as the user 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 < error
 | 15151 1 16 1 proc=a Cannot execute as the user 'a', because it does not exist or you do not have permission.
 > exec
@@ -6932,6 +7162,16 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
 > exec
@@ -7563,6 +7803,76 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -7676,6 +7986,16 @@
 | DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENQUERY(a, N'a')
+< error
+| 7202 2 11 1 Could not find server 'a' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -8183,6 +8503,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+< error
+| 8197 4 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+< error
+| 8197 4 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 < error
 | 8197 4 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
@@ -8611,6 +8951,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP a WITH(MOVE TO 'a')
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -9001,6 +9351,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -9054,6 +9414,16 @@
 | DELETE a(1)
 < error
 | 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -9136,6 +9506,26 @@
 < error
 | 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
 | 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH INCREMENTAL = OFF
+< error
+| 2706 6 16 1 Table 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH AUTO_DROP = OFF
+< error
+| 2706 6 16 1 Table 'a' does not exist.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -9261,6 +9651,16 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
@@ -10712,6 +11112,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 < error
 | 2727 1 11 1 Cannot find index 'a'.
@@ -10723,6 +11133,16 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 < error
 | 2727 1 11 1 Cannot find index 'a'.
 > exec
@@ -10901,6 +11321,16 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
 > exec
@@ -11513,6 +11943,16 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
 > exec
@@ -12148,6 +12588,76 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -12263,6 +12773,16 @@
 | DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENQUERY(a, N'a')
+< error
+| 7202 2 11 1 Could not find server 'a' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -12789,6 +13309,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+< error
+| 2714 2 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+< error
+| 2714 2 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 < error
 | 2714 2 16 1 proc=a There is already an object named 'a' in the database.
@@ -13221,6 +13761,17 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
+< error
+| 3728 2 16 1 'a' is not a constraint.
+| 3727 0 16 1 Could not drop constraint. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP a WITH(MOVE TO 'a')
 < error
 | 3728 2 16 1 'a' is not a constraint.
@@ -13633,6 +14184,17 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 < error
 | 2715 6 16 1 Column, parameter, or variable #4: Cannot find data type zzz.
@@ -13688,6 +14250,16 @@
 | DELETE a(1)
 < error
 | 215 1 16 1 Parameters supplied for object 'a' which is not a function. If the parameters are intended as a table hint, a WITH keyword is required.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
+< error
+| 33411 4 16 1 The option 'FILETABLE_DIRECTORY' is only valid when used on a FileTable. Remove the option from the statement.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -13770,6 +14342,24 @@
 < error
 | 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
 | 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH INCREMENTAL = OFF
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH AUTO_DROP = OFF
+< ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -13895,6 +14485,16 @@
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
+< error
+| 16006 0 16 1 Invalid data masking format for function 'a' in column 'a'.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -15408,6 +16008,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 < error
 | 2727 1 11 1 Cannot find index 'a'.
@@ -15419,6 +16029,16 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 < error
 | 2727 1 11 1 Cannot find index 'a'.
 > exec
@@ -15597,6 +16217,16 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
 > exec
@@ -16207,6 +16837,16 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
 > exec
@@ -16832,6 +17472,76 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -16947,6 +17657,16 @@
 | DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENQUERY(a, N'a')
+< error
+| 7202 2 11 1 Could not find server 'a' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -17473,6 +18193,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+< error
+| 2714 2 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+< error
+| 2714 2 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 < error
 | 2714 2 16 1 proc=a There is already an object named 'a' in the database.
@@ -17899,6 +18639,17 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
+< error
+| 3728 2 16 1 'a' is not a constraint.
+| 3727 0 16 1 Could not drop constraint. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP a WITH(MOVE TO 'a')
 < error
 | 3728 2 16 1 'a' is not a constraint.
@@ -18306,6 +19057,15 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 < error
 | 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
@@ -18359,6 +19119,16 @@
 | DELETE a(1)
 < error
 | 215 1 16 1 Parameters supplied for object 'a' which is not a function. If the parameters are intended as a table hint, a WITH keyword is required.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
+< error
+| 33411 4 16 1 The option 'FILETABLE_DIRECTORY' is only valid when used on a FileTable. Remove the option from the statement.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -18441,6 +19211,24 @@
 < error
 | 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
 | 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH INCREMENTAL = OFF
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH AUTO_DROP = OFF
+< ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -18567,6 +19355,16 @@
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -20074,6 +20872,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+< error
+| 6333 2 16 1 Could not findSELECTIVE XML index named 'a' on table 'a'
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 < error
 | 6333 2 16 1 Could not findSELECTIVE XML index named 'a' on table 'a'
@@ -20085,6 +20893,16 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+< error
+| 6333 2 16 1 Could not findSELECTIVE XML index named 'a' on table 'a'
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 < error
 | 6333 2 16 1 Could not findSELECTIVE XML index named 'a' on table 'a'
 > exec
@@ -20262,6 +21080,16 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
 > exec
@@ -20865,6 +21693,16 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
 > exec
@@ -21501,6 +22339,76 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -21616,6 +22524,16 @@
 | DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENQUERY(a, N'a')
+< error
+| 7202 2 11 1 Could not find server 'a' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -22140,6 +23058,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+< error
+| 2714 2 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+< error
+| 2714 2 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 < error
 | 2714 2 16 1 proc=a There is already an object named 'a' in the database.
@@ -22576,6 +23514,17 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
+< error
+| 3728 2 16 1 'a' is not a constraint.
+| 3727 0 16 1 Could not drop constraint. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP a WITH(MOVE TO 'a')
 < error
 | 3728 2 16 1 'a' is not a constraint.
@@ -22985,6 +23934,15 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 < error
 | 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
@@ -23038,6 +23996,16 @@
 | DELETE a(1)
 < error
 | 215 1 16 1 Parameters supplied for object 'a' which is not a function. If the parameters are intended as a table hint, a WITH keyword is required.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
+< error
+| 33411 4 16 1 The option 'FILETABLE_DIRECTORY' is only valid when used on a FileTable. Remove the option from the statement.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -23119,6 +24087,24 @@
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH INCREMENTAL = OFF
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH AUTO_DROP = OFF
+< ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -23244,6 +24230,16 @@
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -24747,6 +25743,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 < error
 | 2727 1 11 1 Cannot find index 'a'.
@@ -24758,6 +25764,16 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 < error
 | 2727 1 11 1 Cannot find index 'a'.
 > exec
@@ -24937,6 +25953,16 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
 > exec
@@ -25563,6 +26589,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DROP TRIGGER a ON ALL SERVER
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | DROP TABLE a, a
 < error
 | 3705 1 16 1 Cannot use DROP TABLE with 'a' because 'a' is a view. Use DROP VIEW.
@@ -26176,6 +27212,76 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -26291,6 +27397,16 @@
 | DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENQUERY(a, N'a')
+< error
+| 7202 2 11 1 Could not find server 'a' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -26816,6 +27932,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 < error
 | 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
@@ -27246,6 +28382,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP a WITH(MOVE TO 'a')
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -27636,6 +28782,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -27689,6 +28845,16 @@
 | DELETE a(1)
 < error
 | 215 1 16 1 Parameters supplied for object 'a' which is not a function. If the parameters are intended as a table hint, a WITH keyword is required.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -27770,6 +28936,26 @@
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH INCREMENTAL = OFF
+< error
+| 2706 7 16 1 Table 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH AUTO_DROP = OFF
+< error
+| 2706 7 16 1 Table 'a' does not exist.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -27897,6 +29083,16 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -29402,6 +30598,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
@@ -29413,6 +30619,16 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
 > exec
@@ -29593,6 +30809,16 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
 > exec
@@ -30210,6 +31436,16 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
 > exec
@@ -30840,6 +32076,76 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -30953,6 +32259,16 @@
 | DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENQUERY(a, N'a')
+< error
+| 7202 2 11 1 Could not find server 'a' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -31475,6 +32791,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 < error
 | 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
@@ -31905,6 +33241,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP a WITH(MOVE TO 'a')
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -32295,6 +33641,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -32348,6 +33704,16 @@
 | DELETE a(1)
 < error
 | 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -32428,6 +33794,26 @@
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH INCREMENTAL = OFF
+< error
+| 2706 6 16 1 Table 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH AUTO_DROP = OFF
+< error
+| 2706 6 16 1 Table 'a' does not exist.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -32550,6 +33936,16 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -34056,6 +35452,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
@@ -34067,6 +35473,16 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
 > exec
@@ -34247,6 +35663,16 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
 > exec
@@ -34863,6 +36289,16 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
 > exec
@@ -35493,6 +36929,76 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -35606,6 +37112,16 @@
 | DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENQUERY(a, N'a')
+< error
+| 7202 2 11 1 Could not find server 'a' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -36133,6 +37649,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 < error
 | 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
@@ -36563,6 +38099,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP a WITH(MOVE TO 'a')
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -36953,6 +38499,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -37006,6 +38562,16 @@
 | DELETE a(1)
 < error
 | 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -37087,6 +38653,26 @@
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH INCREMENTAL = OFF
+< error
+| 2706 6 16 1 Table 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH AUTO_DROP = OFF
+< error
+| 2706 6 16 1 Table 'a' does not exist.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -37214,6 +38800,16 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -38731,6 +40327,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
@@ -38742,6 +40348,16 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
 > exec
@@ -38922,6 +40538,16 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
 > exec
@@ -39554,6 +41180,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DROP TRIGGER a ON ALL SERVER
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | DROP TABLE a, a
 < error
 | 3705 1 16 1 Cannot use DROP TABLE with 'a' because 'a' is a function. Use DROP FUNCTION.
@@ -40175,6 +41811,76 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -40288,6 +41994,16 @@
 | DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENQUERY(a, N'a')
+< error
+| 7202 2 11 1 Could not find server 'a' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -40815,6 +42531,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 < error
 | 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
@@ -41245,6 +42981,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP a WITH(MOVE TO 'a')
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -41635,6 +43381,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -41688,6 +43444,16 @@
 | DELETE a(1)
 < error
 | 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -41770,6 +43536,26 @@
 < error
 | 444 3 16 1 proc=a Select statements included within a function cannot return data to a client.
 | 455 2 16 1 proc=a The last statement included within a function must be a return statement.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH INCREMENTAL = OFF
+< error
+| 2706 6 16 1 Table 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH AUTO_DROP = OFF
+< error
+| 2706 6 16 1 Table 'a' does not exist.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -41897,6 +43683,16 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -43401,6 +45197,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
@@ -43412,6 +45218,16 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
 > exec
@@ -43592,6 +45408,16 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
 > exec
@@ -44219,6 +46045,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| DROP TRIGGER a ON ALL SERVER
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | DROP TABLE a, a
 < error
 | 3705 1 16 1 Cannot use DROP TABLE with 'a' because 'a' is a synonym. Use DROP SYNONYM.
@@ -44832,6 +46668,76 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -44947,6 +46853,16 @@
 | DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENQUERY(a, N'a')
+< error
+| 7202 2 11 1 Could not find server 'a' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -45472,6 +47388,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 < error
 | 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
@@ -45902,6 +47838,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP a WITH(MOVE TO 'a')
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -46292,6 +48238,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -46345,6 +48301,16 @@
 | DELETE a(1)
 < error
 | 215 1 16 1 Parameters supplied for object 'dbo.t' which is not a function. If the parameters are intended as a table hint, a WITH keyword is required.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -46426,6 +48392,26 @@
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH INCREMENTAL = OFF
+< error
+| 2706 6 16 1 Table 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH AUTO_DROP = OFF
+< error
+| 2706 6 16 1 Table 'a' does not exist.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -46552,6 +48538,16 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -48049,6 +50045,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 < error
 | 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -48060,6 +50066,16 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 < error
 | 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
@@ -48240,6 +50256,16 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+< error
+| 15151 1 16 1 proc=a Cannot execute as the user 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 < error
 | 15151 1 16 1 proc=a Cannot execute as the user 'a', because it does not exist or you do not have permission.
 > exec
@@ -48851,6 +50877,16 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
 > exec
@@ -49482,6 +51518,76 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -49595,6 +51701,16 @@
 | DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENQUERY(a, N'a')
+< error
+| 7202 2 11 1 Could not find server 'a' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -50112,6 +52228,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+< error
+| 8197 4 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+< error
+| 8197 4 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 < error
 | 8197 4 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
@@ -50541,6 +52677,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP a WITH(MOVE TO 'a')
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -50931,6 +53077,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -50984,6 +53140,16 @@
 | DELETE a(1)
 < error
 | 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -51065,6 +53231,26 @@
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH INCREMENTAL = OFF
+< error
+| 2706 6 16 1 Table 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH AUTO_DROP = OFF
+< error
+| 2706 6 16 1 Table 'a' does not exist.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -51190,6 +53376,16 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
@@ -52606,6 +54802,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 < error
 | 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -52617,6 +54823,16 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 < error
 | 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
@@ -52797,6 +55013,16 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+< error
+| 15151 1 16 1 proc=a Cannot execute as the user 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 < error
 | 15151 1 16 1 proc=a Cannot execute as the user 'a', because it does not exist or you do not have permission.
 > exec
@@ -53410,6 +55636,16 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
 > exec
@@ -54041,6 +56277,76 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -54154,6 +56460,16 @@
 | DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENQUERY(a, N'a')
+< error
+| 7202 2 11 1 Could not find server 'a' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -54671,6 +56987,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+< error
+| 8197 4 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+< error
+| 8197 4 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 < error
 | 8197 4 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
@@ -55100,6 +57436,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP a WITH(MOVE TO 'a')
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -55490,6 +57836,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -55543,6 +57899,16 @@
 | DELETE a(1)
 < error
 | 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -55624,6 +57990,26 @@
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH INCREMENTAL = OFF
+< error
+| 2706 6 16 1 Table 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH AUTO_DROP = OFF
+< error
+| 2706 6 16 1 Table 'a' does not exist.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -55749,6 +58135,16 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
 > exec
@@ -57221,6 +59617,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
@@ -57232,6 +59638,16 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
 > exec
@@ -57412,6 +59828,16 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
 > exec
@@ -58031,6 +60457,16 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
 > exec
@@ -58661,6 +61097,76 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -58774,6 +61280,16 @@
 | DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENQUERY(a, N'a')
+< error
+| 7202 2 11 1 Could not find server 'a' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -59301,6 +61817,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 < error
 | 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
@@ -59731,6 +62267,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP a WITH(MOVE TO 'a')
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -60121,6 +62667,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -60174,6 +62730,16 @@
 | DELETE a(1)
 < error
 | 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -60255,6 +62821,26 @@
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH INCREMENTAL = OFF
+< error
+| 2706 6 16 1 Table 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH AUTO_DROP = OFF
+< error
+| 2706 6 16 1 Table 'a' does not exist.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -60382,6 +62968,16 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -61874,6 +64470,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
@@ -61885,6 +64491,16 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
 > exec
@@ -62065,6 +64681,16 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
 > exec
@@ -62682,6 +65308,16 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
 > exec
@@ -63312,6 +65948,76 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -63425,6 +66131,16 @@
 | DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENQUERY(a, N'a')
+< error
+| 7202 2 11 1 Could not find server 'a' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -63952,6 +66668,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 < error
 | 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
@@ -64382,6 +67118,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP a WITH(MOVE TO 'a')
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -64772,6 +67518,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -64825,6 +67581,16 @@
 | DELETE a(1)
 < error
 | 208 3 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -64906,6 +67672,26 @@
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH INCREMENTAL = OFF
+< error
+| 2706 6 16 1 Table 'a' does not exist.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH AUTO_DROP = OFF
+< error
+| 2706 6 16 1 Table 'a' does not exist.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -65033,6 +67819,16 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
 > exec
@@ -66499,6 +69295,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 < error
 | 2727 1 11 1 Cannot find index 'a'.
@@ -66510,6 +69316,16 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 < error
 | 2727 1 11 1 Cannot find index 'a'.
 > exec
@@ -66688,6 +69504,16 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
 > exec
@@ -67295,6 +70121,16 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
 > exec
@@ -67932,6 +70768,76 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -68047,6 +70953,16 @@
 | DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENQUERY(a, N'a')
+< error
+| 7202 2 11 1 Could not find server 'a' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -68573,6 +71489,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+< error
+| 2714 2 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+< error
+| 2714 2 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 < error
 | 2714 2 16 1 proc=a There is already an object named 'a' in the database.
@@ -69006,6 +71942,17 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
+< error
+| 3728 2 16 1 'a' is not a constraint.
+| 3727 0 16 1 Could not drop constraint. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP a WITH(MOVE TO 'a')
 < error
 | 3728 2 16 1 'a' is not a constraint.
@@ -69421,6 +72368,17 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+< error
+| 1919 1 16 1 Column 'a' in table 'a' is of a type that is invalid for use as a key column in an index.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 < error
 | 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
@@ -69476,6 +72434,16 @@
 | DELETE a(1)
 < error
 | 215 1 16 1 Parameters supplied for object 'a' which is not a function. If the parameters are intended as a table hint, a WITH keyword is required.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
+< error
+| 33411 4 16 1 The option 'FILETABLE_DIRECTORY' is only valid when used on a FileTable. Remove the option from the statement.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -69555,6 +72523,24 @@
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH INCREMENTAL = OFF
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH AUTO_DROP = OFF
+< ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -69680,6 +72666,16 @@
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -71145,6 +74141,16 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 < error
 | 2727 1 11 1 Cannot find index 'a'.
@@ -71156,6 +74162,16 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 < error
 | 2727 1 11 1 Cannot find index 'a'.
 > exec
@@ -71334,6 +74350,16 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
 > exec
@@ -71941,6 +74967,16 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
 > exec
@@ -72578,6 +75614,76 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| UPDATE a SET @a -= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a *= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a /= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a %= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a &= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a |= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE a SET @a ^= 1
+< error
+| 137 1 15 1 Must declare the scalar variable "@a".
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | UPDATE a SET @a = a = 1
 < error
 | 137 1 15 1 Must declare the scalar variable "@a".
@@ -72693,6 +75799,16 @@
 | DELETE OPENDATASOURCE('a', 'a').a a
 < error
 | 208 1 16 1 Invalid object name 'a'.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| DELETE OPENQUERY(a, N'a')
+< error
+| 7202 2 11 1 Could not find server 'a' in sys.servers. Verify that the correct server name was specified. If necessary, execute the stored procedure sp_addlinkedserver to add the server to sys.servers.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -73217,6 +76333,26 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+< error
+| 2714 2 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+< error
+| 2714 2 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 < error
 | 2714 2 16 1 proc=a There is already an object named 'a' in the database.
@@ -73650,6 +76786,17 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
+< error
+| 3728 2 16 1 'a' is not a constraint.
+| 3727 0 16 1 Could not drop constraint. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a DROP a WITH(MOVE TO 'a')
 < error
 | 3728 2 16 1 'a' is not a constraint.
@@ -74065,6 +77212,17 @@
 | BEGIN TRANSACTION
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+< error
+| 1919 1 16 1 Column 'a' in table 'a' is of a type that is invalid for use as a key column in an index.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 < error
 | 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
@@ -74120,6 +77278,16 @@
 | DELETE a(1)
 < error
 | 215 1 16 1 Parameters supplied for object 'a' which is not a function. If the parameters are intended as a table hint, a WITH keyword is required.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
+< error
+| 33411 4 16 1 The option 'FILETABLE_DIRECTORY' is only valid when used on a FileTable. Remove the option from the statement.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -74201,6 +77369,24 @@
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 < error
 | 2715 3 16 1 proc=a Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH INCREMENTAL = OFF
+< ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| UPDATE STATISTICS a WITH AUTO_DROP = OFF
+< ok 0 -
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -
@@ -74326,6 +77512,16 @@
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
 < ok 0 -
+> exec
+| IF @@TRANCOUNT > 0 ROLLBACK
+< ok 0 -
+> exec
+| BEGIN TRANSACTION
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
 > exec
 | IF @@TRANCOUNT > 0 ROLLBACK
 < ok 0 -

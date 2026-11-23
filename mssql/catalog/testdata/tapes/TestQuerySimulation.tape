@@ -441,6 +441,30 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS WITH XMLNAMESPACES(DEFAULT N'a') SELECT *
+|
+< error
+| 263 1 16 1 proc=_v Must specify table to select from.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS WITH XMLNAMESPACES(N'a' AS a) SELECT *
+|
+< error
+| 263 1 16 1 proc=_v Must specify table to select from.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT * ORDER BY 1
 |
 < error
@@ -2546,6 +2570,18 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT * FROM CONTAINSTABLE(a, PROPERTY(a, N'a'), 'a')
+|
+< error
+| 7601 4 16 1 proc=_v Cannot use a CONTAINS or FREETEXT predicate on column 'a' because it is not full-text indexed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT * FROM SEMANTICKEYPHRASETABLE(a, *)
 |
 < error
@@ -2902,6 +2938,18 @@
 < ok 0 -
 > exec
 | CREATE VIEW _v AS SELECT * FROM OPENJSON(1) WITH(a a 'a')
+|
+< error
+| 2715 14 16 1 proc=_v Column, parameter, or variable #0: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM OPENJSON(1) WITH(a a N'a')
 |
 < error
 | 2715 14 16 1 proc=_v Column, parameter, or variable #0: Cannot find data type a.
@@ -3342,6 +3390,19 @@
 |
 < error
 | 156 1 15 1 proc=_v Incorrect syntax near the keyword 'OPTION'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * OPTION(USE PLAN N'a')
+|
+< error
+| 156 1 15 1 proc=_v Incorrect syntax near the keyword 'OPTION'.
+| 154 1 15 1 proc=_v a USE database statement is not allowed in a procedure, function or trigger.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -5379,6 +5440,42 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE VIEW _v AS SELECT 1 N'a'
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| VIEW
+: string
+| dbo._v
+: string
+| CREATE VIEW _v AS SELECT 1 N'a'
+|
+|
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE VIEW _v AS SELECT 1 a
 |
 < ok 0 -
@@ -5407,6 +5504,18 @@
 | ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE VIEW _v AS SELECT * FROM a FOR SYSTEM_TIME AS OF N'a'
+|
+< error
+| 13544 2 16 1 proc=_v Temporal FOR SYSTEM_TIME clause can only be used with system-versioned tables. 'omni_TestQuerySimulation.dbo.a' is not a system-versioned table.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -

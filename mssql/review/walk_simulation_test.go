@@ -97,14 +97,17 @@ func TestWalkSimulation(t *testing.T) {
 
 // walkSimSuites are mssql/catalog's simulate.tsv suites, with the database
 // their recording ran in (testcontainer.Database of the catalog's test) and
-// the recall each holds.
+// the recall each holds. The (every alternative) rows of tokens.tsv added
+// refusals the walk cannot see from a database's schema, such as DROP
+// TRIGGER ON ALL SERVER (3701) and OPENQUERY on a missing linked server
+// (7202): the percentages moved and the counts rose to what it finds.
 var walkSimSuites = []struct {
 	name, path, database string
 	minPct               float64
 	minFound             int
 }{
-	{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), "omni_TestSimulation", 91.4, 2702},
-	{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), "omni_TestQuerySimulation", 64.9, 293},
+	{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), "omni_TestSimulation", 91.0, 2797},
+	{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), "omni_TestQuerySimulation", 64.7, 296},
 	{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), "omni_TestProgramSimulation", 80.8, 59},
 }
 
@@ -208,8 +211,11 @@ func walkCompatSimulation(t *testing.T, db *sql.DB) {
 
 	// The optional-clause rows (the (every site) rows of tokens.tsv and
 	// suite:optional-clauses) added 226 refusals the walk finds 167 of,
-	// which moved the floor from 88.5% to 88.0%.
-	const minWalkSimRecall = 88.0
+	// which moved the floor from 88.5% to 88.0%. The (every alternative)
+	// rows added server-scoped refusals the walk cannot see (DROP TRIGGER ON
+	// ALL SERVER, OPENQUERY on a missing linked server), which moved it to
+	// 87.9%.
+	const minWalkSimRecall = 87.9
 	pct := 0.0
 	if refusedCount > 0 {
 		pct = 100 * float64(foundCount) / float64(refusedCount)
