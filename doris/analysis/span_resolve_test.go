@@ -127,3 +127,29 @@ func TestResolveQuerySpanSelectAsterisk(t *testing.T) {
 		}
 	}
 }
+
+// A star the metadata cannot expand stays one through derived tables,
+// CTEs and set operations.
+func TestResolveQuerySpanStarThroughQueries(t *testing.T) {
+	for _, statement := range []string{
+		"SELECT * FROM (SELECT * FROM ext.shop.orders) d",
+		"WITH c AS (SELECT * FROM ext.shop.orders) SELECT * FROM c",
+		"SELECT * FROM ext.shop.orders UNION ALL SELECT * FROM ext.shop.orders",
+		"SELECT * FROM ext.shop.orders UNION ALL SELECT 1",
+	} {
+		span, err := resolveWithCatalog(t, statement)
+		if err != nil {
+			t.Fatalf("%s: %v", statement, err)
+		}
+		if span.NotFoundError != nil {
+			t.Fatalf("%s: NotFoundError %v", statement, span.NotFoundError)
+		}
+		if len(span.Results) != 1 || !span.Results[0].SelectAsterisk {
+			t.Errorf("%s: results %+v, want one unexpanded star", statement, span.Results)
+		}
+	}
+	span, err := resolveWithCatalog(t, "SELECT d.anything FROM (SELECT * FROM ext.shop.orders) d")
+	if err != nil || span.NotFoundError != nil {
+		t.Fatalf("a column of a derived table over an unexpanded star: %v %v", err, span.NotFoundError)
+	}
+}

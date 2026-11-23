@@ -252,7 +252,7 @@ func (r *spanResolver) setOp(n *ast.SetOpStmt, outer *spanScope, ctes *cteBindin
 		if i == 0 {
 			cols = make([]spanColumn, len(armCols))
 			for j, c := range armCols {
-				cols[j] = spanColumn{name: c.name, sources: SourceColumnSet{}}
+				cols[j] = spanColumn{name: c.name, sources: SourceColumnSet{}, star: c.star}
 				for k := range c.sources {
 					cols[j].sources[k] = true
 				}
@@ -264,6 +264,7 @@ func (r *spanResolver) setOp(n *ast.SetOpStmt, outer *spanScope, ctes *cteBindin
 				for k := range armCols[j].sources {
 					cols[j].sources[k] = true
 				}
+				cols[j].star = cols[j].star || armCols[j].star
 			}
 		}
 	}
@@ -424,7 +425,7 @@ func (r *spanResolver) tableRef(ref *ast.TableRef, outer *spanScope, ctes *cteBi
 	}
 	if ref.Subquery != nil {
 		cols := r.subquery(ref.Subquery, outer, ctes)
-		return &relation{name: ref.Alias, columns: renamed(cols, ref.ColumnAliases)}
+		return derived(ref.Alias, renamed(cols, ref.ColumnAliases))
 	}
 	if ref.Name == nil || len(ref.Name.Parts) == 0 {
 		return nil
@@ -439,7 +440,7 @@ func (r *spanResolver) tableRef(ref *ast.TableRef, outer *spanScope, ctes *cteBi
 	if len(parts) == 1 {
 		for c := ctes; c != nil; c = c.parent {
 			if strings.EqualFold(c.name, parts[0]) {
-				return &relation{name: alias(parts[0]), columns: renamed(c.columns, ref.ColumnAliases)}
+				return derived(alias(parts[0]), renamed(c.columns, ref.ColumnAliases))
 			}
 		}
 	}
@@ -474,6 +475,20 @@ func (r *spanResolver) tableRef(ref *ast.TableRef, outer *spanScope, ctes *cteBi
 		return rel
 	}
 	rel.columns = renamed(cols, ref.ColumnAliases)
+	return rel
+}
+
+// derived returns a derived table or CTE of cols. One whose columns hold a
+// star the metadata could not expand has columns no one can list, so any
+// name resolves on it, to no known source.
+func derived(name string, cols []spanColumn) *relation {
+	rel := &relation{name: name, columns: cols}
+	for _, c := range cols {
+		if c.star {
+			rel.open, rel.source = true, func(string) SourceColumnSet { return nil }
+			break
+		}
+	}
 	return rel
 }
 
@@ -597,7 +612,7 @@ func (r *spanResolver) star(item *ast.SelectItem, sc *spanScope) []spanColumn {
 	}
 	var cols []spanColumn
 	for _, rel := range rels {
-		if rel.open {
+		if rel.open && len(rel.columns) == 0 {
 			// The metadata does not list its columns.
 			cols = append(cols, spanColumn{name: "*", star: true})
 			continue
@@ -606,7 +621,7 @@ func (r *spanResolver) star(item *ast.SelectItem, sc *spanScope) []spanColumn {
 			if except[strings.ToLower(c.name)] {
 				continue
 			}
-			cols = append(cols, spanColumn{name: c.name, sources: clone(c.sources), plain: true})
+			cols = append(cols, spanColumn{name: c.name, sources: clone(c.sources), plain: !c.star, star: c.star})
 		}
 	}
 	return cols
