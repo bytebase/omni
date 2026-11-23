@@ -55,6 +55,12 @@ type ServerConfig struct {
 	// and constraints from visible table metadata). When false, LoadSQL keeps
 	// its legacy refusal of SET UNUSED.
 	ApplySetUnused bool
+
+	// ValidateViewQueries, when true, refuses a CREATE VIEW whose query
+	// Oracle refuses (ORA-00942, ORA-00904, ORA-00918, ...). When false, a
+	// view whose query names objects the catalog does not hold keeps its
+	// text without derived columns.
+	ValidateViewQueries bool
 }
 
 // StandardOracle23ServerConfig returns the instance configuration of a default
@@ -70,6 +76,7 @@ func StandardOracle23ServerConfig() ServerConfig {
 		ValidateExternalSchemaRefs: true,
 		ValidateEditions:           true,
 		ApplySetUnused:             true,
+		ValidateViewQueries:        true,
 	}
 }
 
