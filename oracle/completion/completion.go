@@ -212,7 +212,9 @@ func isolateStatementAtCursor(sql string, cursorOffset int) (string, int) {
 		return sql, cursorOffset
 	}
 	for i, stmt := range stmts {
-		if cursorOffset < stmt.Start {
+		// A segment holding no statement (a lone ';', trailing whitespace)
+		// scopes nothing: the cursor in it completes against the script.
+		if stmt.Empty || cursorOffset < stmt.Start {
 			continue
 		}
 		// At the exact ';' boundary between two statements, prefer the

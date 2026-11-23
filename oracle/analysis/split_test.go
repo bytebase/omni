@@ -47,6 +47,24 @@ func TestSplitStatements(t *testing.T) {
 				{Text: "\nSELECT 1 FROM DUAL", Start: 18, End: 37},
 			},
 		},
+		{
+			name:   "empty segments kept untrimmed",
+			script: ";SELECT 1 FROM DUAL; -- c\n;\n",
+			want: []Statement{
+				{Text: "", Empty: true, Start: 0, End: 0},
+				{Text: "SELECT 1 FROM DUAL", Start: 1, End: 19},
+				{Text: " -- c\n", Empty: true, Start: 20, End: 26},
+				{Text: "\n", Empty: true, Start: 27, End: 28},
+			},
+		},
+		{
+			name:   "MATCH_RECOGNIZE DEFINE rejoined up to its semicolon",
+			script: "SELECT * FROM T MATCH_RECOGNIZE (ORDER BY A MEASURES A.B AS P PATTERN (A)\nDEFINE A AS B > 1)\n;\nSELECT 2 FROM DUAL;",
+			want: []Statement{
+				{Text: "SELECT * FROM T MATCH_RECOGNIZE (ORDER BY A MEASURES A.B AS P PATTERN (A)\nDEFINE A AS B > 1)", Start: 0, End: 92},
+				{Text: "\nSELECT 2 FROM DUAL", Start: 94, End: 113},
+			},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

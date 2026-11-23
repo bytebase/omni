@@ -150,6 +150,8 @@ func TestSplitLargeInsertScriptScalesLinearly(t *testing.T) {
 	statements := SplitStatements(builder.String())
 	elapsed := time.Since(started)
 
-	require.Len(t, statements, rowCount)
+	// The newline after the last ';' is a segment with no statement.
+	require.Len(t, statements, rowCount+1)
+	require.True(t, statements[rowCount].Empty)
 	require.Less(t, elapsed, time.Second)
 }

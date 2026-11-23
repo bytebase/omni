@@ -1683,3 +1683,15 @@ func loadTestSchema(name string) *metadatapb.DatabaseSchemaMetadata {
 		return nil
 	}
 }
+
+// TestIsolateStatementAtCursorSkipsEmptySegments: a cursor in a segment that
+// holds no statement (after the last ';', between two ';') is scoped to the
+// script, as it was before Split returned such segments.
+func TestIsolateStatementAtCursorSkipsEmptySegments(t *testing.T) {
+	for _, sql := range []string{"SELECT 1 FROM dual;\n", "SELECT 1 FROM dual; ;", "SELECT 1 FROM dual; -- c\n"} {
+		got, offset := isolateStatementAtCursor(sql, len(sql))
+		if got != sql || offset != len(sql) {
+			t.Fatalf("isolateStatementAtCursor(%q) = %q, %d; want the script", sql, got, offset)
+		}
+	}
+}

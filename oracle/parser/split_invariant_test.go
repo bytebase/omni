@@ -146,11 +146,17 @@ func assertSplitInvariants(t *testing.T, sql string) {
 		if seg.Text != sql[seg.ByteStart:seg.ByteEnd] {
 			t.Fatalf("segment[%d] text %q does not match input range %q", i, seg.Text, sql[seg.ByteStart:seg.ByteEnd])
 		}
+		resplit := Split(seg.Text)
 		if seg.Empty() {
-			t.Fatalf("segment[%d] is empty: %q", i, seg.Text)
+			// An empty segment holds no delimiter of its own, so it resplits
+			// into itself, or into nothing when it is zero-length.
+			if len(resplit) > 1 || len(resplit) == 1 && (resplit[0].Text != seg.Text || !resplit[0].Empty()) {
+				t.Fatalf("empty segment[%d] %q resplit into %#v", i, seg.Text, resplit)
+			}
+			prevEnd = seg.ByteEnd
+			continue
 		}
 
-		resplit := Split(seg.Text)
 		if len(resplit) != 1 {
 			t.Fatalf("segment[%d] resplit into %d segments: %#v", i, len(resplit), resplit)
 		}
