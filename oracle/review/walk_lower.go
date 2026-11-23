@@ -2,6 +2,7 @@ package review
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/bytebase/omni/oracle/ast"
@@ -84,9 +85,8 @@ func (b *builder) statement(n ast.Node) bool {
 		}
 		return b.createObject(v.Name, kindPackage, v.IfNotExists, v.OrReplace)
 	case *ast.AlterPackageStmt:
-		if v.CompileTarget == "BODY" {
-			return true
-		}
+		// COMPILE BODY needs the package too (04043); the body itself is
+		// in a namespace of its own.
 		return b.alterObject(v.Name, kindPackage, v.IfExists, func(w string) string { return missingKind(kindPackage, w) }, kindWord(kindPackage))
 	case *ast.CreateProcedureStmt:
 		return b.createObject(v.Name, kindProcedure, v.IfNotExists, v.OrReplace)
@@ -532,7 +532,7 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 		return false
 	}
 	switch v.ObjectType {
-	case ast.OBJECT_PACKAGE_BODY, ast.OBJECT_TYPE_BODY:
+	case ast.OBJECT_TYPE_BODY:
 		return true
 	case ast.OBJECT_SYNONYM:
 		if b.publicSynonym(v.Loc) {
@@ -590,14 +590,24 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 			return true
 		}
 		b.leaveObject(r)
-	case ast.OBJECT_PACKAGE, ast.OBJECT_PROCEDURE, ast.OBJECT_FUNCTION, ast.OBJECT_TYPE:
+	case ast.OBJECT_PACKAGE_BODY:
+		// The body has a namespace of its own, which the sync does not
+		// list, but it needs its package (04043).
+		if !v.IfExists {
+			b.routineExists(r, kindPackage, false)
+		}
+	case ast.OBJECT_PACKAGE, ast.OBJECT_PROCEDURE, ast.OBJECT_FUNCTION:
 		kind := map[ast.ObjectType]string{
 			ast.OBJECT_PACKAGE:   kindPackage,
 			ast.OBJECT_PROCEDURE: kindProcedure,
 			ast.OBJECT_FUNCTION:  kindFunction,
-			ast.OBJECT_TYPE:      kindType,
 		}[v.ObjectType]
-		if !b.exists(r.key(spaceObject), []string{kind}, v.IfExists, r.rng, missingKind(kind, r.written), notKind(r.written, kindWord(kind))) {
+		if !b.routineExists(r, kind, v.IfExists) {
+			return true
+		}
+		b.leaveObject(r)
+	case ast.OBJECT_TYPE:
+		if !b.exists(r.key(spaceObject), []string{kindType}, v.IfExists, r.rng, missingKind(kindType, r.written), notKind(r.written, kindWord(kindType))) {
 			return true
 		}
 		b.leaveObject(r)
@@ -1026,8 +1036,27 @@ func (b *builder) alterObject(name *ast.ObjectName, kind string, ifExists bool, 
 		return true
 	}
 	b.Order = walk.Lookups
+	if slices.Contains(routineKinds, kind) {
+		b.routineExists(r, kind, ifExists)
+		return true
+	}
 	b.exists(r.key(spaceObject), []string{kind}, ifExists, r.rng, missing(r.written), notKind(r.written, needed))
 	return true
+}
+
+// routineExists adds the check that a function, procedure, or package
+// exists of its kind, and reports whether the statement does anything.
+// The routine space is complete where the object space is not: the sync
+// lists every function, procedure, and package, and none of the types and
+// other objects that share the namespace, so a name no routine holds is
+// refused (04043) whatever else may hold it. A name the walk knows another
+// kind holds is said to be of that kind.
+func (b *builder) routineExists(r objRef, kind string, ifExists bool) bool {
+	k := r.key(spaceRoutine)
+	if !ifExists && b.heldByOther(k, r, kind) {
+		return true
+	}
+	return b.exists(k, []string{kind}, ifExists, r.rng, missingKind(kind, r.written), notKind(r.written, kindWord(kind)))
 }
 
 // alterIndex follows ALTER INDEX: the index must exist (01418); RENAME TO
@@ -1942,7 +1971,8 @@ func (b *builder) dmlInsert(v *ast.InsertStmt) {
 		if sel, ok := v.Subquery.(*ast.SelectStmt); ok {
 			subSel = sel
 		}
-		for _, item := range v.MultiTable.Items {
+		inserts := b.multiInsertsRow(v, subSel)
+		for i, item := range v.MultiTable.Items {
 			into, ok := item.(*ast.InsertIntoClause)
 			if !ok || into.Table == nil {
 				continue
@@ -1963,7 +1993,7 @@ func (b *builder) dmlInsert(v *ast.InsertStmt) {
 				b.fail(rangeOf(into.Loc), review.UnsupportedForm, "INSERT column count does not match VALUES count.")
 				return
 			}
-			if b.dmlCheckInsertTableMeta(into.Table, r, into.Columns, into.Values, subSel, false, false, rangeOf(into.Loc)) {
+			if b.dmlCheckInsertTableMeta(into.Table, r, into.Columns, into.Values, subSel, false, inserts[i], rangeOf(into.Loc)) {
 				return
 			}
 		}
@@ -2014,12 +2044,159 @@ func (b *builder) dmlInsert(v *ast.InsertStmt) {
 		}
 	}
 	if v.ValuesRecord == nil && v.SetClauses == nil {
-		guaranteedRow := v.Values != nil && len(v.Values.Items) > 0 && v.Select == nil && v.ErrorLog == nil
+		guaranteedRow := v.ErrorLog == nil && (v.Values != nil && len(v.Values.Items) > 0 && v.Select == nil ||
+			v.Select != nil && b.yieldsRow(v.Select, nil, 0))
 		if b.dmlCheckInsertTableMeta(v.Table, r, v.Columns, v.Values, v.Select, v.ByName, guaranteedRow, b.anchor()) {
 			return
 		}
 	}
 	b.dmlErrorLog(v.ErrorLog, r)
+}
+
+// multiInsertsRow reports, for each INTO clause of a multi-table INSERT,
+// whether it certainly inserts a row: its subquery certainly returns one,
+// and the clause takes it. INSERT ALL without WHEN takes it in every
+// clause; with WHEN, a clause whose condition certainly holds does. INSERT
+// FIRST takes it in the clauses of the first condition that holds when
+// every condition before it certainly fails, and in the ELSE clauses when
+// every condition certainly fails.
+func (b *builder) multiInsertsRow(v *ast.InsertStmt, sub *ast.SelectStmt) []bool {
+	out := make([]bool, len(v.MultiTable.Items))
+	if sub == nil || !b.yieldsRow(sub, nil, 0) {
+		return out
+	}
+	conditional := false
+	for _, item := range v.MultiTable.Items {
+		if into, ok := item.(*ast.InsertIntoClause); ok && into.When != nil {
+			conditional = true
+		}
+	}
+	// taken is the condition FIRST takes the row in, once one holds.
+	var taken ast.ExprNode
+	allFail := true
+	for i, item := range v.MultiTable.Items {
+		into, ok := item.(*ast.InsertIntoClause)
+		if !ok {
+			return make([]bool, len(v.MultiTable.Items))
+		}
+		holds, known := constantCondition(into.When)
+		switch {
+		case !conditional:
+			out[i] = true
+		case into.When == nil:
+			// ELSE.
+			out[i] = allFail
+		case v.InsertType == ast.INSERT_FIRST:
+			switch {
+			case taken != nil:
+				out[i] = into.When == taken
+			case !allFail:
+			case known && holds:
+				taken = into.When
+				out[i] = true
+			}
+			if !known || holds {
+				allFail = false
+			}
+		default:
+			out[i] = known && holds
+			if !known || holds {
+				allFail = false
+			}
+		}
+	}
+	return out
+}
+
+// constantCondition evaluates a WHEN condition that compares two integer
+// literals, and reports whether it could.
+func constantCondition(e ast.ExprNode) (holds, known bool) {
+	for {
+		p, ok := e.(*ast.ParenExpr)
+		if !ok {
+			break
+		}
+		e = p.Expr
+	}
+	be, ok := e.(*ast.BinaryExpr)
+	if !ok {
+		return false, false
+	}
+	l, lok := be.Left.(*ast.NumberLiteral)
+	r, rok := be.Right.(*ast.NumberLiteral)
+	if !lok || !rok || l.IsFloat || r.IsFloat || l.Val != strconv.FormatInt(l.Ival, 10) || r.Val != strconv.FormatInt(r.Ival, 10) {
+		return false, false
+	}
+	switch be.Op {
+	case "=":
+		return l.Ival == r.Ival, true
+	case "!=", "<>", "^=":
+		return l.Ival != r.Ival, true
+	case "<":
+		return l.Ival < r.Ival, true
+	case ">":
+		return l.Ival > r.Ival, true
+	case "<=":
+		return l.Ival <= r.Ival, true
+	case ">=":
+		return l.Ival >= r.Ival, true
+	}
+	return false, false
+}
+
+// yieldsRow reports whether a query certainly returns a row: one query
+// block over SYS.DUAL alone, or over a WITH query that certainly returns
+// one, with nothing that filters, groups, or limits its rows. ctes are the
+// WITH queries the block sees, the later of a name first. The walk does not
+// judge what the select list computes: an expression that fails fails the
+// statement all the same.
+func (b *builder) yieldsRow(n ast.StmtNode, ctes []*ast.CTE, depth int) bool {
+	sel, ok := n.(*ast.SelectStmt)
+	if !ok || sel == nil || depth > 8 {
+		return false
+	}
+	if sel.Op != ast.SETOP_NONE || sel.Larg != nil || sel.Rarg != nil || sel.Into != nil || sel.IntoVars != nil ||
+		sel.WhereClause != nil || sel.Hierarchical != nil || sel.GroupClause != nil || sel.HavingClause != nil ||
+		sel.ModelClause != nil || sel.QualifyClause != nil || sel.FetchFirst != nil || sel.ForUpdate != nil {
+		return false
+	}
+	if w := sel.WithClause; w != nil {
+		if w.PLSQLDeclarations != nil && len(w.PLSQLDeclarations.Items) > 0 || w.Recursive {
+			return false
+		}
+		scope := slices.Clone(ctes)
+		if w.CTEs != nil {
+			for _, item := range w.CTEs.Items {
+				c, ok := item.(*ast.CTE)
+				if !ok {
+					return false
+				}
+				scope = append(scope, c)
+			}
+		}
+		ctes = scope
+	}
+	if sel.FromClause == nil || len(sel.FromClause.Items) != 1 {
+		return false
+	}
+	tr, ok := sel.FromClause.Items[0].(*ast.TableRef)
+	if !ok || tr.Name == nil || tr.Sample != nil || tr.Flashback != nil || tr.PartitionExt != nil || tr.Dblink != "" {
+		return false
+	}
+	if tr.Name.Schema == "" && tr.Name.DBLink == "" {
+		for i := len(ctes) - 1; i >= 0; i-- {
+			c := ctes[i]
+			if c.Name != tr.Name.Name {
+				continue
+			}
+			if c.Query == nil || c.Search != nil || c.Cycle != nil {
+				return false
+			}
+			// A WITH query sees the ones before it, not itself.
+			return b.yieldsRow(c.Query, ctes[:i], depth+1)
+		}
+	}
+	return b.isSysDual(tr.Name)
 }
 
 // dmlUpdate checks READ ONLY inline view targets, DUAL/constant inline views,

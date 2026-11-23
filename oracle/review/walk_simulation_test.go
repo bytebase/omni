@@ -1,6 +1,7 @@
 package review
 
 import (
+	"google.golang.org/protobuf/encoding/protojson"
 	"context"
 	"database/sql"
 	"errors"
@@ -267,6 +268,11 @@ func TestWalkSimulation(t *testing.T) {
 	missedCounts := map[string]int{}
 	missedSample := map[string]string{}
 
+	var dumpMissed *os.File
+	if p := os.Getenv("WALK_SIM_DUMP"); p != "" {
+		dumpMissed, _ = os.Create(p)
+		defer dumpMissed.Close()
+	}
 	for _, fxName := range walkSimFixtures {
 		fxRows := rowsByFixture[fxName]
 		fxPath := filepath.Join("testdata", "fixtures", fxName+".sql")
@@ -283,6 +289,13 @@ func TestWalkSimulation(t *testing.T) {
 			target: review.Target{Schema: walkSync(t, w.adminConn, shop, allNames)},
 		}
 		inventory := simNormalizeInventory(e.Inventory(t, allNames))
+		if os.Getenv("WALK_SIM_DUMP") != "" {
+			jb, _ := protojson.Marshal(e.target.Schema)
+			os.WriteFile(os.Getenv("WALK_SIM_DUMP")+"."+fxName+".json", jb, 0o644)
+			for _, o := range inventory {
+				fmt.Fprintf(dumpMissed, "#INV %s\t%v\n", fxName, o)
+			}
+		}
 
 		var fxOK, fxRefused, fxFound int
 		for _, g := range fxRows {
@@ -332,6 +345,9 @@ func TestWalkSimulation(t *testing.T) {
 			totalRefused++
 			fxRefused++
 			if finding == nil {
+				if dumpMissed != nil {
+					fmt.Fprintf(dumpMissed, "%s\t%s\t%s\t%s\n", verdict, g.Fixture, g.Rule, g.Statement)
+				}
 				if *walkSimShowMissed {
 					words := strings.Fields(g.Statement)
 					prefix := ""
