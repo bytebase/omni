@@ -103,12 +103,9 @@ var walkSimSuites = []struct {
 	minPct               float64
 	minFound             int
 }{
-	{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), "omni_TestSimulation", 91.2, 2697},
-	// The queries and programs suites hold COLLATE rows SQL Server refuses
-	// for an unknown collation (Msg 448), which the walk's ledger, a record
-	// of which objects exist, does not judge.
-	{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), "omni_TestQuerySimulation", 61.6, 278},
-	{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), "omni_TestProgramSimulation", 68.4, 50},
+	{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), "omni_TestSimulation", 91.4, 2702},
+	{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), "omni_TestQuerySimulation", 64.9, 293},
+	{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), "omni_TestProgramSimulation", 80.8, 59},
 }
 
 // walkCompatSimulation holds MSSQL's WALK_THROUGH to every unique
