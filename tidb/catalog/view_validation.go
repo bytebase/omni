@@ -910,6 +910,12 @@ func exprCanBeJSON(expr nodes.ExprNode, scopes []*viewColScope) bool {
 				}
 				return isJSONOrStringDataType(dt)
 			}
+			// An opaque inner scope (derived table or CTE whose output columns
+			// are not modeled) may shadow an outer column with a different type;
+			// stop here rather than attributing an outer column's type to it.
+			if s.opaque {
+				return true
+			}
 		}
 		return true
 	default:

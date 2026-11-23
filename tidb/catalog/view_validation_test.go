@@ -240,7 +240,7 @@ func TestViewValidation(t *testing.T) {
 		assertCode(t, c, "CREATE VIEW v AS SELECT unknown_fn(a) FROM t", ErrNoSuchFunction)
 		assertCode(t, c, "CREATE VIEW v AS SELECT POINT() FROM t", ErrNoSuchFunction)
 		assertCode(t, c, "CREATE VIEW v AS SELECT APPROX_PERCENTILE(a) FROM t", ErrUnknownError)
-		assertOK(t, c, "CREATE VIEW v_ok AS SELECT APPROX_PERCENTILE(a, 50), ABS(a), TIDB_VERSION() FROM t")
+		assertOK(t, c, "CREATE VIEW v_ok AS SELECT APPROX_PERCENTILE(a, 50), ABS(a), TIDB_VERSION(), TIDB_ENCODE_SQL_DIGEST('select 1'), TIDB_DECODE_BASE64_KEY(''), TIDB_DECODE_BINARY_PLAN('') FROM t")
 	})
 
 	t.Run("temporal_literals_1292", func(t *testing.T) {
@@ -265,5 +265,14 @@ func TestViewValidation(t *testing.T) {
 		assertCode(t, c, "CREATE VIEW v AS SELECT id MEMBER OF(missing) FROM tj", ErrNoSuchColumn)
 		// JSON and string columns succeed.
 		assertOK(t, c, "CREATE VIEW v_json AS SELECT j -> '$.a' AS c1, s ->> '$.a' AS c2, id MEMBER OF(j) AS c3, id MEMBER OF('[1,2]') AS c4 FROM tj")
+		// An opaque inner scope (derived table or CTE) may shadow an outer
+		// non-JSON column with a JSON/string column; do not attribute the outer
+		// column's type across the opaque boundary.
+		assertOK(t, c, "CREATE TABLE t_outer (j INT)")
+		assertOK(t, c, "CREATE VIEW v_shadow_derived AS SELECT (SELECT j -> '$.a' FROM (SELECT '{\"a\":1}' AS j) d) AS x FROM t_outer")
+		assertOK(t, c, "CREATE VIEW v_shadow_cte AS WITH cte AS (SELECT '{\"a\":1}' AS j) SELECT j -> '$.a' AS x FROM cte")
+		// A correlated reference through a non-opaque inner scope still checks
+		// the outer column's type.
+		assertCode(t, c, "CREATE VIEW v_corr_int AS SELECT (SELECT t_outer.j -> '$.a' FROM tj) AS x FROM t_outer", ErrInvalidTypeForJSON)
 	})
 }
