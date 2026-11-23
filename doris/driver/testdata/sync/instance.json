@@ -3,6 +3,49 @@
       "sync_inst_db  "
     ],
     "lowerCaseTableNames": 0,
-    "roles": null,
+    "roles": [
+      {
+        "Name": "'admin'@'%'",
+        "ConnectionLimit": null,
+        "ValidUntil": null,
+        "Attribute": "Roles: admin\nGlobalPrivs: Admin_priv\nDatabasePrivs: internal.information_schema: Select_priv; internal.mysql: Select_priv\nWorkloadGroupPrivs: normal: Usage_priv"
+      },
+      {
+        "Name": "'root'@'%'",
+        "ConnectionLimit": null,
+        "ValidUntil": null,
+        "Attribute": "Roles: operator\nGlobalPrivs: Node_priv,Admin_priv\nDatabasePrivs: internal.information_schema: Select_priv; internal.mysql: Select_priv\nWorkloadGroupPrivs: normal: Usage_priv"
+      },
+      {
+        "Name": "'sync_app'@'%'",
+        "ConnectionLimit": null,
+        "ValidUntil": null,
+        "Attribute": "Roles: sync_reader\nDatabasePrivs: internal.information_schema: Select_priv; internal.mysql: Select_priv; internal.sync_inst_db: Select_priv\nTablePrivs: internal.sync_inst_db.t: Load_priv\nWorkloadGroupPrivs: normal: Usage_priv"
+      },
+      {
+        "Name": "'sync_ops'@'10.0.0.%'",
+        "ConnectionLimit": null,
+        "ValidUntil": null,
+        "Attribute": "CatalogPrivs: internal: Create_priv\nDatabasePrivs: internal.information_schema: Select_priv; internal.mysql: Select_priv\nColPrivs: internal.sync_inst_db.t: Select_priv[v]\nResourcePrivs: %: Usage_priv\nWorkloadGroupPrivs: normal: Usage_priv"
+      },
+      {
+        "Name": "admin",
+        "ConnectionLimit": null,
+        "ValidUntil": null,
+        "Attribute": "GlobalPrivs: Admin_priv"
+      },
+      {
+        "Name": "operator",
+        "ConnectionLimit": null,
+        "ValidUntil": null,
+        "Attribute": "GlobalPrivs: Node_priv,Admin_priv"
+      },
+      {
+        "Name": "sync_reader",
+        "ConnectionLimit": null,
+        "ValidUntil": null,
+        "Attribute": "DatabasePrivs: internal.sync_inst_db.*: Select_priv"
+      }
+    ],
     "version": "3.1.4"
   }

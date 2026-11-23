@@ -34,6 +34,62 @@
 | DROP FUNCTION dump_gap_fn(INT)
 < ok 0 0
 
+== TestDumpGaps/global-function-definition default#1
+> exec
+| CREATE GLOBAL FUNCTION dump_gap_global(INT) RETURNS INT PROPERTIES("type" = "Python", "file" = "file:///data/deploy/starrocks/fe/conf/fe.conf", "symbol" = "f", "input_type" = "INT");
+< ok 0 0
+> exec
+|
+| CREATE VIEW calls_global (g) AS SELECT dump_gap_global(1)
+< ok 0 0
+> query
+| SELECT SCHEMA_NAME FROM information_schema.schemata WHERE SCHEMA_NAME = ?
+: string
+| omni_dump_gap_global_function
+< result
+< column "SCHEMA_NAME" "VARCHAR"
+< row
+: bytes
+| omni_dump_gap_global_function
+> query
+| SELECT TABLE_NAME FROM information_schema.materialized_views WHERE TABLE_SCHEMA = ? AND IFNULL(REFRESH_TYPE, '') <> 'ROLLUP' ORDER BY TABLE_NAME
+: string
+| omni_dump_gap_global_function
+< result
+< column "TABLE_NAME" "VARCHAR"
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.tables WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_dump_gap_global_function
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| calls_global
+: bytes
+| VIEW
+> query
+| SHOW CREATE VIEW `omni_dump_gap_global_function`.`calls_global`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| calls_global
+: bytes
+| CREATE VIEW `calls_global` (`g`) SECURITY NONE AS SELECT dump_gap_global(1) AS `dump_gap_global(1)`;
+: bytes
+| utf8
+: bytes
+| utf8_general_ci
+> query
+| SHOW CREATE GLOBAL FUNCTION dump_gap_global(INT)
+< error
+| 1064 HY000 Getting syntax error at line 1, column 12. Detail message: No viable statement for input 'SHOW CREATE GLOBAL'.
+
 == TestDumpGaps/rollup default#1
 > exec
 | CREATE TABLE r (
