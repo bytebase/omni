@@ -172,6 +172,15 @@ func TestWalkThroughOracle(t *testing.T) {
 	oneFinding(t, "ALTER SEQUENCE nosuch INCREMENT BY 2;", 0, "Sequence `NOSUCH` doesn't exist.", shop)
 	oneFinding(t, "DROP SYNONYM t;", 0, "`T` isn't a private synonym.", shop)
 	noFinding(t, "DROP SYNONYM nosuch;\nDROP PUBLIC SYNONYM t;", shop)
+	// Materialized view options Oracle refuses from the text alone.
+	oneFinding(t, "CREATE MATERIALIZED VIEW m1 (x, y) AS SELECT 1 FROM dual;", 0, "Materialized view `M1` names 2 columns for a query of 1.", shop)
+	oneFinding(t, "CREATE MATERIALIZED VIEW m1 REFRESH NEXT 1 AS SELECT 1 x FROM dual;", 0, "START WITH and NEXT take a date, not a number.", shop)
+	oneFinding(t, "CREATE MATERIALIZED VIEW m1 REFRESH FAST AS SELECT 1 x FROM dual;", 0, "Materialized view `M1` cannot REFRESH FAST from SYS.DUAL.", shop)
+	oneFinding(t, "CREATE MATERIALIZED VIEW m1 ENABLE QUERY REWRITE AS SELECT 1 x FROM sys.dual;", 0, "Materialized view `M1` cannot ENABLE QUERY REWRITE on SYS.DUAL.", shop)
+	noFinding(t, "CREATE MATERIALIZED VIEW m1 (x) AS SELECT * FROM dual;", shop)
+	noFinding(t, "CREATE MATERIALIZED VIEW m2 (x) REFRESH COMPLETE START WITH SYSDATE NEXT SYSDATE + 1 AS SELECT 1 FROM dual;", shop)
+	noFinding(t, "CREATE MATERIALIZED VIEW m3 REFRESH FAST AS SELECT id FROM t;", shop)
+	noFinding(t, "CREATE MATERIALIZED VIEW m4 ENABLE QUERY REWRITE AS WITH dual AS (SELECT id FROM t) SELECT id FROM dual;", shop)
 	// Sequence options that contradict each other or Oracle's defaults.
 	oneFinding(t, "CREATE SEQUENCE s1 CACHE 1;", 0, "A sequence must CACHE more than 1 value.", shop)
 	oneFinding(t, "CREATE SEQUENCE s1 MAXVALUE 1;", 0, "A sequence's MINVALUE must be less than its MAXVALUE.", shop)

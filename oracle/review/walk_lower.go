@@ -1278,6 +1278,9 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 				b.fail(r.rng, review.DuplicateName, twice("declares", "column", dup))
 				return true
 			}
+			if b.mviewOptionsFail(v, r) {
+				return true
+			}
 			b.checkSelectFromTables(v.Query, nil)
 			if !b.checkCreateMviewExtra(v, r) {
 				b.checkMviewColumnRefs(v, r)
@@ -1337,6 +1340,44 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 		b.Set(r.schemaKey(spaceConstraint, n), walk.Present, r.path())
 	}
 	return true
+}
+
+// mviewOptionsFail fails a CREATE MATERIALIZED VIEW whose text Oracle
+// refuses: a column alias list of another length than the query's select
+// list (01730); a START WITH or NEXT of a number, where Oracle needs a date
+// (00932); and, on a query of SYS.DUAL alone, REFRESH FAST, which needs a
+// master table with a primary key or a log (12014), and ENABLE QUERY
+// REWRITE, which no query of a SYS table takes (30354).
+func (b *builder) mviewOptionsFail(v *ast.CreateViewStmt, r objRef) bool {
+	sel, _ := v.Query.(*ast.SelectStmt)
+	if v.Columns != nil && len(v.Columns.Items) > 0 && (v.Constraints == nil || len(v.Constraints.Items) == 0) {
+		if n, ok := selectColumnCount(sel); ok && n != len(v.Columns.Items) {
+			b.fail(r.rng, review.UnsupportedForm, "Materialized view "+review.Code(r.written)+" names "+strconv.Itoa(len(v.Columns.Items))+" columns for a query of "+strconv.Itoa(n)+".")
+			return true
+		}
+	}
+	for _, e := range []ast.ExprNode{v.StartWith, v.Next} {
+		if _, ok := e.(*ast.NumberLiteral); ok {
+			b.fail(rangeOf(e.(*ast.NumberLiteral).Loc), review.UnsupportedForm, "START WITH and NEXT take a date, not a number.")
+			return true
+		}
+	}
+	if sel == nil || sel.WithClause != nil || sel.Op != ast.SETOP_NONE || sel.Larg != nil || sel.FromClause == nil || len(sel.FromClause.Items) != 1 {
+		return false
+	}
+	tr, ok := sel.FromClause.Items[0].(*ast.TableRef)
+	if !ok || tr.Dblink != "" || !b.isSysDual(tr.Name) {
+		return false
+	}
+	switch {
+	case strings.EqualFold(v.RefreshMethod, "FAST"):
+		b.fail(r.rng, review.UnsupportedForm, "Materialized view "+review.Code(r.written)+" cannot REFRESH FAST from SYS.DUAL.")
+		return true
+	case v.EnableQuery:
+		b.fail(r.rng, review.UnsupportedForm, "Materialized view "+review.Code(r.written)+" cannot ENABLE QUERY REWRITE on SYS.DUAL.")
+		return true
+	}
+	return false
 }
 
 // isObjectView reports whether a CREATE VIEW declares an object or XMLType
