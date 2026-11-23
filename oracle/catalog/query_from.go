@@ -56,6 +56,14 @@ func (a *queryAnalyzer) fromItem(te ast.TableExpr, sc *qscope) (*qfrom, error) {
 		rel.cols = jsonTableColumns(n.Columns)
 		return relFrom(rel), nil
 	case *ast.XmlTableRef:
+		for _, x := range []ast.ExprNode{n.XPath, n.Passing} {
+			if x == nil {
+				continue
+			}
+			if _, _, err := a.expr(x, sc, clauseFrom); err != nil {
+				return nil, err
+			}
+		}
 		rel := &qrel{name: aliasName(n.Alias)}
 		for _, item := range listItems(n.Columns) {
 			c, ok := item.(*ast.XmlTableColumn)
@@ -206,6 +214,16 @@ func (a *queryAnalyzer) tableRef(n *ast.TableRef, sc *qscope) (*qfrom, error) {
 func (a *queryAnalyzer) tableClauses(n *ast.TableRef, rel *qrel, sc *qscope) error {
 	if n.PartitionExt != nil && !rel.partitioned {
 		return oraError("14501", "object is not partitioned")
+	}
+	if smp := n.Sample; smp != nil {
+		for _, x := range []ast.ExprNode{smp.Percent, smp.Seed} {
+			if x == nil {
+				continue
+			}
+			if _, _, err := a.expr(x, sc, clauseFrom); err != nil {
+				return err
+			}
+		}
 	}
 	if fb := n.Flashback; fb != nil {
 		if fb.IsPeriodFor {
@@ -546,6 +564,9 @@ func (a *queryAnalyzer) pivot(n *ast.PivotClause, sc *qscope) (*qfrom, error) {
 	}
 	var aggs []agg
 	used := map[string]bool{}
+	if n.XML {
+		return a.pivotXML(n, src, inner)
+	}
 	for _, item := range listItems(n.InItems) {
 		pi, ok := item.(*ast.PivotInItem)
 		if !ok {
@@ -805,6 +826,13 @@ func (a *queryAnalyzer) matchRecognize(n *ast.MatchRecognizeClause, sc *qscope) 
 			}
 		}
 	}
+	for _, item := range listItems(n.OrderBy) {
+		if sb, ok := item.(*ast.SortBy); ok {
+			if _, _, err := a.expr(sb.Expr, inner, clauseSelect); err != nil {
+				return nil, err
+			}
+		}
+	}
 	rel := &qrel{name: aliasName(n.Alias)}
 	var partition []qcol
 	for _, x := range listItems(n.PartitionBy) {
@@ -1003,4 +1031,57 @@ func mapKeys(m map[string]bool) []string {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+// pivotXML analyzes PIVOT XML: the input's columns the pivot does not
+// consume, then one XMLTYPE column named for the FOR columns.
+func (a *queryAnalyzer) pivotXML(n *ast.PivotClause, src *qfrom, inner *qscope) (*qfrom, error) {
+	used := map[string]bool{}
+	for _, item := range listItems(n.Aggregates) {
+		pa, ok := item.(*ast.PivotAggregate)
+		if !ok {
+			continue
+		}
+		fc, ok := unparen(pa.Expr).(*ast.FuncCallExpr)
+		if !ok || fc.FuncName == nil || !isAggregateName(fc.FuncName.Name) || fc.Over != nil {
+			return nil, oraError("56902", "non-aggregate expressions inside the PIVOT clause")
+		}
+		if _, _, err := a.expr(pa.Expr, inner, clauseSelect); err != nil {
+			return nil, err
+		}
+		walkExpr(pa.Expr, func(x ast.Node) bool {
+			if ref, ok := x.(*ast.ColumnRef); ok {
+				used[ref.Column] = true
+			}
+			return true
+		})
+	}
+	var forNames []string
+	for _, x := range listItems(n.ForColumns) {
+		ref, ok := x.(*ast.ColumnRef)
+		if !ok {
+			continue
+		}
+		if _, found, err := a.lookupIn(src, ref.Column); err != nil {
+			return nil, err
+		} else if !found {
+			return nil, oraError("00904", "%q: invalid identifier", ref.Column)
+		}
+		used[ref.Column] = true
+		forNames = append(forNames, ref.Column)
+	}
+	rel := &qrel{name: aliasName(n.Alias)}
+	if rel.name == "" && len(src.rels) == 1 {
+		rel.name = src.rels[0].name
+		rel.schema = src.rels[0].schema
+	}
+	for _, it := range src.items {
+		c := src.itemCol(it)
+		if used[c.name] || c.hidden {
+			continue
+		}
+		rel.cols = append(rel.cols, c)
+	}
+	rel.cols = append(rel.cols, qcol{name: strings.Join(forNames, "_") + "_XML", typ: simpleType("XMLTYPE")})
+	return relFrom(rel), nil
 }

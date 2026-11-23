@@ -3,6 +3,7 @@ package catalog
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 
@@ -382,8 +383,9 @@ func (a *queryAnalyzer) withClause(w *ast.WithClause, outer *qscope, ctes *cteEn
 			}
 		}
 	}
+	// An element sees itself (a recursive WITH) and the elements before it,
+	// not the ones after.
 	env := &cteEnv{parent: ctes, defs: map[string]*cteDef{}}
-	var order []*cteDef
 	for _, item := range listItems(w.CTEs) {
 		c, ok := item.(*ast.CTE)
 		if !ok {
@@ -391,9 +393,6 @@ func (a *queryAnalyzer) withClause(w *ast.WithClause, outer *qscope, ctes *cteEn
 		}
 		d := &cteDef{name: c.Name, node: c}
 		env.defs[c.Name] = d
-		order = append(order, d)
-	}
-	for _, d := range order {
 		if err := a.analyzeCTE(d, outer, env); err != nil {
 			return nil, err
 		}
@@ -672,6 +671,23 @@ func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 		exprs = append(exprs, sel.HavingClause)
 	}
 	exprs = append(exprs, starRefs...)
+	if ownOrder {
+		// ORDER BY is held to the grouping rules too, unless it names a
+		// select-list item by position or alias.
+		for _, item := range listItems(sel.OrderBy) {
+			sb, ok := item.(*ast.SortBy)
+			if !ok || sb.Expr == nil {
+				continue
+			}
+			if n, ok := unparen(sb.Expr).(*ast.NumberLiteral); ok && !n.IsFloat {
+				continue
+			}
+			if ref, ok := unparen(sb.Expr).(*ast.ColumnRef); ok && ref.Table == "" && slices.ContainsFunc(cols, func(c qcol) bool { return c.name == ref.Column }) {
+				continue
+			}
+			exprs = append(exprs, sb.Expr)
+		}
+	}
 	grouped := len(listItems(sel.GroupClause)) > 0
 	nested := false
 	for _, x := range exprs {
@@ -1082,6 +1098,13 @@ func (a *queryAnalyzer) lookupQualified(from *qfrom, ref *ast.ColumnRef) (qcol, 
 			return qcol{}, true, oraError("00918", "%s: column ambiguously specified", ref.Column)
 		}
 		return r.col(i), true, nil
+	}
+	// ROWID and ORA_ROWSCN qualify by the item they read.
+	switch ref.Column {
+	case "ROWID":
+		return qcol{name: ref.Column, typ: simpleType("ROWID")}, true, nil
+	case "ORA_ROWSCN":
+		return qcol{name: ref.Column, typ: numberType()}, true, nil
 	}
 	return qcol{}, true, oraError("00904", "%q.%q: invalid identifier", ref.Table, ref.Column)
 }

@@ -98,6 +98,12 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"compound_unknown_function", `CREATE VIEW v AS SELECT TO_MULTI_BYTE('x') x FROM dual UNION ALL SELECT 'x' FROM dual`, ""},
 		{"table_constructor_bind", `CREATE VIEW v AS SELECT * FROM TABLE(sys.odcinumberlist(:x))`, "01027"},
 		{"window_frame_bind", `CREATE VIEW v AS SELECT SUM(id) OVER (ORDER BY id ROWS :n PRECEDING) s FROM t`, "01027"},
+		{"qualified_rowid", `CREATE VIEW v AS SELECT t.ROWID rid FROM t`, ""},
+		{"xmltable_bind", `CREATE VIEW v AS SELECT * FROM XMLTABLE('/x' PASSING :x COLUMNS id NUMBER PATH '.')`, "01027"},
+		{"order_by_not_grouped", `CREATE VIEW v AS SELECT id, COUNT(*) c FROM t GROUP BY id ORDER BY n`, "00979"},
+		{"order_by_alias_grouped", `CREATE VIEW v AS SELECT id x, COUNT(*) c FROM t GROUP BY id ORDER BY x, 2`, ""},
+		{"pivot_xml", `CREATE VIEW v AS SELECT n_xml FROM t PIVOT XML (SUM(id) FOR n IN (ANY))`, ""},
+		{"with_forward_reference", `CREATE VIEW v AS WITH a AS (SELECT id FROM b), b AS (SELECT id FROM t) SELECT id FROM a`, "00942"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
