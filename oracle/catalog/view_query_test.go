@@ -158,6 +158,10 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"where_date", `CREATE VIEW v AS SELECT 1 x FROM dual WHERE DATE '2020-01-01'`, "00920"},
 		{"group_by_subquery", `CREATE VIEW v AS SELECT COUNT(*) c FROM dual GROUP BY (SELECT 1 FROM dual)`, "22818"},
 		{"group_by_subquery_alias", `CREATE VIEW v AS SELECT (SELECT 1 FROM dual) s, COUNT(*) c FROM dual GROUP BY s`, "22818"},
+		{"and_with_date_operand", `CREATE VIEW v AS SELECT 1 x FROM dual WHERE 1=1 AND DATE '2020-01-01'`, "00920"},
+		{"named_window_not_grouped", `CREATE VIEW v AS SELECT id, COUNT(*) OVER w c FROM t GROUP BY id WINDOW w AS (ORDER BY n)`, "00979"},
+		{"as_of_scn_plausible", `CREATE VIEW v AS SELECT id FROM t AS OF SCN 123456`, ""},
+		{"as_of_scn_one", `CREATE VIEW v AS SELECT id FROM t AS OF SCN 1`, "08181"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -509,6 +513,19 @@ func TestViewQueryTrimDatetime(t *testing.T) {
 	for _, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
 		if col.GetType() != "VARCHAR2(75 BYTE)" {
 			t.Errorf("%s type = %q, want VARCHAR2(75 BYTE)", col.GetName(), col.GetType())
+		}
+	}
+}
+
+func TestViewQueryNationalResults(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE t (n NCHAR(10)); CREATE VIEW v AS SELECT SUBSTR(n, 2) a, TO_NCHAR(DATE '2020-01-01', 'YYYY') b, TO_NCHAR(SYSDATE) c FROM t;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"NVARCHAR2(10)", "NVARCHAR2(4)", ""}
+	for i, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
+		if col.GetType() != want[i] {
+			t.Errorf("%s type = %q, want %q", col.GetName(), col.GetType(), want[i])
 		}
 	}
 }

@@ -61,6 +61,12 @@ type ServerConfig struct {
 	// view whose query names objects the catalog does not hold keeps its
 	// text without derived columns.
 	ValidateViewQueries bool
+
+	// FlashbackSCNFloor is the lowest system change number a flashback
+	// query (AS OF SCN, VERSIONS BETWEEN SCN) may name as a literal; a
+	// lower one predates the database and fails with ORA-08181. Zero
+	// checks none.
+	FlashbackSCNFloor int64
 }
 
 // StandardOracle23ServerConfig returns the instance configuration of a default
@@ -77,6 +83,9 @@ func StandardOracle23ServerConfig() ServerConfig {
 		ValidateEditions:           true,
 		ApplySetUnused:             true,
 		ValidateViewQueries:        true,
+		// SCN 1 predates the pinned database (ORA-08181); its actual
+		// floor is not tracked, so only that is refused.
+		FlashbackSCNFloor: 2,
 	}
 }
 

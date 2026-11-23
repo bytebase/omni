@@ -147,9 +147,14 @@ func (a *queryAnalyzer) expr(x ast.ExprNode, sc *qscope, clause exprClause) (qty
 	case *ast.BinaryExpr:
 		return a.binary(n, sc, clause)
 	case *ast.BoolExpr:
+		// AND, OR and NOT combine conditions.
 		for _, arg := range listItems(n.Args) {
 			if ex, ok := arg.(ast.ExprNode); ok {
-				if _, _, err := a.expr(ex, sc, clause); err != nil {
+				t, _, err := a.expr(ex, sc, clause)
+				if err != nil {
+					return qtype{}, false, err
+				}
+				if err := requireCondition(t); err != nil {
 					return qtype{}, false, err
 				}
 			}

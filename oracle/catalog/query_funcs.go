@@ -216,8 +216,11 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 				return varchar2Bytes(lit * dbCharBytes), false, nil
 			}
 		}
-		if t.kind == "CHAR" {
+		switch t.kind {
+		case "CHAR":
 			t.kind = "VARCHAR2"
+		case "NCHAR":
+			t.kind = "NVARCHAR2"
 		}
 		return t, false, nil
 	case "LPAD", "RPAD":
@@ -371,7 +374,18 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		return simpleType("BLOB"), false, nil
 	case "TO_NCHAR":
 		t := arg(0)
-		return characterType("NVARCHAR2", t.byteLength()*5/2, false), false, nil
+		switch {
+		case t.isCharacter():
+			return characterType("NVARCHAR2", t.byteLength()*5/2, false), false, nil
+		case t.isDatetime() && len(args) > 1:
+			// A format of fixed-width elements gives the length.
+			if f, ok := literalString(argNode(n, 1)); ok {
+				if w, ok := datetimeFormatWidth(f); ok {
+					return characterType("NVARCHAR2", w, false), false, nil
+				}
+			}
+		}
+		return simpleType("UNKNOWN"), false, nil
 	case "RAWTOHEX":
 		// Two hex digits per byte of a RAW or character value; another
 		// type's encoded size is left unknown.

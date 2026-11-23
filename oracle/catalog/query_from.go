@@ -254,7 +254,11 @@ func (a *queryAnalyzer) tableClauses(n *ast.TableRef, rel *qrel, sc *qscope) err
 			}
 			switch fb.Type {
 			case "SCN":
-				if _, ok := unparen(x).(*ast.NumberLiteral); ok {
+				if !t.isNumeric() && !t.isCharacter() && typeFamily(t) != "" {
+					return oraError("00932", "expression is of data type %s, which is incompatible with expected data type NUMBER", t.kind)
+				}
+				// An SCN the server's history cannot reach, below its floor.
+				if lit, ok := unparen(x).(*ast.NumberLiteral); ok && !lit.IsFloat && lit.Ival < a.e.serverConfig.FlashbackSCNFloor {
 					return oraError("08181", "specified number is not a valid system change number")
 				}
 			case "TIMESTAMP":

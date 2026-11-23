@@ -766,6 +766,22 @@ func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 		exprs = append(exprs, sel.HavingClause)
 	}
 	exprs = append(exprs, starRefs...)
+	// A named window's expressions are evaluated after grouping too.
+	for _, w := range sel.WindowDefs {
+		if w == nil || w.Spec == nil {
+			continue
+		}
+		for _, item := range listItems(w.Spec.PartitionBy) {
+			if ex, ok := item.(ast.ExprNode); ok {
+				exprs = append(exprs, ex)
+			}
+		}
+		for _, item := range listItems(w.Spec.OrderBy) {
+			if sb, ok := item.(*ast.SortBy); ok && sb.Expr != nil {
+				exprs = append(exprs, sb.Expr)
+			}
+		}
+	}
 	if ownOrder {
 		// ORDER BY is held to the grouping rules too, unless it names a
 		// select-list item by position or alias.
