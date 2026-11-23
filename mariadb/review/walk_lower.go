@@ -30,6 +30,8 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.dropTable(v)
 	case *ast.CreateSequenceStmt:
 		return b.createSequence(v)
+	case *ast.AlterSequenceStmt:
+		return b.alterSequence(v)
 	case *ast.DropSequenceStmt:
 		return b.dropSequence(v)
 	case *ast.TruncateStmt:
@@ -175,6 +177,19 @@ func (b *builder) clearDatabase(d string) {
 	for _, space := range []string{spaceRelation, spaceColumn, spaceIndex, spaceForeignKey, spaceTableForeignKey, spaceTrigger, spaceProcedure, spaceFunction, spaceEvent} {
 		b.Clear(walk.Scope{Space: space, Parent: walk.Path(d), Deep: true})
 	}
+	dbPath := walk.Path(d)
+	b.Session(func() {
+		for k := range b.w.versioned {
+			if k.Parent == dbPath {
+				delete(b.w.versioned, k)
+			}
+		}
+		for k := range b.w.partitioned {
+			if k.Parent == dbPath {
+				delete(b.w.partitioned, k)
+			}
+		}
+	})
 }
 
 // alterDatabase follows ALTER DATABASE, of the current database when it
@@ -209,8 +224,10 @@ func (b *builder) use(v *ast.UseStmt) bool {
 // createTable follows CREATE [OR REPLACE] [TEMPORARY] TABLE [IF NOT
 // EXISTS], with a column list, LIKE, or AS SELECT.
 func (b *builder) createTable(v *ast.CreateTableStmt) bool {
-	if !b.fieldDBsMatchCurrent(v.FieldDBs) {
+	if ok, failed := b.checkFieldDBs(v.FieldDBs); !ok {
 		return false
+	} else if failed {
+		return true
 	}
 	if b.namesTooLong(v) {
 		return true
@@ -235,12 +252,20 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 	// LIKE what its source is: LIKE copies a sequence as a sequence, and a
 	// system-versioned table with its versioning (verified).
 	b.fks = !v.Temporary && keepsFKs(engineOf(v.Options))
-	kind, versioned := relTable, declaresVersioning(v)
+	kind := relTable
+	verFact := walk.Absent
+	if declaresVersioning(v) {
+		verFact = walk.Present
+	}
+	partFact := walk.Absent
+	if v.Partitions != nil {
+		partFact = walk.Present
+	}
 	like := func() bool {
 		if v.Like == nil {
 			return true
 		}
-		b.fks, kind = false, ""
+		b.fks, kind, verFact, partFact = false, "", walk.Unknown, walk.Unknown
 		src, st := b.ref(v.Like)
 		switch st {
 		case refFailed:
@@ -255,7 +280,12 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 				kind = skind
 			}
 			// A temporary table is never system-versioned (4137, verified).
-			versioned = !temp && b.w.versioned[relKey(src.db, src.name)]
+			if temp {
+				verFact = walk.Absent
+			} else if f == walk.Present && kind == relTable {
+				verFact = b.w.versioned[relKey(src.db, src.name)]
+				partFact = b.w.partitioned[relKey(src.db, src.name)]
+			}
 			b.fks = !v.Temporary && !temp && f == walk.Present && kind == relTable && !b.w.ignoresFKs[relKey(src.db, src.name)]
 		}
 		return true
@@ -275,6 +305,9 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 		prior, _ := b.l.Lookup(tk)
 		if !v.IfNotExists && !v.OrReplace {
 			b.needFree(tk, r.rng, r.written, relTable) // 1050
+			if prior == walk.Present {
+				return true
+			}
 		}
 		if v.IfNotExists && prior != walk.Absent {
 			// A note when the table exists, its text unread (verified). It
@@ -291,16 +324,22 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 		return true
 	}
 	k := relKey(r.db, r.name)
-	prior, _ := b.l.Lookup(k)
+	prior, priorKind := b.l.Lookup(k)
 	switch {
 	case v.OrReplace:
 		// OR REPLACE replaces a table or a sequence, but not a view (1965),
 		// and leaves a temporary table of the name be (verified).
 		if prior == walk.Present {
 			b.needKind(k, []string{relTable, relSequence}, r.rng, "", r.written, "table")
+			if priorKind == relView {
+				return true
+			}
 		}
 	case !v.IfNotExists:
 		b.needFree(k, r.rng, r.written, relTable) // 1050
+		if prior == walk.Present {
+			return true
+		}
 		prior = walk.Absent
 	case prior == walk.Present:
 		// A note: nothing is created, and the LIKE source is not read
@@ -336,7 +375,7 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 	if v.OrReplace && prior != walk.Absent {
 		b.droppedOwned(r)
 	}
-	b.created(v, r, kind, versioned)
+	b.created(v, r, kind, verFact == walk.Present)
 	// A table that may have been there keeps an engine, and a versioning,
 	// the walk does not know.
 	old := prior == walk.Unknown && !v.OrReplace
@@ -347,10 +386,15 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 		} else {
 			delete(b.w.ignoresFKs, k)
 		}
-		if versioned {
-			b.w.versioned[k] = true
-		} else if !old {
+		if old || kind != relTable || verFact == walk.Unknown {
 			delete(b.w.versioned, k)
+		} else {
+			b.w.versioned[k] = verFact
+		}
+		if old || kind != relTable || partFact == walk.Unknown {
+			delete(b.w.partitioned, k)
+		} else {
+			b.w.partitioned[k] = partFact
 		}
 		if !old {
 			tblPath := tablePath(r.db, r.name)
@@ -375,6 +419,10 @@ func declaresVersioning(v *ast.CreateTableStmt) bool {
 	if v.PeriodStartCol != "" {
 		return true
 	}
+	return declaresExplicitSystemVersioning(v)
+}
+
+func declaresExplicitSystemVersioning(v *ast.CreateTableStmt) bool {
 	for _, o := range v.Options {
 		if o != nil && strings.EqualFold(o.Name, "SYSTEM VERSIONING") {
 			return true
@@ -410,10 +458,27 @@ func (b *builder) namesTooLong(v *ast.CreateTableStmt) bool {
 }
 
 // tableTextFails fails a CREATE TABLE its text alone refutes (verified):
-// a column named twice (1060), two indexes of one name (1061), two foreign
-// keys of one name (1061 for the index each would add), two primary keys
-// (1068), or an index named PRIMARY (1280).
+// PERIOD FOR SYSTEM_TIME without WITH SYSTEM VERSIONING (4125), a table with
+// no columns (1113), a SELECT with a bare column and no FROM (1054), a column
+// named twice (1060), two indexes of one name (1061), two foreign keys of one
+// name (1061 for the index each would add), two primary keys (1068), an index
+// named PRIMARY (1280), duplicate or missing index columns (1060, 1072),
+// self-referencing column expressions (4029), or FK column count mismatches (1239).
 func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
+	if v.PeriodStartCol != "" && !declaresExplicitSystemVersioning(v) {
+		b.fail(r.rng, nil, review.UnsupportedForm, "Table "+review.Code(r.written)+" requires "+review.Code("WITH SYSTEM VERSIONING")+" for "+review.Code("PERIOD FOR SYSTEM_TIME")+".")
+		return true
+	}
+	if len(v.Columns) == 0 && v.Like == nil && v.Select == nil {
+		b.fail(r.rng, nil, review.UnsupportedForm, "Table "+review.Code(r.written)+" must have at least one column.")
+		return true
+	}
+	if v.Select != nil {
+		if ref := selectBareColumnNoFrom(v.Select); ref != nil {
+			b.fail(rangeOf(ref.Loc), nil, review.ObjectNotFound, notFound("column", ident(ref.Column), ""))
+			return true
+		}
+	}
 	columns := make(map[string]bool)
 	for _, c := range v.Columns {
 		k, ok := b.key(spaceColumn, c.Name)
@@ -425,6 +490,9 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 			return true
 		}
 		columns[k] = true
+		if b.columnDefFails(c, r.written) {
+			return true
+		}
 	}
 	primaries := 0
 	indexes := make(map[string]bool)
@@ -436,12 +504,28 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 			}
 		}
 	}
+	noExtraCols := v.Like == nil && v.Select == nil
 	for _, c := range v.Constraints {
 		switch c.Type {
 		case ast.ConstrPrimaryKey:
 			primaries++
+			if noExtraCols && b.checkCreateIndexColumns(c.IndexColumns, columns, r.written) {
+				return true
+			}
 			continue
 		case ast.ConstrForeignKey:
+			if len(c.RefColumns) > 0 && len(c.Columns) != len(c.RefColumns) {
+				b.fail(rangeOf(c.Loc), nil, review.UnsupportedForm, "Foreign key on "+review.Code(r.written)+" has a mismatched column count.")
+				return true
+			}
+			if noExtraCols {
+				for _, colName := range c.Columns {
+					if ck, ok := b.key(spaceColumn, colName); ok && !columns[ck] {
+						b.fail(rangeOf(c.Loc), nil, review.ObjectNotFound, notFound("column", ident(colName), r.written))
+						return true
+					}
+				}
+			}
 			if k, ok := b.key(spaceForeignKey, keyName(c)); ok && b.fks {
 				if foreignKeys[k] {
 					b.fail(rangeOf(c.Loc), nil, review.DuplicateName, statesTwice("declares", "foreign key", ident(keyName(c))))
@@ -456,15 +540,18 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 		k, ok := b.key(spaceIndex, c.Name)
 		switch {
 		case !ok:
-			continue
 		case k == primaryIndex:
 			b.fail(rangeOf(c.Loc), nil, review.ReservedName, reservedPrimary)
 			return true
 		case indexes[k]:
 			b.fail(rangeOf(c.Loc), nil, review.DuplicateName, statesTwice("declares", "index", ident(c.Name)))
 			return true
+		default:
+			indexes[k] = true
 		}
-		indexes[k] = true
+		if noExtraCols && b.checkCreateIndexColumns(c.IndexColumns, columns, r.written) {
+			return true
+		}
 	}
 	if primaries > 1 {
 		b.fail(r.rng, nil, review.NameTaken, hasPrimaryKey(r.written))

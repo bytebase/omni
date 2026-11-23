@@ -196,12 +196,23 @@ func TestWalkThroughMariaDBSequences(t *testing.T) {
 	noFinding(t, "DROP SEQUENCE IF EXISTS t, v, nosuch;", shop)
 	noFinding(t, "DROP TABLE s;\nCREATE TABLE s (a int);", shop)
 	noFinding(t, "RENAME TABLE s TO s2;\nDROP SEQUENCE s2;", shop)
-	// A sequence in ALTER TABLE, TRUNCATE, CREATE INDEX, or CREATE TRIGGER
-	// ends the walk.
-	noFinding(t, "ALTER TABLE s COMMENT 'x';\nCREATE TABLE t (a int);", shop)
-	noFinding(t, "TRUNCATE TABLE s;\nCREATE TABLE t (a int);", shop)
-	noFinding(t, "CREATE INDEX k ON s (cache_size);\nCREATE TABLE t (a int);", shop)
-	noFinding(t, "CREATE TRIGGER trs BEFORE INSERT ON s FOR EACH ROW SET @x = 1;\nCREATE TABLE t (a int);", shop)
+	// Sequences: valid ALTER TABLE options keep the walk going; invalid
+	// sequence operations report findings directly.
+	oneFinding(t, "ALTER TABLE s COMMENT 'x';\nCREATE TABLE t (a int);", 1, "Table `t` already exists.", shop)
+	oneFinding(t, "ALTER TABLE s ADD COLUMN z int;", 0, "Sequence `s` doesn't support this `ALTER TABLE` operation.", shop)
+	oneFinding(t, "TRUNCATE TABLE s;\nCREATE TABLE t (a int);", 0, "`s` is a sequence, not a table.", shop)
+	oneFinding(t, "CREATE INDEX k ON s (cache_size);\nCREATE TABLE t (a int);", 0, "`s` is a sequence, not a table.", shop)
+	oneFinding(t, "DROP INDEX k ON s;", 0, "Index `k` doesn't exist in `s`.", shop)
+	noFinding(t, "DROP INDEX IF EXISTS k ON s;", shop)
+	oneFinding(t, "CREATE TRIGGER trs BEFORE INSERT ON s FOR EACH ROW SET @x = 1;\nCREATE TABLE t (a int);", 0, "`s` is a sequence, not a table.", shop)
+	// ALTER SEQUENCE checks target existence, kind, and signed 64-bit increment bounds.
+	noFinding(t, "ALTER SEQUENCE s NOMINVALUE RESTART 1;", shop)
+	noFinding(t, "ALTER SEQUENCE IF EXISTS nosuch NOMINVALUE;", shop)
+	noFinding(t, "ALTER SEQUENCE IF EXISTS t NOMINVALUE;", shop)
+	oneFinding(t, "ALTER SEQUENCE nosuch NOMINVALUE;", 0, "Sequence `nosuch` doesn't exist.", shop)
+	oneFinding(t, "ALTER SEQUENCE t NOMINVALUE;", 0, "`t` is a table, not a sequence.", shop)
+	oneFinding(t, "ALTER SEQUENCE v NOMINVALUE;", 0, "`v` is a view, not a sequence.", shop)
+	oneFinding(t, "ALTER SEQUENCE s INCREMENT -9223372036854775808;", 0, "Sequence `s` has an out-of-range increment.", shop)
 	// Temporary sequences: DROP SEQUENCE drops one before a base one,
 	// passes over a temporary table, and DROP TEMPORARY SEQUENCE finds
 	// only a temporary sequence.
@@ -224,9 +235,10 @@ func TestWalkThroughMariaDBMySQLForms(t *testing.T) {
 	} {
 		noFinding(t, sql, shop)
 	}
-	// MariaDB's own ALTER INDEX ... [NOT] IGNORED, which the walk does not
-	// follow, ends it too.
-	noFinding(t, "ALTER TABLE t ALTER INDEX nosuch IGNORED;\nCREATE TABLE t (a int);", shop)
+	// MariaDB's ALTER INDEX ... [NOT] IGNORED checks index existence unless IF EXISTS.
+	oneFinding(t, "ALTER TABLE t ALTER INDEX nosuch IGNORED;\nCREATE TABLE t (a int);", 0, "Index `nosuch` doesn't exist in `t`.", shop)
+	noFinding(t, "ALTER TABLE t ALTER INDEX i IGNORED;\nALTER TABLE t ALTER INDEX i NOT IGNORED;", shop)
+	noFinding(t, "ALTER TABLE t ALTER INDEX IF EXISTS nosuch IGNORED;", shop)
 }
 
 func TestWalkThroughMariaDBCase(t *testing.T) {
@@ -513,6 +525,7 @@ var walkForms = []walktest.Form{
 	{SQL: "CREATE OR REPLACE SEQUENCE s;"},
 	{SQL: "CREATE SEQUENCE IF NOT EXISTS s;"},
 	{SQL: "CREATE TEMPORARY SEQUENCE x;"},
+	{SQL: "ALTER SEQUENCE s NOMINVALUE;"},
 	{SQL: "DROP SEQUENCE s;"},
 	{SQL: "DROP SEQUENCE IF EXISTS s, nosuch;"},
 	{SQL: "DROP TEMPORARY SEQUENCE IF EXISTS x;"},
@@ -597,6 +610,119 @@ func TestWalkThroughMariaDBFKGeneratedIndex(t *testing.T) {
 	// Adding a different covering index may drop the implicit FK index `a`, so
 	// a follow-up ADD KEY a (d) is no longer certain to collide.
 	noFinding(t, "ALTER TABLE a ADD KEY zzz (a);\nALTER TABLE a ADD KEY a (d);", target)
+}
+
+// TestWalkThroughMariaDBRecallFamilies covers every MariaDB 11.8.8 refusal
+// family added for walk recall along with valid accepted controls.
+func TestWalkThroughMariaDBRecallFamilies(t *testing.T) {
+	schema := walkSchema()
+	schema.Schemas[0].Tables = append(schema.Schemas[0].Tables, &metadata.TableMetadata{
+		Name:       "pt",
+		Columns:    []*metadata.ColumnMetadata{{Name: "id"}, {Name: "a"}},
+		Indexes:    []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true}},
+		Partitions: []*metadata.TablePartitionMetadata{{Name: "p0"}, {Name: "p1"}},
+	})
+	shop := review.Target{Schema: schema, ForeignKeyChecks: review.SwitchOn}
+
+	// 1. ALTER SEQUENCE on missing, non-sequence, and valid targets.
+	oneFinding(t, "ALTER SEQUENCE nosuch RESTART 1;", 0, "Sequence `nosuch` doesn't exist.", shop)
+	oneFinding(t, "ALTER SEQUENCE t RESTART 1;", 0, "`t` is a table, not a sequence.", shop)
+	oneFinding(t, "ALTER SEQUENCE v RESTART 1;", 0, "`v` is a view, not a sequence.", shop)
+	oneFinding(t, "ALTER SEQUENCE s INCREMENT -9223372036854775808;", 0, "Sequence `s` has an out-of-range increment.", shop)
+	noFinding(t, "ALTER SEQUENCE s INCREMENT 2 START 10 CACHE 100 CYCLE;", shop)
+	noFinding(t, "CREATE TEMPORARY SEQUENCE ts;\nALTER SEQUENCE ts RESTART 5;", shop)
+
+	// 2. Sequence operations: ALTER TABLE, CREATE/DROP INDEX, TRUNCATE, CREATE TRIGGER.
+	oneFinding(t, "ALTER TABLE s ADD COLUMN x INT;", 0, "Sequence `s` doesn't support this `ALTER TABLE` operation.", shop)
+	oneFinding(t, "ALTER TABLE s ADD KEY (cache_size);", 0, "Sequence `s` doesn't support this `ALTER TABLE` operation.", shop)
+	oneFinding(t, "ALTER TABLE s DROP COLUMN cache_size;", 0, "Sequence `s` doesn't support this `ALTER TABLE` operation.", shop)
+	oneFinding(t, "ALTER TABLE s DROP COLUMN nosuch;", 0, "Column `nosuch` doesn't exist in `s`.", shop)
+	oneFinding(t, "ALTER TABLE s MODIFY nosuch INT;", 0, "Column `nosuch` doesn't exist in `s`.", shop)
+	oneFinding(t, "ALTER TABLE s DROP PRIMARY KEY;", 0, "`s` has no primary key.", shop)
+	oneFinding(t, "ALTER TABLE s DROP INDEX nosuch;", 0, "Index `nosuch` doesn't exist in `s`.", shop)
+	oneFinding(t, "ALTER TABLE s ALTER KEY nosuch IGNORED;", 0, "Index `nosuch` doesn't exist in `s`.", shop)
+	oneFinding(t, "ALTER TABLE s REMOVE PARTITIONING;", 0, "Table `s` is not partitioned.", shop)
+	oneFinding(t, "ALTER TABLE s DROP SYSTEM VERSIONING;", 0, "Table `s` is not system-versioned.", shop)
+	noFinding(t, "ALTER TABLE s COMMENT 'ok', FORCE;\nALTER TABLE s DROP COLUMN IF EXISTS nosuch;\nALTER TABLE s RENAME TO s2;\nDROP SEQUENCE s2;", shop)
+
+	// 3. Partition management on non-partitioned vs partitioned tables.
+	oneFinding(t, "ALTER TABLE t REMOVE PARTITIONING;", 0, "Table `t` is not partitioned.", shop)
+	oneFinding(t, "ALTER TABLE t ADD PARTITION (PARTITION p2 VALUES LESS THAN (200));", 0, "Table `t` is not partitioned.", shop)
+	oneFinding(t, "ALTER TABLE t ANALYZE PARTITION ALL;", 0, "Table `t` is not partitioned.", shop)
+	noFinding(t, "ALTER TABLE pt DROP PARTITION p0;", shop)
+	noFinding(t, "ALTER TABLE pt ANALYZE PARTITION ALL;", shop)
+	noFinding(t, "ALTER TABLE pt REMOVE PARTITIONING;", shop)
+	oneFinding(t, "ALTER TABLE pt REMOVE PARTITIONING;\nALTER TABLE pt DROP PARTITION p1;", 1, "Table `pt` is not partitioned.", shop)
+	noFinding(t, "CREATE TABLE np (id INT) PARTITION BY HASH (id) PARTITIONS 2;\nALTER TABLE np COALESCE PARTITION 1;", shop)
+	oneFinding(t, "CREATE TABLE plain_new (id INT);\nALTER TABLE plain_new REMOVE PARTITIONING;", 1, "Table `plain_new` is not partitioned.", shop)
+	noFinding(t, "ALTER TABLE t PARTITION BY HASH (id) PARTITIONS 2;\nALTER TABLE t COALESCE PARTITION 1;", shop)
+
+	// 4. Index/key column existence and duplicate key columns.
+	oneFinding(t, "CREATE INDEX k ON t (nosuch);", 0, "Column `nosuch` doesn't exist in `t`.", shop)
+	oneFinding(t, "CREATE INDEX IF NOT EXISTS k ON t (nosuch);", 0, "Column `nosuch` doesn't exist in `t`.", shop)
+	noFinding(t, "CREATE INDEX IF NOT EXISTS i ON t (nosuch);", shop)
+	oneFinding(t, "CREATE INDEX k ON t (a, a);", 0, "This statement names column `a` twice.", shop)
+	oneFinding(t, "ALTER TABLE t ADD KEY k (nosuch);", 0, "Column `nosuch` doesn't exist in `t`.", shop)
+	oneFinding(t, "ALTER TABLE t ADD KEY k (a, a);", 0, "This statement names column `a` twice.", shop)
+	oneFinding(t, "ALTER TABLE nokey ADD FOREIGN KEY (nosuch) REFERENCES r (id);", 0, "Column `nosuch` doesn't exist in `nokey`.", shop)
+	oneFinding(t, "CREATE TABLE bad_idx (a INT, KEY k (nosuch));", 0, "Column `nosuch` doesn't exist in `bad_idx`.", shop)
+	oneFinding(t, "CREATE TABLE bad_dup (a INT, KEY k (a, a));", 0, "This statement names column `a` twice.", shop)
+	// Valid controls: columns added/renamed in the same ALTER, functional key parts, WITHOUT OVERLAPS.
+	noFinding(t, "ALTER TABLE t ADD COLUMN q INT, ADD INDEX kq (q);", shop)
+	noFinding(t, "ALTER TABLE t ADD INDEX kq (q), ADD COLUMN q INT;", shop)
+	noFinding(t, "ALTER TABLE t ADD (q INT, KEY kq (q));", shop)
+	noFinding(t, "ALTER TABLE t RENAME COLUMN a TO a2, ADD INDEX ka2 (a2);", shop)
+	noFinding(t, "CREATE TABLE app_p (id INT, s DATE, e DATE, PERIOD FOR p (s, e), UNIQUE (id, p WITHOUT OVERLAPS));", shop)
+
+	// 5. CREATE TABLE columnless (1113) and PERIOD FOR SYSTEM_TIME without versioning (4125).
+	oneFinding(t, "CREATE TABLE empty_t;", 0, "Table `empty_t` must have at least one column.", shop)
+	oneFinding(t, "CREATE OR REPLACE TABLE t;", 0, "Table `t` must have at least one column.", shop)
+	oneFinding(t, "CREATE TABLE t;", 0, "Table `t` already exists.", shop)
+	noFinding(t, "CREATE TABLE IF NOT EXISTS t;", shop)
+	oneFinding(t, "CREATE TABLE IF NOT EXISTS empty_t;", 0, "Table `empty_t` must have at least one column.", shop)
+	oneFinding(t, "CREATE TABLE bad_per (PERIOD FOR SYSTEM_TIME (a, b));", 0, "Table `bad_per` requires `WITH SYSTEM VERSIONING` for `PERIOD FOR SYSTEM_TIME`.", shop)
+	noFinding(t, "CREATE TABLE ok_per (id INT, s TIMESTAMP(6) GENERATED ALWAYS AS ROW START, e TIMESTAMP(6) GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME (s, e)) WITH SYSTEM VERSIONING;", shop)
+
+	// 6. Bare column without FROM in views/CTAS and event schedules (1054), and event self-rename (1551).
+	oneFinding(t, "CREATE VIEW v_bad AS SELECT nosuch;", 0, "Column `nosuch` doesn't exist.", shop)
+	oneFinding(t, "ALTER VIEW v AS SELECT nosuch;", 0, "Column `nosuch` doesn't exist.", shop)
+	oneFinding(t, "CREATE TABLE ct_bad AS SELECT nosuch;", 0, "Column `nosuch` doesn't exist.", shop)
+	oneFinding(t, "CREATE EVENT ev_bad ON SCHEDULE AT nosuch DO COMMIT;", 0, "Column `nosuch` doesn't exist.", shop)
+	oneFinding(t, "ALTER EVENT e ON SCHEDULE EVERY nosuch DAY;", 0, "Column `nosuch` doesn't exist.", shop)
+	oneFinding(t, "ALTER EVENT e RENAME TO e;", 0, "Event `e` cannot be renamed to itself.", shop)
+	noFinding(t, "CREATE VIEW v_ok AS SELECT 1 AS a, CURRENT_TIMESTAMP AS ts, @x AS u, @@version AS ver;", shop)
+	noFinding(t, "CREATE VIEW v_ok2 AS SELECT a FROM t;", shop)
+	noFinding(t, "CREATE VIEW v_ok3 AS SELECT (SELECT a FROM t LIMIT 1) AS x;", shop)
+	noFinding(t, "CREATE TABLE ct_ok AS SELECT 1 AS a;", shop)
+	noFinding(t, "CREATE EVENT ev_ok ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO COMMIT;", shop)
+
+	// 7. System-versioning ALTER TABLE checks on non-versioned tables (4124) and unknown LIKE control.
+	oneFinding(t, "ALTER TABLE t DROP SYSTEM VERSIONING;", 0, "Table `t` is not system-versioned.", shop)
+	oneFinding(t, "ALTER TABLE t DROP PERIOD FOR SYSTEM_TIME;", 0, "Table `t` is not system-versioned.", shop)
+	oneFinding(t, "ALTER TABLE t PARTITION BY SYSTEM_TIME;", 0, "Table `t` is not system-versioned.", shop)
+	oneFinding(t, "ALTER TABLE t ADD COLUMN s TIMESTAMP(6) AS ROW START;", 0, "Table `t` is not system-versioned.", shop)
+	oneFinding(t, "ALTER TABLE t ADD COLUMN x INT WITH SYSTEM VERSIONING;", 0, "Table `t` is not system-versioned.", shop)
+	noFinding(t, "ALTER TABLE t ADD SYSTEM VERSIONING PARTITION BY SYSTEM_TIME;", shop)
+	noFinding(t, "CREATE TABLE from_other LIKE other_db.vt;\nALTER TABLE from_other DROP SYSTEM VERSIONING;", shop)
+
+	// 8. 3-part field DB mismatch (1102), RENAME self (1050/1146), ALTER TABLE IF EXISTS view (1347).
+	oneFinding(t, "ALTER TABLE t DROP other.t.a;", 0, "Column qualifier `other` doesn't match database `shop`.", shop)
+	noFinding(t, "ALTER TABLE t DROP shop.t.a;", shop)
+	oneFinding(t, "RENAME TABLE t TO t, t TO t;", 0, "Table `t` already exists.", shop)
+	oneFinding(t, "RENAME TABLE nosuch TO nosuch, nosuch TO nosuch;", 0, "`nosuch` doesn't exist.", shop)
+	oneFinding(t, "ALTER TABLE IF EXISTS v;", 0, "`v` is a view, not a table.", shop)
+
+	// 9. Self-referencing column expressions (4029), CHECK/DEFAULT missing columns (1054), FK col count (1239).
+	oneFinding(t, "ALTER TABLE t ALTER a SET DEFAULT a;", 0, "Expression for column `a` cannot reference itself.", shop)
+	oneFinding(t, "ALTER TABLE t ADD COLUMN z INT DEFAULT z;", 0, "Expression for column `z` cannot reference itself.", shop)
+	oneFinding(t, "ALTER TABLE t ADD COLUMN z INT AS (z + 1);", 0, "Expression for column `z` cannot reference itself.", shop)
+	oneFinding(t, "ALTER TABLE t ADD COLUMN z INT DEFAULT nosuch;", 0, "Column `nosuch` doesn't exist in `t`.", shop)
+	oneFinding(t, "ALTER TABLE t ADD CHECK (nosuch > 0);", 0, "Column `nosuch` doesn't exist in `t`.", shop)
+	oneFinding(t, "ALTER TABLE t ADD COLUMN z INT REFERENCES r (id, id);", 0, "Foreign key on `t` has a mismatched column count.", shop)
+	noFinding(t, "ALTER TABLE t ADD COLUMN z INT DEFAULT (a + 1);", shop)
+	noFinding(t, "ALTER TABLE t ADD COLUMN z INT DEFAULT (NEXTVAL(s));", shop)
+	noFinding(t, "ALTER TABLE t ADD (z1 INT, z2 INT DEFAULT (z1 + 1));", shop)
+	noFinding(t, "ALTER TABLE t ADD COLUMN z INT, ADD CHECK (z > 0);", shop)
 }
 
 func TestWalkThroughMariaDBLowersEveryForm(t *testing.T) {

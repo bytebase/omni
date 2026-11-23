@@ -2,6 +2,7 @@ package review
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -20,7 +21,7 @@ import (
 // and every row is checked with no server started.
 func TestWalkSimulation(t *testing.T) {
 	same := (&mariadbEngine{}).Same
-	walktest.CheckSimulation(t, walktest.Simulation{
+	res := walktest.CheckSimulation(t, walktest.Simulation{
 		Path:     filepath.Join("..", "catalog", "testdata", "simulate.tsv"),
 		Fixtures: filepath.Join("..", "catalog", "testdata", "fixtures"),
 		Setup:    mariadbSimFixture,
@@ -34,6 +35,13 @@ func TestWalkSimulation(t *testing.T) {
 		},
 		Same: same,
 	})
+	const minRecallPct = 90.0
+	if res.Refused > 0 {
+		pct := 100 * float64(res.Found) / float64(res.Refused)
+		if pct < minRecallPct {
+			t.Errorf("WALK_THROUGH refusal recall = %.1f%% (%d/%d), want >= %.1f%%", pct, res.Found, res.Refused, minRecallPct)
+		}
+	}
 }
 
 func mariadbSimFixture(t testing.TB, fx simulate.Fixture) walktest.SimFixture {
@@ -115,6 +123,23 @@ func mariadbCatalogToMetadata(c *mariadbcatalog.Catalog, dbName string) *metadat
 		}
 		if t.SystemVersioned {
 			tm.CreateOptions = "WITH SYSTEM VERSIONING"
+		}
+		if t.Partitioning != nil {
+			for _, p := range t.Partitioning.Partitions {
+				tm.Partitions = append(tm.Partitions, &metadata.TablePartitionMetadata{
+					Name:       p.Name,
+					Expression: t.Partitioning.Expr,
+				})
+			}
+			if len(tm.Partitions) == 0 {
+				n := max(t.Partitioning.NumParts, 1)
+				for i := range n {
+					tm.Partitions = append(tm.Partitions, &metadata.TablePartitionMetadata{
+						Name:       fmt.Sprintf("p%d", i),
+						Expression: t.Partitioning.Expr,
+					})
+				}
+			}
 		}
 		for _, col := range t.VisibleColumns() {
 			tm.Columns = append(tm.Columns, &metadata.ColumnMetadata{Name: col.Name})

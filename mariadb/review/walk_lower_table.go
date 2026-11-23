@@ -8,24 +8,29 @@ import (
 	"github.com/bytebase/omni/review/walk"
 )
 
-// fieldDBsMatchCurrent reports whether every 3-part field_ident database
-// qualifier on an unqualified CREATE/ALTER TABLE matches the known current
-// database (MariaDB checks table->db.streq($1) at parse time and answers 1102
-// otherwise). When the current database is unknown or differs, the walk stops
-// following the statement conservatively.
-func (b *builder) fieldDBsMatchCurrent(fieldDBs []string) bool {
+// checkFieldDBs checks whether every 3-part field_ident database qualifier on
+// an unqualified CREATE/ALTER TABLE matches the known current database
+// (MariaDB checks table->db.streq($1) at parse time and answers 1102
+// otherwise). Returns ok=false when the current database is unknown, or
+// failed=true after recording a 1102 failure.
+func (b *builder) checkFieldDBs(fieldDBs []string) (ok, failed bool) {
 	if len(fieldDBs) == 0 {
-		return true
+		return true, false
 	}
-	if b.w.lost || b.w.noDatabase || b.w.foldTables {
-		return false
+	if b.w.lost || b.w.noDatabase {
+		return false, false
 	}
 	for _, db := range fieldDBs {
-		if db != b.w.current {
-			return false
+		match := db == b.w.current
+		if b.w.foldTables {
+			match = strings.EqualFold(db, b.w.current)
+		}
+		if !match {
+			b.fail(b.anchor(), nil, review.CrossDatabaseReference, "Column qualifier "+review.Code(ident(db))+" doesn't match database "+review.Code(ident(b.w.current))+".")
+			return true, true
 		}
 	}
-	return true
+	return true, false
 }
 
 // alterTable follows ALTER TABLE. MariaDB judges DROP, RENAME, CHANGE, and
@@ -34,8 +39,10 @@ func (b *builder) fieldDBsMatchCurrent(fieldDBs []string) bool {
 // are lowered first, then the rest, then a RENAME TO of the table itself,
 // each subcommand a part of its own (walk.Passes).
 func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
-	if !b.fieldDBsMatchCurrent(v.FieldDBs) {
+	if ok, failed := b.checkFieldDBs(v.FieldDBs); !ok {
 		return false
+	} else if failed {
+		return true
 	}
 	r, st := b.ref(v.Table)
 	switch st {
@@ -44,13 +51,16 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	case refUnknown:
 		return false
 	}
+	f, temp, kind := b.resolve(r)
 	if alterIsPartitionMaintenanceOnly(v.Commands) {
 		// ANALYZE, CHECK, OPTIMIZE, and REPAIR PARTITION report a status
-		// row rather than a SQL error when the table is missing or a view,
-		// and change no names the walk tracks (measured on mariadb:11.8.8).
-		return true
+		// row rather than a SQL error when the table is missing, a view,
+		// or already partitioned, and fail with 1505 on a non-partitioned
+		// base table or sequence (measured on mariadb:11.8.8).
+		if temp || f != walk.Present || kind == relView || (kind == relTable && b.w.partitioned[relKey(r.db, r.name)] != walk.Absent) {
+			return true
+		}
 	}
-	f, temp, kind := b.resolve(r)
 	switch {
 	case temp:
 		// A temporary table's columns and keys are not followed.
@@ -62,11 +72,11 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 			}
 		}
 		return true
-	case f == walk.Present && (kind == relSequence || b.w.versioned[relKey(r.db, r.name)]):
-		// Some ALTER TABLEs of a sequence succeed and others fail (4086),
-		// and a system-versioned table refuses most (4119) and hides
-		// columns: the walk follows neither (MariaDB spec §2.3; see
-		// walker.versioned).
+	case f == walk.Present && kind == relSequence:
+		return b.alterSequenceTable(v, r)
+	case f == walk.Present && b.w.versioned[relKey(r.db, r.name)] == walk.Present:
+		// A system-versioned table refuses most ALTERs (4119) and hides
+		// columns: the walk ends here as a precaution (MariaDB spec §2.3).
 		return false
 	}
 	if v.IfExists {
@@ -75,7 +85,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 			// subcommands (measured on mariadb:11.8.8).
 			return true
 		}
-		if kind != relTable {
+		if kind != relTable && kind != relView {
 			return false
 		}
 	}
@@ -83,9 +93,41 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	if f == walk.Absent || kind == relView {
 		return true
 	}
+	// System-versioning and partitioning checks against the known base table.
+	rel := relKey(r.db, r.name)
+	if b.w.versioned[rel] == walk.Absent {
+		hasAddSysVer := alterAddsSystemVersioning(v.Commands)
+		for _, c := range v.Commands {
+			if c == nil {
+				continue
+			}
+			rng := rangeOf(c.Loc)
+			switch {
+			case c.Type == ast.ATDropSystemVersioning:
+				b.fail(rng, []walk.Key{rel}, review.UnsupportedForm, notSystemVersioned(r.written)) // 4124
+				return true
+			case c.Type == ast.ATDropPeriod && !c.IfExists && strings.EqualFold(c.PeriodName, "SYSTEM_TIME"):
+				b.fail(rng, []walk.Key{rel}, review.UnsupportedForm, notSystemVersioned(r.written)) // 4124
+				return true
+			case c.Type == ast.ATPartitionBy && c.PartitionBy != nil && c.PartitionBy.Type == ast.PartitionSystemTime && !hasAddSysVer:
+				b.fail(rng, []walk.Key{rel}, review.UnsupportedForm, notSystemVersioned(r.written)) // 4124
+				return true
+			case addsColumnVersioning(c), !hasAddSysVer && addsRowBoundColumn(c):
+				b.fail(rng, []walk.Key{rel}, review.UnsupportedForm, notSystemVersioned(r.written)) // 4124
+				return true
+			}
+		}
+	}
+	if b.w.partitioned[rel] == walk.Absent && !alterHasPartitionBy(v.Commands) {
+		for _, c := range v.Commands {
+			if c != nil && isPartitionMgmtCmd(c.Type) {
+				b.fail(rangeOf(c.Loc), []walk.Key{rel}, review.UnsupportedForm, notPartitioned(r.written)) // 1505
+				return true
+			}
+		}
+	}
 	// The table keeps foreign keys as its engine does; a statement that
 	// changes the engine claims nothing of them.
-	rel := relKey(r.db, r.name)
 	engine, sets := alterEngine(v)
 	b.fks = !sets && !b.w.ignoresFKs[rel]
 	if sets {
@@ -199,6 +241,14 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 		if c.Column != nil {
 			cols = append([]*ast.ColumnDef{c.Column}, cols...)
 		}
+		allAdded := make(map[string]bool, len(cols))
+		for _, col := range cols {
+			if col != nil {
+				if k, ok := b.key(spaceColumn, col.Name); ok {
+					allAdded[k] = true
+				}
+			}
+		}
 		for _, col := range cols {
 			// IF NOT EXISTS makes a column the table has a note and leaves the
 			// table as it was (verified). One the walk does not know is there
@@ -216,14 +266,27 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 					continue
 				}
 			}
+			if b.columnDefFails(col, r.written) {
+				return true
+			}
+			if col.DefaultValue != nil {
+				b.checkExprTableColumns(r, col.DefaultValue, allAdded)
+			}
+			if col.Generated != nil && col.Generated.Expr != nil {
+				b.checkExprTableColumns(r, col.Generated.Expr, allAdded)
+			}
 			if !b.addColumn(r, col, c.After, rangeOf(col.Loc)) {
 				return false
 			}
 		}
 		// The parenthesized form reads a table element list, so an index or a
 		// constraint written beside the columns is part of the same action.
-		for _, con := range c.Constraints {
-			b.addConstraint(r, con)
+		// Start a new part so key-column checks see columns added above as touched.
+		if len(c.Constraints) > 0 {
+			b.Next()
+			for _, con := range c.Constraints {
+				b.addConstraint(r, con)
+			}
 		}
 	case ast.ATDropColumn:
 		k, ok := b.key(spaceColumn, c.Name)
@@ -242,18 +305,34 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 		if c.Column == nil || !b.columnNeeds(r, c.Column.Name, rng) {
 			return false
 		}
+		if b.columnDefFails(c.Column, r.written) {
+			return true
+		}
 		b.after(r, c.After, rng)
 		b.alterColumnKeys(r, c.Column, rng)
 	case ast.ATChangeColumn:
 		if c.Column == nil || !b.renameColumn(r, c.Name, c.Column.Name, rng) {
 			return false
 		}
+		if b.columnDefFails(c.Column, r.written) {
+			return true
+		}
 		b.after(r, c.After, rng)
 		b.alterColumnKeys(r, c.Column, rng)
 	case ast.ATRenameColumn:
 		return b.renameColumn(r, c.Name, c.NewName, rng)
 	case ast.ATAlterColumnDefault:
-		return b.columnNeeds(r, c.Name, rng)
+		if !b.columnNeeds(r, c.Name, rng) {
+			return false
+		}
+		if c.DefaultExpr != nil {
+			if k, ok := b.key(spaceColumn, c.Name); ok && exprReferencesColumn(c.DefaultExpr, k) {
+				b.fail(rng, nil, review.UnsupportedForm, "Expression for column "+review.Code(ident(c.Name))+" cannot reference itself.") // 4029
+				return true
+			}
+			b.checkExprTableColumns(r, c.DefaultExpr, nil)
+		}
+		return true
 	case ast.ATAddConstraint, ast.ATAddIndex:
 		if c.Constraint == nil {
 			return false
@@ -320,10 +399,32 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			b.arrive(tk)
 			b.Session(func() { delete(b.w.fkGeneratedIdx, fk) })
 		}
+	case ast.ATAlterIndexVisible, ast.ATAlterIndexInvisible:
+		if c.IfExists {
+			return true
+		}
+		k, ok := b.key(spaceIndex, c.Name)
+		if !ok {
+			return false
+		}
+		b.need(idxKey(r.db, r.name, k), walk.Present, nil, rng, notFound("index", ident(c.Name), r.written), "") // 1176
+		return true
+	case ast.ATPartitionBy:
+		rel := relKey(r.db, r.name)
+		b.Session(func() { b.w.partitioned[rel] = walk.Present })
+		return true
+	case ast.ATRemovePartitioning:
+		rel := relKey(r.db, r.name)
+		b.Session(func() { b.w.partitioned[rel] = walk.Absent })
+		return true
+	case ast.ATAddSystemVersioning:
+		rel := relKey(r.db, r.name)
+		b.Session(func() { b.w.versioned[rel] = walk.Present })
+		b.Forget(walk.Scope{Space: spaceColumn, Parent: tablePath(r.db, r.name)})
+		return true
 	default:
 		// A command the walk does not follow ends it, unless it touches
-		// nothing the walk tracks. ALTER INDEX ... [NOT] IGNORED is one that
-		// ends it.
+		// nothing the walk tracks.
 		return alterNoFacts(c)
 	}
 	return true
@@ -587,12 +688,17 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 			if f, _ := b.l.Lookup(idxKey(r.db, r.name, primaryIndex)); f != walk.Absent {
 				return
 			}
+			b.checkIndexColumns(r, c.IndexColumns)
 			b.replaceFKGeneratedIndexes(r, walk.Key{}, c.IndexColumns)
 			break
 		}
 		b.need(idxKey(r.db, r.name, primaryIndex), walk.Absent, nil, rng, "", hasPrimaryKey(r.written)) // 1068
+		b.checkIndexColumns(r, c.IndexColumns)
 		b.replaceFKGeneratedIndexes(r, walk.Key{}, c.IndexColumns)
 	case ast.ConstrCheck:
+		if !c.IfNotExists && c.Expr != nil {
+			b.checkExprTableColumns(r, c.Expr, nil)
+		}
 		return
 	case ast.ConstrForeignKey:
 		if c.IfNotExists {
@@ -607,6 +713,15 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 				if f, _ := b.l.Lookup(onTable); f != walk.Absent {
 					return
 				}
+			}
+		}
+		if len(c.RefColumns) > 0 && len(c.Columns) != len(c.RefColumns) {
+			b.fail(rng, nil, review.UnsupportedForm, "Foreign key on "+review.Code(r.written)+" has a mismatched column count.") // 1239
+			return
+		}
+		for _, colName := range c.Columns {
+			if ck, ok := b.key(spaceColumn, colName); ok {
+				b.need(colKey(r.db, r.name, ck), walk.Present, nil, rng, notFound("column", ident(colName), r.written), "") // 1072
 			}
 		}
 		if !b.fks {
@@ -624,6 +739,7 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 				if f, _ := b.l.Lookup(ik); f != walk.Absent {
 					return
 				}
+				b.checkIndexColumns(r, c.IndexColumns)
 			} else {
 				replacedFKIdx := false
 				if isRegular {
@@ -632,10 +748,14 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 				if !replacedFKIdx {
 					b.need(ik, walk.Absent, nil, rng, "", alreadyExists("index", ident(c.Name), r.written)) // 1061
 				}
+				b.checkIndexColumns(r, c.IndexColumns)
 			}
-		} else if isRegular {
-			// Unnamed ADD KEY/UNIQUE can still drop an implicit FK backing index.
-			b.replaceFKGeneratedIndexes(r, walk.Key{}, c.IndexColumns)
+		} else {
+			b.checkIndexColumns(r, c.IndexColumns)
+			if isRegular {
+				// Unnamed ADD KEY/UNIQUE can still drop an implicit FK backing index.
+				b.replaceFKGeneratedIndexes(r, walk.Key{}, c.IndexColumns)
+			}
 		}
 	}
 	b.constraint(r, c)
@@ -798,12 +918,19 @@ func (b *builder) moveTable(from, to tableRef, kind string) {
 		} else {
 			delete(b.w.ignoresFKs, tk)
 		}
-		versioned := b.w.versioned[fk]
+		versioned, hasVer := b.w.versioned[fk]
 		delete(b.w.versioned, fk)
-		if versioned {
-			b.w.versioned[tk] = true
+		if hasVer {
+			b.w.versioned[tk] = versioned
 		} else {
 			delete(b.w.versioned, tk)
+		}
+		part, hasPart := b.w.partitioned[fk]
+		delete(b.w.partitioned, fk)
+		if hasPart {
+			b.w.partitioned[tk] = part
+		} else {
+			delete(b.w.partitioned, tk)
 		}
 		fromPath := tablePath(from.db, from.name)
 		var movedIdx []struct {
@@ -845,11 +972,24 @@ func (b *builder) renameTable(v *ast.RenameTableStmt) bool {
 		}
 		fk := relKey(from.db, from.name)
 		f, temp, kind := b.resolve(from)
+		_, wasMoved := moved[fk]
 		if k, ok := moved[fk]; ok {
 			f, temp, kind = walk.Present, false, k
 		}
 		if _, tt, _ := b.resolve(to); temp || tt || f == walk.Unknown {
 			return false
+		}
+		if from.db == to.db && from.name == to.name {
+			var keys []walk.Key
+			if !wasMoved {
+				keys = []walk.Key{fk}
+			}
+			if f == walk.Absent {
+				b.fail(from.rng, keys, review.ObjectNotFound, notFound("", from.written, "")) // 1146
+			} else {
+				b.fail(to.rng, keys, review.NameTaken, alreadyExists(kind, to.written, "")) // 1050
+			}
+			return true
 		}
 		b.need(fk, walk.Present, nil, from.rng, notFound("", from.written, ""), "") // 1146; 1017 on 5.7
 		if p.New.Schema != "" {
@@ -928,6 +1068,8 @@ func (b *builder) dropTable(v *ast.DropTableStmt) bool {
 			b.droppedOwned(r)
 			tblPath := tablePath(r.db, r.name)
 			b.Session(func() {
+				delete(b.w.versioned, k)
+				delete(b.w.partitioned, k)
 				for ik := range b.w.fkGeneratedIdx {
 					if ik.Parent == tblPath {
 						delete(b.w.fkGeneratedIdx, ik)
@@ -946,9 +1088,8 @@ func (b *builder) droppedOwned(r tableRef) {
 	b.MayRemove(walk.Scope{Space: spaceTrigger, Parent: walk.Path(r.db)})
 }
 
-// truncate follows TRUNCATE: each table must exist and be a table (1146,
-// a view too). TRUNCATE of a sequence fails (1031), which the walk does
-// not claim: it ends there (MariaDB spec §2.3).
+// truncate follows TRUNCATE: each table must exist and be a table (1146 for
+// missing or a view, 1031 for a sequence).
 func (b *builder) truncate(v *ast.TruncateStmt) bool {
 	for _, t := range v.Tables {
 		r, st := b.ref(t)
@@ -958,10 +1099,7 @@ func (b *builder) truncate(v *ast.TruncateStmt) bool {
 		case refUnknown:
 			continue
 		}
-		if f, temp, kind := b.resolve(r); !temp && f != walk.Unknown {
-			if kind == relSequence {
-				return false
-			}
+		if f, temp, _ := b.resolve(r); !temp && f != walk.Unknown {
 			b.needKind(relKey(r.db, r.name), []string{relTable}, r.rng, notFound("table", r.written, ""), r.written, "table")
 		}
 	}
@@ -1029,6 +1167,9 @@ func (b *builder) createSequence(v *ast.CreateSequenceStmt) bool {
 	}
 	b.Set(k, walk.Present, relSequence)
 	b.Forget(walk.Scope{Parent: tablePath(r.db, r.name), Deep: true})
+	if !old {
+		b.checkSequenceIncrement(v.Increment, r)
+	}
 	if old {
 		b.Next()
 		b.Set(k, walk.Present, "")

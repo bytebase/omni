@@ -10,9 +10,7 @@ import (
 
 // tableOf resolves the table an index or trigger statement names, which
 // must be a base table. It returns false when the walk does not follow
-// the statement on it: a temporary table, a sequence, which refuses both
-// with codes of its own (4086, 1361; MariaDB spec §2.3), or one it cannot
-// tell.
+// the statement on it: a temporary table or one it cannot tell.
 func (b *builder) tableOf(tr *ast.TableRef) (tableRef, bool, bool) {
 	r, st := b.ref(tr)
 	switch st {
@@ -21,8 +19,8 @@ func (b *builder) tableOf(tr *ast.TableRef) (tableRef, bool, bool) {
 	case refUnknown:
 		return r, false, false
 	}
-	f, temp, kind := b.resolve(r)
-	if temp || f == walk.Unknown || kind == relSequence {
+	f, temp, _ := b.resolve(r)
+	if temp || f == walk.Unknown {
 		return r, false, false
 	}
 	b.tableNeeds(r)
@@ -47,28 +45,53 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 		return true
 	}
 	ik := idxKey(r.db, r.name, k)
+	idxFact, _ := b.l.Lookup(ik)
 	replacedFKIdx := false
 	if !v.Fulltext && !v.Spatial && !v.Vector && indexTypeSupportsFK(v.IndexType, v.Options) {
 		replacedFKIdx = b.replaceFKGeneratedIndexes(r, ik, v.Columns)
 	}
+	tf, _, tkind := b.resolve(r)
 	switch {
 	case v.OrReplace:
 		// It replaces an index of the name (verified).
 	case v.IfNotExists:
-		b.Next()
-		b.Optional()
+		if idxFact == walk.Present {
+			return true
+		}
+		if idxFact == walk.Unknown {
+			b.Next()
+			b.Optional()
+		}
 	case !replacedFKIdx:
 		b.need(ik, walk.Absent, nil, rng, "", alreadyExists("index", ident(v.IndexName), r.written)) // 1061
+	}
+	if tf == walk.Present && tkind == relTable && (!v.IfNotExists || idxFact == walk.Absent) {
+		b.checkIndexColumns(r, v.Columns)
 	}
 	b.Set(ik, walk.Present, "")
 	return true
 }
 
 func (b *builder) dropIndex(v *ast.DropIndexStmt) bool {
-	r, ok, lowered := b.tableOf(v.Table)
-	if !ok {
-		return lowered
+	r, st := b.ref(v.Table)
+	switch st {
+	case refFailed:
+		return true
+	case refUnknown:
+		return false
 	}
+	f, temp, kind := b.resolve(r)
+	if temp || f == walk.Unknown {
+		return false
+	}
+	if f == walk.Present && kind == relSequence {
+		if v.IfExists {
+			return true
+		}
+		b.fail(b.anchor(), []walk.Key{relKey(r.db, r.name)}, review.ObjectNotFound, notFound("index", ident(v.Name), r.written)) // 1091
+		return true
+	}
+	b.tableNeeds(r)
 	return b.dropIndexName(r, v.Name, b.anchor(), v.IfExists)
 }
 
@@ -94,6 +117,12 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 	} else {
 		b.needFree(k, r.rng, r.written, relView) // 1050
 	}
+	if f, kind := b.l.Lookup(k); f == walk.Absent || (v.OrReplace && f == walk.Present && kind == relView) {
+		if ref := selectBareColumnNoFrom(v.Select); ref != nil {
+			b.fail(rangeOf(ref.Loc), nil, review.ObjectNotFound, notFound("column", ident(ref.Column), "")) // 1054
+			return true
+		}
+	}
 	b.Set(k, walk.Present, relView)
 	return true
 }
@@ -104,7 +133,14 @@ func (b *builder) alterView(v *ast.AlterViewStmt) bool {
 	case refFailed:
 		return true
 	case refOK:
-		b.needKind(relKey(r.db, r.name), []string{relView}, r.rng, notFound("view", r.written, ""), r.written, "view") // 1146, 1347
+		k := relKey(r.db, r.name)
+		b.needKind(k, []string{relView}, r.rng, notFound("view", r.written, ""), r.written, "view") // 1146, 1347
+		if f, kind := b.l.Lookup(k); f == walk.Present && kind == relView {
+			if ref := selectBareColumnNoFrom(v.Select); ref != nil {
+				b.fail(rangeOf(ref.Loc), nil, review.ObjectNotFound, notFound("column", ident(ref.Column), "")) // 1054
+				return true
+			}
+		}
 	}
 	return true
 }
@@ -332,6 +368,10 @@ func (b *builder) createEvent(v *ast.CreateEventStmt) bool {
 	if st != refOK {
 		return st == refFailed
 	}
+	if ref := eventScheduleColumnRef(v.Schedule); ref != nil {
+		b.fail(rangeOf(ref.Loc), nil, review.ObjectNotFound, notFound("column", ident(ref.Column), "")) // 1054
+		return true
+	}
 	if !v.IfNotExists && !v.OrReplace {
 		b.need(ek, walk.Absent, nil, b.anchor(), "", alreadyExists("event", ident(v.Name), "")) // 1537
 	}
@@ -344,18 +384,26 @@ func (b *builder) alterEvent(v *ast.AlterEventStmt) bool {
 	if st != refOK {
 		return st == refFailed
 	}
-	b.need(ek, walk.Present, nil, b.anchor(), notFound("event", ident(v.Name), ""), "") // 1539
+	if ref := eventScheduleColumnRef(v.Schedule); ref != nil {
+		b.fail(rangeOf(ref.Loc), nil, review.ObjectNotFound, notFound("column", ident(ref.Column), "")) // 1054
+		return true
+	}
 	if v.RenameTo != "" {
 		nk, st := b.event(v.RenameSchema, v.RenameTo)
 		if st != refOK {
 			return st == refFailed
 		}
-		if nk != ek {
-			b.need(nk, walk.Absent, nil, b.anchor(), "", alreadyExists("event", ident(v.RenameTo), "")) // 1537
-			b.Set(ek, walk.Absent, "")
+		if nk == ek {
+			b.fail(b.anchor(), nil, review.DuplicateName, "Event "+review.Code(ident(v.Name))+" cannot be renamed to itself.") // 1551
+			return true
 		}
+		b.need(ek, walk.Present, nil, b.anchor(), notFound("event", ident(v.Name), ""), "")         // 1539
+		b.need(nk, walk.Absent, nil, b.anchor(), "", alreadyExists("event", ident(v.RenameTo), "")) // 1537
+		b.Set(ek, walk.Absent, "")
 		b.Set(nk, walk.Present, "")
+		return true
 	}
+	b.need(ek, walk.Present, nil, b.anchor(), notFound("event", ident(v.Name), ""), "") // 1539
 	return true
 }
 
