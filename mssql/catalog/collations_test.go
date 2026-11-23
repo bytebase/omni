@@ -11,10 +11,12 @@ import (
 )
 
 // TestCollations holds collations.txt, which lookupCollation reads, to the
-// pinned SQL Server: the file is sys.fn_helpcollations(), and SQL Server
-// accepts a column collation exactly when checkCollation does, for every
-// listed name in upper and lower case and for every version-less, versioned,
-// _SC, _UTF8 and reordered form of a listed name (collationFormsSQL).
+// pinned SQL Server: the file is sys.fn_helpcollations(), and SQL Server 2022
+// accepts a column collation exactly when the list holds it, for every listed
+// name in upper and lower case and for every version-less, versioned, _SC,
+// _UTF8 and reordered form of a listed name (collationFormsSQL). The catalog
+// accepts more than SQL Server 2022 does, the names another version may know
+// (TestUnknownCollation).
 //
 // SQL Server's answers are on the test's tape. OMNI_RECORD=1 asks the pinned
 // server again and rewrites collations.txt from its list.
@@ -61,8 +63,12 @@ func TestCollations(t *testing.T) {
 		if err := rows.Scan(&form, &accepted); err != nil {
 			t.Fatal(err)
 		}
-		if omni := checkCollation(form, true) == nil; omni != accepted {
-			t.Errorf("COLLATE %s: SQL Server accepts it %v, the catalog %v", form, accepted, omni)
+		_, listed := lookupCollation(form)
+		if listed = listed || isDefaultCollation(form); listed != accepted {
+			t.Errorf("COLLATE %s: SQL Server accepts it %v, the list %v", form, accepted, listed)
+		}
+		if accepted && checkCollation(form, true) != nil {
+			t.Errorf("COLLATE %s: SQL Server accepts it, the catalog refuses it", form)
 		}
 	}
 	if !rows.NextResultSet() || !rows.Next() {
@@ -76,6 +82,80 @@ func TestCollations(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("SQL Server and the catalog agree on %d collation forms", tried)
+}
+
+// TestUnknownCollation holds UnknownCollation, which the catalog and
+// mssql/review's WALK_THROUGH refuse a collation by, to what SQL Server
+// 2017, 2019, 2022, and 2025 accept and refuse: every name SQL Server 2022
+// lists, the 32 SQL Server 2025 adds, and Compatibility_52_409_30003, which
+// each version takes and none lists, are known; names each refuses are not.
+// The versions' lists are those measured for bytebase/omni#1705 (2017
+// 14.0.3570.2 and 2019 15.0.4510.2 list subsets of 2022's names, 2025
+// 17.0.5065.9 lists 2022's and these 32); only SQL Server 2022 runs here, and
+// it refuses the 2025 names.
+func TestUnknownCollation(t *testing.T) {
+	known := make([]string, 0, len(collationNames())+33)
+	for _, name := range collationNames() {
+		known = append(known, name)
+	}
+	if len(known) < 5000 {
+		t.Fatalf("read %d collations from collations.txt", len(known))
+	}
+	// The 32 collations SQL Server 2025 (17.0.5065.9) adds.
+	var added []string
+	for _, designator := range []string{"Chinese_Simplified_Pinyin_160", "Chinese_Simplified_Stroke_Order_160"} {
+		for _, cs := range []string{"_CI", "_CS"} {
+			for _, as := range []string{"_AI", "_AS"} {
+				for _, ks := range []string{"", "_KS"} {
+					for _, ws := range []string{"", "_WS"} {
+						added = append(added, designator+cs+as+ks+ws+"_SC_UTF8")
+					}
+				}
+			}
+		}
+	}
+	for _, name := range added {
+		if _, listed := lookupCollation(name); listed {
+			t.Errorf("collations.txt lists %s, which SQL Server 2022 refuses", name)
+		}
+	}
+	known = append(known, added...)
+	known = append(known, "Compatibility_52_409_30003")
+	for _, name := range known {
+		for _, form := range []string{name, strings.ToLower(name), strings.ToUpper(name)} {
+			for _, defaultAllowed := range []bool{true, false} {
+				if UnknownCollation(form, defaultAllowed) {
+					t.Errorf("UnknownCollation(%q, %v) = true, want false", form, defaultAllowed)
+				}
+			}
+			if err := checkCollation(form, false); err != nil {
+				t.Errorf("checkCollation(%q) = %v, want nil", form, err)
+			}
+		}
+	}
+	// Refused by SQL Server 2017, 2019, 2022, and 2025.
+	for _, name := range []string{
+		"a", "nope", "Latin1_General", "Latin1_General_CS",
+		"Latin1_General_CI_AS_WS_KS", "Latin1_General_CI_AS_VSS_WS", "Latin1_General_CI_AS_KS_KS",
+	} {
+		if !UnknownCollation(name, true) {
+			t.Errorf("UnknownCollation(%q) = false, want true", name)
+		}
+		if err := checkCollation(name, true); err == nil {
+			t.Errorf("checkCollation(%q) = nil, want Msg 448", name)
+		}
+	}
+	// database_default and catalog_default name a column's collation, not a
+	// database's.
+	for _, name := range []string{"database_default", "CATALOG_DEFAULT"} {
+		if UnknownCollation(name, true) || !UnknownCollation(name, false) {
+			t.Errorf("UnknownCollation(%q, true/false) = %v/%v, want false/true", name, UnknownCollation(name, true), UnknownCollation(name, false))
+		}
+	}
+	// SQL Server stores a compatibility collation's prefix in its own case.
+	if got := storedCollation("compatibility_52_409_30003"); got != "Compatibility_52_409_30003" {
+		t.Errorf("storedCollation(compatibility_52_409_30003) = %q", got)
+	}
 }
 
 const collationsHeader = `# Every collation SQL Server 2022 knows (16.0.4305.5, mssql/testdata/pins.tsv):

@@ -10,83 +10,9 @@ import (
 )
 
 // A COLLATE clause naming a collation SQL Server does not know fails the
-// statement (448). mssqlcatalog.KnownCollation knows every collation of the
-// pinned SQL Server 2022, but the walk reviews other versions too, and
-// they know others: SQL Server 2025 adds 32 _160 collations, such as
-// Chinese_Simplified_Pinyin_160_CI_AS_SC_UTF8, and Azure SQL may add more.
-// So the walk refuses only a name no version can know: one with no
-// comparison style the collation grammar gives every collation, a case and
-// an accent sensitivity or BIN or BIN2, after its designator, or one whose
-// KS, WS, and VSS are out of the grammar's order.
-//
-// docs: https://learn.microsoft.com/en-us/sql/t-sql/statements/windows-collation-name-transact-sql
-// docs: https://learn.microsoft.com/en-us/sql/t-sql/statements/sql-server-collation-name-transact-sql
-//
-// sys.fn_helpcollations() on SQL Server 2017 (14.0.3570.2) and 2019
-// (15.0.4510.2) lists a subset of 2022's names, and on 2025 (17.0.5065.9)
-// 2022's and the 32 _160 names, all of that shape. Each of them takes
-// Compatibility_52_409_30003, which none lists, and refuses
-// Compatibility_198_30A_30001, Latin1_General_CI_AS_WS_KS,
-// Latin1_General_CI_AS_VSS_WS, Latin1_General_CS, and Latin1_General
-// (measured), so a Compatibility_ name is taken as one some version knows.
-
-// collationSensitivities are the optional sensitivities of a Windows
-// collation's comparison style, in the order the grammar writes them.
-var collationSensitivities = []string{"KS", "WS", "VSS"}
-
-// collationShaped reports whether some SQL Server version may know the
-// collation name: a Compatibility_ name, or a designator followed by a
-// comparison style, CI or CS and AI or AS, or BIN or BIN2. A segment after
-// the style the walk does not know, such as a future flag, may be anything;
-// KS, WS, and VSS are each written once and in that order.
-func collationShaped(name string) bool {
-	if len(name) > len("Compatibility_") && strings.EqualFold(name[:len("Compatibility_")], "Compatibility_") {
-		return true
-	}
-	parts := strings.Split(strings.ToUpper(name), "_")
-	for i := 1; i < len(parts); i++ {
-		var rest []string
-		switch {
-		case parts[i] == "BIN" || parts[i] == "BIN2":
-			rest = parts[i+1:]
-		case (parts[i] == "CI" || parts[i] == "CS") && i+1 < len(parts) && (parts[i+1] == "AI" || parts[i+1] == "AS"):
-			rest = parts[i+2:]
-		default:
-			continue
-		}
-		next := 0
-		ordered := true
-		for _, p := range rest {
-			for j, s := range collationSensitivities {
-				if p != s {
-					continue
-				}
-				if j < next {
-					ordered = false
-				}
-				next = j + 1
-			}
-		}
-		if ordered {
-			return true
-		}
-	}
-	return false
-}
-
-// unknownCollation reports a collation name no SQL Server version knows.
-// database_default and catalog_default name a collation where defaultAllowed
-// is set: a column's or an expression's, not a database's or a partition
-// function's.
-func unknownCollation(name string, defaultAllowed bool) bool {
-	switch {
-	case name == "":
-		return false
-	case defaultAllowed && mssqlcatalog.IsDefaultCollation(name):
-		return false
-	}
-	return !mssqlcatalog.KnownCollation(name) && !collationShaped(name)
-}
+// statement (448). The walk reviews every SQL Server version, so it refuses
+// only a name no version can know, by the rule mssql/catalog refuses with
+// (mssqlcatalog.UnknownCollation).
 
 func msgCollation(name string) string {
 	return "Collation " + review.Code(name) + " doesn't exist."
@@ -102,7 +28,7 @@ func msgCollation(name string) string {
 func (b *builder) declaredCollation(n ast.Node) bool {
 	failed := false
 	check := func(name string, defaultAllowed bool, loc ast.Loc) {
-		if unknownCollation(name, defaultAllowed) {
+		if mssqlcatalog.UnknownCollation(name, defaultAllowed) {
 			b.fail(rangeOf(loc), review.ObjectNotFound, msgCollation(name))
 			failed = true
 		}
@@ -154,7 +80,7 @@ func (b *builder) collateFails(expr ast.Node, char func(ast.ExprNode) bool) bool
 // know says nothing. The caller checks only an expression SQL Server
 // certainly binds, after what it checks first.
 func (b *builder) collateFail(e *ast.CollateExpr, char func(ast.ExprNode) bool) bool {
-	if !unknownCollation(e.Collation, true) || !charOperand(e.Expr, char) {
+	if !mssqlcatalog.UnknownCollation(e.Collation, true) || !charOperand(e.Expr, char) {
 		return false
 	}
 	b.fail(rangeOf(e.Loc), review.ObjectNotFound, msgCollation(e.Collation))
