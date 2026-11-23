@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	gomssqldb "github.com/microsoft/go-mssqldb"
 
@@ -121,8 +122,8 @@ END;
 	if row[11].Kind != driver.Timestamp {
 		t.Errorf("datetime2 = %+v", row[11])
 	}
-	if row[12].Kind != driver.TimestampTZ {
-		t.Errorf("datetimeoffset = %+v", row[12])
+	if _, offset := row[12].Time.Zone(); row[12].Kind != driver.TimestampTZ || offset != 7200 {
+		t.Errorf("datetimeoffset = %+v (offset %d), want TimestampTZ with offset 7200", row[12], offset)
 	}
 	if row[13].Kind != driver.Null {
 		t.Errorf("null = %+v", row[13])
@@ -682,5 +683,267 @@ func TestQueryBatchUnpacksTheErrorItMeetsWhileReadingRows(t *testing.T) {
 	var server gomssqldb.Error
 	if !errors.As(err, &server) || server.Number != 8134 {
 		t.Errorf("error = %v, want SQL Server's 8134 still reachable", err)
+	}
+}
+
+// TestClassifySetNoExecOutputAndControlFlow pins statement classification for
+// SET NOEXEC/PARSEONLY refusals, DML OUTPUT clauses (with and without INTO),
+// and unsupported control flow statements.
+func TestClassifySetNoExecOutputAndControlFlow(t *testing.T) {
+	for _, tc := range []struct {
+		sql     string
+		want    stmtType
+		wantErr string
+	}{
+		{sql: "SET NOEXEC ON;", wantErr: "SET NOEXEC is not supported"},
+		{sql: "SET ANSI_NULLS, NOEXEC ON;", wantErr: "SET NOEXEC is not supported"},
+		{sql: "SET PARSEONLY ON;", wantErr: "SET PARSEONLY is not supported"},
+		{sql: "SET NOCOUNT OFF;", want: stmtTypeUnknown},
+		{sql: "UPDATE dbo.t SET id = id OUTPUT inserted.id;", want: stmtTypeResultSetGenerating | stmtTypeRowCountGenerating | stmtTypeOutput},
+		{sql: "UPDATE dbo.t SET id = id OUTPUT inserted.id INTO dbo.audit;", want: stmtTypeRowCountGenerating},
+		{sql: "IF 1 = 1 SELECT 1;", wantErr: "unsupported control flow statement"},
+	} {
+		stmts, err := omnimssql.Parse(tc.sql)
+		if err != nil || len(stmts) != 1 {
+			t.Fatalf("%q: parse = %d, %v", tc.sql, len(stmts), err)
+		}
+		got, err := getStmtType(stmts[0].AST)
+		if tc.wantErr != "" {
+			if err == nil || err.Error() != tc.wantErr {
+				t.Errorf("%q: err = %v, want %q", tc.sql, err, tc.wantErr)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("%q: unexpected err = %v", tc.sql, err)
+			continue
+		}
+		if got != tc.want {
+			t.Errorf("%q: type = %d, want %d", tc.sql, got, tc.want)
+		}
+	}
+}
+
+// TestMatchResultsRefusesAmbiguousBatchAndMarksOutputWithheld pins the batch
+// matcher's refusal when a procedure call shares a batch with another
+// result-producing statement, and its withholding flag on OUTPUT clauses.
+func TestMatchResultsRefusesAmbiguousBatchAndMarksOutputWithheld(t *testing.T) {
+	_, _, err := matchResults(
+		[]string{"EXEC dbo.two_sets;", "SELECT 1 AS one;"},
+		[]stmtType{stmtTypeProcedure, stmtTypeResultSetGenerating | stmtTypeRowCountGenerating},
+		[]*driver.Result{{Columns: []driver.Column{{Name: "id"}}}, {Columns: []driver.Column{{Name: "s"}}}, {Columns: []driver.Column{{Name: "one"}}}},
+	)
+	if err == nil || !strings.Contains(err.Error(), "cannot match the batch's result sets to its statements") {
+		t.Fatalf("ambiguous batch err = %v, want mismatch error", err)
+	}
+
+	results, extras, err := matchResults(
+		[]string{"UPDATE dbo.t SET id = id OUTPUT inserted.id;", "SELECT id FROM dbo.t;"},
+		[]stmtType{
+			stmtTypeResultSetGenerating | stmtTypeRowCountGenerating | stmtTypeOutput,
+			stmtTypeResultSetGenerating | stmtTypeRowCountGenerating,
+		},
+		[]*driver.Result{
+			{Columns: []driver.Column{{Name: "id"}}},
+			{Columns: []driver.Column{{Name: "id"}}},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(extras) != 0 || len(results) != 2 {
+		t.Fatalf("matched = %d results, %d extras", len(results), len(extras))
+	}
+	if !results[0].withheld || results[1].withheld {
+		t.Fatalf("withheld = [%v, %v], want [true, false]", results[0].withheld, results[1].withheld)
+	}
+}
+
+type fakeBatchConnector struct {
+	sentSQL string
+	rows    *fakeCountingRows
+}
+
+func (c *fakeBatchConnector) Connect(context.Context) (sqldriver.Conn, error) {
+	return &fakeBatchConn{parent: c}, nil
+}
+
+func (*fakeBatchConnector) Driver() sqldriver.Driver { return nil }
+
+type fakeBatchConn struct{ parent *fakeBatchConnector }
+
+func (*fakeBatchConn) Prepare(string) (sqldriver.Stmt, error) { return nil, sqldriver.ErrSkip }
+func (*fakeBatchConn) Close() error                           { return nil }
+func (*fakeBatchConn) Begin() (sqldriver.Tx, error)           { return nil, errors.New("unused") }
+
+func (c *fakeBatchConn) QueryContext(_ context.Context, query string, _ []sqldriver.NamedValue) (sqldriver.Rows, error) {
+	c.parent.sentSQL = query
+	return c.parent.rows, nil
+}
+
+type fakeCountingRows struct {
+	total   int
+	read    int
+	payload string
+}
+
+func (*fakeCountingRows) Columns() []string                     { return []string{"v"} }
+func (*fakeCountingRows) Close() error                          { return nil }
+func (*fakeCountingRows) ColumnTypeDatabaseTypeName(int) string { return "VARCHAR" }
+func (r *fakeCountingRows) Next(dest []sqldriver.Value) error {
+	if r.read >= r.total {
+		return io.EOF
+	}
+	r.read++
+	dest[0] = r.payload
+	return nil
+}
+
+// TestBatchLimitRewriteAndKeptRowSizeCap pins that a multi-statement batch
+// records its rewritten TOP statement text and that MaxResultBytes counts only
+// the rows kept under Limit rather than rows skipped past it.
+func TestBatchLimitRewriteAndKeptRowSizeCap(t *testing.T) {
+	ctx := context.Background()
+
+	rows := &fakeCountingRows{total: 2, payload: "ok"}
+	connector := &fakeBatchConnector{rows: rows}
+	db := sql.OpenDB(connector)
+	defer db.Close()
+	sess, err := (&Driver{db: db}).Session(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sess.Close()
+
+	results, err := sess.Query(ctx, "SET NOCOUNT OFF;\nSELECT TOP 3 id FROM dbo.t ORDER BY id;", driver.QueryOptions{Limit: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("results = %d, want 2", len(results))
+	}
+	if results[0].Statement != "SET NOCOUNT OFF;" {
+		t.Errorf("results[0].Statement = %q, want SET NOCOUNT OFF;", results[0].Statement)
+	}
+	if results[1].Statement != "\nSELECT TOP 2 id FROM dbo.t ORDER BY id;" {
+		t.Errorf("results[1].Statement = %q, want rewritten TOP 2 statement", results[1].Statement)
+	}
+	if !strings.Contains(connector.sentSQL, "SELECT TOP 2 id FROM dbo.t ORDER BY id;") {
+		t.Errorf("sent SQL = %q, want TOP 2 rewrite", connector.sentSQL)
+	}
+
+	// 200 rows of 100 bytes would far exceed 500 bytes, but Limit keeps only 2
+	// rows (~200 bytes), so MaxResultBytes must not truncate the result while
+	// still draining the rest of the set.
+	manyRows := &fakeCountingRows{total: 200, payload: strings.Repeat("a", 100)}
+	capDB := sql.OpenDB(&fakeBatchConnector{rows: manyRows})
+	defer capDB.Close()
+	sqlRows, err := capDB.QueryContext(ctx, "SELECT v FROM t")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sqlRows.Close()
+
+	res, err := readRows(sqlRows, 500, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Truncated {
+		t.Errorf("result was truncated even though kept rows fit under MaxResultBytes")
+	}
+	if len(res.Rows) != 2 {
+		t.Errorf("kept rows = %d, want 2", len(res.Rows))
+	}
+	if manyRows.read != 200 {
+		t.Errorf("drained rows = %d, want all 200", manyRows.read)
+	}
+}
+
+type fakeTypedConnector struct {
+	rows sqldriver.Rows
+}
+
+func (c *fakeTypedConnector) Connect(context.Context) (sqldriver.Conn, error) {
+	return &fakeTypedConn{rows: c.rows}, nil
+}
+
+func (*fakeTypedConnector) Driver() sqldriver.Driver { return nil }
+
+type fakeTypedConn struct{ rows sqldriver.Rows }
+
+func (*fakeTypedConn) Prepare(string) (sqldriver.Stmt, error) { return nil, sqldriver.ErrSkip }
+func (*fakeTypedConn) Close() error                           { return nil }
+func (*fakeTypedConn) Begin() (sqldriver.Tx, error)           { return nil, errors.New("unused") }
+func (c *fakeTypedConn) QueryContext(context.Context, string, []sqldriver.NamedValue) (sqldriver.Rows, error) {
+	return c.rows, nil
+}
+
+type fakeTypedRows struct {
+	cols   []string
+	types  []string
+	scales []int64
+	row    []sqldriver.Value
+	done   bool
+}
+
+func (r *fakeTypedRows) Columns() []string                       { return r.cols }
+func (*fakeTypedRows) Close() error                              { return nil }
+func (r *fakeTypedRows) ColumnTypeDatabaseTypeName(i int) string { return r.types[i] }
+func (r *fakeTypedRows) ColumnTypePrecisionScale(i int) (int64, int64, bool) {
+	if r.scales[i] < 0 {
+		return 0, 0, false
+	}
+	return 0, r.scales[i], true
+}
+
+func (r *fakeTypedRows) Next(dest []sqldriver.Value) error {
+	if r.done {
+		return io.EOF
+	}
+	r.done = true
+	copy(dest, r.row)
+	return nil
+}
+
+// TestReadRowsTemporalPrecisionAndOffset pins that readRows preserves
+// fractional-seconds precision from ColumnType.DecimalSize for DATETIME2 and
+// DATETIMEOFFSET alongside timezone offset and empty binary cells.
+func TestReadRowsTemporalPrecisionAndOffset(t *testing.T) {
+	ctx := context.Background()
+	tz := time.FixedZone("UTC+2", 7200)
+	dto := time.Date(2024, 1, 2, 3, 4, 5, 123000000, tz)
+	dt2 := time.Date(2024, 1, 2, 3, 4, 5, 120000000, time.UTC)
+
+	typedRows := &fakeTypedRows{
+		cols:   []string{"empty_bin", "dto", "dt2"},
+		types:  []string{"VARBINARY", "DATETIMEOFFSET", "DATETIME2"},
+		scales: []int64{-1, 7, 2},
+		row:    []sqldriver.Value{[]byte{}, dto, dt2},
+	}
+	db := sql.OpenDB(&fakeTypedConnector{rows: typedRows})
+	defer db.Close()
+
+	sqlRows, err := db.QueryContext(ctx, "SELECT 1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sqlRows.Close()
+
+	res, err := readRows(sqlRows, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Rows) != 1 || len(res.Rows[0]) != 3 {
+		t.Fatalf("rows = %+v", res.Rows)
+	}
+	row := res.Rows[0]
+	if row[0].Kind != driver.Bytes || row[0].Bytes == nil || len(row[0].Bytes) != 0 {
+		t.Errorf("empty_bin = %+v, want non-nil empty bytes", row[0])
+	}
+	if _, offset := row[1].Time.Zone(); row[1].Kind != driver.TimestampTZ || row[1].Precision != 7 || offset != 7200 {
+		t.Errorf("dto = %+v (offset %d), want TimestampTZ precision 7 offset 7200", row[1], offset)
+	}
+	if row[2].Kind != driver.Timestamp || row[2].Precision != 2 {
+		t.Errorf("dt2 = %+v, want Timestamp precision 2", row[2])
 	}
 }

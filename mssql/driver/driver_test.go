@@ -2,10 +2,20 @@ package driver
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"math/big"
 	"net"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	gomssqldb "github.com/microsoft/go-mssqldb"
 	"github.com/microsoft/go-mssqldb/msdsn"
@@ -234,5 +244,81 @@ func TestOpenUsesTokenProvider(t *testing.T) {
 	}
 	if gotConfig.Host != "db.example.com" || gotConfig.User != "" {
 		t.Fatalf("connector host %q user %q, want db.example.com and no user", gotConfig.Host, gotConfig.User)
+	}
+}
+
+// TestMSSQLConfigTLSParamsWithCAFile pins how encrypt, trustservercertificate,
+// and certificate parameters build msdsn.Config.TLSConfig.
+func TestMSSQLConfigTLSParamsWithCAFile(t *testing.T) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "Omni Test CA"},
+		NotBefore:             time.Now().Add(-time.Minute),
+		NotAfter:              time.Now().Add(time.Hour),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		KeyUsage:              x509.KeyUsageCertSign,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caPath := filepath.Join(t.TempDir(), "ca.pem")
+	if err := os.WriteFile(caPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tc := range []struct {
+		name           string
+		params         map[string]string
+		wantSkipVerify bool
+		wantRootCAs    bool
+	}{
+		{
+			name:           "verified against CA file",
+			params:         map[string]string{"encrypt": "true", "trustservercertificate": "false", "certificate": caPath},
+			wantSkipVerify: false,
+			wantRootCAs:    true,
+		},
+		{
+			name:           "verified against system trust",
+			params:         map[string]string{"encrypt": "true", "trustservercertificate": "false"},
+			wantSkipVerify: false,
+			wantRootCAs:    false,
+		},
+		{
+			name:           "encrypted without verification",
+			params:         map[string]string{"encrypt": "true", "trustservercertificate": "true", "certificate": caPath},
+			wantSkipVerify: true,
+			wantRootCAs:    true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := baseConfig()
+			cfg.Params = tc.params
+			got, err := (&Driver{}).mssqlConfig(cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Encryption != msdsn.EncryptionRequired {
+				t.Errorf("encryption = %d, want required", got.Encryption)
+			}
+			if got.TLSConfig == nil {
+				t.Fatal("TLSConfig is nil")
+			}
+			if got.TLSConfig.InsecureSkipVerify != tc.wantSkipVerify {
+				t.Errorf("InsecureSkipVerify = %v, want %v", got.TLSConfig.InsecureSkipVerify, tc.wantSkipVerify)
+			}
+			if (got.TLSConfig.RootCAs != nil) != tc.wantRootCAs {
+				t.Errorf("RootCAs present = %v, want %v", got.TLSConfig.RootCAs != nil, tc.wantRootCAs)
+			}
+			if got.TLSConfig.ServerName != "db.example.com" {
+				t.Errorf("ServerName = %q, want db.example.com", got.TLSConfig.ServerName)
+			}
+		})
 	}
 }
