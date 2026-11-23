@@ -236,6 +236,7 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"case_charset_mismatch", `CREATE VIEW v AS SELECT CASE WHEN 1=1 THEN nv ELSE vc END x FROM t`, "12704"},
 		{"order_by_ambiguous_alias", `CREATE VIEW v (x, y) AS SELECT id a, n a FROM t ORDER BY a`, "00960"},
 		{"range_date_offset", `CREATE VIEW v AS SELECT SUM(id) OVER (ORDER BY id RANGE DATE '2020-01-01' PRECEDING) x FROM t`, "00902"},
+		{"trim_quoted_both_column", `CREATE VIEW v AS SELECT TRIM("BOTH" FROM dummy) x FROM dual`, "00904"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -1095,5 +1096,15 @@ func TestViewQueryChrBytes(t *testing.T) {
 		if col.GetType() != want[i] {
 			t.Errorf("%s type = %q, want %q", col.GetName(), col.GetType(), want[i])
 		}
+	}
+}
+
+func TestViewQueryIntervalConcat(t *testing.T) {
+	c, err := LoadSQL(`CREATE VIEW v AS SELECT INTERVAL '1' DAY || 'x' x FROM dual;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns()[0].GetType(); got != "" {
+		t.Errorf("type = %q, want unknown", got)
 	}
 }

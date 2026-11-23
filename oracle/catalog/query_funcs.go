@@ -54,7 +54,8 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 			// word as a column reference and the source last.
 			items := listItems(n.Args)
 			if len(items) > 0 {
-				if ref, ok := items[0].(*ast.ColumnRef); ok && ref.Table == "" && isTrimMode(ref.Column) && len(items) > 1 {
+				// An unquoted BOTH/LEADING/TRAILING; a quoted one is a column.
+				if ref, ok := items[0].(*ast.ColumnRef); ok && ref.Table == "" && isTrimMode(ref.Column) && len(items) > 1 && !strings.Contains(a.e.nodeText(ref), `"`) {
 					items = items[1:]
 				}
 			}

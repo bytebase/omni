@@ -575,7 +575,9 @@ func comparable(l, r qtype, right ast.ExprNode) error {
 }
 
 func concatType(l, r qtype) qtype {
-	if l.kind == "UNKNOWN" || r.kind == "UNKNOWN" {
+	if l.kind == "UNKNOWN" || r.kind == "UNKNOWN" || l.isInterval() || r.isInterval() {
+		// An operand of unknown length (an interval's text varies with its
+		// precisions) leaves the result's unknown.
 		// An operand of unknown length leaves the result's unknown.
 		return simpleType("UNKNOWN")
 	}
@@ -1029,7 +1031,7 @@ func checkGrouped(x ast.Node, keys []string, keyOf func(ast.Node) string, owned 
 			// TRIM's mode word is no column.
 			items := listItems(n.Args)
 			if len(items) > 1 {
-				if ref, ok := items[0].(*ast.ColumnRef); ok && ref.Table == "" && isTrimMode(ref.Column) {
+				if ref, ok := items[0].(*ast.ColumnRef); ok && ref.Table == "" && isTrimMode(ref.Column) && !strings.HasPrefix(keyOf(ref), "c:") {
 					items = items[1:]
 				}
 			}
