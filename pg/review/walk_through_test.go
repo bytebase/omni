@@ -945,6 +945,12 @@ func TestWalkThroughSyncedColumnAndDependencyChecks(t *testing.T) {
 					},
 				},
 				{
+					Name: "p_inh",
+					Columns: []*metadata.ColumnMetadata{
+						{Name: "cid", Position: 1, Type: "integer", Nullable: false},
+					},
+				},
+				{
 					Name: "u",
 					Columns: []*metadata.ColumnMetadata{
 						{Name: "n", Position: 1, Type: "boolean", Nullable: true},
@@ -967,6 +973,7 @@ func TestWalkThroughSyncedColumnAndDependencyChecks(t *testing.T) {
 			Functions: []*metadata.FunctionMetadata{
 				{Name: "tf", Definition: "CREATE OR REPLACE FUNCTION public.tf() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$"},
 				{Name: "tf2", Definition: "CREATE OR REPLACE FUNCTION public.tf2() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$"},
+				{Name: "body_proc_text", Definition: "CREATE FUNCTION public.body_proc_text() RETURNS text LANGUAGE sql AS $$SELECT 'CREATE OR REPLACE PROCEDURE'$$"},
 				{Name: "with_def", Definition: "CREATE OR REPLACE FUNCTION public.with_def(a integer, b integer DEFAULT 1) RETURNS integer LANGUAGE sql IMMUTABLE AS 'SELECT a + b'"},
 			},
 		}},
@@ -1035,6 +1042,8 @@ func TestWalkThroughSyncedColumnAndDependencyChecks(t *testing.T) {
 		"DROP TABLE t, child;",
 		"TRUNCATE t CASCADE;",
 		"TRUNCATE t, child;",
+		"TRUNCATE t, p_inh;",
+		"ALTER FUNCTION public.body_proc_text() IMMUTABLE;",
 		"ALTER TABLE child DROP CONSTRAINT child_tid_fkey;\nDROP TABLE t;",
 		"DROP FUNCTION tf() CASCADE;",
 		"DROP TRIGGER tr_t ON t;\nDROP FUNCTION tf();",

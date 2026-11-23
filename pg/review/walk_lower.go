@@ -2988,7 +2988,7 @@ func (b *builder) dropRelation(kind ast.ObjectType, parts []string, missingOK, c
 	}
 	b.need(r.key, walk.Present, []string{want.kind}, ofKind(b.anchor(), written, want.word)) // 42809
 	if kind == ast.OBJECT_TABLE && !cascade && r.kind == relTable {
-		if ref, ok := b.activeFKDependent(r.key, dropping, false); ok {
+		if ref, ok := b.activeFKDependent(r.key, dropping, nil); ok {
 			b.fail([]walk.Key{r.key, relKey(ref.fromSchema, ref.fromTable)}, walk.Present, review.UnsupportedForm, "Table "+review.Code(written)+" is referenced by foreign key on "+review.Code(ident(ref.fromTable))+" and can't be dropped without `CASCADE`.") // 2BP01
 			return
 		}
@@ -3475,12 +3475,20 @@ func (b *builder) truncate(v *ast.TruncateStmt) bool {
 	if v.Relations != nil {
 		cascade := ast.DropBehavior(v.Behavior) == ast.DROP_CASCADE
 		var truncating map[walk.Key]bool
+		var inhTargets []walk.Key
+		hasUnknownTarget := false
 		if !cascade {
 			truncating = make(map[walk.Key]bool, len(v.Relations.Items))
 			for _, item := range v.Relations.Items {
 				if rv, ok := item.(*ast.RangeVar); ok {
-					if r := b.rangeVar(rv); r.fact == walk.Present {
+					r := b.rangeVar(rv)
+					if r.fact == walk.Present {
 						truncating[r.key] = true
+						if rv.Inh {
+							inhTargets = append(inhTargets, r.key)
+						}
+					} else if r.fact == walk.Unknown {
+						hasUnknownTarget = true
 					}
 				}
 			}
@@ -3501,8 +3509,8 @@ func (b *builder) truncate(v *ast.TruncateStmt) bool {
 				b.failAt(rangeOf(rv.Loc), []walk.Key{r.key}, review.UnsupportedForm, unsupported("`TRUNCATE ONLY` of partitioned table "+review.Code(relation(rv))))
 			default:
 				b.need(r.key, walk.Present, []string{relTable, relForeign}, ofKind(rangeOf(rv.Loc), relation(rv), relTable))
-				if !cascade && r.kind == relTable {
-					if ref, ok := b.activeFKDependent(r.key, truncating, rv.Inh); ok {
+				if !cascade && !hasUnknownTarget && r.kind == relTable {
+					if ref, ok := b.activeFKDependent(r.key, truncating, inhTargets); ok {
 						b.failAt(rangeOf(rv.Loc), []walk.Key{r.key, relKey(ref.fromSchema, ref.fromTable)}, review.UnsupportedForm, unsupported("`TRUNCATE` on table "+review.Code(relation(rv))+" referenced by a foreign key without `CASCADE`")) // 0A000
 					}
 				}
@@ -5812,11 +5820,10 @@ func (b *builder) checkPolicyBoolExpr(t walk.Key, expr ast.Node) {
 	}
 }
 
-func (b *builder) activeFKDependent(target walk.Key, alsoRemoved map[walk.Key]bool, mayTruncateInherited bool) (syncedFKRef, bool) {
+func (b *builder) activeFKDependent(target walk.Key, alsoRemoved map[walk.Key]bool, inhTargets []walk.Key) (syncedFKRef, bool) {
 	if b.w.allDirty || b.w.pg == nil {
 		return syncedFKRef{}, false
 	}
-	targetCols := b.w.pg.columns[[2]string{schemaOfKey(target), target.Name}]
 	for _, ref := range b.w.pg.fkRefs[[2]string{schemaOfKey(target), target.Name}] {
 		fromKey := relKey(ref.fromSchema, ref.fromTable)
 		if fromKey == target || alsoRemoved[fromKey] || b.w.isTableDirty(fromKey) {
@@ -5828,22 +5835,33 @@ func (b *builder) activeFKDependent(target walk.Key, alsoRemoved map[walk.Key]bo
 		if cf, _ := b.l.Lookup(constraintKey(fromKey, ref.conName)); cf != walk.Present {
 			continue
 		}
-		// TRUNCATE without ONLY also truncates inheritance children of target.
-		// A child that INHERITS (target) must have every column of target; if
-		// target has at least one column absent from fromTable, fromTable
-		// cannot inherit from target.
-		if mayTruncateInherited {
+		// TRUNCATE without ONLY also truncates inheritance children of every
+		// non-ONLY target in the statement. A child that INHERITS (parent)
+		// must have every column of parent; skip fromTable if it could inherit
+		// from any non-ONLY target (including any parent whose column list is
+		// empty/unknown or a subset of fromTable's columns).
+		if len(inhTargets) > 0 {
 			fromCols := b.w.pg.columns[[2]string{ref.fromSchema, ref.fromTable}]
-			canInherit := true
-			if len(targetCols) > 0 && fromCols != nil {
-				for col := range targetCols {
+			mayInherit := false
+			for _, parent := range inhTargets {
+				parentCols := b.w.pg.columns[[2]string{schemaOfKey(parent), parent.Name}]
+				if len(parentCols) == 0 || fromCols == nil {
+					mayInherit = true
+					break
+				}
+				subset := true
+				for col := range parentCols {
 					if !fromCols[col] {
-						canInherit = false
+						subset = false
 						break
 					}
 				}
+				if subset {
+					mayInherit = true
+					break
+				}
 			}
-			if canInherit {
+			if mayInherit {
 				continue
 			}
 		}

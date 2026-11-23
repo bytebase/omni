@@ -368,8 +368,9 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 		for _, fn := range schema.GetFunctions() {
 			// pg/driver/sync.go stores procedures in SchemaMetadata.Functions
 			// with their pg_get_functiondef() text (CREATE OR REPLACE PROCEDURE).
-			// Classify them via kindOf; an empty Definition may be either kind.
-			k := kindOf(fn)
+			// Classify from the declaration header (not body literals/comments);
+			// an empty or unrecognized Definition stays ambiguous.
+			k := routineKindFromDef(fn.GetDefinition())
 			fk := [2]string{name, fn.GetName()}
 			if k == kindFunction|kindProcedure {
 				s.ambigRoutines[fk] = true
@@ -654,6 +655,64 @@ func parseTriggerFunc(body string) (schema, name string, ok bool) {
 		return "", "", false
 	}
 	return s, fn, true
+}
+
+// routineKindFromDef classifies a synced routine from the leading keywords of
+// its DDL declaration (CREATE [OR REPLACE] FUNCTION vs PROCEDURE), ignoring
+// anything inside the routine body, string literals, or leading comments.
+// An empty or unrecognized definition returns kindFunction|kindProcedure.
+func routineKindFromDef(def string) routineKind {
+	if def == "" {
+		return kindFunction | kindProcedure
+	}
+	var words []string
+	for i := 0; i < len(def) && len(words) < 4; {
+		c := def[i]
+		switch {
+		case c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f':
+			i++
+		case c == '-' && i+1 < len(def) && def[i+1] == '-':
+			i += 2
+			for i < len(def) && def[i] != '\n' {
+				i++
+			}
+		case c == '/' && i+1 < len(def) && def[i+1] == '*':
+			depth := 1
+			i += 2
+			for i < len(def) && depth > 0 {
+				if def[i] == '/' && i+1 < len(def) && def[i+1] == '*' {
+					depth++
+					i += 2
+				} else if def[i] == '*' && i+1 < len(def) && def[i+1] == '/' {
+					depth--
+					i += 2
+				} else {
+					i++
+				}
+			}
+		case (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_':
+			start := i
+			for i < len(def) && ((def[i] >= 'a' && def[i] <= 'z') || (def[i] >= 'A' && def[i] <= 'Z') || (def[i] >= '0' && def[i] <= '9') || def[i] == '_') {
+				i++
+			}
+			words = append(words, strings.ToUpper(def[start:i]))
+		default:
+			return kindFunction | kindProcedure
+		}
+	}
+	if len(words) >= 2 && words[0] == "CREATE" {
+		idx := 1
+		if len(words) >= 4 && words[1] == "OR" && words[2] == "REPLACE" {
+			idx = 3
+		}
+		switch words[idx] {
+		case "PROCEDURE":
+			return kindProcedure
+		case "FUNCTION":
+			return kindFunction
+		}
+	}
+	return kindFunction | kindProcedure
 }
 
 // parseFuncDef parses a pg_get_functiondef() CREATE FUNCTION definition and
