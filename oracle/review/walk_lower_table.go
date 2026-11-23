@@ -146,6 +146,18 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	if fails {
 		return true
 	}
+	if kind == kindMView {
+		for _, c := range cmds {
+			if msg := mviewContainerRefuses(b.w.sql, c, r); msg != "" {
+				rng := rangeOf(c.Loc)
+				if rng == (review.Range{}) {
+					rng = r.rng
+				}
+				b.need(k, walk.Present, []string{kindTable}, rng, "", msg)
+				return true
+			}
+		}
+	}
 	addedCols := make(map[string]bool)
 	addedPK := false
 	for _, c := range cmds {
@@ -172,14 +184,32 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	b.Last = b.domain(r)
 	for _, c := range cmds {
 		b.Next()
-		if c.Action == ast.AT_RENAME && kind == kindMView {
-			return false
-		}
 		if !b.alterCmd(r, kind, c, declared, addedCols, addedPK) {
 			return false
 		}
 	}
 	return true
+}
+
+// mviewContainerRefuses returns why Oracle refuses an ALTER TABLE clause on
+// every materialized view's container, plain, prebuilt, updatable, or with
+// no primary key, whatever columns it has (verified): RENAME TO (32318),
+// RENAME COLUMN (23291), and ONLINE on SET UNUSED and on dropping a
+// constraint (14416). It returns "" for any other clause.
+func mviewContainerRefuses(sql string, c *ast.AlterTableCmd, r objRef) string {
+	switch c.Action {
+	case ast.AT_RENAME:
+		return wrongKind(r.written, kindMView, renamable)
+	case ast.AT_RENAME_COLUMN:
+		return "Materialized view " + review.Code(r.written) + " can't rename its columns."
+	case ast.AT_SET_UNUSED, ast.AT_DROP_CONSTRAINT:
+		if toks := tokens(sql, c.Loc); len(toks) > 0 {
+			if last := toks[len(toks)-1]; last.Type != tokenQuoted && strings.EqualFold(last.Str, "ONLINE") {
+				return "Materialized view " + review.Code(r.written) + " takes no ONLINE DDL."
+			}
+		}
+	}
+	return ""
 }
 
 // hasModifyVarrayShrink reports whether any action is MODIFY VARRAY ... (SHRINK SPACE ...),

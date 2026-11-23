@@ -540,7 +540,12 @@ func (s *oracleSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 			return walk.Unknown, ""
 		}
 		t, ok := s.tables[path[1]]
-		if !ok || t.mview {
+		if !ok || t.mview && k.Space == spaceColumn {
+			// The sync lists no column of a materialized view, and its
+			// query does not settle them: an alias list, DDL on its
+			// container, and a prebuilt table each give it columns the
+			// query does not name (verified). Its constraints the sync
+			// lists, on its container.
 			return walk.Unknown, ""
 		}
 		switch k.Space {
