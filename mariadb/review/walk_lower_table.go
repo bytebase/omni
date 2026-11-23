@@ -1301,6 +1301,9 @@ func (b *builder) moveTable(from, to tableRef, kind string) {
 // pair's check on a name another pair changes is left out.
 func (b *builder) renameTable(v *ast.RenameTableStmt) bool {
 	moved := make(map[walk.Key]string)
+	// vacated holds the names an earlier pair renamed away, which IF EXISTS
+	// finds missing.
+	vacated := make(map[walk.Key]bool)
 	for _, p := range v.Pairs {
 		b.Next()
 		from, st1 := b.ref(p.Old)
@@ -1323,7 +1326,7 @@ func (b *builder) renameTable(v *ast.RenameTableStmt) bool {
 		if _, tt, _ := b.resolve(to); temp || tt || f == walk.Unknown {
 			return false
 		}
-		if v.IfExists && f == walk.Absent {
+		if v.IfExists && (vacated[fk] || f == walk.Absent && !wasMoved) {
 			// IF EXISTS skips a missing table with a note (mariadb:11.8.8).
 			continue
 		}
@@ -1350,7 +1353,9 @@ func (b *builder) renameTable(v *ast.RenameTableStmt) bool {
 		b.needFree(relKey(to.db, to.name), to.rng, to.written, kind) // 1050
 		b.moveTable(from, to, kind)
 		delete(moved, fk)
+		vacated[fk] = true
 		moved[relKey(to.db, to.name)] = kind
+		delete(vacated, relKey(to.db, to.name))
 	}
 	return true
 }
