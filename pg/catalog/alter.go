@@ -2782,6 +2782,31 @@ func (c *Catalog) dropNotNullConstraintTree(rel *Relation, colName string, propa
 		return err
 	}
 	if !propagate {
+		// Non-recursive drop (ALTER TABLE ONLY p DROP CONSTRAINT / DROP NOT NULL):
+		// direct children retain their NOT NULL requirement, but it is no longer
+		// inherited from rel.
+		for _, childOID := range c.findChildRelations(rel.OID) {
+			childRel := c.relationByOID[childOID]
+			if childRel == nil {
+				continue
+			}
+			ci, ok := childRel.colByName[colName]
+			if !ok {
+				continue
+			}
+			attnum := childRel.Columns[ci].AttNum
+			for _, con := range c.consByRel[childRel.OID] {
+				if con.Type == ConstraintNotNull && len(con.Columns) == 1 && con.Columns[0] == attnum {
+					if con.ConInhCount > 0 {
+						con.ConInhCount--
+					}
+					if con.ConInhCount == 0 {
+						con.ConIsLocal = true
+					}
+					break
+				}
+			}
+		}
 		return nil
 	}
 	for _, childOID := range c.findChildRelations(rel.OID) {

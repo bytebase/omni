@@ -202,6 +202,11 @@ type Catalog struct {
 	// Session-local prepared statements registered via PREPARE.
 	preparedStmts map[string]*preparedStmt
 
+	// Temporary flag used by DefineRelation to defer implicit PK NOT NULL
+	// constraint naming until all explicit table constraints have reserved
+	// their names.
+	deferImplicitNotNull bool
+
 	// Temporary CTE list for recursive CTE analysis. Set during analysis of
 	// the recursive term so that nested analyzeSelectStmt calls can see the
 	// partially-defined CTE.

@@ -239,7 +239,9 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 	// Register PG 18 cataloged NOT NULL constraints after registering the PK
 	// itself so an explicit PK named <rel>_<col>_not_null reserves that name
 	// and the implicit NOT NULL constraint chooses a non-colliding suffix.
-	if isPrimary {
+	// DefineRelation defers this to Pass 2 so later explicit CHECK/UNIQUE/FK
+	// constraints also reserve their names first.
+	if isPrimary && !c.deferImplicitNotNull {
 		for _, attnum := range attnums {
 			_ = c.ensureNotNullConstraint(schema, rel, rel.Columns[attnum-1], "")
 		}

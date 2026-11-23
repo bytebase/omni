@@ -528,6 +528,54 @@ CREATE TABLE c_ai (x int NOT NULL);
 			t.Fatalf("expected inherited column c_ai.z to become nullable after parent drops p_ai_z_not_null")
 		}
 	}
+
+	// Non-recursive DROP CONSTRAINT (ALTER TABLE ONLY) retains child's NOT NULL
+	// while marking it local so the child can later drop it independently.
+	onlyDropSetup := `
+CREATE TABLE p_only (x int NOT NULL);
+CREATE TABLE c_only () INHERITS (p_only);
+`
+	if got, c := execCodeVersion(t, PG18, onlyDropSetup, "ALTER TABLE ONLY p_only DROP CONSTRAINT p_only_x_not_null"); got != "" {
+		t.Fatalf("PG18 ALTER TABLE ONLY DROP CONSTRAINT: got %q, want ok", got)
+	} else {
+		p := c.GetRelation("public", "p_only")
+		ch := c.GetRelation("public", "c_only")
+		if p.Columns[0].NotNull {
+			t.Fatalf("expected parent p_only.x to become nullable")
+		}
+		if !ch.Columns[0].NotNull {
+			t.Fatalf("expected child c_only.x to retain NOT NULL after ONLY drop on parent")
+		}
+		if res, err := c.Exec("ALTER TABLE c_only DROP CONSTRAINT c_only_x_not_null", nil); err != nil {
+			t.Fatal(err)
+		} else if len(res) > 0 && res[0].Error != nil {
+			t.Fatalf("PG18 child DROP CONSTRAINT after parent ONLY drop: %v", res[0].Error)
+		}
+		if ch.Columns[0].NotNull {
+			t.Fatalf("expected c_only.x to become nullable after child drops c_only_x_not_null")
+		}
+	}
+
+	// Later explicit CHECK constraint name is reserved before implicit PK NOT NULL picks a name.
+	if c, err := LoadSQLWithVersion(`CREATE TABLE t_pk_chk (a int PRIMARY KEY, b int CONSTRAINT t_pk_chk_a_not_null CHECK (b > 0));`, PG18); err != nil {
+		t.Fatalf("PG18 CREATE TABLE with PK and colliding later CHECK: %v", err)
+	} else {
+		rel := c.GetRelation("public", "t_pk_chk")
+		var nnName string
+		for _, con := range c.ConstraintsOf(rel.OID) {
+			if con.Type == ConstraintNotNull {
+				nnName = con.Name
+			}
+		}
+		if nnName != "t_pk_chk_a_not_null1" {
+			t.Fatalf("implicit PK NOT NULL name = %q, want %q", nnName, "t_pk_chk_a_not_null1")
+		}
+		if res, err := c.Exec("ALTER TABLE t_pk_chk DROP CONSTRAINT t_pk_chk_a_not_null", nil); err != nil {
+			t.Fatal(err)
+		} else if len(res) > 0 && res[0].Error != nil {
+			t.Fatalf("PG18 DROP CONSTRAINT t_pk_chk_a_not_null (CHECK): %v", res[0].Error)
+		}
+	}
 }
 
 func TestPG18PartitionDetachPKNameAndJsonExpr(t *testing.T) {

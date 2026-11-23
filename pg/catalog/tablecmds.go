@@ -969,15 +969,20 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			}
 		}
 
+		c.deferImplicitNotNull = true
 		for _, cd := range constraintDefs {
 			if err := c.addConstraint(schema, rel, cd); err != nil {
+				c.deferImplicitNotNull = false
 				rollbackRelation()
 				return err
 			}
 		}
+		c.deferImplicitNotNull = false
 
 		// Pass 2: register remaining (unnamed) PG 18 cataloged NOT NULL
-		// constraints after all explicit constraint names are reserved.
+		// constraints (including implicit PK NOT NULLs) after all explicit
+		// constraint names are reserved.
+		pk := c.findPKConstraint(rel.OID)
 		for i, col := range columns {
 			if !col.NotNull {
 				continue
@@ -990,6 +995,9 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 				}
 				isLocal = colDefs[i].NotNullLocal
 				inhCount = colDefs[i].NotNullInhCount
+			}
+			if !isLocal && pk != nil && slices.Contains(pk.Columns, col.AttNum) {
+				isLocal = true
 			}
 			if err := c.ensureNotNullConstraintWithInh(schema, rel, col, "", isLocal, inhCount); err != nil {
 				rollbackRelation()
