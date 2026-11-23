@@ -624,6 +624,18 @@ func (a *queryAnalyzer) analyzeCTE(d *cteDef, outer *qscope, env *cteEnv) error 
 	if c.Search != nil && c.Search.SetColumn != "" {
 		d.cols = append(d.cols, qcol{name: c.Search.SetColumn, typ: numberType()})
 	}
+	if c.Cycle != nil {
+		// The cycle marks are expressions like any other.
+		msc := &qscope{parent: outer, ctes: env, from: &qfrom{}}
+		for _, x := range []ast.ExprNode{c.Cycle.CycleValue, c.Cycle.NoCycleValue} {
+			if x == nil {
+				continue
+			}
+			if _, _, err := a.expr(x, msc, clauseSelect); err != nil {
+				return err
+			}
+		}
+	}
 	if c.Cycle != nil && c.Cycle.SetColumn != "" {
 		n := 1
 		if s, ok := c.Cycle.CycleValue.(*ast.StringLiteral); ok {
@@ -1323,6 +1335,10 @@ func (a *queryAnalyzer) selectTarget(rt *ast.ResTarget, sc *qscope, top bool) ([
 				// stored text reads the same columns; an item without a
 				// name leaves the star as written.
 				if it.rel == nil || it.rel.name == "" || relColumnCount(it.rel, c.name) > 1 {
+					expandable = false
+				} else if _, _, err := a.lookupQualified(sc.from, &ast.ColumnRef{Table: it.rel.name, Column: c.name}); err != nil {
+					// Two items of that name: the qualifier does not tell
+					// them apart either.
 					expandable = false
 				} else {
 					name = quoteIdent(it.rel.name) + "." + name

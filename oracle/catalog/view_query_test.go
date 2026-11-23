@@ -202,6 +202,7 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"abs_of_date", `CREATE VIEW v AS SELECT ABS(DATE '2020-01-01') x FROM dual`, "00932"},
 		{"rowid_with_aggregate", `CREATE VIEW v AS SELECT ROWID rid, COUNT(*) c FROM t`, "00937"},
 		{"regexp_substr_national_union", `CREATE VIEW v AS SELECT REGEXP_SUBSTR(nv, N'.') x FROM t UNION ALL SELECT nv FROM t`, ""},
+		{"cycle_mark_bind", `CREATE VIEW v AS WITH r(n) AS (SELECT 1 FROM dual UNION ALL SELECT n + 1 FROM r WHERE n < 2) CYCLE n SET cyc TO :p DEFAULT 'N' SELECT n, cyc FROM r`, "01027"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -884,5 +885,20 @@ CREATE VIEW w (a, b) AS SELECT * FROM (SELECT 1 id, 2 id FROM dual) q;
 		if v.GetDefinition() != want[v.GetName()] {
 			t.Errorf("%s = %q, want %q", v.GetName(), v.GetDefinition(), want[v.GetName()])
 		}
+	}
+}
+
+func TestViewQueryStarOverRepeatedQualifier(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TABLE t (id NUMBER);
+CREATE TABLE u (n NUMBER);
+CREATE VIEW v (a, b, c) AS SELECT * FROM t CROSS JOIN u CROSS JOIN t;
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := c.Metadata().GetSchemas()[0].GetViews()[0]
+	if want := "SELECT * FROM t CROSS JOIN u CROSS JOIN t"; v.GetDefinition() != want {
+		t.Errorf("definition = %q, want %q", v.GetDefinition(), want)
 	}
 }
