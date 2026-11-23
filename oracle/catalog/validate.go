@@ -435,12 +435,20 @@ func (e *oracleMetadataExtractor) resolveLocalSynonym(name string) string {
 	return cur
 }
 
-// resolveLocalOrPublicSynonym follows private synonyms first, then a matching
-// local-target public synonym when no private synonym resolved.
-func (e *oracleMetadataExtractor) resolveLocalOrPublicSynonym(name string) string {
-	resolved := e.resolveLocalSynonym(name)
-	if resolved != name {
+// resolveSynonymTarget resolves name with Oracle precedence:
+//  1. A direct non-synonym object in this schema wins over any synonym.
+//  2. A private synonym in this schema whose target is in this schema (no DB link).
+//  3. When schema == "" (unqualified), a public synonym whose target is in this
+//     schema (no DB link). Schema-qualified references never resolve public synonyms.
+func (e *oracleMetadataExtractor) resolveSynonymTarget(name, schema string) string {
+	if e.nonSynonymObjectExists(name) {
+		return name
+	}
+	if resolved := e.resolveLocalSynonym(name); resolved != name || e.synonyms[name] != nil {
 		return resolved
+	}
+	if schema != "" {
+		return name
 	}
 	syn := e.publicSynonyms[name]
 	if syn == nil || syn.TargetDbLink != "" || syn.TargetName == "" {

@@ -930,4 +930,43 @@ func TestExecReviewRegressionFixes(t *testing.T) {
 		require.True(t, errors.As(results[1].Error, &oraErr))
 		require.Equal(t, "11504", oraErr.Code)
 	})
+
+	t.Run("COMMENT ON and CREATE INDEX resolve unqualified public synonyms with direct-object precedence", func(t *testing.T) {
+		c, err := LoadSQL(`
+			CREATE TABLE app.t (id NUMBER);
+			CREATE TABLE app.other (id NUMBER);
+			CREATE PUBLIC SYNONYM ps FOR t;
+			CREATE PUBLIC SYNONYM other FOR t;
+		`)
+		require.NoError(t, err)
+
+		// Unqualified public synonym resolves to local table T.
+		results, err := c.Exec(`
+			COMMENT ON TABLE ps IS 'via public synonym';
+			COMMENT ON COLUMN ps.id IS 'col via public synonym';
+			CREATE INDEX ps_idx ON ps (id);
+		`, nil)
+		require.NoError(t, err)
+		for _, r := range results {
+			require.Nil(t, r.Error)
+		}
+		tblT := tableByName(c.Metadata().Schemas[0])["T"]
+		require.Equal(t, "via public synonym", tblT.Comment)
+		require.Equal(t, "col via public synonym", tblT.Columns[0].Comment)
+		require.Len(t, tblT.Indexes, 1)
+
+		// Direct local object OTHER takes precedence over public synonym OTHER -> T.
+		results, err = c.Exec(`COMMENT ON TABLE other IS 'direct other'`, nil)
+		require.NoError(t, err)
+		require.Nil(t, results[0].Error)
+		require.Equal(t, "direct other", tableByName(c.Metadata().Schemas[0])["OTHER"].Comment)
+		require.Equal(t, "via public synonym", tableByName(c.Metadata().Schemas[0])["T"].Comment)
+
+		// Schema-qualified reference does NOT resolve public synonyms.
+		results, err = c.Exec(`COMMENT ON TABLE app.ps IS 'should fail'`, nil)
+		require.NoError(t, err)
+		var oraErr *Error
+		require.True(t, errors.As(results[0].Error, &oraErr))
+		require.Equal(t, "00942", oraErr.Code)
+	})
 }

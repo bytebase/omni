@@ -942,7 +942,7 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 	targetName := tableName
 	table := e.tables[targetName]
 	if table == nil && e.materializedViews[targetName] == nil && alterActionsFollowSynonym(n.Actions) {
-		resolved := e.resolveLocalOrPublicSynonym(tableName)
+		resolved := e.resolveSynonymTarget(tableName, n.Name.Schema)
 		if resolved != tableName {
 			targetName = resolved
 			table = e.tables[targetName]
@@ -2591,7 +2591,7 @@ func (e *oracleMetadataExtractor) extractCreateIndex(n *ast.CreateIndexStmt) {
 		return
 	}
 
-	resolved := e.resolveLocalSynonym(tableName)
+	resolved := e.resolveSynonymTarget(tableName, n.Table.Schema)
 	if e.views[resolved] != nil {
 		e.setError(oraError("01702", "a view is not appropriate here"))
 		return
@@ -3260,7 +3260,7 @@ func (e *oracleMetadataExtractor) extractComment(n *ast.CommentStmt) {
 		return
 	}
 	rawName := objectName(n.Object)
-	name := e.resolveLocalSynonym(rawName)
+	name := e.resolveSynonymTarget(rawName, n.Object.Schema)
 	if e.sequences[name] != nil {
 		e.setError(oraError("02201", "sequence not allowed here"))
 		return
