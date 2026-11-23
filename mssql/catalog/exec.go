@@ -328,6 +328,25 @@ func schemaBoundObjectConsumer(c *Catalog, targetSchema, targetObj string, exclu
 	return "", false
 }
 
+func schemaBoundFunctionAlterConsumer(c *Catalog, targetSchema, targetFunc string) (string, bool) {
+	for _, s := range c.schemas {
+		for _, v := range s.Views {
+			if isSchemaBound(v.Definition) && definitionReferencesFunction(v.Definition, s.Name, targetSchema, targetFunc) {
+				return v.Name, true
+			}
+		}
+		for _, fn := range s.Functions {
+			if strings.EqualFold(s.Name, targetSchema) && strings.EqualFold(fn.Name, targetFunc) {
+				continue
+			}
+			if isSchemaBound(fn.Definition) && definitionReferencesFunction(fn.Definition, s.Name, targetSchema, targetFunc) {
+				return fn.Name, true
+			}
+		}
+	}
+	return "", false
+}
+
 func schemaBoundFunctionConsumer(c *Catalog, targetSchema, targetFunc string, excluded func(schemaName, objName string) bool) (string, bool) {
 	for _, s := range c.schemas {
 		for _, v := range s.Views {
@@ -871,13 +890,11 @@ func (c *Catalog) execAlterSchema(n *ast.AlterSchemaStmt) error {
 	if kind == kindNone || kind == kindTrigger || kind == kindConstraint {
 		return mssqlErr(ErrSecurableNotFound, "Cannot find the object '%s', because it does not exist or you do not have permission.", n.TransferEntity)
 	}
-	if !strings.EqualFold(srcSchema.Name, targetSchema.Name) {
-		if c.lookupSchemaObject(targetSchema, objName, false) != kindNone {
-			return mssqlErr(ErrDupObject, "There is already an object named '%s' in the database.", objName)
-		}
-	}
-	if strings.EqualFold(srcSchema.Name, targetSchema.Name) {
+	if srcSchema == targetSchema {
 		return nil
+	}
+	if c.lookupSchemaObject(targetSchema, objName, false) != kindNone {
+		return mssqlErr(ErrDupObject, "There is already an object named '%s' in the database.", objName)
 	}
 	switch kind {
 	case kindTable:
@@ -1729,7 +1746,7 @@ func (c *Catalog) execCreateOrAlterFunction(n *ast.CreateFunctionStmt, source st
 	if kind == kindFunction {
 		if idx, ok := resolveExactOrFoldIndex(schema.Functions, func(fn *metadata.FunctionMetadata) string { return fn.Name }, name); ok {
 			fn := schema.Functions[idx]
-			if consumer, bound := schemaBoundFunctionConsumer(c, schema.Name, fn.Name, nil); bound {
+			if consumer, bound := schemaBoundFunctionAlterConsumer(c, schema.Name, fn.Name); bound {
 				return mssqlErr(ErrDropSchemaNotEmpty, "Cannot ALTER FUNCTION '%s' because it is being referenced by object '%s'.", fn.Name, consumer)
 			}
 			oldCat := definitionFunctionCategory(fn.Definition)

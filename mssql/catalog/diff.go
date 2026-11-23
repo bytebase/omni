@@ -1187,7 +1187,8 @@ func normalizeSequenceMetadata(s *metadata.SequenceMetadata) normalizedSequence 
 }
 
 func sequenceTypeBounds(dataType string) (string, string) {
-	switch normalizeType(dataType) {
+	norm := normalizeType(dataType)
+	switch norm {
 	case "tinyint":
 		return "0", "255"
 	case "smallint":
@@ -1196,9 +1197,44 @@ func sequenceTypeBounds(dataType string) (string, string) {
 		return "-2147483648", "2147483647"
 	case "bigint":
 		return "-9223372036854775808", "9223372036854775807"
-	default:
-		return "", ""
 	}
+	if p, ok := decimalSequencePrecision(norm); ok {
+		maxStr := strings.Repeat("9", p)
+		return "-" + maxStr, maxStr
+	}
+	return "", ""
+}
+
+func decimalSequencePrecision(norm string) (int, bool) {
+	if norm == "decimal" || norm == "numeric" || norm == "dec" {
+		return 18, true
+	}
+	var inner string
+	switch {
+	case strings.HasPrefix(norm, "decimal(") && strings.HasSuffix(norm, ")"):
+		inner = norm[len("decimal(") : len(norm)-1]
+	case strings.HasPrefix(norm, "numeric(") && strings.HasSuffix(norm, ")"):
+		inner = norm[len("numeric(") : len(norm)-1]
+	case strings.HasPrefix(norm, "dec(") && strings.HasSuffix(norm, ")"):
+		inner = norm[len("dec(") : len(norm)-1]
+	default:
+		return 0, false
+	}
+	parts := strings.Split(inner, ",")
+	if len(parts) < 1 || len(parts) > 2 {
+		return 0, false
+	}
+	if len(parts) == 2 {
+		scale, err := strconv.Atoi(strings.TrimSpace(parts[1]))
+		if err != nil || scale != 0 {
+			return 0, false
+		}
+	}
+	p, err := strconv.Atoi(strings.TrimSpace(parts[0]))
+	if err != nil || p < 1 || p > 38 {
+		return 0, false
+	}
+	return p, true
 }
 
 // checkExpressionsEqual compares two CHECK expressions ignoring outer

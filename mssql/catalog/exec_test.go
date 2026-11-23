@@ -1155,4 +1155,41 @@ CREATE TABLE [App].[t] (
 	execExpectOK(t, c, `ALTER SEQUENCE [otherdb].[dbo].[s] INCREMENT BY 5`)
 	require.Equal(t, "1", c.GetSchema("dbo").Sequences[0].Increment)
 	require.Equal(t, "5", c.GetDatabaseSchema("otherdb", "dbo").Sequences[0].Increment)
+
+	// 79. ALTER SCHEMA TRANSFER moves objects between case-distinct schemas Foo and foo.
+	c = New()
+	require.NoError(t, c.LoadMetadata(t.Context(), &metadata.DatabaseSchemaMetadata{
+		Schemas: []*metadata.SchemaMetadata{
+			{
+				Name: "Foo",
+				Tables: []*metadata.TableMetadata{
+					{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int", Position: 1}}},
+				},
+			},
+			{Name: "foo"},
+		},
+	}))
+	execExpectOK(t, c, `ALTER SCHEMA [foo] TRANSFER [Foo].[t]`)
+	require.Nil(t, c.GetTable("Foo", "t"))
+	require.NotNil(t, c.GetTable("foo", "t"))
+
+	// 80. Sequence bounds are validated for decimal/numeric types based on declared precision.
+	c, err = LoadSQL(`CREATE SEQUENCE [dbo].[s] AS DECIMAL(2,0) START WITH 1 MINVALUE 1 MAXVALUE 99;`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER SEQUENCE [dbo].[s] MAXVALUE 100`, ErrSequenceInvalidBounds)
+	require.Equal(t, "99", c.GetSchema("dbo").Sequences[0].MaxValue)
+	execExpectCode(t, c, `CREATE SEQUENCE [dbo].[s_bad] AS NUMERIC(2,0) MINVALUE -100 MAXVALUE 99`, ErrSequenceInvalidBounds)
+
+	// 81. ALTER FUNCTION succeeds when referenced by a column DEFAULT or CHECK constraint (unlike DROP FUNCTION).
+	c, err = LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS INT AS BEGIN RETURN 1; END;
+GO
+CREATE TABLE [dbo].[t] ([a] INT DEFAULT ([dbo].[f]()), CHECK ([dbo].[f]() > 0));
+`)
+	require.NoError(t, err)
+	execExpectOK(t, c, `ALTER FUNCTION [dbo].[f]() RETURNS INT AS BEGIN RETURN 2; END`)
+	require.Contains(t, c.GetSchema("dbo").Functions[0].Definition, "RETURN 2")
+	execExpectOK(t, c, `CREATE OR ALTER FUNCTION [dbo].[f]() RETURNS INT AS BEGIN RETURN 3; END`)
+	require.Contains(t, c.GetSchema("dbo").Functions[0].Definition, "RETURN 3")
+	execExpectCode(t, c, `DROP FUNCTION [dbo].[f]`, ErrDropSchemaNotEmpty)
 }
