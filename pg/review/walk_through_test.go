@@ -525,6 +525,7 @@ func TestWalkThroughFunctionsTriggersPoliciesAndAlterSubcommands(t *testing.T) {
 	schema.Schemas[0].Views = []*metadata.ViewMetadata{{Name: "v"}}
 	schema.Schemas[0].MaterializedViews = []*metadata.MaterializedViewMetadata{{Name: "mv"}}
 	schema.Schemas[0].Sequences = []*metadata.SequenceMetadata{{Name: "q"}}
+	schema.Schemas[0].Functions = []*metadata.FunctionMetadata{{Name: "unsynced_fn"}}
 	target := review.Target{Schema: schema, SessionUser: "u"}
 
 	for sql, wantCode := range map[string]review.FindingCode{
@@ -670,6 +671,182 @@ func TestWalkThroughFunctionsTriggersPoliciesAndAlterSubcommands(t *testing.T) {
 	} {
 		if got := walkFindings(t, sql, noUser); len(got) != 0 {
 			t.Errorf("%q (no SessionUser): findings = %+v, want none", sql, got)
+		}
+	}
+}
+
+func TestWalkThroughRoutinesExcludedMiddleAndOptions(t *testing.T) {
+	schema := walkSchema()
+	schema.Schemas[0].Tables[0].Indexes = []*metadata.IndexMetadata{{Name: "t_a_idx"}}
+	schema.Schemas[0].Tables[0].Triggers = []*metadata.TriggerMetadata{{Name: "tr_existing"}}
+	schema.Schemas[0].Tables = append(schema.Schemas[0].Tables, &metadata.TableMetadata{
+		Name:       "parted",
+		Columns:    []*metadata.ColumnMetadata{{Name: "k"}},
+		Partitions: []*metadata.TablePartitionMetadata{{Name: "parted_1"}},
+	})
+	schema.Schemas[0].Views = []*metadata.ViewMetadata{{
+		Name:    "v",
+		Columns: []*metadata.ColumnMetadata{{Name: "a"}, {Name: "b"}},
+	}}
+	schema.Schemas[0].MaterializedViews = []*metadata.MaterializedViewMetadata{{Name: "mv"}}
+	schema.Schemas[0].Sequences = []*metadata.SequenceMetadata{{Name: "q"}}
+	schema.Schemas[0].CompositeTypes = []*metadata.CompositeTypeMetadata{{Name: "pair"}}
+	schema.Schemas[0].EnumTypes = []*metadata.EnumTypeMetadata{{Name: "mood"}}
+	schema.Schemas[0].Functions = []*metadata.FunctionMetadata{{Name: "fn_existing"}, {Name: "trig_fn"}}
+	schema.Schemas[0].Procedures = []*metadata.ProcedureMetadata{{Name: "proc_existing"}}
+	target := review.Target{Schema: schema, SessionUser: "u"}
+
+	for sql, wantCode := range map[string]review.FindingCode{
+		// Missing routines across ALTER/DROP/COMMENT/OWNER/DEPENDS/TRIGGER.
+		"ALTER FUNCTION missing_fn STRICT;":                                             review.ObjectNotFound,
+		"ALTER PROCEDURE missing_proc STRICT;":                                          review.ObjectNotFound,
+		"ALTER ROUTINE missing_rtn STRICT;":                                             review.ObjectNotFound,
+		"ALTER PROCEDURE fn_existing STRICT;":                                           review.ObjectNotFound,
+		"ALTER FUNCTION proc_existing STRICT;":                                          review.ObjectNotFound,
+		"DROP FUNCTION missing_fn;":                                                     review.ObjectNotFound,
+		"DROP PROCEDURE missing_proc;":                                                  review.ObjectNotFound,
+		"DROP ROUTINE missing_rtn;":                                                     review.ObjectNotFound,
+		"COMMENT ON FUNCTION missing_fn IS 'x';":                                        review.ObjectNotFound,
+		"COMMENT ON PROCEDURE missing_proc IS 'x';":                                     review.ObjectNotFound,
+		"COMMENT ON ROUTINE missing_rtn IS 'x';":                                        review.ObjectNotFound,
+		"ALTER FUNCTION missing_fn RENAME TO fn2;":                                      review.ObjectNotFound,
+		"ALTER PROCEDURE missing_proc SET SCHEMA public;":                               review.ObjectNotFound,
+		"ALTER FUNCTION fn_existing SET SCHEMA nosuch;":                                 review.ObjectNotFound,
+		"ALTER FUNCTION missing_fn OWNER TO bob;":                                       review.ObjectNotFound,
+		"ALTER PROCEDURE missing_proc OWNER TO bob;":                                    review.ObjectNotFound,
+		"ALTER FUNCTION missing_fn DEPENDS ON EXTENSION e;":                             review.ObjectNotFound,
+		"CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION no_fn();":   review.ObjectNotFound,
+		"CREATE TRIGGER tr BEFORE INSERT ON t WHEN (a > 0) EXECUTE FUNCTION trig_fn();": review.UnsupportedForm,
+		"ALTER TABLE t ENABLE TRIGGER missing_trig;":                                    review.ObjectNotFound,
+		"ALTER TABLE t DISABLE TRIGGER missing_trig;":                                   review.ObjectNotFound,
+		"DROP TRIGGER missing_trig ON t;":                                               review.ObjectNotFound,
+		"ALTER TRIGGER missing_trig ON t RENAME TO tr2;":                                review.ObjectNotFound,
+		"ALTER TRIGGER missing_trig ON t DEPENDS ON EXTENSION e;":                       review.ObjectNotFound,
+		// Self-referencing creations (law of excluded middle).
+		"CREATE DOMAIN d AS d;":               review.UnsupportedForm,
+		"CREATE DOMAIN public.d AS public.d;": review.UnsupportedForm,
+		"CREATE TABLE x (c x);":               review.UnsupportedForm,
+		"CREATE TABLE x OF x;":                review.UnsupportedForm,
+		"CREATE TYPE c AS (a c);":             review.UnsupportedForm,
+		// Self-renames and enum self-values.
+		"ALTER DOMAIN unsynced_dom RENAME TO unsynced_dom;":             review.DuplicateName,
+		"ALTER DOMAIN unsynced_dom RENAME CONSTRAINT c TO c;":           review.DuplicateName,
+		"ALTER TYPE unsynced_typ RENAME TO unsynced_typ;":               review.DuplicateName,
+		"ALTER TABLE t RENAME CONSTRAINT unsynced_con TO unsynced_con;": review.DuplicateName,
+		"ALTER POLICY unsynced_pol ON t RENAME TO unsynced_pol;":        review.DuplicateName,
+		"ALTER TYPE pair RENAME ATTRIBUTE x TO x;":                      review.DuplicateName,
+		"ALTER TYPE q RENAME ATTRIBUTE x TO y;":                         review.WrongObjectKind,
+		"ALTER TYPE t_a_idx RENAME ATTRIBUTE x TO x;":                   review.DuplicateName,
+		"ALTER TABLE t_a_idx RENAME COLUMN x TO x;":                     review.DuplicateName,
+		"ALTER TYPE unsynced_enum ADD VALUE 'x' BEFORE 'x';":            review.UnsupportedForm,
+		"ALTER TYPE unsynced_enum ADD VALUE 'x' AFTER 'x';":             review.UnsupportedForm,
+		"ALTER TYPE unsynced_enum RENAME VALUE 'x' TO 'x';":             review.UnsupportedForm,
+		// DROP TYPE array without IF EXISTS.
+		"DROP TYPE unsynced_dom[];":     review.UnsupportedForm,
+		"DROP TYPE unsynced_dom ARRAY;": review.UnsupportedForm,
+		// FROM-less SELECT with unbound column, OR REPLACE VIEW column drop, EXECUTE.
+		"CREATE VIEW v2 AS SELECT zzz;":               review.ObjectNotFound,
+		"CREATE TABLE t2 AS SELECT zzz;":              review.ObjectNotFound,
+		"CREATE TABLE IF NOT EXISTS t AS SELECT zzz;": review.ObjectNotFound,
+		"CREATE MATERIALIZED VIEW mv2 AS SELECT zzz;": review.ObjectNotFound,
+		"CREATE OR REPLACE VIEW v AS SELECT 1;":       review.UnsupportedForm,
+		"CREATE TABLE t2 AS EXECUTE missing_plan;":    review.ObjectNotFound,
+		// ALTER TABLE / SEQUENCE options, compression, relkinds, identity, EXCLUDE.
+		"ALTER TABLE t ALTER COLUMN a SET COMPRESSION bogus;":   review.UnsupportedForm,
+		"ALTER TABLE mv ALTER COLUMN a SET COMPRESSION bogus;":  review.UnsupportedForm,
+		"ALTER TABLE mv ALTER COLUMN a SET STORAGE bogus;":      review.UnsupportedForm,
+		"ALTER TABLE mv ALTER COLUMN 1 SET STATISTICS 10;":      review.UnsupportedForm,
+		"ALTER TABLE t ALTER COLUMN a SET (bogus = 1);":         review.UnsupportedForm,
+		"ALTER TABLE t ALTER COLUMN a RESTART RESTART;":         review.UnsupportedForm,
+		"ALTER TABLE t ALTER COLUMN a RESTART 1.5;":             review.UnsupportedForm,
+		"ALTER TABLE v ALTER COLUMN a RESTART;":                 review.UnsupportedForm,
+		"ALTER TABLE v ALTER COLUMN a DROP IDENTITY;":           review.UnsupportedForm,
+		"ALTER TABLE v SET (bogus = true);":                     review.UnsupportedForm,
+		"ALTER TABLE t SET (fillfactor = 70, fillfactor = 80);": review.UnsupportedForm,
+		"ALTER TABLE parted SET (fillfactor = 70);":             review.WrongObjectKind,
+		"ALTER TABLE parted SET WITHOUT CLUSTER;":               review.UnsupportedForm,
+		"ALTER TABLE parted NOT OF;":                            review.WrongObjectKind,
+		"ALTER TABLE v SET WITHOUT OIDS;":                       review.WrongObjectKind,
+		"ALTER TABLE v ENABLE RULE r;":                          review.WrongObjectKind,
+		"ALTER TABLE t NO INHERIT t;":                           review.UnsupportedForm,
+		"ALTER TABLE t ADD EXCLUDE (missing_col WITH =);":       review.ObjectNotFound,
+		"ALTER TYPE pair DROP ATTRIBUTE x, DROP ATTRIBUTE x;":   review.DuplicateName,
+		"ALTER SEQUENCE q OWNED BY col_only;":                   review.UnsupportedForm,
+		"ALTER SEQUENCE q SEQUENCE NAME s2;":                    review.UnsupportedForm,
+		"ALTER SEQUENCE q LOGGED;":                              review.UnsupportedForm,
+		"ALTER SEQUENCE q UNLOGGED;":                            review.UnsupportedForm,
+		"ALTER SEQUENCE q AS text;":                             review.UnsupportedForm,
+	} {
+		got := walkFindings(t, sql, target)
+		if len(got) != 1 || !slices.Equal(got[0].Codes, []review.FindingCode{wantCode}) {
+			t.Errorf("%q: findings = %+v, want one %s", sql, got, wantCode)
+		}
+	}
+
+	// Control cases (0 false positives): valid routines, overloads, built-in
+	// pg_catalog / system-excluded routines, search_path shadowing for domains,
+	// valid reloptions/compression/sequence/trigger/view forms.
+	for _, sql := range []string{
+		// Synced routines & routine creation/overloads.
+		"ALTER FUNCTION fn_existing STRICT;",
+		"ALTER PROCEDURE proc_existing SET search_path = public;",
+		"ALTER ROUTINE fn_existing STRICT;",
+		"ALTER ROUTINE proc_existing SET search_path = public;",
+		"DROP FUNCTION fn_existing;",
+		"DROP FUNCTION IF EXISTS missing_fn;",
+		"DROP PROCEDURE IF EXISTS missing_proc;",
+		"DROP ROUTINE IF EXISTS missing_rtn;",
+		"CREATE FUNCTION f_ov(int) RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE FUNCTION f_ov(text) RETURNS int LANGUAGE sql AS 'SELECT 1';\nDROP FUNCTION f_ov(int);\nDROP FUNCTION f_ov(text);",
+		"CREATE FUNCTION pg_temp.tf() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$;\nCREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION tf();",
+		// Built-in pg_catalog & Bytebase-excluded routine names (never falsely absent).
+		"CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION suppress_redundant_updates_trigger();",
+		"CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION pg_custom_trig();",
+		"CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION hypopg_trig();",
+		"ALTER FUNCTION lower(text) IMMUTABLE;",
+		"ALTER FUNCTION pg_catalog.abs(int) IMMUTABLE;",
+		"DROP FUNCTION pg_my_ext_fn();",
+		"DROP FUNCTION hypopg_reset();",
+		// Trigger WHEN valid forms (OLD/NEW/subquery) and RI internal trigger.
+		"CREATE TRIGGER tr BEFORE UPDATE ON t FOR EACH ROW WHEN (OLD.a IS DISTINCT FROM NEW.a) EXECUTE FUNCTION trig_fn();",
+		"CREATE TRIGGER tr BEFORE UPDATE ON t FOR EACH ROW WHEN (OLD IS DISTINCT FROM NEW) EXECUTE FUNCTION trig_fn();",
+		"CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW WHEN (EXISTS (SELECT 1 FROM t WHERE a = 1)) EXECUTE FUNCTION trig_fn();",
+		"ALTER TABLE t ENABLE TRIGGER tr_existing;",
+		"ALTER TABLE t ENABLE TRIGGER ALL;",
+		"ALTER TABLE t ENABLE TRIGGER USER;",
+		"ALTER TABLE t ENABLE TRIGGER \"RI_ConstraintTrigger_c_1234\";",
+		// Valid self-named types against pg_catalog built-in or another schema on search_path.
+		"CREATE DOMAIN text AS text;",
+		"CREATE TABLE text (a text);",
+		"CREATE SCHEMA s_dom;\nSET search_path = s_dom, public;\nCREATE DOMAIN d AS d;",
+		"CREATE TYPE r_drop AS RANGE (SUBTYPE = int4);\nDROP TYPE r_drop;",
+		// Enum ADD VALUE IF NOT EXISTS with same neighbor (valid no-op when value exists).
+		"ALTER TYPE mood ADD VALUE IF NOT EXISTS 'a' BEFORE 'a';",
+		// DROP TYPE IF EXISTS array / SETOF.
+		"DROP TYPE IF EXISTS unsynced_dom[];",
+		"DROP TYPE SETOF mood;",
+		// Valid view, CTAS, EXECUTE IF NOT EXISTS on existing table.
+		"CREATE VIEW v_ok AS SELECT 1 AS x, (SELECT a FROM t LIMIT 1);",
+		"CREATE VIEW v_ord AS SELECT 1 AS x ORDER BY x;",
+		"CREATE OR REPLACE VIEW v AS SELECT 1 AS a, 2 AS b;",
+		"CREATE OR REPLACE VIEW v AS SELECT 1 AS a, 2 AS b, 3 AS c;",
+		"CREATE TABLE IF NOT EXISTS t AS EXECUTE existing_plan;",
+		// Valid column/view/table/sequence options.
+		"ALTER TABLE t ALTER COLUMN a SET COMPRESSION lz4;",
+		"ALTER TABLE t ALTER COLUMN a SET COMPRESSION pglz;",
+		"ALTER TABLE t ALTER COLUMN a SET COMPRESSION default;",
+		"ALTER TABLE t ALTER COLUMN a SET (n_distinct = 100);",
+		"ALTER TABLE v SET (security_barrier = true, security_invoker = false);",
+		"ALTER TABLE v ALTER COLUMN a DROP IDENTITY IF EXISTS;",
+		"ALTER TABLE t SET (fillfactor = 80);",
+		"ALTER TABLE t ADD EXCLUDE (a WITH =);",
+		"ALTER SEQUENCE q SET LOGGED;",
+		"ALTER SEQUENCE q SET UNLOGGED;",
+		"ALTER SEQUENCE q OWNED BY NONE;",
+		"ALTER SEQUENCE q OWNED BY t.a;",
+		"ALTER SEQUENCE q AS bigint;",
+	} {
+		if got := walkFindings(t, sql, target); len(got) != 0 {
+			t.Errorf("%q: findings = %+v, want none", sql, got)
 		}
 	}
 }

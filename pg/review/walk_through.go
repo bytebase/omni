@@ -54,6 +54,7 @@ func walkThrough(ctx context.Context, stmts []statement, plan *run, target revie
 		snap = nil
 		w.triggered = true
 		w.partitioned = make(map[walk.Key]bool)
+		w.pg.viewCols = nil
 	}
 	v, err := walk.Run(ctx, len(plan.steps), snap, w.lower)
 	if v != nil {
@@ -264,25 +265,29 @@ type walker struct {
 	// typmodTypes marks user-defined base types in this change that accept
 	// type modifiers (defined or altered with TYPMOD_IN).
 	typmodTypes map[walk.Key]bool
+	// modifiedViews marks synced views whose column count may have changed
+	// earlier in this change (replaced, dropped, renamed, or moved).
+	modifiedViews map[walk.Key]bool
 }
 
 func newWalker(stmts []statement, plan *run, target review.Target) *walker {
 	db := target.Schema
 	w := &walker{
-		stmts:       stmts,
-		run:         plan,
-		pg:          newPgSnapshot(db),
-		database:    db.GetName(),
-		triggers:    enabledTriggers(db),
-		user:        target.SessionUser,
-		session:     target.SessionUser,
-		owner:       db.GetOwner(),
-		inBlock:     !plan.autocommit,
-		routines:    make(map[string]bool),
-		partitioned: make(map[walk.Key]bool),
-		partitions:  make(map[walk.Key][]walk.Key),
-		shellTypes:  make(map[walk.Key]bool),
-		typmodTypes: make(map[walk.Key]bool),
+		stmts:         stmts,
+		run:           plan,
+		pg:            newPgSnapshot(db),
+		database:      db.GetName(),
+		triggers:      enabledTriggers(db),
+		user:          target.SessionUser,
+		session:       target.SessionUser,
+		owner:         db.GetOwner(),
+		inBlock:       !plan.autocommit,
+		routines:      make(map[string]bool),
+		partitioned:   make(map[walk.Key]bool),
+		partitions:    make(map[walk.Key][]walk.Key),
+		shellTypes:    make(map[walk.Key]bool),
+		typmodTypes:   make(map[walk.Key]bool),
+		modifiedViews: make(map[walk.Key]bool),
 	}
 	if w.user != "" && w.user == w.owner {
 		w.tenant = true

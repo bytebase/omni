@@ -5,13 +5,15 @@ import (
 
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/pg/ast"
+	pgcatalog "github.com/bytebase/omni/pg/catalog"
 	"github.com/bytebase/omni/pg/parser"
 	"github.com/bytebase/omni/review/walk"
 )
 
-// The spaces WalkThrough keeps facts in. A relation and a type are held by
-// a schema, a column, a constraint, and the primary key by a table; the
-// primary key space has one key per table, named "".
+// The spaces WalkThrough keeps facts in. A relation, type, function, and
+// procedure are held by a schema, a column, constraint, trigger, policy, and
+// the primary key by a table; the primary key space has one key per table,
+// named "".
 const (
 	spaceSchema     = "schema"
 	spaceRelation   = "relation"
@@ -21,6 +23,8 @@ const (
 	spacePrimaryKey = "primary key"
 	spaceTrigger    = "trigger"
 	spacePolicy     = "policy"
+	spaceFunction   = "function"
+	spaceProcedure  = "procedure"
 )
 
 // The kinds of a relation: every name in pg_class's namespace of a schema.
@@ -105,13 +109,16 @@ type pgSnapshot struct {
 	constraints map[[2]string]map[string]string
 	primaryKeys map[[2]string]bool
 	triggers    map[[2]string]map[string]bool
+	functions   map[[2]string]bool
+	procedures  map[[2]string]bool
+	viewCols    map[[2]string]int
 	// anywhere lists the partition and partition index names, Unknown in
 	// every schema.
 	anywhere map[string]bool
 	// lost is true when the sync may have lost partitions, of any name in
 	// any schema: no relation's absence is trusted then.
 	lost bool
-	// inSchema lists the relations and types each schema holds.
+	// inSchema lists the relations, types, and routines each schema holds.
 	inSchema map[string][]walk.Key
 }
 
@@ -126,6 +133,9 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 		constraints: make(map[[2]string]map[string]string),
 		primaryKeys: make(map[[2]string]bool),
 		triggers:    make(map[[2]string]map[string]bool),
+		functions:   make(map[[2]string]bool),
+		procedures:  make(map[[2]string]bool),
+		viewCols:    make(map[[2]string]int),
 		anywhere:    make(map[string]bool),
 		inSchema:    make(map[string][]walk.Key),
 	}
@@ -175,13 +185,11 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 				cons[x.GetName()] = conExclusion
 			}
 			s.constraints[key] = cons
-			if len(t.GetTriggers()) > 0 {
-				trigs := make(map[string]bool, len(t.GetTriggers()))
-				for _, tr := range t.GetTriggers() {
-					trigs[tr.GetName()] = true
-				}
-				s.triggers[key] = trigs
+			trigs := make(map[string]bool, len(t.GetTriggers()))
+			for _, tr := range t.GetTriggers() {
+				trigs[tr.GetName()] = true
 			}
+			s.triggers[key] = trigs
 			s.addPartitions(name, t.GetPartitions())
 		}
 		for _, t := range schema.GetExternalTables() {
@@ -196,6 +204,9 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 		for _, v := range schema.GetViews() {
 			rel(v.GetName(), relView)
 			rowType(v.GetName())
+			if len(v.GetColumns()) > 0 {
+				s.viewCols[[2]string{name, v.GetName()}] = len(v.GetColumns())
+			}
 		}
 		for _, v := range schema.GetMaterializedViews() {
 			rel(v.GetName(), relMatview)
@@ -213,6 +224,14 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 		}
 		for _, e := range schema.GetEnumTypes() {
 			rowType(e.GetName())
+		}
+		for _, fn := range schema.GetFunctions() {
+			s.functions[[2]string{name, fn.GetName()}] = true
+			s.inSchema[name] = append(s.inSchema[name], funcKey(name, fn.GetName()))
+		}
+		for _, pr := range schema.GetProcedures() {
+			s.procedures[[2]string{name, pr.GetName()}] = true
+			s.inSchema[name] = append(s.inSchema[name], procKey(name, pr.GetName()))
 		}
 	}
 	return s
@@ -303,6 +322,36 @@ func trustedRelationName(name string) bool {
 	return true
 }
 
+// trustedRoutineName reports whether Bytebase's sync lists a routine of this
+// name in a synced schema whenever it exists: every name except system/built-in
+// names and extension prefixes that IsSystemFunction drops.
+//
+// bytebase: backend/plugin/parser/pg/system_objects.go — IsSystemFunction
+func trustedRoutineName(name string) bool {
+	if builtinCalls[strings.ToLower(name)] {
+		return false
+	}
+	for _, prefix := range []string{"pg_", "g_columnar_", "google_columnar_", "google_db_advisor_", "g_agg_stat_", "hypopg"} {
+		if strings.HasPrefix(name, prefix) {
+			return false
+		}
+	}
+	return true
+}
+
+// builtinCatalogFunctions holds every built-in function name in PostgreSQL's
+// pg_catalog (from pg_proc.dat via pg/catalog.BuiltinProcs). None of these
+// names is ever claimed absent on an unqualified search path.
+var builtinCatalogFunctions = func() map[string]bool {
+	m := make(map[string]bool, len(pgcatalog.BuiltinProcs))
+	for i := range pgcatalog.BuiltinProcs {
+		if pgcatalog.BuiltinProcs[i].Kind != 'p' {
+			m[pgcatalog.BuiltinProcs[i].Name] = true
+		}
+	}
+	return m
+}()
+
 // Lookup implements walk.Snapshot.
 func (s *pgSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 	switch k.Space {
@@ -335,6 +384,28 @@ func (s *pgSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 			// The sync lists no domain.
 			return walk.Present, typOther
 		}
+	case spaceFunction:
+		schema := k.Parent
+		if schema == tempSchema {
+			return walk.Absent, ""
+		}
+		if s.functions[[2]string{schema, k.Name}] {
+			return walk.Present, ""
+		}
+		if s.schemas[schema] && trustedRoutineName(k.Name) {
+			return walk.Absent, ""
+		}
+	case spaceProcedure:
+		schema := k.Parent
+		if schema == tempSchema {
+			return walk.Absent, ""
+		}
+		if s.procedures[[2]string{schema, k.Name}] {
+			return walk.Present, ""
+		}
+		if s.schemas[schema] && trustedRoutineName(k.Name) {
+			return walk.Absent, ""
+		}
 	case spaceColumn:
 		table, ok := splitTable(k.Parent)
 		if !ok || systemColumns[k.Name] {
@@ -359,8 +430,15 @@ func (s *pgSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 			return walk.Present, ""
 		}
 	case spaceTrigger:
-		if table, ok := splitTable(k.Parent); ok && s.triggers[table][k.Name] {
-			return walk.Present, ""
+		if table, ok := splitTable(k.Parent); ok {
+			if trigs, synced := s.triggers[table]; synced {
+				if trigs[k.Name] {
+					return walk.Present, ""
+				}
+				if !strings.HasPrefix(k.Name, "RI_ConstraintTrigger_") {
+					return walk.Absent, ""
+				}
+			}
 		}
 	}
 	return walk.Unknown, ""

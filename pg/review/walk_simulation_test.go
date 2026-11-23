@@ -19,13 +19,20 @@ import (
 // simulate.tsv offline: each fixture is built once in the in-memory catalog,
 // and every row is checked with no server started.
 func TestWalkSimulation(t *testing.T) {
-	walktest.CheckSimulation(t, walktest.Simulation{
+	res := walktest.CheckSimulation(t, walktest.Simulation{
 		Path:     filepath.Join("..", "catalog", "testdata", "simulate.tsv"),
 		Fixtures: filepath.Join("..", "catalog", "testdata", "fixtures"),
 		Setup:    pgSimFixture,
 		Codes:    func(msg, _ string) []string { return walkStates(msg) },
 		Same:     func(claimed, stored walk.Key) bool { return claimed == stored },
 	})
+	const minRecall = 0.90
+	if res.Refused > 0 {
+		got := float64(res.Found) / float64(res.Refused)
+		if got < minRecall {
+			t.Errorf("WALK_THROUGH recall = %.1f%% (%d/%d), want >= %.1f%%", 100*got, res.Found, res.Refused, 100*minRecall)
+		}
+	}
 }
 
 func pgSimFixture(t testing.TB, fx simulate.Fixture) walktest.SimFixture {
@@ -275,6 +282,13 @@ func pgCatalogInventory(c *pgcatalog.Catalog) []walktest.Object {
 		}
 		for _, seq := range s.Sequences {
 			objects = append(objects, walktest.Object{Key: relKey(s.Name, seq.Name), Kind: relSequence})
+		}
+		for _, proc := range c.QueryPgProc(s.Name) {
+			if proc.ProKind == 'p' {
+				objects = append(objects, walktest.Object{Key: procKey(s.Name, proc.ProName)})
+			} else {
+				objects = append(objects, walktest.Object{Key: funcKey(s.Name, proc.ProName)})
+			}
 		}
 	}
 	return objects
