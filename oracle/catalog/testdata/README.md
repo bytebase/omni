@@ -167,8 +167,10 @@ spec, which leaves its own body `INVALID` but not the spec's callers.
 Rules the checker leaves to Oracle, as no recorded row pins them yet (a
 row added for one is the way to take it on): a type body that leaves out a
 method its spec declares (`PLS-00538`), invalidation that passes through a
-view to the units that read it, and `DROP TYPE` of a type other types or
-tables use without `FORCE` (`ORA-02303`).
+view to the units that read it, `DROP TYPE` of a type other types or tables
+use without `FORCE` (`ORA-02303`), a `MERGE`'s `INSERT` branch and `WHERE`
+predicates, a read-only actual passed to an `OUT` parameter (`PLS-00363`),
+and the package a `FOR r IN pk.c` loop reads.
 
 ```bash
 go test ./oracle/catalog/ -run '^TestProgramSimulation$' -update-compat

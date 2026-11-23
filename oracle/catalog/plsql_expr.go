@@ -182,7 +182,7 @@ func (c *plChecker) resolveCall(parts []string) (sigs []plSignature, known bool)
 			c.readVia(name, target)
 			return c.e.savedSignature(f.Definition, true), true
 		}
-		if c.e.hasType(target) || plsqlFunctions[name] || plsqlValues[name] || c.row != nil && triggerPredicates[name] {
+		if c.e.hasType(target) || plsqlFunctions[name] || plsqlTypes[name] || plsqlValues[name] || c.row != nil && triggerPredicates[name] {
 			return nil, false
 		}
 		if c.knownObject(name) {

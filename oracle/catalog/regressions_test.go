@@ -3565,7 +3565,7 @@ func TestXMLTypeSynonymsAndUsingKeys(t *testing.T) {
 		return "missing"
 	}
 	c, err := LoadSQL("CREATE TABLE t (id NUMBER, x NUMBER);\nCREATE TABLE u (id NUMBER, y NUMBER);\nCREATE TABLE w (id NUMBER);\nCREATE PUBLIC SYNONYM ws FOR w;\n" +
-		"CREATE PROCEDURE xml IS x XMLTYPE; BEGIN SELECT XMLTYPE('<r/>') INTO x FROM dual; END;\n/\n" +
+		"CREATE PROCEDURE xml IS x XMLTYPE; BEGIN SELECT XMLTYPE('<r/>') INTO x FROM dual; x := XMLTYPE('<s/>'); END;\n/\n" +
 		"CREATE PROCEDURE pub IS n NUMBER; BEGIN SELECT COUNT(*) INTO n FROM ws; END;\n/\n" +
 		"CREATE PROCEDURE joined IS n NUMBER; BEGIN SELECT COUNT(*) INTO n FROM t JOIN u USING (id); END;\n/\n" +
 		"DROP PUBLIC SYNONYM ws;\nALTER TABLE t DROP COLUMN id;\n")
