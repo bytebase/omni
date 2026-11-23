@@ -158,8 +158,9 @@ category word (byte 11), as `COMMENT.bnf` says.
 
 ## Rows only Oracle accepts, measured
 
-The 128 rows whose cells are `reject` where Oracle says `accept` were each
-measured on the pinned server at judge revision 3: #1438, #1436 and #1445
+None are left: Wave 10 closed the last 59. At judge revision 3, the 128 rows
+whose cells were `reject` where Oracle said `accept` were each measured on the
+pinned server: #1438, #1436 and #1445
 measured the families they name, #1450 the rest of its own, and a follow-up
 after #1450 measured what was left. None is a form omni can read: Oracle
 answers a name it looks up, a kind of object that does not take the clause, or
@@ -212,8 +213,9 @@ missing `DATAFILE` the truncated text leaves.
 
 ## Rows only omni accepts, measured
 
-The other direction: the 696 rows whose cells are `accept` where the pinned
-Oracle says `reject`. Each was measured the same way, at judge revision 3,
+The other direction, none left either: Wave 10 closed the last 84. At judge
+revision 3, 696 rows' cells were `accept` where the pinned Oracle said
+`reject`. Each was measured the same way,
 with the code `DBMS_SQL.PARSE` answers and `LAST_ERROR_POSITION`'s byte. The
 question a row asks is whether Oracle's refusal is the grammar's: the page
 `bnf/` quotes under it is the grammar omni must read, so a statement the page
@@ -226,9 +228,9 @@ where the converter could drop the rule (its `fix:` notes on
 #1475, #1480 and #1483 closed rows of this direction too: an external table's
 `AS QUERY` (2), the `ALTER SYSTEM SET`, `ALTER SESSION SET` and `ALTER SYSTEM
 RESET` rows whose parameter names `oracle/parser` now carries (51), and the
-derived analytic view the `SELECT.bnf` quote drew wrongly. All 696 here are a
+derived analytic view the `SELECT.bnf` quote drew wrongly. All 696 here were a
 name Oracle looks up, a check of the parsed statement, or the server's own
-setup, and stay rows.
+setup, and stayed rows then.
 
 ### Closed
 
@@ -332,18 +334,19 @@ closed.
 
 ## Rows both refuse, at another byte
 
-A row here is a statement omni and the pinned Oracle both refuse, at a
-different byte: 2,969 rows, 475 of them where omni stops first and 2,092
-where Oracle does. Omni's byte is the token its grammar cannot take. Oracle's
+None are left: since judge revision 5 both cells are a bare `reject` and the
+byte is pinned in `TestErrorPositions`. At judge revision 3, a row here was a
+statement omni and the pinned Oracle both refuse, at a different byte: 2,969
+rows, 475 of them where omni stops first and 2,092 where Oracle does. Omni's byte is the token its grammar cannot take. Oracle's
 is where its own parser stopped, which may be a name it looked up, a check of
 the parsed statement, or its own code failing, so a row is read from the
 outside in: Oracle first means omni took a token Oracle does not, and omni
 first means it stopped at something Oracle reads past, or reported a rewrite
 point instead of the offending token.
 
-Four hundred and two rows carry no byte at all (`reject` alone), a stored unit
-compiled with errors or a statement the engine never answered, so there is
-nothing to match. Four hundred and forty carry `reject@0`: Oracle's
+Then, four hundred and two rows carried no byte at all (`reject` alone), a
+stored unit compiled with errors or a statement the engine never answered, so there is
+nothing to match. Four hundred and forty carried `reject@0`: Oracle's
 answer at the start of the statement, which is "no such form" or a name it
 looks up before it reads the rest.
 
@@ -585,8 +588,8 @@ fewer `oracle_first`, and 2 fewer only-omni-accepts closed onto Oracle's
 | `CREATE TABLE ... ENABLE CONSTRAINTS <name>` | 1 | EOF (35): accepts plural `CONSTRAINTS` synonym alongside `CONSTRAINT` (matching `ALTER TABLE` and `CREATE VIEW`) |
 | `CREATE`/`ALTER ROLE ... IDENTIFIED GLOBALLY AS` without string literal | 2 verdict rows | EOF (36 / 35): requires directory/domain string literal after `AS` (matching `user_clauses.go` and `CREATE-ROLE.bnf` / `ALTER-ROLE.bnf`; closed from `only_omni` to reject, Oracle reports `reject@0`) |
 
-The remaining 1,578 disagreeing rows are non-grammar causes (89 `suite:*` corpus
-rows, 332 non-suite bare `reject` without position, 446 non-suite `reject@0`
+After Wave 8, the remaining 1,578 disagreeing rows were non-grammar causes (89
+`suite:*` corpus rows, 332 non-suite bare `reject` without position, 446 non-suite `reject@0`
 lookups/sub-parsers, 103 non-suite measured `only_oracle` lookups/checks, 304
 non-suite measured `only_omni` engine/setup/lookup/duplicate checks including
 `CREATE TABLE`/`ALTER TABLE ADD`/`DROP` and `CREATE INDEX` duplicates
@@ -606,7 +609,7 @@ several, so the counts are not disjoint.
 | `ALTER SESSION SET DEFAULT_COLLATION ...`, `ROW VISIBILITY ...`, and `ALTER SESSION SET` with no setting | 6 | `ORA-43929` or `ORA-00922` at 0: this server runs `MAX_STRING_SIZE=STANDARD`, so `DEFAULT_COLLATION` is refused at the statement's start; `ROW VISIBILITY` is no setting, and an empty `SET` is refused whole. The parameter names themselves are read now (see above) |
 | `CREATE TABLE a (...)` with `PARTITION`, `VARRAY`, `NESTED`, `LOB` or `DOMAIN` first | 59 | the token after the word: Oracle reads `PARTITION` as a column name and the next word as its datatype, as "Rows only Oracle accepts" records (`ORA-00902` at 25 for `CREATE TABLE a (PARTITION ...)`), but for `VARRAY`, `NESTED TABLE` and `TABLE` it reads past the second word and stops at 32. Matching one server's reading of a word that is no datatype is not a reading of the page |
 
-What is left of those is near-misses whose own token is Oracle's answer
+What was left of those then was near-misses whose own token is Oracle's answer
 (`ALTER MATERIALIZED VIEW a TRUNCATE a`, `ALTER SESSION SET a = 1`, a LOB
 storage option, an external table's directory): each needs a reading omni does
 not have, which is an accept gap rather than a position.
@@ -745,7 +748,7 @@ Wave 10 closed all remaining **143 verdict discrepancies** (`-59 only_oracle`,
 
 Every other test that asked Oracle replays a tape through
 `oracle/internal/testcontainer.Open(t, user)`, here (`tapes/`, 4 tapes) and in
-`oracle/review` (6 tapes, the walk-through oracle and its sweep among them).
+`oracle/review` (7 tapes, the walk-through oracle and its sweep among them).
 A recording starts each top-level test on a server without the users,
 public synonyms and SYSTEM objects another test made. Oracle's generated
 names (`SYS_C…`, `SYS_C_SNAP$_…`, LOB segments, identity sequences) get
