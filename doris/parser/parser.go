@@ -889,6 +889,10 @@ func parseAll(input string, strictTrailing bool, depth int) *ParseResult {
 	result := &ParseResult{File: file}
 
 	for _, seg := range Split(input) {
+		if seg.Empty() {
+			// A lone ';' or a comment holds no statement to parse.
+			continue
+		}
 		node, errs := parseSingle(seg.Text, seg.ByteStart, strictTrailing, depth)
 		if node != nil {
 			file.Stmts = append(file.Stmts, node)
@@ -896,7 +900,7 @@ func parseAll(input string, strictTrailing bool, depth int) *ParseResult {
 		result.Errors = append(result.Errors, errs...)
 	}
 
-	// Split drops segments that lex to nothing, which also drops their lex
+	// The loop skips segments that lex to nothing, which also skips their lex
 	// errors: Parse("/* unterminated") produced zero segments and zero
 	// errors. Strict mode lexes the whole input once more and promotes any
 	// error the per-segment parses did not already report (matched by
