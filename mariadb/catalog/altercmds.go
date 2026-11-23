@@ -2631,10 +2631,14 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 		return errDupTable(newName)
 	}
 
+	oldName := tbl.Name
 	delete(oldDB.Tables, oldKey)
 	tbl.Name = newName
 	tbl.Database = newDB
 	newDB.Tables[newKey] = tbl
+	if oldDB == newDB {
+		renameTableTriggers(oldDB, oldName, newName)
+	}
 	return nil
 }
 

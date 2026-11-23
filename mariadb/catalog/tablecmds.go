@@ -4078,13 +4078,8 @@ func (c *Catalog) dropReplacedTable(db *Database, tbl *Table) {
 	if tbl == nil {
 		return
 	}
-	key := toLower(tbl.Name)
-	delete(db.Tables, key)
-	for name, trg := range db.Triggers {
-		if toLower(trg.Table) == key {
-			delete(db.Triggers, name)
-		}
-	}
+	delete(db.Tables, toLower(tbl.Name))
+	dropTableTriggers(db, tbl.Name)
 }
 
 // createTableLike implements CREATE TABLE t2 LIKE t1.

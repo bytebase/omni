@@ -293,10 +293,12 @@ func (p *Parser) inputText(start, end int) string {
 type ParseError struct {
 	Message  string
 	Position int
-	// Code is the error number MariaDB answers with where the refusal is a name
-	// it looks up while it parses and does not find, rather than a syntax error:
-	// 1253 for a collation of another character set, 1128 for a FULLTEXT parser
-	// it does not ship. 0 is a syntax error, which the server answers with 1064.
+	// Code is the error number MariaDB answers with where the refusal is not a
+	// syntax error: a name it looks up while it parses and does not find, as
+	// 1253 for a collation of another character set and 1128 for a FULLTEXT
+	// parser it does not ship, or a rule its parser actions check, as 1313 for
+	// RETURN outside a function and 1330 for a parameter named twice. 0 is a
+	// syntax error, which the server answers with 1064.
 	// A caller that reports the server's code reads this field; compat.tsv's
 	// judge counts these answers as parsed, so omni's verdict stays a rejection.
 	Code        int

@@ -462,12 +462,13 @@ func TestOracleTypedLongTailTableSources(t *testing.T) {
 			name:      "unpivot typed mappings",
 			statement: "SELECT * FROM (SELECT A, B, C FROM T) UNPIVOT (VAL FOR COL IN (B AS 'B', C AS 'C'))",
 			want: []QuerySpanResult{
+				// Oracle puts the FOR column before the measure.
 				{Name: "A", SourceColumns: columnSetFromList([]ColumnResource{{Database: "PUBLIC", Table: "T", Column: "A"}})},
+				{Name: "COL", SourceColumns: columnSetFromList(nil)},
 				{Name: "VAL", SourceColumns: columnSetFromList([]ColumnResource{
 					{Database: "PUBLIC", Table: "T", Column: "B"},
 					{Database: "PUBLIC", Table: "T", Column: "C"},
 				})},
-				{Name: "COL", SourceColumns: columnSetFromList(nil)},
 			},
 		},
 		{

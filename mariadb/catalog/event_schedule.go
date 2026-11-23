@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -76,26 +77,49 @@ func eventLiteralTime(expr nodes.ExprNode) (time.Time, bool) {
 }
 
 func eventIntervalCount(expr nodes.ExprNode) (int64, bool) {
-	if lit, ok := expr.(*nodes.IntLit); ok {
-		return lit.Value, true
+	switch e := expr.(type) {
+	case *nodes.IntLit:
+		return e.Value, true
+	case *nodes.UnaryExpr:
+		if n, ok := eventIntervalCount(e.Operand); ok && e.Op == nodes.UnaryMinus {
+			return -n, true
+		}
 	}
 	return 0, false
 }
 
 // validateEventTimes refuses a schedule whose literal times MariaDB refuses,
-// measured on mariadb:11.8.8: an EVERY interval that is not positive (1542),
-// and ENDS before STARTS (1543), STARTS being the statement's time when it is
-// not written. A zero now compares no time with the present: a declarative
-// schema states the event it wants, which must not stop loading as time passes.
+// measured on mariadb:11.8.8, in the order Event_parse_data::check_parse_data
+// reads them: a time string that names no time (1525), an EVERY interval in
+// microseconds (1235) or one that is not positive (1542), and ENDS before
+// STARTS (1543), STARTS being the statement's time when it is not written. A
+// zero now compares no time with the present: a declarative schema states the
+// event it wants, which must not stop loading as time passes.
 func validateEventTimes(schedule *nodes.EventSchedule, now time.Time) error {
-	if schedule == nil || schedule.Every == nil {
+	if schedule == nil {
 		return nil
+	}
+	if err := refuseEventTimeText("AT", schedule.At); err != nil {
+		return err
+	}
+	if schedule.Every == nil {
+		return nil
+	}
+	if strings.Contains(schedule.Unit, "MICROSECOND") {
+		return &Error{Code: 1235, SQLState: "42000", Message: "This version of MariaDB doesn't yet support 'MICROSECOND'"}
 	}
 	if n, ok := eventIntervalCount(schedule.Every); ok && n <= 0 {
 		return &Error{Code: 1542, SQLState: "HY000", Message: "INTERVAL is either not positive or too big"}
 	}
+	if err := refuseEventTimeText("STARTS", schedule.Starts); err != nil {
+		return err
+	}
 	if schedule.Ends == nil {
 		return nil
+	}
+	// An ENDS that names no time is 1543 as well (mariadb:11.8.8: ENDS 'zzz').
+	if namesNoTime(schedule.Ends) {
+		return errEventEndsBeforeStarts()
 	}
 	ends, ok := eventLiteralTime(schedule.Ends)
 	if !ok {
@@ -112,6 +136,23 @@ func validateEventTimes(schedule *nodes.EventSchedule, now time.Time) error {
 		return errEventEndsBeforeStarts()
 	}
 	return nil
+}
+
+// refuseEventTimeText is 1525 for an AT or STARTS time that names none:
+// mariadb:11.8.8 answers AT 'zzz' and STARTS 'zzz' with it.
+func refuseEventTimeText(clause string, expr nodes.ExprNode) error {
+	if !namesNoTime(expr) {
+		return nil
+	}
+	return &Error{Code: 1525, SQLState: "HY000", Message: fmt.Sprintf("Incorrect %s value: '%s'", clause, expr.(*nodes.StringLit).Value)}
+}
+
+// namesNoTime reports a schedule time written as a string with no digit in it.
+// A string that holds digits is left to the server, whose reading of a
+// datetime is lenient.
+func namesNoTime(expr nodes.ExprNode) bool {
+	lit, ok := expr.(*nodes.StringLit)
+	return ok && !strings.ContainsAny(lit.Value, "0123456789")
 }
 
 func errEventEndsBeforeStarts() error {

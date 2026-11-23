@@ -62,7 +62,6 @@ const (
 	gapCompressed     = "omni: the parser does not read a column's COMPRESSED attribute"
 	lossHashBefore118 = "sync: USING HASH on an InnoDB key, which information_schema reports as BTREE before 11.8"
 	gapInetCast1011   = "omni: the plan converts a column between INET6 and INET4 in place, which 10.11 refuses (4078) and 11.4 does"
-	gapForRange       = "omni: the parser reads no FOR loop over an integer range (FOR k IN 1..n)"
 	gapQuoting        = "omni: SHOW CREATE VIEW backquotes a stored function's name, which the catalog does not yet tell from a builtin's"
 )
 

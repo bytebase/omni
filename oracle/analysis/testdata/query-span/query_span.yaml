@@ -1677,7 +1677,7 @@
   querySpan:
     type: 1
     results:
-        - name: max(A)
+        - name: MAX(A)
           sourcecolumns:
             - server: ""
               database: PUBLIC
@@ -1732,7 +1732,7 @@
           isplainfield: false
           sourcefieldpaths: []
           selectasterisk: false
-        - name: Bin(A,C,D)
+        - name: BIN(A,C,D)
           sourcecolumns:
             - server: ""
               database: PUBLIC

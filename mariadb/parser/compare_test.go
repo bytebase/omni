@@ -5167,7 +5167,7 @@ func TestParseCreateFunction(t *testing.T) {
 		p.advance()
 		start := p.pos()
 		p.advance() // skip CREATE
-		stmt, err := p.parseCreateFunctionStmt(start, false, false)
+		stmt, err := p.parseCreateFunctionStmt(start, false, false, false)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -5190,7 +5190,7 @@ func TestParseCreateFunction(t *testing.T) {
 		p.advance()
 		start := p.pos()
 		p.advance() // skip CREATE
-		stmt, err := p.parseCreateFunctionStmt(start, false, false)
+		stmt, err := p.parseCreateFunctionStmt(start, false, false, false)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -5206,7 +5206,7 @@ func TestParseCreateProcedure(t *testing.T) {
 		p.advance()
 		start := p.pos()
 		p.advance() // skip CREATE
-		stmt, err := p.parseCreateFunctionStmt(start, false, true)
+		stmt, err := p.parseCreateFunctionStmt(start, false, true, false)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
