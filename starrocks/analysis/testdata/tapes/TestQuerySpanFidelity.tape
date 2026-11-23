@@ -552,6 +552,16 @@
 | {"columns":["id","rank() OVER (PARTITION BY status ORDER BY amount ASC )"],"tables":["shop.orders"],"plan":["- Output =\u003e [1:id, 6:rank()]","    - ANALYTIC [ partition by (4:status), order by (3: amount ASC NULLS FIRST)]","            6:rank() := rank() RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW","        - SORT(GLOBAL)[4: status ASC NULLS FIRST, 3: amount ASC NULLS FIRST]","            - SCAN [orders] =\u003e [1:id, 3:amount, 4:status]"]}
 > raw
 | span shop
+| SELECT id, sum(amount) OVER (PARTITION BY customer_id, status ORDER BY id DESC, amount) FROM orders
+< raw
+| {"columns":["id","sum(amount) OVER (PARTITION BY customer_id, status ORDER BY id DESC, amount ASC )"],"tables":["shop.orders"],"plan":["- Output =\u003e [1:id, 6:sum(3: amount)]","    - ANALYTIC [ partition by (2:customer_id, 4:status), order by (1: id DESC NULLS LAST, 3: amount ASC NULLS FIRST)]","            6:sum(3: amount) := sum(3:amount) RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW","        - SORT(GLOBAL)[2: customer_id ASC NULLS FIRST, 4: status ASC NULLS FIRST, 1: id DESC NULLS LAST, 3: amount ASC NULLS FIRST]","            - SCAN [orders] =\u003e [1:id, 2:customer_id, 3:amount, 4:status]"]}
+> raw
+| span shop
+| SELECT d.`rank() OVER (PARTITION BY status ORDER BY amount ASC )` FROM (SELECT rank() OVER (PARTITION BY status ORDER BY amount) FROM orders) d
+< raw
+| {"columns":["rank() OVER (PARTITION BY status ORDER BY amount ASC )"],"tables":["shop.orders"],"plan":["- Output =\u003e [6:rank()]","    - ANALYTIC [ partition by (4:status), order by (3: amount ASC NULLS FIRST)]","            6:rank() := rank() RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW","        - SORT(GLOBAL)[4: status ASC NULLS FIRST, 3: amount ASC NULLS FIRST]","            - SCAN [orders] =\u003e [3:amount, 4:status]"]}
+> raw
+| span shop
 | SELECT id FROM orders QUALIFY row_number() OVER (PARTITION BY customer_id ORDER BY amount) = 1
 < raw
 | {"columns":["id"],"tables":["shop.orders"],"plan":["- Output =\u003e [1:id]","    - PREDICATE [6: row_number() = 1]","        - ANALYTIC [ partition by (2:customer_id), order by (3: amount ASC NULLS FIRST)]","                6:row_number() := row_number() ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW","            - SORT(GLOBAL)[2: customer_id ASC NULLS FIRST, 3: amount ASC NULLS FIRST]","                - SORT(PARTIAL)[2: customer_id ASC NULLS FIRST, 3: amount ASC NULLS FIRST]","                    - SCAN [orders] =\u003e [1:id, 2:customer_id, 3:amount]"]}

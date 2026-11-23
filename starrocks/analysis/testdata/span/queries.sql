@@ -128,6 +128,8 @@ SELECT id, row_number() OVER (ORDER BY amount) AS rn FROM orders
 SELECT id, sum(amount) OVER (PARTITION BY customer_id) AS running FROM orders
 SELECT id, lag(amount) OVER (ORDER BY id) AS prev FROM orders
 SELECT id, rank() OVER (PARTITION BY status ORDER BY amount) FROM orders
+SELECT id, sum(amount) OVER (PARTITION BY customer_id, status ORDER BY id DESC, amount) FROM orders
+SELECT d.`rank() OVER (PARTITION BY status ORDER BY amount ASC )` FROM (SELECT rank() OVER (PARTITION BY status ORDER BY amount) FROM orders) d
 SELECT id FROM orders QUALIFY row_number() OVER (PARTITION BY customer_id ORDER BY amount) = 1
 
 -- Aggregates.

@@ -192,3 +192,19 @@ func TestResolveQuerySpanTableFunctionThroughStar(t *testing.T) {
 		}
 	}
 }
+
+// A field path on a lambda parameter, x -> x.f, is no column: the array the
+// lambda maps is what the result reads.
+func TestResolveQuerySpanLambdaFieldPath(t *testing.T) {
+	span, err := resolveWithCatalog(t, "SELECT array_map(x -> x.city, info) AS cities FROM customers")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if span.NotFoundError != nil {
+		t.Fatalf("NotFoundError %v", span.NotFoundError)
+	}
+	info := ColumnResource{Database: "shop", Table: "customers", Column: "info"}
+	if len(span.Results) != 1 || len(span.Results[0].SourceColumns) != 1 || !span.Results[0].SourceColumns[info] {
+		t.Errorf("results %+v, want customers.info", span.Results)
+	}
+}

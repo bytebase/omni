@@ -71,6 +71,3 @@ queries that hold the text.
   tables. StarRocks returns no rows, so no masked value can pass.
 - `SELECT * EXCEPT (amount, status) FROM orders`: StarRocks 3.4.10 refuses
   it, and omni's parser accepts it.
-- `rank() OVER (PARTITION BY status ORDER BY amount)`: StarRocks names the
-  column with the sort direction it adds (`ORDER BY amount ASC `); omni keeps
-  the text as written. Names do not decide masking, which follows position.

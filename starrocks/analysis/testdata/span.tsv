@@ -309,9 +309,15 @@ shop.orders	shop.orders	engine	base	shop	tables	SELECT id, sum(amount) OVER (PAR
 id, prev	id, prev	engine	base	shop	results	SELECT id, lag(amount) OVER (ORDER BY id) AS prev FROM orders
 shop.orders.id | shop.orders.amount shop.orders.id	shop.orders.id | shop.orders.amount ~	engine	base	shop	lineage	SELECT id, lag(amount) OVER (ORDER BY id) AS prev FROM orders
 shop.orders	shop.orders	engine	base	shop	tables	SELECT id, lag(amount) OVER (ORDER BY id) AS prev FROM orders
-id, rank() OVER (PARTITION BY status ORDER BY amount)	id, rank() OVER (PARTITION BY status ORDER BY amount ASC )	engine	base	shop	results	SELECT id, rank() OVER (PARTITION BY status ORDER BY amount) FROM orders
+id, rank() OVER (PARTITION BY status ORDER BY amount ASC )	id, rank() OVER (PARTITION BY status ORDER BY amount ASC )	engine	base	shop	results	SELECT id, rank() OVER (PARTITION BY status ORDER BY amount) FROM orders
 shop.orders.id | shop.orders.amount shop.orders.status	shop.orders.id | ~	engine	base	shop	lineage	SELECT id, rank() OVER (PARTITION BY status ORDER BY amount) FROM orders
 shop.orders	shop.orders	engine	base	shop	tables	SELECT id, rank() OVER (PARTITION BY status ORDER BY amount) FROM orders
+id, sum(amount) OVER (PARTITION BY customer_id, status ORDER BY id DESC, amount ASC )	id, sum(amount) OVER (PARTITION BY customer_id, status ORDER BY id DESC, amount ASC )	engine	base	shop	results	SELECT id, sum(amount) OVER (PARTITION BY customer_id, status ORDER BY id DESC, amount) FROM orders
+shop.orders.id | shop.orders.amount shop.orders.customer_id shop.orders.id shop.orders.status	shop.orders.id | shop.orders.amount ~	engine	base	shop	lineage	SELECT id, sum(amount) OVER (PARTITION BY customer_id, status ORDER BY id DESC, amount) FROM orders
+shop.orders	shop.orders	engine	base	shop	tables	SELECT id, sum(amount) OVER (PARTITION BY customer_id, status ORDER BY id DESC, amount) FROM orders
+rank() OVER (PARTITION BY status ORDER BY amount ASC )	rank() OVER (PARTITION BY status ORDER BY amount ASC )	engine	base	shop	results	SELECT d.`rank() OVER (PARTITION BY status ORDER BY amount ASC )` FROM (SELECT rank() OVER (PARTITION BY status ORDER BY amount) FROM orders) d
+shop.orders.amount shop.orders.status	~	engine	base	shop	lineage	SELECT d.`rank() OVER (PARTITION BY status ORDER BY amount ASC )` FROM (SELECT rank() OVER (PARTITION BY status ORDER BY amount) FROM orders) d
+shop.orders	shop.orders	engine	base	shop	tables	SELECT d.`rank() OVER (PARTITION BY status ORDER BY amount ASC )` FROM (SELECT rank() OVER (PARTITION BY status ORDER BY amount) FROM orders) d
 id	id	engine	base	shop	results	SELECT id FROM orders QUALIFY row_number() OVER (PARTITION BY customer_id ORDER BY amount) = 1
 shop.orders.id	shop.orders.id	engine	base	shop	lineage	SELECT id FROM orders QUALIFY row_number() OVER (PARTITION BY customer_id ORDER BY amount) = 1
 shop.orders	shop.orders	engine	base	shop	tables	SELECT id FROM orders QUALIFY row_number() OVER (PARTITION BY customer_id ORDER BY amount) = 1

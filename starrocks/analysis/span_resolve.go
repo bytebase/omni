@@ -716,7 +716,9 @@ func (r *spanResolver) expr(node ast.Node, sc *spanScope, ctes *cteBinding) Sour
 				if e.Name == nil || len(e.Name.Parts) == 0 {
 					return false
 				}
-				if len(e.Name.Parts) == 1 && bound[strings.ToLower(e.Name.Parts[0])] > 0 {
+				// A lambda parameter, or a field path on one (x -> x.f),
+				// shadows any column or table of its name.
+				if bound[strings.ToLower(e.Name.Parts[0])] > 0 {
 					return false
 				}
 				for c := range r.column(e.Name.Parts, sc) {
@@ -871,6 +873,10 @@ func (r *spanResolver) printed(node ast.Node) string {
 		}
 	case *ast.BinaryExpr:
 		return r.printed(e.Left) + " " + e.Op.String() + " " + r.printed(e.Right)
+	case *ast.FuncCallExpr:
+		if w := e.Over; w != nil && w.Name == "" && w.Frame == nil {
+			return r.printedWindow(e, w)
+		}
 	case *ast.UnaryExpr:
 		if e.Op == ast.UnaryMinus {
 			if lit, ok := e.Expr.(*ast.Literal); ok && (lit.Kind == ast.LitInt || lit.Kind == ast.LitFloat) {
@@ -880,6 +886,47 @@ func (r *spanResolver) printed(node ast.Node) string {
 		}
 	}
 	return r.slice(node)
+}
+
+// printedWindow renders an analytic call as StarRocks names it: the call,
+// then OVER with PARTITION BY and ORDER BY each followed by a space, and
+// every sort key with its direction. A frame or a NULLS order keeps the
+// text as written.
+func (r *spanResolver) printedWindow(call *ast.FuncCallExpr, w *ast.WindowSpec) string {
+	for _, o := range w.OrderBy {
+		if o == nil || o.NullsFirst != nil {
+			return r.slice(call)
+		}
+	}
+	if call.Loc.Start < 0 || w.Loc.Start > len(r.text) || call.Loc.Start > w.Loc.Start {
+		return r.slice(call)
+	}
+	fn := strings.TrimSpace(r.text[call.Loc.Start:w.Loc.Start])
+	if n := len(fn); n >= 4 && strings.EqualFold(fn[n-4:], "OVER") {
+		fn = strings.TrimSpace(fn[:n-4])
+	}
+	var b strings.Builder
+	b.WriteString(fn + " OVER (")
+	if len(w.PartitionBy) > 0 {
+		var parts []string
+		for _, p := range w.PartitionBy {
+			parts = append(parts, r.printed(p))
+		}
+		b.WriteString("PARTITION BY " + strings.Join(parts, ", ") + " ")
+	}
+	if len(w.OrderBy) > 0 {
+		var keys []string
+		for _, o := range w.OrderBy {
+			dir := " ASC"
+			if o.Desc {
+				dir = " DESC"
+			}
+			keys = append(keys, r.printed(o.Expr)+dir)
+		}
+		b.WriteString("ORDER BY " + strings.Join(keys, ", ") + " ")
+	}
+	b.WriteString(")")
+	return b.String()
 }
 
 // slice returns the text a node was parsed from.
