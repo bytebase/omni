@@ -604,7 +604,11 @@ func (a *queryAnalyzer) aggregateType(n *ast.FuncCallExpr, name string, args []q
 			}
 			return qtype{}, false, oraError("00932", "expression is of data type %s, which is incompatible with expected data type NUMBER", t.kind)
 		case t.isInterval():
-			return t, false, nil
+			// SUM and AVG add intervals; the statistics take numbers.
+			if name == "SUM" || name == "AVG" {
+				return t, false, nil
+			}
+			return qtype{}, false, oraError("00932", "expression is of data type %s, which is incompatible with expected data type NUMBER", t.kind)
 		}
 		return numberType(), false, nil
 	case "PERCENTILE_DISC":

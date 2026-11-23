@@ -51,6 +51,34 @@ func requireCondition(t qtype) error {
 
 // expr types an expression: its data type and whether it is never NULL.
 func (a *queryAnalyzer) expr(x ast.ExprNode, sc *qscope, clause exprClause) (qtype, bool, error) {
+	// An expression analyzed again in the same scope and clause (a
+	// comparison's operand checked against a subquery, a row's elements)
+	// answers from the memo, so no subtree is analyzed twice.
+	if x == nil {
+		return nullType(), false, nil
+	}
+	key := exprMemoKey{node: x, sc: sc, clause: clause}
+	if m, ok := a.memo[key]; ok {
+		return m.typ, m.notNull, m.err
+	}
+	t, nn, err := a.analyzeExpr(x, sc, clause)
+	a.memo[key] = exprMemo{typ: t, notNull: nn, err: err}
+	return t, nn, err
+}
+
+type exprMemoKey struct {
+	node   ast.ExprNode
+	sc     *qscope
+	clause exprClause
+}
+
+type exprMemo struct {
+	typ     qtype
+	notNull bool
+	err     error
+}
+
+func (a *queryAnalyzer) analyzeExpr(x ast.ExprNode, sc *qscope, clause exprClause) (qtype, bool, error) {
 	switch n := x.(type) {
 	case nil:
 		return nullType(), false, nil

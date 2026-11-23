@@ -131,6 +131,8 @@ type queryAnalyzer struct {
 	plsqlFuncs map[string]qtype
 	// owner is the FROM clause each column reference resolved in.
 	owner map[*ast.ColumnRef]*qfrom
+	// memo holds each expression's analysis by scope and clause.
+	memo map[exprMemoKey]exprMemo
 }
 
 type textEdit struct {
@@ -150,7 +152,7 @@ func (e *oracleMetadataExtractor) analyzeViewQuery(query ast.StmtNode) ([]qcol, 
 	if !ok || sel == nil {
 		return nil, e.nodeText(query), nil
 	}
-	a := &queryAnalyzer{e: e, plsqlFuncs: map[string]qtype{}, owner: map[*ast.ColumnRef]*qfrom{}}
+	a := &queryAnalyzer{e: e, plsqlFuncs: map[string]qtype{}, owner: map[*ast.ColumnRef]*qfrom{}, memo: map[exprMemoKey]exprMemo{}}
 	res, err := a.query(sel, nil, nil, true)
 	if err != nil {
 		return nil, "", err
@@ -1776,7 +1778,14 @@ func (a *queryAnalyzer) starReferences(rt *ast.ResTarget, sc *qscope) []ast.Expr
 			continue
 		}
 		c := it.rel.cols[it.idx]
-		if c.hidden || it.rel.merged[c.name] {
+		if c.hidden {
+			continue
+		}
+		if it.rel.merged[c.name] {
+			// t.* selects a USING key unqualified.
+			if qualifier != "" {
+				refs = append(refs, &ast.ColumnRef{Column: c.name, Loc: ast.NoLoc()})
+			}
 			continue
 		}
 		refs = append(refs, &ast.ColumnRef{Table: it.rel.name, Column: c.name, Loc: ast.NoLoc()})
