@@ -215,6 +215,108 @@ func TestResolveQuerySpanDatabaseLink(t *testing.T) {
 	require.Equal(t, "NOWHERE", *span.NotFoundError.DatabaseLink)
 }
 
+// synonymDatabase adds synonyms to a fakeDatabase.
+type synonymDatabase struct {
+	*fakeDatabase
+	synonyms, public map[string]*metadata.SynonymMetadata
+}
+
+func (d *synonymDatabase) GetSynonym(name string) *metadata.SynonymMetadata { return d.synonyms[name] }
+func (d *synonymDatabase) GetPublicSynonym(name string) *metadata.SynonymMetadata {
+	return d.public[name]
+}
+
+// TestResolveQuerySpanSynonym resolves a name a synonym gives to the object
+// it stands for, which the statement reads: a private synonym, a chain of
+// them, a public synonym for an unqualified name only, and one through a
+// database link.
+func TestResolveQuerySpanSynonym(t *testing.T) {
+	base := testCatalog()
+	public := map[string]*metadata.SynonymMetadata{
+		"PUB_T": {Name: "PUB_T", TargetSchema: "DB", TargetName: "T"},
+	}
+	catalog := Catalog{
+		GetDatabase: func(instance, database string) (Database, error) {
+			db, err := base.GetDatabase(instance, database)
+			if err != nil || instance != "A" || database != "DB" {
+				return db, err
+			}
+			return &synonymDatabase{fakeDatabase: db.(*fakeDatabase), public: public, synonyms: map[string]*metadata.SynonymMetadata{
+				"S":      {Name: "S", TargetSchema: "DB", TargetName: "T"},
+				"S2":     {Name: "S2", TargetSchema: "DB", TargetName: "S"},
+				"SV":     {Name: "SV", TargetSchema: "DB", TargetName: "V"},
+				"REMOTE": {Name: "REMOTE", TargetSchema: "R", TargetName: "RT", TargetDbLink: "LINK"},
+				"LOOP":   {Name: "LOOP", TargetSchema: "DB", TargetName: "LOOP"},
+			}}, nil
+		},
+		GetLinkedDatabase: base.GetLinkedDatabase,
+	}
+	resolve := func(statement string) *ResolvedSpan {
+		t.Helper()
+		span, err := ResolveQuerySpan(statement, ResolveOptions{Instance: "A", DefaultDatabase: "DB", Catalog: catalog})
+		require.NoError(t, err)
+		return span
+	}
+
+	for _, statement := range []string{"SELECT A FROM S", "SELECT S.A FROM S", "SELECT DB.S.A FROM DB.S", "SELECT DB.S.A FROM S", "SELECT A FROM DB.S2", "SELECT A FROM PUB_T"} {
+		span := resolve(statement)
+		require.Nil(t, span.NotFoundError, statement)
+		require.Equal(t, ColumnSet{{Database: "DB", Table: "T"}: true}, span.SourceColumns, statement)
+		require.Equal(t, []QuerySpanResult{{Name: "A", SourceColumns: column("DB", "T", "A")}}, span.Results, statement)
+	}
+
+	span := resolve("SELECT S FROM SV")
+	require.Equal(t, ColumnSet{{Database: "DB", Table: "V"}: true}, span.SourceColumns)
+	require.Equal(t, ColumnSet{
+		{Database: "DB", Table: "T", Column: "A"}: true,
+		{Database: "DB", Table: "T", Column: "B"}: true,
+	}, span.Results[0].SourceColumns)
+
+	span = resolve("SELECT X FROM REMOTE")
+	require.Equal(t, ColumnSet{{Instance: "B", Server: "LINK", Database: "R", Table: "RT"}: true}, span.SourceColumns)
+	require.Equal(t, []QuerySpanResult{{Name: "X", SourceColumns: column("R", "RT", "X")}}, span.Results)
+
+	// A statement that writes through a synonym over a link keeps its target.
+	span = resolve("UPDATE REMOTE SET X = 1")
+	require.Equal(t, DML, span.Type)
+	require.Equal(t, ColumnSet{{Instance: "B", Server: "LINK", Database: "R", Table: "RT"}: true}, span.SourceColumns)
+
+	// A public synonym answers an unqualified name only, and a loop
+	// resolves nothing.
+	for _, statement := range []string{"SELECT A FROM DB.PUB_T", "SELECT * FROM LOOP"} {
+		require.NotNil(t, resolve(statement).NotFoundError, statement)
+	}
+}
+
+// TestResolveQuerySpanJoinedColumn resolves an unqualified name of a USING or
+// NATURAL join's column to both sides, and a qualified one to its own side.
+func TestResolveQuerySpanJoinedColumn(t *testing.T) {
+	span := resolve(t, "SELECT A, T.A AS TA FROM T JOIN (SELECT A FROM T) X USING (A)")
+	require.Equal(t, column("DB", "T", "A"), span.Results[0].SourceColumns)
+	require.Equal(t, column("DB", "T", "A"), span.Results[1].SourceColumns)
+
+	span = resolve(t, "SELECT A, X.A AS XA FROM T JOIN (SELECT B AS A FROM T) X USING (A)")
+	require.Equal(t, ColumnSet{
+		{Database: "DB", Table: "T", Column: "A"}: true,
+		{Database: "DB", Table: "T", Column: "B"}: true,
+	}, span.Results[0].SourceColumns)
+	require.Equal(t, column("DB", "T", "B"), span.Results[1].SourceColumns)
+
+	span = resolve(t, "SELECT A FROM (SELECT B AS A FROM T) X NATURAL JOIN T")
+	require.Equal(t, ColumnSet{
+		{Database: "DB", Table: "T", Column: "A"}: true,
+		{Database: "DB", Table: "T", Column: "B"}: true,
+	}, span.Results[0].SourceColumns)
+}
+
+// TestResolveQuerySpanName names an expression with no alias as Oracle does:
+// its text without whitespace, upper-cased, quoted identifiers and string
+// literals too, as span.tsv records Oracle answering.
+func TestResolveQuerySpanName(t *testing.T) {
+	span := resolve(t, `SELECT a + 1, max(b), "A" || 'x y' FROM T`)
+	require.Equal(t, []string{"A+1", "MAX(B)", `"A"||'XY'`}, []string{span.Results[0].Name, span.Results[1].Name, span.Results[2].Name})
+}
+
 func TestResolveQuerySpanNotFound(t *testing.T) {
 	span := resolve(t, "SELECT * FROM NOPE")
 	require.Empty(t, span.Results)
@@ -418,6 +520,26 @@ func TestCollectAccessTables(t *testing.T) {
 		},
 	}
 
+	tests = append(tests,
+		// A WITH element shadows a table of its name in its own query only,
+		// and never a qualified name.
+		struct {
+			statement string
+			expected  []accessResource
+			linked    []accessResource
+		}{
+			statement: "WITH t1 AS (SELECT * FROM t2) SELECT * FROM t1, db.t1, (SELECT * FROM t3) x WHERE EXISTS (SELECT 1 FROM t1)",
+			expected:  []accessResource{{Database: "DB", Table: "T2"}, {Database: "DB", Table: "T1"}, {Database: "DB", Table: "T3"}},
+		},
+		struct {
+			statement string
+			expected  []accessResource
+			linked    []accessResource
+		}{
+			statement: "SELECT * FROM t1 WHERE a IN (WITH t1 AS (SELECT 1 a FROM DUAL) SELECT a FROM t1)",
+			expected:  []accessResource{{Database: "DB", Table: "T1"}},
+		},
+	)
 	for _, test := range tests {
 		results, err := Parse(test.statement)
 		require.NoError(t, err)
@@ -426,6 +548,11 @@ func TestCollectAccessTables(t *testing.T) {
 		raw, ok := results.Items[0].(*oracleast.RawStmt)
 		require.True(t, ok)
 		local, linked := collectAccessTables("DB", raw.Stmt)
+		// Unqualified only says whether a public synonym may resolve the
+		// name; resolveSynonyms clears it.
+		for i := range local {
+			local[i].Unqualified = false
+		}
 		require.Equal(t, test.expected, local, test.statement)
 		require.Equal(t, test.linked, linked, test.statement)
 	}

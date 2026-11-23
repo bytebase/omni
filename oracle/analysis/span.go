@@ -77,6 +77,19 @@ type Database interface {
 	GetExternalTable(name string) *metadata.ExternalTableMetadata
 }
 
+// SynonymDatabase is a Database that also knows its synonyms (CREATE
+// SYNONYM). A name that matches no table or view of a database resolves
+// through the database's synonym of that name, and an unqualified one then
+// through the instance's public synonym. A Database that does not implement
+// it resolves no synonym, and a name only a synonym gives is not found.
+type SynonymDatabase interface {
+	// GetSynonym returns the database's synonym name, or nil.
+	GetSynonym(name string) *metadata.SynonymMetadata
+	// GetPublicSynonym returns the public synonym name of the database's
+	// instance, or nil.
+	GetPublicSynonym(name string) *metadata.SynonymMetadata
+}
+
 func mergeColumnSet(m, n ColumnSet) (ColumnSet, bool) {
 	r := make(ColumnSet)
 	for k := range m {
