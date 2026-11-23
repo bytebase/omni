@@ -74,7 +74,7 @@ func TestViewQueryValidation(t *testing.T) {
 }
 
 func TestViewQueryRefusals(t *testing.T) {
-	const fixture = `CREATE TABLE t (id NUMBER, n NUMBER(5,-1), m NUMBER(*,-2));`
+	const fixture = `CREATE TABLE t (id NUMBER, n NUMBER(5,-1), m NUMBER(*,-2), doc CLOB);`
 	cases := []struct {
 		name, sql, code string
 	}{
@@ -128,6 +128,10 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"rollup_composite_column", `CREATE VIEW v AS SELECT id, n, COUNT(*) c FROM t GROUP BY ROLLUP((id, n))`, ""},
 		{"qualified_duplicate_column", `CREATE VIEW v AS SELECT x.c FROM (SELECT id c, n c FROM t) x`, "00918"},
 		{"date_plus_date", `CREATE VIEW v AS SELECT DATE '2020-01-01' + DATE '2020-01-02' x FROM dual`, "00975"},
+		{"recursive_multi_branch_anchor", `CREATE VIEW v AS WITH r(n) AS (SELECT 1 FROM dual UNION ALL SELECT 2 FROM dual UNION ALL SELECT n + 2 FROM r WHERE n < 5) SELECT n FROM r`, ""},
+		{"analytic_in_window_order", `CREATE VIEW v AS SELECT SUM(id) OVER (ORDER BY ROW_NUMBER() OVER (ORDER BY id)) s FROM t`, "30483"},
+		{"json_table_reads_join_left", `CREATE VIEW v AS SELECT jt.id FROM t CROSS JOIN JSON_TABLE(t.doc, '$' COLUMNS (id NUMBER PATH '$.id')) jt`, ""},
+		{"match_recognize_repeated_variable", `CREATE VIEW v AS SELECT * FROM t MATCH_RECOGNIZE (ORDER BY id MEASURES FIRST(a.id) AS first_id PATTERN (a b* a) DEFINE a AS id > 0)`, ""},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {

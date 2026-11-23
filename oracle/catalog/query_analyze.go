@@ -425,27 +425,47 @@ func (a *queryAnalyzer) analyzeCTE(d *cteDef, outer *qscope, env *cteEnv) error 
 		if len(names) == 0 {
 			return oraError("32039", "missing column alias list in recursive WITH clause element %s", c.Name)
 		}
+		// The anchor is every branch before the last, which UNION ALL joins
+		// to the recursive member; only that member reads the element.
 		ops, _, _ := flattenSetOp(sel)
-		if len(ops) != 2 || !ops[1].all || ops[1].op != ast.SETOP_UNION {
+		last := ops[len(ops)-1]
+		if len(ops) < 2 || !last.all || last.op != ast.SETOP_UNION {
 			return oraError("32040", "recursive WITH clause must use a UNION ALL operation")
 		}
-		anchorBlock := *ops[0].sel
-		anchorBlock.Op, anchorBlock.Rarg = ast.SETOP_NONE, nil
-		if selectReferencesTable(&anchorBlock, c.Name) {
-			return oraError("32043", "recursive WITH clause needs an initialization branch")
+		var anchorCols []qcol
+		for i, op := range ops[:len(ops)-1] {
+			anchorBlock := *op.sel
+			anchorBlock.Op, anchorBlock.Rarg = ast.SETOP_NONE, nil
+			if selectReferencesTable(&anchorBlock, c.Name) {
+				return oraError("32043", "recursive WITH clause needs an initialization branch")
+			}
+			d.analyzing = true
+			branch, err := a.block(op.sel, outer, env, false, true)
+			d.analyzing = false
+			if err != nil {
+				return err
+			}
+			if i == 0 {
+				anchorCols = branch.cols
+				continue
+			}
+			if len(branch.cols) != len(anchorCols) {
+				return oraError("01789", "query block has incorrect number of result columns")
+			}
+			for k := range anchorCols {
+				t, err := mergeSetOpTypes(anchorCols[k].typ, branch.cols[k].typ)
+				if err != nil {
+					return err
+				}
+				anchorCols[k].typ = t
+			}
 		}
-		d.analyzing = true
-		anchor, err := a.block(ops[0].sel, outer, env, false, true)
-		d.analyzing = false
-		if err != nil {
-			return err
-		}
-		if len(anchor.cols) != len(names) {
+		if len(anchorCols) != len(names) {
 			return oraError("32038", "number of WITH clause column names does not match number of elements in select list")
 		}
 		d.cols = make([]qcol, len(names))
 		for i, n := range names {
-			d.cols[i] = qcol{name: n, typ: anchor.cols[i].typ}
+			d.cols[i] = qcol{name: n, typ: anchorCols[i].typ}
 		}
 		d.analyzed = true
 		res, err := a.query(sel, outer, env, false)

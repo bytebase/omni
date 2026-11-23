@@ -288,7 +288,13 @@ func (a *queryAnalyzer) join(n *ast.JoinClause, sc *qscope) (*qfrom, error) {
 		return nil, err
 	}
 	var right *qfrom
-	_, lateral := n.Right.(*ast.LateralRef)
+	// LATERAL, and the table functions that read the rows before them
+	// (JSON_TABLE, XMLTABLE, TABLE()), see the join's left input.
+	lateral := false
+	switch n.Right.(type) {
+	case *ast.LateralRef, *ast.JsonTableRef, *ast.XmlTableRef, *ast.TableCollectionExpr:
+		lateral = true
+	}
 	switch {
 	case lateral || n.Type == ast.JOIN_CROSS_APPLY || n.Type == ast.JOIN_OUTER_APPLY:
 		// The right side reads the left side's columns.
@@ -839,7 +845,13 @@ func (a *queryAnalyzer) matchRecognize(n *ast.MatchRecognizeClause, sc *qscope) 
 	for _, it := range src.items {
 		inputCols = append(inputCols, src.itemCol(it))
 	}
-	names := append(append([]string{}, vars...), mapKeys(subsets)...)
+	// A variable the pattern names twice is one binding.
+	var names []string
+	for _, v := range append(append([]string{}, vars...), mapKeys(subsets)...) {
+		if !containsString(names, v) {
+			names = append(names, v)
+		}
+	}
 	for _, r := range src.rels {
 		// A pattern variable shadows an input item of its name.
 		if !containsString(names, r.name) {

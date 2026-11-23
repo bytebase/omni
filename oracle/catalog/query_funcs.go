@@ -548,7 +548,7 @@ func firstLiteralInt(n *ast.FuncCallExpr) (int, bool) {
 func (a *queryAnalyzer) windowSpec(w *ast.WindowSpec, sc *qscope, seen map[string]bool) error {
 	for _, item := range listItems(w.PartitionBy) {
 		if ex, ok := item.(ast.ExprNode); ok {
-			if _, _, err := a.expr(ex, sc, clauseSelect); err != nil {
+			if _, _, err := a.expr(ex, sc, clauseAggArg); err != nil {
 				return err
 			}
 		}
@@ -558,7 +558,7 @@ func (a *queryAnalyzer) windowSpec(w *ast.WindowSpec, sc *qscope, seen map[strin
 		if !ok {
 			continue
 		}
-		t, _, err := a.expr(sb.Expr, sc, clauseSelect)
+		t, _, err := a.expr(sb.Expr, sc, clauseAggArg)
 		if err != nil {
 			return err
 		}
@@ -571,7 +571,7 @@ func (a *queryAnalyzer) windowSpec(w *ast.WindowSpec, sc *qscope, seen map[strin
 			if b == nil || b.Value == nil {
 				continue
 			}
-			if _, _, err := a.expr(b.Value, sc, clauseSelect); err != nil {
+			if _, _, err := a.expr(b.Value, sc, clauseAggArg); err != nil {
 				return err
 			}
 		}
