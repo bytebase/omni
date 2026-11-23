@@ -199,6 +199,9 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"qualified_star_only_key_not_grouped", `CREATE VIEW v AS SELECT w.* FROM w JOIN t USING (id) GROUP BY t.n`, "00979"},
 		{"scalar_with_over", `CREATE VIEW v AS SELECT UPPER('x') OVER () x FROM dual`, "00923"},
 		{"extract_from_number", `CREATE VIEW v AS SELECT EXTRACT(YEAR FROM 1) x FROM dual`, "30076"},
+		{"abs_of_date", `CREATE VIEW v AS SELECT ABS(DATE '2020-01-01') x FROM dual`, "00932"},
+		{"rowid_with_aggregate", `CREATE VIEW v AS SELECT ROWID rid, COUNT(*) c FROM t`, "00937"},
+		{"regexp_substr_national_union", `CREATE VIEW v AS SELECT REGEXP_SUBSTR(nv, N'.') x FROM t UNION ALL SELECT nv FROM t`, ""},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {

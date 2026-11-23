@@ -287,22 +287,23 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 			t.kind = "VARCHAR2"
 		}
 		return t, false, nil
-	case "TRANSLATE":
+	case "TRANSLATE", "REGEXP_SUBSTR":
 		t := arg(0)
 		if t.isLOB() {
 			return t, false, nil
 		}
-		return varchar2Bytes(t.byteLength() * dbCharBytes), false, nil
-	case "REGEXP_SUBSTR":
-		t := arg(0)
-		if t.isLOB() {
-			return t, false, nil
+		if t.isNational() {
+			// A national source keeps its character set.
+			return characterType("NVARCHAR2", t.chars, false), false, nil
 		}
 		return varchar2Bytes(t.byteLength() * dbCharBytes), false, nil
 	case "REGEXP_REPLACE":
 		t := arg(0)
 		if t.isLOB() {
 			return t, false, nil
+		}
+		if t.isNational() {
+			return characterType("NVARCHAR2", longestVarchar2/nationalCharBytes, false), false, nil
 		}
 		return varchar2Bytes(longestVarchar2), false, nil
 	case "LENGTH", "LENGTHB", "LENGTHC", "INSTR", "INSTRB", "INSTRC", "ASCII", "VSIZE",
@@ -314,6 +315,14 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 			// The datetime overloads return DATE.
 			if arg(0).isDatetime() {
 				return simpleType("DATE"), false, nil
+			}
+		}
+		if numericOnly[name] {
+			// These take numbers, or what converts to one.
+			for _, t := range args {
+				if t.isDatetime() || t.isInterval() || t.isLOB() || t.kind == "RAW" || t.kind == "BOOLEAN" {
+					return qtype{}, false, oraError("00932", "expression is of data type %s, which is incompatible with expected data type NUMBER", t.kind)
+				}
 			}
 		}
 		switch name {
@@ -885,4 +894,15 @@ func jsonReturningAllowed(name string, t qtype) bool {
 		return true
 	}
 	return false
+}
+
+// numericOnly are the built-ins that take only numbers (or what converts
+// implicitly to one): ROUND, TRUNC, CEIL and FLOOR have datetime overloads
+// checked before.
+var numericOnly = map[string]bool{
+	"ABS": true, "SIGN": true, "SQRT": true, "EXP": true, "LN": true, "LOG": true,
+	"POWER": true, "MOD": true, "REMAINDER": true, "SIN": true, "COS": true, "TAN": true,
+	"ASIN": true, "ACOS": true, "ATAN": true, "ATAN2": true, "SINH": true, "COSH": true,
+	"TANH": true, "BITAND": true, "NANVL": true,
+	"ROUND": true, "TRUNC": true, "CEIL": true, "FLOOR": true,
 }

@@ -1005,7 +1005,20 @@ func checkGrouped(x ast.Node, keys []string, keyOf func(ast.Node) string, owned 
 			return true
 		})
 		return err
-	case *ast.NumberLiteral, *ast.StringLiteral, *ast.NullLiteral, *ast.DateTimeLiteral, *ast.PseudoColumn, *ast.IntervalExpr:
+	case *ast.PseudoColumn:
+		// ROWID, ROWNUM and LEVEL vary by row; SYSDATE and USER do not.
+		switch n.Type {
+		case ast.PSEUDO_ROWID, ast.PSEUDO_ROWNUM, ast.PSEUDO_LEVEL:
+			switch {
+			case !hasGroupBy || nested:
+				return oraError("00937", "not a single-group group function")
+			case positional:
+				return oraError("03162", "must appear in the GROUP BY clause or be used in an aggregate function as 'group_by_position_enabled' is FALSE")
+			}
+			return oraError("00979", "must appear in the GROUP BY clause or be used in an aggregate function")
+		}
+		return nil
+	case *ast.NumberLiteral, *ast.StringLiteral, *ast.NullLiteral, *ast.DateTimeLiteral, *ast.IntervalExpr:
 		return nil
 	}
 	var err error
