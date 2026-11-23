@@ -459,8 +459,11 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 // on relation schema.rel.
 func (s *mssqlSnapshot) triggerOnRelation(sc, trigger, schema, rel string) {
 	tn, ok1 := keyed(trigger)
-	rn, ok2 := keyed(rel)
-	if !ok1 || !ok2 {
+	sn, ok2 := keyed(schema)
+	rn, ok3 := keyed(rel)
+	if !ok1 || !ok2 || !ok3 || !sn.plain || !rn.plain {
+		// Only plain names of different classes differ under every
+		// collation.
 		return
 	}
 	path := walk.Path(sc, tn.class)

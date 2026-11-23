@@ -320,7 +320,7 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 	}
 	if r.where == placed {
 		b.moduleChecks(r, verb, kindTrigger)
-		if on := b.syncedTriggerOn(r); verb == "ALTER" && t.where == placed && on.path != "" && on.path != t.tablePath() {
+		if on := b.syncedTriggerOn(r); verb == "ALTER" && t.where == placed && t.n.plain && t.schema.plain && on.path != "" && on.path != t.tablePath() {
 			b.fail(r.rng, review.UnsupportedForm, "Trigger "+review.Code(r.written)+" is on "+review.Code(on.written)+", not "+review.Code(t.written)+".")
 			return true
 		}

@@ -896,6 +896,7 @@ func TestWalkThroughSyncedFacts(t *testing.T) {
 		{"drop a nonclustered index with MAXDOP", "DROP INDEX ix_k ON dbo.k WITH (MAXDOP = 1);", 0, "Index `ix_k` isn't clustered, so it can't be dropped with `MAXDOP`."},
 		{"drop a nonclustered index", "DROP INDEX ix_k ON dbo.k WITH (ONLINE = OFF);", -1, ""},
 		{"alter a trigger onto another table", "ALTER TRIGGER dbo.tr_c ON dbo.p AFTER INSERT AS SELECT 1;", 0, "Trigger `dbo.tr_c` is on `dbo.c`, not `dbo.p`."},
+		{"alter a trigger on a marked name of its table", "ALTER TRIGGER dbo.tr_c ON dbo.[ç] AFTER INSERT AS SELECT 1;", -1, ""},
 		{"alter a trigger on its table", "ALTER TRIGGER dbo.tr_c ON dbo.c AFTER INSERT AS SELECT 1;", -1, ""},
 		{"RETURN of a value in a table-valued function", "CREATE FUNCTION dbo.f() RETURNS @r TABLE (id int) AS BEGIN INSERT INTO @r VALUES (1); RETURN 1; END;", 0, "SQL Server doesn't accept `RETURN` of a value in a table-valued function."},
 		{"RETURN in a table-valued function", "CREATE FUNCTION dbo.f() RETURNS @r TABLE (id int) AS BEGIN INSERT INTO @r VALUES (1); RETURN; END;", -1, ""},
