@@ -42,7 +42,8 @@ same way: procedures, functions, packages, triggers and types with bodies, and
 DDL on the objects they read, on `programs@objects`. Oracle creates a unit it
 cannot compile, so most rows are accepted; the walk catches the refusals it
 models (an existing name, a missing object to drop, a trigger on a missing
-table) and is held to zero false positives and a recall floor of its own.
+table), 21 / 39 refusals (53.8%), and is held to zero false positives and a
+recall floor of its own.
 
 ## Commands
 

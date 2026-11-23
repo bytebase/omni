@@ -2234,6 +2234,427 @@
 | EMP_V
 : string
 | VIEW
+> query ^
+< result
+< column "S" "NCHAR" "string"
+< column "O" "NCHAR" "string"
+< column "TBL" "NCHAR" "string"
+< column "N" "NCHAR" "string"
+< column "K" "NCHAR" "string"
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| AUDIT_LOG
+: string
+| AT
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| AUDIT_LOG
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| AUDIT_LOG
+: string
+| WHAT
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| CUSTOMERS
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| CUSTOMERS
+: string
+| NAME
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| CUSTOMERS
+: string
+| REGION
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| ORDERS
+: string
+| AMOUNT
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| ORDERS
+: string
+| CUSTOMER_ID
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| ORDERS
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| ORDERS
+: string
+| STATUS
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| V_CUSTOMERS
+: string
+| ID
+: null
+< row
+: string
+| column
+: string
+| SIMSHOP
+: string
+| V_CUSTOMERS
+: string
+| NAME
+: null
+< row
+: string
+| constraint
+: string
+| SIMSHOP
+: string
+| CUSTOMERS
+: string
+| CUSTOMERS_PK
+: string
+| SIMSHOP
+< row
+: string
+| constraint
+: string
+| SIMSHOP
+: string
+| ORDERS
+: string
+| ORDERS_CUSTOMER_FK
+: string
+| SIMSHOP
+< row
+: string
+| constraint
+: string
+| SIMSHOP
+: string
+| ORDERS
+: string
+| ORDERS_PK
+: string
+| SIMSHOP
+< row
+: string
+| index
+: string
+| SIMSHOP
+: string
+| CUSTOMERS
+: string
+| CUSTOMERS_PK
+: string
+| SIMSHOP
+< row
+: string
+| index
+: string
+| SIMSHOP
+: string
+| ORDERS
+: string
+| ORDERS_PK
+: string
+| SIMSHOP
+< row
+: string
+| object
+: string
+| SIMSHOP
+: null
+: string
+| AUDIT_LOG
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SIMSHOP
+: null
+: string
+| CUST
+: string
+| SYNONYM
+< row
+: string
+| object
+: string
+| SIMSHOP
+: null
+: string
+| CUSTOMERS
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SIMSHOP
+: null
+: string
+| F_DOUBLE
+: string
+| FUNCTION
+< row
+: string
+| object
+: string
+| SIMSHOP
+: null
+: string
+| ORDERS
+: string
+| TABLE
+< row
+: string
+| object
+: string
+| SIMSHOP
+: null
+: string
+| ORDER_SEQ
+: string
+| SEQUENCE
+< row
+: string
+| object
+: string
+| SIMSHOP
+: null
+: string
+| PK
+: string
+| PACKAGE
+< row
+: string
+| object
+: string
+| SIMSHOP
+: null
+: string
+| P_CALLS
+: string
+| PROCEDURE
+< row
+: string
+| object
+: string
+| SIMSHOP
+: null
+: string
+| P_EXISTING
+: string
+| PROCEDURE
+< row
+: string
+| object
+: string
+| SIMSHOP
+: null
+: string
+| T_POINT
+: string
+| TYPE
+< row
+: string
+| object
+: string
+| SIMSHOP
+: null
+: string
+| V_CUSTOMERS
+: string
+| VIEW
+< row
+: string
+| primary key
+: string
+| SIMSHOP
+: string
+| CUSTOMERS
+: null
+: null
+< row
+: string
+| primary key
+: string
+| SIMSHOP
+: string
+| ORDERS
+: null
+: null
+< row
+: string
+| sequence
+: string
+| SIMSHOP
+: null
+: string
+| ORDER_SEQ
+: string
+| SEQUENCE
+< row
+: string
+| synonym
+: string
+| PUBLIC
+: null
+: string
+| DUAL
+: string
+| SYNONYM
+< row
+: string
+| synonym
+: string
+| SIMSHOP
+: null
+: string
+| CUST
+: string
+| SYNONYM
+< row
+: string
+| table
+: string
+| SIMSHOP
+: null
+: string
+| AUDIT_LOG
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SIMSHOP
+: null
+: string
+| CUSTOMERS
+: string
+| TABLE
+< row
+: string
+| table
+: string
+| SIMSHOP
+: null
+: string
+| ORDERS
+: string
+| TABLE
+< row
+: string
+| table constraint
+: string
+| SIMSHOP
+: string
+| CUSTOMERS
+: string
+| CUSTOMERS_PK
+: null
+< row
+: string
+| table constraint
+: string
+| SIMSHOP
+: string
+| ORDERS
+: string
+| ORDERS_CUSTOMER_FK
+: null
+< row
+: string
+| table constraint
+: string
+| SIMSHOP
+: string
+| ORDERS
+: string
+| ORDERS_PK
+: null
+< row
+: string
+| trigger
+: string
+| SIMSHOP
+: string
+| ORDERS
+: string
+| TRG_EXISTING
+: string
+| SIMSHOP
+< row
+: string
+| view
+: string
+| SIMSHOP
+: null
+: string
+| V_CUSTOMERS
+: string
+| VIEW
 
 == TestWalkSimulation default#2
 > exec
@@ -203502,6 +203923,11 @@
 | 30732 ORA-30732: table contains no user-visible columns
 |
 > exec
+| CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(ORDER BY a, a ASC PATTERN(a) DEFINE a AS 1 = 1)
+< error
+| 30732 ORA-30732: table contains no user-visible columns
+|
+> exec
 | CREATE VIEW v AS SELECT * FROM a MATCH_RECOGNIZE(MEASURES 1 AS a PATTERN(a) DEFINE a AS 1 = 1)
 < ok 0 0
 > exec
@@ -208253,5 +208679,20654 @@
 > exec
 | CREATE VIEW emp_v AS SELECT empno, ename, deptno FROM emp
 < ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> query
+| SELECT mview_name FROM dba_mviews WHERE owner = 'SIMSHOP' ORDER BY 1
+< result
+< column "MVIEW_NAME" "NCHAR" "string"
+> query
+| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "0" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| AUDIT_LOG
+: string
+| 0
+< row
+: string
+| CUSTOMERS
+: string
+| 0
+< row
+: string
+| ORDERS
+: string
+| 0
+> query
+| SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
+< column "DATA_DEFAULT" "LONG"
+< row
+: string
+| AUDIT_LOG
+: string
+| ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| AUDIT_LOG
+: string
+| WHAT
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| AUDIT_LOG
+: string
+| AT
+: string
+| DATE
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| CUSTOMERS
+: string
+| ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| CUSTOMERS
+: string
+| NAME
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| CUSTOMERS
+: string
+| REGION
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| ORDERS
+: string
+| ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| ORDERS
+: string
+| CUSTOMER_ID
+: string
+| NUMBER
+: string
+| Y
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| ORDERS
+: string
+| AMOUNT
+: string
+| NUMBER
+: string
+| Y
+: string
+| 3
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| ORDERS
+: string
+| STATUS
+: string
+| VARCHAR2
+: string
+| Y
+: string
+| 4
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| V_CUSTOMERS
+: string
+| ID
+: string
+| NUMBER
+: string
+| N
+: string
+| 1
+: string
+| NO
+: string
+| NO
+: null
+< row
+: string
+| V_CUSTOMERS
+: string
+| NAME
+: string
+| VARCHAR2
+: string
+| N
+: string
+| 2
+: string
+| NO
+: string
+| NO
+: null
+> query
+| SELECT table_name, partitioning_type, subpartitioning_type, interval FROM dba_part_tables WHERE owner = 'SIMSHOP' ORDER BY table_name
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "PARTITIONING_TYPE" "NCHAR" "string"
+< column "SUBPARTITIONING_TYPE" "NCHAR" "string"
+< column "INTERVAL" "NCHAR" "string"
+> query
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "(SELECTCOUNT(*)FROMDBA_IND_EXPRESSIONSEWHEREE.INDEX_OWNER=C.INDEX_OWNERANDE.INDEX_NAME=C.INDEX_NAME)" "NUMBER" "float64" precision 38 scale 255
+< row
+: string
+| CUSTOMERS_PK
+: string
+| ID
+: string
+| 0
+< row
+: string
+| ORDERS_PK
+: string
+| ID
+: string
+| 0
+> query
+| SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
+< column "SEARCH_CONDITION_VC" "NCHAR" "string"
+< row
+: string
+| CUSTOMERS
+: string
+| CUSTOMERS_PK
+: string
+| P
+: null
+< row
+: string
+| CUSTOMERS
+: string
+| SYS_C9000005
+: string
+| C
+: string
+| "NAME" IS NOT NULL
+< row
+: string
+| ORDERS
+: string
+| ORDERS_CUSTOMER_FK
+: string
+| R
+: null
+< row
+: string
+| ORDERS
+: string
+| ORDERS_PK
+: string
+| P
+: null
+> query
+| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+< result
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
+< row
+: string
+| CUSTOMERS
+: string
+| CUSTOMERS_PK
+: string
+| NORMAL
+< row
+: string
+| ORDERS
+: string
+| ORDERS_PK
+: string
+| NORMAL
+> query
+| SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
+< result
+< column "VIEW_NAME" "NCHAR" "string"
+< row
+: string
+| V_CUSTOMERS
+> query
+| SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = 'SIMSHOP' AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW') ORDER BY 1
+< result
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
+< row
+: string
+| TRG_EXISTING
+: string
+| ORDERS
+: string
+| TABLE
+> query
+| SELECT sequence_name FROM dba_sequences WHERE sequence_owner = 'SIMSHOP' AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\' ORDER BY 1
+< result
+< column "SEQUENCE_NAME" "NCHAR" "string"
+< row
+: string
+| ORDER_SEQ
+> query
+| SELECT DISTINCT name, type FROM dba_source WHERE owner = 'SIMSHOP' AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') ORDER BY 1, 2
+< result
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
+< row
+: string
+| F_DOUBLE
+: string
+| FUNCTION
+< row
+: string
+| PK
+: string
+| PACKAGE
+< row
+: string
+| P_CALLS
+: string
+| PROCEDURE
+< row
+: string
+| P_EXISTING
+: string
+| PROCEDURE
+> query
+| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'SIMSHOP' ORDER BY synonym_name
+< result
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
+< row
+: string
+| CUST
+: string
+| SIMSHOP
+: string
+| CUSTOMERS
+: null
+> query
+| SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = 'PUBLIC' AND INSTR(',A,DUAL,FTP,T,T_OFFSET,USING,ZZZ,', ',' || synonym_name || ',') > 0 ORDER BY synonym_name
+< result
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
+< row
+: string
+| DUAL
+: string
+| SYS
+: string
+| DUAL
+: null
+> exec
+| CREATE PROCEDURE p IS BEGIN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p (p_id IN NUMBER) IS v_name VARCHAR2(100); BEGIN SELECT name INTO v_name FROM customers WHERE id = p_id; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p (p_id IN NUMBER) IS v_name VARCHAR2(100); BEGIN SELECT nope INTO v_name FROM customers WHERE id = p_id; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; BEGIN SELECT id INTO v FROM missing_t; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; BEGIN SELECT c.nope INTO v FROM customers c; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; BEGIN SELECT COUNT(*) INTO v FROM customers c JOIN orders o ON o.customer_id = c.id WHERE c.region = 'EU'; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN SELECT id FROM customers; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN INSERT INTO orders (id, customer_id, amount) VALUES (1, 1, 2.5); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN INSERT INTO orders (nope) VALUES (1); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN INSERT INTO orders (id) VALUES (1, 2); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN INSERT INTO orders (id, amount) VALUES (1); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN INSERT INTO missing_t VALUES (1); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN INSERT INTO orders (id, customer_id) SELECT id, id FROM customers; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN INSERT INTO cust (id, name) VALUES (1, 'x'); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN INSERT INTO v_customers (id, name) VALUES (1, 'x'); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN UPDATE orders SET status = 'x' WHERE id = 1; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN UPDATE orders SET nope = 1; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN UPDATE orders SET status = 'x' WHERE nope = 1; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p (p_id IN NUMBER) IS BEGIN DELETE FROM orders WHERE customer_id = p_id; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN DELETE FROM orders WHERE nope = 1; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN DELETE FROM missing_t; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN MERGE INTO orders o USING customers c ON (o.customer_id = c.id) WHEN MATCHED THEN UPDATE SET o.status = c.region; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN MERGE INTO orders o USING customers c ON (o.customer_id = c.nope) WHEN MATCHED THEN UPDATE SET o.status = c.region; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; BEGIN SELECT order_seq.NEXTVAL INTO v FROM dual; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; BEGIN v := order_seq.NEXTVAL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; BEGIN v := nope_seq.NEXTVAL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; BEGIN SELECT f_double(id) INTO v FROM customers WHERE ROWNUM = 1; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; BEGIN SELECT nope_f(id) INTO v FROM customers WHERE ROWNUM = 1; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; BEGIN SELECT COUNT(*) INTO v FROM v_customers WHERE name = 'x'; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; BEGIN SELECT COUNT(*) INTO v FROM user_tables; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN COMMIT; ROLLBACK; SAVEPOINT s; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN CREATE TABLE x (a NUMBER); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN EXECUTE IMMEDIATE 'SELECT nope FROM nowhere'; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN EXECUTE IMMEDIATE 'CREATE TABLE x (a NUMBER)'; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN FOR r IN (SELECT id, name FROM customers) LOOP NULL; END LOOP; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v VARCHAR2(100); BEGIN FOR r IN (SELECT id FROM customers) LOOP v := r.name; END LOOP; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN FOR r IN (SELECT nope FROM customers) LOOP NULL; END LOOP; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS CURSOR c IS SELECT id FROM customers; v NUMBER; BEGIN OPEN c; FETCH c INTO v; CLOSE c; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS CURSOR c IS SELECT nope FROM customers; BEGIN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN OPEN nope_c; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS rc SYS_REFCURSOR; BEGIN OPEN rc FOR SELECT id FROM orders; CLOSE rc; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER := 0; BEGIN FOR i IN 1 .. 10 LOOP v := v + i; END LOOP; WHILE v > 0 LOOP v := v - 1; END LOOP; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS TYPE t_ids IS TABLE OF NUMBER; ids t_ids; BEGIN SELECT id BULK COLLECT INTO ids FROM customers; FORALL i IN 1 .. ids.COUNT DELETE FROM orders WHERE customer_id = ids(i); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN nope_proc; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN p_existing(1); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN p_existing; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN p_existing(1, 2); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN p_existing(p_id => 1); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN p_existing(nope => 1); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; BEGIN v := f_double(2); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; BEGIN v := f_double(2, 3); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN f_double(2); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; BEGIN v := nope_f(2); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; BEGIN v := nope; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN nope := 1; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; BEGIN v := 'x'; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v DATE; BEGIN v := SYSDATE + 1; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; BEGIN v := LENGTH(USER) + SQLCODE; DBMS_OUTPUT.PUT_LINE(SQLERRM); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN pk.log_it('x'); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN pk.nope; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN pk.g_count := pk.g_count + 1; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; BEGIN v := pk.total(1); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN pk.log_it; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN nope_pkg.p; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN DBMS_OUTPUT.PUT_LINE('x'); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN RAISE_APPLICATION_ERROR(-20001, 'x'); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS PROCEDURE inner IS BEGIN NULL; END; BEGIN inner; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS FUNCTION twice (x NUMBER) RETURN NUMBER IS BEGIN RETURN x * 2; END; v NUMBER; BEGIN v := twice(1, 2); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN p; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v customers.name%TYPE; BEGIN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v customers.nope%TYPE; BEGIN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v missing_t.c%TYPE; BEGIN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS r customers%ROWTYPE; BEGIN SELECT * INTO r FROM customers WHERE id = 1; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS r customers%ROWTYPE; BEGIN r.nope := 1; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS r missing_t%ROWTYPE; BEGIN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v nope_type; BEGIN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v t_point := t_point(1, 2); n NUMBER; BEGIN n := v.norm(); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; v NUMBER; BEGIN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; v NUMBER; BEGIN v := 1; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS c CONSTANT NUMBER := 1; BEGIN c := 2; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p (p_x IN NUMBER) IS BEGIN p_x := 1; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p (p_x OUT NUMBER) IS BEGIN p_x := 1; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p (p_x IN OUT NOCOPY VARCHAR2, p_y IN NUMBER DEFAULT 0) IS BEGIN p_x := p_x || p_y; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p (p_x IN nope_type) IS BEGIN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p (p_x IN customers.id%TYPE) IS BEGIN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p (p_x IN NUMBER, p_x IN NUMBER) IS BEGIN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN RETURN; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN RETURN 1; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN NULL; EXCEPTION WHEN NO_DATA_FOUND THEN NULL; WHEN OTHERS THEN RAISE; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN NULL; EXCEPTION WHEN nope_exc THEN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS e EXCEPTION; BEGIN RAISE e; EXCEPTION WHEN e THEN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN RAISE nope_exc; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN GOTO nowhere; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN <<l>> NULL; GOTO l; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER := 1; BEGIN IF v > 0 THEN NULL; ELSIF v < 0 THEN NULL; ELSE NULL; END IF; CASE v WHEN 1 THEN NULL; ELSE NULL; END CASE; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN NULL END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS PRAGMA AUTONOMOUS_TRANSACTION; BEGIN INSERT INTO audit_log (id) VALUES (1); COMMIT; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p AUTHID CURRENT_USER IS BEGIN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS CURSOR c IS SELECT id FROM customers; n NUMBER; BEGIN UPDATE orders SET status = 'x'; n := SQL%ROWCOUNT; IF SQL%NOTFOUND THEN NULL; END IF; OPEN c; IF c%ISOPEN THEN CLOSE c; END IF; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS TYPE t IS TABLE OF NUMBER INDEX BY PLS_INTEGER; a t; BEGIN a(1) := 2; IF a.COUNT > 0 THEN a.DELETE; END IF; DBMS_OUTPUT.PUT_LINE(TO_CHAR(a.FIRST)); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v VARCHAR2(10); BEGIN v := q'[x]'; v := CASE WHEN v IS NULL THEN 'a' ELSE v END; EXECUTE IMMEDIATE 'SELECT 1 FROM dual' INTO v; v := SUBSTR(v, 1, 2) || USER; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p (x OUT SYS_REFCURSOR) IS BEGIN OPEN x FOR SELECT * FROM orders o WHERE o.amount > 1; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS e EXCEPTION; PRAGMA EXCEPTION_INIT(e, -20001); BEGIN NULL; EXCEPTION WHEN e THEN DBMS_OUTPUT.PUT_LINE(SQLERRM); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN FOR i IN REVERSE 1 .. 3 LOOP CONTINUE WHEN i = 2; EXIT WHEN i = 1; END LOOP; <<outer>> FOR r IN (SELECT id FROM orders) LOOP NULL; END LOOP outer; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; BEGIN SELECT COUNT(*) INTO v FROM orders o WHERE EXISTS (SELECT 1 FROM customers c WHERE c.id = o.customer_id AND c.name = USER); v := v + p_existing_count; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS CURSOR c (p_c NUMBER) IS SELECT id, amount FROM orders WHERE customer_id = p_c; r c%ROWTYPE; TYPE tt IS TABLE OF c%ROWTYPE; rs tt; BEGIN OPEN c(1); FETCH c BULK COLLECT INTO rs LIMIT 10; CLOSE c; FOR x IN c(2) LOOP r := x; END LOOP; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; d DATE := DATE '2024-01-01'; BEGIN SELECT 1 INTO v FROM dual; INSERT INTO orders (id, amount) VALUES (order_seq.NEXTVAL, 1) RETURNING id INTO v; UPDATE orders SET amount = amount + 1 WHERE id = v RETURNING amount INTO v; d := TO_DATE('2024', 'YYYY') + NVL(v, 0); EXCEPTION WHEN OTHERS THEN ROLLBACK; RAISE; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS PROCEDURE b; PROCEDURE a IS BEGIN b; END; PROCEDURE b IS BEGIN NULL; END; BEGIN a; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN DECLARE x NUMBER := 1; BEGIN x := x + 1; END; MERGE INTO orders o USING (SELECT id, name FROM customers) s ON (o.customer_id = s.id) WHEN MATCHED THEN UPDATE SET o.status = s.name WHEN NOT MATCHED THEN INSERT (id, customer_id) VALUES (s.id, s.id); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v VARCHAR2(100); BEGIN v := SYS_CONTEXT('USERENV', 'SESSION_USER'); v := pk.g_count; pk.g_count := 1; IF pk.total(1) > 0 THEN NULL; END IF; v := f_double(p_x => 2); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS TYPE ids IS TABLE OF NUMBER; l ids := ids(1, 2, 3); BEGIN FORALL i IN 1 .. l.COUNT SAVE EXCEPTIONS DELETE FROM orders WHERE id = l(i); FOR i IN 1 .. l.COUNT LOOP DBMS_OUTPUT.PUT_LINE(l(i)); END LOOP; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS p2 t_point := t_point(1, 2); n NUMBER; BEGIN n := p2.x + p2.norm; n := p2.norm(); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v customers.name%TYPE; c SYS_REFCURSOR; BEGIN OPEN c FOR 'SELECT name FROM customers'; LOOP FETCH c INTO v; EXIT WHEN c%NOTFOUND; END LOOP; CLOSE c; EXECUTE IMMEDIATE 'BEGIN NULL; END;'; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; BEGIN SELECT o.amount INTO v FROM orders o JOIN customers c ON c.id = o.customer_id WHERE c.region = 'EU' AND ROWNUM = 1 ORDER BY o.id; SELECT MAX(amount) INTO v FROM orders GROUP BY customer_id HAVING COUNT(*) > 1; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; BEGIN WITH x AS (SELECT id FROM orders) SELECT COUNT(*) INTO v FROM x; SELECT id INTO v FROM (SELECT id FROM orders WHERE amount > v) WHERE ROWNUM = 1; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; BEGIN SELECT COUNT(*) INTO v FROM user_tables WHERE table_name = 'X'; SELECT COUNT(*) INTO v FROM all_objects; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN INSERT INTO audit_log SELECT id, name, SYSDATE FROM customers; DELETE FROM audit_log a WHERE a.id IN (SELECT id FROM customers); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p (o OUT NUMBER, io IN OUT VARCHAR2) IS BEGIN o := 1; io := io || 'x'; p_existing(o); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; BEGIN v := f_double(f_double(1)); v := MOD(v, 2) + ABS(-1) + GREATEST(1, 2) + LENGTH('x') + INSTR('a', 'b'); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS j JSON; x XMLTYPE; b BLOB; c CLOB := EMPTY_CLOB(); BEGIN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; BEGIN v := 1; GOTO done; v := 2; <<done>> NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS v NUMBER; BEGIN v := 1; <<blk>> DECLARE w NUMBER; BEGIN w := blk.w; END blk; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS BEGIN COMMIT WORK; ROLLBACK TO SAVEPOINT s; LOCK TABLE orders IN EXCLUSIVE MODE; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p IS x NUMBER; BEGIN x := g_missing.y; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing IS BEGIN NULL; END;
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE OR REPLACE PROCEDURE p_existing (p_id IN NUMBER) IS BEGIN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE OR REPLACE PROCEDURE p_existing (p_id IN NUMBER, p_extra IN NUMBER) IS BEGIN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE OR REPLACE PROCEDURE p_existing IS BEGIN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE OR REPLACE PROCEDURE customers IS BEGIN NULL; END;
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE PROCEDURE cust IS BEGIN NULL; END;
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE PROCEDURE f_double IS BEGIN NULL; END;
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE PROCEDURE pk IS BEGIN NULL; END;
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE PROCEDURE omni_sim.p IS BEGIN NULL; END;
+< error
+| 1435 ORA-01435: user does not exist
+|
+> exec
+| CREATE PROCEDURE nope.p IS BEGIN NULL; END;
+< error
+| 1435 ORA-01435: user does not exist
+|
+> exec
+| CREATE PROCEDURE IF NOT EXISTS p_existing IS BEGIN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| DROP PROCEDURE p_existing
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| DROP PROCEDURE nope
+< error
+| 4043 ORA-04043: Object NOPE does not exist.
+|
+> exec
+| DROP PROCEDURE f_double
+< error
+| 4043 ORA-04043: Object F_DOUBLE does not exist.
+|
+> exec
+| DROP PROCEDURE IF EXISTS nope
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| ALTER PROCEDURE p_existing COMPILE
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| ALTER PROCEDURE nope COMPILE
+< error
+| 4043 ORA-04043: Object NOPE does not exist.
+|
+> exec
+| ALTER PROCEDURE p_calls COMPILE
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE FUNCTION f RETURN NUMBER IS BEGIN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE FUNCTION f RETURN NUMBER IS BEGIN RETURN; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE FUNCTION f (p_c IN NUMBER) RETURN NUMBER IS v NUMBER; BEGIN SELECT COUNT(*) INTO v FROM orders WHERE customer_id = p_c; RETURN v; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE FUNCTION f (p_c IN NUMBER) RETURN NUMBER IS v NUMBER; BEGIN SELECT COUNT(*) INTO v FROM orders WHERE nope = p_c; RETURN v; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE FUNCTION f RETURN NUMBER IS BEGIN RETURN f_double(1) + pk.total(1); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE FUNCTION f RETURN NUMBER IS BEGIN RETURN nope_f(1); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE FUNCTION f RETURN customers%ROWTYPE IS r customers%ROWTYPE; BEGIN SELECT * INTO r FROM customers WHERE ROWNUM = 1; RETURN r; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE FUNCTION f RETURN missing_t%ROWTYPE IS BEGIN RETURN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE FUNCTION f RETURN nope_type IS BEGIN RETURN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE FUNCTION f RETURN t_point IS BEGIN RETURN t_point(1, 2); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE FUNCTION f RETURN VARCHAR2 DETERMINISTIC IS BEGIN RETURN 'x'; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE FUNCTION f (n IN NUMBER) RETURN NUMBER RESULT_CACHE IS BEGIN RETURN n; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE FUNCTION f (n IN NUMBER) RETURN NUMBER IS BEGIN IF n <= 1 THEN RETURN 1; END IF; RETURN n * f(n - 1); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE FUNCTION f RETURN NUMBER IS BEGIN RETURN 'x'; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE FUNCTION f RETURN DATE IS BEGIN RETURN 1; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE FUNCTION f RETURN BOOLEAN IS BEGIN RETURN TRUE; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS BEGIN RETURN p_x; END;
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE OR REPLACE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS BEGIN RETURN p_x + p_x; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE OR REPLACE FUNCTION f_double RETURN NUMBER IS BEGIN RETURN 2; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE OR REPLACE FUNCTION p_existing RETURN NUMBER IS BEGIN RETURN 1; END;
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE FUNCTION orders RETURN NUMBER IS BEGIN RETURN 1; END;
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| DROP FUNCTION f_double
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| DROP FUNCTION nope
+< error
+| 4043 ORA-04043: Object NOPE does not exist.
+|
+> exec
+| DROP FUNCTION p_existing
+< error
+| 4043 ORA-04043: Object P_EXISTING does not exist.
+|
+> exec
+| CREATE PACKAGE p2 AS PROCEDURE a; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE p2 AS PROCEDURE a (x IN nope_type); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE p2 AS v customers.nope%TYPE; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE p2 AS v customers.name%TYPE; c CONSTANT NUMBER := 1; TYPE t_rec IS RECORD (a NUMBER, b VARCHAR2(10)); TYPE t_tab IS TABLE OF t_rec; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE p2 AS CURSOR c RETURN customers%ROWTYPE; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE p2 AS FUNCTION f RETURN NUMBER; e EXCEPTION; END p2;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE p2 AS PROCEDURE a; END nope;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS PROCEDURE a; END;
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE OR REPLACE PACKAGE pk AS g_count NUMBER := 0; PROCEDURE log_it (p_what IN VARCHAR2); FUNCTION total (p_customer IN NUMBER) RETURN NUMBER; END pk;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE OR REPLACE PACKAGE pk AS PROCEDURE log_it (p_what IN VARCHAR2); END pk;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE OR REPLACE PACKAGE pk AS g_count NUMBER := 0; PROCEDURE log_it (p_what IN VARCHAR2); FUNCTION total (p_customer IN NUMBER) RETURN NUMBER; PROCEDURE extra; END pk;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE OR REPLACE PACKAGE orders AS PROCEDURE a; END;
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| DROP PACKAGE pk
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| DROP PACKAGE nope
+< error
+| 4043 ORA-04043: Object NOPE does not exist.
+|
+> exec
+| ALTER PACKAGE pk COMPILE BODY
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE p2 AS TYPE rec IS RECORD (id customers.id%TYPE, n customers.name%TYPE); TYPE recs IS TABLE OF rec INDEX BY PLS_INTEGER; c_max CONSTANT PLS_INTEGER := 10; FUNCTION get (p_id customers.id%TYPE) RETURN rec; PROCEDURE put (p IN rec); PROCEDURE put (p IN recs); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY nope AS PROCEDURE a IS BEGIN NULL; END; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS PROCEDURE log_it (p_what IN VARCHAR2) IS BEGIN NULL; END; FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS BEGIN RETURN 0; END; END;
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE OR REPLACE PACKAGE BODY pk AS PROCEDURE log_it (p_what IN VARCHAR2) IS BEGIN NULL; END; FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS BEGIN RETURN 0; END; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE OR REPLACE PACKAGE BODY pk AS PROCEDURE log_it (p_what IN VARCHAR2) IS BEGIN NULL; END; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE OR REPLACE PACKAGE BODY pk AS PROCEDURE log_it (p_what IN NUMBER) IS BEGIN NULL; END; FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS BEGIN RETURN 0; END; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE OR REPLACE PACKAGE BODY pk AS PROCEDURE log_it (p_other IN VARCHAR2) IS BEGIN NULL; END; FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS BEGIN RETURN 0; END; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE OR REPLACE PACKAGE BODY pk AS PROCEDURE log_it (p_what IN VARCHAR2) IS BEGIN NULL; END; FUNCTION total (p_customer IN NUMBER) RETURN VARCHAR2 IS BEGIN RETURN 'x'; END; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE OR REPLACE PACKAGE BODY pk AS PROCEDURE helper IS BEGIN NULL; END; PROCEDURE log_it (p_what IN VARCHAR2) IS BEGIN helper; g_count := g_count + 1; END; FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS BEGIN RETURN g_count; END; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE OR REPLACE PACKAGE BODY pk AS PROCEDURE log_it (p_what IN VARCHAR2) IS BEGIN INSERT INTO audit_log (nope) VALUES (p_what); END; FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS BEGIN RETURN 0; END; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE OR REPLACE PACKAGE BODY pk AS PROCEDURE log_it (p_what IN VARCHAR2) IS BEGIN NULL; END; FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS v NUMBER; BEGIN SELECT SUM(amount) INTO v FROM missing_t; RETURN v; END; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE OR REPLACE PACKAGE BODY pk AS PROCEDURE log_it (p_what IN VARCHAR2) IS BEGIN NULL; END; FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS BEGIN RETURN 0; END; BEGIN g_count := 10; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE OR REPLACE PACKAGE BODY pk AS PROCEDURE log_it (p_what IN VARCHAR2) IS BEGIN nope; END; FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS BEGIN RETURN 0; END; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE OR REPLACE PACKAGE BODY pk AS g_private NUMBER; PROCEDURE log_it (p_what IN VARCHAR2) IS BEGIN g_private := 1; g_count := g_count + g_private; INSERT INTO audit_log (id, what, at) VALUES (g_count, p_what, SYSTIMESTAMP); END; FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS BEGIN RETURN pk.g_count + g_private; END; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| DROP PACKAGE BODY pk
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| DROP PACKAGE BODY nope
+< error
+| 4043 ORA-04043: Object NOPE does not exist.
+|
+> exec
+| CREATE TRIGGER trg BEFORE INSERT ON orders FOR EACH ROW BEGIN :NEW.amount := NVL(:NEW.amount, 0); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg BEFORE INSERT ON orders FOR EACH ROW BEGIN :NEW.nope := 0; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg BEFORE INSERT ON orders FOR EACH ROW BEGIN :NEW.amount := :OLD.amount; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg BEFORE INSERT ON missing_t FOR EACH ROW BEGIN NULL; END;
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."MISSING_T" does not exist
+|
+> exec
+| CREATE TRIGGER trg AFTER UPDATE OF status ON orders FOR EACH ROW BEGIN INSERT INTO audit_log (id, what, at) VALUES (:NEW.id, :NEW.status, SYSDATE); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg AFTER UPDATE OF nope ON orders FOR EACH ROW BEGIN NULL; END;
+< error
+| 904 ORA-00904: "NOPE": invalid identifier
+|
+> exec
+| CREATE TRIGGER trg AFTER INSERT ON orders BEGIN INSERT INTO audit_log (id) VALUES (:NEW.id); END;
+< error
+| 4082 ORA-04082: NEW or OLD references not allowed in table level triggers
+|
+> exec
+| CREATE TRIGGER trg AFTER INSERT ON orders BEGIN pk.log_it('insert'); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg AFTER INSERT ON orders FOR EACH ROW BEGIN :NEW.amount := 0; END;
+< error
+| 4084 ORA-04084: cannot change NEW values for this trigger type
+|
+> exec
+| CREATE TRIGGER trg BEFORE DELETE ON orders FOR EACH ROW BEGIN :NEW.amount := 0; END;
+< error
+| 4084 ORA-04084: cannot change NEW values for this trigger type
+|
+> exec
+| CREATE TRIGGER trg BEFORE INSERT ON orders FOR EACH ROW WHEN (NEW.amount > 100) BEGIN :NEW.status := 'big'; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg BEFORE INSERT ON orders WHEN (NEW.amount > 100) BEGIN NULL; END;
+< error
+| 4077 ORA-04077: WHEN clause cannot be used with table level triggers
+|
+> exec
+| CREATE TRIGGER trg BEFORE INSERT ON orders REFERENCING NEW AS n FOR EACH ROW BEGIN :n.status := 'x'; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg BEFORE INSERT ON orders REFERENCING NEW AS n FOR EACH ROW BEGIN :NEW.status := 'x'; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg BEFORE INSERT OR UPDATE OR DELETE ON orders FOR EACH ROW BEGIN IF INSERTING THEN :NEW.status := 'i'; ELSIF UPDATING('status') THEN NULL; END IF; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg INSTEAD OF INSERT ON v_customers FOR EACH ROW BEGIN INSERT INTO customers (id, name) VALUES (:NEW.id, :NEW.name); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg INSTEAD OF INSERT ON customers FOR EACH ROW BEGIN NULL; END;
+< error
+| 25002 ORA-25002: cannot create INSTEAD OF triggers on tables
+|
+> exec
+| CREATE TRIGGER trg BEFORE INSERT ON v_customers FOR EACH ROW BEGIN NULL; END;
+< error
+| 25001 ORA-25001: cannot create this trigger type on this type of view
+|
+> exec
+| CREATE TRIGGER trg BEFORE INSERT ON orders FOR EACH ROW BEGIN INSERT INTO audit_log (nope) VALUES (1); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg BEFORE INSERT ON orders FOR EACH ROW BEGIN nope_proc; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg BEFORE INSERT ON orders FOR EACH ROW BEGIN :NEW.id := order_seq.NEXTVAL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg BEFORE INSERT ON cust FOR EACH ROW BEGIN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg BEFORE INSERT ON orders FOR EACH ROW DISABLE BEGIN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg FOR INSERT ON orders COMPOUND TRIGGER BEFORE EACH ROW IS BEGIN :NEW.status := 'c'; END BEFORE EACH ROW; END trg;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg BEFORE UPDATE ON orders FOR EACH ROW BEGIN IF UPDATING('STATUS') AND :OLD.status <> :NEW.status THEN :NEW.amount := :OLD.amount; END IF; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg BEFORE INSERT OR UPDATE ON orders FOR EACH ROW WHEN (NEW.amount IS NULL) DECLARE v NUMBER; BEGIN SELECT COUNT(*) INTO v FROM customers WHERE id = :NEW.customer_id; IF v = 0 THEN RAISE_APPLICATION_ERROR(-20000, 'no customer ' || :NEW.customer_id); END IF; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg INSTEAD OF UPDATE ON v_customers FOR EACH ROW BEGIN UPDATE customers SET name = :NEW.name WHERE id = :OLD.id; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg AFTER INSERT OR DELETE ON orders BEGIN pk.log_it('stmt'); END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW BEGIN NULL; END;
+< error
+| 4081 ORA-04081: trigger 'TRG_EXISTING' already exists
+|
+> exec
+| CREATE OR REPLACE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW BEGIN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE OR REPLACE TRIGGER trg_existing BEFORE INSERT ON customers FOR EACH ROW BEGIN NULL; END;
+< error
+| 4095 ORA-04095: trigger 'TRG_EXISTING' already exists on another table, cannot replace it
+|
+> exec
+| CREATE TRIGGER p_existing BEFORE INSERT ON orders FOR EACH ROW BEGIN NULL; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| DROP TRIGGER trg_existing
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| DROP TRIGGER nope
+< error
+| 4080 ORA-04080: trigger 'NOPE' does not exist
+|
+> exec
+| ALTER TRIGGER trg_existing DISABLE
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| ALTER TRIGGER trg_existing COMPILE
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| ALTER TRIGGER nope ENABLE
+< error
+| 4080 ORA-04080: trigger 'NOPE' does not exist
+|
+> exec
+| CREATE TYPE t AS OBJECT (a NUMBER, b VARCHAR2(10))
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t AS OBJECT (a nope_type)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t AS OBJECT (a t_point)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t AS OBJECT (a VARCHAR2)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t AS OBJECT (a NUMBER) NOT FINAL
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t AS TABLE OF NUMBER
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t AS TABLE OF t_point
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t AS TABLE OF nope_type
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t AS VARRAY(10) OF VARCHAR2(10)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t UNDER t_point (z NUMBER)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER)
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE OR REPLACE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE OR REPLACE TYPE t_point AS OBJECT (x NUMBER)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE customers AS OBJECT (a NUMBER)
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| DROP TYPE t_point
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| DROP TYPE t_point FORCE
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| DROP TYPE nope
+< error
+| 4043 ORA-04043: Object NOPE does not exist.
+|
+> exec
+| CREATE TYPE BODY nope AS MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE OR REPLACE TYPE BODY t_point AS MEMBER FUNCTION norm RETURN NUMBER IS BEGIN RETURN x; END; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE OR REPLACE TYPE BODY t_point AS MEMBER FUNCTION norm RETURN NUMBER IS BEGIN RETURN nope; END; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE OR REPLACE TYPE BODY t_point AS MEMBER FUNCTION norm RETURN NUMBER IS BEGIN RETURN SELF.x; END; MEMBER FUNCTION extra RETURN NUMBER IS BEGIN RETURN 1; END; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE OR REPLACE TYPE BODY t_point AS MEMBER FUNCTION norm RETURN NUMBER IS v NUMBER; BEGIN SELECT COUNT(*) INTO v FROM missing_t; RETURN v; END; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS MEMBER FUNCTION norm RETURN NUMBER IS BEGIN RETURN 0; END; END;
+< error
+| 955 ORA-00955: name is already used by an existing object
+|
+> exec
+| CREATE OR REPLACE TYPE BODY t_point AS MEMBER FUNCTION norm RETURN NUMBER IS BEGIN RETURN SQRT(SELF.x * SELF.x + y * y); END; END;
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| DROP TYPE BODY t_point
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| DROP TYPE BODY nope
+< error
+| 4043 ORA-04043: Object NOPE does not exist.
+|
+> exec
+| DROP TABLE audit_log
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| DROP TABLE customers CASCADE CONSTRAINTS
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| ALTER TABLE audit_log ADD (extra NUMBER)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| ALTER TABLE audit_log DROP COLUMN at
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| ALTER TABLE customers DROP COLUMN region
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| ALTER TABLE customers MODIFY (name VARCHAR2(200))
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| RENAME audit_log TO audit_log2
+< error
+| 3001 ORA-03001: unimplemented feature
+|
+> exec
+| DROP SEQUENCE order_seq
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| DROP SYNONYM cust
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| DROP VIEW v_customers
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TABLE pts (id NUMBER, p t_point)
+< ok 0 0
+> exec
+| BEGIN system.omni_sim_reset('SIMSHOP', 0); END;
+< ok 1 0
+> exec
+| CREATE TABLE customers (id NUMBER(10) CONSTRAINT customers_pk PRIMARY KEY, name VARCHAR2(100) NOT NULL, region VARCHAR2(10))
+< ok 0 0
+> exec
+| CREATE TABLE orders (id NUMBER(10) CONSTRAINT orders_pk PRIMARY KEY, customer_id NUMBER(10) CONSTRAINT orders_customer_fk REFERENCES customers (id), amount NUMBER(10,2), status VARCHAR2(20))
+< ok 0 0
+> exec
+| CREATE TABLE audit_log (id NUMBER(10), what VARCHAR2(100), at DATE)
+< ok 0 0
+> exec
+| CREATE VIEW v_customers AS SELECT id, name FROM customers
+< ok 0 0
+> exec
+| CREATE SEQUENCE order_seq
+< ok 0 0
+> exec
+| CREATE SYNONYM cust FOR customers
+< ok 0 0
+> exec
+| CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS
+| BEGIN
+|   RETURN p_x * 2;
+| END;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_existing (p_id IN NUMBER) IS
+|   v_name customers.name%TYPE;
+| BEGIN
+|   SELECT name INTO v_name FROM customers WHERE id = p_id;
+| END;
+< ok 0 0
+> exec
+| CREATE PACKAGE pk AS
+|   g_count NUMBER := 0;
+|   PROCEDURE log_it (p_what IN VARCHAR2);
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PACKAGE BODY pk AS
+|   PROCEDURE log_it (p_what IN VARCHAR2) IS
+|   BEGIN
+|     INSERT INTO audit_log (id, what, at) VALUES (1, p_what, SYSDATE);
+|     g_count := g_count + 1;
+|   END;
+|   FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS
+|     v_total NUMBER;
+|   BEGIN
+|     SELECT SUM(amount) INTO v_total FROM orders WHERE customer_id = p_customer;
+|     RETURN v_total;
+|   END;
+| END pk;
+< ok 0 0
+> exec
+| CREATE PROCEDURE p_calls IS
+|   v NUMBER;
+| BEGIN
+|   v := f_double(1);
+|   p_existing(v);
+|   pk.log_it('called');
+| END;
+< ok 0 0
+> exec
+| CREATE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+< ok 0 0
+> exec
+| CREATE TYPE BODY t_point AS
+|   MEMBER FUNCTION norm RETURN NUMBER IS
+|   BEGIN
+|     RETURN SQRT(x * x + y * y);
+|   END;
+| END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW
+| BEGIN
+|   :NEW.status := NVL(:NEW.status, 'new');
+| END;
+< ok 0 0
+> exec
+| CREATE TABLE pts (id NUMBER, p nope_type)
+< error
+| 902 ORA-00902: invalid datatype
+|
 
 == TestWalkSimulation default#3
