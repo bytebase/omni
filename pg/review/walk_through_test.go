@@ -927,7 +927,7 @@ func TestWalkThroughSyncedColumnAndDependencyChecks(t *testing.T) {
 						{Name: "gen", Position: 5, Type: "integer", Nullable: true, Generation: &metadata.GenerationMetadata{Type: metadata.GenerationMetadata_TYPE_STORED, Expression: "id + 1"}},
 					},
 					Indexes: []*metadata.IndexMetadata{
-						{Name: "t_pkey", Primary: true, Unique: true, IsConstraint: true, Definition: "CREATE UNIQUE INDEX t_pkey ON public.t USING btree (id)"},
+						{Name: "t_pkey", Primary: true, Unique: true, IsConstraint: true, Definition: "CREATE UNIQUE INDEX t_pkey ON public.t USING btree (id) INCLUDE (flag)"},
 						{Name: "t_n_idx", Definition: "CREATE INDEX t_n_idx ON public.t USING btree (n) INCLUDE (flag)"},
 					},
 					Triggers: []*metadata.TriggerMetadata{
@@ -979,8 +979,6 @@ func TestWalkThroughSyncedColumnAndDependencyChecks(t *testing.T) {
 		"ALTER TABLE t ADD CHECK (n);":                               review.UnsupportedForm,
 		"ALTER POLICY p ON t USING (n);":                             review.UnsupportedForm,
 		"CREATE TABLE x (CHECK (x));":                                review.UnsupportedForm,
-		"CREATE INDEX ON t (missing_fn(n));":                         review.ObjectNotFound,
-		"CREATE INDEX ON t (tf(n));":                                 review.ObjectNotFound,
 		"DROP TABLE t;":                                              review.UnsupportedForm,
 		"TRUNCATE t;":                                                review.UnsupportedForm,
 		"DROP FUNCTION tf();":                                        review.UnsupportedForm,
@@ -988,6 +986,10 @@ func TestWalkThroughSyncedColumnAndDependencyChecks(t *testing.T) {
 		"ALTER TYPE pair ALTER ATTRIBUTE x TYPE pair;":               review.UnsupportedForm,
 		"ALTER TABLE t_n_idx ALTER COLUMN 1 SET STATISTICS 10;":      review.UnsupportedForm,
 		"ALTER TABLE t_n_idx ALTER COLUMN bogus SET STATISTICS 10;":  review.ObjectNotFound,
+		"ALTER TABLE t_n_idx SET (bogus = 1);":                       review.UnsupportedForm,
+		"ALTER TABLE t_n_idx SET (ns.fillfactor = 70);":              review.UnsupportedForm,
+		"ALTER DOMAIN unsynced_dom SET DEFAULT a;":                   review.UnsupportedForm,
+		"ALTER DOMAIN unsynced_dom ADD CHECK (a);":                   review.ObjectNotFound,
 		"ALTER TABLE child ADD FOREIGN KEY (cid, tid) REFERENCES t;": review.UnsupportedForm,
 	} {
 		got := walkFindings(t, sql, target)
@@ -1006,9 +1008,22 @@ func TestWalkThroughSyncedColumnAndDependencyChecks(t *testing.T) {
 		"ALTER TABLE t ALTER n SET NOT NULL, ALTER n ADD GENERATED ALWAYS AS IDENTITY;",
 		"ALTER TABLE t ALTER n TYPE boolean, ADD CHECK (n);",
 		"ALTER TABLE t DROP CONSTRAINT t_pkey, ALTER id DROP NOT NULL;",
+		// INCLUDE column on PRIMARY KEY is not a primary key column.
+		"ALTER TABLE t ALTER flag DROP NOT NULL;",
+		"ALTER TABLE child ADD FOREIGN KEY (tid) REFERENCES t;",
+		// Sibling subcommands replacing primary key before self-referencing FK.
+		"ALTER TABLE t DROP CONSTRAINT t_pkey, ADD PRIMARY KEY (id, flag), ADD FOREIGN KEY (id, flag) REFERENCES t;",
+		// Function-style type coercion in index expression (e.g. unsynced domain).
+		"CREATE INDEX ix ON public.t (d(n));",
+		"CREATE INDEX ix ON public.t ((public.d(n)));",
 		"ALTER TABLE t ADD CHECK (flag);",
 		"ALTER POLICY p ON t USING (flag);",
 		"CREATE INDEX ON t (with_def(n));",
+		"ALTER TABLE t_n_idx SET (fillfactor = 70, deduplicate_items = off);",
+		"ALTER DOMAIN unsynced_dom SET DEFAULT 1;",
+		"ALTER DOMAIN unsynced_dom SET DEFAULT CURRENT_DATE;",
+		"ALTER DOMAIN unsynced_dom ADD CHECK (VALUE > 0);",
+		"ALTER DOMAIN unsynced_dom ADD CHECK (value);",
 		"DROP TABLE t CASCADE;",
 		"DROP TABLE t, child;",
 		"TRUNCATE t CASCADE;",

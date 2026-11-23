@@ -996,7 +996,7 @@ func walkStates(msg string) []string {
 	case strings.HasPrefix(msg, "Routine ") && strings.HasSuffix(msg, " doesn't exist."):
 		return []string{"42883", "42809"}
 	case strings.HasPrefix(msg, "Function ") && strings.HasSuffix(msg, " already exists."):
-		return []string{"42723"}
+		return []string{"42723", "42725"}
 	case strings.HasPrefix(msg, "Prepared statement ") && strings.HasSuffix(msg, " doesn't exist."):
 		return []string{"26000"}
 	case strings.HasPrefix(msg, "Column ") && strings.Contains(msg, " doesn't exist in "),
@@ -1004,6 +1004,10 @@ func walkStates(msg string) []string {
 		strings.HasPrefix(msg, "This statement drops attribute "),
 		msg == "Query references a column with no `FROM` clause.":
 		return []string{"42703"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept column reference in domain `CHECK`"):
+		return []string{"42703", "42704"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept column reference in domain `DEFAULT`"):
+		return []string{"0A000", "42704"}
 	case strings.HasPrefix(msg, "PostgreSQL doesn't accept unqualified column reference in trigger `WHEN` condition"):
 		return []string{"42702", "42703"}
 	case strings.HasPrefix(msg, "`") && strings.HasSuffix(msg, " doesn't exist."),
@@ -1097,6 +1101,7 @@ func walkStates(msg string) []string {
 	case strings.HasPrefix(msg, "PostgreSQL doesn't accept storage mode "),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept attribute option "),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept view option "),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept btree index option "),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept duplicate storage parameter "),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `ADD GENERATED AS IDENTITY` on non-integer column "),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `ROWS` on a function that doesn't return a set"):

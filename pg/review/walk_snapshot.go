@@ -156,9 +156,11 @@ type syncedFKRef struct {
 }
 
 type syncedIndex struct {
-	colNames []string
-	isExpr   []bool
-	hasExpr  bool
+	colNames     []string
+	isExpr       []bool
+	nkey         int
+	hasExpr      bool
+	accessMethod string
 }
 
 type syncedFuncInfo struct {
@@ -247,8 +249,8 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 				rel(idx.GetName(), relIndex)
 				if idxInfo := parseSyncedIndex(idx.GetDefinition()); idxInfo != nil {
 					s.indexDefs[[2]string{name, idx.GetName()}] = idxInfo
-					if idx.GetPrimary() && !idxInfo.hasExpr && len(idxInfo.colNames) > 0 {
-						s.pkCols[key] = idxInfo.colNames
+					if idx.GetPrimary() && !idxInfo.hasExpr && idxInfo.nkey > 0 {
+						s.pkCols[key] = idxInfo.colNames[:idxInfo.nkey]
 					}
 				}
 				switch {
@@ -550,8 +552,10 @@ func parseSyncedIndex(def string) *syncedIndex {
 		return nil
 	}
 	info := &syncedIndex{
-		colNames: make([]string, 0, len(stmt.IndexParams.Items)),
-		isExpr:   make([]bool, 0, len(stmt.IndexParams.Items)),
+		colNames:     make([]string, 0, len(stmt.IndexParams.Items)),
+		isExpr:       make([]bool, 0, len(stmt.IndexParams.Items)),
+		nkey:         len(stmt.IndexParams.Items),
+		accessMethod: strings.ToLower(stmt.AccessMethod),
 	}
 	for _, item := range stmt.IndexParams.Items {
 		elem, ok := item.(*ast.IndexElem)

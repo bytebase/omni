@@ -753,7 +753,8 @@ func (b *builder) constraint(t walk.Key, rv *ast.RangeVar, con *ast.Constraint, 
 		}
 	}
 	if alter && con.Contype == ast.CONSTR_FOREIGN && con.Pktable != nil && fkTarget.fact == walk.Present &&
-		(con.PkAttrs == nil || len(con.PkAttrs.Items) == 0) && con.FkAttrs != nil && !b.w.isTableDirty(fkTarget.key) {
+		(con.PkAttrs == nil || len(con.PkAttrs.Items) == 0) && con.FkAttrs != nil &&
+		!b.w.isTableDirty(fkTarget.key) && !(fkTarget.key == t && b.pkChanged) {
 		if pkCols := b.w.pg.pkCols[[2]string{schemaOfKey(fkTarget.key), fkTarget.key.Name}]; len(pkCols) > 0 {
 			if len(con.FkAttrs.Items) != len(pkCols) {
 				b.failAt(rng, []walk.Key{fkTarget.key}, review.UnsupportedForm, unsupported("foreign key column count mismatch with primary key of "+review.Code(relation(con.Pktable)))) // 42830
@@ -1566,7 +1567,27 @@ func (b *builder) alterDomain(v *ast.AlterDomainStmt) bool {
 	if len(parts) == 0 {
 		return true
 	}
-	b.checkDomain(parts, b.anchor())
+	r := b.checkDomain(parts, b.anchor())
+	if r.fail != "" || r.fact == walk.Absent || r.builtin {
+		return true
+	}
+	// Law of excluded middle for domain DEFAULT and CHECK expressions:
+	// - SET DEFAULT <bare_col>: column references are never allowed in DEFAULT
+	//   (0A000 if the domain exists, 42704 if it does not).
+	// - ADD CHECK (<bare_col>): only VALUE is valid as a bare identifier in a
+	//   domain CHECK expression (42703 if the domain exists, 42704 if not).
+	switch v.Subtype {
+	case 'T':
+		if _, ok := bareColumnRef(v.Def); ok {
+			b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("column reference in domain `DEFAULT`")) // 0A000 / 42704
+		}
+	case 'C':
+		if con, ok := v.Def.(*ast.Constraint); ok && con.Contype == ast.CONSTR_CHECK {
+			if col, ok := bareColumnRef(con.RawExpr); ok && !strings.EqualFold(col, "value") {
+				b.fail(nil, walk.Absent, review.ObjectNotFound, unsupported("column reference in domain `CHECK`")) // 42703 / 42704
+			}
+		}
+	}
 	return true
 }
 
@@ -1915,6 +1936,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	b.added = make(map[string]bool)
 	b.colTouch = make(map[string]int)
 	b.conDropped = false
+	b.pkChanged = false
 	for _, cmd := range cmds {
 		sub := ast.AlterTableType(cmd.Subtype)
 		switch sub {
@@ -1936,12 +1958,16 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 			}
 		case ast.AT_DropConstraint:
 			b.conDropped = true
+			b.pkChanged = true
 		case ast.AT_AddConstraint:
-			if con, ok := cmd.Def.(*ast.Constraint); ok && con.Contype == ast.CONSTR_PRIMARY && con.Keys != nil {
-				for _, item := range con.Keys.Items {
-					if s, ok := item.(*ast.String); ok {
-						if k, ok := storedKey(s.Str); ok {
-							b.colTouch[k]++
+			if con, ok := cmd.Def.(*ast.Constraint); ok && con.Contype == ast.CONSTR_PRIMARY {
+				b.pkChanged = true
+				if con.Keys != nil {
+					for _, item := range con.Keys.Items {
+						if s, ok := item.(*ast.String); ok {
+							if k, ok := storedKey(s.Str); ok {
+								b.colTouch[k]++
+							}
 						}
 					}
 				}
@@ -4215,6 +4241,11 @@ func (b *builder) checkAlterTargetSubcmd(rv *ast.RangeVar, r resolved, cmd *ast.
 				return
 			}
 			b.checkRelOptions(r.kind, opts, rng)
+			if r.kind == relIndex && !b.w.isTableDirty(r.key) && b.w.pg != nil {
+				if idx := b.w.pg.indexDefs[[2]string{schemaOfKey(r.key), r.key.Name}]; idx != nil && idx.accessMethod == "btree" {
+					b.checkBtreeRelOptions(opts, rng)
+				}
+			}
 		}
 	case ast.AT_SetOptions:
 		if opts, ok := cmd.Def.(*ast.List); ok {
@@ -4373,9 +4404,6 @@ func (b *builder) checkIndexElems(r resolved, v *ast.IndexStmt) {
 			if elem.Expr != nil && isDirectSQLValueFunction(elem.Expr) {
 				b.failAt(rangeOf(elem.Loc), nil, review.UnsupportedForm, unsupported("non-immutable expression in index")) // 42P17
 				return
-			}
-			if elem.Expr != nil && hasColumns(r.kind) {
-				b.checkIndexFuncExpr(r.key, elem.Expr)
 			}
 		}
 	}
@@ -4900,14 +4928,14 @@ func (b *builder) renameRoutine(v *ast.RenameStmt) bool {
 		return true
 	}
 	newName, ok := walkName(v.Newname)
-	if v.RenameType == ast.OBJECT_FUNCTION && ok {
+	if (v.RenameType == ast.OBJECT_FUNCTION || v.RenameType == ast.OBJECT_ROUTINE) && ok {
 		if src, ok := b.uniqueSyncedFunc(parts, r); ok && len(src.arities) == 1 && src.zeroArg {
 			s := schemaOfKey(r.key)
 			dstKey := funcKey(s, newName)
 			dst := b.w.pg.funcSigs[[2]string{s, newName}]
 			if dst != nil && dst.complete && dst.zeroArg && !b.w.isRoutineDirty(dstKey) &&
 				(owa.ArgsUnspecified || func() bool { n, ok := routineArgCount(owa); return ok && n == 0 }()) {
-				b.fail([]walk.Key{r.key, dstKey}, walk.Present, review.NameTaken, alreadyExists("function", ident(v.Newname))) // 42723
+				b.fail([]walk.Key{r.key, dstKey}, walk.Present, review.NameTaken, alreadyExists("function", ident(v.Newname))) // 42723 / 42725
 				return true
 			}
 		}
@@ -5758,16 +5786,6 @@ func isKnownNonIntegerBuiltinType(typ string) bool {
 	return false
 }
 
-// isKnownScalarBuiltinType reports whether typ is a built-in scalar PostgreSQL
-// type (never a composite type, so f(col) cannot be composite field access).
-func isKnownScalarBuiltinType(typ string) bool {
-	switch typ {
-	case "smallint", "int2", "integer", "int4", "bigint", "int8":
-		return true
-	}
-	return isKnownNonIntegerBuiltinType(typ)
-}
-
 func (b *builder) checkPolicyBoolExpr(t walk.Key, expr ast.Node) {
 	if col, ok := bareColumnRef(expr); ok {
 		if sc, ok := b.w.syncedCol(t, col); ok && isPinnedNonBoolType(sc.typ) {
@@ -5816,43 +5834,27 @@ func (b *builder) activeFKDependent(target walk.Key, alsoRemoved map[walk.Key]bo
 	return syncedFKRef{}, false
 }
 
-// checkIndexFuncExpr checks a direct function call f(col) in a CREATE INDEX
-// expression when col is a synced built-in scalar column (ruling out composite
-// field access) or a whole-row reference to a table that lacks column f.
-// Aggregates are forbidden in index expressions (0A000), so f must exist in
-// spaceFunction with a matching arity.
-func (b *builder) checkIndexFuncExpr(t walk.Key, expr ast.Node) {
-	fc, ok := expr.(*ast.FuncCall)
-	if !ok || fc.AggStar || fc.AggWithinGroup || fc.Over != nil || fc.Args == nil || len(fc.Args.Items) != 1 {
-		return
-	}
-	col, ok := bareColumnRef(fc.Args.Items[0])
-	if !ok {
-		return
-	}
-	parts := nameParts(fc.Funcname)
-	if len(parts) == 0 {
-		return
-	}
-	fnName, ok := walkName(parts[len(parts)-1])
-	if !ok {
-		return
-	}
-	scalar := false
-	if sc, ok := b.w.syncedCol(t, col); ok && isKnownScalarBuiltinType(sc.typ) {
-		scalar = true
-	} else if col == t.Name {
-		// Whole-row reference to t: only composite field access if t has column fnName.
-		if cf, _ := b.l.Lookup(columnKey(t, fnName)); cf == walk.Absent && !systemColumns[fnName] {
-			scalar = true
+// checkBtreeRelOptions validates storage parameters on PostgreSQL's built-in
+// btree index access method, whose reloptions are fixed (no namespaces, only
+// fillfactor, deduplicate_items, and PG 11-13 vacuum_cleanup_index_scale_factor).
+//
+// pg: src/backend/access/nbtree/nbtree.c — btoptions
+func (b *builder) checkBtreeRelOptions(opts *ast.List, rng review.Range) {
+	for _, item := range opts.Items {
+		de, ok := item.(*ast.DefElem)
+		if !ok {
+			continue
 		}
-	}
-	if !scalar {
-		return
-	}
-	r := b.checkRoutineName(parts, ast.OBJECT_FUNCTION, false, false)
-	if fi, ok := b.uniqueSyncedFunc(parts, r); ok && !fi.hasDefaultOrVariadic && !fi.arities[1] {
-		b.fail(r.keys, walk.Absent, review.ObjectNotFound, notFound("function", qualified(parts))) // 42883
+		if de.Defnamespace != "" {
+			b.failAt(rng, nil, review.UnsupportedForm, unsupported("btree index option "+review.Code(ident(de.Defnamespace)+"."+ident(de.Defname)))) // 22023
+			return
+		}
+		switch strings.ToLower(de.Defname) {
+		case "fillfactor", "deduplicate_items", "vacuum_cleanup_index_scale_factor":
+		default:
+			b.failAt(rng, nil, review.UnsupportedForm, unsupported("btree index option "+review.Code(ident(de.Defname)))) // 22023
+			return
+		}
 	}
 }
 

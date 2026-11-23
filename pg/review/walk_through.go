@@ -543,6 +543,7 @@ type builder struct {
 	added      map[string]bool
 	colTouch   map[string]int
 	conDropped bool
+	pkChanged  bool
 }
 
 // next starts the statement's next part.
