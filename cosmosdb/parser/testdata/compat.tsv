@@ -75,12 +75,18 @@ accept	accept	grammar	select_item(K_AS_identifier)?/K_AS_identifier	SELECT c AS 
 reject	reject	grammar	select_item(K_AS_identifier)?/K_AS_identifier!drop-2	SELECT c AS
 reject	reject	grammar	select_item(K_AS_identifier)?/K_AS_identifier!insert	SELECT c AS c zzz
 reject	reject	grammar	select_item(K_AS_identifier)?/K_AS_identifier!swap	SELECT c ASC c
+accept	accept	grammar	select_item(K_AS_identifier)?/K_AS_identifier+identifier/K_ALL	SELECT c AS ALL
+accept	accept	grammar	select_item(K_AS_identifier)?/K_AS_identifier+identifier/K_FIRST	SELECT c AS FIRST
+accept	accept	grammar	select_item(K_AS_identifier)?/K_AS_identifier+identifier/K_LAST	SELECT c AS LAST
 accept	accept	grammar	from_clause/K_FROM_collection_expression	SELECT * FROM c
 accept	accept	grammar	collection_expression/collection_(K_AS?_identifier)?	SELECT * FROM c
 accept	accept	grammar	collection_expression/identifier_K_IN_collection	SELECT * FROM c IN c
 reject	reject	grammar	collection_expression/identifier_K_IN_collection!drop-1	SELECT * FROM IN c
 reject	reject	grammar	collection_expression/identifier_K_IN_collection!drop-3	SELECT * FROM c IN
 reject	reject	grammar	collection_expression/identifier_K_IN_collection!insert	SELECT * FROM c IN c zzz
+accept	accept	grammar	collection_expression/identifier_K_IN_collection+identifier/K_ALL	SELECT * FROM ALL IN c
+accept	accept	grammar	collection_expression/identifier_K_IN_collection+identifier/K_FIRST	SELECT * FROM FIRST IN c
+accept	accept	grammar	collection_expression/identifier_K_IN_collection+identifier/K_LAST	SELECT * FROM LAST IN c
 accept	accept	grammar	collection_expression/collection_expression_K_JOIN_collection_expression	SELECT * FROM c JOIN c
 reject	reject	grammar	collection_expression/collection_expression_K_JOIN_collection_expression!drop-1	SELECT * FROM JOIN c
 reject	reject	grammar	collection_expression/collection_expression_K_JOIN_collection_expression!drop-3	SELECT * FROM c JOIN
@@ -89,12 +95,18 @@ reject	reject	grammar	collection_expression/collection_expression_K_JOIN_collect
 accept	accept	grammar	collection_expression(K_AS?_identifier)?/%empty	SELECT * FROM c
 accept	accept	grammar	collection_expression(K_AS?_identifier)?/(K_AS)?_identifier	SELECT * FROM c c
 reject	reject	grammar	collection_expression(K_AS?_identifier)?/(K_AS)?_identifier!insert	SELECT * FROM c c zzz
+accept	accept	grammar	collection_expression(K_AS?_identifier)?/(K_AS)?_identifier+identifier/K_ALL	SELECT * FROM c ALL
+accept	accept	grammar	collection_expression(K_AS?_identifier)?/(K_AS)?_identifier+identifier/K_FIRST	SELECT * FROM c FIRST
+accept	accept	grammar	collection_expression(K_AS?_identifier)?/(K_AS)?_identifier+identifier/K_LAST	SELECT * FROM c LAST
 accept	accept	grammar	collection_expression(K_AS)?/%empty	SELECT * FROM c c
 reject	reject	grammar	collection_expression(K_AS)?/%empty!insert	SELECT * FROM c zzz c
 accept	accept	grammar	collection_expression(K_AS)?/K_AS	SELECT * FROM c AS c
 reject	reject	grammar	collection_expression(K_AS)?/K_AS!insert	SELECT * FROM c AS zzz c
 reject	reject	grammar	collection_expression(K_AS)?/K_AS!swap	SELECT * FROM c ASC c
 accept	accept	grammar	collection/identifier_(path_expression)?	SELECT * FROM c
+accept	accept	grammar	collection/identifier_(path_expression)?+identifier/K_ALL	SELECT * FROM ALL
+accept	accept	grammar	collection/identifier_(path_expression)?+identifier/K_FIRST	SELECT * FROM FIRST
+accept	accept	grammar	collection/identifier_(path_expression)?+identifier/K_LAST	SELECT * FROM LAST
 accept	accept	grammar	collection/(_sql_query_)	SELECT * FROM(SELECT *)
 reject	reject	grammar	collection/(_sql_query_)!drop-1	SELECT * FROM SELECT *)
 reject	reject	grammar	collection/(_sql_query_)!drop-2	SELECT * FROM(*)
@@ -107,6 +119,9 @@ accept	accept	grammar	collection(path_expression)?/path_expression	SELECT * FROM
 accept	accept	grammar	path_expression/path_expression_._identifier	SELECT * FROM c.c
 reject	reject	grammar	path_expression/path_expression_._identifier!drop-2	SELECT * FROM c.
 accept	accept	grammar	path_expression/path_expression_._identifier!insert	SELECT * FROM c.c zzz
+accept	accept	grammar	path_expression/path_expression_._identifier+identifier/K_ALL	SELECT * FROM c.ALL
+accept	accept	grammar	path_expression/path_expression_._identifier+identifier/K_FIRST	SELECT * FROM c.FIRST
+accept	accept	grammar	path_expression/path_expression_._identifier+identifier/K_LAST	SELECT * FROM c.LAST
 accept	accept	grammar	path_expression/path_expression_[_NUMERIC_LITERAL_]	SELECT * FROM c [ 1 ]
 reject	reject	grammar	path_expression/path_expression_[_NUMERIC_LITERAL_]!drop-1	SELECT * FROM c 1 ]
 reject	reject	grammar	path_expression/path_expression_[_NUMERIC_LITERAL_]!drop-2	SELECT * FROM c [ ]
@@ -138,10 +153,26 @@ reject	reject	grammar	score_expression_order_by_items(,_score_expression_order_b
 reject	reject	grammar	score_expression_order_by_items(,_score_expression_order_by_item)*/,_score_expression_order_by_item_(,_score_expression_or~9f4a15bb!drop-4	SELECT * ORDER BY RANK c(), c(
 reject	reject	grammar	score_expression_order_by_items(,_score_expression_order_by_item)*/,_score_expression_order_by_item_(,_score_expression_or~9f4a15bb!insert	SELECT * ORDER BY RANK c(), c() zzz
 accept	accept	grammar	score_expression_order_by_item/function_call_scalar_expression_(sort_order)?	SELECT * ORDER BY RANK c()
+accept	accept	grammar	score_expression_order_by_item/function_call_scalar_expression_(sort_order)?+identifier/K_ALL	SELECT * ORDER BY RANK ALL()
+reject	reject	grammar	score_expression_order_by_item/function_call_scalar_expression_(sort_order)?+identifier/K_ALL!drop-2	SELECT * ORDER BY RANK ALL)
+reject	reject	grammar	score_expression_order_by_item/function_call_scalar_expression_(sort_order)?+identifier/K_ALL!drop-3	SELECT * ORDER BY RANK ALL(
+accept	accept	grammar	score_expression_order_by_item/function_call_scalar_expression_(sort_order)?+identifier/K_FIRST	SELECT * ORDER BY RANK FIRST()
+reject	reject	grammar	score_expression_order_by_item/function_call_scalar_expression_(sort_order)?+identifier/K_FIRST!drop-2	SELECT * ORDER BY RANK FIRST)
+reject	reject	grammar	score_expression_order_by_item/function_call_scalar_expression_(sort_order)?+identifier/K_FIRST!drop-3	SELECT * ORDER BY RANK FIRST(
+accept	accept	grammar	score_expression_order_by_item/function_call_scalar_expression_(sort_order)?+identifier/K_LAST	SELECT * ORDER BY RANK LAST()
+reject	reject	grammar	score_expression_order_by_item/function_call_scalar_expression_(sort_order)?+identifier/K_LAST!drop-2	SELECT * ORDER BY RANK LAST)
+reject	reject	grammar	score_expression_order_by_item/function_call_scalar_expression_(sort_order)?+identifier/K_LAST!drop-3	SELECT * ORDER BY RANK LAST(
+accept	accept	grammar	score_expression_order_by_item/function_call_scalar_expression_(sort_order)?+function_call_scalar_expression/K_LEFT_(_(scalar_expression_list)?_)	SELECT * ORDER BY RANK LEFT()
+reject	reject	grammar	score_expression_order_by_item/function_call_scalar_expression_(sort_order)?+function_call_scalar_expression/K_LEFT_(_(scalar_expression_list)?_)!drop-2	SELECT * ORDER BY RANK LEFT)
+reject	reject	grammar	score_expression_order_by_item/function_call_scalar_expression_(sort_order)?+function_call_scalar_expression/K_LEFT_(_(scalar_expression_list)?_)!drop-3	SELECT * ORDER BY RANK LEFT(
+accept	accept	grammar	score_expression_order_by_item/function_call_scalar_expression_(sort_order)?+function_call_scalar_expression/K_RIGHT_(_(scalar_expression_list)?_)	SELECT * ORDER BY RANK RIGHT()
+reject	reject	grammar	score_expression_order_by_item/function_call_scalar_expression_(sort_order)?+function_call_scalar_expression/K_RIGHT_(_(scalar_expression_list)?_)!drop-2	SELECT * ORDER BY RANK RIGHT)
+reject	reject	grammar	score_expression_order_by_item/function_call_scalar_expression_(sort_order)?+function_call_scalar_expression/K_RIGHT_(_(scalar_expression_list)?_)!drop-3	SELECT * ORDER BY RANK RIGHT(
 accept	accept	grammar	score_expression_order_by_item(sort_order)?/%empty	SELECT * ORDER BY RANK c()
 accept	accept	grammar	score_expression_order_by_item(sort_order)?/sort_order	SELECT * ORDER BY RANK c() ASC
 reject	reject	grammar	score_expression_order_by_item(sort_order)?/sort_order!insert	SELECT * ORDER BY RANK c() ASC zzz
 reject	reject	grammar	score_expression_order_by_item(sort_order)?/sort_order!swap	SELECT * ORDER BY RANK c() BETWEEN
+accept	accept	grammar	score_expression_order_by_item(sort_order)?/sort_order+sort_order/K_DESC	SELECT * ORDER BY RANK c() DESC
 accept	accept	grammar	order_by_items/order_by_item_(,_order_by_item)*	SELECT * ORDER BY c
 accept	accept	grammar	order_by_items(,_order_by_item)*/%empty	SELECT * ORDER BY c
 accept	accept	grammar	order_by_items(,_order_by_item)*/,_order_by_item_(,_order_by_item)*	SELECT * ORDER BY c, c
@@ -336,6 +367,9 @@ accept	accept	grammar	primary_expression/primary_expression_._identifier	SELECT 
 reject	reject	grammar	primary_expression/primary_expression_._identifier!drop-1	SELECT.c
 reject	reject	grammar	primary_expression/primary_expression_._identifier!drop-3	SELECT c.
 accept	accept	docs	primary_expression/primary_expression_._identifier!insert	SELECT c.c zzz
+accept	accept	grammar	primary_expression/primary_expression_._identifier+identifier/K_ALL	SELECT c.ALL
+accept	accept	grammar	primary_expression/primary_expression_._identifier+identifier/K_FIRST	SELECT c.FIRST
+accept	accept	grammar	primary_expression/primary_expression_._identifier+identifier/K_LAST	SELECT c.LAST
 accept	accept	grammar	primary_expression/primary_expression_[_scalar_expression_]	SELECT c [ c ]
 reject	reject	grammar	primary_expression/primary_expression_[_scalar_expression_]!drop-2	SELECT c c ]
 reject	reject	grammar	primary_expression/primary_expression_[_scalar_expression_]!drop-3	SELECT c [ ]
@@ -378,6 +412,15 @@ reject	reject	grammar	primary_expression/K_LAST_(_sql_query_)!swap	SELECT LEFT(S
 accept	accept	grammar	primary_expression/function_call_scalar_expression	SELECT c()
 reject	reject	grammar	primary_expression/function_call_scalar_expression!drop-3	SELECT c(
 accept	accept	docs	primary_expression/function_call_scalar_expression!insert	SELECT c() zzz
+accept	accept	grammar	primary_expression/function_call_scalar_expression+identifier/K_ALL	SELECT ALL()
+reject	reject	grammar	primary_expression/function_call_scalar_expression+identifier/K_ALL!drop-2	SELECT ALL)
+reject	reject	grammar	primary_expression/function_call_scalar_expression+identifier/K_ALL!drop-3	SELECT ALL(
+accept	accept	grammar	primary_expression/function_call_scalar_expression+identifier/K_FIRST	SELECT FIRST()
+reject	reject	grammar	primary_expression/function_call_scalar_expression+identifier/K_FIRST!drop-2	SELECT FIRST)
+reject	reject	grammar	primary_expression/function_call_scalar_expression+identifier/K_FIRST!drop-3	SELECT FIRST(
+accept	accept	grammar	primary_expression/function_call_scalar_expression+identifier/K_LAST	SELECT LAST()
+reject	reject	grammar	primary_expression/function_call_scalar_expression+identifier/K_LAST!drop-2	SELECT LAST)
+reject	reject	grammar	primary_expression/function_call_scalar_expression+identifier/K_LAST!drop-3	SELECT LAST(
 accept	accept	grammar	primary_expression(scalar_expression_list)?/%empty	SELECT [ ]
 accept	accept	grammar	primary_expression(scalar_expression_list)?/%empty!insert	SELECT [ zzz ]
 accept	accept	grammar	primary_expression(scalar_expression_list)?/scalar_expression_list	SELECT [ c ]
