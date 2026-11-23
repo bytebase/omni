@@ -1150,15 +1150,52 @@ func (c *Catalog) checkNotNullConstraintNameFree(relOID uint32, name string) err
 	return nil
 }
 
+// constraintNameInNamespace reports whether any table or domain constraint in
+// namespace nsOID already uses name.
+//
+// pg: src/backend/catalog/pg_constraint.c — ConstraintNameExists
+func (c *Catalog) constraintNameInNamespace(nsOID uint32, name string) bool {
+	for _, con := range c.constraints {
+		if con.Name != name {
+			continue
+		}
+		conNS := con.Namespace
+		if conNS == 0 {
+			if rel := c.relationByOID[con.RelOID]; rel != nil && rel.Schema != nil {
+				conNS = rel.Schema.OID
+			}
+		}
+		if conNS == nsOID {
+			return true
+		}
+	}
+	for typeOID, dt := range c.domainTypes {
+		bt := c.typeByOID[typeOID]
+		if bt == nil || bt.Namespace != nsOID {
+			continue
+		}
+		for _, dc := range dt.Constraints {
+			if dc.Name == name {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // chooseNotNullConstraintName picks PostgreSQL 18's default NOT NULL
 // constraint name (<rel>_<col>_not_null, shortened to 63 bytes via
-// makeObjectName and suffixed with 1, 2, ... on collision).
+// makeObjectName and suffixed with 1, 2, ... on collision across the schema).
 //
-// pg: src/backend/commands/tablecmds.c — ChooseConstraintName(..., "not_null", ...)
+// pg: src/backend/catalog/pg_constraint.c — ChooseConstraintName(..., "not_null", ...)
 func (c *Catalog) chooseNotNullConstraintName(rel *Relation, colName string) string {
+	nsOID := uint32(0)
+	if rel.Schema != nil {
+		nsOID = rel.Schema.OID
+	}
 	name := makePGObjectName(rel.Name, colName, "not_null")
 	for i := 1; ; i++ {
-		if c.checkConstraintNameFree(rel.OID, name) == nil {
+		if c.checkConstraintNameFree(rel.OID, name) == nil && (nsOID == 0 || !c.constraintNameInNamespace(nsOID, name)) {
 			return name
 		}
 		name = makePGObjectName(rel.Name, colName, fmt.Sprintf("not_null%d", i))
@@ -1166,14 +1203,18 @@ func (c *Catalog) chooseNotNullConstraintName(rel *Relation, colName string) str
 }
 
 // chooseFKConstraintName picks a free generated foreign-key constraint name on
-// rel (<rel>_<cols>_fkey, suffixed with 1, 2, ... on collision).
+// rel (<rel>_<cols>_fkey, suffixed with 1, 2, ... on collision across the schema).
 //
-// pg: src/backend/commands/tablecmds.c — ChooseConstraintName(..., "fkey", ...)
+// pg: src/backend/catalog/pg_constraint.c — ChooseConstraintName(..., "fkey", ...)
 func (c *Catalog) chooseFKConstraintName(rel *Relation, columns []string) string {
+	nsOID := uint32(0)
+	if rel.Schema != nil {
+		nsOID = rel.Schema.OID
+	}
 	colPart := strings.Join(columns, "_")
 	name := makePGObjectName(rel.Name, colPart, "fkey")
 	for i := 1; ; i++ {
-		if c.checkConstraintNameFree(rel.OID, name) == nil {
+		if c.checkConstraintNameFree(rel.OID, name) == nil && (nsOID == 0 || !c.constraintNameInNamespace(nsOID, name)) {
 			return name
 		}
 		name = makePGObjectName(rel.Name, colPart, fmt.Sprintf("fkey%d", i))

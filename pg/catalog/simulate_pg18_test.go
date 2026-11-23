@@ -920,6 +920,26 @@ CREATE TABLE c_rsc (CONSTRAINT p_rsc_x_not_null CHECK (x > 0)) INHERITS (p_rsc);
 			t.Fatalf("c_rsc NOT NULL name = %q, want p_rsc_x_not_null1", gotC)
 		}
 	}
+
+	// Generated NOT NULL and FK names avoid collisions across all constraints in the schema
+	// (including other tables' constraints and domain constraints), matching PG ChooseConstraintName.
+	schemaCollSetup := `
+CREATE TABLE other_sc (x int CONSTRAINT t_sc_x_not_null CHECK (x > 0));
+CREATE DOMAIN d_sc AS int CONSTRAINT t_sc2_x_not_null CHECK (VALUE > 0);
+CREATE TABLE t_sc (x int NOT NULL);
+CREATE TABLE t_sc2 (x int NOT NULL);
+CREATE TABLE p_sc_rec (x int);
+CREATE TABLE c_sc_rec () INHERITS (p_sc_rec);
+CREATE TABLE other_sc_rec (x int CONSTRAINT p_sc_rec_x_not_null CHECK (x > 0));
+ALTER TABLE p_sc_rec ALTER COLUMN x SET NOT NULL;
+`
+	if got, _ := execCodeVersion(t, PG18, schemaCollSetup, `
+COMMENT ON CONSTRAINT t_sc_x_not_null1 ON t_sc IS 'ok1';
+COMMENT ON CONSTRAINT t_sc2_x_not_null1 ON t_sc2 IS 'ok2';
+COMMENT ON CONSTRAINT p_sc_rec_x_not_null1 ON c_sc_rec IS 'ok3';
+`); got != "" {
+		t.Fatalf("PG18 schema-wide ChooseConstraintName collision avoidance: got %q, want ok", got)
+	}
 }
 
 func TestPG18PartitionDetachPKNameAndJsonExpr(t *testing.T) {

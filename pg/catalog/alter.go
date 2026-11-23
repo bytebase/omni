@@ -2817,9 +2817,16 @@ func (c *Catalog) chooseNotNullConstraintNameForTree(rel *Relation, colName stri
 	collect(rel, true)
 
 	freeInAll := func(name string) bool {
+		checkedNS := make(map[uint32]bool)
 		for _, t := range targets {
 			if c.checkConstraintNameFree(t.OID, name) != nil {
 				return false
+			}
+			if t.Schema != nil && !checkedNS[t.Schema.OID] {
+				checkedNS[t.Schema.OID] = true
+				if c.constraintNameInNamespace(t.Schema.OID, name) {
+					return false
+				}
 			}
 		}
 		return true
