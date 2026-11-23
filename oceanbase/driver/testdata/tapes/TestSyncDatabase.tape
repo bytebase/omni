@@ -60,13 +60,13 @@
 < ok 0 0
 > exec
 | CREATE PROCEDURE sp_touch_order(IN p_id BIGINT, OUT p_total INT)
-| COMMENT 'reads order total'
+| COMMENT 'reads an order''s total from C:\\orders'
 | BEGIN
 | 	SELECT total INTO p_total FROM orders WHERE id = p_id;
 | END;
 < ok 0 0
 > exec
-| SET SESSION sql_mode = 'NO_BACKSLASH_ESCAPES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER'; CREATE FUNCTION fn_escaped(p VARCHAR(16)) RETURNS VARCHAR(32) CHARSET utf8mb4 DETERMINISTIC NO SQL RETURN CONCAT(p, '-escaped'); SET SESSION sql_mode = DEFAULT;
+| SET SESSION sql_mode = 'NO_BACKSLASH_ESCAPES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER'; CREATE FUNCTION fn_escaped(p VARCHAR(16)) RETURNS VARCHAR(32) CHARSET utf8mb4 DETERMINISTIC NO SQL COMMENT 'it''s C:\\path' RETURN CONCAT(p, '-escaped'); SET SESSION sql_mode = DEFAULT;
 < ok 0 0
 > exec
 | CREATE TRIGGER trg_orders_bi BEFORE INSERT ON orders FOR EACH ROW BEGIN IF NEW.total < 0 THEN SET NEW.total = 0; END IF; END;
@@ -1256,7 +1256,7 @@
 : bytes
 | utf8mb4_general_ci
 : bytes
-|
+| it's C:\path
 < row
 : bytes
 | fn_format_tag
@@ -1286,7 +1286,7 @@
 : bytes
 | utf8mb4_general_ci
 : bytes
-| reads order total
+| reads an order's total from C:\orders
 > query
 | SHOW CREATE FUNCTION `omni_sync_corpus`.`fn_escaped`
 < result
@@ -1305,6 +1305,7 @@
 | CREATE DEFINER = `root`@`%` FUNCTION `fn_escaped`(p VARCHAR(16)) RETURNS varchar(32)
 |     NO SQL
 |     DETERMINISTIC
+|     COMMENT 'it's C:\path'
 | RETURN CONCAT(p, '-escaped')
 : bytes
 | utf8mb4
@@ -1357,7 +1358,7 @@
 : bytes
 | CREATE DEFINER = `root`@`%` PROCEDURE `sp_touch_order`(IN p_id BIGINT, OUT p_total INT)
 |     READS SQL DATA
-|     COMMENT 'reads order total'
+|     COMMENT 'reads an order's total from C:\orders'
 | BEGIN
 | 	SELECT total INTO p_total FROM orders WHERE id = p_id;
 | END

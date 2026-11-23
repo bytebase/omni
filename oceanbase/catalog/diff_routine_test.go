@@ -58,9 +58,9 @@ func routineIdempotenceProbes() []routineProbe {
 		{"fn-begin-body", "FUNCTION", "f", "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC\nBEGIN\n  DECLARE r INT;\n  SET r = a * 2;\n  RETURN r;\nEND"},
 		// Comment with an embedded single quote (escaping round-trip).
 		{"fn-comment-quote", "FUNCTION", "f", "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC COMMENT 'it''s here' RETURN a"},
-		// Comment with an embedded backslash: the engine echoes it backslash-escaped and the loader
-		// decodes it back consistently, so the no-op diff stays empty (guards against an
-		// escape-asymmetry idempotence break).
+		// Comment with an embedded backslash: OceanBase echoes it unescaped, so the readback
+		// reads back as the routine's comment only once its COMMENT is written again
+		// (guards against an escape-asymmetry idempotence break).
 		{"fn-comment-backslash", "FUNCTION", "f", "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC COMMENT 'a\\\\b' RETURN a"},
 		// DECIMAL RETURNS: precision/scale padding via the type canonicalizer.
 		{"fn-decimal-return", "FUNCTION", "f", "CREATE FUNCTION f(a DECIMAL(10,2)) RETURNS DECIMAL(10,2) DETERMINISTIC RETURN a"},
@@ -118,18 +118,27 @@ func (o *oracleConn) loadRoutineReadback(t testing.TB, dbName, createSQL, kind, 
 	return cat, rb, true
 }
 
-// showCreateRoutine runs SHOW CREATE FUNCTION/PROCEDURE and returns the create DDL column. The
-// statement returns six columns (Name, sql_mode, Create <kind>, character_set_client,
+// showCreateRoutine runs SHOW CREATE FUNCTION/PROCEDURE and returns the create DDL column,
+// with its COMMENT written again from information_schema.ROUTINES as the sync does
+// (RoutineReadbackWithComment): OceanBase prints the comment unescaped. The statement
+// returns six columns (Name, sql_mode, Create <kind>, character_set_client,
 // collation_connection, Database Collation); only the third (the DDL) is needed.
 func (o *oracleConn) showCreateRoutine(t testing.TB, dbName, kind, name string) (string, bool) {
 	t.Helper()
+	ctx := context.Background()
 	var c1, c2, c3, c4, c5, c6 sql.NullString
-	row := o.db.QueryRowContext(context.Background(), fmt.Sprintf("SHOW CREATE %s %s.%s", kind, dbName, name))
+	row := o.db.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE %s %s.%s", kind, dbName, name))
 	if err := row.Scan(&c1, &c2, &c3, &c4, &c5, &c6); err != nil {
 		t.Logf("[%s] SHOW CREATE %s %s.%s failed: %v", o.name, kind, dbName, name, err)
 		return "", false
 	}
-	return c3.String, true
+	var comment string
+	if err := o.db.QueryRowContext(ctx,
+		"SELECT IFNULL(ROUTINE_COMMENT, '') FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? AND ROUTINE_NAME = ? AND ROUTINE_TYPE = ?",
+		dbName, name, kind).Scan(&comment); err != nil {
+		t.Fatalf("[%s] read the comment of %s %s.%s: %v", o.name, kind, dbName, name, err)
+	}
+	return RoutineReadbackWithComment(c3.String, comment), true
 }
 
 // TestOracle_RoutineDiffIdempotence proves gate 1 & 2 for every routine form: the user DDL vs its
