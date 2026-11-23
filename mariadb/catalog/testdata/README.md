@@ -10,6 +10,11 @@ the pinned MariaDB (`../../testdata/pins.tsv`, `mariadb:11.8.8`) takes in
   `objects@fk`, `objects@sequence`, `objects@routine` (stored procedure +
   stored function), `objects@trigger`, `objects@event`.
 
+After them come 16 hand-written `check:drop` rows
+(`../simulate_families_test.go`) on `features@check`: dropping columns that a
+column CHECK, a one-column and a two-column table CHECK, and a CHECK reading
+no column read.
+
 Simulated statement families cover database-local DDL on tables, indexes,
 views, sequences, stored routines (`PROCEDURE`/`FUNCTION`, excluding
 server-level loadable UDFs with `SONAME`), triggers, and events (excluding
@@ -21,7 +26,8 @@ of the `SHOW CREATE` texts the database holds afterwards. `TestSimulation`
 no server. The design is
 `docs/specs/2026-11-11-engine-compatibility-without-servers-design.md` §3.
 
-**5,049 / 5,049 rows (100.00%) agree** (459 statements × 11 fixtures).
+**5,065 / 5,065 rows (100.00%) agree** (459 statements × 11 fixtures, and
+16 family rows).
 
 ## Commands
 

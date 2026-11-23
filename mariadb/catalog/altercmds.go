@@ -403,7 +403,13 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		return err
 	}
 
+	checksGone, err := checksDroppedWithColumns(tbl, stmt.Commands)
+	if err != nil {
+		return err
+	}
+
 	actx := &alterExecCtx{
+		checksGone:     checksGone,
 		origDBName:     origDBName,
 		origTableName:  origTableName,
 		dropsPK:        alterDropsPrimaryKey(stmt.Commands),
@@ -602,6 +608,7 @@ type alterExecCtx struct {
 	dropsPK        bool
 	droppedColumns map[string]bool
 	droppedFKs     map[string]bool
+	checksGone     map[*Constraint]bool
 	droppedIndexes []string
 	declaredChecks map[string]bool
 	skippedColumns map[*nodes.ColumnDef]bool
@@ -629,7 +636,11 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATAddColumn:
 		return c.alterAddColumn(tbl, cmd, actx)
 	case nodes.ATDropColumn:
-		return c.alterDropColumn(tbl, cmd, actx.dropsPK, actx.droppedColumns, actx.droppedFKs)
+		if err := c.alterDropColumn(tbl, cmd, actx.dropsPK, actx.droppedColumns, actx.droppedFKs); err != nil {
+			return err
+		}
+		dropChecks(tbl, actx.checksGone)
+		return nil
 	case nodes.ATModifyColumn:
 		return c.alterModifyColumn(tbl, cmd, actx)
 	case nodes.ATChangeColumn:
