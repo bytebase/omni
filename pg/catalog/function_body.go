@@ -363,8 +363,11 @@ func (c *Catalog) checkCall(b *ruleBindings, fc *nodes.FuncCall, ctx *ruleEvalCo
 	} else {
 		searchNS = c.routineSearchPathWithCatalog()
 	}
+	// Every routine visible on the search path is a candidate; one in a
+	// later schema with the signature of an earlier one is hidden.
+	// pg: src/backend/catalog/namespace.c — FuncnameGetCandidates
+	var candidates []*BuiltinProc
 	for _, nsOID := range searchNS {
-		var candidates []*BuiltinProc
 		for _, p := range c.procByName[name] {
 			pNS := uint32(PGCatalogNamespace)
 			if p.OID >= FirstNormalObjectId {
@@ -374,37 +377,46 @@ func (c *Catalog) checkCall(b *ruleBindings, fc *nodes.FuncCall, ctx *ruleEvalCo
 				}
 				pNS = up.Schema.OID
 			}
-			if pNS == nsOID {
-				candidates = append(candidates, p)
+			if pNS != nsOID || slices.ContainsFunc(candidates, func(q *BuiltinProc) bool { return slices.Equal(q.ArgTypes, p.ArgTypes) }) {
+				continue
 			}
+			candidates = append(candidates, p)
 		}
-		if len(candidates) == 0 {
-			continue
-		}
-		// CALL passes an argument for each OUT parameter too, which the
-		// call signature here leaves out; accept a call to such a procedure.
-		// pg: src/backend/parser/parse_func.c — ParseFuncOrColumn (proc_call)
-		for _, p := range candidates {
-			if up := c.userProcs[p.OID]; up != nil && p.Kind == 'p' && slices.Contains(up.ArgModes, 'o') {
-				return nil
-			}
-		}
-		best, _, err := c.resolveFuncOverload(candidates, argTypes, argNames, false, fc.FuncVariadic)
-		if err != nil || best == nil {
-			continue
-		}
-		if best.Kind != 'p' {
-			return &Error{
-				Code:    CodeWrongObjectType,
-				Message: fmt.Sprintf("%s(%s) is not a procedure", name, c.formatArgTypes(argTypes)),
-			}
-		}
-		return nil
 	}
-	return &Error{
+	// CALL passes an argument for each OUT parameter too, which the call
+	// signature here leaves out; accept a call to such a procedure.
+	for _, p := range candidates {
+		if up := c.userProcs[p.OID]; up != nil && p.Kind == 'p' && slices.Contains(up.ArgModes, 'o') {
+			return nil
+		}
+	}
+	undefined := &Error{
 		Code:    CodeUndefinedFunction,
 		Message: fmt.Sprintf("procedure %s(%s) does not exist", name, c.formatArgTypes(argTypes)),
 	}
+	if len(candidates) == 0 {
+		return undefined
+	}
+	best, _, err := c.resolveFuncOverload(candidates, argTypes, argNames, false, fc.FuncVariadic)
+	if err != nil {
+		var ce *Error
+		if errors.As(err, &ce) && ce.Code == CodeUndefinedFunction {
+			return undefined
+		}
+		// Ambiguity and the rest are left to PostgreSQL.
+		return nil
+	}
+	if best == nil {
+		return undefined
+	}
+	if best.Kind != 'p' {
+		return &Error{
+			Code:    CodeWrongObjectType,
+			Message: fmt.Sprintf("%s(%s) is not a procedure", name, c.formatArgTypes(argTypes)),
+		}
+	}
+	b.addFuncDep(best.OID)
+	return nil
 }
 
 func (c *Catalog) formatArgTypes(types []uint32) string {

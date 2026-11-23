@@ -575,6 +575,12 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 				return errInvalidFunctionDefinition("SQL function with unquoted function body cannot have polymorphic arguments")
 			}
 		}
+		// pg: src/backend/commands/functioncmds.c — interpret_AS_clause
+		for _, st := range sqlBodyStmts(stmt.SqlBody) {
+			if _, ok := st.(*nodes.CallStmt); ok {
+				return &Error{Code: CodeFeatureNotSupported, Message: "CALL is not yet supported in unquoted SQL function body"}
+			}
+		}
 		bodyBindings, err = c.bindSQLFunctionBody(sqlBodyStmts(stmt.SqlBody), fnParams)
 		if err != nil {
 			return err

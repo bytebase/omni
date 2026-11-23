@@ -1,6 +1,9 @@
 package catalog
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 // TestSQLFunctionBodyAccepts holds the checks of a SQL function's body to
 // what PostgreSQL's regression suite accepts.
@@ -21,6 +24,8 @@ func TestSQLFunctionBodyAccepts(t *testing.T) {
 		`CREATE FUNCTION f("X" int) RETURNS int LANGUAGE plpgsql AS $$ BEGIN "X" := 2; RETURN "X"; END $$`,
 		// SELECT INTO may target a record field.
 		`CREATE TABLE t(x int); CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE r t%ROWTYPE; BEGIN SELECT 1 INTO r.x; RETURN r.x; END $$`,
+		// CALL chooses among every routine on the search path.
+		`CREATE SCHEMA s1; CREATE SCHEMA s2; CREATE FUNCTION s1.p(bigint) RETURNS int LANGUAGE sql AS 'SELECT 1'; CREATE PROCEDURE s2.p(int) LANGUAGE sql AS 'SELECT 1'; SET search_path = s1, s2; CALL p(1)`,
 		// A replacement's body sees the defaults it adds.
 		`CREATE FUNCTION f(n int) RETURNS int LANGUAGE sql AS 'SELECT n'; CREATE OR REPLACE FUNCTION f(n int DEFAULT 0) RETURNS int LANGUAGE sql AS 'SELECT CASE WHEN n > 0 THEN f() ELSE 0 END'`,
 	} {
@@ -33,5 +38,20 @@ func TestSQLFunctionBodyAccepts(t *testing.T) {
 		if err != nil {
 			t.Errorf("%s: %v", sql, err)
 		}
+	}
+}
+
+// TestSQLBodyCallRefused holds that a SQL-standard body may not CALL, as
+// PostgreSQL 17 and 18 refuse it.
+func TestSQLBodyCallRefused(t *testing.T) {
+	results, err := New().Exec(`CREATE PROCEDURE helper() LANGUAGE sql AS 'SELECT 1';
+CREATE PROCEDURE outer_p() LANGUAGE sql BEGIN ATOMIC CALL helper(); END`, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	last := results[len(results)-1].Error
+	var ce *Error
+	if !errors.As(last, &ce) || ce.Code != CodeFeatureNotSupported {
+		t.Fatalf("CALL in BEGIN ATOMIC: got %v, want 0A000", last)
 	}
 }
