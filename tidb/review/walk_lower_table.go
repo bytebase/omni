@@ -1,6 +1,8 @@
 package review
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
 	"github.com/bytebase/omni/tidb/ast"
@@ -127,16 +129,20 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			cols = append([]*ast.ColumnDef{c.Column}, cols...)
 		}
 		for _, col := range cols {
+			colRng := rangeOf(col.Loc)
+			if b.checkAddColumnUnsupportedConstraints(col, colRng) {
+				return true
+			}
 			if c.IfNotExists {
 				// ADD COLUMN IF NOT EXISTS of a column the table already has
 				// is a note and adds nothing (1060, verified on v8.5.5), so
 				// the walk claims nothing about the column either way.
-				if !b.addColumnIfNotExists(r, col, c.After, rangeOf(col.Loc)) {
+				if !b.addColumnIfNotExists(r, col, c.After, colRng) {
 					return false
 				}
 				continue
 			}
-			if !b.addColumn(r, col, c.After, rangeOf(col.Loc)) {
+			if !b.addColumn(r, col, c.After, colRng) {
 				return false
 			}
 		}
@@ -183,6 +189,12 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			return false
 		}
 		b.after(r, c.After, rng)
+		modMissing := false
+		if k, ok := b.key(spaceColumn, c.Column.Name); ok {
+			f, _ := b.l.Lookup(colKey(r.db, r.name, k))
+			modMissing = f == walk.Absent
+		}
+		b.checkAlterColumnDef(r, c.Column, rng, false, modMissing)
 		b.alterColumnKeys(r, c.Column, rng)
 	case ast.ATChangeColumn:
 		if c.Column == nil {
@@ -197,6 +209,12 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			return false
 		}
 		b.after(r, c.After, rng)
+		chgMissing := false
+		if k, ok := b.key(spaceColumn, c.Name); ok {
+			f, _ := b.l.Lookup(colKey(r.db, r.name, k))
+			chgMissing = f == walk.Absent
+		}
+		b.checkAlterColumnDef(r, c.Column, rng, false, chgMissing)
 		b.alterColumnKeys(r, c.Column, rng)
 	case ast.ATRenameColumn:
 		return b.renameColumn(r, c.Name, c.NewName, rng)
@@ -254,7 +272,58 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			return false
 		}
 		b.need(idxKey(r.db, r.name, k), walk.Present, nil, rng, notFound("index", ident(c.Name), r.written), "")
+	case ast.ATTableOption:
+		b.checkTableOption(r, c.Option, rng, true)
+	case ast.ATConvertCharset:
+		if strings.EqualFold(c.Name, "DEFAULT") {
+			b.fail(rng, nil, review.UnsupportedForm, engineName+" doesn't support "+review.Code("CONVERT TO CHARSET DEFAULT")+".")
+		} else if c.Name != "" && !tidbSupportedCharsets[strings.ToLower(c.Name)] {
+			b.fail(rng, nil, review.UnsupportedForm, engineName+" doesn't recognize character set "+review.Code(c.Name)+".")
+		}
+	case ast.ATAttributes, ast.ATPartitionAttributes:
+		b.checkAttributesSpec(c.Attributes, rng)
+	case ast.ATPartitionOptions:
+		for _, opt := range c.PartitionOptions {
+			if opt != nil && !strings.EqualFold(opt.Name, "placement policy") {
+				b.fail(rng, nil, review.UnsupportedForm, engineName+" doesn't support partition option "+review.Code(strings.ToUpper(opt.Name))+" in "+review.Code("ALTER TABLE")+".")
+				break
+			}
+		}
+	case ast.ATPartitionBy:
+		b.checkPartitionBy(r, c.PartitionBy, rng)
+	case ast.ATAddPartition, ast.ATReorganizePartition:
+		b.checkPartitionDefs(c.PartitionDefs, rng)
+	case ast.ATAnalyzePartition:
+		for _, idxName := range c.AnalyzeIndexes {
+			if k, ok := b.key(spaceIndex, idxName); ok {
+				b.need(idxKey(r.db, r.name, k), walk.Present, nil, rng, notFound("index", ident(idxName), r.written), "")
+			}
+		}
+	case ast.ATExchangePartition:
+		if c.ExchangeTable != nil {
+			ex, st := b.ref(c.ExchangeTable)
+			switch st {
+			case refFailed:
+				return true
+			case refOK:
+				if ex.db == r.db && ex.name == r.name {
+					b.fail(ex.rng, nil, review.UnsupportedForm, engineName+" can't exchange a partition of "+review.Code(r.written)+" with itself.")
+					return true
+				}
+				if f, temp, _ := b.resolve(ex); !temp && f != walk.Unknown {
+					b.tableNeeds(ex)
+				}
+			}
+		}
+	case ast.ATAddLastPartition, ast.ATDropFirstPartition:
+		if name := firstExprColumnRef(c.PartitionBound); name != "" {
+			b.fail(rng, nil, review.UnsupportedForm, "Partition bound expression can't reference column "+review.Code(ident(name))+".")
+		}
 	default:
+		if clause := unsupportedAlterActionClause(c.Type); clause != "" {
+			b.fail(rng, nil, review.UnsupportedForm, engineName+" doesn't support "+review.Code(clause)+" in "+review.Code("ALTER TABLE")+".")
+			return true
+		}
 		return alterNoFacts(c)
 	}
 	return true
@@ -408,8 +477,10 @@ func (b *builder) addColumn(r tableRef, col *ast.ColumnDef, after string, rng re
 		return false
 	}
 	ck := colKey(r.db, r.name, k)
+	f, _ := b.l.Lookup(ck)
 	b.need(ck, walk.Absent, nil, rng, "", alreadyExists("column", ident(col.Name), r.written)) // 1060
 	b.after(r, after, rng)
+	b.checkAlterColumnDef(r, col, rng, true, f == walk.Present)
 	b.Set(ck, walk.Present, "")
 	b.alterColumnKeys(r, col, rng)
 	return true
@@ -468,11 +539,15 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 	switch c.Type {
 	case ast.ConstrPrimaryKey:
 		b.need(idxKey(r.db, r.name, primaryIndex), walk.Absent, nil, rng, "", hasPrimaryKey(r.written)) // 1068
+		b.checkIndexColumnsExist(r, c.IndexColumns, c.Columns, rng)
 	case ast.ConstrCheck, ast.ConstrFulltextIndex:
 		// TiDB parses FULLTEXT keys in ALTER TABLE as a no-op and adds no
 		// index (measured on v8.5.5).
 		return
 	case ast.ConstrForeignKey:
+		if b.checkConstraintForeignKeyShape(c, rng) {
+			return
+		}
 		if !b.fks {
 			break
 		}
@@ -495,6 +570,7 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 				b.need(idxKey(r.db, r.name, k), walk.Absent, nil, rng, "", alreadyExists("index", ident(c.Name), r.written)) // 1061
 			}
 		}
+		b.checkIndexColumnsExist(r, c.IndexColumns, c.Columns, rng)
 	}
 	b.constraint(r, c)
 }
@@ -565,6 +641,7 @@ func (b *builder) moveTable(from, to tableRef, kind string) {
 // pair's check on a name another pair changes is left out.
 func (b *builder) renameTable(v *ast.RenameTableStmt) bool {
 	moved := make(map[walk.Key]string)
+	removed := make(map[walk.Key]bool)
 	for _, p := range v.Pairs {
 		b.Next()
 		from, st1 := b.ref(p.Old)
@@ -579,12 +656,29 @@ func (b *builder) renameTable(v *ast.RenameTableStmt) bool {
 			return true
 		}
 		fk := relKey(from.db, from.name)
+		tk := relKey(to.db, to.name)
 		f, temp, kind := b.resolve(from)
 		if k, ok := moved[fk]; ok {
 			f, temp, kind = walk.Present, false, k
+		} else if removed[fk] {
+			f, temp, kind = walk.Absent, false, ""
 		}
-		if _, tt, _ := b.resolve(to); temp || tt || f == walk.Unknown {
+		tf, tt, tkind := b.resolve(to)
+		if k, ok := moved[tk]; ok {
+			tf, tt, tkind = walk.Present, false, k
+		} else if removed[tk] {
+			tf, tt, tkind = walk.Absent, false, ""
+		}
+		if temp || tt || f == walk.Unknown {
 			return false
+		}
+		if f == walk.Absent {
+			if !removed[fk] {
+				b.need(fk, walk.Present, nil, from.rng, notFound("", from.written, ""), "") // 1146
+			} else {
+				b.fail(from.rng, nil, review.ObjectNotFound, notFound("", from.written, ""))
+			}
+			return true
 		}
 		b.need(fk, walk.Present, nil, from.rng, notFound("", from.written, ""), "") // 1146; 1017 on 5.7
 		if p.New.Schema != "" {
@@ -594,10 +688,24 @@ func (b *builder) renameTable(v *ast.RenameTableStmt) bool {
 			b.fail(to.rng, []walk.Key{fk}, review.UnsupportedForm, engineName+" doesn't accept "+review.Code("RENAME TABLE")+" of view "+review.Code(from.written)+" to another database.") // 1450 (verified)
 			return true
 		}
-		b.needFree(relKey(to.db, to.name), to.rng, to.written, kind) // 1050
+		if tf == walk.Present {
+			if _, ok := moved[tk]; !ok {
+				b.needFree(tk, to.rng, to.written, kind) // 1050
+			} else {
+				msg := nameTaken(to.written)
+				if tkind != "" && tkind == kind {
+					msg = alreadyExists(relWord(tk, kind), to.written, "")
+				}
+				b.fail(to.rng, nil, review.NameTaken, msg)
+			}
+			return true
+		}
+		b.needFree(tk, to.rng, to.written, kind) // 1050
 		b.moveTable(from, to, kind)
 		delete(moved, fk)
-		moved[relKey(to.db, to.name)] = kind
+		removed[fk] = true
+		delete(removed, tk)
+		moved[tk] = kind
 	}
 	return true
 }
