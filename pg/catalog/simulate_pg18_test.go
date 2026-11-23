@@ -291,6 +291,63 @@ CREATE TABLE p1 PARTITION OF p FOR VALUES FROM (0) TO (100);
 			t.Fatalf("expected failed ADD COLUMN to leave 1 column, got %d", len(rel.Columns))
 		}
 	}
+
+	// Failed ADD COLUMN default analysis rolls back the registered NOT NULL constraint so retry succeeds.
+	if got, c := execCodeVersion(t, PG18, `CREATE TABLE t_rb_nn (a int);`,
+		"ALTER TABLE t_rb_nn ADD COLUMN b int CONSTRAINT nn NOT NULL DEFAULT no_such_function()"); got != CodeUndefinedFunction {
+		t.Fatalf("PG18 ADD COLUMN bad default: got %q, want %q", got, CodeUndefinedFunction)
+	} else if res, err := c.Exec("ALTER TABLE t_rb_nn ADD COLUMN b int CONSTRAINT nn NOT NULL", nil); err != nil {
+		t.Fatal(err)
+	} else if len(res) > 0 && res[0].Error != nil {
+		t.Fatalf("PG18 retry ADD COLUMN after rollback failed: %v", res[0].Error)
+	}
+
+	// Generated NOT NULL constraint names stay within 63 bytes (NAMEDATALEN-1) and remain addressable via Exec.
+	longTbl := strings.Repeat("t", 40)
+	longCol := strings.Repeat("c", 30) + "é"
+	longCreate := "CREATE TABLE \"" + longTbl + "\" (\"" + longCol + "\" int NOT NULL);"
+	if c, err := LoadSQLWithVersion(longCreate, PG18); err != nil {
+		t.Fatalf("LoadSQLWithVersion long ident: %v", err)
+	} else {
+		rel := c.GetRelation("public", longTbl)
+		var nn *Constraint
+		for _, con := range c.ConstraintsOf(rel.OID) {
+			if con.Type == ConstraintNotNull {
+				nn = con
+			}
+		}
+		if nn == nil {
+			t.Fatalf("expected NOT NULL constraint on %q", longTbl)
+		}
+		if len(nn.Name) > 63 || !strings.HasSuffix(nn.Name, "_not_null") {
+			t.Fatalf("generated NOT NULL constraint name %q (len=%d): want <=63 bytes ending in _not_null", nn.Name, len(nn.Name))
+		}
+		if res, err := c.Exec(`COMMENT ON CONSTRAINT "`+nn.Name+`" ON "`+longTbl+`" IS 'ok'`, nil); err != nil {
+			t.Fatal(err)
+		} else if len(res) > 0 && res[0].Error != nil {
+			t.Fatalf("COMMENT ON CONSTRAINT %q failed: %v", nn.Name, res[0].Error)
+		}
+	}
+
+	// ALTER TABLE <partitioned> ADD PRIMARY KEY registers cataloged NOT NULL constraints on partitions too.
+	partNullableSetup := `
+CREATE TABLE p_pk (id int, k int) PARTITION BY RANGE (k);
+CREATE TABLE p_pk_1 PARTITION OF p_pk FOR VALUES FROM (0) TO (100);
+`
+	if got, c := execCodeVersion(t, PG18, partNullableSetup, "ALTER TABLE p_pk ADD PRIMARY KEY (id, k)"); got != "" {
+		t.Fatalf("PG18 ADD PRIMARY KEY on partitioned table: got %q, want ok", got)
+	} else {
+		if res, err := c.Exec("COMMENT ON CONSTRAINT p_pk_1_id_not_null ON p_pk_1 IS 'part pk nn'", nil); err != nil {
+			t.Fatal(err)
+		} else if len(res) > 0 && res[0].Error != nil {
+			t.Fatalf("PG18 COMMENT ON CONSTRAINT p_pk_1_id_not_null: %v", res[0].Error)
+		}
+		if res, err := c.Exec("ALTER TABLE p_pk_1 RENAME CONSTRAINT p_pk_1_k_not_null TO p_pk_1_k_nn", nil); err != nil {
+			t.Fatal(err)
+		} else if len(res) > 0 && res[0].Error != nil {
+			t.Fatalf("PG18 RENAME CONSTRAINT p_pk_1_k_not_null: %v", res[0].Error)
+		}
+	}
 }
 
 func TestPG18PartitionDetachPKNameAndJsonExpr(t *testing.T) {

@@ -797,6 +797,7 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 			for _, con := range addedCons {
 				c.removeConstraint(schema, con)
 			}
+			c.removeNotNullConstraint(schema, rel, addedCol.AttNum)
 			for _, seq := range c.sequenceByOID {
 				if seq.OwnerRelOID == rel.OID && seq.OwnerAttNum == addedCol.AttNum {
 					c.removeSequence(seq.Schema, seq)

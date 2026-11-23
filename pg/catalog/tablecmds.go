@@ -2017,6 +2017,7 @@ func (c *Catalog) cloneIndexToPartition(schema *Schema, parent, partition *Relat
 		for _, attnum := range indexKeyAttnums(idx, partAttnums) {
 			if int(attnum) > 0 && int(attnum) <= len(partition.Columns) {
 				partition.Columns[attnum-1].NotNull = true
+				_ = c.ensureNotNullConstraint(schema, partition, partition.Columns[attnum-1], "")
 			}
 		}
 	}

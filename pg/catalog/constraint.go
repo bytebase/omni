@@ -5,6 +5,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"unicode/utf8"
 )
 
 // Constraint represents a table constraint.
@@ -334,6 +335,7 @@ func (c *Catalog) reusePartitionIndexConstraint(schema *Schema, rel *Relation, c
 	for _, attnum := range attnums {
 		if int(attnum) > 0 && int(attnum) <= len(rel.Columns) {
 			rel.Columns[attnum-1].NotNull = true
+			_ = c.ensureNotNullConstraint(schema, rel, rel.Columns[attnum-1], "")
 		}
 	}
 
@@ -1083,18 +1085,66 @@ func (c *Catalog) removeNotNullConstraint(schema *Schema, rel *Relation, attnum 
 }
 
 // chooseNotNullConstraintName picks PostgreSQL 18's default NOT NULL
-// constraint name (<rel>_<col>_not_null, suffixed with 1, 2, ... on collision).
+// constraint name (<rel>_<col>_not_null, shortened to 63 bytes via
+// makeObjectName and suffixed with 1, 2, ... on collision).
 //
 // pg: src/backend/commands/tablecmds.c — ChooseConstraintName(..., "not_null", ...)
 func (c *Catalog) chooseNotNullConstraintName(rel *Relation, colName string) string {
-	base := rel.Name + "_" + colName + "_not_null"
-	name := base
+	name := makePGObjectName(rel.Name, colName, "not_null")
 	for i := 1; ; i++ {
 		if c.checkConstraintNameFree(rel.OID, name) == nil {
 			return name
 		}
-		name = fmt.Sprintf("%s%d", base, i)
+		name = makePGObjectName(rel.Name, colName, fmt.Sprintf("not_null%d", i))
 	}
+}
+
+// makePGObjectName implements PostgreSQL's makeObjectName(name1, name2, label),
+// trimming name1 and name2 on UTF-8 rune boundaries so the joined identifier
+// never exceeds NAMEDATALEN-1 (63 bytes) while preserving label.
+//
+// pg: src/backend/commands/indexcmds.c — makeObjectName
+func makePGObjectName(name1, name2, label string) string {
+	const maxLen = 63
+	overhead := 0
+	if name2 != "" {
+		overhead++
+	}
+	if label != "" {
+		overhead += 1 + len(label)
+	}
+	avail := maxLen - overhead
+	if avail < 0 {
+		avail = 0
+	}
+	n1 := name1
+	n2 := name2
+	for len(n1)+len(n2) > avail {
+		if len(n1) > len(n2) {
+			n1 = trimOneRune(n1)
+		} else {
+			n2 = trimOneRune(n2)
+		}
+	}
+	var b strings.Builder
+	b.WriteString(n1)
+	if n2 != "" {
+		b.WriteByte('_')
+		b.WriteString(n2)
+	}
+	if label != "" {
+		b.WriteByte('_')
+		b.WriteString(label)
+	}
+	return b.String()
+}
+
+func trimOneRune(s string) string {
+	if s == "" {
+		return ""
+	}
+	_, size := utf8.DecodeLastRuneInString(s)
+	return s[:len(s)-size]
 }
 
 func (c *Catalog) chooseConstraintAndIndexName(schema *Schema, rel *Relation, columns []string, ctype ConstraintType) string {
