@@ -124,6 +124,8 @@ type queryAnalyzer struct {
 	// plsqlFuncs are the functions a WITH clause declares, by name, with
 	// their return types.
 	plsqlFuncs map[string]qtype
+	// owner is the FROM clause each column reference resolved in.
+	owner map[*ast.ColumnRef]*qfrom
 }
 
 type textEdit struct {
@@ -143,7 +145,7 @@ func (e *oracleMetadataExtractor) analyzeViewQuery(query ast.StmtNode) ([]qcol, 
 	if !ok || sel == nil {
 		return nil, e.nodeText(query), nil
 	}
-	a := &queryAnalyzer{e: e, plsqlFuncs: map[string]qtype{}}
+	a := &queryAnalyzer{e: e, plsqlFuncs: map[string]qtype{}, owner: map[*ast.ColumnRef]*qfrom{}}
 	res, err := a.query(sel, nil, nil, true)
 	if err != nil {
 		return nil, "", err
@@ -477,6 +479,28 @@ func (a *queryAnalyzer) analyzeCTE(d *cteDef, outer *qscope, env *cteEnv) error 
 		}
 		d.analyzed = true
 	}
+	declared := map[string]bool{}
+	for _, col := range d.cols {
+		declared[col.name] = true
+	}
+	if c.Search != nil {
+		for _, item := range listItems(c.Search.Columns) {
+			sb, ok := item.(*ast.SortBy)
+			if !ok {
+				continue
+			}
+			if ref, ok := unparen(sb.Expr).(*ast.ColumnRef); ok && !declared[ref.Column] {
+				return oraError("00904", "%q: invalid identifier", ref.Column)
+			}
+		}
+	}
+	if c.Cycle != nil {
+		for _, name := range stringList(c.Cycle.Columns) {
+			if !declared[name] {
+				return oraError("00904", "%q: invalid identifier", name)
+			}
+		}
+	}
 	if c.Search != nil && c.Search.SetColumn != "" {
 		d.cols = append(d.cols, qcol{name: c.Search.SetColumn, typ: numberType()})
 	}
@@ -737,7 +761,8 @@ func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 				}
 				return a.groupKey(n, sc)
 			}
-			if err := checkGrouped(x, groupKeys, keyOf, len(listItems(sel.GroupClause)) > 0, positional, nested); err != nil {
+			owned := func(ref *ast.ColumnRef) bool { return a.owner[ref] == sc.from }
+			if err := checkGrouped(x, groupKeys, keyOf, owned, len(listItems(sel.GroupClause)) > 0, positional, nested); err != nil {
 				return nil, err
 			}
 		}

@@ -18,10 +18,13 @@ const (
 	clauseHaving
 	clauseOrder
 	clauseFrom
+	// clauseAggArg is an aggregate's or analytic function's argument, which
+	// may hold an aggregate (nested aggregation) but not an analytic call.
+	clauseAggArg
 )
 
 func (c exprClause) allowsAggregate() bool {
-	return c == clauseSelect || c == clauseHaving || c == clauseOrder
+	return c == clauseSelect || c == clauseHaving || c == clauseOrder || c == clauseAggArg
 }
 
 func (c exprClause) allowsWindow() bool {
@@ -286,6 +289,12 @@ func (a *queryAnalyzer) columnRef(n *ast.ColumnRef, sc *qscope) (qtype, bool, er
 		return qtype{}, false, err
 	}
 	if found {
+		for s := sc; s != nil; s = s.parent {
+			if a.resolvesLocally(n, s) {
+				a.owner[n] = s.from
+				break
+			}
+		}
 		return c.typ, c.notNull, nil
 	}
 	if n.Table == "" {
@@ -360,6 +369,10 @@ func concatType(l, r qtype) qtype {
 	}
 	if l.isNational() || r.isNational() {
 		return characterType("NVARCHAR2", l.byteLength()/dbCharBytes+r.byteLength()/dbCharBytes, false)
+	}
+	if (l.kind == "CHAR" || l.isNull()) && (r.kind == "CHAR" || r.isNull()) && !(l.isNull() && r.isNull()) {
+		// Two CHAR operands concatenate to a CHAR.
+		return characterType("CHAR", min(l.byteLength()+r.byteLength(), maxCharBytes), false)
 	}
 	return varchar2Bytes(concatLength(l) + concatLength(r))
 }
@@ -680,7 +693,7 @@ func containsWindow(x ast.Node) bool {
 
 // checkGrouped checks an expression of a grouped query block: each column
 // it reads outside an aggregate is a GROUP BY expression.
-func checkGrouped(x ast.Node, keys []string, keyOf func(ast.Node) string, hasGroupBy, positional, nested bool) error {
+func checkGrouped(x ast.Node, keys []string, keyOf func(ast.Node) string, owned func(*ast.ColumnRef) bool, hasGroupBy, positional, nested bool) error {
 	if ex, ok := x.(ast.ExprNode); ok {
 		key := keyOf(ex)
 		for _, k := range keys {
@@ -716,14 +729,26 @@ func checkGrouped(x ast.Node, keys []string, keyOf func(ast.Node) string, hasGro
 		}
 		return oraError("00979", "%q: must appear in the GROUP BY clause or be used in an aggregate function", n.Column)
 	case *ast.SubqueryExpr, *ast.ExistsExpr:
-		return nil
+		// A subquery is grouped by its own rules, but a column of this
+		// block it reads (a correlated reference) is held to this block's.
+		var err error
+		walkExpr(x, func(child ast.Node) bool {
+			if err != nil {
+				return false
+			}
+			if ref, ok := child.(*ast.ColumnRef); ok && owned(ref) {
+				err = checkGrouped(ref, keys, keyOf, owned, hasGroupBy, positional, nested)
+			}
+			return true
+		})
+		return err
 	case *ast.NumberLiteral, *ast.StringLiteral, *ast.NullLiteral, *ast.DateTimeLiteral, *ast.PseudoColumn, *ast.IntervalExpr:
 		return nil
 	}
 	var err error
 	walkChildren(x, func(child ast.Node) {
 		if err == nil {
-			err = checkGrouped(child, keys, keyOf, hasGroupBy, positional, nested)
+			err = checkGrouped(child, keys, keyOf, owned, hasGroupBy, positional, nested)
 		}
 	})
 	return err

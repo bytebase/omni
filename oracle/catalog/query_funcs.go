@@ -103,8 +103,9 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 	argClause := clause
 	if aggregate || n.Over != nil {
 		// An aggregate's argument may hold another aggregate (nested
-		// aggregation), and an analytic function's an aggregate.
-		argClause = clauseSelect
+		// aggregation), and an analytic function's an aggregate; neither
+		// may hold an analytic call (ORA-30483).
+		argClause = clauseAggArg
 	}
 	var args []qtype
 	var argNN []bool
@@ -183,7 +184,12 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 	}
 	switch name {
 	case "UPPER", "LOWER", "INITCAP", "NLS_UPPER", "NLS_LOWER", "NLS_INITCAP":
-		return arg(0), false, nil
+		t := arg(0)
+		if !t.isCharacter() && !t.isLOB() && !t.isNull() && t.kind != "UNKNOWN" {
+			// A number or date is converted to characters first.
+			t = varchar2Bytes(concatLength(t))
+		}
+		return t, false, nil
 	case "LTRIM", "RTRIM":
 		t := arg(0)
 		if t.kind == "CHAR" {

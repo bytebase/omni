@@ -118,6 +118,10 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"distinct_order_by_built_from_unselected", `CREATE VIEW v AS SELECT DISTINCT id FROM t ORDER BY id + n`, "01791"},
 		{"match_recognize_offset_bind", `CREATE VIEW v AS SELECT * FROM t MATCH_RECOGNIZE (ORDER BY id MEASURES FIRST(a.id, :x) AS first_id PATTERN (a) DEFINE a AS id > 0)`, "01027"},
 		{"group_by_aggregate_alias", `CREATE VIEW v AS SELECT SUM(n) s FROM t GROUP BY s`, "00934"},
+		{"analytic_in_aggregate", `CREATE VIEW v AS SELECT SUM(ROW_NUMBER() OVER (ORDER BY id)) s FROM t`, "30483"},
+		{"correlated_ungrouped", `CREATE VIEW v AS SELECT (SELECT t.n FROM dual) x FROM t GROUP BY t.id`, "00979"},
+		{"correlated_grouped", `CREATE VIEW v AS SELECT (SELECT t.id FROM dual) x FROM t GROUP BY t.id`, ""},
+		{"search_missing_column", `CREATE VIEW v AS WITH r(n) AS (SELECT 1 FROM dual UNION ALL SELECT n + 1 FROM r WHERE n < 5) SEARCH DEPTH FIRST BY nosuch SET ord SELECT n FROM r`, "00904"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -222,6 +226,19 @@ func TestViewQueryStandardHashLength(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{"RAW(20)", "RAW(32)", "RAW(16)", "RAW(64)"}
+	for i, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
+		if col.GetType() != want[i] {
+			t.Errorf("%s type = %s, want %s", col.GetName(), col.GetType(), want[i])
+		}
+	}
+}
+
+func TestViewQueryCharacterResults(t *testing.T) {
+	c, err := LoadSQL(`CREATE VIEW v AS SELECT 'a' || 'bc' a, 'a' || TO_CHAR(1) b, UPPER(123) u FROM dual;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"CHAR(3 BYTE)", "VARCHAR2(41 BYTE)", "VARCHAR2(40 BYTE)"}
 	for i, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
 		if col.GetType() != want[i] {
 			t.Errorf("%s type = %s, want %s", col.GetName(), col.GetType(), want[i])
