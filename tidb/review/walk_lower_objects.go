@@ -125,7 +125,11 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 	}
 	// TiDB v8.5.5 resolves a view body's stars before checking whether the
 	// view name collides (1051 ahead of 1050).
-	if viewBodyHasNoTableStar(v.Select, b.w.sql) {
+	currentDB := ""
+	if !b.w.lost && !b.w.noDatabase && !strings.HasPrefix(b.w.current, nonASCII) {
+		currentDB = b.w.current
+	}
+	if viewBodyHasNoTableStar(v.Select, b.w.sql, currentDB) {
 		b.fail(b.anchor(), nil, review.UnsupportedForm, review.Code("CREATE VIEW")+" expands "+review.Code("*")+" with no table to read from.")
 		return true
 	}

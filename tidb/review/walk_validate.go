@@ -656,8 +656,9 @@ func (b *builder) checkSequenceOptionsValid(written string, opts []*ast.Sequence
 // viewBodyHasNoTableStar reports whether a CREATE VIEW's SELECT body contains
 // a VALUES query primary or an unexpandable `*` / `t.*` with no matching table
 // in its FROM clause, which TiDB v8.5.5 always refuses with 1051 before checking
-// whether the view name is already taken.
-func viewBodyHasNoTableStar(sel *ast.SelectStmt, source string) bool {
+// whether the view name is already taken. currentDB is the folded current
+// database name, or "" when unknown/unset.
+func viewBodyHasNoTableStar(sel *ast.SelectStmt, source, currentDB string) bool {
 	if sel == nil {
 		return false
 	}
@@ -670,7 +671,7 @@ func viewBodyHasNoTableStar(sel *ast.SelectStmt, source string) bool {
 		if !ok {
 			return true
 		}
-		if viewBlockHasNoTableStar(block, source) {
+		if viewBlockHasNoTableStar(block, source, currentDB) {
 			bad = true
 			return false
 		}
@@ -679,7 +680,7 @@ func viewBodyHasNoTableStar(sel *ast.SelectStmt, source string) bool {
 	return bad
 }
 
-func viewBlockHasNoTableStar(sel *ast.SelectStmt, source string) bool {
+func viewBlockHasNoTableStar(sel *ast.SelectStmt, source, currentDB string) bool {
 	if sel.ValuesSource != nil {
 		return true
 	}
@@ -700,18 +701,27 @@ func viewBlockHasNoTableStar(sel *ast.SelectStmt, source string) bool {
 		}
 		return false
 	}
-	relations := viewBlockRelationNames(sel)
+	relations, unaliased := viewBlockRelationNames(sel, currentDB)
 	for _, field := range sel.TargetList {
 		expr := field
 		if rt, ok := field.(*ast.ResTarget); ok {
 			expr = rt.Val
 		}
 		if e, ok := expr.(*ast.ColumnRef); ok && e.Star {
-			q := strings.ToLower(e.Table)
-			if e.Schema != "" {
-				q = strings.ToLower(e.Schema) + "." + q
+			tbl := strings.ToLower(e.Table)
+			if e.Schema == "" {
+				if !relations[tbl] {
+					return true
+				}
+				continue
 			}
+			q := strings.ToLower(e.Schema) + "." + tbl
 			if !relations[q] {
+				// If the current database is unknown, an unqualified FROM table
+				// of the same name might belong to e.Schema; stay silent.
+				if currentDB == "" && unaliased[tbl] {
+					continue
+				}
 				return true
 			}
 		}
@@ -736,8 +746,9 @@ func viewBlockReadsOnlyNoTable(sel *ast.SelectStmt, source string) bool {
 	return source[ref.Loc.Start] != '`'
 }
 
-func viewBlockRelationNames(sel *ast.SelectStmt) map[string]bool {
-	names := make(map[string]bool, len(sel.From))
+func viewBlockRelationNames(sel *ast.SelectStmt, currentDB string) (names, unaliased map[string]bool) {
+	names = make(map[string]bool, len(sel.From))
+	unaliased = make(map[string]bool, len(sel.From))
 	var add func(ast.TableExpr)
 	add = func(te ast.TableExpr) {
 		switch e := te.(type) {
@@ -747,10 +758,16 @@ func viewBlockRelationNames(sel *ast.SelectStmt) map[string]bool {
 				return
 			}
 			if e.Name != "" {
-				names[strings.ToLower(e.Name)] = true
-			}
-			if e.Schema != "" && e.Name != "" {
-				names[strings.ToLower(e.Schema)+"."+strings.ToLower(e.Name)] = true
+				tbl := strings.ToLower(e.Name)
+				names[tbl] = true
+				if e.Schema != "" {
+					names[strings.ToLower(e.Schema)+"."+tbl] = true
+				} else {
+					unaliased[tbl] = true
+					if currentDB != "" {
+						names[currentDB+"."+tbl] = true
+					}
+				}
 			}
 		case *ast.SubqueryExpr:
 			if e.Alias != "" {
@@ -764,5 +781,5 @@ func viewBlockRelationNames(sel *ast.SelectStmt) map[string]bool {
 	for _, te := range sel.From {
 		add(te)
 	}
-	return names
+	return names, unaliased
 }
