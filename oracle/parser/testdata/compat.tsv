@@ -2881,6 +2881,7 @@ reject	reject	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)
 reject	reject	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_(PHYSICAL|LOGICAL)?_STANDBY_CONTROLFILE_AS_STRIN~5d96b2e5!drop-5	ALTER DATABASE CREATE STANDBY CONTROLFILE AS
 reject	reject	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_(PHYSICAL|LOGICAL)?_STANDBY_CONTROLFILE_AS_STRIN~5d96b2e5!insert	ALTER DATABASE CREATE STANDBY CONTROLFILE AS 's' zzz
 reject	reject	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_(PHYSICAL|LOGICAL)?_STANDBY_CONTROLFILE_AS_STRIN~5d96b2e5!swap	ALTER DATABASE CREATE_FILE_DEST STANDBY CONTROLFILE AS 's'
+accept	accept	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_(PHYSICAL|LOGICAL)?_STANDBY_CONTROLFILE_AS_STRIN~5d96b2e5+alterDatabase_controlfile_clauses(REUSE)?	ALTER DATABASE CREATE STANDBY CONTROLFILE AS 's' REUSE
 accept	accept	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_FAR_SYNC_INSTANCE_CONTROLFILE_AS_STRING_(REUSE)?	ALTER DATABASE CREATE FAR SYNC INSTANCE CONTROLFILE AS 's'
 reject	reject	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_FAR_SYNC_INSTANCE_CONTROLFILE_AS_STRING_(REUSE)?!drop-1	ALTER DATABASE FAR SYNC INSTANCE CONTROLFILE AS 's'
 reject	reject	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_FAR_SYNC_INSTANCE_CONTROLFILE_AS_STRING_(REUSE)?!drop-2	ALTER DATABASE CREATE SYNC INSTANCE CONTROLFILE AS 's'
@@ -2891,6 +2892,7 @@ reject	reject	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)
 reject	reject	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_FAR_SYNC_INSTANCE_CONTROLFILE_AS_STRING_(REUSE)?!drop-7	ALTER DATABASE CREATE FAR SYNC INSTANCE CONTROLFILE AS
 reject	reject	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_FAR_SYNC_INSTANCE_CONTROLFILE_AS_STRING_(REUSE)?!insert	ALTER DATABASE CREATE FAR SYNC INSTANCE CONTROLFILE AS 's' zzz
 reject	reject	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_FAR_SYNC_INSTANCE_CONTROLFILE_AS_STRING_(REUSE)?!swap	ALTER DATABASE CREATE_FILE_DEST FAR SYNC INSTANCE CONTROLFILE AS 's'
+accept	accept	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/CREATE_FAR_SYNC_INSTANCE_CONTROLFILE_AS_STRING_(REUSE)?+alterDatabase_controlfile_clauses(REUSE)?	ALTER DATABASE CREATE FAR SYNC INSTANCE CONTROLFILE AS 's' REUSE
 accept	accept	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/BACKUP_CONTROLFILE_TO_STRING_(REUSE)?	ALTER DATABASE BACKUP CONTROLFILE TO 's'
 accept	accept	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/BACKUP_CONTROLFILE_TO_TRACE_(AS_STRING)?_(REUSE)?_((RES~f96ddbc0	ALTER DATABASE BACKUP CONTROLFILE TO TRACE
 reject	reject	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/BACKUP_CONTROLFILE_TO_TRACE_(AS_STRING)?_(REUSE)?_((RES~f96ddbc0!drop-1	ALTER DATABASE CONTROLFILE TO TRACE
@@ -2898,6 +2900,7 @@ reject	reject	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)
 reject	reject	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/BACKUP_CONTROLFILE_TO_TRACE_(AS_STRING)?_(REUSE)?_((RES~f96ddbc0!drop-3	ALTER DATABASE BACKUP CONTROLFILE TRACE
 reject	reject	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/BACKUP_CONTROLFILE_TO_TRACE_(AS_STRING)?_(REUSE)?_((RES~f96ddbc0!insert	ALTER DATABASE BACKUP CONTROLFILE TO TRACE zzz
 reject	reject	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/BACKUP_CONTROLFILE_TO_TRACE_(AS_STRING)?_(REUSE)?_((RES~f96ddbc0!swap	ALTER DATABASE BALANCE CONTROLFILE TO TRACE
+reject	reject	engine	alterDatabase_controlfile_clauses(CREATE_(PHYSICAL|LOGICAL)?_STANDBY_C~991eb9a9)/BACKUP_CONTROLFILE_TO_TRACE_(AS_STRING)?_(REUSE)?_((RES~f96ddbc0+alterDatabase_controlfile_clauses(REUSE)?	ALTER DATABASE BACKUP CONTROLFILE TO TRACE REUSE
 accept	accept	engine	alterDatabase_controlfile_clauses(PHYSICAL|LOGICAL)?/%empty	ALTER DATABASE CREATE STANDBY CONTROLFILE AS 's'
 reject	reject	engine	alterDatabase_controlfile_clauses(PHYSICAL|LOGICAL)?/%empty!insert	ALTER DATABASE CREATE zzz STANDBY CONTROLFILE AS 's'
 accept	accept	engine	alterDatabase_controlfile_clauses(PHYSICAL|LOGICAL)?/PHYSICAL	ALTER DATABASE CREATE PHYSICAL STANDBY CONTROLFILE AS 's'
@@ -4097,6 +4100,10 @@ reject	reject	engine	alterDiskgroup_disk_online_clause/ONLINE_DISK_ID_(,_ID)*_(P
 reject	reject	engine	alterDiskgroup_disk_online_clause/ONLINE_DISK_ID_(,_ID)*_(POWER_NUMBER)?_(WAIT|NOWAIT)?!drop-3	ALTER DISKGROUP a ONLINE DISK
 reject	reject	engine	alterDiskgroup_disk_online_clause/ONLINE_DISK_ID_(,_ID)*_(POWER_NUMBER)?_(WAIT|NOWAIT)?!insert	ALTER DISKGROUP a ONLINE DISK a zzz
 reject	reject	engine	alterDiskgroup_disk_online_clause/ONLINE_DISK_ID_(,_ID)*_(POWER_NUMBER)?_(WAIT|NOWAIT)?!swap	ALTER DISKGROUP a ONLY DISK a
+accept	accept	engine	alterDiskgroup_disk_online_clause/ONLINE_DISK_ID_(,_ID)*_(POWER_NUMBER)?_(WAIT|NOWAIT)?+alterDiskgroup_disk_online_clause(POWER_NUMBER)?	ALTER DISKGROUP a ONLINE DISK a POWER 1
+reject	reject	engine	alterDiskgroup_disk_online_clause/ONLINE_DISK_ID_(,_ID)*_(POWER_NUMBER)?_(WAIT|NOWAIT)?+alterDiskgroup_disk_online_clause(POWER_NUMBER)?!drop-4	ALTER DISKGROUP a ONLINE DISK a 1
+reject	reject	engine	alterDiskgroup_disk_online_clause/ONLINE_DISK_ID_(,_ID)*_(POWER_NUMBER)?_(WAIT|NOWAIT)?+alterDiskgroup_disk_online_clause(POWER_NUMBER)?!drop-5	ALTER DISKGROUP a ONLINE DISK a POWER
+accept	accept	engine	alterDiskgroup_disk_online_clause/ONLINE_DISK_ID_(,_ID)*_(POWER_NUMBER)?_(WAIT|NOWAIT)?+alterDiskgroup_disk_online_clause(WAIT|NOWAIT)?	ALTER DISKGROUP a ONLINE DISK a WAIT
 accept	accept	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?	ALTER DISKGROUP a ONLINE DISKS IN FAILGROUP a
 reject	reject	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?!drop-2	ALTER DISKGROUP a ONLINE IN FAILGROUP a
 reject	reject	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?!drop-3	ALTER DISKGROUP a ONLINE DISKS FAILGROUP a
@@ -4104,6 +4111,10 @@ reject	reject	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP
 reject	reject	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?!drop-5	ALTER DISKGROUP a ONLINE DISKS IN FAILGROUP
 reject	reject	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?!insert	ALTER DISKGROUP a ONLINE DISKS IN FAILGROUP a zzz
 reject	reject	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?!swap	ALTER DISKGROUP a ONLY DISKS IN FAILGROUP a
+accept	accept	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?+alterDiskgroup_disk_online_clause(POWER_NUMBER)?	ALTER DISKGROUP a ONLINE DISKS IN FAILGROUP a POWER 1
+reject	reject	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?+alterDiskgroup_disk_online_clause(POWER_NUMBER)?!drop-6	ALTER DISKGROUP a ONLINE DISKS IN FAILGROUP a 1
+reject	reject	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?+alterDiskgroup_disk_online_clause(POWER_NUMBER)?!drop-7	ALTER DISKGROUP a ONLINE DISKS IN FAILGROUP a POWER
+accept	accept	engine	alterDiskgroup_disk_online_clause/ONLINE_DISKS_IN_FAILGROUP_ID_(POWER_NUMBER)?_(WAIT|NOWAIT)?+alterDiskgroup_disk_online_clause(WAIT|NOWAIT)?	ALTER DISKGROUP a ONLINE DISKS IN FAILGROUP a WAIT
 accept	accept	engine	alterDiskgroup_disk_online_clause/ONLINE_ALL_(POWER_NUMBER)?_(WAIT|NOWAIT)?	ALTER DISKGROUP a ONLINE ALL
 accept	accept	engine	alterDiskgroup_disk_online_clause(,_ID)*/%empty	ALTER DISKGROUP a ONLINE DISK a
 accept	accept	engine	alterDiskgroup_disk_online_clause(,_ID)*/,_ID_(,_ID)*	ALTER DISKGROUP a ONLINE DISK a, a
@@ -4220,11 +4231,13 @@ accept	accept	engine	alterDiskgroup_check_diskgroup_clause/CHECK_(REPAIR|NOREPAI
 accept	accept	engine	alterDiskgroup_check_diskgroup_clause/CHECK_ALL_(REPAIR|NOREPAIR)?	ALTER DISKGROUP a CHECK ALL
 reject	reject	engine	alterDiskgroup_check_diskgroup_clause/CHECK_ALL_(REPAIR|NOREPAIR)?!insert	ALTER DISKGROUP a CHECK ALL zzz
 reject	reject	engine	alterDiskgroup_check_diskgroup_clause/CHECK_ALL_(REPAIR|NOREPAIR)?!swap	ALTER DISKGROUP a CHECKPOINT ALL
+accept	accept	engine	alterDiskgroup_check_diskgroup_clause/CHECK_ALL_(REPAIR|NOREPAIR)?+alterDiskgroup_check_diskgroup_clause(REPAIR|NOREPAIR)?	ALTER DISKGROUP a CHECK ALL REPAIR
 reject	reject	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISK_ID_(,_ID)*_(REPAIR|NOREPAIR)?	ALTER DISKGROUP a CHECK DISK a
 reject	reject	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISK_ID_(,_ID)*_(REPAIR|NOREPAIR)?!drop-2	ALTER DISKGROUP a CHECK a
 accept	accept	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISK_ID_(,_ID)*_(REPAIR|NOREPAIR)?!drop-3	ALTER DISKGROUP a CHECK DISK
 reject	reject	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISK_ID_(,_ID)*_(REPAIR|NOREPAIR)?!insert	ALTER DISKGROUP a CHECK DISK a zzz
 reject	reject	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISK_ID_(,_ID)*_(REPAIR|NOREPAIR)?!swap	ALTER DISKGROUP a CHECKPOINT DISK a
+reject	reject	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISK_ID_(,_ID)*_(REPAIR|NOREPAIR)?+alterDiskgroup_check_diskgroup_clause(REPAIR|NOREPAIR)?	ALTER DISKGROUP a CHECK DISK a REPAIR
 reject	reject	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISKS_IN_FAILGROUP_ID_(REPAIR|NOREPAIR)?	ALTER DISKGROUP a CHECK DISKS IN FAILGROUP a
 reject	reject	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISKS_IN_FAILGROUP_ID_(REPAIR|NOREPAIR)?!drop-2	ALTER DISKGROUP a CHECK IN FAILGROUP a
 reject	reject	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISKS_IN_FAILGROUP_ID_(REPAIR|NOREPAIR)?!drop-3	ALTER DISKGROUP a CHECK DISKS FAILGROUP a
@@ -4232,10 +4245,12 @@ reject	reject	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISKS_IN_FAILGR
 reject	reject	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISKS_IN_FAILGROUP_ID_(REPAIR|NOREPAIR)?!drop-5	ALTER DISKGROUP a CHECK DISKS IN FAILGROUP
 reject	reject	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISKS_IN_FAILGROUP_ID_(REPAIR|NOREPAIR)?!insert	ALTER DISKGROUP a CHECK DISKS IN FAILGROUP a zzz
 reject	reject	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISKS_IN_FAILGROUP_ID_(REPAIR|NOREPAIR)?!swap	ALTER DISKGROUP a CHECKPOINT DISKS IN FAILGROUP a
+reject	reject	engine	alterDiskgroup_check_diskgroup_clause/CHECK_DISKS_IN_FAILGROUP_ID_(REPAIR|NOREPAIR)?+alterDiskgroup_check_diskgroup_clause(REPAIR|NOREPAIR)?	ALTER DISKGROUP a CHECK DISKS IN FAILGROUP a REPAIR
 accept	accept	engine	alterDiskgroup_check_diskgroup_clause/CHECK_FILE_alterDiskgroup_file_specification_(,_alterDi~446679a3	ALTER DISKGROUP a CHECK FILE
 reject	reject	engine	alterDiskgroup_check_diskgroup_clause/CHECK_FILE_alterDiskgroup_file_specification_(,_alterDi~446679a3!drop-1	ALTER DISKGROUP a FILE
 reject	reject	engine	alterDiskgroup_check_diskgroup_clause/CHECK_FILE_alterDiskgroup_file_specification_(,_alterDi~446679a3!insert	ALTER DISKGROUP a CHECK FILE zzz
 reject	reject	engine	alterDiskgroup_check_diskgroup_clause/CHECK_FILE_alterDiskgroup_file_specification_(,_alterDi~446679a3!swap	ALTER DISKGROUP a CHECKPOINT FILE
+accept	accept	engine	alterDiskgroup_check_diskgroup_clause/CHECK_FILE_alterDiskgroup_file_specification_(,_alterDi~446679a3+alterDiskgroup_check_diskgroup_clause(REPAIR|NOREPAIR)?	ALTER DISKGROUP a CHECK FILE REPAIR
 accept	accept	engine	alterDiskgroup_check_diskgroup_clause(REPAIR|NOREPAIR)?/%empty	ALTER DISKGROUP a CHECK
 accept	accept	engine	alterDiskgroup_check_diskgroup_clause(REPAIR|NOREPAIR)?/REPAIR	ALTER DISKGROUP a CHECK REPAIR
 reject	reject	engine	alterDiskgroup_check_diskgroup_clause(REPAIR|NOREPAIR)?/REPAIR!insert	ALTER DISKGROUP a CHECK REPAIR zzz
@@ -4401,6 +4416,7 @@ reject	reject	engine	alterDiskgroup_user_clauses(,_ID_CASCADE?)*/,_ID_(CASCADE)?
 reject	reject	engine	alterDiskgroup_user_clauses(,_ID_CASCADE?)*/,_ID_(CASCADE)?_(,_ID_CASCADE?)*!drop-1	ALTER DISKGROUP a DROP USER a a
 reject	reject	engine	alterDiskgroup_user_clauses(,_ID_CASCADE?)*/,_ID_(CASCADE)?_(,_ID_CASCADE?)*!drop-2	ALTER DISKGROUP a DROP USER a,
 reject	reject	engine	alterDiskgroup_user_clauses(,_ID_CASCADE?)*/,_ID_(CASCADE)?_(,_ID_CASCADE?)*!insert	ALTER DISKGROUP a DROP USER a, a zzz
+reject	reject	engine	alterDiskgroup_user_clauses(,_ID_CASCADE?)*/,_ID_(CASCADE)?_(,_ID_CASCADE?)*+alterDiskgroup_user_clauses(CASCADE)?	ALTER DISKGROUP a DROP USER a, a CASCADE
 reject	reject	engine	alterDiskgroup_file_permissions_clause/SET_PERMISSION_STRING_(FILE_PERM_OWNER_EXPR)?_(FILE_PER~6e3b70bb	ALTER DISKGROUP a SET PERMISSION 's'
 reject	reject	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_OWNER_EXPR)?/%empty	ALTER DISKGROUP a SET PERMISSION 's'
 reject	reject	engine	alterDiskgroup_file_permissions_clause(FILE_PERM_OWNER_EXPR)?/FILE_PERM_OWNER_EXPR	ALTER DISKGROUP a SET PERMISSION 's' FILE_PERM_OWNER 1
@@ -4538,6 +4554,7 @@ accept	accept	engine	alterDiskgroup_diskgroup_availability/MOUNT_(ALL)?_(RESTRIC
 accept	accept	engine	alterDiskgroup_diskgroup_availability/DISMOUNT_(ALL)?_(FORCE)?	ALTER DISKGROUP a DISMOUNT
 reject	reject	engine	alterDiskgroup_diskgroup_availability/DISMOUNT_(ALL)?_(FORCE)?!insert	ALTER DISKGROUP a DISMOUNT zzz
 reject	reject	engine	alterDiskgroup_diskgroup_availability/DISMOUNT_(ALL)?_(FORCE)?!swap	ALTER DISKGROUP a DISPLAY
+reject	reject	engine	alterDiskgroup_diskgroup_availability/DISMOUNT_(ALL)?_(FORCE)?+alterDiskgroup_diskgroup_availability(ALL)?	ALTER DISKGROUP a DISMOUNT ALL
 accept	accept	engine	alterDiskgroup_diskgroup_availability(ALL)?/%empty	ALTER DISKGROUP a MOUNT
 reject	reject	engine	alterDiskgroup_diskgroup_availability(ALL)?/ALL	ALTER DISKGROUP a MOUNT ALL
 reject	reject	engine	alterDiskgroup_diskgroup_availability(ALL)?/ALL!insert	ALTER DISKGROUP a MOUNT ALL zzz
@@ -7205,6 +7222,7 @@ reject	reject	engine	alterMaterializedViewLog_table_compression(OLTP|QUERY_(LOW|
 reject	reject	engine	alterMaterializedViewLog_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?	ALTER MATERIALIZED VIEW LOG ON a ADD PARTITION COMPRESS FOR ARCHIVE
 reject	reject	engine	alterMaterializedViewLog_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!insert	ALTER MATERIALIZED VIEW LOG ON a ADD PARTITION COMPRESS FOR ARCHIVE zzz
 reject	reject	engine	alterMaterializedViewLog_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!swap	ALTER MATERIALIZED VIEW LOG ON a ADD PARTITION COMPRESS FOR ARCHIVED
+reject	reject	engine	alterMaterializedViewLog_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?+alterMaterializedViewLog_table_compression(LOW|HIGH)?	ALTER MATERIALIZED VIEW LOG ON a ADD PARTITION COMPRESS FOR ARCHIVE LOW
 reject	reject	engine	alterMaterializedViewLog_table_compression(LOW|HIGH)?/%empty	ALTER MATERIALIZED VIEW LOG ON a ADD PARTITION COMPRESS FOR QUERY
 reject	reject	engine	alterMaterializedViewLog_table_compression(LOW|HIGH)?/LOW	ALTER MATERIALIZED VIEW LOG ON a ADD PARTITION COMPRESS FOR QUERY LOW
 reject	reject	engine	alterMaterializedViewLog_table_compression(LOW|HIGH)?/LOW!insert	ALTER MATERIALIZED VIEW LOG ON a ADD PARTITION COMPRESS FOR QUERY LOW zzz
@@ -7383,6 +7401,7 @@ reject	reject	engine	alterMaterializedViewLog_partition_attributes(alterMaterial
 reject	reject	engine	alterMaterializedViewLog_partition_attributes(alterMaterializedViewLog_physical_at~dd631770)/SHRINK_SPACE_(CASCADE)?!drop-2	ALTER MATERIALIZED VIEW LOG ON a MODIFY PARTITION a OVERFLOW SHRINK
 reject	reject	engine	alterMaterializedViewLog_partition_attributes(alterMaterializedViewLog_physical_at~dd631770)/SHRINK_SPACE_(CASCADE)?!insert	ALTER MATERIALIZED VIEW LOG ON a MODIFY PARTITION a OVERFLOW SHRINK SPACE zzz
 reject	reject	engine	alterMaterializedViewLog_partition_attributes(alterMaterializedViewLog_physical_at~dd631770)/SHRINK_SPACE_(CASCADE)?!swap	ALTER MATERIALIZED VIEW LOG ON a MODIFY PARTITION a OVERFLOW SHUTDOWN SPACE
+reject	reject	engine	alterMaterializedViewLog_partition_attributes(alterMaterializedViewLog_physical_at~dd631770)/SHRINK_SPACE_(CASCADE)?+alterMaterializedViewLog_partition_attributes(CASCADE)?	ALTER MATERIALIZED VIEW LOG ON a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 accept	accept	engine	alterMaterializedViewLog_add_range_subpartition/ADD_alterMaterializedViewLog_range_subpartition_desc_(,~bb06c4fe	ALTER MATERIALIZED VIEW LOG ON a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1)
 accept	accept	engine	alterMaterializedViewLog_add_range_subpartition(,_alterMaterializedViewLog_range_sub~ebdb6220)*/%empty	ALTER MATERIALIZED VIEW LOG ON a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1)
 accept	accept	engine	alterMaterializedViewLog_add_range_subpartition(,_alterMaterializedViewLog_range_sub~ebdb6220)*/,_alterMaterializedViewLog_range_subpartition_desc_(,_a~a33feb8f	ALTER MATERIALIZED VIEW LOG ON a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
@@ -7959,6 +7978,7 @@ reject	reject	engine	alterMaterializedViewLog_inmemory_memcompress(QUERY_(LOW|HI
 reject	reject	engine	alterMaterializedViewLog_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?	ALTER MATERIALIZED VIEW LOG ON a ADD PARTITION INMEMORY MEMCOMPRESS FOR ARCHIVE
 reject	reject	engine	alterMaterializedViewLog_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!insert	ALTER MATERIALIZED VIEW LOG ON a ADD PARTITION INMEMORY MEMCOMPRESS FOR ARCHIVE zzz
 reject	reject	engine	alterMaterializedViewLog_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!swap	ALTER MATERIALIZED VIEW LOG ON a ADD PARTITION INMEMORY MEMCOMPRESS FOR ARCHIVED
+reject	reject	engine	alterMaterializedViewLog_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?+alterMaterializedViewLog_inmemory_memcompress(LOW|HIGH)?	ALTER MATERIALIZED VIEW LOG ON a ADD PARTITION INMEMORY MEMCOMPRESS FOR ARCHIVE LOW
 reject	reject	engine	alterMaterializedViewLog_inmemory_memcompress(LOW|HIGH)?/%empty	ALTER MATERIALIZED VIEW LOG ON a ADD PARTITION INMEMORY MEMCOMPRESS FOR QUERY
 reject	reject	engine	alterMaterializedViewLog_inmemory_memcompress(LOW|HIGH)?/LOW	ALTER MATERIALIZED VIEW LOG ON a ADD PARTITION INMEMORY MEMCOMPRESS FOR QUERY LOW
 reject	reject	engine	alterMaterializedViewLog_inmemory_memcompress(LOW|HIGH)?/LOW!insert	ALTER MATERIALIZED VIEW LOG ON a ADD PARTITION INMEMORY MEMCOMPRESS FOR QUERY LOW zzz
@@ -8445,6 +8465,7 @@ accept	accept	engine	alterMaterializedView_table_compression(OLTP|QUERY_(LOW|HIG
 accept	accept	engine	alterMaterializedView_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?	ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE
 reject	reject	engine	alterMaterializedView_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!insert	ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE zzz
 accept	accept	engine	alterMaterializedView_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!swap	ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVED
+accept	accept	engine	alterMaterializedView_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?+alterMaterializedView_table_compression(LOW|HIGH)?	ALTER MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW
 accept	accept	engine	alterMaterializedView_table_compression(LOW|HIGH)?/%empty	ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY
 accept	accept	engine	alterMaterializedView_table_compression(LOW|HIGH)?/LOW	ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY LOW
 reject	reject	engine	alterMaterializedView_table_compression(LOW|HIGH)?/LOW!insert	ALTER MATERIALIZED VIEW a COMPRESS FOR QUERY LOW zzz
@@ -8859,6 +8880,7 @@ reject	reject	engine	alterMaterializedView_inmemory_column_clause(QUERY_(LOW|HIG
 reject	reject	engine	alterMaterializedView_inmemory_column_clause(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?	ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR ARCHIVE(a)
 reject	reject	engine	alterMaterializedView_inmemory_column_clause(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!insert	ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR ARCHIVE zzz(a)
 reject	reject	engine	alterMaterializedView_inmemory_column_clause(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!swap	ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR ARCHIVED(a)
+reject	reject	engine	alterMaterializedView_inmemory_column_clause(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?+alterMaterializedView_inmemory_column_clause(LOW|HIGH)?	ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR ARCHIVE LOW(a)
 accept	accept	engine	alterMaterializedView_inmemory_column_clause(LOW|HIGH)?/%empty	ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY(a)
 accept	accept	engine	alterMaterializedView_inmemory_column_clause(LOW|HIGH)?/LOW	ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY LOW(a)
 reject	reject	engine	alterMaterializedView_inmemory_column_clause(LOW|HIGH)?/LOW!truncate	ALTER MATERIALIZED VIEW a INMEMORY INMEMORY MEMCOMPRESS FOR QUERY
@@ -9898,6 +9920,7 @@ reject	reject	engine	alterMaterializedView_inmemory_memcompress(QUERY_(LOW|HIGH)
 reject	reject	engine	alterMaterializedView_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?	ALTER MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR ARCHIVE
 reject	reject	engine	alterMaterializedView_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!insert	ALTER MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR ARCHIVE zzz
 reject	reject	engine	alterMaterializedView_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!swap	ALTER MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR ARCHIVED
+reject	reject	engine	alterMaterializedView_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?+alterMaterializedView_inmemory_memcompress(LOW|HIGH)?	ALTER MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR ARCHIVE LOW
 accept	accept	engine	alterMaterializedView_inmemory_memcompress(LOW|HIGH)?/%empty	ALTER MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR QUERY
 accept	accept	engine	alterMaterializedView_inmemory_memcompress(LOW|HIGH)?/LOW	ALTER MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR QUERY LOW
 reject	reject	engine	alterMaterializedView_inmemory_memcompress(LOW|HIGH)?/LOW!insert	ALTER MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR QUERY LOW zzz
@@ -10204,6 +10227,7 @@ reject	reject	engine	alterMaterializedView_partition_attributes(alterMaterialize
 reject	reject	engine	alterMaterializedView_partition_attributes(alterMaterializedView_physical_attri~620d5457)/SHRINK_SPACE_(CASCADE)?!drop-2	ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK
 reject	reject	engine	alterMaterializedView_partition_attributes(alterMaterializedView_physical_attri~620d5457)/SHRINK_SPACE_(CASCADE)?!insert	ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK SPACE zzz
 reject	reject	engine	alterMaterializedView_partition_attributes(alterMaterializedView_physical_attri~620d5457)/SHRINK_SPACE_(CASCADE)?!swap	ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHUTDOWN SPACE
+accept	accept	engine	alterMaterializedView_partition_attributes(alterMaterializedView_physical_attri~620d5457)/SHRINK_SPACE_(CASCADE)?+alterMaterializedView_partition_attributes(CASCADE)?	ALTER MATERIALIZED VIEW a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 accept	accept	engine	alterMaterializedView_add_range_subpartition/ADD_alterMaterializedView_range_subpartition_desc_(,_al~10b4440f	ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1)
 accept	accept	engine	alterMaterializedView_add_range_subpartition(,_alterMaterializedView_range_subpar~d00b2598)*/%empty	ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1)
 accept	accept	engine	alterMaterializedView_add_range_subpartition(,_alterMaterializedView_range_subpar~d00b2598)*/,_alterMaterializedView_range_subpartition_desc_(,_alte~9624480e	ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
@@ -11502,6 +11526,9 @@ accept	accept	engine	alterPluggableDatabase_application_clauses(INSTALL_VERSION_
 reject	reject	engine	alterPluggableDatabase_application_clauses(INSTALL_VERSION_STRING_(COMMENT_STRI~f2e3c15d)/INSTALL_VERSION_STRING_(COMMENT_STRING)?!drop-3	ALTER PLUGGABLE DATABASE APPLICATION a BEGIN INSTALL VERSION
 reject	reject	engine	alterPluggableDatabase_application_clauses(INSTALL_VERSION_STRING_(COMMENT_STRI~f2e3c15d)/INSTALL_VERSION_STRING_(COMMENT_STRING)?!insert	ALTER PLUGGABLE DATABASE APPLICATION a BEGIN INSTALL VERSION 's' zzz
 reject	reject	engine	alterPluggableDatabase_application_clauses(INSTALL_VERSION_STRING_(COMMENT_STRI~f2e3c15d)/INSTALL_VERSION_STRING_(COMMENT_STRING)?!swap	ALTER PLUGGABLE DATABASE APPLICATION a BEGIN INSTANCE VERSION 's'
+reject	reject	engine	alterPluggableDatabase_application_clauses(INSTALL_VERSION_STRING_(COMMENT_STRI~f2e3c15d)/INSTALL_VERSION_STRING_(COMMENT_STRING)?+alterPluggableDatabase_application_clauses(COMMENT_STRING)?	ALTER PLUGGABLE DATABASE APPLICATION a BEGIN INSTALL VERSION 's' COMMENT 's'
+reject	reject	engine	alterPluggableDatabase_application_clauses(INSTALL_VERSION_STRING_(COMMENT_STRI~f2e3c15d)/INSTALL_VERSION_STRING_(COMMENT_STRING)?+alterPluggableDatabase_application_clauses(COMMENT_STRING)?!drop-4	ALTER PLUGGABLE DATABASE APPLICATION a BEGIN INSTALL VERSION 's' 's'
+reject	reject	engine	alterPluggableDatabase_application_clauses(INSTALL_VERSION_STRING_(COMMENT_STRI~f2e3c15d)/INSTALL_VERSION_STRING_(COMMENT_STRING)?+alterPluggableDatabase_application_clauses(COMMENT_STRING)?!drop-5	ALTER PLUGGABLE DATABASE APPLICATION a BEGIN INSTALL VERSION 's' COMMENT
 accept	accept	engine	alterPluggableDatabase_application_clauses(INSTALL_VERSION_STRING_(COMMENT_STRI~f2e3c15d)/PATCH_NUMBER_(MINIMUM_VERSION_STRING)?_(COMMENT_STRING)?	ALTER PLUGGABLE DATABASE APPLICATION a BEGIN PATCH 1
 reject	reject	engine	alterPluggableDatabase_application_clauses(INSTALL_VERSION_STRING_(COMMENT_STRI~f2e3c15d)/PATCH_NUMBER_(MINIMUM_VERSION_STRING)?_(COMMENT_STRING)?!drop-1	ALTER PLUGGABLE DATABASE APPLICATION a BEGIN 1
 reject	reject	engine	alterPluggableDatabase_application_clauses(INSTALL_VERSION_STRING_(COMMENT_STRI~f2e3c15d)/PATCH_NUMBER_(MINIMUM_VERSION_STRING)?_(COMMENT_STRING)?!drop-2	ALTER PLUGGABLE DATABASE APPLICATION a BEGIN PATCH
@@ -11515,6 +11542,9 @@ reject	reject	engine	alterPluggableDatabase_application_clauses(INSTALL_VERSION_
 reject	reject	engine	alterPluggableDatabase_application_clauses(INSTALL_VERSION_STRING_(COMMENT_STRI~f2e3c15d)/UPGRADE_FROM_STRING_TO_STRING_(COMMENT_STRING)?!drop-5	ALTER PLUGGABLE DATABASE APPLICATION a BEGIN UPGRADE FROM 's' TO
 reject	reject	engine	alterPluggableDatabase_application_clauses(INSTALL_VERSION_STRING_(COMMENT_STRI~f2e3c15d)/UPGRADE_FROM_STRING_TO_STRING_(COMMENT_STRING)?!insert	ALTER PLUGGABLE DATABASE APPLICATION a BEGIN UPGRADE FROM 's' TO 's' zzz
 reject	reject	engine	alterPluggableDatabase_application_clauses(INSTALL_VERSION_STRING_(COMMENT_STRI~f2e3c15d)/UPGRADE_FROM_STRING_TO_STRING_(COMMENT_STRING)?!swap	ALTER PLUGGABLE DATABASE APPLICATION a BEGIN UPSERT FROM 's' TO 's'
+reject	reject	engine	alterPluggableDatabase_application_clauses(INSTALL_VERSION_STRING_(COMMENT_STRI~f2e3c15d)/UPGRADE_FROM_STRING_TO_STRING_(COMMENT_STRING)?+alterPluggableDatabase_application_clauses(COMMENT_STRING)?	ALTER PLUGGABLE DATABASE APPLICATION a BEGIN UPGRADE FROM 's' TO 's' COMMENT 's'
+reject	reject	engine	alterPluggableDatabase_application_clauses(INSTALL_VERSION_STRING_(COMMENT_STRI~f2e3c15d)/UPGRADE_FROM_STRING_TO_STRING_(COMMENT_STRING)?+alterPluggableDatabase_application_clauses(COMMENT_STRING)?!drop-6	ALTER PLUGGABLE DATABASE APPLICATION a BEGIN UPGRADE FROM 's' TO 's' 's'
+reject	reject	engine	alterPluggableDatabase_application_clauses(INSTALL_VERSION_STRING_(COMMENT_STRI~f2e3c15d)/UPGRADE_FROM_STRING_TO_STRING_(COMMENT_STRING)?+alterPluggableDatabase_application_clauses(COMMENT_STRING)?!drop-7	ALTER PLUGGABLE DATABASE APPLICATION a BEGIN UPGRADE FROM 's' TO 's' COMMENT
 accept	accept	engine	alterPluggableDatabase_application_clauses(INSTALL_VERSION_STRING_(COMMENT_STRI~f2e3c15d)/UNINSTALL	ALTER PLUGGABLE DATABASE APPLICATION a BEGIN UNINSTALL
 reject	reject	engine	alterPluggableDatabase_application_clauses(INSTALL_VERSION_STRING_(COMMENT_STRI~f2e3c15d)/UNINSTALL!swap	ALTER PLUGGABLE DATABASE APPLICATION a BEGIN UNION
 accept	accept	engine	alterPluggableDatabase_application_clauses(COMMENT_STRING)?/%empty	ALTER PLUGGABLE DATABASE APPLICATION a BEGIN PATCH 1
@@ -12542,6 +12572,7 @@ accept	accept	engine	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(
 reject	reject	engine	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)!insert	ALTER SEQUENCE a SHARD zzz
 reject	reject	engine	alterSequence((SHARD_(EXTEND|NOEXTEND)?|NOSHARD))?/(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)!swap	ALTER SEQUENCE a SHARDED
 accept	accept	engine	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/SHARD_(EXTEND|NOEXTEND)?	ALTER SEQUENCE a SHARD
+accept	accept	engine	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/SHARD_(EXTEND|NOEXTEND)?+alterSequence(EXTEND|NOEXTEND)?	ALTER SEQUENCE a SHARD EXTEND
 accept	accept	engine	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD	ALTER SEQUENCE a NOSHARD
 reject	reject	engine	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD!insert	ALTER SEQUENCE a NOSHARD zzz
 reject	reject	engine	alterSequence(SHARD_(EXTEND|NOEXTEND)?|NOSHARD)/NOSHARD!swap	ALTER SEQUENCE a NOSORT
@@ -13053,6 +13084,10 @@ reject	reject	engine	alterSystem_security_clauses(ENABLE_RESTRICTED_SESSION|DISA
 reject	reject	engine	alterSystem_security_clauses(ENABLE_RESTRICTED_SESSION|DISABLE_RE~01fb6dd6)/SET_ENCRYPTION_WALLET_CLOSE_(IDENTIFIED_BY_ID)?!drop-4	ALTER SYSTEM SET ENCRYPTION WALLET
 reject	reject	engine	alterSystem_security_clauses(ENABLE_RESTRICTED_SESSION|DISABLE_RE~01fb6dd6)/SET_ENCRYPTION_WALLET_CLOSE_(IDENTIFIED_BY_ID)?!insert	ALTER SYSTEM SET ENCRYPTION WALLET CLOSE zzz
 reject	reject	engine	alterSystem_security_clauses(ENABLE_RESTRICTED_SESSION|DISABLE_RE~01fb6dd6)/SET_ENCRYPTION_WALLET_CLOSE_(IDENTIFIED_BY_ID)?!swap	ALTER SYSTEM SETS ENCRYPTION WALLET CLOSE
+accept	accept	engine	alterSystem_security_clauses(ENABLE_RESTRICTED_SESSION|DISABLE_RE~01fb6dd6)/SET_ENCRYPTION_WALLET_CLOSE_(IDENTIFIED_BY_ID)?+alterSystem_security_clauses(IDENTIFIED_BY_ID)?	ALTER SYSTEM SET ENCRYPTION WALLET CLOSE IDENTIFIED BY a
+reject	reject	engine	alterSystem_security_clauses(ENABLE_RESTRICTED_SESSION|DISABLE_RE~01fb6dd6)/SET_ENCRYPTION_WALLET_CLOSE_(IDENTIFIED_BY_ID)?+alterSystem_security_clauses(IDENTIFIED_BY_ID)?!drop-5	ALTER SYSTEM SET ENCRYPTION WALLET CLOSE BY a
+reject	reject	engine	alterSystem_security_clauses(ENABLE_RESTRICTED_SESSION|DISABLE_RE~01fb6dd6)/SET_ENCRYPTION_WALLET_CLOSE_(IDENTIFIED_BY_ID)?+alterSystem_security_clauses(IDENTIFIED_BY_ID)?!drop-6	ALTER SYSTEM SET ENCRYPTION WALLET CLOSE IDENTIFIED a
+reject	reject	engine	alterSystem_security_clauses(ENABLE_RESTRICTED_SESSION|DISABLE_RE~01fb6dd6)/SET_ENCRYPTION_WALLET_CLOSE_(IDENTIFIED_BY_ID)?+alterSystem_security_clauses(IDENTIFIED_BY_ID)?!drop-7	ALTER SYSTEM SET ENCRYPTION WALLET CLOSE IDENTIFIED BY
 reject	reject	engine	alterSystem_security_clauses(ENABLE_RESTRICTED_SESSION|DISABLE_RE~01fb6dd6)/SET_ENCRYPTION_KEY_(IDENTIFIED_BY_ID)?	ALTER SYSTEM SET ENCRYPTION KEY
 reject	reject	engine	alterSystem_security_clauses(ENABLE_RESTRICTED_SESSION|DISABLE_RE~01fb6dd6)/SET_ENCRYPTION_KEY_(IDENTIFIED_BY_ID)?!drop-1	ALTER SYSTEM ENCRYPTION KEY
 reject	reject	engine	alterSystem_security_clauses(ENABLE_RESTRICTED_SESSION|DISABLE_RE~01fb6dd6)/SET_ENCRYPTION_KEY_(IDENTIFIED_BY_ID)?!drop-2	ALTER SYSTEM SET KEY
@@ -13178,6 +13213,7 @@ reject	reject	engine	alterSystem_flush_clause(SHARED_POOL|GLOBAL_CONTEXT|BUFFER_
 accept	accept	engine	alterSystem_flush_clause(SHARED_POOL|GLOBAL_CONTEXT|BUFFER_CA~0c6d804e)/FLASH_CACHE_((GLOBAL|LOCAL))?	ALTER SYSTEM FLUSH FLASH_CACHE
 reject	reject	engine	alterSystem_flush_clause(SHARED_POOL|GLOBAL_CONTEXT|BUFFER_CA~0c6d804e)/FLASH_CACHE_((GLOBAL|LOCAL))?!insert	ALTER SYSTEM FLUSH FLASH_CACHE zzz
 reject	reject	engine	alterSystem_flush_clause(SHARED_POOL|GLOBAL_CONTEXT|BUFFER_CA~0c6d804e)/FLASH_CACHE_((GLOBAL|LOCAL))?!swap	ALTER SYSTEM FLUSH FLEX
+accept	accept	engine	alterSystem_flush_clause(SHARED_POOL|GLOBAL_CONTEXT|BUFFER_CA~0c6d804e)/FLASH_CACHE_((GLOBAL|LOCAL))?+alterSystem_flush_clause((GLOBAL|LOCAL))?	ALTER SYSTEM FLUSH FLASH_CACHE GLOBAL
 accept	accept	engine	alterSystem_flush_clause(SHARED_POOL|GLOBAL_CONTEXT|BUFFER_CA~0c6d804e)/REDO_TO_ID_((NO_CONFIRM_APPLY|CONFIRM_APPLY))?	ALTER SYSTEM FLUSH REDO TO a
 reject	reject	engine	alterSystem_flush_clause(SHARED_POOL|GLOBAL_CONTEXT|BUFFER_CA~0c6d804e)/REDO_TO_ID_((NO_CONFIRM_APPLY|CONFIRM_APPLY))?!drop-1	ALTER SYSTEM FLUSH TO a
 reject	reject	engine	alterSystem_flush_clause(SHARED_POOL|GLOBAL_CONTEXT|BUFFER_CA~0c6d804e)/REDO_TO_ID_((NO_CONFIRM_APPLY|CONFIRM_APPLY))?!drop-2	ALTER SYSTEM FLUSH REDO a
@@ -14121,6 +14157,9 @@ reject	reject	engine	alterTable_supplemental_table_logging(,_ID_(NO_LOG)?)*/,_ID
 reject	reject	engine	alterTable_supplemental_table_logging(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*!drop-2	ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a,)
 reject	reject	engine	alterTable_supplemental_table_logging(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*!truncate	ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a,
 reject	reject	engine	alterTable_supplemental_table_logging(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*!insert	ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a zzz)
+accept	accept	engine	alterTable_supplemental_table_logging(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*+alterTable_supplemental_table_logging(NO_LOG)?	ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a NO LOG)
+reject	reject	engine	alterTable_supplemental_table_logging(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*+alterTable_supplemental_table_logging(NO_LOG)?!drop-3	ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a LOG)
+reject	reject	engine	alterTable_supplemental_table_logging(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*+alterTable_supplemental_table_logging(NO_LOG)?!drop-4	ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a, a NO)
 accept	accept	engine	alterTable_supplemental_table_logging(ALWAYS)?/%empty	ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a)
 accept	accept	engine	alterTable_supplemental_table_logging(ALWAYS)?/ALWAYS	ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS
 reject	reject	engine	alterTable_supplemental_table_logging(ALWAYS)?/ALWAYS!insert	ALTER TABLE a ADD SUPPLEMENTAL LOG GROUP a(a) ALWAYS zzz
@@ -14281,6 +14320,7 @@ reject	reject	engine	alterTable_attribute_clustering_clause(,_(ID|EXPR)_(ASC|DES
 reject	reject	engine	alterTable_attribute_clustering_clause(,_(ID|EXPR)_(ASC|DESC)?)*/,_(ID|EXPR)_(ASC|DESC)?_(,_(ID|EXPR)_(ASC|DESC)?)*!drop-2	ALTER TABLE a MODIFY CLUSTERING CLUSTERING BY(a,)
 reject	reject	engine	alterTable_attribute_clustering_clause(,_(ID|EXPR)_(ASC|DESC)?)*/,_(ID|EXPR)_(ASC|DESC)?_(,_(ID|EXPR)_(ASC|DESC)?)*!truncate	ALTER TABLE a MODIFY CLUSTERING CLUSTERING BY(a,
 reject	reject	engine	alterTable_attribute_clustering_clause(,_(ID|EXPR)_(ASC|DESC)?)*/,_(ID|EXPR)_(ASC|DESC)?_(,_(ID|EXPR)_(ASC|DESC)?)*!insert	ALTER TABLE a MODIFY CLUSTERING CLUSTERING BY(a, a zzz)
+reject	reject	engine	alterTable_attribute_clustering_clause(,_(ID|EXPR)_(ASC|DESC)?)*/,_(ID|EXPR)_(ASC|DESC)?_(,_(ID|EXPR)_(ASC|DESC)?)*+alterTable_attribute_clustering_clause(ASC|DESC)?	ALTER TABLE a MODIFY CLUSTERING CLUSTERING BY(a, a ASC)
 reject	reject	engine	alterTable_attribute_clustering_clause(ID)?/%empty	ALTER TABLE a MODIFY CLUSTERING CLUSTERING BY(a)
 reject	reject	engine	alterTable_attribute_clustering_clause(ID)?/ID	ALTER TABLE a MODIFY CLUSTERING CLUSTERING BY(a) a
 reject	reject	engine	alterTable_attribute_clustering_clause(ID)?/ID!insert	ALTER TABLE a MODIFY CLUSTERING CLUSTERING BY(a) a zzz
@@ -14424,6 +14464,9 @@ reject	reject	engine	alterTable_drop_column_clause(SET_UNUSED_(COLUMN_ID|(_ID_(,
 reject	reject	engine	alterTable_drop_column_clause(SET_UNUSED_(COLUMN_ID|(_ID_(,_ID)*_)~5230dfed)/DROP_(UNUSED_COLUMNS|COLUMNS_CONTINUE)_(CHECKPOINT_NUMBER)?!drop-3	ALTER TABLE a DROP UNUSED
 reject	reject	engine	alterTable_drop_column_clause(SET_UNUSED_(COLUMN_ID|(_ID_(,_ID)*_)~5230dfed)/DROP_(UNUSED_COLUMNS|COLUMNS_CONTINUE)_(CHECKPOINT_NUMBER)?!insert	ALTER TABLE a DROP UNUSED COLUMNS zzz
 reject	reject	engine	alterTable_drop_column_clause(SET_UNUSED_(COLUMN_ID|(_ID_(,_ID)*_)~5230dfed)/DROP_(UNUSED_COLUMNS|COLUMNS_CONTINUE)_(CHECKPOINT_NUMBER)?!swap	ALTER TABLE a DUALITY UNUSED COLUMNS
+accept	accept	engine	alterTable_drop_column_clause(SET_UNUSED_(COLUMN_ID|(_ID_(,_ID)*_)~5230dfed)/DROP_(UNUSED_COLUMNS|COLUMNS_CONTINUE)_(CHECKPOINT_NUMBER)?+alterTable_drop_column_clause(CHECKPOINT_NUMBER)?	ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT 1
+reject	reject	engine	alterTable_drop_column_clause(SET_UNUSED_(COLUMN_ID|(_ID_(,_ID)*_)~5230dfed)/DROP_(UNUSED_COLUMNS|COLUMNS_CONTINUE)_(CHECKPOINT_NUMBER)?+alterTable_drop_column_clause(CHECKPOINT_NUMBER)?!drop-4	ALTER TABLE a DROP UNUSED COLUMNS 1
+accept	accept	engine	alterTable_drop_column_clause(SET_UNUSED_(COLUMN_ID|(_ID_(,_ID)*_)~5230dfed)/DROP_(UNUSED_COLUMNS|COLUMNS_CONTINUE)_(CHECKPOINT_NUMBER)?+alterTable_drop_column_clause(CHECKPOINT_NUMBER)?!drop-5	ALTER TABLE a DROP UNUSED COLUMNS CHECKPOINT
 accept	accept	engine	alterTable_drop_column_clause(COLUMN_ID|(_ID_(,_ID)*_))/COLUMN_ID	ALTER TABLE a DROP COLUMN a
 reject	reject	engine	alterTable_drop_column_clause(COLUMN_ID|(_ID_(,_ID)*_))/COLUMN_ID!swap	ALTER TABLE a DROP COLUMNS a
 accept	accept	engine	alterTable_drop_column_clause(COLUMN_ID|(_ID_(,_ID)*_))/(_ID_(,_ID)*_)	ALTER TABLE a DROP(a)
@@ -14660,6 +14703,8 @@ accept	accept	engine	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_
 reject	reject	engine	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?!drop-2	ALTER TABLE a DROP CONSTRAINT
 reject	reject	engine	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?!insert	ALTER TABLE a DROP CONSTRAINT a zzz
 accept	accept	engine	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?!swap	ALTER TABLE a DROP CONSTRAINTS a
+accept	accept	engine	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?+alterTable_drop_constraint_clause(CASCADE)?	ALTER TABLE a DROP CONSTRAINT a CASCADE
+accept	accept	engine	alterTable_drop_constraint_clause((PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))_~7f222e19)/CONSTRAINT_ID_(CASCADE)?_(ONLINE)?+alterTable_drop_constraint_clause(ONLINE)?	ALTER TABLE a DROP CONSTRAINT a ONLINE
 accept	accept	engine	alterTable_drop_constraint_clause(PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))/PRIMARY_KEY	ALTER TABLE a DROP PRIMARY KEY
 accept	accept	engine	alterTable_drop_constraint_clause(PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))/UNIQUE_(_ID_(,_ID)*_)	ALTER TABLE a DROP UNIQUE(a)
 reject	reject	engine	alterTable_drop_constraint_clause(PRIMARY_KEY|UNIQUE_(_ID_(,_ID)*_))/UNIQUE_(_ID_(,_ID)*_)!drop-2	ALTER TABLE a DROP UNIQUE a)
@@ -15908,6 +15953,7 @@ reject	reject	engine	alterTable_inmemory_memcompress(DML|QUERY_(LOW|HIGH)?|CAPAC
 accept	accept	engine	alterTable_inmemory_memcompress(DML|QUERY_(LOW|HIGH)?|CAPACITY_(LOW|HIGH)?)/CAPACITY_(LOW|HIGH)?	ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY
 reject	reject	engine	alterTable_inmemory_memcompress(DML|QUERY_(LOW|HIGH)?|CAPACITY_(LOW|HIGH)?)/CAPACITY_(LOW|HIGH)?!insert	ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY zzz
 reject	reject	engine	alterTable_inmemory_memcompress(DML|QUERY_(LOW|HIGH)?|CAPACITY_(LOW|HIGH)?)/CAPACITY_(LOW|HIGH)?!swap	ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPTION
+accept	accept	engine	alterTable_inmemory_memcompress(DML|QUERY_(LOW|HIGH)?|CAPACITY_(LOW|HIGH)?)/CAPACITY_(LOW|HIGH)?+alterTable_inmemory_memcompress(LOW|HIGH)?	ALTER TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY LOW
 accept	accept	engine	alterTable_inmemory_memcompress(LOW|HIGH)?/%empty	ALTER TABLE a INMEMORY MEMCOMPRESS FOR QUERY
 accept	accept	engine	alterTable_inmemory_memcompress(LOW|HIGH)?/LOW	ALTER TABLE a INMEMORY MEMCOMPRESS FOR QUERY LOW
 reject	reject	engine	alterTable_inmemory_memcompress(LOW|HIGH)?/LOW!insert	ALTER TABLE a INMEMORY MEMCOMPRESS FOR QUERY LOW zzz
@@ -16636,6 +16682,7 @@ reject	reject	engine	alterTable_partition_attributes(alterTable_physical_attribu
 reject	reject	engine	alterTable_partition_attributes(alterTable_physical_attributes_claus~3f5ebc95)/SHRINK_SPACE_(CASCADE)?!drop-2	ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK
 reject	reject	engine	alterTable_partition_attributes(alterTable_physical_attributes_claus~3f5ebc95)/SHRINK_SPACE_(CASCADE)?!insert	ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE zzz
 reject	reject	engine	alterTable_partition_attributes(alterTable_physical_attributes_claus~3f5ebc95)/SHRINK_SPACE_(CASCADE)?!swap	ALTER TABLE a MODIFY PARTITION a OVERFLOW SHUTDOWN SPACE
+accept	accept	engine	alterTable_partition_attributes(alterTable_physical_attributes_claus~3f5ebc95)/SHRINK_SPACE_(CASCADE)?+alterTable_partition_attributes(CASCADE)?	ALTER TABLE a MODIFY PARTITION a OVERFLOW SHRINK SPACE CASCADE
 accept	accept	engine	alterTable_add_range_subpartition/ADD_alterTable_range_subpartition_desc_(,_alterTable_ra~f6b1e3a5	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1)
 accept	accept	engine	alterTable_add_range_subpartition(,_alterTable_range_subpartition_desc)*/%empty	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1)
 accept	accept	engine	alterTable_add_range_subpartition(,_alterTable_range_subpartition_desc)*/,_alterTable_range_subpartition_desc_(,_alterTable_rang~8a842bf0	ALTER TABLE a MODIFY PARTITION a ADD SUBPARTITION VALUES LESS THAN(1), SUBPARTITION VALUES LESS THAN(1)
@@ -18931,6 +18978,9 @@ accept	accept	engine	alterTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_I
 accept	accept	engine	alterTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*!drop-2	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a,)))
 reject	reject	engine	alterTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*!truncate	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a,
 accept	accept	engine	alterTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz)))
+accept	accept	engine	alterTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*+alterTable_supplemental_log_grp_clause(NO_LOG)?	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG)))
+accept	accept	engine	alterTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*+alterTable_supplemental_log_grp_clause(NO_LOG)?!drop-3	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG)))
+accept	accept	engine	alterTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*+alterTable_supplemental_log_grp_clause(NO_LOG)?!drop-4	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO)))
 accept	accept	engine	alterTable_supplemental_log_grp_clause(ALWAYS)?/%empty	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a)))
 accept	accept	engine	alterTable_supplemental_log_grp_clause(ALWAYS)?/ALWAYS	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
 reject	reject	engine	alterTable_supplemental_log_grp_clause(ALWAYS)?/ALWAYS!truncate	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a)
@@ -19413,6 +19463,7 @@ reject	reject	engine	alterTablespaceSet_inmemory_memcompress(QUERY_(LOW|HIGH)?|O
 reject	reject	engine	alterTablespaceSet_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?	ALTER TABLESPACE SET a DEFAULT INMEMORY MEMCOMPRESS FOR ARCHIVE
 reject	reject	engine	alterTablespaceSet_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!insert	ALTER TABLESPACE SET a DEFAULT INMEMORY MEMCOMPRESS FOR ARCHIVE zzz
 reject	reject	engine	alterTablespaceSet_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!swap	ALTER TABLESPACE SET a DEFAULT INMEMORY MEMCOMPRESS FOR ARCHIVED
+reject	reject	engine	alterTablespaceSet_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?+alterTablespaceSet_inmemory_memcompress(LOW|HIGH)?	ALTER TABLESPACE SET a DEFAULT INMEMORY MEMCOMPRESS FOR ARCHIVE LOW
 accept	accept	engine	alterTablespaceSet_inmemory_memcompress(LOW|HIGH)?/%empty	ALTER TABLESPACE SET a DEFAULT INMEMORY MEMCOMPRESS FOR QUERY
 accept	accept	engine	alterTablespaceSet_inmemory_memcompress(LOW|HIGH)?/LOW	ALTER TABLESPACE SET a DEFAULT INMEMORY MEMCOMPRESS FOR QUERY LOW
 reject	reject	engine	alterTablespaceSet_inmemory_memcompress(LOW|HIGH)?/LOW!insert	ALTER TABLESPACE SET a DEFAULT INMEMORY MEMCOMPRESS FOR QUERY LOW zzz
@@ -19608,6 +19659,7 @@ reject	reject	engine	alterTablespaceSet_table_compression(OLTP|QUERY_(LOW|HIGH)?
 accept	accept	engine	alterTablespaceSet_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS FOR ARCHIVE SEGMENT AFTER 1 DAY OF CREATION
 reject	reject	engine	alterTablespaceSet_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!insert	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS FOR ARCHIVE zzz SEGMENT AFTER 1 DAY OF CREATION
 reject	reject	engine	alterTablespaceSet_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!swap	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS FOR ARCHIVED SEGMENT AFTER 1 DAY OF CREATION
+accept	accept	engine	alterTablespaceSet_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?+alterTablespaceSet_table_compression(LOW|HIGH)?	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS FOR ARCHIVE LOW SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespaceSet_table_compression(LOW|HIGH)?/%empty	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespaceSet_table_compression(LOW|HIGH)?/LOW	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY LOW SEGMENT AFTER 1 DAY OF CREATION
 reject	reject	engine	alterTablespaceSet_table_compression(LOW|HIGH)?/LOW!truncate	ALTER TABLESPACE SET a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY
@@ -20152,6 +20204,7 @@ reject	reject	engine	alterTablespace_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP
 reject	reject	engine	alterTablespace_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?	ALTER TABLESPACE a DEFAULT INMEMORY MEMCOMPRESS FOR ARCHIVE
 reject	reject	engine	alterTablespace_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!insert	ALTER TABLESPACE a DEFAULT INMEMORY MEMCOMPRESS FOR ARCHIVE zzz
 reject	reject	engine	alterTablespace_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!swap	ALTER TABLESPACE a DEFAULT INMEMORY MEMCOMPRESS FOR ARCHIVED
+reject	reject	engine	alterTablespace_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?+alterTablespace_inmemory_memcompress(LOW|HIGH)?	ALTER TABLESPACE a DEFAULT INMEMORY MEMCOMPRESS FOR ARCHIVE LOW
 accept	accept	engine	alterTablespace_inmemory_memcompress(LOW|HIGH)?/%empty	ALTER TABLESPACE a DEFAULT INMEMORY MEMCOMPRESS FOR QUERY
 accept	accept	engine	alterTablespace_inmemory_memcompress(LOW|HIGH)?/LOW	ALTER TABLESPACE a DEFAULT INMEMORY MEMCOMPRESS FOR QUERY LOW
 reject	reject	engine	alterTablespace_inmemory_memcompress(LOW|HIGH)?/LOW!insert	ALTER TABLESPACE a DEFAULT INMEMORY MEMCOMPRESS FOR QUERY LOW zzz
@@ -20347,6 +20400,7 @@ reject	reject	engine	alterTablespace_table_compression(OLTP|QUERY_(LOW|HIGH)?|AR
 accept	accept	engine	alterTablespace_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR ARCHIVE SEGMENT AFTER 1 DAY OF CREATION
 reject	reject	engine	alterTablespace_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!insert	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR ARCHIVE zzz SEGMENT AFTER 1 DAY OF CREATION
 reject	reject	engine	alterTablespace_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!swap	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR ARCHIVED SEGMENT AFTER 1 DAY OF CREATION
+accept	accept	engine	alterTablespace_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?+alterTablespace_table_compression(LOW|HIGH)?	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR ARCHIVE LOW SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespace_table_compression(LOW|HIGH)?/%empty	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	alterTablespace_table_compression(LOW|HIGH)?/LOW	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY LOW SEGMENT AFTER 1 DAY OF CREATION
 reject	reject	engine	alterTablespace_table_compression(LOW|HIGH)?/LOW!truncate	ALTER TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY
@@ -20662,6 +20716,9 @@ reject	reject	engine	alterUser_alter_identified_clause(BY_ID_(REPLACE_ID)?|EXTER
 accept	accept	engine	alterUser_alter_identified_clause(BY_ID_(REPLACE_ID)?|EXTERNALLY_(AS_S~c9f1f9ed)/GLOBALLY_(AS_STRING)?	ALTER USER a IDENTIFIED GLOBALLY
 reject	reject	engine	alterUser_alter_identified_clause(BY_ID_(REPLACE_ID)?|EXTERNALLY_(AS_S~c9f1f9ed)/GLOBALLY_(AS_STRING)?!insert	ALTER USER a IDENTIFIED GLOBALLY zzz
 reject	reject	engine	alterUser_alter_identified_clause(BY_ID_(REPLACE_ID)?|EXTERNALLY_(AS_S~c9f1f9ed)/GLOBALLY_(AS_STRING)?!swap	ALTER USER a IDENTIFIED GLOBAL_NAME
+accept	accept	engine	alterUser_alter_identified_clause(BY_ID_(REPLACE_ID)?|EXTERNALLY_(AS_S~c9f1f9ed)/GLOBALLY_(AS_STRING)?+alterUser_alter_identified_clause(AS_STRING)?	ALTER USER a IDENTIFIED GLOBALLY AS 's'
+reject	reject	engine	alterUser_alter_identified_clause(BY_ID_(REPLACE_ID)?|EXTERNALLY_(AS_S~c9f1f9ed)/GLOBALLY_(AS_STRING)?+alterUser_alter_identified_clause(AS_STRING)?!drop-2	ALTER USER a IDENTIFIED GLOBALLY 's'
+reject	reject	engine	alterUser_alter_identified_clause(BY_ID_(REPLACE_ID)?|EXTERNALLY_(AS_S~c9f1f9ed)/GLOBALLY_(AS_STRING)?+alterUser_alter_identified_clause(AS_STRING)?!drop-3	ALTER USER a IDENTIFIED GLOBALLY AS
 accept	accept	engine	alterUser_alter_identified_clause(REPLACE_ID)?/%empty	ALTER USER a IDENTIFIED BY a
 accept	accept	engine	alterUser_alter_identified_clause(REPLACE_ID)?/REPLACE_ID	ALTER USER a IDENTIFIED BY a REPLACE a
 reject	reject	engine	alterUser_alter_identified_clause(REPLACE_ID)?/REPLACE_ID!drop-1	ALTER USER a IDENTIFIED BY a a
@@ -22463,6 +22520,7 @@ reject	reject	engine	createAttributeDimension_dim_order_clause(ID_(ASC|DESC)?|(_
 reject	reject	engine	createAttributeDimension_dim_order_clause(ID_(ASC|DESC)?|(_ID_(ASC|DESC)?_(,_I~1b6513d5)/(_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)*_)!drop-2	CREATE ATTRIBUTE DIMENSION a USING a ATTRIBUTES(a) LEVEL a KEY a ORDER BY()
 reject	reject	engine	createAttributeDimension_dim_order_clause(ID_(ASC|DESC)?|(_ID_(ASC|DESC)?_(,_I~1b6513d5)/(_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)*_)!drop-3	CREATE ATTRIBUTE DIMENSION a USING a ATTRIBUTES(a) LEVEL a KEY a ORDER BY(a
 reject	reject	engine	createAttributeDimension_dim_order_clause(ID_(ASC|DESC)?|(_ID_(ASC|DESC)?_(,_I~1b6513d5)/(_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)*_)!insert	CREATE ATTRIBUTE DIMENSION a USING a ATTRIBUTES(a) LEVEL a KEY a ORDER BY(a) zzz
+reject	reject	engine	createAttributeDimension_dim_order_clause(ID_(ASC|DESC)?|(_ID_(ASC|DESC)?_(,_I~1b6513d5)/(_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)*_)+createAttributeDimension_dim_order_clause(ASC|DESC)?	CREATE ATTRIBUTE DIMENSION a USING a ATTRIBUTES(a) LEVEL a KEY a ORDER BY(a ASC)
 accept	accept	engine	createAttributeDimension_dim_order_clause(ASC|DESC)?/%empty	CREATE ATTRIBUTE DIMENSION a USING a ATTRIBUTES(a) LEVEL a KEY a ORDER BY a
 accept	accept	engine	createAttributeDimension_dim_order_clause(ASC|DESC)?/ASC	CREATE ATTRIBUTE DIMENSION a USING a ATTRIBUTES(a) LEVEL a KEY a ORDER BY a ASC
 reject	reject	engine	createAttributeDimension_dim_order_clause(ASC|DESC)?/ASC!insert	CREATE ATTRIBUTE DIMENSION a USING a ATTRIBUTES(a) LEVEL a KEY a ORDER BY a ASC zzz
@@ -22477,6 +22535,7 @@ reject	reject	engine	createAttributeDimension_dim_order_clause(,_ID_(ASC|DESC)?)
 reject	reject	engine	createAttributeDimension_dim_order_clause(,_ID_(ASC|DESC)?)*/,_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)*!drop-2	CREATE ATTRIBUTE DIMENSION a USING a ATTRIBUTES(a) LEVEL a KEY a ORDER BY(a,)
 reject	reject	engine	createAttributeDimension_dim_order_clause(,_ID_(ASC|DESC)?)*/,_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)*!truncate	CREATE ATTRIBUTE DIMENSION a USING a ATTRIBUTES(a) LEVEL a KEY a ORDER BY(a,
 reject	reject	engine	createAttributeDimension_dim_order_clause(,_ID_(ASC|DESC)?)*/,_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)*!insert	CREATE ATTRIBUTE DIMENSION a USING a ATTRIBUTES(a) LEVEL a KEY a ORDER BY(a, a zzz)
+reject	reject	engine	createAttributeDimension_dim_order_clause(,_ID_(ASC|DESC)?)*/,_ID_(ASC|DESC)?_(,_ID_(ASC|DESC)?)*+createAttributeDimension_dim_order_clause(ASC|DESC)?	CREATE ATTRIBUTE DIMENSION a USING a ATTRIBUTES(a) LEVEL a KEY a ORDER BY(a, a ASC)
 reject	reject	engine	createAttributeDimension_join_path_clause/JOIN_PATH_ID_ON_createAttributeDimension_join_condition	CREATE ATTRIBUTE DIMENSION a USING JOIN PATH a ON a = a ATTRIBUTES(a) LEVEL a KEY a
 reject	reject	engine	createAttributeDimension_join_condition/createAttributeDimension_join_condition_elem_(AND_creat~02f57dcc	CREATE ATTRIBUTE DIMENSION a USING JOIN PATH a ON a = a ATTRIBUTES(a) LEVEL a KEY a
 reject	reject	engine	createAttributeDimension_join_condition(AND_createAttributeDimension_join_co~a380fadb)*/%empty	CREATE ATTRIBUTE DIMENSION a USING JOIN PATH a ON a = a ATTRIBUTES(a) LEVEL a KEY a
@@ -22990,6 +23049,7 @@ reject	reject	engine	createCluster_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCH
 reject	reject	engine	createCluster_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?	CREATE CLUSTER a(a NUMBER) PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1) COMPRESS FOR ARCHIVE)
 reject	reject	engine	createCluster_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!insert	CREATE CLUSTER a(a NUMBER) PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1) COMPRESS FOR ARCHIVE zzz)
 reject	reject	engine	createCluster_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!swap	CREATE CLUSTER a(a NUMBER) PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1) COMPRESS FOR ARCHIVED)
+reject	reject	engine	createCluster_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?+createCluster_table_compression(LOW|HIGH)?	CREATE CLUSTER a(a NUMBER) PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1) COMPRESS FOR ARCHIVE LOW)
 reject	reject	engine	createCluster_table_compression(LOW|HIGH)?/%empty	CREATE CLUSTER a(a NUMBER) PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1) COMPRESS FOR QUERY)
 reject	reject	engine	createCluster_table_compression(LOW|HIGH)?/LOW	CREATE CLUSTER a(a NUMBER) PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1) COMPRESS FOR QUERY LOW)
 reject	reject	engine	createCluster_table_compression(LOW|HIGH)?/LOW!truncate	CREATE CLUSTER a(a NUMBER) PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1) COMPRESS FOR QUERY
@@ -23107,6 +23167,7 @@ reject	reject	engine	createCluster_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|A
 reject	reject	engine	createCluster_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?	CREATE CLUSTER a(a NUMBER) PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1) INMEMORY MEMCOMPRESS FOR ARCHIVE)
 reject	reject	engine	createCluster_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!insert	CREATE CLUSTER a(a NUMBER) PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1) INMEMORY MEMCOMPRESS FOR ARCHIVE zzz)
 reject	reject	engine	createCluster_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!swap	CREATE CLUSTER a(a NUMBER) PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1) INMEMORY MEMCOMPRESS FOR ARCHIVED)
+reject	reject	engine	createCluster_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?+createCluster_inmemory_memcompress(LOW|HIGH)?	CREATE CLUSTER a(a NUMBER) PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1) INMEMORY MEMCOMPRESS FOR ARCHIVE LOW)
 reject	reject	engine	createCluster_inmemory_memcompress(LOW|HIGH)?/%empty	CREATE CLUSTER a(a NUMBER) PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1) INMEMORY MEMCOMPRESS FOR QUERY)
 reject	reject	engine	createCluster_inmemory_memcompress(LOW|HIGH)?/LOW	CREATE CLUSTER a(a NUMBER) PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1) INMEMORY MEMCOMPRESS FOR QUERY LOW)
 reject	reject	engine	createCluster_inmemory_memcompress(LOW|HIGH)?/LOW!truncate	CREATE CLUSTER a(a NUMBER) PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1) INMEMORY MEMCOMPRESS FOR QUERY
@@ -26381,6 +26442,7 @@ reject	reject	engine	createMaterializedViewLog_table_compression(OLTP|QUERY_(LOW
 reject	reject	engine	createMaterializedViewLog_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?	CREATE MATERIALIZED VIEW LOG ON a(PARTITION COMPRESS FOR ARCHIVE)
 reject	reject	engine	createMaterializedViewLog_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!insert	CREATE MATERIALIZED VIEW LOG ON a(PARTITION COMPRESS FOR ARCHIVE zzz)
 reject	reject	engine	createMaterializedViewLog_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!swap	CREATE MATERIALIZED VIEW LOG ON a(PARTITION COMPRESS FOR ARCHIVED)
+reject	reject	engine	createMaterializedViewLog_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?+createMaterializedViewLog_table_compression(LOW|HIGH)?	CREATE MATERIALIZED VIEW LOG ON a(PARTITION COMPRESS FOR ARCHIVE LOW)
 reject	reject	engine	createMaterializedViewLog_table_compression(LOW|HIGH)?/%empty	CREATE MATERIALIZED VIEW LOG ON a(PARTITION COMPRESS FOR QUERY)
 reject	reject	engine	createMaterializedViewLog_table_compression(LOW|HIGH)?/LOW	CREATE MATERIALIZED VIEW LOG ON a(PARTITION COMPRESS FOR QUERY LOW)
 reject	reject	engine	createMaterializedViewLog_table_compression(LOW|HIGH)?/LOW!truncate	CREATE MATERIALIZED VIEW LOG ON a(PARTITION COMPRESS FOR QUERY
@@ -26624,6 +26686,7 @@ reject	reject	engine	createMaterializedViewLog_inmemory_memcompress(QUERY_(LOW|H
 reject	reject	engine	createMaterializedViewLog_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?	CREATE MATERIALIZED VIEW LOG ON a(PARTITION INMEMORY MEMCOMPRESS FOR ARCHIVE)
 reject	reject	engine	createMaterializedViewLog_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!insert	CREATE MATERIALIZED VIEW LOG ON a(PARTITION INMEMORY MEMCOMPRESS FOR ARCHIVE zzz)
 reject	reject	engine	createMaterializedViewLog_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!swap	CREATE MATERIALIZED VIEW LOG ON a(PARTITION INMEMORY MEMCOMPRESS FOR ARCHIVED)
+reject	reject	engine	createMaterializedViewLog_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?+createMaterializedViewLog_inmemory_memcompress(LOW|HIGH)?	CREATE MATERIALIZED VIEW LOG ON a(PARTITION INMEMORY MEMCOMPRESS FOR ARCHIVE LOW)
 reject	reject	engine	createMaterializedViewLog_inmemory_memcompress(LOW|HIGH)?/%empty	CREATE MATERIALIZED VIEW LOG ON a(PARTITION INMEMORY MEMCOMPRESS FOR QUERY)
 reject	reject	engine	createMaterializedViewLog_inmemory_memcompress(LOW|HIGH)?/LOW	CREATE MATERIALIZED VIEW LOG ON a(PARTITION INMEMORY MEMCOMPRESS FOR QUERY LOW)
 reject	reject	engine	createMaterializedViewLog_inmemory_memcompress(LOW|HIGH)?/LOW!truncate	CREATE MATERIALIZED VIEW LOG ON a(PARTITION INMEMORY MEMCOMPRESS FOR QUERY
@@ -27384,6 +27447,7 @@ accept	accept	engine	createMaterializedView_table_compression(BASIC|FOR_OLTP|FOR
 reject	reject	engine	createMaterializedView_table_compression(BASIC|FOR_OLTP|FOR_QUERY_((LOW|HIGH)~07d80b48)?/FOR_ARCHIVE_((LOW|HIGH))?!drop-1	CREATE MATERIALIZED VIEW a COMPRESS ARCHIVE AS SELECT 1 FROM dual
 reject	reject	engine	createMaterializedView_table_compression(BASIC|FOR_OLTP|FOR_QUERY_((LOW|HIGH)~07d80b48)?/FOR_ARCHIVE_((LOW|HIGH))?!insert	CREATE MATERIALIZED VIEW a COMPRESS FOR ARCHIVE zzz AS SELECT 1 FROM dual
 reject	reject	engine	createMaterializedView_table_compression(BASIC|FOR_OLTP|FOR_QUERY_((LOW|HIGH)~07d80b48)?/FOR_ARCHIVE_((LOW|HIGH))?!swap	CREATE MATERIALIZED VIEW a COMPRESS FORCE ARCHIVE AS SELECT 1 FROM dual
+accept	accept	engine	createMaterializedView_table_compression(BASIC|FOR_OLTP|FOR_QUERY_((LOW|HIGH)~07d80b48)?/FOR_ARCHIVE_((LOW|HIGH))?+createMaterializedView_table_compression((LOW|HIGH))?	CREATE MATERIALIZED VIEW a COMPRESS FOR ARCHIVE LOW AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_table_compression((LOW|HIGH))?/%empty	CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_table_compression((LOW|HIGH))?/(LOW|HIGH)	CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY LOW AS SELECT 1 FROM dual
 reject	reject	engine	createMaterializedView_table_compression((LOW|HIGH))?/(LOW|HIGH)!truncate	CREATE MATERIALIZED VIEW a COMPRESS FOR QUERY
@@ -28448,6 +28512,7 @@ reject	reject	engine	createMaterializedView_inmemory_memcompress(DML|QUERY_((LOW
 accept	accept	engine	createMaterializedView_inmemory_memcompress(DML|QUERY_((LOW|HIGH))?|CAPACITY_((LOW|HIGH))?)/CAPACITY_((LOW|HIGH))?	CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY AS SELECT 1 FROM dual
 reject	reject	engine	createMaterializedView_inmemory_memcompress(DML|QUERY_((LOW|HIGH))?|CAPACITY_((LOW|HIGH))?)/CAPACITY_((LOW|HIGH))?!insert	CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY zzz AS SELECT 1 FROM dual
 reject	reject	engine	createMaterializedView_inmemory_memcompress(DML|QUERY_((LOW|HIGH))?|CAPACITY_((LOW|HIGH))?)/CAPACITY_((LOW|HIGH))?!swap	CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPTION AS SELECT 1 FROM dual
+accept	accept	engine	createMaterializedView_inmemory_memcompress(DML|QUERY_((LOW|HIGH))?|CAPACITY_((LOW|HIGH))?)/CAPACITY_((LOW|HIGH))?+createMaterializedView_inmemory_memcompress((LOW|HIGH))?	CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR CAPACITY LOW AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_inmemory_memcompress((LOW|HIGH))?/%empty	CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR QUERY AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_inmemory_memcompress((LOW|HIGH))?/(LOW|HIGH)	CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR QUERY LOW AS SELECT 1 FROM dual
 reject	reject	engine	createMaterializedView_inmemory_memcompress((LOW|HIGH))?/(LOW|HIGH)!truncate	CREATE MATERIALIZED VIEW a INMEMORY MEMCOMPRESS FOR QUERY
@@ -29639,6 +29704,9 @@ accept	accept	engine	createMaterializedView_supplemental_log_grp_clause(,_ID_(NO
 accept	accept	engine	createMaterializedView_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*!drop-2	CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a,))) AS SELECT 1 FROM dual
 reject	reject	engine	createMaterializedView_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*!truncate	CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a,
 accept	accept	engine	createMaterializedView_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*!insert	CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz))) AS SELECT 1 FROM dual
+accept	accept	engine	createMaterializedView_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*+createMaterializedView_supplemental_log_grp_clause(NO_LOG)?	CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO LOG))) AS SELECT 1 FROM dual
+accept	accept	engine	createMaterializedView_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*+createMaterializedView_supplemental_log_grp_clause(NO_LOG)?!drop-3	CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a LOG))) AS SELECT 1 FROM dual
+accept	accept	engine	createMaterializedView_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*+createMaterializedView_supplemental_log_grp_clause(NO_LOG)?!drop-4	CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a NO))) AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_supplemental_log_grp_clause(ALWAYS)?/%empty	CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a))) AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_supplemental_log_grp_clause(ALWAYS)?/ALWAYS	CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS)) AS SELECT 1 FROM dual
 reject	reject	engine	createMaterializedView_supplemental_log_grp_clause(ALWAYS)?/ALWAYS!truncate	CREATE MATERIALIZED VIEW a NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a)
@@ -31102,6 +31170,10 @@ reject	reject	engine	createPluggableDatabase_keystore_clause/KEYSTORE_IDENTIFIED
 reject	reject	engine	createPluggableDatabase_keystore_clause/KEYSTORE_IDENTIFIED_BY_ID_(DECRYPT_USING_ID)?!drop-4	CREATE PLUGGABLE DATABASE a FROM a KEYSTORE IDENTIFIED BY
 reject	reject	engine	createPluggableDatabase_keystore_clause/KEYSTORE_IDENTIFIED_BY_ID_(DECRYPT_USING_ID)?!insert	CREATE PLUGGABLE DATABASE a FROM a KEYSTORE IDENTIFIED BY a zzz
 reject	reject	engine	createPluggableDatabase_keystore_clause/KEYSTORE_IDENTIFIED_BY_ID_(DECRYPT_USING_ID)?!swap	CREATE PLUGGABLE DATABASE a FROM a KILL IDENTIFIED BY a
+reject	reject	engine	createPluggableDatabase_keystore_clause/KEYSTORE_IDENTIFIED_BY_ID_(DECRYPT_USING_ID)?+createPluggableDatabase_keystore_clause(DECRYPT_USING_ID)?	CREATE PLUGGABLE DATABASE a FROM a KEYSTORE IDENTIFIED BY a DECRYPT USING a
+reject	reject	engine	createPluggableDatabase_keystore_clause/KEYSTORE_IDENTIFIED_BY_ID_(DECRYPT_USING_ID)?+createPluggableDatabase_keystore_clause(DECRYPT_USING_ID)?!drop-5	CREATE PLUGGABLE DATABASE a FROM a KEYSTORE IDENTIFIED BY a USING a
+reject	reject	engine	createPluggableDatabase_keystore_clause/KEYSTORE_IDENTIFIED_BY_ID_(DECRYPT_USING_ID)?+createPluggableDatabase_keystore_clause(DECRYPT_USING_ID)?!drop-6	CREATE PLUGGABLE DATABASE a FROM a KEYSTORE IDENTIFIED BY a DECRYPT a
+reject	reject	engine	createPluggableDatabase_keystore_clause/KEYSTORE_IDENTIFIED_BY_ID_(DECRYPT_USING_ID)?+createPluggableDatabase_keystore_clause(DECRYPT_USING_ID)?!drop-7	CREATE PLUGGABLE DATABASE a FROM a KEYSTORE IDENTIFIED BY a DECRYPT USING
 reject	reject	engine	createPluggableDatabase_keystore_clause/KEYSTORE_EXTERNAL_STORE_(DECRYPT_USING_ID)?	CREATE PLUGGABLE DATABASE a FROM a KEYSTORE EXTERNAL STORE
 reject	reject	engine	createPluggableDatabase_keystore_clause(DECRYPT_USING_ID)?/%empty	CREATE PLUGGABLE DATABASE a FROM a KEYSTORE EXTERNAL STORE
 reject	reject	engine	createPluggableDatabase_keystore_clause(DECRYPT_USING_ID)?/DECRYPT_USING_ID	CREATE PLUGGABLE DATABASE a FROM a KEYSTORE EXTERNAL STORE DECRYPT USING a
@@ -33625,6 +33697,9 @@ reject	reject	engine	createTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_
 reject	reject	engine	createTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*!drop-2	CREATE TABLE a(SUPPLEMENTAL LOG GROUP a(a,))
 reject	reject	engine	createTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*!truncate	CREATE TABLE a(SUPPLEMENTAL LOG GROUP a(a,
 reject	reject	engine	createTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*!insert	CREATE TABLE a(SUPPLEMENTAL LOG GROUP a(a, a zzz))
+reject	reject	engine	createTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*+createTable_supplemental_log_grp_clause(NO_LOG)?	CREATE TABLE a(SUPPLEMENTAL LOG GROUP a(a, a NO LOG))
+reject	reject	engine	createTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*+createTable_supplemental_log_grp_clause(NO_LOG)?!drop-3	CREATE TABLE a(SUPPLEMENTAL LOG GROUP a(a, a LOG))
+reject	reject	engine	createTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*+createTable_supplemental_log_grp_clause(NO_LOG)?!drop-4	CREATE TABLE a(SUPPLEMENTAL LOG GROUP a(a, a NO))
 reject	reject	engine	createTable_supplemental_log_grp_clause(ALWAYS)?/%empty	CREATE TABLE a(SUPPLEMENTAL LOG GROUP a(a))
 reject	reject	engine	createTable_supplemental_log_grp_clause(ALWAYS)?/ALWAYS	CREATE TABLE a(SUPPLEMENTAL LOG GROUP a(a) ALWAYS)
 reject	reject	engine	createTable_supplemental_log_grp_clause(ALWAYS)?/ALWAYS!insert	CREATE TABLE a(SUPPLEMENTAL LOG GROUP a(a) ALWAYS zzz)
@@ -34638,6 +34713,7 @@ reject	reject	engine	createTable_inmemory_memcompress(DML|QUERY_(LOW|HIGH)?|CAPA
 reject	reject	engine	createTable_inmemory_memcompress(DML|QUERY_(LOW|HIGH)?|CAPACITY_(LOW|HIGH)?)/CAPACITY_(LOW|HIGH)?	CREATE TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY
 reject	reject	engine	createTable_inmemory_memcompress(DML|QUERY_(LOW|HIGH)?|CAPACITY_(LOW|HIGH)?)/CAPACITY_(LOW|HIGH)?!insert	CREATE TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY zzz
 reject	reject	engine	createTable_inmemory_memcompress(DML|QUERY_(LOW|HIGH)?|CAPACITY_(LOW|HIGH)?)/CAPACITY_(LOW|HIGH)?!swap	CREATE TABLE a INMEMORY MEMCOMPRESS FOR CAPTION
+reject	reject	engine	createTable_inmemory_memcompress(DML|QUERY_(LOW|HIGH)?|CAPACITY_(LOW|HIGH)?)/CAPACITY_(LOW|HIGH)?+createTable_inmemory_memcompress(LOW|HIGH)?	CREATE TABLE a INMEMORY MEMCOMPRESS FOR CAPACITY LOW
 reject	reject	engine	createTable_inmemory_memcompress(LOW|HIGH)?/%empty	CREATE TABLE a INMEMORY MEMCOMPRESS FOR QUERY
 reject	reject	engine	createTable_inmemory_memcompress(LOW|HIGH)?/LOW	CREATE TABLE a INMEMORY MEMCOMPRESS FOR QUERY LOW
 reject	reject	engine	createTable_inmemory_memcompress(LOW|HIGH)?/LOW!insert	CREATE TABLE a INMEMORY MEMCOMPRESS FOR QUERY LOW zzz
@@ -35294,6 +35370,9 @@ reject	reject	engine	createTable_partitioning_storage_clause(OVERFLOW_(TABLESPAC
 reject	reject	engine	createTable_partitioning_storage_clause(OVERFLOW_(TABLESPACE_ID)?)?/OVERFLOW_(TABLESPACE_ID)?	CREATE TABLE a PARTITION BY HASH(a)(PARTITION OVERFLOW)
 reject	reject	engine	createTable_partitioning_storage_clause(OVERFLOW_(TABLESPACE_ID)?)?/OVERFLOW_(TABLESPACE_ID)?!insert	CREATE TABLE a PARTITION BY HASH(a)(PARTITION OVERFLOW zzz)
 reject	reject	engine	createTable_partitioning_storage_clause(OVERFLOW_(TABLESPACE_ID)?)?/OVERFLOW_(TABLESPACE_ID)?!swap	CREATE TABLE a PARTITION BY HASH(a)(PARTITION OWNER)
+reject	reject	engine	createTable_partitioning_storage_clause(OVERFLOW_(TABLESPACE_ID)?)?/OVERFLOW_(TABLESPACE_ID)?+createTable_partitioning_storage_clause(TABLESPACE_ID)?	CREATE TABLE a PARTITION BY HASH(a)(PARTITION OVERFLOW TABLESPACE a)
+reject	reject	engine	createTable_partitioning_storage_clause(OVERFLOW_(TABLESPACE_ID)?)?/OVERFLOW_(TABLESPACE_ID)?+createTable_partitioning_storage_clause(TABLESPACE_ID)?!drop-2	CREATE TABLE a PARTITION BY HASH(a)(PARTITION OVERFLOW a)
+reject	reject	engine	createTable_partitioning_storage_clause(OVERFLOW_(TABLESPACE_ID)?)?/OVERFLOW_(TABLESPACE_ID)?+createTable_partitioning_storage_clause(TABLESPACE_ID)?!drop-3	CREATE TABLE a PARTITION BY HASH(a)(PARTITION OVERFLOW TABLESPACE)
 reject	reject	engine	createTable_partitioning_storage_clause(createTable_table_compression)?/%empty	CREATE TABLE a PARTITION BY HASH(a)(PARTITION)
 reject	reject	engine	createTable_partitioning_storage_clause(createTable_table_compression)?/createTable_table_compression	CREATE TABLE a PARTITION BY HASH(a)(PARTITION NOCOMPRESS)
 reject	reject	engine	createTable_partitioning_storage_clause(createTable_table_compression)?/createTable_table_compression!insert	CREATE TABLE a PARTITION BY HASH(a)(PARTITION NOCOMPRESS zzz)
@@ -36139,6 +36218,7 @@ reject	reject	engine	createTablespaceSet_inmemory_memcompress(QUERY_(LOW|HIGH)?|
 reject	reject	engine	createTablespaceSet_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?	CREATE TABLESPACE SET a USING TEMPLATE(DEFAULT DEFAULT INMEMORY MEMCOMPRESS FOR ARCHIVE)
 reject	reject	engine	createTablespaceSet_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!insert	CREATE TABLESPACE SET a USING TEMPLATE(DEFAULT DEFAULT INMEMORY MEMCOMPRESS FOR ARCHIVE zzz)
 reject	reject	engine	createTablespaceSet_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!swap	CREATE TABLESPACE SET a USING TEMPLATE(DEFAULT DEFAULT INMEMORY MEMCOMPRESS FOR ARCHIVED)
+reject	reject	engine	createTablespaceSet_inmemory_memcompress(QUERY_(LOW|HIGH)?|OLTP|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?+createTablespaceSet_inmemory_memcompress(LOW|HIGH)?	CREATE TABLESPACE SET a USING TEMPLATE(DEFAULT DEFAULT INMEMORY MEMCOMPRESS FOR ARCHIVE LOW)
 reject	reject	engine	createTablespaceSet_inmemory_memcompress(LOW|HIGH)?/%empty	CREATE TABLESPACE SET a USING TEMPLATE(DEFAULT DEFAULT INMEMORY MEMCOMPRESS FOR QUERY)
 reject	reject	engine	createTablespaceSet_inmemory_memcompress(LOW|HIGH)?/LOW	CREATE TABLESPACE SET a USING TEMPLATE(DEFAULT DEFAULT INMEMORY MEMCOMPRESS FOR QUERY LOW)
 reject	reject	engine	createTablespaceSet_inmemory_memcompress(LOW|HIGH)?/LOW!truncate	CREATE TABLESPACE SET a USING TEMPLATE(DEFAULT DEFAULT INMEMORY MEMCOMPRESS FOR QUERY
@@ -36343,6 +36423,7 @@ reject	reject	engine	createTablespaceSet_table_compression(OLTP|QUERY_(LOW|HIGH)
 reject	reject	engine	createTablespaceSet_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?	CREATE TABLESPACE SET a USING TEMPLATE(DEFAULT DEFAULT ILM ADD POLICY COMPRESS FOR ARCHIVE SEGMENT AFTER 1 DAY OF CREATION)
 reject	reject	engine	createTablespaceSet_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!insert	CREATE TABLESPACE SET a USING TEMPLATE(DEFAULT DEFAULT ILM ADD POLICY COMPRESS FOR ARCHIVE zzz SEGMENT AFTER 1 DAY OF CREATION)
 reject	reject	engine	createTablespaceSet_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!swap	CREATE TABLESPACE SET a USING TEMPLATE(DEFAULT DEFAULT ILM ADD POLICY COMPRESS FOR ARCHIVED SEGMENT AFTER 1 DAY OF CREATION)
+reject	reject	engine	createTablespaceSet_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?+createTablespaceSet_table_compression(LOW|HIGH)?	CREATE TABLESPACE SET a USING TEMPLATE(DEFAULT DEFAULT ILM ADD POLICY COMPRESS FOR ARCHIVE LOW SEGMENT AFTER 1 DAY OF CREATION)
 reject	reject	engine	createTablespaceSet_table_compression(LOW|HIGH)?/%empty	CREATE TABLESPACE SET a USING TEMPLATE(DEFAULT DEFAULT ILM ADD POLICY COMPRESS FOR QUERY SEGMENT AFTER 1 DAY OF CREATION)
 reject	reject	engine	createTablespaceSet_table_compression(LOW|HIGH)?/LOW	CREATE TABLESPACE SET a USING TEMPLATE(DEFAULT DEFAULT ILM ADD POLICY COMPRESS FOR QUERY LOW SEGMENT AFTER 1 DAY OF CREATION)
 reject	reject	engine	createTablespaceSet_table_compression(LOW|HIGH)?/LOW!truncate	CREATE TABLESPACE SET a USING TEMPLATE(DEFAULT DEFAULT ILM ADD POLICY COMPRESS FOR QUERY
@@ -36752,6 +36833,7 @@ reject	reject	engine	createTablespace_default_table_compression(COMPRESS_FOR_(OL
 reject	reject	engine	createTablespace_default_table_compression(COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?~f42968d0)/COLUMN_STORE_COMPRESS_FOR_(QUERY|ARCHIVE)_(LOW|HIGH)?!drop-5	CREATE TABLESPACE a DEFAULT TABLE COLUMN STORE COMPRESS FOR
 reject	reject	engine	createTablespace_default_table_compression(COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?~f42968d0)/COLUMN_STORE_COMPRESS_FOR_(QUERY|ARCHIVE)_(LOW|HIGH)?!insert	CREATE TABLESPACE a DEFAULT TABLE COLUMN STORE COMPRESS FOR QUERY zzz
 reject	reject	engine	createTablespace_default_table_compression(COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?~f42968d0)/COLUMN_STORE_COMPRESS_FOR_(QUERY|ARCHIVE)_(LOW|HIGH)?!swap	CREATE TABLESPACE a DEFAULT TABLE COLUMNS STORE COMPRESS FOR QUERY
+reject	reject	engine	createTablespace_default_table_compression(COMPRESS_FOR_(OLTP|QUERY_(LOW|HIGH)?~f42968d0)/COLUMN_STORE_COMPRESS_FOR_(QUERY|ARCHIVE)_(LOW|HIGH)?+createTablespace_default_table_compression(LOW|HIGH)?	CREATE TABLESPACE a DEFAULT TABLE COLUMN STORE COMPRESS FOR QUERY LOW
 accept	accept	engine	createTablespace_default_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/OLTP	CREATE TABLESPACE a DEFAULT TABLE COMPRESS FOR OLTP
 reject	reject	engine	createTablespace_default_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/OLTP!swap	CREATE TABLESPACE a DEFAULT TABLE COMPRESS FOR OMIT
 accept	accept	engine	createTablespace_default_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/QUERY_(LOW|HIGH)?	CREATE TABLESPACE a DEFAULT TABLE COMPRESS FOR QUERY
@@ -36760,6 +36842,7 @@ reject	reject	engine	createTablespace_default_table_compression(OLTP|QUERY_(LOW|
 accept	accept	engine	createTablespace_default_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?	CREATE TABLESPACE a DEFAULT TABLE COMPRESS FOR ARCHIVE
 reject	reject	engine	createTablespace_default_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!insert	CREATE TABLESPACE a DEFAULT TABLE COMPRESS FOR ARCHIVE zzz
 reject	reject	engine	createTablespace_default_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!swap	CREATE TABLESPACE a DEFAULT TABLE COMPRESS FOR ARCHIVED
+accept	accept	engine	createTablespace_default_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?+createTablespace_default_table_compression(LOW|HIGH)?	CREATE TABLESPACE a DEFAULT TABLE COMPRESS FOR ARCHIVE LOW
 accept	accept	engine	createTablespace_default_table_compression(LOW|HIGH)?/%empty	CREATE TABLESPACE a DEFAULT TABLE COMPRESS FOR QUERY
 accept	accept	engine	createTablespace_default_table_compression(LOW|HIGH)?/LOW	CREATE TABLESPACE a DEFAULT TABLE COMPRESS FOR QUERY LOW
 reject	reject	engine	createTablespace_default_table_compression(LOW|HIGH)?/LOW!insert	CREATE TABLESPACE a DEFAULT TABLE COMPRESS FOR QUERY LOW zzz
@@ -36888,6 +36971,7 @@ reject	reject	engine	createTablespace_inmemory_memcompress(DML|QUERY_(LOW|HIGH)?
 accept	accept	engine	createTablespace_inmemory_memcompress(DML|QUERY_(LOW|HIGH)?|CAPACITY_(LOW|HIGH)?)/CAPACITY_(LOW|HIGH)?	CREATE TABLESPACE a DEFAULT INMEMORY MEMCOMPRESS FOR CAPACITY
 reject	reject	engine	createTablespace_inmemory_memcompress(DML|QUERY_(LOW|HIGH)?|CAPACITY_(LOW|HIGH)?)/CAPACITY_(LOW|HIGH)?!insert	CREATE TABLESPACE a DEFAULT INMEMORY MEMCOMPRESS FOR CAPACITY zzz
 reject	reject	engine	createTablespace_inmemory_memcompress(DML|QUERY_(LOW|HIGH)?|CAPACITY_(LOW|HIGH)?)/CAPACITY_(LOW|HIGH)?!swap	CREATE TABLESPACE a DEFAULT INMEMORY MEMCOMPRESS FOR CAPTION
+accept	accept	engine	createTablespace_inmemory_memcompress(DML|QUERY_(LOW|HIGH)?|CAPACITY_(LOW|HIGH)?)/CAPACITY_(LOW|HIGH)?+createTablespace_inmemory_memcompress(LOW|HIGH)?	CREATE TABLESPACE a DEFAULT INMEMORY MEMCOMPRESS FOR CAPACITY LOW
 accept	accept	engine	createTablespace_inmemory_memcompress(LOW|HIGH)?/%empty	CREATE TABLESPACE a DEFAULT INMEMORY MEMCOMPRESS FOR QUERY
 accept	accept	engine	createTablespace_inmemory_memcompress(LOW|HIGH)?/LOW	CREATE TABLESPACE a DEFAULT INMEMORY MEMCOMPRESS FOR QUERY LOW
 reject	reject	engine	createTablespace_inmemory_memcompress(LOW|HIGH)?/LOW!insert	CREATE TABLESPACE a DEFAULT INMEMORY MEMCOMPRESS FOR QUERY LOW zzz
@@ -37080,6 +37164,7 @@ reject	reject	engine	createTablespace_table_compression(OLTP|QUERY_(LOW|HIGH)?|A
 accept	accept	engine	createTablespace_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR ARCHIVE SEGMENT AFTER 1 DAY OF CREATION
 reject	reject	engine	createTablespace_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!insert	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR ARCHIVE zzz SEGMENT AFTER 1 DAY OF CREATION
 reject	reject	engine	createTablespace_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?!swap	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR ARCHIVED SEGMENT AFTER 1 DAY OF CREATION
+accept	accept	engine	createTablespace_table_compression(OLTP|QUERY_(LOW|HIGH)?|ARCHIVE_(LOW|HIGH)?)/ARCHIVE_(LOW|HIGH)?+createTablespace_table_compression(LOW|HIGH)?	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR ARCHIVE LOW SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	createTablespace_table_compression(LOW|HIGH)?/%empty	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY SEGMENT AFTER 1 DAY OF CREATION
 accept	accept	engine	createTablespace_table_compression(LOW|HIGH)?/LOW	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY LOW SEGMENT AFTER 1 DAY OF CREATION
 reject	reject	engine	createTablespace_table_compression(LOW|HIGH)?/LOW!truncate	CREATE TABLESPACE a DEFAULT ILM ADD POLICY COMPRESS FOR QUERY
@@ -37201,6 +37286,9 @@ reject	reject	engine	createUser(BY_ID|EXTERNALLY_(AS_STRING)?|GLOBAL~36e41243)/E
 accept	accept	engine	createUser(BY_ID|EXTERNALLY_(AS_STRING)?|GLOBAL~36e41243)/GLOBALLY_(AS_STRING)?	CREATE USER a IDENTIFIED GLOBALLY
 reject	reject	engine	createUser(BY_ID|EXTERNALLY_(AS_STRING)?|GLOBAL~36e41243)/GLOBALLY_(AS_STRING)?!insert	CREATE USER a IDENTIFIED GLOBALLY zzz
 reject	reject	engine	createUser(BY_ID|EXTERNALLY_(AS_STRING)?|GLOBAL~36e41243)/GLOBALLY_(AS_STRING)?!swap	CREATE USER a IDENTIFIED GLOBAL_NAME
+accept	accept	engine	createUser(BY_ID|EXTERNALLY_(AS_STRING)?|GLOBAL~36e41243)/GLOBALLY_(AS_STRING)?+createUser(AS_STRING)?	CREATE USER a IDENTIFIED GLOBALLY AS 's'
+reject	reject	engine	createUser(BY_ID|EXTERNALLY_(AS_STRING)?|GLOBAL~36e41243)/GLOBALLY_(AS_STRING)?+createUser(AS_STRING)?!drop-2	CREATE USER a IDENTIFIED GLOBALLY 's'
+reject	reject	engine	createUser(BY_ID|EXTERNALLY_(AS_STRING)?|GLOBAL~36e41243)/GLOBALLY_(AS_STRING)?+createUser(AS_STRING)?!drop-3	CREATE USER a IDENTIFIED GLOBALLY AS
 reject	reject	engine	createUser(BY_ID|EXTERNALLY_(AS_STRING)?|GLOBAL~36e41243)/NO_AUTHENTICATION	CREATE USER a IDENTIFIED NO AUTHENTICATION
 reject	reject	engine	createUser(BY_ID|EXTERNALLY_(AS_STRING)?|GLOBAL~36e41243)/NO_AUTHENTICATION!drop-1	CREATE USER a IDENTIFIED AUTHENTICATION
 reject	reject	engine	createUser(BY_ID|EXTERNALLY_(AS_STRING)?|GLOBAL~36e41243)/NO_AUTHENTICATION!drop-2	CREATE USER a IDENTIFIED NO
@@ -37758,6 +37846,9 @@ reject	reject	engine	createView_subquery_restriction_clause(WITH_READ_ONLY_(CONS
 reject	reject	engine	createView_subquery_restriction_clause(WITH_READ_ONLY_(CONSTRAINT_ID)?|WITH~323fb4a6)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?!drop-3	CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK
 reject	reject	engine	createView_subquery_restriction_clause(WITH_READ_ONLY_(CONSTRAINT_ID)?|WITH~323fb4a6)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?!insert	CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION zzz
 reject	reject	engine	createView_subquery_restriction_clause(WITH_READ_ONLY_(CONSTRAINT_ID)?|WITH~323fb4a6)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?!swap	CREATE VIEW a AS SELECT 1 FROM dual WITHOUT CHECK OPTION
+accept	accept	engine	createView_subquery_restriction_clause(WITH_READ_ONLY_(CONSTRAINT_ID)?|WITH~323fb4a6)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?+createView_subquery_restriction_clause(CONSTRAINT_ID)?	CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT a
+reject	reject	engine	createView_subquery_restriction_clause(WITH_READ_ONLY_(CONSTRAINT_ID)?|WITH~323fb4a6)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?+createView_subquery_restriction_clause(CONSTRAINT_ID)?!drop-4	CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION a
+reject	reject	engine	createView_subquery_restriction_clause(WITH_READ_ONLY_(CONSTRAINT_ID)?|WITH~323fb4a6)/WITH_CHECK_OPTION_(CONSTRAINT_ID)?+createView_subquery_restriction_clause(CONSTRAINT_ID)?!drop-5	CREATE VIEW a AS SELECT 1 FROM dual WITH CHECK OPTION CONSTRAINT
 accept	accept	engine	createView_subquery_restriction_clause(CONSTRAINT_ID)?/%empty	CREATE VIEW a AS SELECT 1 FROM dual WITH READ ONLY
 accept	accept	engine	createView_subquery_restriction_clause(CONSTRAINT_ID)?/CONSTRAINT_ID	CREATE VIEW a AS SELECT 1 FROM dual WITH READ ONLY CONSTRAINT a
 reject	reject	engine	createView_subquery_restriction_clause(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-1	CREATE VIEW a AS SELECT 1 FROM dual WITH READ ONLY a
@@ -38369,6 +38460,7 @@ reject	reject	engine	delete_row_pattern_clause(,_ID_(ASC|DESC)?)?/,_ID_(ASC|DESC
 reject	reject	engine	delete_row_pattern_clause(,_ID_(ASC|DESC)?)?/,_ID_(ASC|DESC)?!drop-2	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a, PATTERN(a) DEFINE a AS 1 = 1)
 reject	reject	engine	delete_row_pattern_clause(,_ID_(ASC|DESC)?)?/,_ID_(ASC|DESC)?!truncate	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a,
 reject	reject	engine	delete_row_pattern_clause(,_ID_(ASC|DESC)?)?/,_ID_(ASC|DESC)?!insert	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a, a zzz PATTERN(a) DEFINE a AS 1 = 1)
+reject	reject	engine	delete_row_pattern_clause(,_ID_(ASC|DESC)?)?/,_ID_(ASC|DESC)?+delete_row_pattern_clause(ASC|DESC)?	DELETE a FROM a MATCH_RECOGNIZE(ORDER BY a, a ASC PATTERN(a) DEFINE a AS 1 = 1)
 reject	reject	engine	delete_row_pattern_clause(MEASURES_delete_row_pattern_measure_~54a90450)*/%empty	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
 reject	reject	engine	delete_row_pattern_clause(MEASURES_delete_row_pattern_measure_~54a90450)*/MEASURES_delete_row_pattern_measure_column_(,_delete_ro~28221065	DELETE a FROM a MATCH_RECOGNIZE(MEASURES 1 AS a PATTERN(a) DEFINE a AS 1 = 1)
 reject	reject	engine	delete_row_pattern_clause(MEASURES_delete_row_pattern_measure_~54a90450)*/MEASURES_delete_row_pattern_measure_column_(,_delete_ro~28221065!drop-1	DELETE a FROM a MATCH_RECOGNIZE(1 AS a PATTERN(a) DEFINE a AS 1 = 1)
@@ -41154,6 +41246,9 @@ reject	reject	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLES
 accept	accept	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLESPACE_SET_ID_(USER_ID)?!drop-3	PURGE TABLESPACE SET
 reject	reject	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLESPACE_SET_ID_(USER_ID)?!insert	PURGE TABLESPACE SET a zzz
 reject	reject	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLESPACE_SET_ID_(USER_ID)?!swap	PURGE TAG SET a
+reject	reject	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLESPACE_SET_ID_(USER_ID)?+purge(USER_ID)?	PURGE TABLESPACE SET a USER a
+reject	reject	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLESPACE_SET_ID_(USER_ID)?+purge(USER_ID)?!drop-4	PURGE TABLESPACE SET a a
+reject	reject	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLESPACE_SET_ID_(USER_ID)?+purge(USER_ID)?!drop-5	PURGE TABLESPACE SET a USER
 accept	accept	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/RECYCLEBIN	PURGE RECYCLEBIN
 reject	reject	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/RECYCLEBIN!swap	PURGE REDO
 accept	accept	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/DBA_RECYCLEBIN	PURGE DBA_RECYCLEBIN
@@ -42600,6 +42695,7 @@ reject	reject	engine	select_row_pattern_clause(,_ID_(ASC|DESC)?)?/,_ID_(ASC|DESC
 reject	reject	engine	select_row_pattern_clause(,_ID_(ASC|DESC)?)?/,_ID_(ASC|DESC)?!drop-2	SELECT * FROM a MATCH_RECOGNIZE(ORDER BY a, PATTERN(a) DEFINE a AS 1 = 1)
 reject	reject	engine	select_row_pattern_clause(,_ID_(ASC|DESC)?)?/,_ID_(ASC|DESC)?!truncate	SELECT * FROM a MATCH_RECOGNIZE(ORDER BY a,
 reject	reject	engine	select_row_pattern_clause(,_ID_(ASC|DESC)?)?/,_ID_(ASC|DESC)?!insert	SELECT * FROM a MATCH_RECOGNIZE(ORDER BY a, a zzz PATTERN(a) DEFINE a AS 1 = 1)
+accept	accept	engine	select_row_pattern_clause(,_ID_(ASC|DESC)?)?/,_ID_(ASC|DESC)?+select_row_pattern_clause(ASC|DESC)?	SELECT * FROM a MATCH_RECOGNIZE(ORDER BY a, a ASC PATTERN(a) DEFINE a AS 1 = 1)
 accept	accept	engine	select_row_pattern_clause(MEASURES_select_row_pattern_measure_~43a3f907)*/%empty	SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
 accept	accept	engine	select_row_pattern_clause(MEASURES_select_row_pattern_measure_~43a3f907)*/MEASURES_select_row_pattern_measure_column_(,_select_ro~016921a9	SELECT * FROM a MATCH_RECOGNIZE(MEASURES 1 AS a PATTERN(a) DEFINE a AS 1 = 1)
 reject	reject	engine	select_row_pattern_clause(MEASURES_select_row_pattern_measure_~43a3f907)*/MEASURES_select_row_pattern_measure_column_(,_select_ro~016921a9!drop-1	SELECT * FROM a MATCH_RECOGNIZE(1 AS a PATTERN(a) DEFINE a AS 1 = 1)
@@ -43928,6 +44024,10 @@ accept	accept	engine	setRole(,_ID_(IDENTIFIED_BY_ID)?)*/,_ID_(IDENTIFIED_BY_ID)?
 reject	reject	engine	setRole(,_ID_(IDENTIFIED_BY_ID)?)*/,_ID_(IDENTIFIED_BY_ID)?_(,_ID_(IDENTIFIED_BY_ID)?)*!drop-1	SET ROLE a a
 reject	reject	engine	setRole(,_ID_(IDENTIFIED_BY_ID)?)*/,_ID_(IDENTIFIED_BY_ID)?_(,_ID_(IDENTIFIED_BY_ID)?)*!drop-2	SET ROLE a,
 reject	reject	engine	setRole(,_ID_(IDENTIFIED_BY_ID)?)*/,_ID_(IDENTIFIED_BY_ID)?_(,_ID_(IDENTIFIED_BY_ID)?)*!insert	SET ROLE a, a zzz
+accept	accept	engine	setRole(,_ID_(IDENTIFIED_BY_ID)?)*/,_ID_(IDENTIFIED_BY_ID)?_(,_ID_(IDENTIFIED_BY_ID)?)*+setRole(IDENTIFIED_BY_ID)?	SET ROLE a, a IDENTIFIED BY a
+reject	reject	engine	setRole(,_ID_(IDENTIFIED_BY_ID)?)*/,_ID_(IDENTIFIED_BY_ID)?_(,_ID_(IDENTIFIED_BY_ID)?)*+setRole(IDENTIFIED_BY_ID)?!drop-3	SET ROLE a, a BY a
+reject	reject	engine	setRole(,_ID_(IDENTIFIED_BY_ID)?)*/,_ID_(IDENTIFIED_BY_ID)?_(,_ID_(IDENTIFIED_BY_ID)?)*+setRole(IDENTIFIED_BY_ID)?!drop-4	SET ROLE a, a IDENTIFIED a
+reject	reject	engine	setRole(,_ID_(IDENTIFIED_BY_ID)?)*/,_ID_(IDENTIFIED_BY_ID)?_(,_ID_(IDENTIFIED_BY_ID)?)*+setRole(IDENTIFIED_BY_ID)?!drop-5	SET ROLE a, a IDENTIFIED BY
 accept	accept	engine	setRole(EXCEPT_ID_(,_ID)?)*/%empty	SET ROLE ALL
 accept	accept	engine	setRole(EXCEPT_ID_(,_ID)?)*/EXCEPT_ID_(,_ID)?_(EXCEPT_ID_(,_ID)?)*	SET ROLE ALL EXCEPT a
 reject	reject	engine	setRole(EXCEPT_ID_(,_ID)?)*/EXCEPT_ID_(,_ID)?_(EXCEPT_ID_(,_ID)?)*!drop-1	SET ROLE ALL a
@@ -45649,6 +45749,9 @@ reject	reject	engine	createPropertyGraph_graph_table_label_properties_clause(,_I
 reject	reject	engine	createPropertyGraph_graph_table_label_properties_clause(,_ID_(AS_ID)?)*/,_ID_(AS_ID)?_(,_ID_(AS_ID)?)*!drop-2	CREATE PROPERTY GRAPH a VERTEX TABLES(a PROPERTIES(a,))
 reject	reject	engine	createPropertyGraph_graph_table_label_properties_clause(,_ID_(AS_ID)?)*/,_ID_(AS_ID)?_(,_ID_(AS_ID)?)*!truncate	CREATE PROPERTY GRAPH a VERTEX TABLES(a PROPERTIES(a,
 reject	reject	engine	createPropertyGraph_graph_table_label_properties_clause(,_ID_(AS_ID)?)*/,_ID_(AS_ID)?_(,_ID_(AS_ID)?)*!insert	CREATE PROPERTY GRAPH a VERTEX TABLES(a PROPERTIES(a, a zzz))
+reject	reject	engine	createPropertyGraph_graph_table_label_properties_clause(,_ID_(AS_ID)?)*/,_ID_(AS_ID)?_(,_ID_(AS_ID)?)*+createPropertyGraph_graph_table_label_properties_clause(AS_ID)?	CREATE PROPERTY GRAPH a VERTEX TABLES(a PROPERTIES(a, a AS a))
+reject	reject	engine	createPropertyGraph_graph_table_label_properties_clause(,_ID_(AS_ID)?)*/,_ID_(AS_ID)?_(,_ID_(AS_ID)?)*+createPropertyGraph_graph_table_label_properties_clause(AS_ID)?!drop-3	CREATE PROPERTY GRAPH a VERTEX TABLES(a PROPERTIES(a, a a))
+reject	reject	engine	createPropertyGraph_graph_table_label_properties_clause(,_ID_(AS_ID)?)*/,_ID_(AS_ID)?_(,_ID_(AS_ID)?)*+createPropertyGraph_graph_table_label_properties_clause(AS_ID)?!drop-4	CREATE PROPERTY GRAPH a VERTEX TABLES(a PROPERTIES(a, a AS))
 accept	accept	engine	createPropertyGraph_graph_table_label_properties_clause(,_EXPR_AS_ID)*/%empty	CREATE PROPERTY GRAPH a VERTEX TABLES(a PROPERTIES(1 AS a))
 reject	reject	engine	createPropertyGraph_graph_table_label_properties_clause(,_EXPR_AS_ID)*/%empty!insert	CREATE PROPERTY GRAPH a VERTEX TABLES(a PROPERTIES(1 AS a zzz))
 reject	reject	engine	createPropertyGraph_graph_table_label_properties_clause(,_EXPR_AS_ID)*/,_EXPR_AS_ID_(,_EXPR_AS_ID)*	CREATE PROPERTY GRAPH a VERTEX TABLES(a PROPERTIES(1 AS a, 1 AS a))

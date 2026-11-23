@@ -433,11 +433,13 @@ var walkCodes = map[string]struct {
 		// DISABLE, and MODIFY CONSTRAINT.
 		return []string{"02431"}
 	}},
-	"N has no primary key.":        {codes: []string{"02441"}},
-	"The name N is already taken.": {codes: []string{"00955"}},
-	"Constraint N already exists.": {codes: []string{"02264"}},
-	"N already has a primary key.": {codes: []string{"02260"}},
-	"Trigger N already exists.":    {codes: []string{"04081"}},
+	"N has no primary key.":                         {codes: []string{"02441"}},
+	"The name N is already taken.":                  {codes: []string{"00955"}},
+	"Constraint N already exists.":                  {codes: []string{"02264"}},
+	"N already has a primary key.":                  {codes: []string{"02260"}},
+	"Materialized view N can't rename its columns.": {codes: []string{"23291"}},
+	"Materialized view N takes no ONLINE DDL.":      {codes: []string{"14416"}},
+	"Trigger N already exists.":                     {codes: []string{"04081"}},
 	"Column N already exists in N.": {by: func(_, anchor string) []string {
 		if leads(anchor, "RENAME COLUMN") {
 			return []string{"00957"}

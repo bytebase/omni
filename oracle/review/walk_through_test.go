@@ -214,6 +214,15 @@ func TestWalkThroughOracle(t *testing.T) {
 	oneFinding(t, "RENAME f TO g;", 0, "`F` is a function, not a table, view, sequence, or private synonym.", shop)
 	oneFinding(t, "RENAME mv TO x;", 0, "`MV` is a materialized view, not a table, view, sequence, or private synonym.", shop)
 	oneFinding(t, "RENAME t TO t;", 0, "The name `T` is already taken.", shop)
+	// What Oracle refuses on every materialized view's container,
+	// whatever its columns (verified).
+	oneFinding(t, "ALTER TABLE mv RENAME TO x;", 0, "`MV` is a materialized view, not a table, view, sequence, or private synonym.", shop)
+	oneFinding(t, "ALTER TABLE mv RENAME COLUMN zz TO yy;", 0, "Materialized view `MV` can't rename its columns.", shop)
+	oneFinding(t, "ALTER TABLE mv SET UNUSED COLUMN a ONLINE;", 0, "Materialized view `MV` takes no ONLINE DDL.", shop)
+	oneFinding(t, "ALTER TABLE mv DROP CONSTRAINT c ONLINE;", 0, "Materialized view `MV` takes no ONLINE DDL.", shop)
+	noFinding(t, "ALTER TABLE mv SET UNUSED COLUMN a;", shop)
+	noFinding(t, "ALTER TABLE mv MODIFY (a INVISIBLE);", shop)
+	noFinding(t, "ALTER TABLE mv ADD PRIMARY KEY (a);", shop)
 	// Grammar-derived simulation fixes (TestWalkSimulation):
 	// 1) ALTER TABLE ... MODIFY VARRAY ... (SHRINK SPACE [CASCADE]) is accepted
 	//    by Oracle 23 even when the table is missing or another object kind.
@@ -617,7 +626,7 @@ func TestWalkThroughOracleSnapshot(t *testing.T) {
 		{key(spaceColumn, "ZZ", "MV"), walk.Unknown, ""},
 		{key(spacePrimary, "", "T"), walk.Present, ""},
 		{key(spacePrimary, "", "NOKEY"), walk.Absent, ""},
-		{key(spacePrimary, "", "MV"), walk.Unknown, ""},
+		{key(spacePrimary, "", "MV"), walk.Absent, ""},
 		{key(spaceTableConstraint, "UK_CODE", "T"), walk.Present, ""},
 		{key(spaceTableConstraint, "NOSUCH", "T"), walk.Unknown, ""},
 		{key(spaceConstraint, "FK_P"), walk.Present, tablePath("SHOP", "T")},

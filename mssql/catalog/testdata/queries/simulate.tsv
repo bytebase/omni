@@ -685,6 +685,7 @@ ok:ea1b72527b5c	ok:ea1b72527b5c	engine	queries@tables	feature:view	CREATE VIEW _
 448	448	engine	queries@tables	feature:collate	CREATE VIEW _v AS SELECT name COLLATE a AS n FROM customers
 ok:bca53596949a	ok:bca53596949a	engine	queries@tables	feature:collate	CREATE VIEW _v AS SELECT name COLLATE latin1_general_bin2 AS n FROM customers
 ok:ecb39ea6b82b	ok:ecb39ea6b82b	engine	queries@tables	feature:collate	CREATE VIEW _v AS SELECT name COLLATE database_default AS n FROM customers
+ok:df1efc6cd58a	ok:df1efc6cd58a	engine	queries@tables	feature:collate	CREATE VIEW _v AS SELECT name COLLATE Compatibility_52_409_30003 AS n FROM customers
 448	448	engine	queries@tables	feature:collate	CREATE VIEW _v AS SELECT name COLLATE Latin1_General_CI_AS_WS_KS AS n FROM customers
 ok:5273e73972d0	ok:5273e73972d0	engine	queries@tables	feature:collate	CREATE VIEW _v AS SELECT name COLLATE Latin1_General_CI_AS_KS_WS AS n FROM customers
 208	208	engine	queries@tables	feature:collate	CREATE VIEW _v AS SELECT 'x' COLLATE a AS c FROM nope
@@ -692,6 +693,7 @@ ok:5273e73972d0	ok:5273e73972d0	engine	queries@tables	feature:collate	CREATE VIE
 448	448	engine	queries@tables	feature:collate	CREATE VIEW _v AS SELECT * FROM OPENJSON(N'[]') WITH (c NVARCHAR(10) COLLATE a)
 ok:e93587f804fb	ok:e93587f804fb	engine	queries@tables	feature:collate	CREATE TABLE t (c NVARCHAR(10) COLLATE latin1_general_100_ci_as_sc_utf8)
 ok:e93587f804fb	ok:e93587f804fb	engine	queries@tables	feature:collate	CREATE TABLE t (c NVARCHAR(10) COLLATE database_default)
+ok:e93587f804fb	ok:e93587f804fb	engine	queries@tables	feature:collate	CREATE TABLE t (c NVARCHAR(10) COLLATE compatibility_52_409_30003)
 448	448	engine	queries@tables	feature:collate	CREATE TABLE t (c NVARCHAR(10) COLLATE a)
 448	448	engine	queries@tables	feature:collate	CREATE TABLE nope.t (c NVARCHAR(10) COLLATE a)
 448	448	engine	queries@tables	feature:collate	CREATE TABLE customers (c nope COLLATE a)

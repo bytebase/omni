@@ -30,15 +30,19 @@ no server. The design is
 ## Collations
 
 `../collations.txt` is every collation the pinned server lists in
-`sys.fn_helpcollations()` (5,508), which the catalog checks each `COLLATE`
-against without regard to case (Msg 448). `TestCollations`
-(`../collations_test.go`) holds the file to the server and holds the check to
-what SQL Server accepts as a column's collation, for every listed name in
-either case and for 39,047 other forms: version-less and versioned, with and
-without `_SC` and `_UTF8`, with flags swapped. SQL Server accepts no form the
-list does not hold, and `database_default` and `catalog_default` only for a
-column or an expression. It replays `tapes/TestCollations.tape`; rewrite the
-file from the server with:
+`sys.fn_helpcollations()` (5,508). `TestCollations`
+(`../collations_test.go`) holds the file to the server and to what SQL Server
+2022 accepts as a column's collation, for every listed name in either case and
+for 39,047 other forms: version-less and versioned, with and without `_SC` and
+`_UTF8`, with flags swapped. SQL Server 2022 accepts no form the list does not
+hold, and `database_default` and `catalog_default` only for a column or an
+expression. The catalog refuses a `COLLATE` (Msg 448) only when no version can
+know the name (`UnknownCollation`, which mssql/review's WALK_THROUGH shares):
+it takes every listed name, the 32 `_160` collations SQL Server 2025 adds,
+which 2022 refuses, and `Compatibility_` names such as
+`Compatibility_52_409_30003`, which every version takes and none lists.
+`TestUnknownCollation` pins those. `TestCollations` replays
+`tapes/TestCollations.tape`; rewrite the file from the server with:
 
 ```bash
 OMNI_RECORD=1 go test ./mssql/catalog/ -run '^TestCollations$'
@@ -92,8 +96,8 @@ hashes the stored schema, view definition included. `TestQuerySimulation`
   table, type, partition function and database DDL that names a collation).
   Some are refused on purpose.
 
-**702 / 710 rows (98.87%) agree** (341 / 346 grammar rows, 361 / 364
-feature rows; 259 rows SQL Server accepts). The 8 that do not need something
+**704 / 712 rows (98.88%) agree** (341 / 346 grammar rows, 363 / 366
+feature rows; 261 rows SQL Server accepts). The 8 that do not need something
 the catalog does not model:
 
 - `SELECT $PARTITION.a(1)` and its three variants (Msg 208): partition
