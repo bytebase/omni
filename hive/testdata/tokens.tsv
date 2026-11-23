@@ -42,3 +42,24 @@ KW_TIMESTAMPTZ	(unreachable)	IdentifiersParser.g:974 stale nonReserved entry, no
 # rule of their own, so only these two share a clause between alternatives.
 createDatabaseStatement(ifNotExists)?	(every site)	HiveParser.g:1171 createDatabaseStatement: CREATE [REMOTE] DATABASE IF NOT EXISTS
 createTableStatement(ifNotExists)?	(every site)	CreateDDLParser.g:53 createTableStatement: CREATE [MANAGED] TABLE IF NOT EXISTS
+# Choices tried at every site that names them, and not only where the rule's
+# own alternatives are reached. Each cites the rule in vendor/*.g.
+restrictOrCascade	(every alternative)	HiveParser.g:1120 RESTRICT or CASCADE
+lockMode	(every alternative)	HiveParser.g:1392 SHARED or EXCLUSIVE
+principalName	(every alternative)	HiveParser.g:1568 USER, GROUP or ROLE principal
+showStmtIdentifier	(every alternative)	HiveParser.g:1848 identifier or string pattern
+rowFormat	(every alternative)	HiveParser.g:1950 ROW FORMAT SERDE or DELIMITED
+tableRowFormat	(every alternative)	HiveParser.g:1987 ROW FORMAT DELIMITED or SERDE
+tableFileFormat	(every alternative)	HiveParser.g:2073 STORED AS or STORED BY
+enableSpecification	(every alternative)	HiveParser.g:2155 ENABLE or DISABLE
+relySpecification	(every alternative)	HiveParser.g:2176 RELY or NORELY
+nullOrdering	(every alternative)	HiveParser.g:2282 NULLS FIRST or NULLS LAST
+type	(every alternative)	HiveParser.g:2482 primitive, list, struct, map or union type
+setOperator	(every alternative)	HiveParser.g:2542 UNION, INTERSECT, EXCEPT or MINUS, ALL or DISTINCT
+limitClause	(every alternative)	HiveParser.g:2801 LIMIT [offset,] n or LIMIT n OFFSET m
+window_frame_boundary	(every alternative)	SelectClauseParser.g:172 UNBOUNDED, CURRENT ROW or n, PRECEDING or FOLLOWING
+lateralView	(every alternative)	FromClauseParser.g:161 LATERAL VIEW [OUTER] or LATERAL TABLE
+tableName	(every alternative)	FromClauseParser.g:234 db.table[.meta] or table
+constant	(every alternative)	IdentifiersParser.g:418 a literal
+intervalValue	(every alternative)	IdentifiersParser.g:497 string or number interval value
+intervalQualifiers	(every alternative)	IdentifiersParser.g:520 an interval unit
