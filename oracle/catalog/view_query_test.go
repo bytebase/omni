@@ -164,6 +164,7 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"as_of_scn_one", `CREATE VIEW v AS SELECT id FROM t AS OF SCN 1`, "08181"},
 		{"row_comparison_types", `CREATE VIEW v AS SELECT 1 x FROM dual WHERE (1, DATE '2020-01-01') = (1, 1)`, "00932"},
 		{"row_comparison_width", `CREATE VIEW v AS SELECT 1 x FROM dual WHERE (1, 2) = (1, 2, 3)`, "00913"},
+		{"date_times_number", `CREATE VIEW v AS SELECT DATE '2020-01-01' * 2 x FROM dual`, "00932"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -567,6 +568,19 @@ CREATE VIEW w AS SELECT * FROM (SELECT café+1 FROM u);`, nil)
 	for _, v := range c.Metadata().GetSchemas()[0].GetViews() {
 		if v.GetName() == "W" && v.GetColumns()[0].GetName() != "CAFÉ+1" {
 			t.Errorf("W column = %q, want %q", v.GetColumns()[0].GetName(), "CAFÉ+1")
+		}
+	}
+}
+
+func TestViewQueryTypesRound25(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE t (n NCHAR(10)); CREATE VIEW v AS SELECT TRIM(n) a, LTRIM(n) b, FLOOR(DATE '2020-01-01') c, CEIL(SYSTIMESTAMP) d FROM t;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"NVARCHAR2(10)", "NVARCHAR2(10)", "DATE", "DATE"}
+	for i, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
+		if col.GetType() != want[i] {
+			t.Errorf("%s type = %q, want %q", col.GetName(), col.GetType(), want[i])
 		}
 	}
 }

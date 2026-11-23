@@ -453,6 +453,12 @@ func (a *queryAnalyzer) binary(n *ast.BinaryExpr, sc *qscope, clause exprClause)
 		t, err := arithmeticType(n.Op, lt, rt)
 		return t, false, err
 	case "*", "/", "**":
+		// A datetime neither multiplies nor divides.
+		for _, t := range []qtype{lt, rt} {
+			if t.isDatetime() {
+				return qtype{}, false, oraError("00932", "expression is of data type %s, which is incompatible with expected data type NUMBER", t.kind)
+			}
+		}
 		return multiplyType(lt, rt), false, nil
 	case "=", "!=", "<>", "^=", "~=", "<", ">", "<=", ">=":
 		left, right := rowOperands(n.Left), rowOperands(n.Right)

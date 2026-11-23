@@ -72,8 +72,11 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 					source = t
 				}
 			}
-			if source.kind == "CHAR" {
+			switch source.kind {
+			case "CHAR":
 				source.kind = "VARCHAR2"
+			case "NCHAR":
+				source.kind = "NVARCHAR2"
 			}
 			if source.isNumeric() || source.isDatetime() || source.isInterval() {
 				// Trimmed after conversion to characters.
@@ -193,8 +196,11 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		return t, false, nil
 	case "LTRIM", "RTRIM":
 		t := arg(0)
-		if t.kind == "CHAR" {
+		switch t.kind {
+		case "CHAR":
 			t.kind = "VARCHAR2"
+		case "NCHAR":
+			t.kind = "NVARCHAR2"
 		}
 		if t.isNumeric() || t.isDatetime() || t.isInterval() {
 			t = varchar2Bytes(concatLength(t))
@@ -283,7 +289,8 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		"POWER", "SQRT", "SIGN", "LN", "EXP", "LOG", "SIN", "COS", "TAN", "ASIN", "ACOS", "ATAN", "ATAN2",
 		"SINH", "COSH", "TANH", "BITAND", "WIDTH_BUCKET", "MONTHS_BETWEEN", "ORA_HASH", "NANVL":
 		switch name {
-		case "ROUND", "TRUNC":
+		case "ROUND", "TRUNC", "CEIL", "FLOOR":
+			// The datetime overloads return DATE.
 			if arg(0).isDatetime() {
 				return simpleType("DATE"), false, nil
 			}
