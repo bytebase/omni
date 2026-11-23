@@ -24,6 +24,10 @@ type Catalog struct {
 	// pendingRetargets holds the foreign key retargeting the renames of the
 	// running ALTER TABLE queued, applied once the statement holds.
 	pendingRetargets []func()
+	// alterExisting holds the constraints the table the running ALTER TABLE
+	// changes began with: a column rename moves the references of those, not
+	// of a key the statement adds, which names its columns as they end.
+	alterExisting map[*Constraint]bool
 	// extendedStats is tidb_enable_extended_stats, OFF by default in TiDB v8.5.5.
 	extendedStats bool
 	// tiflashServerCount models the cluster's available TiFlash store count for

@@ -102,6 +102,10 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 		varName, scope := systemVariable(asgn.Column.Column, asgn.Scope)
 		switch varName {
 		case "foreign_key_checks":
+			// SET GLOBAL foreign_key_checks leaves the session's as it is.
+			if scope == "global" {
+				continue
+			}
 			// Extract the value.
 			val := nodeToSQLValue(asgn.Value)
 			switch toLower(val) {
@@ -129,7 +133,20 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 			if scope == "global" {
 				continue
 			}
-			mode := strings.ToUpper(nodeToSQLValue(asgn.Value))
+			// A string or a bare word is the mode; DEFAULT is the server's,
+			// which is strict. An expression the catalog does not evaluate
+			// (@@sql_mode, CONCAT(...)) leaves the mode as it is.
+			var mode string
+			switch v := asgn.Value.(type) {
+			case *nodes.StringLit:
+				mode = strings.ToUpper(v.Value)
+			case *nodes.ColumnRef:
+				mode = strings.ToUpper(v.Column)
+			case *nodes.DefaultExpr:
+				mode = "DEFAULT"
+			default:
+				continue
+			}
 			c.nonStrict = !(mode == "DEFAULT" || strings.Contains(mode, "STRICT_TRANS_TABLES") ||
 				strings.Contains(mode, "STRICT_ALL_TABLES") || strings.Contains(mode, "TRADITIONAL"))
 		case "names", "character set":

@@ -78,7 +78,11 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	// whole statement holds (pendingRetargets), so a refused statement leaves
 	// them as they were.
 	c.pendingRetargets = nil
-	defer func() { c.pendingRetargets = nil }()
+	c.alterExisting = make(map[*Constraint]bool, len(tbl.Constraints))
+	for _, con := range tbl.Constraints {
+		c.alterExisting[con] = true
+	}
+	defer func() { c.pendingRetargets, c.alterExisting = nil, nil }()
 	if len(stmt.Commands) == 1 && !addNeedsRollback(stmt.Commands[0]) {
 		// Single command carrying one table element: no rollback needed.
 		if err := c.execAlterCmd(db, tbl, stmt.Commands[0]); err != nil {
@@ -176,6 +180,13 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 				}
 			}
 		}
+		// So is a column's new name: RENAME COLUMN b TO a, CHANGE b a INT
+		// and DROP COLUMN a, RENAME COLUMN b TO a are 1060 when the table
+		// began with an a (v8.5.5).
+		if to := renamedColumnTo(cmd); to != "" && !strings.EqualFold(to, cmd.Name) && snapshot.GetColumn(to) != nil {
+			undoAlter(db, origKey, tbl, snapshot)
+			return errDupColumn(to)
+		}
 		if err := c.execAlterCmd(db, tbl, cmd); err != nil {
 			undoAlter(db, origKey, tbl, snapshot)
 			return err
@@ -187,6 +198,20 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	tbl.droppedByCleanup = nil
 	c.runPendingRetargets()
 	return nil
+}
+
+// renamedColumnTo returns the name a RENAME COLUMN or CHANGE gives a column,
+// or "" for any other command.
+func renamedColumnTo(cmd *nodes.AlterTableCmd) string {
+	switch cmd.Type {
+	case nodes.ATRenameColumn:
+		return cmd.NewName
+	case nodes.ATChangeColumn:
+		if cmd.Column != nil {
+			return cmd.Column.Name
+		}
+	}
+	return ""
 }
 
 // runPendingRetargets applies the foreign key retargeting an ALTER TABLE's
@@ -945,9 +970,9 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	// foreign keys that reference the column (fk_retarget.go).
 	if newKey != oldKey {
 		updateColumnRefsInIndexes(tbl, oldName, colDef.Name)
-		db, name, to := tbl.Database, tbl.Name, colDef.Name
+		db, name, to, existing := tbl.Database, tbl.Name, colDef.Name, c.alterExisting
 		c.pendingRetargets = append(c.pendingRetargets, func() {
-			c.retargetReferences(tbl, db, name, map[string]string{oldKey: to}, nil)
+			c.retargetReferences(tbl, db, name, map[string]string{oldKey: to}, existing)
 		})
 	}
 
@@ -1418,9 +1443,9 @@ func (c *Catalog) alterRenameColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 	// COLUMN id TO cid over customers leaves orders' fk_customer referencing
 	// `cid`).
 	if newKey != oldKey {
-		db, name, from, to := tbl.Database, tbl.Name, toLower(oldName), cmd.NewName
+		db, name, from, to, existing := tbl.Database, tbl.Name, toLower(oldName), cmd.NewName, c.alterExisting
 		c.pendingRetargets = append(c.pendingRetargets, func() {
-			c.retargetReferences(tbl, db, name, map[string]string{from: to}, nil)
+			c.retargetReferences(tbl, db, name, map[string]string{from: to}, existing)
 		})
 	}
 	return nil

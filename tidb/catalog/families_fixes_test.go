@@ -164,3 +164,50 @@ func TestReviewRoundOne(t *testing.T) {
 		}
 	})
 }
+
+// TestReviewRoundTwo pins what the second review of the port asked for.
+func TestReviewRoundTwo(t *testing.T) {
+	// A rename to a name the table began with is 1060 on v8.5.5, which also
+	// keeps the statement the review drew from adding a key the renames could
+	// reach.
+	for _, stmt := range []string{
+		"ALTER TABLE t RENAME COLUMN a TO x, RENAME COLUMN b TO a, ADD CONSTRAINT fk FOREIGN KEY (c) REFERENCES t (a)",
+		"ALTER TABLE t CHANGE a x BIGINT, CHANGE b a INT",
+		"ALTER TABLE t DROP COLUMN c, RENAME COLUMN b TO c",
+	} {
+		t.Run(stmt, func(t *testing.T) {
+			c := wtSetup(t)
+			wtExec(t, c, "CREATE TABLE t (a BIGINT PRIMARY KEY, b INT UNIQUE, c INT)")
+			results, _ := c.Exec(stmt, nil)
+			assertError(t, results[0].Error, ErrDupColumn)
+			if text := c.ShowCreateTable("testdb", "t"); strings.Contains(text, "`x`") || strings.Contains(text, "FOREIGN KEY") {
+				t.Errorf("the refused statement changed t:\n%s", text)
+			}
+		})
+	}
+	t.Run("a column renamed away runs", func(t *testing.T) {
+		c := wtSetup(t)
+		wtExec(t, c, "CREATE TABLE t (a INT, b INT)")
+		wtExec(t, c, "ALTER TABLE t RENAME COLUMN a TO x, ADD COLUMN y INT")
+	})
+	t.Run("SET GLOBAL foreign_key_checks keeps the session's", func(t *testing.T) {
+		c := wtSetup(t)
+		wtExec(t, c, famFKSetup)
+		wtExec(t, c, "SET @@GLOBAL.foreign_key_checks = 0")
+		results, _ := c.Exec("DROP TABLE p", nil)
+		if results[0].Error == nil {
+			t.Fatal("DROP TABLE p ran with the session's checks on")
+		}
+	})
+	for _, set := range []string{"SET sql_mode = @@sql_mode", "SET sql_mode = CONCAT(@@sql_mode, ',NO_AUTO_VALUE_ON_ZERO')", "SET sql_mode = DEFAULT", "SET sql_mode = TRADITIONAL"} {
+		t.Run(set, func(t *testing.T) {
+			c := wtSetup(t)
+			wtExec(t, c, set)
+			results, _ := c.Exec("CREATE TABLE t (v VARCHAR(20000)) CHARACTER SET utf8mb4", nil)
+			var catErr *Error
+			if !errors.As(results[0].Error, &catErr) || catErr.Code != 1074 {
+				t.Fatalf("got %v, want 1074 under a strict mode", results[0].Error)
+			}
+		})
+	}
+}
