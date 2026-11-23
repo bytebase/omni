@@ -1210,8 +1210,10 @@ func (a *queryAnalyzer) selectTarget(rt *ast.ResTarget, sc *qscope, top bool) ([
 			return nil, err
 		}
 		cols := make([]qcol, 0, len(items))
+		// A name any addressable column shares, invisible ones included,
+		// is written with its item.
 		count := map[string]int{}
-		for _, it := range items {
+		for _, it := range sc.from.items {
 			count[sc.from.itemCol(it).name]++
 		}
 		var names []string

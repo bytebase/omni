@@ -273,8 +273,12 @@ func (a *queryAnalyzer) expr(x ast.ExprNode, sc *qscope, clause exprClause) (qty
 		}
 		return typeNameType(n.TypeName), false, nil
 	case *ast.ExtractExpr:
-		if _, _, err := a.expr(n.Expr, sc, clause); err != nil {
+		src, _, err := a.expr(n.Expr, sc, clause)
+		if err != nil {
 			return qtype{}, false, err
+		}
+		if !extractFieldOf(strings.ToUpper(n.Field), src) {
+			return qtype{}, false, oraError("30076", "invalid extract field for extract source")
 		}
 		switch strings.ToUpper(n.Field) {
 		case "TIMEZONE_REGION", "TIMEZONE_ABBR":
@@ -1062,4 +1066,21 @@ func rowOperands(x ast.ExprNode) []ast.ExprNode {
 		return out
 	}
 	return []ast.ExprNode{x}
+}
+
+// extractFieldOf reports whether EXTRACT may read the field from a value of
+// the type: a DATE has no time fields, only a zoned timestamp has time zone
+// fields, and an interval has only its own fields.
+func extractFieldOf(field string, t qtype) bool {
+	switch t.kind {
+	case "DATE":
+		return field == "YEAR" || field == "MONTH" || field == "DAY"
+	case "TIMESTAMP", "TIMESTAMP WITH LOCAL TIME ZONE":
+		return !strings.HasPrefix(field, "TIMEZONE")
+	case "INTERVAL YEAR TO MONTH":
+		return field == "YEAR" || field == "MONTH"
+	case "INTERVAL DAY TO SECOND":
+		return field == "DAY" || field == "HOUR" || field == "MINUTE" || field == "SECOND"
+	}
+	return true
 }

@@ -169,6 +169,9 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"qualify_grouped_alias", `CREATE VIEW v AS SELECT id, COUNT(*) c FROM t GROUP BY id QUALIFY ROW_NUMBER() OVER (ORDER BY c) = 1`, ""},
 		{"number_minus_date", `CREATE VIEW v AS SELECT 1 - DATE '2020-01-01' x FROM dual`, "00932"},
 		{"pivot_xml_subquery_missing_table", `CREATE VIEW v AS SELECT n_xml FROM t PIVOT XML (SUM(id) FOR n IN (SELECT id FROM nosuch))`, "00942"},
+		{"extract_hour_from_date", `CREATE VIEW v AS SELECT EXTRACT(HOUR FROM DATE '2020-01-01') x FROM dual`, "30076"},
+		{"extract_year_from_date", `CREATE VIEW v AS SELECT EXTRACT(YEAR FROM DATE '2020-01-01') x FROM dual`, ""},
+		{"json_table_bind_path", `CREATE VIEW v AS SELECT * FROM JSON_TABLE('{}', :p COLUMNS (id NUMBER PATH '$.id')) jt`, "01027"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -640,5 +643,20 @@ func TestViewQueryTypesRound27(t *testing.T) {
 		if got != code {
 			t.Errorf("%s: code %q, want %q", sql, got, code)
 		}
+	}
+}
+
+func TestViewQueryStarQualifiesInvisibleClash(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TABLE t (a NUMBER, id NUMBER INVISIBLE);
+CREATE TABLE u (id NUMBER);
+CREATE VIEW v AS SELECT * FROM t CROSS JOIN u;
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := c.Metadata().GetSchemas()[0].GetViews()[0]
+	if want := `SELECT "A","U"."ID" FROM t CROSS JOIN u`; v.GetDefinition() != want {
+		t.Errorf("definition = %q, want %q", v.GetDefinition(), want)
 	}
 }

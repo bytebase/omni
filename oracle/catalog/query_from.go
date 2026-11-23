@@ -53,6 +53,9 @@ func (a *queryAnalyzer) fromItem(te ast.TableExpr, sc *qscope) (*qfrom, error) {
 		if _, _, err := a.expr(n.Expr, sc, clauseFrom); err != nil {
 			return nil, err
 		}
+		if err := a.jsonTablePaths(n); err != nil {
+			return nil, err
+		}
 		rel := &qrel{name: aliasName(n.Alias)}
 		rel.cols = jsonTableColumns(n.Columns)
 		return relFrom(rel), nil
@@ -1205,4 +1208,36 @@ func hasPartition(t *metadatapb.TableMetadata, name string, sub bool) bool {
 		}
 	}
 	return false
+}
+
+// jsonTablePaths checks JSON_TABLE's row path and its columns' paths, which
+// are text literals: a bind is ORA-01027, another expression ORA-40597.
+func (a *queryAnalyzer) jsonTablePaths(n *ast.JsonTableRef) error {
+	check := func(x ast.ExprNode) error {
+		switch unparen(x).(type) {
+		case nil, *ast.StringLiteral:
+			return nil
+		case *ast.BindVariable:
+			return oraError("01027", "bind variables not allowed for data definition operations")
+		}
+		return oraError("40597", "JSON path expression syntax error")
+	}
+	if err := check(n.Path); err != nil {
+		return err
+	}
+	for _, item := range listItems(n.Columns) {
+		c, ok := item.(*ast.JsonTableColumn)
+		if !ok {
+			continue
+		}
+		if err := check(c.Path); err != nil {
+			return err
+		}
+		if c.Nested != nil {
+			if err := a.jsonTablePaths(c.Nested); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
