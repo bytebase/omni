@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"context"
 	"errors"
 	"path/filepath"
 	"regexp"
@@ -465,10 +466,15 @@ func TestViewBinding(t *testing.T) {
 		{"FOR SYSTEM_TIME through a view", []string{"CREATE VIEW tv AS SELECT id FROM tt"}, "CREATE VIEW h AS SELECT id FROM dbo.tv FOR SYSTEM_TIME AS OF '2020-01-01'", 0},
 		{"window defined after it is named", nil, "CREATE VIEW v AS SELECT ROW_NUMBER() OVER w1 AS rn FROM t WINDOW w1 AS (w2), w2 AS (ORDER BY id)", 0},
 		{"window that names itself", nil, "CREATE VIEW v AS SELECT ROW_NUMBER() OVER w1 AS rn FROM t WINDOW w1 AS (w2), w2 AS (w1)", 5362},
+		{"set operation column of mixed types", nil, "CREATE VIEW v AS SELECT SUM(d.x) AS total FROM (SELECT '1' AS x UNION ALL SELECT 2) AS d", 0},
+		{"star leaves out HIDDEN columns", nil, "CREATE VIEW v (id) AS SELECT * FROM th", 0},
+		{"HIDDEN columns are named", nil, "CREATE VIEW v AS SELECT id, vf FROM th", 0},
+		{"CONTAINS on a full-text indexed table", []string{"CREATE FULLTEXT INDEX ON x (name) KEY INDEX pk_x"}, "CREATE VIEW v AS SELECT id FROM x WHERE CONTAINS(name, 'a')", 0},
+		{"CONTAINS on a table with no full-text index", nil, "CREATE VIEW v AS SELECT id FROM x WHERE CONTAINS(name, 'a')", 7601},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			c, err := LoadSQL("CREATE TABLE t (id INT NOT NULL, g UNIQUEIDENTIFIER ROWGUIDCOL NULL);\nCREATE TABLE u (id INT NOT NULL);\nCREATE TABLE w (amount INT NULL, code INT NULL);\nCREATE TABLE x (id INT NOT NULL, name VARCHAR(50) NULL, geo GEOGRAPHY NULL);\nCREATE TABLE tt (id INT NOT NULL PRIMARY KEY, vf DATETIME2 GENERATED ALWAYS AS ROW START NOT NULL, vt DATETIME2 GENERATED ALWAYS AS ROW END NOT NULL, PERIOD FOR SYSTEM_TIME (vf, vt)) WITH (SYSTEM_VERSIONING = ON);")
+			c, err := LoadSQL("CREATE TABLE t (id INT NOT NULL, g UNIQUEIDENTIFIER ROWGUIDCOL NULL);\nCREATE TABLE u (id INT NOT NULL);\nCREATE TABLE w (amount INT NULL, code INT NULL);\nCREATE TABLE x (id INT NOT NULL, name VARCHAR(50) NULL, geo GEOGRAPHY NULL);\nCREATE TABLE tt (id INT NOT NULL PRIMARY KEY, vf DATETIME2 GENERATED ALWAYS AS ROW START NOT NULL, vt DATETIME2 GENERATED ALWAYS AS ROW END NOT NULL, PERIOD FOR SYSTEM_TIME (vf, vt)) WITH (SYSTEM_VERSIONING = ON);\nCREATE TABLE th (id INT NOT NULL PRIMARY KEY, vf DATETIME2 GENERATED ALWAYS AS ROW START HIDDEN NOT NULL, vt DATETIME2 GENERATED ALWAYS AS ROW END HIDDEN NOT NULL, PERIOD FOR SYSTEM_TIME (vf, vt));")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -511,5 +517,34 @@ func TestViewBinding(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestViewBindingOnSyncedMetadata pins the checks a catalog loaded from a
+// synced snapshot cannot make: the snapshot records no full-text index, no
+// HIDDEN column and no system versioning.
+func TestViewBindingOnSyncedMetadata(t *testing.T) {
+	src, err := LoadSQL("CREATE TABLE t (id INT NOT NULL PRIMARY KEY, body NVARCHAR(100) NULL, vf DATETIME2 NOT NULL, vt DATETIME2 NOT NULL);")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := New()
+	if err := c.LoadMetadata(context.Background(), src.Metadata()); err != nil {
+		t.Fatal(err)
+	}
+	for _, sql := range []string{
+		"CREATE VIEW v1 AS SELECT id FROM t WHERE CONTAINS(body, 'a')",
+		"CREATE VIEW v2 (id, body) AS SELECT * FROM t",
+		"CREATE VIEW v3 AS SELECT id FROM t FOR SYSTEM_TIME AS OF '2020-01-01'",
+	} {
+		results, err := c.Exec(sql, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, r := range results {
+			if r.Error != nil {
+				t.Errorf("%s: %v", sql, r.Error)
+			}
+		}
 	}
 }

@@ -58,6 +58,7 @@ type qcol struct {
 	typ      qtype
 	identity bool
 	guid     bool // uniqueidentifier, the type a ROWGUIDCOL column has
+	hidden   bool // HIDDEN: named, but not in *
 }
 
 // qrel is a relation in a FROM clause: a table, a view, a derived table, a
@@ -68,6 +69,11 @@ type qrel struct {
 	alias  bool   // the exposed name is a correlation name
 	cols   []qcol
 	opaque bool // the columns are unknown; any column resolves
+	// starOpaque is set when * may leave out columns the catalog cannot
+	// tell are HIDDEN.
+	starOpaque bool
+	// table is the table a relation reads, nil for any other relation.
+	table *tableKey
 }
 
 func (r *qrel) col(name string) *qcol {
@@ -341,6 +347,17 @@ func (b *binder) query(sel *ast.SelectStmt, parent *qscope) ([]qcol, bool, error
 	}
 	if err := b.topAndOffset(sel, scope); err != nil {
 		return nil, false, err
+	}
+	// A result column's type follows every operand's, by type precedence;
+	// the classes keep only what the operands agree on.
+	if !lopaque && !ropaque {
+		merged := append([]qcol(nil), left...)
+		for i := range merged {
+			if merged[i].typ != right[i].typ {
+				merged[i].typ = qtUnknown
+			}
+		}
+		left = merged
 	}
 	if owner && last != nil && last.OrderByClause != nil && !lopaque {
 		for _, item := range last.OrderByClause.Items {
@@ -839,8 +856,8 @@ func (b *binder) star(star *ast.StarExpr, sc *qscope) ([]qcol, bool, error) {
 		var cols []qcol
 		opaque := false
 		for _, r := range sc.rels {
-			opaque = opaque || r.opaque
-			cols = append(cols, r.cols...)
+			opaque = opaque || r.opaque || r.starOpaque
+			cols = append(cols, visible(r.cols)...)
 		}
 		return cols, opaque, nil
 	}
@@ -852,10 +869,21 @@ func (b *binder) star(star *ast.StarExpr, sc *qscope) ([]qcol, bool, error) {
 	}
 	for _, r := range sc.rels {
 		if relMatches(r, schema, table) {
-			return append([]qcol(nil), r.cols...), r.opaque, nil
+			return visible(r.cols), r.opaque || r.starOpaque, nil
 		}
 	}
 	return nil, false, mssqlErr(107, "The column prefix '%s' does not match with a table name or alias name used in the query.", star.Qualifier)
+}
+
+// visible are the columns * names: all but the HIDDEN ones.
+func visible(cols []qcol) []qcol {
+	out := make([]qcol, 0, len(cols))
+	for _, c := range cols {
+		if !c.hidden {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 func relMatches(r *qrel, schema, table string) bool {
@@ -1169,13 +1197,21 @@ func (b *binder) tableExpr(te ast.Node, sc *qscope, lateral []*qrel) ([]*qrel, e
 		}
 		return []*qrel{r}, nil
 	case *ast.FullTextTableRef:
-		if _, err := b.objectRel(t.Table, "", nil, outer); err != nil {
+		r, err := b.objectRel(t.Table, "", nil, outer)
+		if err != nil {
 			return nil, err
+		}
+		if b.c.fromMetadata || r.table == nil || b.c.fulltextTables[*r.table] {
+			return []*qrel{{name: t.Alias, alias: true, cols: []qcol{{name: "KEY"}, {name: "RANK", typ: qtNumber}}}}, nil
 		}
 		return nil, mssqlErr(7601, "Cannot use a CONTAINS or FREETEXT predicate on table or indexed view '%s' because it is not full-text indexed.", t.Table.Object)
 	case *ast.SemanticTableRef:
-		if _, err := b.objectRel(t.Table, "", nil, outer); err != nil {
+		r, err := b.objectRel(t.Table, "", nil, outer)
+		if err != nil {
 			return nil, err
+		}
+		if b.c.fromMetadata || r.table == nil || b.c.fulltextTables[*r.table] {
+			return []*qrel{{name: t.Alias, alias: true, opaque: true}}, nil
 		}
 		return nil, mssqlErr(41202, "The semantic language statistics database is not registered, or the table '%s' is not semantically indexed.", t.Table.Object)
 	case *ast.SubqueryExpr:
@@ -1365,7 +1401,18 @@ func (b *binder) objectRel(ref *ast.TableRef, alias string, hints *ast.List, out
 		if err := b.temporal(ref, schema.Name, t.Name, outer); err != nil {
 			return nil, err
 		}
-		return exposed(&qrel{name: ref.Object, schema: schema.Name, cols: tableColumns(t)}), nil
+		key := b.c.temporalKey(schema.Name, t.Name)
+		cols := tableColumns(t)
+		datetime2 := 0
+		for i := range cols {
+			cols[i].hidden = b.c.hiddenColumns[key][strings.ToUpper(cols[i].name)]
+			if strings.HasPrefix(strings.ToLower(t.Columns[i].Type), "datetime2") {
+				datetime2++
+			}
+		}
+		// A synced table may hide two datetime2 period columns from *.
+		starOpaque := b.c.fromMetadata && datetime2 >= 2
+		return exposed(&qrel{name: ref.Object, schema: schema.Name, cols: cols, starOpaque: starOpaque, table: &key}), nil
 	}
 	if idx, ok := resolveExactOrFoldIndex(schema.Views, func(v *metadata.ViewMetadata) string { return v.Name }, ref.Object); ok {
 		v := schema.Views[idx]
@@ -1435,7 +1482,7 @@ func (b *binder) temporal(ref *ast.TableRef, schemaName, tableName string, outer
 			return err
 		}
 	}
-	if b.c.systemVersionedTables[b.c.temporalKey(schemaName, tableName)] {
+	if b.c.fromMetadata || b.c.systemVersionedTables[b.c.temporalKey(schemaName, tableName)] {
 		return nil
 	}
 	return mssqlErr(13544, "Temporal FOR SYSTEM_TIME clause can only be used with system-versioned tables. '%s.%s' is not a system-versioned table.", schemaName, tableName)
@@ -2017,6 +2064,9 @@ func (b *binder) expr(n ast.Node, sc *qscope, x ectx) (qtype, error) {
 		if err := b.children(e.Columns, sc, x); err != nil {
 			return qtUnknown, err
 		}
+		if b.fulltextUnknown(e.Columns, sc) {
+			return qtNumber, nil
+		}
 		return qtUnknown, mssqlErr(7601, "Cannot use a CONTAINS or FREETEXT predicate on table or indexed view because it is not full-text indexed.")
 	case *ast.BinaryExpr:
 		lt, err := b.expr(e.Left, sc, x)
@@ -2057,6 +2107,37 @@ func (b *binder) expr(n ast.Node, sc *qscope, x ectx) (qtype, error) {
 		return qtUnknown, b.over(e, "", sc, x)
 	}
 	return qtUnknown, b.children(n, sc, x)
+}
+
+// fulltextUnknown reports whether a full-text predicate's columns may be
+// full-text indexed: on a table Exec indexed, on a relation that is no table
+// the catalog tracks, or in a catalog loaded from synced metadata.
+func (b *binder) fulltextUnknown(cols *ast.List, sc *qscope) bool {
+	if b.c.fromMetadata {
+		return true
+	}
+	var rels []*qrel
+	if cols != nil {
+		for _, item := range cols.Items {
+			switch v := item.(type) {
+			case *ast.ColumnRef:
+				if bound, ok := b.bound[v]; ok && bound.rel != nil {
+					rels = append(rels, bound.rel)
+				}
+			case *ast.StarExpr:
+				rels = append(rels, sc.rels...)
+			}
+		}
+	}
+	if len(rels) == 0 {
+		return true
+	}
+	for _, r := range rels {
+		if r.table == nil || b.c.fulltextTables[*r.table] {
+			return true
+		}
+	}
+	return false
 }
 
 func isNilNode(n ast.Node) bool {

@@ -50,7 +50,15 @@ type Catalog struct {
 	// viewColumns holds the columns a view was bound to when Exec created or
 	// altered it, which SQL Server keeps until the view is altered or
 	// refreshed.
-	viewColumns           map[*metadata.ViewMetadata][]qcol
+	viewColumns map[*metadata.ViewMetadata][]qcol
+	// fromMetadata is set once a synced snapshot is loaded, which records
+	// neither full-text indexes, HIDDEN columns, nor system versioning, so
+	// the checks that read them are inconclusive.
+	fromMetadata bool
+	// fulltextTables and hiddenColumns record what Exec ran: the tables
+	// with a full-text index, and each table's HIDDEN columns, upper-cased.
+	fulltextTables        map[tableKey]bool
+	hiddenColumns         map[tableKey]map[string]bool
 	systemTimeTables      map[tableKey][2]string
 	systemVersionedTables map[tableKey]bool
 }
@@ -257,6 +265,7 @@ func (c *Catalog) registerDatabaseName(database string) {
 }
 
 func (c *Catalog) loadPrimaryMetadata(meta *metadata.DatabaseSchemaMetadata, database string) {
+	c.fromMetadata = true
 	c.database = database
 	c.defaultSchema = defaultSchema
 	c.metadataDefaultSchema = meta.GetDefaultSchema()
@@ -462,6 +471,8 @@ func (c *Catalog) execStatement(node ast.Node, source string) error {
 		return c.execAlterIndex(n)
 	case *ast.CreateViewStmt:
 		return c.execCreateOrAlterView(n, source)
+	case *ast.CreateFulltextIndexStmt:
+		c.execCreateFulltextIndex(n)
 	case *ast.CreateProcedureStmt:
 		return c.execCreateOrAlterProcedure(n, source)
 	case *ast.CreateFunctionStmt:
@@ -490,6 +501,16 @@ func (c *Catalog) execStatement(node ast.Node, source string) error {
 // table.
 
 func (c *Catalog) extractColumn(n *ast.ColumnDef, table *metadata.TableMetadata, schemaName, source string) {
+	if n.Hidden {
+		key := c.temporalKey(schemaName, table.Name)
+		if c.hiddenColumns == nil {
+			c.hiddenColumns = map[tableKey]map[string]bool{}
+		}
+		if c.hiddenColumns[key] == nil {
+			c.hiddenColumns[key] = map[string]bool{}
+		}
+		c.hiddenColumns[key][strings.ToUpper(n.Name)] = true
+	}
 	column := &metadata.ColumnMetadata{
 		Name:     n.Name,
 		Position: int32(len(table.Columns) + 1),

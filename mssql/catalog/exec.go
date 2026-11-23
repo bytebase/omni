@@ -3450,8 +3450,31 @@ func isNonNullLiteralExpr(expr ast.ExprNode) bool {
 
 // --- DROP ---
 
+// execCreateFulltextIndex records the table a full-text index is on, which
+// CONTAINS, FREETEXT and their table functions need.
+func (c *Catalog) execCreateFulltextIndex(n *ast.CreateFulltextIndexStmt) {
+	if n.Table == nil {
+		return
+	}
+	schemaName, name := tableRefSchemaObject(n.Table, c.defaultSchema)
+	if c.fulltextTables == nil {
+		c.fulltextTables = map[tableKey]bool{}
+	}
+	c.fulltextTables[c.temporalKey(schemaName, name)] = true
+}
+
 func (c *Catalog) execDrop(n *ast.DropStmt) error {
 	switch n.ObjectType {
+	case ast.DropFulltextIndex:
+		if n.Names != nil {
+			for _, item := range n.Names.Items {
+				if ref, ok := item.(*ast.TableRef); ok {
+					schemaName, name := tableRefSchemaObject(ref, c.defaultSchema)
+					delete(c.fulltextTables, c.temporalKey(schemaName, name))
+				}
+			}
+		}
+		return nil
 	case ast.DropSchema:
 		return c.execDropSchema(n)
 	case ast.DropIndex:
