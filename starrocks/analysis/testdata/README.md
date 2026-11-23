@@ -22,6 +22,12 @@ A refused query's rows name the cause StarRocks's message states:
 `error:unknown-database` or `error:ambiguous-column`. omni's refusal is a
 parse error or its `NotFoundError`, named the same way.
 
+Bytebase passes no `Catalog` today: it reads only the span's tables, and it
+refuses a query that reads a table holding masked columns rather than mask
+the result. The follow-up that lets masking work instead is Bytebase's
+adapter passing a `Catalog`, so `Results` carries the lineage this file
+holds to StarRocks.
+
 omni resolves each query with `DefaultDatabase` set to the session's database
 and `Catalog` holding the metadata a sync stores for the fixture (each
 table's and view's columns, a view's `VIEW_DEFINITION`, and a materialized
@@ -69,5 +75,3 @@ queries that hold the text.
 - An unqualified column two joined tables share, `USING` columns included:
   StarRocks refuses it as ambiguous, and omni names the column of both
   tables. StarRocks returns no rows, so no masked value can pass.
-- `SELECT * EXCEPT (amount, status) FROM orders`: StarRocks 3.4.10 refuses
-  it, and omni's parser accepts it.
