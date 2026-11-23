@@ -303,10 +303,16 @@ func (a *queryAnalyzer) analyzeExpr(x ast.ExprNode, sc *qscope, clause exprClaus
 	case *ast.CursorExpr:
 		return qtype{}, false, oraError("22902", "CURSOR expression is not allowed in this context.")
 	case *ast.CastExpr:
-		if _, _, err := a.expr(n.Arg, sc, clause); err != nil {
+		src, _, err := a.expr(n.Arg, sc, clause)
+		if err != nil {
 			return qtype{}, false, err
 		}
-		return typeNameType(n.TypeName), false, nil
+		target := typeNameType(n.TypeName)
+		// A datetime or interval and a number do not convert either way.
+		if (src.isDatetime() || src.isInterval()) && target.isNumeric() || src.isNumeric() && (target.isDatetime() || target.isInterval()) {
+			return qtype{}, false, oraError("00932", "expression is of data type %s, which is incompatible with expected data type %s", src.kind, target.kind)
+		}
+		return target, false, nil
 	case *ast.ExtractExpr:
 		src, _, err := a.expr(n.Expr, sc, clause)
 		if err != nil {

@@ -1778,7 +1778,13 @@ func walkExpr(n ast.Node, fn func(ast.Node) bool) {
 			return
 		}
 		switch v.Kind() {
-		case reflect.Interface, reflect.Ptr:
+		case reflect.Interface:
+			// The node is visited at the pointer the interface holds.
+			if v.IsNil() {
+				return
+			}
+			walk(v.Elem())
+		case reflect.Ptr:
 			if v.IsNil() {
 				return
 			}
@@ -1884,6 +1890,20 @@ func (a *queryAnalyzer) starReferences(rt *ast.ResTarget, sc *qscope) []ast.Expr
 		return nil
 	}
 	var refs []ast.ExprNode
+	if qualifier != "" {
+		// t.* selects t's USING keys, which the join merged into one
+		// unqualified item each.
+		for _, r := range sc.from.rels {
+			if r.name != qualifier {
+				continue
+			}
+			for _, c := range r.cols {
+				if r.merged[c.name] && !c.hidden {
+					refs = append(refs, &ast.ColumnRef{Column: c.name, Loc: ast.NoLoc()})
+				}
+			}
+		}
+	}
 	for _, it := range sc.from.items {
 		if it.rel == nil {
 			if qualifier == "" {
@@ -1899,10 +1919,6 @@ func (a *queryAnalyzer) starReferences(rt *ast.ResTarget, sc *qscope) []ast.Expr
 			continue
 		}
 		if it.rel.merged[c.name] {
-			// t.* selects a USING key unqualified.
-			if qualifier != "" {
-				refs = append(refs, &ast.ColumnRef{Column: c.name, Loc: ast.NoLoc()})
-			}
 			continue
 		}
 		refs = append(refs, &ast.ColumnRef{Table: it.rel.name, Column: c.name, Loc: ast.NoLoc()})

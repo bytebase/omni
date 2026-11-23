@@ -194,6 +194,9 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"table_cast_collection", `CREATE VIEW v AS SELECT column_value cv FROM TABLE(CAST(sys.odcinumberlist(1, 2) AS sys.odcinumberlist))`, ""},
 		{"json_object_returning_number", `CREATE VIEW v AS SELECT JSON_OBJECT('a' VALUE 1 RETURNING NUMBER) x FROM dual`, "40449"},
 		{"json_value_returning_number", `CREATE VIEW v AS SELECT JSON_VALUE('{"a":1}', '$.a' RETURNING NUMBER) x FROM dual`, ""},
+		{"cast_date_to_number", `CREATE VIEW v AS SELECT CAST(DATE '2020-01-01' AS NUMBER) x FROM dual`, "00932"},
+		{"subset_two_members", `CREATE VIEW v AS SELECT first_id FROM t MATCH_RECOGNIZE (ORDER BY id MEASURES FIRST(a.id) AS first_id PATTERN (a b) SUBSET s = (a, b) DEFINE a AS id > 0, b AS id > 0)`, ""},
+		{"qualified_star_only_key_not_grouped", `CREATE VIEW v AS SELECT w.* FROM w JOIN t USING (id) GROUP BY t.n`, "00979"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -797,5 +800,21 @@ func TestViewQueryLongExpressionStaysFast(t *testing.T) {
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("a 4,000-term grouped expression took more than 10s")
+	}
+}
+
+func TestViewQueryPartitionForBind(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE p (id NUMBER) PARTITION BY RANGE (id) (PARTITION p1 VALUES LESS THAN (10));`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.SetServerConfig(StandardOracle23ServerConfig())
+	results, err := c.Exec(`CREATE VIEW v AS SELECT id FROM p PARTITION FOR (:p)`, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var refusal *Error
+	if !errors.As(results[0].Error, &refusal) || refusal.Code != "01027" {
+		t.Errorf("PARTITION FOR bind: %v, want ORA-01027", results[0].Error)
 	}
 }

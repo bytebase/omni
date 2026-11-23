@@ -236,6 +236,16 @@ func (a *queryAnalyzer) tableClauses(n *ast.TableRef, rel *qrel, sc *qscope) err
 	if pe := n.PartitionExt; pe != nil && !pe.IsFor && pe.Name != "" && rel.table != nil && !hasPartition(rel.table, pe.Name, pe.IsSubpartition) {
 		return oraError("02149", "Specified partition does not exist")
 	}
+	if pe := n.PartitionExt; pe != nil && pe.IsFor {
+		// PARTITION FOR's keys are expressions like any other.
+		for _, item := range listItems(pe.Keys) {
+			if x, ok := item.(ast.ExprNode); ok {
+				if _, _, err := a.expr(x, sc, clauseFrom); err != nil {
+					return err
+				}
+			}
+		}
+	}
 	if smp := n.Sample; smp != nil {
 		for _, x := range []ast.ExprNode{smp.Percent, smp.Seed} {
 			if x == nil {
