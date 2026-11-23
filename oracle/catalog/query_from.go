@@ -733,19 +733,36 @@ func (a *queryAnalyzer) pivot(n *ast.PivotClause, sc *qscope) (*qfrom, error) {
 		}
 		rel.cols = append(rel.cols, c)
 	}
+	// Each IN value compares with its FOR column.
+	var forTypes []qtype
+	for _, x := range listItems(n.ForColumns) {
+		if ref, ok := x.(*ast.ColumnRef); ok {
+			c, _, _ := a.lookupIn(src, ref.Column)
+			forTypes = append(forTypes, c.typ)
+		}
+	}
 	for _, item := range items {
 		pi, ok := item.(*ast.PivotInItem)
 		if !ok {
 			continue
 		}
 		var parts []string
-		for _, v := range listItems(pi.Values) {
+		for pos, v := range listItems(pi.Values) {
 			x, ok := v.(ast.ExprNode)
 			if !ok {
 				continue
 			}
 			if !isConstantExpr(x) {
 				return nil, oraError("56901", "non-constant expression in pivot or unpivot values clause")
+			}
+			vt, _, err := a.expr(x, inner, clauseSelect)
+			if err != nil {
+				return nil, err
+			}
+			if pos < len(forTypes) {
+				if err := comparable(forTypes[pos], vt, nil); err != nil {
+					return nil, err
+				}
 			}
 			parts = append(parts, derivedName(a.e.nodeText(x)))
 		}

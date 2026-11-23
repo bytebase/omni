@@ -1338,13 +1338,22 @@ func (a *queryAnalyzer) orderItem(expr ast.ExprNode, sc *qscope, ncols int) erro
 		return nil
 	}
 	if ref, ok := unparen(expr).(*ast.ColumnRef); ok && ref.Table == "" {
-		for _, c := range sc.aliases {
-			if c.name == ref.Column {
-				if c.typ.isLOB() {
-					return oraError("22848", "cannot use %s type as comparison key", c.typ.kind)
-				}
-				return nil
+		var match *qcol
+		for i, c := range sc.aliases {
+			if c.name != ref.Column {
+				continue
 			}
+			if match != nil {
+				// The name stands for two select-list items.
+				return oraError("00960", "ambiguous column naming in select list")
+			}
+			match = &sc.aliases[i]
+		}
+		if match != nil {
+			if match.typ.isLOB() {
+				return oraError("22848", "cannot use %s type as comparison key", match.typ.kind)
+			}
+			return nil
 		}
 	}
 	t, _, err := a.expr(expr, sc, clauseOrder)

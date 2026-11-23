@@ -746,6 +746,9 @@ func commonResultType(results []qtype, strict bool) (qtype, error) {
 			continue
 		}
 		switch {
+		case out.isCharacter() && t.isCharacter() && out.isNational() != t.isNational():
+			// National and database character sets do not mix.
+			return qtype{}, oraError("12704", "character set mismatch")
 		case out.isNational() && t.isNational():
 			out = characterType("NVARCHAR2", max(out.chars, t.chars), false)
 		case out.isCharacter() && t.isCharacter():

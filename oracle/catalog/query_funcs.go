@@ -391,7 +391,20 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		}
 		return numberType(), false, nil
 	case "CHR":
-		return varchar2Bytes(1), false, nil
+		// The code's bytes are the character's in AL32UTF8.
+		code, ok := literalInt(argNode(n, 0))
+		if !ok {
+			return simpleType("UNKNOWN"), false, nil
+		}
+		switch {
+		case code <= 0xFF:
+			return varchar2Bytes(1), false, nil
+		case code <= 0xFFFF:
+			return varchar2Bytes(2), false, nil
+		case code <= 0xFFFFFF:
+			return varchar2Bytes(3), false, nil
+		}
+		return varchar2Bytes(4), false, nil
 	case "NCHR":
 		return characterType("NVARCHAR2", 1, false), false, nil
 	case "DUMP":
@@ -792,6 +805,10 @@ func (a *queryAnalyzer) windowSpec(w *ast.WindowSpec, sc *qscope, seen map[strin
 					return oraError("00902", "invalid datatype")
 				}
 				continue
+			}
+			// The offset is a number or an interval.
+			if ot.isDatetime() || ot.isLOB() || ot.kind == "RAW" || ot.kind == "BOOLEAN" {
+				return oraError("00902", "invalid datatype")
 			}
 			// An interval offset needs a datetime ordering key.
 			if ot.isInterval() && len(orderTypes) == 1 && typeFamily(orderTypes[0]) != "" && !orderTypes[0].isDatetime() {

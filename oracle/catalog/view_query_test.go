@@ -232,6 +232,10 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"cycle_marks_too_long", `CREATE VIEW v AS WITH r(n) AS (SELECT 1 FROM dual UNION ALL SELECT n+1 FROM r WHERE n<2) CYCLE n SET cyc TO 'YES' DEFAULT 'NO' SELECT n, cyc FROM r`, "32047"},
 		{"distinct_analytic_ordered", `CREATE VIEW v AS SELECT SUM(DISTINCT 1) OVER (ORDER BY dummy) x FROM dual`, "30487"},
 		{"distinct_analytic_partitioned", `CREATE VIEW v AS SELECT COUNT(DISTINCT dummy) OVER (PARTITION BY dummy) x FROM dual`, ""},
+		{"pivot_value_type", `CREATE VIEW v AS SELECT * FROM (SELECT id, n FROM t) PIVOT (SUM(id) FOR n IN (DATE '2020-01-01' AS one))`, "00932"},
+		{"case_charset_mismatch", `CREATE VIEW v AS SELECT CASE WHEN 1=1 THEN nv ELSE vc END x FROM t`, "12704"},
+		{"order_by_ambiguous_alias", `CREATE VIEW v (x, y) AS SELECT id a, n a FROM t ORDER BY a`, "00960"},
+		{"range_date_offset", `CREATE VIEW v AS SELECT SUM(id) OVER (ORDER BY id RANGE DATE '2020-01-01' PRECEDING) x FROM t`, "00902"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -1074,6 +1078,19 @@ func TestViewQueryUserenvTypes(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{"NUMBER", "VARCHAR2(52 BYTE)"}
+	for i, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
+		if col.GetType() != want[i] {
+			t.Errorf("%s type = %q, want %q", col.GetName(), col.GetType(), want[i])
+		}
+	}
+}
+
+func TestViewQueryChrBytes(t *testing.T) {
+	c, err := LoadSQL(`CREATE VIEW v AS SELECT CHR(65) a, CHR(50081) b FROM dual;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"VARCHAR2(1 BYTE)", "VARCHAR2(2 BYTE)"}
 	for i, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
 		if col.GetType() != want[i] {
 			t.Errorf("%s type = %q, want %q", col.GetName(), col.GetType(), want[i])
