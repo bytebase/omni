@@ -109,6 +109,9 @@ type ParsedStmt struct {
 	HasTransform bool
 	// HasEmptyPipe is true when a query ends with an empty `|>` pipe stage.
 	HasEmptyPipe bool
+	// HasPipe is true when the outermost query uses one or more pipe stages
+	// (`|>` or Databricks single-bar `|`).
+	HasPipe bool
 	// LimitLoc records the byte span of the outermost query's LIMIT expression
 	// (or ALL keyword when LimitAll is true). Zero when no top-level LIMIT is
 	// present.

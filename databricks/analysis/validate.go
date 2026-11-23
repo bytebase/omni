@@ -28,8 +28,9 @@ var errNestingDepthExceeded = errors.New("maximum nesting depth exceeded")
 // non-read-only statement are rejected. Empty, whitespace-only, comment-only,
 // or semicolon-only input carries no statements to refuse and returns
 // (true, true, nil). Lexical errors (unterminated comments, string literals, or
-// quoted identifiers) and excessive nesting depth are returned as errors so
-// callers fail closed.
+// quoted identifiers), syntax errors, and excessive nesting depth are returned
+// with script-relative byte offsets so callers fail closed without losing
+// diagnostic positions.
 func ValidateQuery(statement string) (readOnly bool, returnsData bool, err error) {
 	if err := firstLexError(statement); err != nil {
 		return false, false, err
@@ -38,18 +39,20 @@ func ValidateQuery(statement string) (readOnly bool, returnsData bool, err error
 		if seg.Empty() {
 			continue
 		}
-		if PlanExecuted(seg.Text) {
+		if body, off, ok := explainAnalyzeBody(seg.Text); ok {
+			if _, err := parser.Parse(body); err != nil {
+				return false, false, offsetParseError(err, seg.ByteStart+off)
+			}
 			return false, false, nil
 		}
 		res, err := parser.Parse(seg.Text)
 		if err != nil {
+			offsetErr := offsetParseError(err, seg.ByteStart)
 			var pe *parser.ParseError
 			if errors.As(err, &pe) && pe.Message == errNestingDepthExceeded.Error() {
-				return false, false, fmt.Errorf("%w: %w", errNestingDepthExceeded, offsetParseError(err, seg.ByteStart))
+				return false, false, fmt.Errorf("%w: %w", errNestingDepthExceeded, offsetErr)
 			}
-			// Fail closed on unparseable/non-read-only Databricks statements
-			// (such as COPY INTO, OPTIMIZE, VACUUM, RESTORE, DENY, or malformed SQL).
-			return false, false, nil
+			return false, false, offsetErr
 		}
 		if res == nil || len(res.Statements) == 0 {
 			return false, false, nil

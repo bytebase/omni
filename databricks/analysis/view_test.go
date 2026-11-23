@@ -120,6 +120,34 @@ func TestExtractViewDependencies(t *testing.T) {
 			},
 		},
 		{
+			name:           "table-valued function direct TABLE argument",
+			sql:            "SELECT * FROM my_udtf(TABLE(base_view))",
+			defaultCatalog: "cat",
+			defaultSchema:  "sch",
+			want: []ViewDependency{
+				{Catalog: "cat", Schema: "sch", Table: "base_view"},
+			},
+		},
+		{
+			name:           "table-valued function TABLE argument excludes CTE and dynamic identifier",
+			sql:            "WITH c AS (SELECT * FROM ext_base) SELECT * FROM my_udtf(TABLE(c)) JOIN my_udtf2(TABLE(IDENTIFIER('dyn'))) ON true JOIN my_udtf3(TABLE(other_sch.v2)) ON true",
+			defaultCatalog: "cat",
+			defaultSchema:  "sch",
+			want: []ViewDependency{
+				{Catalog: "cat", Schema: "sch", Table: "ext_base"},
+				{Catalog: "cat", Schema: "other_sch", Table: "v2"},
+			},
+		},
+		{
+			name:           "table-valued function subquery TABLE argument",
+			sql:            "SELECT * FROM my_udtf(TABLE(SELECT * FROM sub_base))",
+			defaultCatalog: "cat",
+			defaultSchema:  "sch",
+			want: []ViewDependency{
+				{Catalog: "cat", Schema: "sch", Table: "sub_base"},
+			},
+		},
+		{
 			name:    "invalid syntax returns error",
 			sql:     "SELECT 1 +",
 			wantErr: true,

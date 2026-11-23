@@ -965,14 +965,18 @@ func (p *Parser) parseExecuteImmediateArgs() (dupErr error, parseErr error) {
 // without `ON ... TO/FROM ...` are still rejected.
 func (p *Parser) parseGrantRevoke() (Statement, error) {
 	start := p.cur().Start
-	isGrant := p.match(kwGRANT)
-	if !isGrant {
+	isGrantOrDeny := p.match(kwGRANT)
+	if !isGrantOrDeny && p.cur().Kind == tokIdent && isWord(p.cur(), "DENY") {
+		p.advance()
+		isGrantOrDeny = true
+	}
+	if !isGrantOrDeny {
 		if _, err := p.expect(kwREVOKE); err != nil {
 			return nil, err
 		}
 	}
 	if p.isStatementEnd() || p.cur().Kind == kwROLE {
-		return nil, p.errorf("expected privilege list after GRANT/REVOKE")
+		return nil, p.errorf("expected privilege list after GRANT/REVOKE/DENY")
 	}
 	// Parse comma-separated privilege names before ON (each privilege is 1..4
 	// identifier/keyword words such as SELECT, ALL PRIVILEGES, USE CATALOG,
@@ -989,7 +993,7 @@ func (p *Parser) parseGrantRevoke() (Statement, error) {
 		return nil, err
 	}
 	dirKw := kwTO
-	if !isGrant {
+	if !isGrantOrDeny {
 		dirKw = kwFROM
 	}
 	if _, err := p.expect(dirKw); err != nil {
@@ -1074,4 +1078,171 @@ func (p *Parser) parseGrantSecurableObject() error {
 	// Bare table/object name without explicit TABLE keyword.
 	_, err := p.parseMultipartIdentifier()
 	return err
+}
+
+// parseCopyInto parses Databricks SQL COPY INTO <target> FROM (<source> | (<query>))
+// [FILEFORMAT = <fmt>] [FILES = (...)] [PATTERN = ...] [FORMAT_OPTIONS (...)]
+// [COPY_OPTIONS (...)].
+func (p *Parser) parseCopyInto() (Statement, error) {
+	start := p.cur().Start
+	p.advance() // COPY
+	if _, err := p.expect(kwINTO); err != nil {
+		return nil, err
+	}
+	target, err := p.parseIdentifierReference()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwFROM); err != nil {
+		return nil, err
+	}
+	if p.match(tokLParen) {
+		if err := p.parseQuery(); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(tokRParen); err != nil {
+			return nil, err
+		}
+	} else if err := p.parseStringLit(); err != nil {
+		return nil, err
+	}
+	for !p.isStatementEnd() {
+		switch {
+		case isWord(p.cur(), "FILEFORMAT"):
+			p.advance()
+			if _, err := p.expect(tokEq); err != nil {
+				return nil, err
+			}
+			if _, err := p.parseIdentifier(); err != nil {
+				return nil, err
+			}
+		case isWord(p.cur(), "PATTERN"):
+			p.advance()
+			if _, err := p.expect(tokEq); err != nil {
+				return nil, err
+			}
+			if err := p.parseStringLit(); err != nil {
+				return nil, err
+			}
+		case isWord(p.cur(), "FILES"):
+			p.advance()
+			if _, err := p.expect(tokEq); err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(tokLParen); err != nil {
+				return nil, err
+			}
+			if err := p.parseStringLit(); err != nil {
+				return nil, err
+			}
+			for p.match(tokComma) {
+				if err := p.parseStringLit(); err != nil {
+					return nil, err
+				}
+			}
+			if _, err := p.expect(tokRParen); err != nil {
+				return nil, err
+			}
+		case isWord(p.cur(), "FORMAT_OPTIONS") || isWord(p.cur(), "COPY_OPTIONS"):
+			p.advance()
+			if err := p.parsePropertyList(); err != nil {
+				return nil, err
+			}
+		default:
+			return nil, p.errorf("unexpected token %q in COPY INTO statement", p.cur().Text)
+		}
+	}
+	return &ParsedStmt{Kind: StmtInsert, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+}
+
+// parseOptimize parses Databricks Delta Lake OPTIMIZE <target> [WHERE <pred>]
+// [ZORDER BY (<cols>) | FULL].
+func (p *Parser) parseOptimize() (Statement, error) {
+	start := p.cur().Start
+	p.advance() // OPTIMIZE
+	target, err := p.parseIdentifierReference()
+	if err != nil {
+		return nil, err
+	}
+	if p.cur().Kind == kwWHERE {
+		if err := p.parseWhereClause(); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur().Kind == kwFULL {
+		p.advance()
+	}
+	if isWord(p.cur(), "ZORDER") {
+		p.advance()
+		if _, err := p.expect(kwBY); err != nil {
+			return nil, err
+		}
+		if p.cur().Kind == tokLParen {
+			if err := p.parseIdentifierList(); err != nil {
+				return nil, err
+			}
+		} else if err := p.parseIdentifierSeq(); err != nil {
+			return nil, err
+		}
+	}
+	return &ParsedStmt{Kind: StmtRepair, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+}
+
+// parseVacuum parses Databricks Delta Lake VACUUM <target> [LITE | FULL]
+// [RETAIN <n> HOURS] [DRY RUN].
+func (p *Parser) parseVacuum() (Statement, error) {
+	start := p.cur().Start
+	p.advance() // VACUUM
+	target, err := p.parseIdentifierReference()
+	if err != nil {
+		return nil, err
+	}
+	if isWord(p.cur(), "LITE") || p.cur().Kind == kwFULL {
+		p.advance()
+	}
+	if isWord(p.cur(), "RETAIN") {
+		p.advance()
+		if err := p.parseNumber(); err != nil {
+			return nil, err
+		}
+		if !p.match(kwHOURS, kwHOUR) {
+			return nil, p.errorf("expected HOURS after VACUUM RETAIN")
+		}
+	}
+	if isWord(p.cur(), "DRY") {
+		p.advance()
+		if !isWord(p.cur(), "RUN") {
+			return nil, p.errorf("expected RUN after DRY in VACUUM")
+		}
+		p.advance()
+	}
+	return &ParsedStmt{Kind: StmtRepair, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+}
+
+// parseRestoreTable parses Databricks Delta Lake RESTORE [TABLE] <target>
+// TO (VERSION | TIMESTAMP) AS OF <expr>.
+func (p *Parser) parseRestoreTable() (Statement, error) {
+	start := p.cur().Start
+	p.advance() // RESTORE
+	p.match(kwTABLE)
+	target, err := p.parseIdentifierReference()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwTO); err != nil {
+		return nil, err
+	}
+	if !p.match(kwVERSION, kwTIMESTAMP) {
+		return nil, p.errorf("expected VERSION or TIMESTAMP after RESTORE ... TO")
+	}
+	if _, err := p.expect(kwAS); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwOF); err != nil {
+		return nil, err
+	}
+	if err := p.parseExpression(); err != nil {
+		return nil, err
+	}
+	return &ParsedStmt{Kind: StmtAlterTable, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 }

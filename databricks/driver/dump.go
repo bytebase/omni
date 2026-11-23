@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 
 	catalogapi "github.com/databricks/databricks-sdk-go/service/catalog"
 
@@ -197,22 +198,25 @@ func sortedTables(tables []*tableUnion) []*tableUnion {
 
 // orderViewObjects puts a view after every view it reads. The service states a
 // view's dependencies by full table name; a dependency on a base table is
-// already created and does not affect the order.
+// already created and does not affect the order. Lookups normalize identifiers
+// to lowercase to match Databricks' case-insensitive identifier semantics.
 func orderViewObjects(objects []dumpObject, dependencies map[string][]string) []dumpObject {
 	byKey := make(map[string]dumpObject, len(objects))
 	indegree := make(map[string]int, len(objects))
 	children := map[string][]string{}
 	for _, object := range objects {
-		key := object.key()
+		key := strings.ToLower(object.key())
 		byKey[key] = object
 		indegree[key] = 0
 	}
-	for key, list := range dependencies {
+	for rawKey, list := range dependencies {
+		key := strings.ToLower(rawKey)
 		if _, ok := byKey[key]; !ok {
 			continue
 		}
 		seen := map[string]bool{}
-		for _, dependency := range list {
+		for _, rawDep := range list {
+			dependency := strings.ToLower(rawDep)
 			if dependency == key || seen[dependency] {
 				continue
 			}

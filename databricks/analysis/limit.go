@@ -63,6 +63,9 @@ func StatementWithResultLimit(statement string, limit int) string {
 	if end <= 0 || end > len(statement) {
 		return statement
 	}
+	if ps.HasPipe {
+		return statement[:end] + fmt.Sprintf(" |> LIMIT %d", limit) + statement[end:]
+	}
 	return statement[:end] + fmt.Sprintf(" LIMIT %d", limit) + statement[end:]
 }
 

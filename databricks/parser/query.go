@@ -328,6 +328,9 @@ func (p *Parser) parseQueryTerm() error {
 			}
 		case tokOperatorPipe:
 			p.advance()
+			if p.queryDepth == 1 {
+				p.hasPipe = true
+			}
 			beforePos := p.pos
 			if err := p.parseOperatorPipeRightSide(); err != nil {
 				return err
@@ -340,6 +343,9 @@ func (p *Parser) parseQueryTerm() error {
 				return nil
 			}
 			p.advance()
+			if p.queryDepth == 1 {
+				p.hasPipe = true
+			}
 			if err := p.parseOperatorPipeRightSide(); err != nil {
 				return err
 			}
@@ -351,9 +357,44 @@ func (p *Parser) parseQueryTerm() error {
 
 // isSingleBarPipeStart reports whether `|` at p.cur() introduces a Databricks
 // Runtime 18.0+ single-bar pipe stage rather than a bitwise OR operator.
+// To preserve bitwise OR expressions whose right operand is a non-reserved
+// keyword (such as `SELECT flags | limit FROM t` or `SELECT flags | offset AS
+// masked FROM t`), it rejects positions inside a SELECT projection list ahead
+// of a top-level FROM clause and confirms via speculative parse that a valid
+// pipe stage follows `|`.
 func (p *Parser) isSingleBarPipeStart() bool {
-	return p.queryDepth > 0 && p.cur().Kind == tokPipe &&
-		p.parenDepth == p.queryParenDepth && p.isSingleBarPipeStageAt(1)
+	if p.queryDepth <= 0 || p.cur().Kind != tokPipe || p.parenDepth != p.queryParenDepth {
+		return false
+	}
+	if p.inSelectList && p.hasKeywordAtDepthZero(1, kwFROM) {
+		return false
+	}
+	if !p.isSingleBarPipeStageAt(1) {
+		return false
+	}
+	if p.probingSingleBarPipe {
+		return true
+	}
+	cp := p.save()
+	p.probingSingleBarPipe = true
+	p.advance() // consume '|'
+	err := p.parseOperatorPipeRightSide()
+	validEnd := err == nil && p.isValidSingleBarPipeEnd()
+	p.probingSingleBarPipe = false
+	p.restore(cp)
+	return validEnd
+}
+
+func (p *Parser) isValidSingleBarPipeEnd() bool {
+	switch p.cur().Kind {
+	case tokEOF, tokSemicolon, tokRParen, tokOperatorPipe,
+		kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
+		return true
+	case tokPipe:
+		return p.parenDepth == p.queryParenDepth && p.isSingleBarPipeStageAt(1)
+	default:
+		return p.isQueryOrgStart()
+	}
 }
 
 func (p *Parser) isSingleBarPipeStageAt(off int) bool {
@@ -840,7 +881,11 @@ func (p *Parser) parseSelectClause() error {
 		}
 	}
 	p.matchSetQuantifierIfFollowedByExpr()
-	return p.parseNamedExpressionSeq()
+	prevInSelectList := p.inSelectList
+	p.inSelectList = true
+	err := p.parseNamedExpressionSeq()
+	p.inSelectList = prevInSelectList
+	return err
 }
 
 func (p *Parser) parseHint() error {
@@ -1793,8 +1838,12 @@ func (p *Parser) parseFunctionTableSubqueryArgument() error {
 		}
 		p.restore(cp)
 	}
-	if _, err := p.parseIdentifierReference(); err != nil {
+	_, parts, loc, isDyn, err := p.parseIdentifierReferenceParts()
+	if err != nil {
 		return err
+	}
+	if !isDyn {
+		p.recordTableRef(parts, loc)
 	}
 	if _, err := p.expect(tokRParen); err != nil {
 		return err

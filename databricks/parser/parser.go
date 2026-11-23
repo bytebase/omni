@@ -16,6 +16,8 @@ type checkpoint struct {
 	queryParenDepth int
 	hasTransform    bool
 	hasEmptyPipe    bool
+	hasPipe         bool
+	inSelectList    bool
 	limitLoc        Loc
 	limitAll        bool
 	offsetLoc       Loc
@@ -71,6 +73,9 @@ type Parser struct {
 	queryParenDepth        int
 	hasTransform           bool
 	hasEmptyPipe           bool
+	hasPipe                bool
+	inSelectList           bool
+	probingSingleBarPipe   bool
 	limitLoc               Loc
 	limitAll               bool
 	offsetLoc              Loc
@@ -127,6 +132,8 @@ func (p *Parser) save() checkpoint {
 		queryParenDepth: p.queryParenDepth,
 		hasTransform:    p.hasTransform,
 		hasEmptyPipe:    p.hasEmptyPipe,
+		hasPipe:         p.hasPipe,
+		inSelectList:    p.inSelectList,
 		limitLoc:        p.limitLoc,
 		limitAll:        p.limitAll,
 		offsetLoc:       p.offsetLoc,
@@ -145,6 +152,8 @@ func (p *Parser) restore(cp checkpoint) {
 	p.queryParenDepth = cp.queryParenDepth
 	p.hasTransform = cp.hasTransform
 	p.hasEmptyPipe = cp.hasEmptyPipe
+	p.hasPipe = cp.hasPipe
+	p.inSelectList = cp.inSelectList
 	p.limitLoc = cp.limitLoc
 	p.limitAll = cp.limitAll
 	p.offsetLoc = cp.offsetLoc
@@ -159,6 +168,8 @@ func (p *Parser) restore(cp checkpoint) {
 func (p *Parser) resetQueryMeta() {
 	p.hasTransform = false
 	p.hasEmptyPipe = false
+	p.hasPipe = false
+	p.inSelectList = false
 	p.limitLoc = Loc{}
 	p.limitAll = false
 	p.offsetLoc = Loc{}
@@ -1232,6 +1243,22 @@ func (p *Parser) parseStatement() (Statement, error) {
 
 	case kwGRANT, kwREVOKE:
 		return p.parseGrantRevoke()
+
+	case tokIdent:
+		// Databricks SQL / Delta Lake statements beyond Spark 4.0.5:
+		// COPY INTO, OPTIMIZE, VACUUM, RESTORE, and DENY.
+		switch {
+		case isWord(p.cur(), "COPY") && p.peek(1).Kind == kwINTO:
+			return p.parseCopyInto()
+		case isWord(p.cur(), "OPTIMIZE") && !p.isStatementEndAt(1):
+			return p.parseOptimize()
+		case isWord(p.cur(), "VACUUM") && !p.isStatementEndAt(1):
+			return p.parseVacuum()
+		case isWord(p.cur(), "RESTORE") && !p.isStatementEndAt(1):
+			return p.parseRestoreTable()
+		case isWord(p.cur(), "DENY") && !p.isStatementEndAt(1):
+			return p.parseGrantRevoke()
+		}
 	}
 
 	return nil, p.errorf("unexpected token %q at start of statement", p.cur().Text)
@@ -1243,6 +1270,7 @@ func (p *Parser) buildQueryStmt(start int) *ParsedStmt {
 		Loc:          Loc{Start: start, End: p.prevEnd()},
 		HasTransform: p.hasTransform,
 		HasEmptyPipe: p.hasEmptyPipe,
+		HasPipe:      p.hasPipe,
 		LimitLoc:     p.limitLoc,
 		LimitAll:     p.limitAll,
 		OffsetLoc:    p.offsetLoc,
