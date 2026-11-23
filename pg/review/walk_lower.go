@@ -2511,7 +2511,12 @@ func (b *builder) rename(v *ast.RenameStmt) bool {
 		return b.renameTrigger(v)
 	case ast.OBJECT_POLICY:
 		return b.renamePolicy(v)
-	case ast.OBJECT_RULE, ast.OBJECT_EVENT_TRIGGER, ast.OBJECT_COLLATION,
+	case ast.OBJECT_RULE:
+		// A renamed rule moves between names the walk may have taken
+		// from the sync; it no longer knows which rules any table has.
+		b.forget(walk.Scope{Space: spaceRule, Deep: true})
+		return true
+	case ast.OBJECT_EVENT_TRIGGER, ast.OBJECT_COLLATION,
 		ast.OBJECT_CONVERSION, ast.OBJECT_STATISTIC_EXT, ast.OBJECT_OPCLASS, ast.OBJECT_OPFAMILY,
 		ast.OBJECT_PUBLICATION, ast.OBJECT_SUBSCRIPTION, ast.OBJECT_FDW, ast.OBJECT_FOREIGN_SERVER,
 		ast.OBJECT_LANGUAGE, ast.OBJECT_TABLESPACE, ast.OBJECT_TSCONFIGURATION, ast.OBJECT_TSDICTIONARY,

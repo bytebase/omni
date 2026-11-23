@@ -1207,6 +1207,7 @@ func TestWalkThroughQueriesRulesOptionsAndExtensions(t *testing.T) {
 		"CREATE TABLE t2 (a int) USING other_am WITH (nosuch = 1);",
 		"ALTER TABLE t ENABLE RULE r_existing;",
 		"ALTER TABLE t DISABLE RULE r_existing;",
+		"ALTER RULE r_existing ON t RENAME TO r_new;\nALTER TABLE t ENABLE RULE r_new;",
 		"ALTER MATERIALIZED VIEW mv DEPENDS ON EXTENSION plpgsql;",
 		"ALTER MATERIALIZED VIEW mv DEPENDS ON EXTENSION adminpack;",
 	} {
@@ -1219,9 +1220,10 @@ func TestWalkThroughQueriesRulesOptionsAndExtensions(t *testing.T) {
 	// table access method of its own.
 	ext := walkSchema()
 	ext.Schemas[0].MaterializedViews = []*metadata.MaterializedViewMetadata{{Name: "mv"}}
-	ext.Extensions = []*metadata.ExtensionMetadata{{Name: "timescaledb", Schema: "public"}}
+	ext.Extensions = []*metadata.ExtensionMetadata{{Name: "timescaledb", Schema: "public"}, {Name: "vector", Schema: "public"}}
 	for _, sql := range []string{
 		"ALTER MATERIALIZED VIEW mv DEPENDS ON EXTENSION timescaledb;",
+		"ALTER MATERIALIZED VIEW mv DEPENDS ON EXTENSION vector;",
 		"ALTER TABLE t SET (timescaledb.compress = true);",
 		"ALTER TABLE t SET (custom_option = 1);",
 	} {

@@ -242,7 +242,6 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 		}
 		if strings.Contains(strings.ToLower(ext.GetName()), "timescaledb") {
 			s.lostRoutines = true
-			break
 		}
 	}
 	for _, schema := range db.GetSchemas() {
