@@ -453,12 +453,30 @@ func TestViewBinding(t *testing.T) {
 		{"rowguid without a uniqueidentifier column", nil, "CREATE VIEW v AS SELECT $ROWGUID AS g FROM u", ErrInvalidColumnName},
 		{"set operation orders by the first operand", nil, "CREATE VIEW v AS SELECT 1 AS a UNION ALL SELECT 2 AS b UNION ALL SELECT 3 AS c ORDER BY a OFFSET 0 ROWS", 0},
 		{"set operation order by a later operand's name", nil, "CREATE VIEW v AS SELECT 1 AS a UNION ALL SELECT 2 AS b UNION ALL SELECT 3 AS c ORDER BY b OFFSET 0 ROWS", 104},
+		{"grouped expression qualified differently", nil, "CREATE VIEW v AS SELECT t.id + 1 AS x FROM t GROUP BY id + 1", 0},
+		{"grouped expression of another column", nil, "CREATE VIEW v AS SELECT t.id + 1 AS x FROM t GROUP BY g", 8120},
+		{"alias type is not refused by type", nil, "CREATE VIEW v AS SELECT SUM(amount) AS total, MAX(TRIM(code)) AS c FROM w", 0},
+		{"statement CTE in every set operand", nil, "CREATE VIEW v AS WITH c AS (SELECT 1 AS a) SELECT a FROM c UNION ALL SELECT a FROM c", 0},
+		{"one-part name falls back to dbo", []string{"CREATE SCHEMA app"}, "CREATE VIEW app.v AS SELECT id FROM u", 0},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			c, err := LoadSQL("CREATE TABLE t (id INT NOT NULL, g UNIQUEIDENTIFIER ROWGUIDCOL NULL);\nCREATE TABLE u (id INT NOT NULL);")
+			c, err := LoadSQL("CREATE TABLE t (id INT NOT NULL, g UNIQUEIDENTIFIER ROWGUIDCOL NULL);\nCREATE TABLE u (id INT NOT NULL);\nCREATE TABLE w (amount INT NULL, code INT NULL);")
 			if err != nil {
 				t.Fatal(err)
+			}
+			// A synced column keeps its alias type's name, which the catalog
+			// does not resolve.
+			w := c.GetTable("dbo", "w")
+			w.Columns[0].Type, w.Columns[1].Type = "dbo.Amount", "dbo.Code"
+			if strings.HasPrefix(tc.name, "one-part") {
+				for _, stmt := range tc.setup {
+					if _, err := c.Exec(stmt, nil); err != nil {
+						t.Fatal(err)
+					}
+				}
+				tc.setup = nil
+				c.SetDefaultSchema("app")
 			}
 			for _, stmt := range append(append([]string(nil), tc.setup...), tc.sql) {
 				results, err := c.Exec(stmt, nil)

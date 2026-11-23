@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
@@ -158,10 +159,12 @@ type binder struct {
 	// setOrder holds the last operand of each set operation, which carries
 	// the ORDER BY of the whole operation.
 	setOrder map[*ast.SelectStmt]bool
+	// hoisted holds the first operands whose WITH a set operation bound.
+	hoisted map[*ast.SelectStmt]bool
 }
 
 func newBinder(c *Catalog, source, object string, depth int) *binder {
-	return &binder{c: c, source: source, object: object, vars: map[string]bool{}, bound: map[*ast.ColumnRef]colBinding{}, depth: depth, setOrder: map[*ast.SelectStmt]bool{}}
+	return &binder{c: c, source: source, object: object, vars: map[string]bool{}, bound: map[*ast.ColumnRef]colBinding{}, depth: depth, setOrder: map[*ast.SelectStmt]bool{}, hoisted: map[*ast.SelectStmt]bool{}}
 }
 
 // maxBindDepth bounds how deep views and functions that name each other are
@@ -248,6 +251,14 @@ func (b *binder) variables(sel *ast.SelectStmt) error {
 	return err
 }
 
+// firstOperand is the first query specification of a set operation.
+func firstOperand(sel *ast.SelectStmt) *ast.SelectStmt {
+	for sel != nil && sel.Op != ast.SetOpNone && sel.Larg != nil {
+		sel = sel.Larg
+	}
+	return sel
+}
+
 // lastOperand is the last query specification of a set operation, which
 // carries the ORDER BY, OFFSET and FOR of the whole operation.
 func lastOperand(sel *ast.SelectStmt) *ast.SelectStmt {
@@ -285,7 +296,22 @@ func (b *binder) query(sel *ast.SelectStmt, parent *qscope) ([]qcol, bool, error
 		return nil, true, nil
 	}
 	scope := parent
-	if sel.WithClause != nil {
+	// The parser hangs a set operation's WITH on its first operand, but its
+	// CTEs belong to the whole statement, so the outermost set operation
+	// binds them for every operand.
+	if sel.Op != ast.SetOpNone {
+		if first := firstOperand(sel); first != nil && first.WithClause != nil && !b.hoisted[first] {
+			b.hoisted[first] = true
+			scope = &qscope{parent: parent}
+			if parent != nil {
+				scope.block = parent.block
+			}
+			if err := b.ctes(first.WithClause, scope); err != nil {
+				return nil, false, err
+			}
+		}
+	}
+	if sel.WithClause != nil && !b.hoisted[sel] {
 		scope = &qscope{parent: parent}
 		if parent != nil {
 			scope.block = parent.block
@@ -687,12 +713,43 @@ func (b *binder) hasLocalColumn(n ast.Node, blk *qblock) bool {
 	return found
 }
 
-// normText is n's text with case and spacing folded, to compare an
-// expression with a GROUP BY expression.
+// normText is n's text with case and spacing folded and each bound column
+// written as the relation and column it binds to, to compare an expression
+// with a GROUP BY expression: t.a + 1 and a + 1 are the same expression.
 func (b *binder) normText(n ast.Node) string {
-	text := strings.ToLower(nodeText(n, b.source))
-	text = strings.NewReplacer("[", "", "]", "").Replace(text)
-	return strings.Join(strings.Fields(text), "")
+	loc := ast.NodeLoc(n)
+	if loc.Start < 0 || loc.End > len(b.source) || loc.Start > loc.End {
+		return ""
+	}
+	type span struct {
+		start, end int
+		text       string
+	}
+	var spans []span
+	ast.Inspect(n, func(node ast.Node) bool {
+		ref, ok := node.(*ast.ColumnRef)
+		if !ok {
+			return true
+		}
+		if bound, ok := b.bound[ref]; ok && bound.rel != nil && ref.Loc.Start >= loc.Start && ref.Loc.End <= loc.End {
+			spans = append(spans, span{ref.Loc.Start, ref.Loc.End, fmt.Sprintf("\x00%p.%s", bound.rel, strings.ToLower(ref.Column))})
+		}
+		return false
+	})
+	var text strings.Builder
+	at := loc.Start
+	for _, sp := range spans {
+		if sp.start < at {
+			continue
+		}
+		text.WriteString(b.source[at:sp.start])
+		text.WriteString(sp.text)
+		at = sp.end
+	}
+	text.WriteString(b.source[at:loc.End])
+	folded := strings.ToLower(text.String())
+	folded = strings.NewReplacer("[", "", "]", "").Replace(folded)
+	return strings.Join(strings.Fields(folded), "")
 }
 
 // selectList binds the select list and returns the result's columns.
@@ -1296,7 +1353,7 @@ func (b *binder) objectRel(ref *ast.TableRef, alias string, hints *ast.List, out
 		}
 		return exposed(&qrel{name: ref.Object, schema: ref.Schema, opaque: true}), nil
 	}
-	schema := b.c.GetSchema(ref.Schema)
+	schema := b.objectSchema(ref.Schema, ref.Object)
 	if schema == nil {
 		return nil, mssqlErr(ErrInvalidObjectName, "Invalid object name '%s'.", objectName(ref))
 	}
@@ -1328,6 +1385,24 @@ func (b *binder) objectRel(ref *ast.TableRef, alias string, hints *ast.List, out
 		return nil, mssqlErr(216, "Parameters were not supplied for the function '%s'.", objectName(ref))
 	}
 	return nil, mssqlErr(ErrInvalidObjectName, "Invalid object name '%s'.", objectName(ref))
+}
+
+// objectSchema is the schema a name resolves in: the one it names, or for a
+// one-part name the default schema and then dbo, as SQL Server looks.
+func (b *binder) objectSchema(schemaName, object string) *metadata.SchemaMetadata {
+	if schemaName != "" {
+		return b.c.GetSchema(schemaName)
+	}
+	schema := b.c.GetSchema(b.c.defaultSchema)
+	if schema != nil && b.c.lookupSchemaObject(schema, object, false) != kindNone {
+		return schema
+	}
+	if !strings.EqualFold(b.c.defaultSchema, defaultSchema) {
+		if dbo := b.c.GetSchema(defaultSchema); dbo != nil && b.c.lookupSchemaObject(dbo, object, false) != kindNone {
+			return dbo
+		}
+	}
+	return schema
 }
 
 func (b *binder) tableHints(hints *ast.List, ref *ast.TableRef) error {
@@ -1472,7 +1547,7 @@ func (b *binder) functionRel(f *ast.FuncCallExpr, alias string, columns *ast.Lis
 		}
 		return rel(nil, true), nil
 	}
-	schema := b.c.GetSchema(schemaName)
+	schema := b.objectSchema(schemaName, name)
 	if schema == nil {
 		return nil, mssqlErr(ErrInvalidObjectName, "Invalid object name '%s'.", objectName(f.Name))
 	}
@@ -2292,10 +2367,12 @@ func typeClass(typ string) qtype {
 		return qtBinary
 	case "xml":
 		return qtXML
-	case "":
-		return qtUnknown
+	case "uniqueidentifier", "sql_variant", "hierarchyid", "geometry", "geography", "cursor", "table":
+		return qtOther
 	}
-	return qtOther
+	// An alias type, or any type the catalog does not resolve, may be any
+	// of the above.
+	return qtUnknown
 }
 
 func dataTypeClass(dt *ast.DataType) qtype {
