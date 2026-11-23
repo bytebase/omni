@@ -21,6 +21,7 @@ import (
 const (
 	dumpTable                = "table"
 	dumpSyncMaterializedView = "sync materialized view"
+	dumpGlobalFunction       = "global function"
 	dumpFunction             = "function"
 	dumpView                 = "view"
 	dumpMaterializedView     = "materialized view"
@@ -59,6 +60,10 @@ const (
 	// SHOW FUNCTIONS lists a name only.
 	dumpFunctionsQuery = `SHOW FULL FUNCTIONS FROM %s`
 
+	// A global function belongs to the server, not to a database, and is
+	// listed with its signature the same way.
+	dumpGlobalFunctionsQuery = `SHOW GLOBAL FULL FUNCTIONS`
+
 	// A synchronous materialized view is an index on its base table, not a table
 	// of its own, so neither information_schema nor mv_infos() lists it: the
 	// table's own description names the indexes it carries.
@@ -80,7 +85,8 @@ type dumpObject struct {
 }
 
 // Dump writes the database's DDL as the server states it: tables, their
-// synchronous materialized views, functions, views, materialized views and
+// synchronous materialized views, the global functions its views and
+// materialized views call, its own functions, views, materialized views and
 // procedures, in an order that replays. Doris takes a synchronous materialized
 // view's creation as an asynchronous schema change and refuses the next one on
 // the same table until it finishes, so applying a script with several on one
@@ -189,7 +195,7 @@ func (d *Driver) dumpObjects(ctx context.Context, catalog string) ([]*dumpObject
 	functions, err := d.dumpFunctionSignatures(ctx)
 	var functionsRefused error
 	if err != nil {
-		if !routineProbeRefused(ctx, "", err) {
+		if !probeRefused(ctx, "", err) {
 			return nil, err
 		}
 		// A kernel built without the PL/SQL grammar (SelectDB 4.0.12+, 4.1.8+ and
@@ -200,7 +206,9 @@ func (d *Driver) dumpObjects(ctx context.Context, catalog string) ([]*dumpObject
 		// reads a function the dump does not state does not replay.
 		functions, functionsRefused = nil, err
 	}
+	databaseFunctions := make(map[string]bool, len(functions))
 	for _, signature := range functions {
+		databaseFunctions[functionSignatureName(signature)] = true
 		// A variadic function's definition does not replay: the catalogue states
 		// the ellipsis against the last type (fv(int...)), Doris's parser refuses
 		// that argument list, and the definition it states for the accepted form
@@ -216,7 +224,7 @@ func (d *Driver) dumpObjects(ctx context.Context, catalog string) ([]*dumpObject
 	if err != nil {
 		// No definition the dump carries calls a procedure, so an omitted
 		// procedure catalogue leaves nothing dangling.
-		if !routineProbeRefused(ctx, "routines", err) {
+		if !probeRefused(ctx, "routines", err) {
 			return nil, err
 		}
 		procedures = nil
@@ -229,6 +237,7 @@ func (d *Driver) dumpObjects(ctx context.Context, catalog string) ([]*dumpObject
 	// not depend on the map iteration above.
 	objects = sortDumpObjects(objects)
 	defined := objects[:0]
+	globalCalls := make(map[string]bool)
 	for _, o := range objects {
 		stmt, err := d.dumpStatement(ctx, o.kind, o.name, o.table)
 		if errors.Is(err, errNoStatement) && o.kind == dumpSyncMaterializedView {
@@ -253,10 +262,89 @@ func (d *Driver) dumpObjects(ctx context.Context, catalog string) ([]*dumpObject
 				// that cannot replay.
 				return nil, fmt.Errorf("%s %q calls function %q, which the server refused to state: %w", o.kind, o.name, calls[0], functionsRefused)
 			}
+			for _, call := range calls {
+				if name := strings.ToLower(call); !databaseFunctions[name] {
+					globalCalls[name] = true
+				}
+			}
 		}
 		defined = append(defined, o)
 	}
-	return defined, nil
+	globals, err := d.dumpGlobalFunctions(ctx, globalCalls)
+	if err != nil {
+		return nil, err
+	}
+	return append(defined, globals...), nil
+}
+
+// dumpGlobalFunctions returns the global functions a definition calls, each
+// stated with IF NOT EXISTS. SHOW CREATE VIEW qualifies every call to a
+// function that is not built in with the database the view was created in,
+// global or not (`db`.`gf`(1)), and the server resolves a database-qualified
+// call that names no function of that database to the global function of the
+// name; so a call that names none of the database's functions is a global
+// function's, and the definition does not replay on a server without it. The
+// function is the server's, not the database's: on the server the dump came
+// from it is still there when the script replays, so the statement states IF
+// NOT EXISTS and a restore there keeps the function it finds. A call resolves
+// by name and argument types, so every signature of a called name is stated.
+func (d *Driver) dumpGlobalFunctions(ctx context.Context, calls map[string]bool) ([]*dumpObject, error) {
+	if len(calls) == 0 {
+		return nil, nil
+	}
+	signatures, err := d.dumpSignatures(ctx, dumpGlobalFunctionsQuery)
+	if err != nil {
+		// A server that refuses the catalogue leaves the dump unable to state a
+		// function its definitions call, so the script would not replay.
+		return nil, err
+	}
+	var objects []*dumpObject
+	for _, signature := range signatures {
+		// A variadic signature does not replay, as for a database's function.
+		if !calls[functionSignatureName(signature)] || strings.Contains(signature, "...") {
+			continue
+		}
+		stmt, err := d.dumpStatement(ctx, dumpGlobalFunction, signature, "")
+		if err != nil {
+			return nil, err
+		}
+		if stmt, err = globalFunctionIfNotExists(stmt); err != nil {
+			return nil, fmt.Errorf("global function %s: %w", signature, err)
+		}
+		objects = append(objects, &dumpObject{kind: dumpGlobalFunction, name: signature, stmt: stmt})
+	}
+	return objects, nil
+}
+
+// globalFunctionIfNotExists adds IF NOT EXISTS to the CREATE GLOBAL FUNCTION
+// statement the server states, before the function's name.
+func globalFunctionIfNotExists(stmt string) (string, error) {
+	file, err := dorisparser.Parse(stmt)
+	if err != nil {
+		return "", err
+	}
+	if len(file.Stmts) != 1 {
+		return "", fmt.Errorf("%d statements, want one", len(file.Stmts))
+	}
+	create, ok := file.Stmts[0].(*ast.CreateFunctionStmt)
+	if !ok || !create.Global || create.Name == nil {
+		return "", fmt.Errorf("%T is not a global function's definition", file.Stmts[0])
+	}
+	if create.IfNotExists {
+		return stmt, nil
+	}
+	at := create.Name.Loc.Start
+	if at < 0 || at > len(stmt) {
+		return "", fmt.Errorf("no position for the function's name in %q", stmt)
+	}
+	return stmt[:at] + "IF NOT EXISTS " + stmt[at:], nil
+}
+
+// functionSignatureName returns the lower-case name a signature such as
+// gf(int) states.
+func functionSignatureName(signature string) string {
+	name, _, _ := strings.Cut(signature, "(")
+	return strings.ToLower(strings.TrimSpace(name))
 }
 
 // errNoStatement reports a form the server answers no row for, which a
@@ -278,10 +366,11 @@ const (
 // timeout all arrive under it.
 const errUnknownError = 1105
 
-// routineProbeRefused reports whether a routine catalogue probe was refused
-// rather than left unanswered, which is the one case the dump may read as an
-// absent catalogue. Doris states three such refusals, and each is checked
-// against the answer it actually gives:
+// probeRefused reports whether a catalogue probe (a routine catalogue for the
+// dump, the account and role statements for SyncInstance) was refused rather
+// than left unanswered, which is the one case a reader may take as an absent
+// catalogue. Doris states three such refusals, and each is checked against the
+// answer it actually gives:
 //
 //   - the parser refuses a statement the kernel's grammar does not have (a
 //     kernel built without the PL/SQL grammar, apache/doris#58700), as
@@ -298,7 +387,7 @@ const errUnknownError = 1105
 // the probe names and the server cannot find — states nothing about the
 // catalogue, so it fails the dump rather than dropping every routine from it.
 // So does a dead connection or an ended context.
-func routineProbeRefused(ctx context.Context, relation string, err error) bool {
+func probeRefused(ctx context.Context, relation string, err error) bool {
 	if ctx.Err() != nil {
 		return false
 	}
@@ -413,7 +502,12 @@ func dumpIndexNames(ctx context.Context, q interface {
 // in the order the server lists them. SHOW CREATE FUNCTION states a definition
 // only for the session's database, which the connection selects.
 func (d *Driver) dumpFunctionSignatures(ctx context.Context) ([]string, error) {
-	query := fmt.Sprintf(dumpFunctionsQuery, quoteBacktick(d.databaseName))
+	return d.dumpSignatures(ctx, fmt.Sprintf(dumpFunctionsQuery, quoteBacktick(d.databaseName)))
+}
+
+// dumpSignatures returns the first column of a function listing, the
+// signatures, in the order the server lists them.
+func (d *Driver) dumpSignatures(ctx context.Context, query string) ([]string, error) {
 	rows, err := d.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", query, err)
@@ -477,6 +571,8 @@ func (d *Driver) dumpStatement(ctx context.Context, kind, name, table string) (s
 		// A signature is the server's own rendering; a variadic one is left out
 		// of the object list, so it never reaches this query.
 		query = "SHOW CREATE FUNCTION " + name
+	case dumpGlobalFunction:
+		query = "SHOW CREATE GLOBAL FUNCTION " + name
 	case dumpView:
 		query = "SHOW CREATE VIEW " + qualified
 	case dumpMaterializedView:
@@ -597,19 +693,22 @@ func dumpReferencedName(name *ast.ObjectName, catalog, database string) string {
 }
 
 // orderDumpObjects puts the objects in the order a restore replays: tables
-// first, then functions, then views and materialized views so that each
+// first, then global functions, which a database's alias function may call,
+// then the database's functions, then views and materialized views so that each
 // definition reads only objects already created, then procedures. A materialized
 // view's definition cannot contain a view, but a view's may contain a
 // materialized view, and either may call a function or read another of its kind,
 // so definitions follow those references.
 func orderDumpObjects(objects []*dumpObject) []*dumpObject {
-	var tables, syncMaterializedViews, functions, definitions, procedures []*dumpObject
+	var tables, syncMaterializedViews, globalFunctions, functions, definitions, procedures []*dumpObject
 	for _, o := range objects {
 		switch o.kind {
 		case dumpTable:
 			tables = append(tables, o)
 		case dumpSyncMaterializedView:
 			syncMaterializedViews = append(syncMaterializedViews, o)
+		case dumpGlobalFunction:
+			globalFunctions = append(globalFunctions, o)
 		case dumpFunction:
 			functions = append(functions, o)
 		case dumpProcedure:
@@ -619,6 +718,7 @@ func orderDumpObjects(objects []*dumpObject) []*dumpObject {
 		}
 	}
 	ordered := append(sortDumpObjects(tables), sortSyncMaterializedViews(syncMaterializedViews)...)
+	ordered = append(ordered, sortDumpObjects(globalFunctions)...)
 	ordered = append(ordered, sortDumpObjects(functions)...)
 	ordered = append(ordered, orderDumpDefinitions(definitions)...)
 	return append(ordered, sortDumpObjects(procedures)...)
@@ -702,6 +802,9 @@ func writeDumpObject(out io.Writer, o *dumpObject) error {
 		return err
 	case dumpFunction:
 		_, err := fmt.Fprintf(out, "--\n-- Function structure for %s\n--\n%s;\n\n", o.name, o.stmt)
+		return err
+	case dumpGlobalFunction:
+		_, err := fmt.Fprintf(out, "--\n-- Global function structure for %s\n--\n%s;\n\n", o.name, o.stmt)
 		return err
 	}
 	var label string

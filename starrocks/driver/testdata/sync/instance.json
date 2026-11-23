@@ -3,6 +3,61 @@
       "sync_inst_db  "
     ],
     "lowerCaseTableNames": 0,
-    "roles": null,
+    "roles": [
+      {
+        "Name": "'root'@'%'",
+        "ConnectionLimit": null,
+        "ValidUntil": null,
+        "Attribute": "GRANT 'root' TO 'root'@'%'"
+      },
+      {
+        "Name": "'sync_app'@'%'",
+        "ConnectionLimit": null,
+        "ValidUntil": null,
+        "Attribute": "GRANT 'sync_reader' TO 'sync_app'@'%'\nGRANT INSERT ON TABLE sync_inst_db.t TO USER 'sync_app'@'%'"
+      },
+      {
+        "Name": "'sync_ops'@'10.0.0.%'",
+        "ConnectionLimit": null,
+        "ValidUntil": null,
+        "Attribute": "GRANT 'sync_reader' TO 'sync_ops'@'10.0.0.%'\nGRANT CREATE TABLE ON DATABASE sync_inst_db TO USER 'sync_ops'@'10.0.0.%'"
+      },
+      {
+        "Name": "cluster_admin",
+        "ConnectionLimit": null,
+        "ValidUntil": null,
+        "Attribute": "GRANT USAGE, ALTER, DROP ON ALL WAREHOUSES TO ROLE 'cluster_admin'\nGRANT NODE, CREATE WAREHOUSE ON SYSTEM TO ROLE 'cluster_admin'"
+      },
+      {
+        "Name": "db_admin",
+        "ConnectionLimit": null,
+        "ValidUntil": null,
+        "Attribute": "GRANT DELETE, DROP, INSERT, SELECT, ALTER, EXPORT, UPDATE ON ALL TABLES IN ALL DATABASES TO ROLE 'db_admin'\nGRANT CREATE TABLE, DROP, ALTER, CREATE VIEW, CREATE FUNCTION, CREATE MATERIALIZED VIEW, CREATE PIPE ON ALL DATABASES TO ROLE 'db_admin'\nGRANT CREATE RESOURCE, PLUGIN, FILE, BLACKLIST, OPERATE, CREATE EXTERNAL CATALOG, REPOSITORY, CREATE RESOURCE GROUP, CREATE GLOBAL FUNCTION, CREATE STORAGE VOLUME ON SYSTEM TO ROLE 'db_admin'\nGRANT USAGE, ALTER, DROP ON ALL RESOURCES TO ROLE 'db_admin'\nGRANT SELECT, ALTER, DROP ON ALL VIEWS IN ALL DATABASES TO ROLE 'db_admin'\nGRANT USAGE, CREATE DATABASE, DROP, ALTER ON ALL CATALOGS TO ROLE 'db_admin'\nGRANT ALTER, REFRESH, DROP, SELECT ON ALL MATERIALIZED VIEWS IN ALL DATABASES TO ROLE 'db_admin'\nGRANT USAGE, DROP ON ALL FUNCTIONS IN ALL DATABASES TO ROLE 'db_admin'\nGRANT ALTER, DROP ON ALL RESOURCE GROUPS TO ROLE 'db_admin'\nGRANT USAGE, DROP ON ALL GLOBAL FUNCTIONS TO ROLE 'db_admin'\nGRANT DROP, ALTER, USAGE ON ALL STORAGE VOLUMES TO ROLE 'db_admin'\nGRANT ALTER, DROP, USAGE ON ALL DATABASES TO ROLE 'db_admin'"
+      },
+      {
+        "Name": "public",
+        "ConnectionLimit": null,
+        "ValidUntil": null,
+        "Attribute": "GRANT SELECT ON ALL TABLES IN DATABASE information_schema TO ROLE 'public'"
+      },
+      {
+        "Name": "root",
+        "ConnectionLimit": null,
+        "ValidUntil": null,
+        "Attribute": "GRANT DELETE, DROP, INSERT, SELECT, ALTER, EXPORT, UPDATE ON ALL TABLES IN ALL DATABASES TO ROLE 'root'\nGRANT CREATE TABLE, DROP, ALTER, CREATE VIEW, CREATE FUNCTION, CREATE MATERIALIZED VIEW, CREATE PIPE ON ALL DATABASES TO ROLE 'root'\nGRANT USAGE, ALTER, DROP ON ALL WAREHOUSES TO ROLE 'root'\nGRANT GRANT, NODE, CREATE RESOURCE, PLUGIN, FILE, BLACKLIST, OPERATE, CREATE EXTERNAL CATALOG, REPOSITORY, CREATE RESOURCE GROUP, CREATE GLOBAL FUNCTION, CREATE STORAGE VOLUME, CREATE WAREHOUSE ON SYSTEM TO ROLE 'root'\nGRANT IMPERSONATE ON ALL USERS TO ROLE 'root'\nGRANT USAGE, ALTER, DROP ON ALL RESOURCES TO ROLE 'root'\nGRANT SELECT, ALTER, DROP ON ALL VIEWS IN ALL DATABASES TO ROLE 'root'\nGRANT USAGE, CREATE DATABASE, DROP, ALTER ON ALL CATALOGS TO ROLE 'root'\nGRANT ALTER, REFRESH, DROP, SELECT ON ALL MATERIALIZED VIEWS IN ALL DATABASES TO ROLE 'root'\nGRANT USAGE, DROP ON ALL FUNCTIONS IN ALL DATABASES TO ROLE 'root'\nGRANT ALTER, DROP ON ALL RESOURCE GROUPS TO ROLE 'root'\nGRANT USAGE, DROP ON ALL GLOBAL FUNCTIONS TO ROLE 'root'\nGRANT DROP, ALTER, USAGE ON ALL STORAGE VOLUMES TO ROLE 'root'\nGRANT ALTER, DROP, USAGE ON ALL DATABASES TO ROLE 'root'"
+      },
+      {
+        "Name": "sync_reader",
+        "ConnectionLimit": null,
+        "ValidUntil": null,
+        "Attribute": "GRANT SELECT ON ALL TABLES IN DATABASE sync_inst_db TO ROLE 'sync_reader'"
+      },
+      {
+        "Name": "user_admin",
+        "ConnectionLimit": null,
+        "ValidUntil": null,
+        "Attribute": "GRANT GRANT ON SYSTEM TO ROLE 'user_admin'\nGRANT IMPERSONATE ON ALL USERS TO ROLE 'user_admin'"
+      }
+    ],
     "version": "3.4.10"
   }
