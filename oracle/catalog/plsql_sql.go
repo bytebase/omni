@@ -207,7 +207,7 @@ func (c *plChecker) sqlCall(n *ast.FuncCallExpr) error {
 		return nil
 	}
 	name := n.FuncName.Name
-	if plsqlFunctions[name] || n.Over != nil {
+	if plsqlFunctions[name] || n.Over != nil || sqlQuantifiers[name] {
 		return nil
 	}
 	target := c.e.resolveSynonymTarget(name, "")
@@ -413,3 +413,7 @@ func (c *plChecker) merge(a *queryAnalyzer, s *ast.MergeStmt) error {
 	}
 	return nil
 }
+
+// sqlQuantifiers are the words the parser keeps as a call's name for a
+// quantified comparison's list: x = ANY (1, 2).
+var sqlQuantifiers = map[string]bool{"ALL": true, "ANY": true, "SOME": true}

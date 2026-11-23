@@ -175,10 +175,14 @@ func (c *plChecker) loop(s *ast.PLSQLLoop) {
 			fields = c.sql(s.CursorQuery)
 		case s.CursorName != "":
 			sym := c.lookup(s.CursorName)
-			if sym == nil {
-				c.fail("PLS-00201", "identifier '%s' must be declared", s.CursorName)
-			} else {
+			switch {
+			case sym != nil:
 				fields = sym.fields
+			case s.Iteration == nil:
+				c.fail("PLS-00201", "identifier '%s' must be declared", s.CursorName)
+			default:
+				// pk.c: the parser keeps the qualified cursor in the
+				// iterator, which the checker takes as declared.
 			}
 			c.exprList(s.CursorArgs)
 		}

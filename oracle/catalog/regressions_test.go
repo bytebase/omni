@@ -3299,3 +3299,19 @@ func TestUnitNamesOwnSchemaLabelsAndMembers(t *testing.T) {
 		}
 	}
 }
+
+// TestUnitReadsPackageCursorsAndQuantifiers holds a cursor FOR loop over a
+// package's cursor and a quantified comparison's list to compiling.
+func TestUnitReadsPackageCursorsAndQuantifiers(t *testing.T) {
+	c, err := LoadSQL("CREATE TABLE t (id NUMBER);\n" +
+		"CREATE PACKAGE pk AS CURSOR c IS SELECT id FROM t; END;\n/\n" +
+		"CREATE PROCEDURE p IS n NUMBER; BEGIN FOR r IN pk.c LOOP NULL; END LOOP; SELECT COUNT(*) INTO n FROM dual WHERE 1 = ANY (1, 2) AND 2 = SOME (1, 2) AND 3 <> ALL (1, 2); END;\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range c.unitStates() {
+		if u.status != "VALID" {
+			t.Errorf("%s %s: %s %s, want VALID", u.kind, u.name, u.status, u.err)
+		}
+	}
+}
