@@ -43,8 +43,25 @@ type Catalog struct {
 	skipViewIndexes                   bool
 	omitUnnamedDefaultConstraintNames bool
 	lenientMetadataLoad               bool
-	systemTimeTables                  map[tableKey][2]string
-	systemVersionedTables             map[tableKey]bool
+	// loadingScript is set while LoadSQL runs a desired-state script, whose
+	// objects need not come in the order SQL Server would create them, so a
+	// view's query is not bound against what precedes it.
+	loadingScript bool
+	// viewColumns holds the columns a view was bound to when Exec created or
+	// altered it, which SQL Server keeps until the view is altered or
+	// refreshed.
+	viewColumns map[*metadata.ViewMetadata][]qcol
+	// fromMetadata is set once a synced snapshot is loaded, which records
+	// neither full-text indexes, HIDDEN columns, nor system versioning, so
+	// the checks that read them are inconclusive.
+	fromMetadata bool
+	// fulltextTables and hiddenColumns record what Exec ran: the tables
+	// with a full-text index, and the HIDDEN columns. Both are keyed by the
+	// object, which a rename or schema transfer keeps.
+	fulltextTables        map[*metadata.TableMetadata]bool
+	hiddenColumns         map[*metadata.ColumnMetadata]bool
+	systemTimeTables      map[tableKey][2]string
+	systemVersionedTables map[tableKey]bool
 }
 
 type tableKey struct {
@@ -55,10 +72,10 @@ type tableKey struct {
 // New returns an empty catalog.
 func New() *Catalog {
 	return &Catalog{
-		defaultSchema:    defaultSchema,
-		schemaByName:     make(map[string]*metadata.SchemaMetadata),
-		schemasByFold:    make(map[string][]*metadata.SchemaMetadata),
-		tableByName:      make(map[tableKey]*metadata.TableMetadata),
+		defaultSchema:         defaultSchema,
+		schemaByName:          make(map[string]*metadata.SchemaMetadata),
+		schemasByFold:         make(map[string][]*metadata.SchemaMetadata),
+		tableByName:           make(map[tableKey]*metadata.TableMetadata),
 		databaseByName:        make(map[string]*Catalog),
 		systemTimeTables:      make(map[tableKey][2]string),
 		systemVersionedTables: make(map[tableKey]bool),
@@ -249,6 +266,7 @@ func (c *Catalog) registerDatabaseName(database string) {
 }
 
 func (c *Catalog) loadPrimaryMetadata(meta *metadata.DatabaseSchemaMetadata, database string) {
+	c.fromMetadata = true
 	c.database = database
 	c.defaultSchema = defaultSchema
 	c.metadataDefaultSchema = meta.GetDefaultSchema()
@@ -389,7 +407,9 @@ func loadSQLWithOptions(sql string, skipViewIndexes, omitUnnamedDefaultConstrain
 	c.skipViewIndexes = skipViewIndexes
 	c.omitUnnamedDefaultConstraintNames = omitUnnamedDefaultConstraintNames
 	c.lenientMetadataLoad = skipViewIndexes
+	c.loadingScript = true
 	results, err := c.Exec(sql, nil)
+	c.loadingScript = false
 	if err != nil {
 		return nil, err
 	}
@@ -452,6 +472,8 @@ func (c *Catalog) execStatement(node ast.Node, source string) error {
 		return c.execAlterIndex(n)
 	case *ast.CreateViewStmt:
 		return c.execCreateOrAlterView(n, source)
+	case *ast.CreateFulltextIndexStmt:
+		c.execCreateFulltextIndex(n)
 	case *ast.CreateProcedureStmt:
 		return c.execCreateOrAlterProcedure(n, source)
 	case *ast.CreateFunctionStmt:
@@ -484,6 +506,14 @@ func (c *Catalog) extractColumn(n *ast.ColumnDef, table *metadata.TableMetadata,
 		Name:     n.Name,
 		Position: int32(len(table.Columns) + 1),
 		Nullable: true,
+	}
+	// HIDDEN is kept by the column itself, so it goes when the column or
+	// its table does, and follows a rename.
+	if n.Hidden {
+		if c.hiddenColumns == nil {
+			c.hiddenColumns = map[*metadata.ColumnMetadata]bool{}
+		}
+		c.hiddenColumns[column] = true
 	}
 	if n.Computed != nil {
 		expression := strings.TrimSpace(nodeText(n.Computed.Expr, source))

@@ -462,6 +462,8 @@ func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answe
 	results, err := c.Exec(statement, nil)
 	var syntax *mssqlparser.ParseError
 	switch {
+	case errors.As(err, &syntax) && syntax.Code != 0:
+		return simulate.Omni{Code: strconv.Itoa(syntax.Code), Why: err.Error()}
 	case errors.As(err, &syntax):
 		return simulate.Omni{Code: "102", Why: err.Error()}
 	case err != nil:

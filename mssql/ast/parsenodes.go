@@ -36,6 +36,9 @@ type SelectStmt struct {
 	// GroupByDistributedAgg is a GROUP BY that ends, on the list or on one of
 	// its items, with WITH ( DISTRIBUTED_AGG ).
 	GroupByDistributedAgg bool
+	// GroupByOption is ROLLUP or CUBE for GROUP BY ... WITH ROLLUP and
+	// GROUP BY ... WITH CUBE; empty otherwise.
+	GroupByOption string
 
 	// HAVING clause
 	HavingClause ExprNode
