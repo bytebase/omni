@@ -7,7 +7,7 @@ func (p *Parser) parseUse() (Statement, error) {
 	if _, err := p.expect(kwUSE); err != nil {
 		return nil, err
 	}
-	if p.isNamespace() && !p.isStatementEndAt(1) {
+	if (p.isNamespace() || p.cur().Kind == kwCATALOG) && !p.isStatementEndAt(1) {
 		cp := p.save()
 		p.advance()
 		if target, err := p.parseIdentifierReference(); err == nil && p.isStatementEnd() {
@@ -321,11 +321,21 @@ func (p *Parser) parseExplain() (Statement, error) {
 	if p.cur().Kind == kwLOGICAL {
 		return nil, p.errorf("EXPLAIN LOGICAL is not valid")
 	}
-	p.match(kwFORMATTED, kwEXTENDED, kwCODEGEN, kwCOST)
-	if _, err := p.parseStatementOrSetReset(); err != nil {
+	mode := ""
+	switch p.cur().Kind {
+	case kwFORMATTED, kwEXTENDED, kwCODEGEN, kwCOST:
+		mode = strings.ToUpper(p.advance().Text)
+	}
+	inner, err := p.parseStatementOrSetReset()
+	if err != nil {
 		return nil, err
 	}
-	return &ParsedStmt{Kind: StmtExplain, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+	return &ParsedStmt{
+		Kind:        StmtExplain,
+		ExplainMode: mode,
+		Inner:       inner,
+		Loc:         Loc{Start: start, End: p.prevEnd()},
+	}, nil
 }
 
 func (p *Parser) parseShow() (Statement, error) {
@@ -351,6 +361,10 @@ func (p *Parser) parseShow() (Statement, error) {
 
 	case kwTABLES:
 		p.advance()
+		// Databricks Unity Catalog: SHOW TABLES DROPPED [{FROM|IN} schema] [LIKE pattern]
+		if p.cur().Kind == tokIdent && isWord(p.cur(), "DROPPED") {
+			p.advance()
+		}
 		if p.match(kwFROM, kwIN) {
 			if _, err := p.parseIdentifierReference(); err != nil {
 				return nil, err
@@ -456,8 +470,8 @@ func (p *Parser) parseShow() (Statement, error) {
 
 	case kwCURRENT:
 		p.advance()
-		if !p.matchNamespace() {
-			return nil, p.errorf("expected NAMESPACE, DATABASE, or SCHEMA after SHOW CURRENT")
+		if !p.matchNamespace() && !p.match(kwCATALOG) {
+			return nil, p.errorf("expected NAMESPACE, DATABASE, SCHEMA, or CATALOG after SHOW CURRENT")
 		}
 
 	case kwCATALOGS:
@@ -474,6 +488,10 @@ func (p *Parser) parseShow() (Statement, error) {
 		return p.parseShowFunctionsTail(start)
 
 	default:
+		// Databricks SQL / Unity Catalog SHOW commands.
+		if stmt, ok, err := p.tryParseDatabricksShow(start); ok || err != nil {
+			return stmt, err
+		}
 		// SHOW (USER | SYSTEM | ALL) FUNCTIONS ...
 		if p.cur().Kind.isIdentifier() && p.peek(1).Kind == kwFUNCTIONS {
 			scope := p.advance().Text
@@ -486,6 +504,117 @@ func (p *Parser) parseShow() (Statement, error) {
 	}
 
 	return &ParsedStmt{Kind: StmtShow, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+}
+
+// tryParseDatabricksShow handles Databricks SQL / Unity Catalog SHOW commands
+// beyond Apache Spark 4.0.5 (VOLUMES, PROCEDURES, EXTERNAL LOCATIONS,
+// STORAGE/SERVICE CREDENTIALS, CONNECTIONS, SHARES, ALL IN SHARE, RECIPIENTS,
+// PROVIDERS, GROUPS, USERS, and GRANTS).
+func (p *Parser) tryParseDatabricksShow(start int) (Statement, bool, error) {
+	w0 := strings.ToUpper(p.cur().Text)
+	w1 := strings.ToUpper(p.peek(1).Text)
+
+	parseOptionalLike := func() error {
+		if p.match(kwLIKE) {
+			return p.parseStringLit()
+		}
+		if p.isStringLit() {
+			p.advance()
+		}
+		return nil
+	}
+
+	switch {
+	case w0 == "GRANTS":
+		p.advance()
+		// SHOW GRANTS TO RECIPIENT <recipient_name>
+		if p.cur().Kind == kwTO && isWord(p.peek(1), "RECIPIENT") {
+			p.advance()
+			p.advance()
+			if _, err := p.parseIdentifier(); err != nil {
+				return nil, true, err
+			}
+			return &ParsedStmt{Kind: StmtShow, Loc: Loc{Start: start, End: p.prevEnd()}}, true, nil
+		}
+		if p.cur().Kind != kwON && !p.isStatementEnd() {
+			if p.isStringLit() {
+				p.advance()
+			} else if _, err := p.parseIdentifier(); err != nil {
+				return nil, true, err
+			}
+		}
+		if p.match(kwON) {
+			if err := p.parseGrantSecurableObject(); err != nil {
+				return nil, true, err
+			}
+		}
+		return &ParsedStmt{Kind: StmtShow, Loc: Loc{Start: start, End: p.prevEnd()}}, true, nil
+
+	case w0 == "VOLUMES" || w0 == "PROCEDURES":
+		p.advance()
+		if p.match(kwFROM, kwIN) {
+			if _, err := p.parseIdentifierReference(); err != nil {
+				return nil, true, err
+			}
+		}
+		if err := parseOptionalLike(); err != nil {
+			return nil, true, err
+		}
+		return &ParsedStmt{Kind: StmtShow, Loc: Loc{Start: start, End: p.prevEnd()}}, true, nil
+
+	case (w0 == "EXTERNAL" && w1 == "LOCATIONS") ||
+		((w0 == "STORAGE" || w0 == "SERVICE") && w1 == "CREDENTIALS"):
+		p.advance()
+		p.advance()
+		if err := parseOptionalLike(); err != nil {
+			return nil, true, err
+		}
+		return &ParsedStmt{Kind: StmtShow, Loc: Loc{Start: start, End: p.prevEnd()}}, true, nil
+
+	case w0 == "CONNECTIONS" || w0 == "CREDENTIALS" || w0 == "RECIPIENTS" || w0 == "PROVIDERS" || w0 == "USERS":
+		p.advance()
+		if err := parseOptionalLike(); err != nil {
+			return nil, true, err
+		}
+		return &ParsedStmt{Kind: StmtShow, Loc: Loc{Start: start, End: p.prevEnd()}}, true, nil
+
+	case w0 == "SHARES":
+		p.advance()
+		if p.cur().Kind == kwIN && isWord(p.peek(1), "PROVIDER") {
+			p.advance()
+			p.advance()
+			if _, err := p.parseIdentifier(); err != nil {
+				return nil, true, err
+			}
+		}
+		if err := parseOptionalLike(); err != nil {
+			return nil, true, err
+		}
+		return &ParsedStmt{Kind: StmtShow, Loc: Loc{Start: start, End: p.prevEnd()}}, true, nil
+
+	case p.cur().Kind == kwALL && p.peek(1).Kind == kwIN && isWord(p.peek(2), "SHARE"):
+		p.advance()
+		p.advance()
+		p.advance()
+		if _, err := p.parseIdentifier(); err != nil {
+			return nil, true, err
+		}
+		return &ParsedStmt{Kind: StmtShow, Loc: Loc{Start: start, End: p.prevEnd()}}, true, nil
+
+	case w0 == "GROUPS":
+		p.advance()
+		if p.cur().Kind == kwWITH && isWord(p.peek(1), "USER") {
+			p.advance()
+			p.advance()
+			if p.isStringLit() {
+				p.advance()
+			} else if _, err := p.parseIdentifier(); err != nil {
+				return nil, true, err
+			}
+		}
+		return &ParsedStmt{Kind: StmtShow, Loc: Loc{Start: start, End: p.prevEnd()}}, true, nil
+	}
+	return nil, false, nil
 }
 
 func (p *Parser) parseShowFunctionsTail(start int) (Statement, error) {
@@ -549,6 +678,16 @@ func (p *Parser) parseDescribe() (Statement, error) {
 		p.restore(cp)
 	}
 
+	// 2b. Databricks Unity Catalog / Delta Lake DESCRIBE forms:
+	//   DESCRIBE CATALOG [EXTENDED] <name>
+	//   DESCRIBE (VOLUME | CONNECTION | SHARE | RECIPIENT | PROVIDER | DETAIL) <name>
+	//   DESCRIBE (EXTERNAL LOCATION | (STORAGE | SERVICE) CREDENTIAL) <name>
+	//   DESCRIBE HISTORY <table_name> [LIMIT <n>]
+	if stmt, ok := p.tryParseDatabricksDescribe(start); ok {
+		return stmt, nil
+	}
+	p.restore(cp)
+
 	// 3. DESCRIBE QUERY? query
 	if p.cur().Kind == kwQUERY {
 		p.advance()
@@ -590,6 +729,48 @@ func (p *Parser) parseDescribe() (Statement, error) {
 	}
 
 	return nil, p.errorf("invalid DESCRIBE statement")
+}
+
+func (p *Parser) tryParseDatabricksDescribe(start int) (Statement, bool) {
+	if p.isStatementEndAt(1) {
+		return nil, false
+	}
+	w0 := strings.ToUpper(p.cur().Text)
+	w1 := strings.ToUpper(p.peek(1).Text)
+	switch {
+	case p.cur().Kind == kwCATALOG:
+		p.advance()
+		if p.cur().Kind == kwEXTENDED && !p.isStatementEndAt(1) {
+			p.advance()
+		}
+		if target, err := p.parseIdentifierReference(); err == nil && p.isStatementEnd() {
+			return &ParsedStmt{Kind: StmtDescribe, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, true
+		}
+	case (w0 == "EXTERNAL" && w1 == "LOCATION") || ((w0 == "STORAGE" || w0 == "SERVICE") && w1 == "CREDENTIAL"):
+		p.advance()
+		p.advance()
+		if target, err := p.parseIdentifierReference(); err == nil && p.isStatementEnd() {
+			return &ParsedStmt{Kind: StmtDescribe, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, true
+		}
+	case w0 == "VOLUME" || w0 == "CONNECTION" || w0 == "SHARE" || w0 == "RECIPIENT" || w0 == "PROVIDER" || w0 == "DETAIL":
+		p.advance()
+		if target, err := p.parseIdentifierReference(); err == nil && p.isStatementEnd() {
+			return &ParsedStmt{Kind: StmtDescribe, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, true
+		}
+	case w0 == "HISTORY":
+		p.advance()
+		if target, err := p.parseIdentifierReference(); err == nil {
+			if p.match(kwLIMIT) {
+				if err := p.parseExpression(); err != nil {
+					return nil, false
+				}
+			}
+			if p.isStatementEnd() {
+				return &ParsedStmt{Kind: StmtDescribe, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, true
+			}
+		}
+	}
+	return nil, false
 }
 
 func (p *Parser) tryParseDescribeRelationBody() (string, bool) {
@@ -955,14 +1136,18 @@ func (p *Parser) parseExecuteImmediateArgs() (dupErr error, parseErr error) {
 // without `ON ... TO/FROM ...` are still rejected.
 func (p *Parser) parseGrantRevoke() (Statement, error) {
 	start := p.cur().Start
-	isGrant := p.match(kwGRANT)
-	if !isGrant {
+	isGrantOrDeny := p.match(kwGRANT)
+	if !isGrantOrDeny && p.cur().Kind == tokIdent && isWord(p.cur(), "DENY") {
+		p.advance()
+		isGrantOrDeny = true
+	}
+	if !isGrantOrDeny {
 		if _, err := p.expect(kwREVOKE); err != nil {
 			return nil, err
 		}
 	}
 	if p.isStatementEnd() || p.cur().Kind == kwROLE {
-		return nil, p.errorf("expected privilege list after GRANT/REVOKE")
+		return nil, p.errorf("expected privilege list after GRANT/REVOKE/DENY")
 	}
 	// Parse comma-separated privilege names before ON (each privilege is 1..4
 	// identifier/keyword words such as SELECT, ALL PRIVILEGES, USE CATALOG,
@@ -979,7 +1164,7 @@ func (p *Parser) parseGrantRevoke() (Statement, error) {
 		return nil, err
 	}
 	dirKw := kwTO
-	if !isGrant {
+	if !isGrantOrDeny {
 		dirKw = kwFROM
 	}
 	if _, err := p.expect(dirKw); err != nil {
@@ -1064,4 +1249,171 @@ func (p *Parser) parseGrantSecurableObject() error {
 	// Bare table/object name without explicit TABLE keyword.
 	_, err := p.parseMultipartIdentifier()
 	return err
+}
+
+// parseCopyInto parses Databricks SQL COPY INTO <target> FROM (<source> | (<query>))
+// [FILEFORMAT = <fmt>] [FILES = (...)] [PATTERN = ...] [FORMAT_OPTIONS (...)]
+// [COPY_OPTIONS (...)].
+func (p *Parser) parseCopyInto() (Statement, error) {
+	start := p.cur().Start
+	p.advance() // COPY
+	if _, err := p.expect(kwINTO); err != nil {
+		return nil, err
+	}
+	target, err := p.parseIdentifierReference()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwFROM); err != nil {
+		return nil, err
+	}
+	if p.match(tokLParen) {
+		if err := p.parseQuery(); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(tokRParen); err != nil {
+			return nil, err
+		}
+	} else if err := p.parseStringLit(); err != nil {
+		return nil, err
+	}
+	for !p.isStatementEnd() {
+		switch {
+		case isWord(p.cur(), "FILEFORMAT"):
+			p.advance()
+			if _, err := p.expect(tokEq); err != nil {
+				return nil, err
+			}
+			if _, err := p.parseIdentifier(); err != nil {
+				return nil, err
+			}
+		case isWord(p.cur(), "PATTERN"):
+			p.advance()
+			if _, err := p.expect(tokEq); err != nil {
+				return nil, err
+			}
+			if err := p.parseStringLit(); err != nil {
+				return nil, err
+			}
+		case isWord(p.cur(), "FILES"):
+			p.advance()
+			if _, err := p.expect(tokEq); err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(tokLParen); err != nil {
+				return nil, err
+			}
+			if err := p.parseStringLit(); err != nil {
+				return nil, err
+			}
+			for p.match(tokComma) {
+				if err := p.parseStringLit(); err != nil {
+					return nil, err
+				}
+			}
+			if _, err := p.expect(tokRParen); err != nil {
+				return nil, err
+			}
+		case isWord(p.cur(), "FORMAT_OPTIONS") || isWord(p.cur(), "COPY_OPTIONS"):
+			p.advance()
+			if err := p.parsePropertyList(); err != nil {
+				return nil, err
+			}
+		default:
+			return nil, p.errorf("unexpected token %q in COPY INTO statement", p.cur().Text)
+		}
+	}
+	return &ParsedStmt{Kind: StmtInsert, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+}
+
+// parseOptimize parses Databricks Delta Lake OPTIMIZE <target> [WHERE <pred>]
+// [ZORDER BY (<cols>) | FULL].
+func (p *Parser) parseOptimize() (Statement, error) {
+	start := p.cur().Start
+	p.advance() // OPTIMIZE
+	target, err := p.parseIdentifierReference()
+	if err != nil {
+		return nil, err
+	}
+	if p.cur().Kind == kwWHERE {
+		if err := p.parseWhereClause(); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur().Kind == kwFULL {
+		p.advance()
+	}
+	if isWord(p.cur(), "ZORDER") {
+		p.advance()
+		if _, err := p.expect(kwBY); err != nil {
+			return nil, err
+		}
+		if p.cur().Kind == tokLParen {
+			if err := p.parseIdentifierList(); err != nil {
+				return nil, err
+			}
+		} else if err := p.parseIdentifierSeq(); err != nil {
+			return nil, err
+		}
+	}
+	return &ParsedStmt{Kind: StmtRepair, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+}
+
+// parseVacuum parses Databricks Delta Lake VACUUM <target> [LITE | FULL]
+// [RETAIN <n> HOURS] [DRY RUN].
+func (p *Parser) parseVacuum() (Statement, error) {
+	start := p.cur().Start
+	p.advance() // VACUUM
+	target, err := p.parseIdentifierReference()
+	if err != nil {
+		return nil, err
+	}
+	if isWord(p.cur(), "LITE") || p.cur().Kind == kwFULL {
+		p.advance()
+	}
+	if isWord(p.cur(), "RETAIN") {
+		p.advance()
+		if err := p.parseNumber(); err != nil {
+			return nil, err
+		}
+		if !p.match(kwHOURS, kwHOUR) {
+			return nil, p.errorf("expected HOURS after VACUUM RETAIN")
+		}
+	}
+	if isWord(p.cur(), "DRY") {
+		p.advance()
+		if !isWord(p.cur(), "RUN") {
+			return nil, p.errorf("expected RUN after DRY in VACUUM")
+		}
+		p.advance()
+	}
+	return &ParsedStmt{Kind: StmtRepair, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+}
+
+// parseRestoreTable parses Databricks Delta Lake RESTORE [TABLE] <target>
+// TO (VERSION | TIMESTAMP) AS OF <expr>.
+func (p *Parser) parseRestoreTable() (Statement, error) {
+	start := p.cur().Start
+	p.advance() // RESTORE
+	p.match(kwTABLE)
+	target, err := p.parseIdentifierReference()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwTO); err != nil {
+		return nil, err
+	}
+	if !p.match(kwVERSION, kwTIMESTAMP) {
+		return nil, p.errorf("expected VERSION or TIMESTAMP after RESTORE ... TO")
+	}
+	if _, err := p.expect(kwAS); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwOF); err != nil {
+		return nil, err
+	}
+	if err := p.parseExpression(); err != nil {
+		return nil, err
+	}
+	return &ParsedStmt{Kind: StmtAlterTable, Target: target, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
 }

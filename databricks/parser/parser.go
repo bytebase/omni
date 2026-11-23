@@ -7,11 +7,24 @@ import (
 
 // checkpoint stores parser cursor state for LL(k) backtracking.
 type checkpoint struct {
-	pos        int
-	gtPending  int
-	gtStart    int
-	gtEnd      int
-	parenDepth int
+	pos               int
+	gtPending         int
+	gtStart           int
+	gtEnd             int
+	parenDepth        int
+	windowSpecSeen    bool
+	queryDepth        int
+	queryParenDepth   int
+	hasTransform      bool
+	hasEmptyPipe      bool
+	hasPipe           bool
+	inSelectList      bool
+	selectListFromPos int
+	limitLoc          Loc
+	limitAll          bool
+	offsetLoc         Loc
+	tableRefCount     int
+	cteScopeCount     int
 }
 
 // Parser is a hand-written recursive-descent parser for Databricks / Spark SQL.
@@ -58,19 +71,47 @@ type Parser struct {
 	relaxFunctionDataTypes bool
 	windowSpecSeen         bool
 	scriptScopes           []scriptScope
+	queryDepth             int
+	queryParenDepth        int
+	hasTransform           bool
+	hasEmptyPipe           bool
+	hasPipe                bool
+	inSelectList           bool
+	selectListFromPos      int
+	probingSingleBarPipe   bool
+	allowQualifiedTVF      bool
+	limitLoc               Loc
+	limitAll               bool
+	offsetLoc              Loc
+	tableRefs              []TableRef
+	cteScopes              []map[string]struct{}
 }
 
 // Parse parses a Databricks / Spark SQL input string (one or more
 // semicolon-separated statements and/or compound BEGIN ... END script blocks)
-// and returns a ParseResult with byte offsets relative to sql.
+// under Apache Spark 4.0.5 strict grammar rules and returns a ParseResult with
+// byte offsets relative to sql.
 func Parse(sql string) (*ParseResult, error) {
+	return parseSQL(sql, false)
+}
+
+// ParseDatabricks parses a Databricks SQL input string, enabling Databricks SQL
+// extensions that Apache Spark 4.0.5 rejects (such as schema- or
+// catalog-qualified table-valued functions like `main.default.my_tvf(5)`).
+func ParseDatabricks(sql string) (*ParseResult, error) {
+	return parseSQL(sql, true)
+}
+
+func parseSQL(sql string, allowQualifiedTVF bool) (*ParseResult, error) {
 	toks, err := lex(sql)
 	if err != nil {
 		return nil, err
 	}
 	p := &Parser{
-		src:  sql,
-		toks: toks,
+		src:               sql,
+		toks:              toks,
+		selectListFromPos: -1,
+		allowQualifiedTVF: allowQualifiedTVF,
 	}
 	if p.cur().Kind == tokEOF {
 		return nil, p.errorf("empty SQL input")
@@ -100,11 +141,24 @@ func Parse(sql string) (*ParseResult, error) {
 
 func (p *Parser) save() checkpoint {
 	return checkpoint{
-		pos:        p.pos,
-		gtPending:  p.gtPending,
-		gtStart:    p.gtStart,
-		gtEnd:      p.gtEnd,
-		parenDepth: p.parenDepth,
+		pos:               p.pos,
+		gtPending:         p.gtPending,
+		gtStart:           p.gtStart,
+		gtEnd:             p.gtEnd,
+		parenDepth:        p.parenDepth,
+		windowSpecSeen:    p.windowSpecSeen,
+		queryDepth:        p.queryDepth,
+		queryParenDepth:   p.queryParenDepth,
+		hasTransform:      p.hasTransform,
+		hasEmptyPipe:      p.hasEmptyPipe,
+		hasPipe:           p.hasPipe,
+		inSelectList:      p.inSelectList,
+		selectListFromPos: p.selectListFromPos,
+		limitLoc:          p.limitLoc,
+		limitAll:          p.limitAll,
+		offsetLoc:         p.offsetLoc,
+		tableRefCount:     len(p.tableRefs),
+		cteScopeCount:     len(p.cteScopes),
 	}
 }
 
@@ -114,6 +168,68 @@ func (p *Parser) restore(cp checkpoint) {
 	p.gtStart = cp.gtStart
 	p.gtEnd = cp.gtEnd
 	p.parenDepth = cp.parenDepth
+	p.windowSpecSeen = cp.windowSpecSeen
+	p.queryDepth = cp.queryDepth
+	p.queryParenDepth = cp.queryParenDepth
+	p.hasTransform = cp.hasTransform
+	p.hasEmptyPipe = cp.hasEmptyPipe
+	p.hasPipe = cp.hasPipe
+	p.inSelectList = cp.inSelectList
+	p.selectListFromPos = cp.selectListFromPos
+	p.limitLoc = cp.limitLoc
+	p.limitAll = cp.limitAll
+	p.offsetLoc = cp.offsetLoc
+	if cp.tableRefCount < len(p.tableRefs) {
+		p.tableRefs = p.tableRefs[:cp.tableRefCount]
+	}
+	if cp.cteScopeCount < len(p.cteScopes) {
+		p.cteScopes = p.cteScopes[:cp.cteScopeCount]
+	}
+}
+
+func (p *Parser) resetQueryMeta() {
+	p.hasTransform = false
+	p.hasEmptyPipe = false
+	p.hasPipe = false
+	p.inSelectList = false
+	p.limitLoc = Loc{}
+	p.limitAll = false
+	p.offsetLoc = Loc{}
+	p.tableRefs = nil
+	p.cteScopes = nil
+}
+
+func (p *Parser) takeTableRefs() []TableRef {
+	if len(p.tableRefs) == 0 {
+		return nil
+	}
+	refs := make([]TableRef, len(p.tableRefs))
+	copy(refs, p.tableRefs)
+	p.tableRefs = nil
+	return refs
+}
+
+func (p *Parser) isCTEInScope(name string) bool {
+	if len(p.cteScopes) == 0 {
+		return false
+	}
+	norm := normalizeIdentName(name)
+	for i := len(p.cteScopes) - 1; i >= 0; i-- {
+		if _, ok := p.cteScopes[i][norm]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *Parser) recordTableRef(parts []string, loc Loc) {
+	if len(parts) == 0 {
+		return
+	}
+	if len(parts) == 1 && p.isCTEInScope(parts[0]) {
+		return
+	}
+	p.tableRefs = append(p.tableRefs, TableRef{Parts: parts, Loc: loc})
 }
 
 func (p *Parser) cur() Token {
@@ -1043,10 +1159,11 @@ func (p *Parser) parseStatement() (Statement, error) {
 	start := p.cur().Start
 	switch p.cur().Kind {
 	case kwSELECT, kwVALUES, kwTABLE, tokLParen, kwMAP, kwREDUCE:
+		p.resetQueryMeta()
 		if err := p.parseQuery(); err != nil {
 			return nil, err
 		}
-		return &ParsedStmt{Kind: StmtQuery, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+		return p.buildQueryStmt(start), nil
 
 	case kwFROM:
 		// Could be multiInsertQuery (fromClause multiInsertQueryBody+) or query (fromStatement).
@@ -1055,10 +1172,11 @@ func (p *Parser) parseStatement() (Statement, error) {
 			return stmt, nil
 		}
 		p.restore(cp)
+		p.resetQueryMeta()
 		if err := p.parseQuery(); err != nil {
 			return nil, err
 		}
-		return &ParsedStmt{Kind: StmtQuery, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+		return p.buildQueryStmt(start), nil
 
 	case kwWITH:
 		// Could be ctes + dmlStatementNoWith OR query (ctes + queryTerm + queryOrganization).
@@ -1067,10 +1185,11 @@ func (p *Parser) parseStatement() (Statement, error) {
 			return stmt, nil
 		}
 		p.restore(cp)
+		p.resetQueryMeta()
 		if err := p.parseQuery(); err != nil {
 			return nil, err
 		}
-		return &ParsedStmt{Kind: StmtQuery, Loc: Loc{Start: start, End: p.prevEnd()}}, nil
+		return p.buildQueryStmt(start), nil
 
 	case kwINSERT, kwUPDATE, kwDELETE, kwMERGE:
 		return p.parseDMLStatementNoWith()
@@ -1146,9 +1265,39 @@ func (p *Parser) parseStatement() (Statement, error) {
 
 	case kwGRANT, kwREVOKE:
 		return p.parseGrantRevoke()
+
+	case tokIdent:
+		// Databricks SQL / Delta Lake statements beyond Spark 4.0.5:
+		// COPY INTO, OPTIMIZE, VACUUM, RESTORE, and DENY.
+		switch {
+		case isWord(p.cur(), "COPY") && p.peek(1).Kind == kwINTO:
+			return p.parseCopyInto()
+		case isWord(p.cur(), "OPTIMIZE") && !p.isStatementEndAt(1):
+			return p.parseOptimize()
+		case isWord(p.cur(), "VACUUM") && !p.isStatementEndAt(1):
+			return p.parseVacuum()
+		case isWord(p.cur(), "RESTORE") && !p.isStatementEndAt(1):
+			return p.parseRestoreTable()
+		case isWord(p.cur(), "DENY") && !p.isStatementEndAt(1):
+			return p.parseGrantRevoke()
+		}
 	}
 
 	return nil, p.errorf("unexpected token %q at start of statement", p.cur().Text)
+}
+
+func (p *Parser) buildQueryStmt(start int) *ParsedStmt {
+	return &ParsedStmt{
+		Kind:         StmtQuery,
+		Loc:          Loc{Start: start, End: p.prevEnd()},
+		HasTransform: p.hasTransform,
+		HasEmptyPipe: p.hasEmptyPipe,
+		HasPipe:      p.hasPipe,
+		LimitLoc:     p.limitLoc,
+		LimitAll:     p.limitAll,
+		OffsetLoc:    p.offsetLoc,
+		TableRefs:    p.takeTableRefs(),
+	}
 }
 
 func isWord(tok Token, upper string) bool {

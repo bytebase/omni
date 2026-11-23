@@ -189,3 +189,35 @@ func TestResultFromResponse(t *testing.T) {
 		}
 	})
 }
+
+func TestSplitCommands(t *testing.T) {
+	t.Run("skips empty trailing comments and lone semicolons", func(t *testing.T) {
+		cmds, err := splitCommands("SELECT 1;\n;;\n/* inline */ SELECT 2;\n-- trailing\n")
+		if err != nil {
+			t.Fatalf("splitCommands: %v", err)
+		}
+		if len(cmds) != 2 {
+			t.Fatalf("got %d commands %+v, want 2", len(cmds), cmds)
+		}
+		if cmds[0].Text != "SELECT 1;" {
+			t.Errorf("cmds[0].Text = %q, want %q", cmds[0].Text, "SELECT 1;")
+		}
+		if cmds[1].Text != "\n/* inline */ SELECT 2;" {
+			t.Errorf("cmds[1].Text = %q, want %q", cmds[1].Text, "\n/* inline */ SELECT 2;")
+		}
+	})
+
+	t.Run("keeps compound BEGIN END block intact", func(t *testing.T) {
+		script := "BEGIN SELECT 1; SELECT 2; END; SELECT 3;"
+		cmds, err := splitCommands(script)
+		if err != nil {
+			t.Fatalf("splitCommands: %v", err)
+		}
+		if len(cmds) != 2 {
+			t.Fatalf("got %d commands %+v, want 2", len(cmds), cmds)
+		}
+		if cmds[0].Text != "BEGIN SELECT 1; SELECT 2; END;" || cmds[1].Text != " SELECT 3;" {
+			t.Errorf("cmds = %+v", cmds)
+		}
+	})
+}

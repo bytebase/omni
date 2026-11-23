@@ -60,8 +60,8 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 			results = append(results, &driver.Result{Statement: statement, Err: err, Latency: time.Since(start)})
 			break
 		}
-		if dbxanalysis.StartsWithExplain(statement) {
-			result.Plan = &driver.Plan{Format: "TEXT", Executed: dbxanalysis.PlanExecuted(statement)}
+		if format, executed, ok := dbxanalysis.DescribeExplain(statement); ok {
+			result.Plan = &driver.Plan{Format: format, Executed: executed}
 		}
 		result.Statement = statement
 		result.Latency = time.Since(start)
@@ -77,6 +77,9 @@ func splitCommands(script string) ([]driver.Command, error) {
 	}
 	commands := make([]driver.Command, 0, len(statements))
 	for _, stmt := range statements {
+		if stmt.Empty {
+			continue
+		}
 		commands = append(commands, driver.Command{Text: stmt.Text, ByteStart: stmt.Start, ByteEnd: stmt.End})
 	}
 	return commands, nil

@@ -71,26 +71,43 @@ func (p *Parser) parseQualifiedName() (string, error) {
 	return b.String(), nil
 }
 
+// unquoteIdentPart strips surrounding backticks and unescapes doubled
+// backticks without changing character case.
+func unquoteIdentPart(s string) string {
+	if len(s) >= 2 && s[0] == '`' && s[len(s)-1] == '`' {
+		return strings.ReplaceAll(s[1:len(s)-1], "``", "`")
+	}
+	return s
+}
+
 // parseMultipartIdentifier parses: errorCapturingIdentifier (DOT errorCapturingIdentifier)*
 func (p *Parser) parseMultipartIdentifier() (string, error) {
+	raw, _, _, err := p.parseMultipartIdentifierParts()
+	return raw, err
+}
+
+func (p *Parser) parseMultipartIdentifierParts() (string, []string, Loc, error) {
+	start := p.cur().Start
 	first, err := p.parseErrorCapturingIdentifier()
 	if err != nil {
-		return "", err
+		return "", nil, Loc{}, err
 	}
 	if p.cur().Kind != tokDot {
-		return first, nil
+		return first, []string{unquoteIdentPart(first)}, Loc{Start: start, End: p.prevEnd()}, nil
 	}
 	var b strings.Builder
 	b.WriteString(first)
+	parts := []string{unquoteIdentPart(first)}
 	for p.match(tokDot) {
 		part, err := p.parseErrorCapturingIdentifier()
 		if err != nil {
-			return "", err
+			return "", nil, Loc{}, err
 		}
 		b.WriteByte('.')
 		b.WriteString(part)
+		parts = append(parts, unquoteIdentPart(part))
 	}
-	return b.String(), nil
+	return b.String(), parts, Loc{Start: start, End: p.prevEnd()}, nil
 }
 
 // parseMultipartIdentifierList parses: multipartIdentifier (COMMA multipartIdentifier)*
@@ -134,16 +151,23 @@ func (p *Parser) parseTableIdentifier() (string, error) {
 // `INSERT INTO identifier (a, b) ...`), it falls back to multipartIdentifier so
 // objects named `identifier` do not require quoting.
 func (p *Parser) parseIdentifierReference() (string, error) {
+	raw, _, _, _, err := p.parseIdentifierReferenceParts()
+	return raw, err
+}
+
+func (p *Parser) parseIdentifierReferenceParts() (string, []string, Loc, bool, error) {
+	start := p.cur().Start
 	if p.cur().Kind == kwIDENTIFIER && p.peek(1).Kind == tokLParen {
 		cp := p.save()
 		p.advance()
 		p.advance()
 		if err := p.parseExpression(); err == nil && p.match(tokRParen) {
-			return "IDENTIFIER(...)", nil
+			return "IDENTIFIER(...)", nil, Loc{Start: start, End: p.prevEnd()}, true, nil
 		}
 		p.restore(cp)
 	}
-	return p.parseMultipartIdentifier()
+	raw, parts, loc, err := p.parseMultipartIdentifierParts()
+	return raw, parts, loc, false, err
 }
 
 // parseCatalogIdentifierReference parses:

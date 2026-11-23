@@ -19,6 +19,8 @@ func TestValidateQuery(t *testing.T) {
 		{name: "select star no space", sql: "select* from t", readOnly: true, returnsData: true},
 		{name: "select paren no space", sql: "SELECT(1)", readOnly: true, returnsData: true},
 		{name: "select with catalog and schema", sql: "SELECT a, b FROM main.app.t WHERE a > 1 ORDER BY b LIMIT 10;", readOnly: true, returnsData: true},
+		{name: "select variant colon path", sql: "SELECT payload:customer.id, payload:items[0].name::STRING, payload:['a.b'], payload:`my key`, payload:[*] FROM events", readOnly: true, returnsData: true},
+		{name: "show grants on table", sql: "SHOW GRANTS ON TABLE main.app.t", readOnly: true, returnsData: true},
 		{name: "with cte select", sql: "WITH c AS (SELECT 1 AS n) SELECT n FROM c", readOnly: true, returnsData: true},
 		{name: "with cte column list", sql: "WITH c (a, b) AS (SELECT 1, 2) SELECT a, b FROM c", readOnly: true, returnsData: true},
 		{name: "with backtick cte name", sql: "WITH `my cte` AS (SELECT 1) SELECT * FROM `my cte`", readOnly: true, returnsData: true},
@@ -46,11 +48,16 @@ func TestValidateQuery(t *testing.T) {
 		{name: "from-first pipeline select", sql: "FROM t |> SELECT *", readOnly: true, returnsData: true},
 		{name: "from-first single-bar pipeline select", sql: "FROM t | SELECT *", readOnly: true, returnsData: true},
 		{name: "from-first single-bar multi-stage pipeline", sql: "FROM t | WHERE flags | 1 = 1 | SELECT a | b, c || d", readOnly: true, returnsData: true},
+		{name: "from-first single-bar aggregate then order", sql: "FROM t | AGGREGATE COUNT(*) GROUP BY y | ORDER BY y", readOnly: true, returnsData: true},
 		{name: "from-first single-bar join with bitwise OR", sql: "FROM t JOIN u ON t.flags | 1 = u.flags | SELECT *", readOnly: true, returnsData: true},
 		{name: "from-first single-bar pipeline in cte", sql: "WITH c AS (FROM t | WHERE x > 1) FROM c | SELECT *", readOnly: true, returnsData: true},
 		{name: "from-first pipeline bitwise OR and concat", sql: "FROM t |> SELECT a | b, c || d", readOnly: true, returnsData: true},
 		{name: "from-first pipeline bitwise OR with non-reserved column update", sql: "FROM t |> SELECT flags | update", readOnly: true, returnsData: true},
 		{name: "from-first single-bar bitwise OR with non-reserved column update", sql: "FROM t | SELECT flags | update AS masked", readOnly: true, returnsData: true},
+		{name: "select bitwise OR with non-reserved column limit", sql: "SELECT flags | limit FROM t", readOnly: true, returnsData: true},
+		{name: "select bitwise OR with non-reserved column offset", sql: "SELECT flags | offset AS masked FROM t", readOnly: true, returnsData: true},
+		{name: "select bitwise OR with non-reserved column aggregate", sql: "SELECT flags | aggregate FROM t", readOnly: true, returnsData: true},
+		{name: "from-first single-bar bitwise OR with non-reserved column limit", sql: "FROM t | SELECT flags | limit AS masked", readOnly: true, returnsData: true},
 		{name: "from-first pipeline parenthesized non-reserved column update", sql: "FROM t |> WHERE (update = 1)", readOnly: true, returnsData: true},
 		{name: "from-first pipeline parenthesized non-reserved column delete", sql: "FROM t |> WHERE (delete IS NOT NULL)", readOnly: true, returnsData: true},
 		{name: "describe table named update", sql: "DESCRIBE update", readOnly: true, returnsData: true},
@@ -146,22 +153,51 @@ func TestValidateQuery(t *testing.T) {
 		{name: "execute immediate", sql: "EXECUTE IMMEDIATE 'DROP TABLE t'"},
 		{name: "from-first insert", sql: "FROM s INSERT INTO t SELECT *"},
 		{name: "from-first insert overwrite", sql: "FROM s INSERT OVERWRITE t SELECT *"},
-		{name: "bare from without pipeline", sql: "FROM t"},
-		{name: "from pipeline missing relation", sql: "FROM |> SELECT *"},
+		{name: "bare from without pipeline is valid spark query", sql: "FROM t", readOnly: true, returnsData: true},
+		{name: "from-first select without pipe", sql: "FROM t SELECT *", readOnly: true, returnsData: true},
+		{name: "higher-order transform function is read-only", sql: "SELECT TRANSFORM(arr, x -> x + 1) FROM t", readOnly: true, returnsData: true},
+		{name: "script transform select is rejected", sql: "SELECT TRANSFORM(a) USING 'cat' FROM t"},
+		{name: "script map transform is rejected", sql: "MAP a USING 'cat' FROM t"},
+		{name: "script reduce transform is rejected", sql: "REDUCE a USING 'cat' FROM t"},
+		{name: "compound begin end block is rejected", sql: "BEGIN SELECT 1; END;"},
+		{name: "create materialized view is rejected", sql: "CREATE MATERIALIZED VIEW mv AS SELECT 1"},
+		{name: "explain analyze table is rejected because inner analyze writes", sql: "EXPLAIN ANALYZE TABLE t COMPUTE STATISTICS"},
+		{name: "from pipeline missing relation", sql: "FROM |> SELECT *", wantErr: true},
 		{name: "from pipeline trailing pipe", sql: "FROM t |>"},
-		{name: "from pipeline with insert stage", sql: "FROM t |> INSERT INTO u"},
-		{name: "from single-bar pipeline with insert stage", sql: "FROM t | INSERT INTO u"},
-		{name: "from single-bar pipeline with later insert stage", sql: "FROM t | SELECT * | INSERT INTO u"},
-		{name: "from single-bar pipeline with trailing bar", sql: "FROM t | SELECT * |"},
-		{name: "from single-bar pipeline missing relation", sql: "FROM | SELECT *"},
-		{name: "parenthesized select with single-bar insert", sql: "(SELECT 1 AS x) | INSERT INTO t"},
+		{name: "from pipeline with insert stage", sql: "FROM t |> INSERT INTO u", wantErr: true},
+		{name: "from single-bar pipeline with insert stage", sql: "FROM t | INSERT INTO u", wantErr: true},
+		{name: "from single-bar pipeline with later insert stage", sql: "FROM t | SELECT * | INSERT INTO u", wantErr: true},
+		{name: "from single-bar pipeline with trailing bar", sql: "FROM t | SELECT * |", wantErr: true},
+		{name: "from single-bar aggregate followed by window select", sql: "FROM t | AGGREGATE sum(x) GROUP BY y | SELECT row_number() OVER (ORDER BY y)", readOnly: true, returnsData: true},
+		{name: "from single-bar select followed by union all with from", sql: "FROM t | SELECT x | UNION ALL SELECT y FROM u", readOnly: true, returnsData: true},
+		{name: "regular select followed by single-bar union all with from", sql: "SELECT 1 | UNION ALL SELECT y FROM u", readOnly: true, returnsData: true},
+		{name: "show volumes", sql: "SHOW VOLUMES", readOnly: true, returnsData: true},
+		{name: "show volumes in schema", sql: "SHOW VOLUMES IN main.default LIKE 'raw*'", readOnly: true, returnsData: true},
+		{name: "show external locations", sql: "SHOW EXTERNAL LOCATIONS", readOnly: true, returnsData: true},
+		{name: "show storage credentials", sql: "SHOW STORAGE CREDENTIALS", readOnly: true, returnsData: true},
+		{name: "show connections", sql: "SHOW CONNECTIONS", readOnly: true, returnsData: true},
+		{name: "show shares", sql: "SHOW SHARES", readOnly: true, returnsData: true},
+		{name: "show all in share", sql: "SHOW ALL IN SHARE my_share", readOnly: true, returnsData: true},
+		{name: "show recipients", sql: "SHOW RECIPIENTS", readOnly: true, returnsData: true},
+		{name: "show providers", sql: "SHOW PROVIDERS", readOnly: true, returnsData: true},
+		{name: "show tables dropped", sql: "SHOW TABLES DROPPED IN main.default", readOnly: true, returnsData: true},
+		{name: "show current catalog", sql: "SHOW CURRENT CATALOG", readOnly: true, returnsData: true},
+		{name: "show grants to recipient", sql: "SHOW GRANTS TO RECIPIENT my_recipient", readOnly: true, returnsData: true},
+		{name: "describe catalog extended", sql: "DESCRIBE CATALOG EXTENDED main", readOnly: true, returnsData: true},
+		{name: "describe volume", sql: "DESCRIBE VOLUME main.default.my_vol", readOnly: true, returnsData: true},
+		{name: "describe detail", sql: "DESCRIBE DETAIL main.default.events", readOnly: true, returnsData: true},
+		{name: "describe history with limit", sql: "DESCRIBE HISTORY main.default.events LIMIT 10", readOnly: true, returnsData: true},
+		{name: "qualified catalog.schema table-valued function", sql: "SELECT * FROM main.default.table_func(5)", readOnly: true, returnsData: true},
+		{name: "qualified schema table-valued function with TABLE arg", sql: "SELECT * FROM analytics.enrich_rows(TABLE(main.default.events)) AS r", readOnly: true, returnsData: true},
+		{name: "from single-bar pipeline missing relation", sql: "FROM | SELECT *", wantErr: true},
+		{name: "parenthesized select with single-bar insert", sql: "(SELECT 1 AS x) | INSERT INTO t", wantErr: true},
 		{name: "explain analyze single-bar pipeline", sql: "EXPLAIN ANALYZE FROM t | SELECT *"},
-		{name: "from pipeline with export stage", sql: "FROM t |> EXPORT DATA"},
-		{name: "from pipeline with trailing insert", sql: "FROM t |> WHERE x > 1 INSERT INTO u SELECT *"},
-		{name: "from-first insert followed by pipe", sql: "FROM s INSERT INTO t SELECT * |> SELECT *"},
-		{name: "from pipeline union with from-first insert", sql: "FROM t |> UNION ALL (FROM u INSERT INTO w SELECT *)"},
-		{name: "from pipeline with mutating cte subquery", sql: "FROM (WITH c AS (DELETE FROM t) SELECT * FROM c) |> SELECT *"},
-		{name: "parenthesized select with pipe insert", sql: "(SELECT 1) |> INSERT INTO t"},
+		{name: "from pipeline with export stage", sql: "FROM t |> EXPORT DATA", wantErr: true},
+		{name: "from pipeline with trailing insert", sql: "FROM t |> WHERE x > 1 INSERT INTO u SELECT *", wantErr: true},
+		{name: "from-first insert followed by pipe", sql: "FROM s INSERT INTO t SELECT * |> SELECT *", wantErr: true},
+		{name: "from pipeline union with from-first insert", sql: "FROM t |> UNION ALL (FROM u INSERT INTO w SELECT *)", wantErr: true},
+		{name: "from pipeline with mutating cte subquery", sql: "FROM (WITH c AS (DELETE FROM t) SELECT * FROM c) |> SELECT *", wantErr: true},
+		{name: "parenthesized select with pipe insert", sql: "(SELECT 1) |> INSERT INTO t", wantErr: true},
 		{name: "explain analyze from-first pipeline", sql: "EXPLAIN ANALYZE FROM t |> SELECT *"},
 
 		// --- CTEs with writes or malformed CTEs ---
@@ -169,18 +205,18 @@ func TestValidateQuery(t *testing.T) {
 		{name: "cte feeding update", sql: "WITH c AS (SELECT 1) UPDATE t SET a = 1"},
 		{name: "cte feeding delete", sql: "WITH c AS (SELECT 1) DELETE FROM t"},
 		{name: "cte feeding merge", sql: "WITH c AS (SELECT 1) MERGE INTO t USING c ON t.id = c.id WHEN MATCHED THEN DELETE"},
-		{name: "cte body insert", sql: "WITH c AS (INSERT INTO t VALUES (1) RETURNING *) SELECT * FROM c"},
-		{name: "cte body update", sql: "WITH c AS (UPDATE t SET a = 1) SELECT * FROM c"},
-		{name: "cte body delete", sql: "WITH c AS (DELETE FROM t) SELECT * FROM c"},
-		{name: "cte body merge", sql: "WITH c AS (MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN DELETE) SELECT * FROM c"},
-		{name: "second cte body delete", sql: "WITH a AS (SELECT 1), b AS (DELETE FROM t) SELECT * FROM a"},
-		{name: "nested cte body delete", sql: "WITH a AS (WITH b AS (DELETE FROM t) SELECT * FROM b) SELECT * FROM a"},
-		{name: "cte missing main query", sql: "WITH c AS (SELECT 1)"},
-		{name: "cte with invalid NOT without MATERIALIZED", sql: "WITH c AS NOT (SELECT 1) SELECT * FROM c"},
-		{name: "recursive cte with max recursion level and write body", sql: "WITH RECURSIVE r(n) MAX RECURSION LEVEL 200 AS (DELETE FROM t) SELECT * FROM r"},
+		{name: "cte body insert", sql: "WITH c AS (INSERT INTO t VALUES (1) RETURNING *) SELECT * FROM c", wantErr: true},
+		{name: "cte body update", sql: "WITH c AS (UPDATE t SET a = 1) SELECT * FROM c", wantErr: true},
+		{name: "cte body delete", sql: "WITH c AS (DELETE FROM t) SELECT * FROM c", wantErr: true},
+		{name: "cte body merge", sql: "WITH c AS (MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN DELETE) SELECT * FROM c", wantErr: true},
+		{name: "second cte body delete", sql: "WITH a AS (SELECT 1), b AS (DELETE FROM t) SELECT * FROM a", wantErr: true},
+		{name: "nested cte body delete", sql: "WITH a AS (WITH b AS (DELETE FROM t) SELECT * FROM b) SELECT * FROM a", wantErr: true},
+		{name: "cte missing main query", sql: "WITH c AS (SELECT 1)", wantErr: true},
+		{name: "cte with invalid NOT without MATERIALIZED", sql: "WITH c AS NOT (SELECT 1) SELECT * FROM c", wantErr: true},
+		{name: "recursive cte with max recursion level and write body", sql: "WITH RECURSIVE r(n) MAX RECURSION LEVEL 200 AS (DELETE FROM t) SELECT * FROM r", wantErr: true},
 		{name: "recursive cte with max recursion level feeding insert", sql: "WITH RECURSIVE r(n) MAX RECURSION LEVEL 200 AS (SELECT 1) INSERT INTO t SELECT * FROM r"},
-		{name: "cte without AS and write body", sql: "WITH c (DELETE FROM t) SELECT * FROM c"},
-		{name: "cte with column list without AS and write body", sql: "WITH c(x) (DELETE FROM t) SELECT * FROM c"},
+		{name: "cte without AS and write body", sql: "WITH c (DELETE FROM t) SELECT * FROM c", wantErr: true},
+		{name: "cte with column list without AS and write body", sql: "WITH c(x) (DELETE FROM t) SELECT * FROM c", wantErr: true},
 		{name: "cte with column list without AS feeding delete", sql: "WITH c(x) (SELECT 1) DELETE FROM t"},
 		{name: "cte without AS feeding delete", sql: "WITH c (SELECT 1) DELETE FROM t"},
 		{name: "cte feeding from-first insert", sql: "WITH c AS (SELECT 1) FROM c INSERT INTO t SELECT *"},
@@ -188,8 +224,9 @@ func TestValidateQuery(t *testing.T) {
 		// --- EXPLAIN over writes / EXPLAIN ANALYZE / nested EXPLAIN ---
 		{name: "explain analyze select", sql: "EXPLAIN ANALYZE SELECT 1"},
 		{name: "explain comment analyze select", sql: "EXPLAIN /* c */ ANALYZE SELECT 1"},
-		{name: "explain bare", sql: "EXPLAIN"},
-		{name: "explain formatted bare", sql: "EXPLAIN FORMATTED"},
+		{name: "explain analyze syntax error", sql: "EXPLAIN ANALYZE SELECT 1 +", wantErr: true},
+		{name: "explain bare", sql: "EXPLAIN", wantErr: true},
+		{name: "explain formatted bare", sql: "EXPLAIN FORMATTED", wantErr: true},
 		{name: "explain insert", sql: "EXPLAIN INSERT INTO t VALUES (1)"},
 		{name: "explain formatted insert", sql: "EXPLAIN FORMATTED INSERT INTO t VALUES (1)"},
 		{name: "explain extended update", sql: "EXPLAIN EXTENDED UPDATE t SET a = 1"},
@@ -199,8 +236,8 @@ func TestValidateQuery(t *testing.T) {
 		{name: "explain cte insert", sql: "EXPLAIN WITH c AS (SELECT 1) INSERT INTO t SELECT * FROM c"},
 		{name: "explain call", sql: "EXPLAIN CALL app.proc()"},
 		{name: "nested explain", sql: "EXPLAIN EXPLAIN SELECT 1"},
-		{name: "describe query insert", sql: "DESCRIBE QUERY INSERT INTO t VALUES (1)"},
-		{name: "describe insert", sql: "DESCRIBE INSERT INTO t VALUES (1)"},
+		{name: "describe query insert", sql: "DESCRIBE QUERY INSERT INTO t VALUES (1)", wantErr: true},
+		{name: "describe insert", sql: "DESCRIBE INSERT INTO t VALUES (1)", wantErr: true},
 
 		// --- Multi-statement & comment/raw-string injection attempts ---
 		{name: "single-line select then drop", sql: "SELECT 1; DROP TABLE t"},
@@ -222,20 +259,21 @@ func TestValidateQuery(t *testing.T) {
 		{name: "line comment backslash-LF hides select before delete", sql: "-- comment\\\nSELECT 1\nDELETE FROM t"},
 		{name: "line comment backslash-CR does not continue past CR", sql: "-- comment\\\rDELETE FROM t"},
 
-		// --- Unclassifiable / malformed statements (fail closed) ---
-		{name: "unknown keyword", sql: "FOOBAR 1"},
-		{name: "bare select", sql: "SELECT"},
-		{name: "bare show", sql: "SHOW"},
-		{name: "bare describe", sql: "DESCRIBE"},
-		{name: "bare values", sql: "VALUES"},
-		{name: "bare table", sql: "TABLE"},
-		{name: "empty parens", sql: "()"},
-		{name: "unbalanced open paren", sql: "(SELECT 1"},
-		{name: "unbalanced close paren", sql: "SELECT 1)"},
-		{name: "parenthesized drop", sql: "(DROP TABLE t)"},
-		{name: "parenthesized select followed by drop", sql: "(SELECT 1) DROP TABLE t"},
-		{name: "parenthesized union with drop rhs", sql: "(SELECT 1) UNION ALL (DROP TABLE t)"},
-		{name: "delimiter directive", sql: "DELIMITER ;;"},
+		// --- Syntax errors (fail closed with positioned parse error) ---
+		{name: "truncated binary expression", sql: "SELECT 1 +", wantErr: true},
+		{name: "unknown keyword", sql: "FOOBAR 1", wantErr: true},
+		{name: "bare select", sql: "SELECT", wantErr: true},
+		{name: "bare show", sql: "SHOW", wantErr: true},
+		{name: "bare describe", sql: "DESCRIBE", wantErr: true},
+		{name: "bare values", sql: "VALUES", wantErr: true},
+		{name: "bare table", sql: "TABLE", wantErr: true},
+		{name: "empty parens", sql: "()", wantErr: true},
+		{name: "unbalanced open paren", sql: "(SELECT 1", wantErr: true},
+		{name: "unbalanced close paren", sql: "SELECT 1)", wantErr: true},
+		{name: "parenthesized drop", sql: "(DROP TABLE t)", wantErr: true},
+		{name: "parenthesized select followed by drop", sql: "(SELECT 1) DROP TABLE t", wantErr: true},
+		{name: "parenthesized union with drop rhs", sql: "(SELECT 1) UNION ALL (DROP TABLE t)", wantErr: true},
+		{name: "delimiter directive", sql: "DELIMITER ;;", wantErr: true},
 
 		// --- Lexical errors (fail closed with error) ---
 		{name: "unterminated single string", sql: "SELECT 'unterminated", wantErr: true},
@@ -309,6 +347,26 @@ func TestValidateQueryNestingAndScale(t *testing.T) {
 		}
 		if !readOnly || !returnsData {
 			t.Errorf("ValidateQuery(long union) = (%v, %v), want (true, true)", readOnly, returnsData)
+		}
+	})
+
+	t.Run("long bitwise-OR projection chains stay linear", func(t *testing.T) {
+		for _, term := range []string{"x", "limit"} {
+			var b strings.Builder
+			b.WriteString("SELECT ")
+			b.WriteString(term)
+			for i := 0; i < 16000; i++ {
+				b.WriteString(" | ")
+				b.WriteString(term)
+			}
+			b.WriteString(" FROM t")
+			readOnly, returnsData, err := ValidateQuery(b.String())
+			if err != nil {
+				t.Fatalf("ValidateQuery(long bitwise-OR %q) err = %v", term, err)
+			}
+			if !readOnly || !returnsData {
+				t.Errorf("ValidateQuery(long bitwise-OR %q) = (%v, %v), want (true, true)", term, readOnly, returnsData)
+			}
 		}
 	})
 }

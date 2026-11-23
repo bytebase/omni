@@ -1,8 +1,12 @@
 package analysis
 
 import (
+	"errors"
 	"strings"
 	"testing"
+
+	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/databricks/parser"
 )
 
 func TestSplit(t *testing.T) {
@@ -36,14 +40,14 @@ func TestSplit(t *testing.T) {
 			want:   []string{"-- a comment\nSELECT 1;"},
 		},
 		{
-			name:   "a comment after the last statement belongs to none",
+			name:   "a comment after the last statement is preserved as empty",
 			script: "SELECT 1;\n-- trailing\n",
-			want:   []string{"SELECT 1;"},
+			want:   []string{"SELECT 1;", "\n-- trailing\n"},
 		},
 		{
-			name:   "an empty script",
+			name:   "an empty script is preserved as empty",
 			script: "\n\n",
-			want:   []string{},
+			want:   []string{"\n\n"},
 		},
 		{
 			name:   "a semicolon inside a multiline string",
@@ -88,7 +92,7 @@ func TestSplit(t *testing.T) {
 		{
 			name:   "a block comment whose closing does not end its line",
 			script: "/* a comment */ SELECT 1;",
-			err:    "`*/` must be the end of the line",
+			want:   []string{"/* a comment */ SELECT 1;"},
 		},
 		{
 			name:    "CRLF multiple statements",
@@ -176,57 +180,6 @@ func TestClassifyStatement(t *testing.T) {
 	}
 }
 
-func TestSanitizeSQL(t *testing.T) {
-	for _, tc := range []struct {
-		name      string
-		statement string
-		want      string
-		wantErr   bool
-	}{
-		{
-			name:      "a quoted keyword is not a keyword",
-			statement: "SELECT 'FROM' AS word",
-			want:      "SELECT  x  AS word",
-		},
-		{
-			name:      "a quoted identifier is opaque",
-			statement: "SELECT `INSERT` FROM t",
-			want:      "SELECT  x  FROM t",
-		},
-		{
-			name:      "comments are removed",
-			statement: "-- SELECT FROM t\nSELECT 1 /* WHERE */",
-			want:      " \nSELECT 1  ",
-		},
-		{
-			name:      "an unterminated string is reported",
-			statement: "SELECT 'x",
-			wantErr:   true,
-		},
-		{
-			name:      "an unterminated comment is reported",
-			statement: "SELECT 1 /* x",
-			wantErr:   true,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := sanitizeSQL(tc.statement)
-			if tc.wantErr {
-				if err == nil {
-					t.Fatalf("sanitizeSQL(%q) accepted the statement", tc.statement)
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("sanitizeSQL: %v", err)
-			}
-			if got != tc.want {
-				t.Errorf("sanitizeSQL(%q) = %q, want %q", tc.statement, got, tc.want)
-			}
-		})
-	}
-}
-
 func TestExplainStatement(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
@@ -242,7 +195,7 @@ func TestExplainStatement(t *testing.T) {
 		{name: "a plan that executes keeps its mode", statement: "EXPLAIN ANALYZE SELECT 1", want: "EXPLAIN ANALYZE SELECT 1"},
 		{name: "nested comment hiding EXPLAIN before DELETE", statement: "/* outer /* inner */\nEXPLAIN\n*/\nDELETE FROM t", want: "EXPLAIN FORMATTED /* outer /* inner */\nEXPLAIN\n*/\nDELETE FROM t"},
 		{name: "nested comment hiding EXPLAIN before SELECT", statement: "/* a /* b */ EXPLAIN */ SELECT 1", want: "EXPLAIN FORMATTED /* a /* b */ EXPLAIN */ SELECT 1"},
-		{name: "nested comment closed before EXPLAIN refuses to guess", statement: "/* a /* b */ */ EXPLAIN SELECT 1", want: "EXPLAIN FORMATTED /* a /* b */ */ EXPLAIN SELECT 1"},
+		{name: "nested comment closed before EXPLAIN is recognized", statement: "/* a /* b */ */ EXPLAIN SELECT 1", want: "/* a /* b */ */ EXPLAIN SELECT 1"},
 		{name: "unclosed nested comment", statement: "/* a /* b */ EXPLAIN SELECT 1", want: "EXPLAIN FORMATTED /* a /* b */ EXPLAIN SELECT 1"},
 		{name: "line comment before non-nested block comment", statement: "-- /* a\n/* b */ EXPLAIN SELECT 1", want: "-- /* a\n/* b */ EXPLAIN SELECT 1"},
 	} {
@@ -267,9 +220,122 @@ func TestPlanExecuted(t *testing.T) {
 		{statement: "EXPLAIN /* c */ ANALYZE SELECT 1", want: true},
 		{statement: "SELECT 1", want: false},
 		{statement: "/* a /* b */ EXPLAIN ANALYZE */ DELETE FROM t", want: false},
+		{statement: "EXPLAIN ANALYZE TABLE t COMPUTE STATISTICS", want: false},
+		{statement: "EXPLAIN ANALYZE TABLES COMPUTE STATISTICS", want: false},
+		{statement: "/* a /* b */ */ EXPLAIN ANALYZE SELECT 1", want: true},
 	} {
 		if got := PlanExecuted(tc.statement); got != tc.want {
 			t.Errorf("PlanExecuted(%q) = %v, want %v", tc.statement, got, tc.want)
 		}
+	}
+}
+
+func TestClassifyAndStatementReadsRows(t *testing.T) {
+	cases := []struct {
+		name      string
+		statement string
+		wantType  QueryType
+		wantRows  bool
+		wantErr   bool
+	}{
+		{name: "select", statement: "SELECT 1", wantType: analysis.Select, wantRows: true},
+		{name: "cte select", statement: "WITH c AS (SELECT 1) SELECT * FROM c", wantType: analysis.Select, wantRows: true},
+		{name: "values", statement: "VALUES (1, 'a')", wantType: analysis.Select, wantRows: true},
+		{name: "table", statement: "TABLE main.app.users", wantType: analysis.Select, wantRows: true},
+		{name: "from pipe", statement: "FROM t |> WHERE x > 1 |> SELECT *", wantType: analysis.Select, wantRows: true},
+		{name: "show", statement: "SHOW TABLES", wantType: analysis.SelectInfoSchema, wantRows: true},
+		{name: "describe", statement: "DESCRIBE EXTENDED t", wantType: analysis.SelectInfoSchema, wantRows: true},
+		{name: "explain", statement: "EXPLAIN FORMATTED SELECT 1", wantType: analysis.Explain, wantRows: true},
+		{name: "explain analyze", statement: "EXPLAIN ANALYZE SELECT 1", wantType: analysis.Explain, wantRows: true},
+		{name: "insert", statement: "INSERT INTO t VALUES (1)", wantType: analysis.DML, wantRows: false},
+		{name: "cte insert", statement: "WITH c AS (SELECT 1) INSERT INTO t SELECT * FROM c", wantType: analysis.DML, wantRows: false},
+		{name: "from multi-insert", statement: "FROM s INSERT INTO t SELECT *", wantType: analysis.DML, wantRows: false},
+		{name: "update", statement: "UPDATE t SET a = 1", wantType: analysis.DML, wantRows: false},
+		{name: "delete", statement: "DELETE FROM t WHERE id = 1", wantType: analysis.DML, wantRows: false},
+		{name: "merge", statement: "MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN DELETE", wantType: analysis.DML, wantRows: false},
+		{name: "create table", statement: "CREATE TABLE t (id INT)", wantType: analysis.DDL, wantRows: false},
+		{name: "create view", statement: "CREATE VIEW v AS SELECT 1", wantType: analysis.DDL, wantRows: false},
+		{name: "create materialized view", statement: "CREATE MATERIALIZED VIEW mv AS SELECT 1", wantType: analysis.DDL, wantRows: false},
+		{name: "alter table", statement: "ALTER TABLE t ADD COLUMNS (b STRING)", wantType: analysis.DDL, wantRows: false},
+		{name: "drop table", statement: "DROP TABLE t", wantType: analysis.DDL, wantRows: false},
+		{name: "truncate", statement: "TRUNCATE TABLE t", wantType: analysis.DDL, wantRows: false},
+		{name: "set", statement: "SET spark.sql.ansi.enabled = true", wantType: analysis.QueryTypeUnknown, wantRows: false},
+		{name: "use catalog", statement: "USE CATALOG main", wantType: analysis.QueryTypeUnknown, wantRows: false},
+		{name: "use schema", statement: "USE SCHEMA app", wantType: analysis.QueryTypeUnknown, wantRows: false},
+		{name: "set catalog", statement: "SET CATALOG main", wantType: analysis.QueryTypeUnknown, wantRows: false},
+		{name: "call", statement: "CALL app.my_proc(1)", wantType: analysis.QueryTypeUnknown, wantRows: false},
+		{name: "grant", statement: "GRANT SELECT ON TABLE t TO `user@example.com`", wantType: analysis.QueryTypeUnknown, wantRows: false},
+		{name: "compound block", statement: "BEGIN SELECT 1; SELECT 2; END;", wantType: analysis.QueryTypeUnknown, wantRows: false},
+		{name: "empty", statement: "   -- comment\n; ", wantType: analysis.QueryTypeUnknown, wantRows: false},
+		{name: "syntax error", statement: "SELECT 1 +", wantErr: true},
+		{name: "unclosed comment", statement: "/* unclosed SELECT 1", wantErr: true},
+		{name: "unclosed string", statement: "SELECT 'abc", wantErr: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotType, err := Classify(tc.statement)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("Classify(%q) = %v, nil; want error", tc.statement, gotType)
+				}
+				var pe *parser.ParseError
+				if !errors.As(err, &pe) {
+					t.Errorf("Classify(%q) err = %T (%v), want *parser.ParseError", tc.statement, err, err)
+				}
+				if _, rerr := StatementReadsRows(tc.statement); rerr == nil {
+					t.Errorf("StatementReadsRows(%q) returned nil error, want error", tc.statement)
+				}
+				if ClassifyStatement(tc.statement) {
+					t.Errorf("ClassifyStatement(%q) = true, want false on error", tc.statement)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Classify(%q) unexpected error: %v", tc.statement, err)
+			}
+			if gotType != tc.wantType {
+				t.Errorf("Classify(%q) = %v, want %v", tc.statement, gotType, tc.wantType)
+			}
+			gotRows, rerr := StatementReadsRows(tc.statement)
+			if rerr != nil {
+				t.Fatalf("StatementReadsRows(%q) unexpected error: %v", tc.statement, rerr)
+			}
+			if gotRows != tc.wantRows {
+				t.Errorf("StatementReadsRows(%q) = %v, want %v", tc.statement, gotRows, tc.wantRows)
+			}
+			if got := ClassifyStatement(tc.statement); got != tc.wantRows {
+				t.Errorf("ClassifyStatement(%q) = %v, want %v", tc.statement, got, tc.wantRows)
+			}
+		})
+	}
+
+	t.Run("multi-statement Classify returns error", func(t *testing.T) {
+		if _, err := Classify("SELECT 1; SELECT 2;"); err == nil {
+			t.Fatal("Classify accepted multi-statement input")
+		}
+		if reads, err := StatementReadsRows("SELECT 1; SELECT 2;"); err != nil || reads {
+			t.Errorf("StatementReadsRows(multi) = (%v, %v), want (false, nil)", reads, err)
+		}
+	})
+}
+
+func TestSplitCompoundBlock(t *testing.T) {
+	script := "BEGIN\n  SELECT 1;\n  SELECT 2;\nEND;\nSELECT 3;"
+	stmts, err := Split(script)
+	if err != nil {
+		t.Fatalf("Split: %v", err)
+	}
+	if len(stmts) != 2 {
+		t.Fatalf("got %d statements, want 2: %+v", len(stmts), stmts)
+	}
+	if stmts[0].Empty || stmts[1].Empty {
+		t.Errorf("unexpected empty flag: %+v", stmts)
+	}
+	if stmts[0].Text != "BEGIN\n  SELECT 1;\n  SELECT 2;\nEND;" {
+		t.Errorf("stmt[0] = %q", stmts[0].Text)
+	}
+	if stmts[1].Text != "\nSELECT 3;" {
+		t.Errorf("stmt[1] = %q", stmts[1].Text)
 	}
 }

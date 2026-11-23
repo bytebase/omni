@@ -9,6 +9,7 @@ import (
 
 	catalogapi "github.com/databricks/databricks-sdk-go/service/catalog"
 
+	dbxanalysis "github.com/bytebase/omni/databricks/analysis"
 	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
 )
@@ -131,6 +132,21 @@ func (d *Driver) Dump(ctx context.Context, writer io.Writer, _ *metadatapb.Datab
 						}
 					}
 				}
+				if len(dependencies[object.key()]) == 0 {
+					var viewDef string
+					if tblUnion.view != nil {
+						viewDef = tblUnion.view.Definition
+					} else if tblUnion.materialView != nil {
+						viewDef = tblUnion.materialView.Definition
+					}
+					if viewDef != "" {
+						if extracted, err := dbxanalysis.ExtractViewDependencies(viewDef, catalogName, schemaName); err == nil {
+							for _, dep := range extracted {
+								dependencies[object.key()] = append(dependencies[object.key()], dep.FullName())
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -182,22 +198,25 @@ func sortedTables(tables []*tableUnion) []*tableUnion {
 
 // orderViewObjects puts a view after every view it reads. The service states a
 // view's dependencies by full table name; a dependency on a base table is
-// already created and does not affect the order.
+// already created and does not affect the order. Lookups normalize identifiers
+// to lowercase to match Databricks' case-insensitive identifier semantics.
 func orderViewObjects(objects []dumpObject, dependencies map[string][]string) []dumpObject {
 	byKey := make(map[string]dumpObject, len(objects))
 	indegree := make(map[string]int, len(objects))
 	children := map[string][]string{}
 	for _, object := range objects {
-		key := object.key()
+		key := strings.ToLower(object.key())
 		byKey[key] = object
 		indegree[key] = 0
 	}
-	for key, list := range dependencies {
+	for rawKey, list := range dependencies {
+		key := strings.ToLower(rawKey)
 		if _, ok := byKey[key]; !ok {
 			continue
 		}
 		seen := map[string]bool{}
-		for _, dependency := range list {
+		for _, rawDep := range list {
+			dependency := strings.ToLower(rawDep)
 			if dependency == key || seen[dependency] {
 				continue
 			}
@@ -255,50 +274,7 @@ func orderViewObjects(objects []dumpObject, dependencies map[string][]string) []
 // name. The workspace states a view as CREATE VIEW schema.view, which would
 // create it in another catalog when the dump is replayed elsewhere.
 func qualifyViewDDL(ddl, qualifiedName string) string {
-	upper := strings.ToUpper(ddl)
-	idx := strings.Index(upper, "CREATE VIEW")
-	if idx < 0 {
-		return ddl
-	}
-	start := idx + len("CREATE VIEW")
-	for start < len(ddl) && (ddl[start] == ' ' || ddl[start] == '\t') {
-		start++
-	}
-	end := viewTargetEnd(ddl, start)
-	if end <= start {
-		return ddl
-	}
-	return ddl[:start] + qualifiedName + ddl[end:]
-}
-
-// viewTargetEnd returns the byte offset where a view's target ends: the space
-// before " (" or " AS ", or the end of the line. A backtick-quoted identifier
-// may contain either spelling.
-func viewTargetEnd(ddl string, start int) int {
-	quoted := false
-	for i := start; i < len(ddl); i++ {
-		switch ddl[i] {
-		case '`':
-			if quoted && i+1 < len(ddl) && ddl[i+1] == '`' {
-				i++
-				continue
-			}
-			quoted = !quoted
-		case '\n':
-			if !quoted {
-				return i
-			}
-		case ' ':
-			if quoted {
-				continue
-			}
-			rest := ddl[i:]
-			if strings.HasPrefix(rest, " (") || strings.HasPrefix(strings.ToUpper(rest), " AS ") {
-				return i
-			}
-		}
-	}
-	return len(ddl)
+	return dbxanalysis.QualifyViewDDL(ddl, qualifiedName)
 }
 
 // showCreateTable asks the server for one object's own DDL.

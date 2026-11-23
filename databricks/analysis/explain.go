@@ -1,6 +1,6 @@
 package analysis
 
-import "strings"
+import "github.com/bytebase/omni/databricks/parser"
 
 // ExplainStatement returns the Databricks EXPLAIN statement for statement.
 // Databricks prints Spark's FORMATTED plan regardless of the requested format;
@@ -13,70 +13,71 @@ func ExplainStatement(statement, _ string) string {
 }
 
 // StartsWithExplain reports whether the first keyword of statement is EXPLAIN,
-// ignoring leading whitespace and comments. Because Spark nests block comments
-// and this package has no parser, a block comment left open or containing
-// another `/*` returns false so a write hidden behind a nested comment is
-// never mistaken for an EXPLAIN.
+// ignoring leading whitespace and comments (including nested block comments).
+// An unclosed block comment returns false so a write hidden behind a malformed
+// comment is never mistaken for an EXPLAIN.
 func StartsWithExplain(statement string) bool {
-	s, ok := pastLeadingNoise(statement)
-	return ok && hasKeyword(s, "EXPLAIN")
+	l := parser.NewLexer(statement)
+	tok := l.NextToken()
+	return l.Err() == nil && tok.Kind == parser.KwExplain
 }
 
-// PlanExecuted reports whether statement's EXPLAIN is the ANALYZE kind, whose
-// output is a plan of an execution that happened.
+// PlanFormat reports the plan format ("TEXT") of a statement that already
+// starts with EXPLAIN. Databricks prints Spark's text plan for all EXPLAIN
+// forms.
+func PlanFormat(statement string) (string, bool) {
+	if !StartsWithExplain(statement) {
+		return "", false
+	}
+	return "TEXT", true
+}
+
+// PlanExecuted reports whether statement is an EXPLAIN ANALYZE, whose output
+// is a plan of an execution that happened. `EXPLAIN ANALYZE TABLE ...` and
+// `EXPLAIN ANALYZE TABLES ...` plan an ANALYZE command without executing it
+// and return false.
 func PlanExecuted(statement string) bool {
-	s, ok := pastLeadingNoise(statement)
-	if !ok || !hasKeyword(s, "EXPLAIN") {
-		return false
-	}
-	rest, ok := pastLeadingNoise(s[len("EXPLAIN"):])
-	return ok && hasKeyword(rest, "ANALYZE")
+	_, executed, ok := DescribeExplain(statement)
+	return ok && executed
 }
 
-// pastLeadingNoise returns statement after its leading whitespace and
-// comments, and reports whether it could be read at all.
-func pastLeadingNoise(statement string) (string, bool) {
-	s := statement
-	for {
-		s = strings.TrimLeft(s, " \t\r\n\v\f")
-		switch {
-		case strings.HasPrefix(s, "--"):
-			_, rest, found := strings.Cut(s, "\n")
-			if !found {
-				return "", false
-			}
-			s = rest
-		case strings.HasPrefix(s, "/*"):
-			rest, closed := pastBlockComment(s)
-			if !closed {
-				return "", false
-			}
-			s = rest
-		default:
-			return s, true
+// DescribeExplain returns the plan format ("TEXT") and whether statement
+// executes what it plans (EXPLAIN ANALYZE). ok is false when statement does
+// not start with EXPLAIN.
+func DescribeExplain(statement string) (format string, executed bool, ok bool) {
+	l := parser.NewLexer(statement)
+	first := l.NextToken()
+	if l.Err() != nil || first.Kind != parser.KwExplain {
+		return "", false, false
+	}
+	second := l.NextToken()
+	if l.Err() != nil {
+		return "TEXT", false, true
+	}
+	if second.Kind == parser.KwAnalyze {
+		third := l.NextToken()
+		if l.Err() == nil && third.Kind != parser.KwTable && third.Kind != parser.KwTables {
+			return "TEXT", true, true
 		}
 	}
+	return "TEXT", false, true
 }
 
-func pastBlockComment(s string) (string, bool) {
-	for at := len("/*"); at < len(s); at++ {
-		switch {
-		case strings.HasPrefix(s[at:], "/*"):
-			return "", false
-		case strings.HasPrefix(s[at:], "*/"):
-			return s[at+len("*/"):], true
-		}
+// explainAnalyzeBody returns the statement substring after `EXPLAIN ANALYZE`
+// and its byte offset in statement when statement is an EXPLAIN ANALYZE.
+func explainAnalyzeBody(statement string) (body string, offset int, ok bool) {
+	l := parser.NewLexer(statement)
+	first := l.NextToken()
+	if l.Err() != nil || first.Kind != parser.KwExplain {
+		return "", 0, false
 	}
-	return "", false
-}
-
-func hasKeyword(s, keyword string) bool {
-	if len(s) < len(keyword) || !strings.EqualFold(s[:len(keyword)], keyword) {
-		return false
+	second := l.NextToken()
+	if l.Err() != nil || second.Kind != parser.KwAnalyze {
+		return "", 0, false
 	}
-	if len(s) == len(keyword) {
-		return true
+	third := l.NextToken()
+	if l.Err() != nil || third.Kind == parser.TokEOF || third.Kind == parser.KwTable || third.Kind == parser.KwTables {
+		return "", 0, false
 	}
-	c := s[len(keyword)]
-	return c != '_' && c != '$' && (c < '0' || c > '9') && (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && c < 0x80
+	return statement[third.Start:], third.Start, true
 }

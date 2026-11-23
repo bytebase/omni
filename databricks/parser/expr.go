@@ -614,7 +614,8 @@ func (p *Parser) parseBitOrExpression() error {
 	if err := p.parseBitXorExpression(); err != nil {
 		return err
 	}
-	for p.match(tokPipe) {
+	for p.cur().Kind == tokPipe && !p.isSingleBarPipeStart() {
+		p.advance()
 		if err := p.parseBitXorExpression(); err != nil {
 			return err
 		}
@@ -728,6 +729,28 @@ func (p *Parser) parsePrimaryExpressionNeg(negated bool) error {
 			p.advance()
 			if err := p.parseDataType(); err != nil {
 				return err
+			}
+			isQualifiedIdent = false
+		case tokColon:
+			// Databricks SQL VARIANT colon path extraction (`expr:field`,
+			// `expr:`field``, `expr:[index]`, `expr:['key']`, `expr:[*]`).
+			p.advance()
+			switch p.cur().Kind {
+			case tokLBracket:
+				p.advance()
+				if !p.match(tokAsterisk) {
+					if err := p.parseValueExpression(); err != nil {
+						return err
+					}
+				}
+				if _, err := p.expect(tokRBracket); err != nil {
+					return err
+				}
+			default:
+				if !p.cur().Kind.isIdentifier() {
+					return p.errorf("expected VARIANT path field or '[' after ':', got %q", p.cur().Text)
+				}
+				p.advance()
 			}
 			isQualifiedIdent = false
 		case tokLBracket:

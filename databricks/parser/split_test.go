@@ -1,0 +1,484 @@
+package parser
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestSplit(t *testing.T) {
+	cases := []struct {
+		name    string
+		script  string
+		want    []string
+		offsets [][2]int
+		empty   []bool
+	}{
+		{
+			name:   "empty string",
+			script: "",
+			want:   nil,
+		},
+		{
+			name:    "single statement",
+			script:  "SELECT 1;",
+			want:    []string{"SELECT 1;"},
+			offsets: [][2]int{{0, 9}},
+			empty:   []bool{false},
+		},
+		{
+			name:    "single statement without semicolon",
+			script:  "SELECT 1",
+			want:    []string{"SELECT 1"},
+			offsets: [][2]int{{0, 8}},
+			empty:   []bool{false},
+		},
+		{
+			name:    "two statements on one line",
+			script:  "SELECT 1; SELECT 2;",
+			want:    []string{"SELECT 1;", " SELECT 2;"},
+			offsets: [][2]int{{0, 9}, {9, 19}},
+			empty:   []bool{false, false},
+		},
+		{
+			name:    "CRLF multiple statements",
+			script:  "SELECT 1;\r\nSELECT 2;",
+			want:    []string{"SELECT 1;", "\r\nSELECT 2;"},
+			offsets: [][2]int{{0, 9}, {9, 20}},
+			empty:   []bool{false, false},
+		},
+		{
+			name:    "multi-byte UTF-8",
+			script:  "SELECT '中';\nSELECT '文';",
+			want:    []string{"SELECT '中';", "\nSELECT '文';"},
+			offsets: [][2]int{{0, 13}, {13, 27}},
+			empty:   []bool{false, false},
+		},
+		{
+			name:    "comment only script is preserved as empty",
+			script:  "\n-- only a comment\n",
+			want:    []string{"\n-- only a comment\n"},
+			offsets: [][2]int{{0, 19}},
+			empty:   []bool{true},
+		},
+		{
+			name:    "lone semicolons are empty",
+			script:  ";;\n",
+			want:    []string{";", ";", "\n"},
+			offsets: [][2]int{{0, 1}, {1, 2}, {2, 3}},
+			empty:   []bool{true, true, true},
+		},
+		{
+			name:    "inline block comment before statement",
+			script:  "/* a comment */ SELECT 1;",
+			want:    []string{"/* a comment */ SELECT 1;"},
+			offsets: [][2]int{{0, 25}},
+			empty:   []bool{false},
+		},
+		{
+			name:    "leading inline block comment between statements on same line stays with next statement",
+			script:  "SELECT 1; /* lead */ SELECT 2;",
+			want:    []string{"SELECT 1;", " /* lead */ SELECT 2;"},
+			offsets: [][2]int{{0, 9}, {9, 30}},
+			empty:   []bool{false, false},
+		},
+		{
+			name:    "trailing same-line line comment stays with preceding statement",
+			script:  "SELECT 1; -- note\nSELECT 2;",
+			want:    []string{"SELECT 1; -- note", "\nSELECT 2;"},
+			offsets: [][2]int{{0, 17}, {17, 27}},
+			empty:   []bool{false, false},
+		},
+		{
+			name:    "trailing same-line line comment with backslash continuation",
+			script:  "SELECT 1; -- line1\\\nline2\nSELECT 2;",
+			want:    []string{"SELECT 1; -- line1\\\nline2", "\nSELECT 2;"},
+			offsets: [][2]int{{0, 25}, {25, 35}},
+			empty:   []bool{false, false},
+		},
+		{
+			name:    "trailing same-line block comment ending its line stays with preceding statement",
+			script:  "SELECT 1; /* note */\nSELECT 2;",
+			want:    []string{"SELECT 1; /* note */", "\nSELECT 2;"},
+			offsets: [][2]int{{0, 20}, {20, 30}},
+			empty:   []bool{false, false},
+		},
+		{
+			name:    "trailing multiline block comment after terminator",
+			script:  "SELECT 1; /* note\ncontinued */\nSELECT 2;",
+			want:    []string{"SELECT 1; /* note\ncontinued */", "\nSELECT 2;"},
+			offsets: [][2]int{{0, 30}, {30, 40}},
+			empty:   []bool{false, false},
+		},
+		{
+			name:    "nested block comments with semicolons inside",
+			script:  "/* outer /* inner ; */ ; */ SELECT 1; SELECT 2;",
+			want:    []string{"/* outer /* inner ; */ ; */ SELECT 1;", " SELECT 2;"},
+			offsets: [][2]int{{0, 37}, {37, 47}},
+			empty:   []bool{false, false},
+		},
+		{
+			name:    "optimizer hint with semicolons in strings",
+			script:  "SELECT /*+ BROADCAST(t) */ 'a;b', \"c;d\", r'e;f', R\"g;h\", `i;j`, `k``;l` FROM t; SELECT 2;",
+			want:    []string{"SELECT /*+ BROADCAST(t) */ 'a;b', \"c;d\", r'e;f', R\"g;h\", `i;j`, `k``;l` FROM t;", " SELECT 2;"},
+			offsets: [][2]int{{0, 79}, {79, 89}},
+			empty:   []bool{false, false},
+		},
+		{
+			name:    "escaped quotes and raw string trailing backslash",
+			script:  `SELECT 'it\'s;ok', r'foo\' ; SELECT 2;`,
+			want:    []string{`SELECT 'it\'s;ok', r'foo\' ;`, ` SELECT 2;`},
+			offsets: [][2]int{{0, 28}, {28, 38}},
+			empty:   []bool{false, false},
+		},
+		{
+			name:    "compound BEGIN END block stays together",
+			script:  "BEGIN SELECT 1; SELECT 2; END; SELECT 3;",
+			want:    []string{"BEGIN SELECT 1; SELECT 2; END;", " SELECT 3;"},
+			offsets: [][2]int{{0, 30}, {30, 40}},
+			empty:   []bool{false, false},
+		},
+		{
+			name:    "compound BEGIN NOT ATOMIC END",
+			script:  "BEGIN NOT ATOMIC DECLARE x INT = 1; SET x = 2; SELECT x; END; SELECT 3;",
+			want:    []string{"BEGIN NOT ATOMIC DECLARE x INT = 1; SET x = 2; SELECT x; END;", " SELECT 3;"},
+			offsets: [][2]int{{0, 61}, {61, 71}},
+			empty:   []bool{false, false},
+		},
+		{
+			name:    "empty BEGIN END block",
+			script:  "BEGIN END; SELECT 1;",
+			want:    []string{"BEGIN END;", " SELECT 1;"},
+			offsets: [][2]int{{0, 10}, {10, 20}},
+			empty:   []bool{false, false},
+		},
+		{
+			name:    "labeled compound BEGIN END block",
+			script:  "outer_blk: BEGIN SELECT 1; SELECT 2; END outer_blk; SELECT 3;",
+			want:    []string{"outer_blk: BEGIN SELECT 1; SELECT 2; END outer_blk;", " SELECT 3;"},
+			offsets: [][2]int{{0, 51}, {51, 61}},
+			empty:   []bool{false, false},
+		},
+		{
+			name:    "nested BEGIN block with keyword label loop",
+			script:  "BEGIN loop: BEGIN SELECT 1; END loop; END; SELECT 2;",
+			want:    []string{"BEGIN loop: BEGIN SELECT 1; END loop; END;", " SELECT 2;"},
+			offsets: [][2]int{{0, 42}, {42, 52}},
+			empty:   []bool{false, false},
+		},
+		{
+			name:   "nested BEGIN block with keyword label if and while",
+			script: "BEGIN if: BEGIN while: BEGIN SELECT 1; END while; END if; END; SELECT 2;",
+			want:   []string{"BEGIN if: BEGIN while: BEGIN SELECT 1; END while; END if; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name: "nested compound blocks with IF CASE WHILE REPEAT LOOP FOR and SQL CASE expression",
+			script: strings.Join([]string{
+				"BEGIN",
+				"  SELECT CASE WHEN x = 1 THEN 'a' ELSE 'b' END FROM t;",
+				"  IF x > 0 THEN",
+				"    BEGIN",
+				"      SELECT 1;",
+				"    END;",
+				"  ELSEIF CASE WHEN y = 1 THEN true ELSE false END THEN",
+				"    SELECT 2;",
+				"  ELSE",
+				"    CASE x WHEN 1 THEN SELECT 3; ELSE SELECT 4; END CASE;",
+				"  END IF;",
+				"  lbl: WHILE x < 10 DO",
+				"    SET x = x + 1;",
+				"  END WHILE lbl;",
+				"  REPEAT SELECT 5; UNTIL x = 10 END REPEAT;",
+				"  LOOP LEAVE lbl; END LOOP;",
+				"  FOR r AS SELECT 1 DO SELECT r; END FOR;",
+				"END;",
+				"SELECT 99;",
+			}, "\n"),
+			want: []string{
+				strings.Join([]string{
+					"BEGIN",
+					"  SELECT CASE WHEN x = 1 THEN 'a' ELSE 'b' END FROM t;",
+					"  IF x > 0 THEN",
+					"    BEGIN",
+					"      SELECT 1;",
+					"    END;",
+					"  ELSEIF CASE WHEN y = 1 THEN true ELSE false END THEN",
+					"    SELECT 2;",
+					"  ELSE",
+					"    CASE x WHEN 1 THEN SELECT 3; ELSE SELECT 4; END CASE;",
+					"  END IF;",
+					"  lbl: WHILE x < 10 DO",
+					"    SET x = x + 1;",
+					"  END WHILE lbl;",
+					"  REPEAT SELECT 5; UNTIL x = 10 END REPEAT;",
+					"  LOOP LEAVE lbl; END LOOP;",
+					"  FOR r AS SELECT 1 DO SELECT r; END FOR;",
+					"END;",
+				}, "\n"),
+				"\nSELECT 99;",
+			},
+			empty: []bool{false, false},
+		},
+		{
+			name:   "DECLARE EXIT HANDLER with BEGIN END inside compound block",
+			script: "BEGIN DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN SELECT 1; END; SELECT 2; END; SELECT 3;",
+			want:   []string{"BEGIN DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN SELECT 1; END; SELECT 2; END;", " SELECT 3;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "DECLARE EXIT HANDLER with labeled BEGIN END",
+			script: "BEGIN DECLARE EXIT HANDLER FOR SQLEXCEPTION h: BEGIN SELECT 1; END h; SELECT 2; END; SELECT 3;",
+			want:   []string{"BEGIN DECLARE EXIT HANDLER FOR SQLEXCEPTION h: BEGIN SELECT 1; END h; SELECT 2; END;", " SELECT 3;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "DECLARE EXIT HANDLER with non-BEGIN action referencing begin identifier",
+			script: "BEGIN DECLARE EXIT HANDLER FOR SQLEXCEPTION SELECT begin FROM t; SELECT 1; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE EXIT HANDLER FOR SQLEXCEPTION SELECT begin FROM t; SELECT 1; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "DECLARE EXIT HANDLER with condition named begin and non-BEGIN action",
+			script: "BEGIN DECLARE begin CONDITION; DECLARE EXIT HANDLER FOR begin SELECT 1; SELECT 2; END; SELECT 3;",
+			want:   []string{"BEGIN DECLARE begin CONDITION; DECLARE EXIT HANDLER FOR begin SELECT 1; SELECT 2; END;", " SELECT 3;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "DECLARE EXIT HANDLER with SQLSTATE and multiple conditions before BEGIN END",
+			script: "BEGIN DECLARE my_cond CONDITION; DECLARE EXIT HANDLER FOR SQLSTATE VALUE '42000', my_cond BEGIN SELECT 1; END; SELECT 2; END; SELECT 3;",
+			want:   []string{"BEGIN DECLARE my_cond CONDITION; DECLARE EXIT HANDLER FOR SQLSTATE VALUE '42000', my_cond BEGIN SELECT 1; END; SELECT 2; END;", " SELECT 3;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:    "begin and end as non-reserved identifiers do not merge statements",
+			script:  "SELECT begin, end FROM t; SELECT 2;",
+			want:    []string{"SELECT begin, end FROM t;", " SELECT 2;"},
+			offsets: [][2]int{{0, 25}, {25, 35}},
+			empty:   []bool{false, false},
+		},
+		{
+			name:   "begin identifier inside compound block does not increase depth",
+			script: "BEGIN SELECT begin FROM t; END; SELECT 2;",
+			want:   []string{"BEGIN SELECT begin FROM t; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "case variable identifier inside IF condition with nested IF",
+			script: "BEGIN DECLARE case INT DEFAULT 1; IF case = 1 THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE case INT DEFAULT 1; IF case = 1 THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "case variable and SQL CASE expression combined inside IF condition",
+			script: "BEGIN DECLARE case INT DEFAULT 1; IF case = 1 AND CASE WHEN true THEN true ELSE false END THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE case INT DEFAULT 1; IF case = 1 AND CASE WHEN true THEN true ELSE false END THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "qualified case column inside IF condition",
+			script: "BEGIN IF t.case = 1 THEN SELECT 1; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN IF t.case = 1 THEN SELECT 1; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "case variable as simple CASE operand inside compound block",
+			script: "BEGIN DECLARE case INT DEFAULT 1; CASE case WHEN 1 THEN IF true THEN SELECT 1; END IF; END CASE; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE case INT DEFAULT 1; CASE case WHEN 1 THEN IF true THEN SELECT 1; END IF; END CASE; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "end variable inside CASE WHEN condition in IF header",
+			script: "BEGIN DECLARE end INT DEFAULT 1; IF CASE WHEN end = 1 THEN true ELSE false END THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE end INT DEFAULT 1; IF CASE WHEN end = 1 THEN true ELSE false END THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "end variable in CASE operand, THEN, and ELSE branches",
+			script: "BEGIN DECLARE end INT DEFAULT 1; IF CASE end WHEN 1 THEN end ELSE end END = 1 THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE end INT DEFAULT 1; IF CASE end WHEN 1 THEN end ELSE end END = 1 THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "qualified end column as simple CASE operand",
+			script: "BEGIN IF CASE t.end WHEN 1 THEN true ELSE false END THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN IF CASE t.end WHEN 1 THEN true ELSE false END THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "do variable inside WHILE condition with nested WHILE",
+			script: "BEGIN DECLARE do INT DEFAULT 0; WHILE do = 1 DO WHILE false DO SELECT 1; END WHILE; END WHILE; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE do INT DEFAULT 0; WHILE do = 1 DO WHILE false DO SELECT 1; END WHILE; END WHILE; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "do boolean variable directly before DO in WHILE",
+			script: "BEGIN DECLARE do BOOLEAN DEFAULT false; WHILE do DO SELECT 1; END WHILE; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE do BOOLEAN DEFAULT false; WHILE do DO SELECT 1; END WHILE; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "do alias and cursor name inside FOR header",
+			script: "BEGIN FOR do AS SELECT 1 do FROM t WHERE do = 1 DO FOR r AS SELECT 2 do DO SELECT 1; END FOR; END FOR; END; SELECT 2;",
+			want:   []string{"BEGIN FOR do AS SELECT 1 do FROM t WHERE do = 1 DO FOR r AS SELECT 2 do DO SELECT 1; END FOR; END FOR; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "CASE expression referencing do inside FOR query header",
+			script: "BEGIN DECLARE do INT DEFAULT 1; FOR SELECT CASE WHEN true THEN do ELSE 1 END AS x DO WHILE false DO SELECT 1; END WHILE; END FOR; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE do INT DEFAULT 1; FOR SELECT CASE WHEN true THEN do ELSE 1 END AS x DO WHILE false DO SELECT 1; END WHILE; END FOR; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "FOR query with ORDER BY do ASC and GROUP BY ALL before DO",
+			script: "BEGIN FOR SELECT a FROM t GROUP BY ALL ORDER BY do ASC DO WHILE false DO SELECT 1; END WHILE; END FOR; END; SELECT 2;",
+			want:   []string{"BEGIN FOR SELECT a FROM t GROUP BY ALL ORDER BY do ASC DO WHILE false DO SELECT 1; END WHILE; END FOR; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "non-reserved keyword identifiers at end of IF/WHILE/UNTIL headers",
+			script: "BEGIN DECLARE all BOOLEAN DEFAULT true; IF all THEN IF true THEN SELECT 1; END IF; END IF; WHILE all DO SELECT 2; END WHILE; REPEAT SELECT 3; UNTIL all END REPEAT; END; SELECT 4;",
+			want:   []string{"BEGIN DECLARE all BOOLEAN DEFAULT true; IF all THEN IF true THEN SELECT 1; END IF; END IF; WHILE all DO SELECT 2; END WHILE; REPEAT SELECT 3; UNTIL all END REPEAT; END;", " SELECT 4;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "keyword identifiers distinct, exists, from, select in IF and CASE headers",
+			script: "BEGIN DECLARE exists BOOLEAN DEFAULT true; DECLARE from BOOLEAN DEFAULT true; IF exists AND from THEN IF CASE WHEN true THEN exists ELSE from END THEN SELECT 1; END IF; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE exists BOOLEAN DEFAULT true; DECLARE from BOOLEAN DEFAULT true; IF exists AND from THEN IF CASE WHEN true THEN exists ELSE from END THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "FOR SELECT * FROM do and SELECT ALL do FROM t before DO",
+			script: "BEGIN FOR SELECT * FROM do DO FOR SELECT ALL do FROM t LEFT OUTER JOIN do ON true DO SELECT 1; END FOR; END FOR; END; SELECT 2;",
+			want:   []string{"BEGIN FOR SELECT * FROM do DO FOR SELECT ALL do FROM t LEFT OUTER JOIN do ON true DO SELECT 1; END FOR; END FOR; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "simple CASE expression with do and then keyword operands",
+			script: "BEGIN DECLARE do INT DEFAULT 1; DECLARE then INT DEFAULT 1; IF CASE do WHEN 1 THEN true ELSE false END AND CASE then WHEN 1 THEN true ELSE false END THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE do INT DEFAULT 1; DECLARE then INT DEFAULT 1; IF CASE do WHEN 1 THEN true ELSE false END AND CASE then WHEN 1 THEN true ELSE false END THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "simple CASE expression with arithmetic keyword operand",
+			script: "BEGIN DECLARE do INT DEFAULT 1; IF CASE 1 + do WHEN 2 THEN true ELSE false END THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE do INT DEFAULT 1; IF CASE 1 + do WHEN 2 THEN true ELSE false END THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "simple CASE expression with nested unparenthesized CASE operand",
+			script: "BEGIN IF CASE 1 + CASE WHEN true THEN 0 ELSE 1 END WHEN 1 THEN true ELSE false END THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN IF CASE 1 + CASE WHEN true THEN 0 ELSE 1 END WHEN 1 THEN true ELSE false END THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "consecutive compound blocks reuse parser linearly",
+			script: "BEGIN SELECT 1; END; BEGIN SELECT 2; END; SELECT 3;",
+			want:   []string{"BEGIN SELECT 1; END;", " BEGIN SELECT 2; END;", " SELECT 3;"},
+			empty:  []bool{false, false, false},
+		},
+		{
+			name:   "then variable inside IF condition with nested IF",
+			script: "BEGIN DECLARE then INT DEFAULT 1; IF then = 1 THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE then INT DEFAULT 1; IF then = 1 THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "then and else variables inside CASE expression in IF header",
+			script: "BEGIN DECLARE then INT DEFAULT 1; DECLARE else INT DEFAULT 2; IF CASE WHEN then = 1 THEN then ELSE else END = 1 THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE then INT DEFAULT 1; DECLARE else INT DEFAULT 2; IF CASE WHEN then = 1 THEN then ELSE else END = 1 THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "end variable in second WHEN branch and nested CASE",
+			script: "BEGIN DECLARE end INT DEFAULT 1; IF CASE WHEN true THEN CASE WHEN end = 1 THEN t.end + end ELSE (end) END WHEN end = 2 THEN 2 END = 1 THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN DECLARE end INT DEFAULT 1; IF CASE WHEN true THEN CASE WHEN end = 1 THEN t.end + end ELSE (end) END WHEN end = 2 THEN 2 END = 1 THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:    "unclosed block comment stays non-empty",
+			script:  "/* unclosed",
+			want:    []string{"/* unclosed"},
+			offsets: [][2]int{{0, 11}},
+			empty:   []bool{false},
+		},
+		{
+			name:    "unclosed string stays non-empty",
+			script:  "SELECT 'unterminated",
+			want:    []string{"SELECT 'unterminated"},
+			offsets: [][2]int{{0, 20}},
+			empty:   []bool{false},
+		},
+		{
+			name:    "unclosed compound block does not loop",
+			script:  "BEGIN SELECT 1; SELECT 2;",
+			want:    []string{"BEGIN SELECT 1; SELECT 2;"},
+			offsets: [][2]int{{0, 25}},
+			empty:   []bool{false},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			segs := Split(tc.script)
+			if len(segs) != len(tc.want) {
+				got := make([]string, len(segs))
+				for i, s := range segs {
+					got[i] = s.Text
+				}
+				t.Fatalf("Split(%q) got %d segments %q, want %d %q", tc.script, len(segs), got, len(tc.want), tc.want)
+			}
+			prevEnd := 0
+			for i, seg := range segs {
+				if seg.Text != tc.script[seg.ByteStart:seg.ByteEnd] {
+					t.Errorf("segment %d text %q != script[%d:%d]", i, seg.Text, seg.ByteStart, seg.ByteEnd)
+				}
+				if seg.ByteStart != prevEnd {
+					t.Errorf("segment %d ByteStart = %d, want contiguous %d", i, seg.ByteStart, prevEnd)
+				}
+				prevEnd = seg.ByteEnd
+				if seg.Text != tc.want[i] {
+					t.Errorf("segment %d = %q, want %q", i, seg.Text, tc.want[i])
+				}
+				if i < len(tc.offsets) {
+					if seg.ByteStart != tc.offsets[i][0] || seg.ByteEnd != tc.offsets[i][1] {
+						t.Errorf("segment %d offsets = [%d,%d), want [%d,%d)",
+							i, seg.ByteStart, seg.ByteEnd, tc.offsets[i][0], tc.offsets[i][1])
+					}
+				}
+				if i < len(tc.empty) {
+					if got := seg.Empty(); got != tc.empty[i] {
+						t.Errorf("segment %d Empty() = %v, want %v", i, got, tc.empty[i])
+					}
+				}
+			}
+			if len(tc.script) > 0 && prevEnd != len(tc.script) {
+				t.Errorf("segments covered %d bytes, want %d", prevEnd, len(tc.script))
+			}
+		})
+	}
+}
+
+func TestTokenizeAndLexer(t *testing.T) {
+	toks, err := Tokenize("/* outer /* inner */ */ SELECT /*+ BROADCAST(t) */ `a``b`, r'x\\y' FROM t |> LIMIT 10")
+	if err != nil {
+		t.Fatalf("Tokenize: %v", err)
+	}
+	if len(toks) == 0 || toks[0].Kind != KwSelect {
+		t.Fatalf("first token = %+v, want KwSelect", toks[0])
+	}
+	if toks[len(toks)-1].Kind != TokEOF {
+		t.Fatalf("last token = %+v, want TokEOF", toks[len(toks)-1])
+	}
+
+	if _, err := Tokenize("/* unclosed /* inner */"); err == nil {
+		t.Fatal("Tokenize accepted unclosed nested block comment")
+	}
+
+	l := NewLexer("/* unclosed")
+	if tok := l.NextToken(); tok.Kind != TokEOF {
+		t.Errorf("unclosed comment NextToken() = %+v, want TokEOF", tok)
+	}
+	if l.Err() == nil {
+		t.Error("unclosed comment Err() = nil, want error")
+	}
+}

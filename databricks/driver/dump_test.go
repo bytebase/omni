@@ -107,4 +107,15 @@ func TestOrderViewObjects(t *testing.T) {
 	if len(got) != 2 || got[0].name != "one" || got[1].name != "two" {
 		t.Errorf("cycle order = %v, want both views in name order", got)
 	}
+
+	mixedCase := []dumpObject{
+		{catalog: "cat", schema: "sch", name: "a_dependent", kind: "VIEW"},
+		{catalog: "cat", schema: "sch", name: "z_base", kind: "VIEW"},
+	}
+	got = orderViewObjects(mixedCase, map[string][]string{
+		"CAT.SCH.A_DEPENDENT": {"cat.sch.Z_BASE"},
+	})
+	if len(got) != 2 || got[0].name != "z_base" || got[1].name != "a_dependent" {
+		t.Errorf("mixedCase order = %v, want z_base before a_dependent", got)
+	}
 }
