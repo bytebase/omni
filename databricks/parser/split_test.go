@@ -365,6 +365,18 @@ func TestSplit(t *testing.T) {
 			empty:  []bool{false, false},
 		},
 		{
+			name:   "simple CASE expression with nested unparenthesized CASE operand",
+			script: "BEGIN IF CASE 1 + CASE WHEN true THEN 0 ELSE 1 END WHEN 1 THEN true ELSE false END THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
+			want:   []string{"BEGIN IF CASE 1 + CASE WHEN true THEN 0 ELSE 1 END WHEN 1 THEN true ELSE false END THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},
+			empty:  []bool{false, false},
+		},
+		{
+			name:   "consecutive compound blocks reuse parser linearly",
+			script: "BEGIN SELECT 1; END; BEGIN SELECT 2; END; SELECT 3;",
+			want:   []string{"BEGIN SELECT 1; END;", " BEGIN SELECT 2; END;", " SELECT 3;"},
+			empty:  []bool{false, false, false},
+		},
+		{
 			name:   "then variable inside IF condition with nested IF",
 			script: "BEGIN DECLARE then INT DEFAULT 1; IF then = 1 THEN IF true THEN SELECT 1; END IF; END IF; END; SELECT 2;",
 			want:   []string{"BEGIN DECLARE then INT DEFAULT 1; IF then = 1 THEN IF true THEN SELECT 1; END IF; END IF; END;", " SELECT 2;"},

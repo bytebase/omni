@@ -187,6 +187,8 @@ func TestValidateQuery(t *testing.T) {
 		{name: "describe volume", sql: "DESCRIBE VOLUME main.default.my_vol", readOnly: true, returnsData: true},
 		{name: "describe detail", sql: "DESCRIBE DETAIL main.default.events", readOnly: true, returnsData: true},
 		{name: "describe history with limit", sql: "DESCRIBE HISTORY main.default.events LIMIT 10", readOnly: true, returnsData: true},
+		{name: "qualified catalog.schema table-valued function", sql: "SELECT * FROM main.default.table_func(5)", readOnly: true, returnsData: true},
+		{name: "qualified schema table-valued function with TABLE arg", sql: "SELECT * FROM analytics.enrich_rows(TABLE(main.default.events)) AS r", readOnly: true, returnsData: true},
 		{name: "from single-bar pipeline missing relation", sql: "FROM | SELECT *", wantErr: true},
 		{name: "parenthesized select with single-bar insert", sql: "(SELECT 1 AS x) | INSERT INTO t", wantErr: true},
 		{name: "explain analyze single-bar pipeline", sql: "EXPLAIN ANALYZE FROM t | SELECT *"},

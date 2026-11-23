@@ -1596,13 +1596,19 @@ func (p *Parser) parseFunctionTable() (bool, error) {
 	}
 
 	// Spark v4.0.5 AstBuilder.visitTableValuedFunction rejects qualified TVF names
-	// (e.g. `FROM lateral.f(1)`, `FROM db.f(1)`): only an unqualified function name
-	// is valid here.
-	if _, err := p.parseIdentifier(); err != nil {
-		return false, err
-	}
-	if p.cur().Kind == tokDot {
-		return false, p.errorf("table-valued function name cannot be qualified")
+	// (e.g. `FROM lateral.f(1)`, `FROM db.f(1)`), whereas Databricks SQL permits
+	// schema- and catalog-qualified table-valued functions (`ParseDatabricks`).
+	if p.allowQualifiedTVF {
+		if _, err := p.parseMultipartIdentifier(); err != nil {
+			return false, err
+		}
+	} else {
+		if _, err := p.parseIdentifier(); err != nil {
+			return false, err
+		}
+		if p.cur().Kind == tokDot {
+			return false, p.errorf("table-valued function name cannot be qualified")
+		}
 	}
 	if _, err := p.expect(tokLParen); err != nil {
 		return false, err

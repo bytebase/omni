@@ -30,7 +30,7 @@ func StatementWithResultLimit(statement string, limit int) string {
 	if limit <= 0 {
 		return statement
 	}
-	res, err := parser.Parse(statement)
+	res, err := parser.ParseDatabricks(statement)
 	if err != nil || res == nil || len(res.Statements) != 1 {
 		return statement
 	}

@@ -32,7 +32,7 @@ func Classify(statement string) (QueryType, error) {
 	}
 	seg := nonEmpty[0]
 	if body, off, ok := explainAnalyzeBody(seg.Text); ok {
-		res, err := parser.Parse(body)
+		res, err := parser.ParseDatabricks(body)
 		if err != nil {
 			return analysis.QueryTypeUnknown, offsetParseError(err, seg.ByteStart+off)
 		}
@@ -41,7 +41,7 @@ func Classify(statement string) (QueryType, error) {
 		}
 		return analysis.Explain, nil
 	}
-	res, err := parser.Parse(seg.Text)
+	res, err := parser.ParseDatabricks(seg.Text)
 	if err != nil {
 		return analysis.QueryTypeUnknown, offsetParseError(err, seg.ByteStart)
 	}
@@ -66,13 +66,13 @@ func StatementReadsRows(statement string) (bool, error) {
 		return false, nil
 	}
 	if body, off, isEA := explainAnalyzeBody(seg.Text); isEA {
-		res, err := parser.Parse(body)
+		res, err := parser.ParseDatabricks(body)
 		if err != nil {
 			return false, offsetParseError(err, seg.ByteStart+off)
 		}
 		return res != nil && len(res.Statements) == 1, nil
 	}
-	res, err := parser.Parse(seg.Text)
+	res, err := parser.ParseDatabricks(seg.Text)
 	if err != nil {
 		return false, offsetParseError(err, seg.ByteStart)
 	}

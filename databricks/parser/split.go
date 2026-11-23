@@ -107,6 +107,87 @@ func Split(script string) []Segment {
 	start := 0
 	stmtStart := true
 	var stack []compoundFrame
+	var cachedParser *Parser
+	cachedBase := 0
+	cachedIdx := 0
+	cachedLexFailed := false
+
+	// tryParseCompoundBlock uses the full Spark/Databricks recursive-descent parser
+	// to find the exact boundary of a syntactically valid top-level compound block
+	// starting at blockStart (either `BEGIN ...` or `label: BEGIN ...`). Tokens and
+	// parser caches are initialized at most once per Split call so consecutive
+	// compound blocks stay O(N). Returns (endByte, isEOF, ok).
+	tryParseCompoundBlock := func(blockStart int) (int, bool, bool) {
+		if cachedLexFailed {
+			return 0, false, false
+		}
+		if cachedParser == nil {
+			toks, err := lex(script[blockStart:])
+			if err != nil {
+				cachedLexFailed = true
+				return 0, false, false
+			}
+			cachedBase = blockStart
+			cachedIdx = 0
+			cachedParser = &Parser{
+				src:               script[blockStart:],
+				toks:              toks,
+				selectListFromPos: -1,
+				allowQualifiedTVF: true,
+			}
+		}
+		relStart := blockStart - cachedBase
+		toks := cachedParser.toks
+		for cachedIdx < len(toks) && toks[cachedIdx].Start < relStart {
+			cachedIdx++
+		}
+		if cachedIdx >= len(toks) || toks[cachedIdx].Start != relStart {
+			return 0, false, false
+		}
+		p := cachedParser
+		p.pos = cachedIdx
+		p.gtPending = 0
+		p.depth = 0
+		p.parenDepth = 0
+		p.openCaseRuns = p.openCaseRuns[:0]
+		p.inCompound = false
+		p.inFromStatement = false
+		p.disallowParamMarkers = false
+		p.disallowColumnRefs = false
+		p.inWindowFrameBound = false
+		p.disallowGeneratedCols = false
+		p.relaxFunctionDataTypes = false
+		p.windowSpecSeen = false
+		p.scriptScopes = p.scriptScopes[:0]
+		p.queryDepth = 0
+		p.queryParenDepth = 0
+		p.hasTransform = false
+		p.hasEmptyPipe = false
+		p.hasPipe = false
+		p.inSelectList = false
+		p.selectListFromPos = -1
+		p.probingSingleBarPipe = false
+		p.limitLoc = Loc{}
+		p.limitAll = false
+		p.offsetLoc = Loc{}
+		p.tableRefs = p.tableRefs[:0]
+		p.cteScopes = p.cteScopes[:0]
+
+		if err := p.parseBeginEndCompoundBlock(); err != nil {
+			return 0, false, false
+		}
+		switch p.cur().Kind {
+		case tokSemicolon:
+			semiEnd := cachedBase + p.cur().End
+			cachedIdx = p.pos + 1
+			return semiEnd, false, true
+		case tokEOF:
+			cachedIdx = p.pos
+			return len(script), true, true
+		default:
+			return 0, false, false
+		}
+	}
 	pendingLabel := ""
 	atBodyStmtStart := false
 	stmtHead := tokEOF
@@ -320,9 +401,11 @@ func Split(script string) []Segment {
 		}
 		// Simple CASE expression (`CASE <operand> WHEN ...`): must reach WHEN at
 		// relative paren depth 0 before any enclosing clause boundary. Track
-		// operand-value state (`scanVal`) so keyword operands like `CASE do WHEN`
-		// or `CASE a + then WHEN` are not mistaken for clause boundaries.
+		// operand-value state (`scanVal`) and nested CASE depth (`nestedCase`) so
+		// keyword operands (`CASE do WHEN`) and nested CASE expressions inside the
+		// operand (`CASE 1 + CASE WHEN ... END WHEN ...`) are handled cleanly.
 		relDepth := 0
+		nestedCase := 0
 		scanVal := false
 		scanPrev := kwCASE
 		for off := 0; ; off++ {
@@ -340,17 +423,39 @@ func Split(script string) []Segment {
 				relDepth--
 				scanVal = true
 			case kwWHEN:
-				if relDepth == 0 {
+				if relDepth == 0 && nestedCase == 0 {
 					return true
 				}
 				scanVal = false
 			case kwCASE:
-				if relDepth == 0 && off > 0 {
-					return false
+				if relDepth == 0 && off > 0 && !scanVal {
+					nestedCase++
+					scanVal = false
+				} else {
+					scanVal = true
 				}
-				scanVal = true
-			case kwTHEN, kwDO, kwELSE, kwELSEIF, kwUNTIL, kwEND:
+			case kwEND:
 				if relDepth == 0 && scanVal {
+					if nestedCase > 0 {
+						nestedCase--
+						scanVal = true
+					} else {
+						return false
+					}
+				} else {
+					scanVal = true
+				}
+			case kwTHEN, kwELSE:
+				if relDepth == 0 && scanVal {
+					if nestedCase == 0 {
+						return false
+					}
+					scanVal = false
+				} else {
+					scanVal = true
+				}
+			case kwDO, kwELSEIF, kwUNTIL:
+				if relDepth == 0 && nestedCase == 0 && scanVal {
 					return false
 				}
 				scanVal = true
@@ -430,6 +535,31 @@ func Split(script string) []Segment {
 
 		if len(stack) == 0 {
 			if stmtStart {
+				if tok.Kind == kwBEGIN || (tok.Kind.isIdentifier() && peekTok(0).Kind == tokColon && peekTok(1).Kind == kwBEGIN) {
+					if endByte, isEOF, ok := tryParseCompoundBlock(tok.Start); ok {
+						if isEOF {
+							segments = append(segments, Segment{
+								Text:      script[start:],
+								ByteStart: start,
+								ByteEnd:   len(script),
+							})
+							return segments
+						}
+						segEnd := extendSameLineTrailingComment(script, endByte)
+						buf = buf[:0]
+						l.pos = segEnd
+						l.inHint = false
+						segments = append(segments, Segment{
+							Text:      script[start:segEnd],
+							ByteStart: start,
+							ByteEnd:   segEnd,
+						})
+						start = segEnd
+						stmtStart = true
+						prevTokKind = tokEOF
+						continue
+					}
+				}
 				if tok.Kind == kwBEGIN {
 					stmtStart = false
 					enterBeginBlock("")

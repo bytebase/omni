@@ -49,7 +49,7 @@ func ExtractViewDependencies(sql, defaultCatalog, defaultSchema string) ([]ViewD
 	if !ok {
 		return nil, errors.New("expected a single Databricks SQL view or query statement")
 	}
-	res, err := parser.Parse(seg.Text)
+	res, err := parser.ParseDatabricks(seg.Text)
 	if err != nil {
 		return nil, offsetParseError(err, seg.ByteStart)
 	}
@@ -109,7 +109,7 @@ func resolveViewDependency(parts []string, defaultCatalog, defaultSchema string)
 // right catalog.
 func QualifyViewDDL(ddl, qualifiedName string) string {
 	// Prefer the full AST TargetLoc when the DDL parses cleanly.
-	if res, err := parser.Parse(ddl); err == nil && res != nil && len(res.Statements) == 1 {
+	if res, err := parser.ParseDatabricks(ddl); err == nil && res != nil && len(res.Statements) == 1 {
 		if ps, ok := res.Statements[0].(*parser.ParsedStmt); ok && ps.Kind == parser.StmtCreateView && !ps.Materialized {
 			if ps.TargetLoc.End > ps.TargetLoc.Start && ps.TargetLoc.End <= len(ddl) {
 				return ddl[:ps.TargetLoc.Start] + qualifiedName + ddl[ps.TargetLoc.End:]

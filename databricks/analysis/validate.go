@@ -40,12 +40,12 @@ func ValidateQuery(statement string) (readOnly bool, returnsData bool, err error
 			continue
 		}
 		if body, off, ok := explainAnalyzeBody(seg.Text); ok {
-			if _, err := parser.Parse(body); err != nil {
+			if _, err := parser.ParseDatabricks(body); err != nil {
 				return false, false, offsetParseError(err, seg.ByteStart+off)
 			}
 			return false, false, nil
 		}
-		res, err := parser.Parse(seg.Text)
+		res, err := parser.ParseDatabricks(seg.Text)
 		if err != nil {
 			offsetErr := offsetParseError(err, seg.ByteStart)
 			var pe *parser.ParseError

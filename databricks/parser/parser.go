@@ -79,6 +79,7 @@ type Parser struct {
 	inSelectList           bool
 	selectListFromPos      int
 	probingSingleBarPipe   bool
+	allowQualifiedTVF      bool
 	limitLoc               Loc
 	limitAll               bool
 	offsetLoc              Loc
@@ -88,8 +89,20 @@ type Parser struct {
 
 // Parse parses a Databricks / Spark SQL input string (one or more
 // semicolon-separated statements and/or compound BEGIN ... END script blocks)
-// and returns a ParseResult with byte offsets relative to sql.
+// under Apache Spark 4.0.5 strict grammar rules and returns a ParseResult with
+// byte offsets relative to sql.
 func Parse(sql string) (*ParseResult, error) {
+	return parseSQL(sql, false)
+}
+
+// ParseDatabricks parses a Databricks SQL input string, enabling Databricks SQL
+// extensions that Apache Spark 4.0.5 rejects (such as schema- or
+// catalog-qualified table-valued functions like `main.default.my_tvf(5)`).
+func ParseDatabricks(sql string) (*ParseResult, error) {
+	return parseSQL(sql, true)
+}
+
+func parseSQL(sql string, allowQualifiedTVF bool) (*ParseResult, error) {
 	toks, err := lex(sql)
 	if err != nil {
 		return nil, err
@@ -98,6 +111,7 @@ func Parse(sql string) (*ParseResult, error) {
 		src:               sql,
 		toks:              toks,
 		selectListFromPos: -1,
+		allowQualifiedTVF: allowQualifiedTVF,
 	}
 	if p.cur().Kind == tokEOF {
 		return nil, p.errorf("empty SQL input")
