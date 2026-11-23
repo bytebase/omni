@@ -15,10 +15,15 @@ the SHA-256 of the vendored grammar files against the `grammar` row of
 
 | Rows | Total | Agree | Only ClickHouse accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 1,207 | 1,207 (100.0%) | 0 | 0 |
-| Near-misses | 2,341 | 2,341 (100.0%) | 0 | 0 |
+| One per alternative | 1,240 | 1,240 (100.0%) | 0 | 0 |
+| Near-misses | 2,420 | 2,420 (100.0%) | 0 | 0 |
 | Hand-added (`suite:access-or-replace`) | 35 | 35 (100.0%) | 0 | 0 |
-| **All** | **3,583** | **3,583 (100.0%)** | **0** | **0** |
+| **All** | **3,695** | **3,695 (100.0%)** | **0** | **0** |
+
+An optional clause that several alternatives of one rule share, such as
+`createStmt`'s `(IF NOT EXISTS)?`, gets a row at each of them:
+`../../testdata/tokens.tsv` names the rule `ReadANTLR` lowers the group to, with
+the form `(every site)`.
 
 The hand-added rows hold where an access entity takes `OR REPLACE`: after its
 keyword (`CREATE ROW POLICY OR REPLACE`), never before it, and not beside `IF NOT
@@ -68,6 +73,6 @@ settings between `EXPLAIN AST` and the inner query (such as `graph = 1`),
 
 ## Remaining disagreements
 
-None — all 3,583 rows (1,207 grammar alternatives, 2,341 near-misses and 35
+None — all 3,695 rows (1,240 grammar alternatives, 2,420 near-misses and 35
 hand-added rows) agree
 with ClickHouse 26.8.38.9 (`0` ClickHouse-only, `0` omni-only).
