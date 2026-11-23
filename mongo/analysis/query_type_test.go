@@ -108,6 +108,21 @@ func TestClassifyStatement(t *testing.T) {
 		{name: "rs.status with mutation in arg", statement: `rs.status(db.dropDatabase())`, want: DML},
 		{name: "sh.status with mutation in arg", statement: `sh.status(db.dropDatabase())`, want: DML},
 
+		// Safe cursor chains vs callback-taking or post-terminal chained methods.
+		{name: "find with safe cursor chain and toArray", statement: `db.users.find({}).sort({a: 1}).limit(10).toArray()`, want: Select},
+		{name: "aggregate with safe toArray terminal", statement: `db.users.aggregate([{$match: {}}]).toArray()`, want: Select},
+		{name: "distinct with explain suffix", statement: `db.users.distinct("name").explain()`, want: Explain},
+		{name: "find with forEach callback", statement: `db.users.find({}).forEach(mutatingCallback)`, want: DML},
+		{name: "find with map callback", statement: `db.users.find({}).map(mutatingCallback)`, want: DML},
+		{name: "find with toArray then array sort callback", statement: `db.users.find({}).toArray().sort(eval)`, want: DML},
+		{name: "find with toArray then forEach", statement: `db.users.find({}).toArray().forEach(eval)`, want: DML},
+		{name: "distinct with forEach eval", statement: `db.users.distinct("script").forEach(eval)`, want: DML},
+		{name: "distinct with array sort callback", statement: `db.users.distinct("script").sort(eval)`, want: DML},
+		{name: "aggregate with forEach callback", statement: `db.users.aggregate([{$match: {}}]).forEach(eval)`, want: DML},
+		{name: "explain prefix find with forEach callback", statement: `db.users.explain().find({}).forEach(eval)`, want: DML},
+		{name: "find with explain then chained call", statement: `db.users.find({}).explain().forEach(eval)`, want: DML},
+		{name: "findOne with chained method", statement: `db.users.findOne({}).forEach(eval)`, want: DML},
+
 		// Explain.
 		{name: "find with explain suffix", statement: `db.users.find({}).explain()`, want: Explain},
 		{name: "find with sort and explain suffix", statement: `db.users.find({}).sort({a: 1}).explain()`, want: Explain},

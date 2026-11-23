@@ -100,11 +100,84 @@ func hasWriteOrUnknownStage(a *StatementAnalysis) bool {
 	return false
 }
 
-// hasUnsafeStatementArgs reports whether a statement's argument expressions (or
-// chained database calls) invoke anything outside safeBSONHelpers.
+// safeCursorModifiers lists read-only cursor methods that return a cursor and
+// can be chained before another cursor modifier or terminal.
+var safeCursorModifiers = map[string]bool{
+	"addOption":           true,
+	"allowDiskUse":        true,
+	"allowPartialResults": true,
+	"batchSize":           true,
+	"collation":           true,
+	"comment":             true,
+	"hint":                true,
+	"limit":               true,
+	"max":                 true,
+	"maxAwaitTimeMS":      true,
+	"maxTimeMS":           true,
+	"min":                 true,
+	"modifiers":           true,
+	"noCursorTimeout":     true,
+	"oplogReplay":         true,
+	"pretty":              true,
+	"projection":          true,
+	"readConcern":         true,
+	"readPref":            true,
+	"returnKey":           true,
+	"showRecordId":        true,
+	"skip":                true,
+	"sort":                true,
+	"tailable":            true,
+}
+
+// safeCursorTerminals lists read-only cursor terminal methods that consume or
+// inspect the cursor without invoking user callbacks. Because they return a
+// non-cursor JS value (such as an Array), no further chaining is allowed after
+// them.
+var safeCursorTerminals = map[string]bool{
+	"close":           true,
+	"count":           true,
+	"explain":         true,
+	"hasNext":         true,
+	"isClosed":        true,
+	"isExhausted":     true,
+	"itcount":         true,
+	"next":            true,
+	"objsLeftInBatch": true,
+	"size":            true,
+	"toArray":         true,
+	"tryNext":         true,
+}
+
+func hasUnsafeCursorChain(s *ast.CollectionStatement) bool {
+	if len(s.CursorMethods) == 0 {
+		return false
+	}
+	if s.Method != "find" && s.Method != "aggregate" {
+		if explainableMethods[s.Method] && len(s.CursorMethods) == 1 && s.CursorMethods[0].Method == explainCursorMethod {
+			return false
+		}
+		return true
+	}
+	for i, cm := range s.CursorMethods {
+		if safeCursorModifiers[cm.Method] {
+			continue
+		}
+		if safeCursorTerminals[cm.Method] && i == len(s.CursorMethods)-1 {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+// hasUnsafeStatementArgs reports whether a statement's argument expressions or
+// chained method calls invoke callbacks or anything outside safe allowlists.
 func hasUnsafeStatementArgs(node ast.Node, source string) bool {
 	switch n := node.(type) {
 	case *ast.CollectionStatement:
+		if hasUnsafeCursorChain(n) {
+			return true
+		}
 		if hasUnsafeNodes(n.Args, source) || hasUnsafeNodes(n.ExplainArgs, source) {
 			return true
 		}

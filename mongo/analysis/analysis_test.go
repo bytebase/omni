@@ -712,6 +712,15 @@ func TestAnalyzeValidateRepairAndUnsafeArgCalls(t *testing.T) {
 	if sa := mustAnalyze(t, `db.users.drop().explain()`); sa.Operation != analysis.OpAdmin {
 		t.Errorf("drop().explain() Operation = %v, want OpAdmin", sa.Operation)
 	}
+	if sa := mustAnalyze(t, `db.users.find({}).forEach(mutatingCallback)`); sa.Operation != analysis.OpWrite {
+		t.Errorf("find().forEach(...) Operation = %v, want OpWrite", sa.Operation)
+	}
+	if sa := mustAnalyze(t, `db.users.distinct("script").forEach(eval)`); sa.Operation != analysis.OpWrite {
+		t.Errorf("distinct().forEach(...) Operation = %v, want OpWrite", sa.Operation)
+	}
+	if sa := mustAnalyze(t, `db.users.find({}).sort({a: 1}).limit(5).toArray()`); sa.Operation != analysis.OpFind {
+		t.Errorf("find().sort().limit().toArray() Operation = %v, want OpFind", sa.Operation)
+	}
 }
 
 // ---------------------------------------------------------------------------
