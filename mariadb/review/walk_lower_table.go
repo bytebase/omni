@@ -1,6 +1,7 @@
 package review
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/bytebase/omni/mariadb/ast"
@@ -95,6 +96,9 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	}
 	// System-versioning and partitioning checks against the known base table.
 	rel := relKey(r.db, r.name)
+	if b.toSequenceFails(v, r) {
+		return true
+	}
 	if b.w.versioned[rel] == walk.Absent {
 		hasAddSysVer := alterAddsSystemVersioning(v.Commands)
 		for _, c := range v.Commands {
@@ -126,6 +130,9 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 			}
 		}
 	}
+	if b.w.partitioned[rel] == walk.Present && b.w.rangeOrList[rel] && !alterHasPartitionBy(v.Commands) && b.rangeOrListFails(v, r) {
+		return true
+	}
 	// The table keeps foreign keys as its engine does; a statement that
 	// changes the engine claims nothing of them.
 	engine, sets := alterEngine(v)
@@ -143,6 +150,9 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	if b.alterTextFails(v, r) {
 		return true
 	}
+	if dropIdx, dropCols, ok := alterDropsOnly(v); ok && !sets && b.fkIndexDropFails(r, dropIdx, dropCols, b.anchor()) {
+		return true
+	}
 	var rename *ast.AlterTableCmd
 	for _, c := range v.Commands {
 		if c.Type == ast.ATRenameTable {
@@ -150,6 +160,8 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		}
 	}
 	b.renames = rename != nil
+	b.types = b.alterTypes(v.Commands)
+	b.innoDB = b.fks
 	for _, early := range []bool{true, false} {
 		for _, c := range v.Commands {
 			if c.Type == ast.ATRenameTable {
@@ -170,6 +182,81 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		return b.alterRename(r, rename, kind)
 	}
 	return true
+}
+
+// rangeOrListFails checks the partition maintenance of an ALTER TABLE of
+// a table partitioned by RANGE or LIST (verified on mariadb:11.8.8): a
+// partition it adds or reorganizes into needs its VALUES (1479), ADD
+// PARTITION needs a partition to add (1492), and COALESCE PARTITION and
+// a REORGANIZE PARTITION of no partition take HASH or KEY partitioning
+// (1509, 1511).
+func (b *builder) rangeOrListFails(v *ast.AlterTableStmt, r tableRef) bool {
+	keys := []walk.Key{relKey(r.db, r.name)}
+	for _, c := range v.Commands {
+		if c == nil {
+			continue
+		}
+		rng := rangeOf(c.Loc)
+		switch c.Type {
+		case ast.ATAddPartition, ast.ATReorganizePartition:
+			if c.Type == ast.ATAddPartition && len(c.PartitionDefs) == 0 {
+				b.fail(rng, keys, review.UnsupportedForm, "Table "+review.Code(r.written)+" is partitioned by "+review.Code("RANGE")+" or "+review.Code("LIST")+", and each partition it adds must be defined.") // 1492
+				return true
+			}
+			if c.Type == ast.ATReorganizePartition && len(c.PartitionNames) == 0 && len(c.PartitionDefs) == 0 {
+				b.fail(rng, keys, review.UnsupportedForm, "Table "+review.Code(r.written)+" is partitioned by "+review.Code("RANGE")+" or "+review.Code("LIST")+", which "+review.Code("REORGANIZE PARTITION")+" without partitions does not take.") // 1511
+				return true
+			}
+			for _, d := range c.PartitionDefs {
+				if d != nil && d.Values == nil {
+					b.fail(rangeOf(d.Loc), keys, review.UnsupportedForm, "Partition "+review.Code(ident(d.Name))+" of "+review.Code(r.written)+" requires a "+review.Code("VALUES")+" clause.") // 1479
+					return true
+				}
+			}
+		case ast.ATCoalescePartition:
+			b.fail(rng, keys, review.UnsupportedForm, "Table "+review.Code(r.written)+" is partitioned by "+review.Code("RANGE")+" or "+review.Code("LIST")+", which "+review.Code("COALESCE PARTITION")+" does not take.") // 1509
+			return true
+		}
+	}
+	return false
+}
+
+// toSequenceFails checks an ALTER TABLE that makes a base table a
+// sequence (SEQUENCE=1), which needs the table to have exactly a
+// sequence's columns (4086, verified on mariadb:11.8.8): a column the
+// sync lists of another name, still there, fails it. A statement that
+// also changes columns is left alone.
+func (b *builder) toSequenceFails(v *ast.AlterTableStmt, r tableRef) bool {
+	toSequence := false
+	for _, c := range v.Commands {
+		switch c.Type {
+		case ast.ATTableOption:
+			if c.Option != nil && strings.EqualFold(c.Option.Name, "SEQUENCE") {
+				n, err := strconv.ParseUint(c.Option.Value, 10, 64)
+				toSequence = err == nil && n != 0
+			}
+		case ast.ATAddColumn, ast.ATDropColumn, ast.ATModifyColumn, ast.ATChangeColumn, ast.ATRenameColumn, ast.ATAddSystemVersioning:
+			return false
+		}
+	}
+	rel := relKey(r.db, r.name)
+	if !toSequence || r.db != b.w.snap.db || b.w.versioned[rel] != walk.Absent {
+		return false
+	}
+	var other string
+	for _, name := range b.w.snap.columnNames[r.name] {
+		if !isSequenceColumn(name) && (other == "" || name < other) {
+			other = name
+		}
+	}
+	if other == "" {
+		return false
+	}
+	msg := "Table " + review.Code(r.written) + " has column " + review.Code(ident(other)) + ", which a sequence has not."
+	b.Need(colKey(r.db, r.name, other), walk.Absent, nil, &walkNote{
+		rng: b.anchor(), absent: msg, present: msg, absentCode: review.UnsupportedForm, presentCode: review.UnsupportedForm,
+	}) // 4086
+	return false
 }
 
 // alterEngine returns the ENGINE an ALTER TABLE sets, if it sets one.
@@ -316,6 +403,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			return true
 		}
 		b.after(r, c.After, rng)
+		b.retype(r, c.Column)
 		b.alterColumnKeys(r, c.Column, rng)
 	case ast.ATChangeColumn:
 		if c.Column == nil || !b.renameColumn(r, c.Name, c.Column.Name, rng) {
@@ -325,6 +413,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			return true
 		}
 		b.after(r, c.After, rng)
+		b.retype(r, c.Column)
 		b.alterColumnKeys(r, c.Column, rng)
 	case ast.ATRenameColumn:
 		return b.renameColumn(r, c.Name, c.NewName, rng)
@@ -419,11 +508,17 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 		return true
 	case ast.ATPartitionBy:
 		rel := relKey(r.db, r.name)
-		b.Session(func() { b.w.partitioned[rel] = walk.Present })
+		b.Session(func() {
+			b.w.partitioned[rel] = walk.Present
+			delete(b.w.rangeOrList, rel)
+		})
 		return true
 	case ast.ATRemovePartitioning:
 		rel := relKey(r.db, r.name)
-		b.Session(func() { b.w.partitioned[rel] = walk.Absent })
+		b.Session(func() {
+			b.w.partitioned[rel] = walk.Absent
+			delete(b.w.rangeOrList, rel)
+		})
 		return true
 	case ast.ATAddSystemVersioning:
 		rel := relKey(r.db, r.name)
@@ -457,6 +552,9 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 		}
 		seen[[2]string{kind, k}] = true
 		return false
+	}
+	if b.unkeyedAutoIncrement(v) {
+		return true
 	}
 	primaries := 0
 	for _, c := range v.Commands {
@@ -602,6 +700,80 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 	return false
 }
 
+// unkeyedAutoIncrement fails an ALTER TABLE that adds an AUTO_INCREMENT
+// column no key of the statement names (1075): a new column is in no key
+// the table has. A foreign key's columns count, for the index it adds.
+func (b *builder) unkeyedAutoIncrement(v *ast.AlterTableStmt) bool {
+	var cons []*ast.Constraint
+	for _, c := range v.Commands {
+		if c.Constraint != nil {
+			cons = append(cons, c.Constraint)
+		}
+		cons = append(cons, c.Constraints...)
+	}
+	keyed := keyedColumns(cons)
+	for _, c := range v.Commands {
+		if c.Type != ast.ATAddColumn || c.IfNotExists {
+			continue
+		}
+		cols := c.Columns
+		if c.Column != nil {
+			cols = append([]*ast.ColumnDef{c.Column}, cols...)
+		}
+		for _, col := range cols {
+			if col != nil && b.autoIncrementUnkeyed(col, keyed) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// keyedColumns returns the keys of the columns a list of keys and foreign
+// keys names, in a key part or its expression.
+func keyedColumns(cons []*ast.Constraint) map[string]bool {
+	keyed := make(map[string]bool)
+	for _, con := range cons {
+		if con == nil || con.Type == ast.ConstrCheck {
+			continue
+		}
+		for _, name := range con.Columns {
+			keyed[strings.ToLower(name)] = true
+		}
+		for _, ic := range con.IndexColumns {
+			if ic == nil {
+				continue
+			}
+			ast.Inspect(ic.Expr, func(n ast.Node) bool {
+				if ref, ok := n.(*ast.ColumnRef); ok {
+					keyed[strings.ToLower(ref.Column)] = true
+				}
+				return true
+			})
+		}
+	}
+	return keyed
+}
+
+// autoIncrementUnkeyed fails an AUTO_INCREMENT column definition that no
+// key names: not its own, nor one in keyed (1075).
+func (b *builder) autoIncrementUnkeyed(col *ast.ColumnDef, keyed map[string]bool) bool {
+	auto := col.AutoIncrement
+	for _, cc := range col.Constraints {
+		switch cc.Type {
+		case ast.ColConstrAutoIncrement:
+			auto = true
+		case ast.ColConstrPrimaryKey, ast.ColConstrUnique, ast.ColConstrReferences:
+			return false
+		}
+	}
+	if !auto || keyed[strings.ToLower(col.Name)] {
+		return false
+	}
+	b.fail(rangeOf(col.Loc), nil, review.UnsupportedForm, "Column "+review.Code(ident(col.Name))+" is "+review.Code("AUTO_INCREMENT")+" and must be defined as a key.") // 1075
+	return true
+}
+
 // addColumn follows ADD COLUMN: the column must be new (1060), and a
 // column AFTER names must exist (1054).
 func (b *builder) addColumn(r tableRef, col *ast.ColumnDef, after string, rng review.Range) bool {
@@ -612,9 +784,33 @@ func (b *builder) addColumn(r tableRef, col *ast.ColumnDef, after string, rng re
 	ck := colKey(r.db, r.name, k)
 	b.need(ck, walk.Absent, nil, rng, "", alreadyExists("column", ident(col.Name), r.written)) // 1060
 	b.after(r, after, rng)
-	b.Set(ck, walk.Present, "")
+	b.Set(ck, walk.Present, astBaseType(col.TypeName))
 	b.alterColumnKeys(r, col, rng)
 	return true
+}
+
+// retype records the type a MODIFY or CHANGE gives a column, which is
+// there once the statement succeeds.
+func (b *builder) retype(r tableRef, col *ast.ColumnDef) {
+	if k, ok := b.key(spaceColumn, col.Name); ok {
+		b.Set(colKey(r.db, r.name, k), walk.Present, astBaseType(col.TypeName))
+	}
+}
+
+// typeOf returns a column's base type as a statement on its table sees
+// it: an ALTER TABLE's own, or else the ledger's.
+func (b *builder) typeOf(r tableRef) func(k string) string {
+	return func(k string) string {
+		if t, ok := b.types[k]; ok {
+			return t
+		}
+		return b.ledgerType(r, k)
+	}
+}
+
+// indexTypesFail judges an index's key parts by type on an InnoDB table.
+func (b *builder) indexTypesFail(r tableRef, c *ast.Constraint) bool {
+	return b.innoDB && b.keyPartTypesFail(constraintKeyKind(c), c.IndexColumns, b.typeOf(r))
 }
 
 // after checks the column a FIRST/AFTER clause names (1054).
@@ -724,12 +920,18 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 				return
 			}
 			b.checkIndexColumns(r, c.IndexColumns)
+			if b.indexTypesFail(r, c) {
+				return
+			}
 			b.replaceFKGeneratedIndexes(r, walk.Key{}, c.IndexColumns)
 			b.markAddedIdx(primaryIndex)
 			break
 		}
 		b.need(idxKey(r.db, r.name, primaryIndex), walk.Absent, nil, rng, "", hasPrimaryKey(r.written)) // 1068
 		b.checkIndexColumns(r, c.IndexColumns)
+		if b.indexTypesFail(r, c) {
+			return
+		}
 		b.replaceFKGeneratedIndexes(r, walk.Key{}, c.IndexColumns)
 		b.markAddedIdx(primaryIndex)
 	case ast.ConstrCheck:
@@ -787,6 +989,9 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 					return
 				}
 				b.checkIndexColumns(r, c.IndexColumns)
+				if b.indexTypesFail(r, c) {
+					return
+				}
 				b.markAddedIdx(k)
 			} else {
 				replacedFKIdx := false
@@ -797,10 +1002,16 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 					b.need(ik, walk.Absent, nil, rng, "", alreadyExists("index", ident(c.Name), r.written)) // 1061
 				}
 				b.checkIndexColumns(r, c.IndexColumns)
+				if b.indexTypesFail(r, c) {
+					return
+				}
 				b.markAddedIdx(k)
 			}
 		} else {
 			b.checkIndexColumns(r, c.IndexColumns)
+			if b.indexTypesFail(r, c) {
+				return
+			}
 			if isRegular {
 				// Unnamed ADD KEY/UNIQUE can still drop an implicit FK backing index.
 				b.replaceFKGeneratedIndexes(r, walk.Key{}, c.IndexColumns)
@@ -974,6 +1185,8 @@ func (b *builder) moveTable(from, to tableRef, kind string) {
 		} else {
 			delete(b.w.versioned, tk)
 		}
+		delete(b.w.rangeOrList, fk)
+		delete(b.w.rangeOrList, tk)
 		part, hasPart := b.w.partitioned[fk]
 		delete(b.w.partitioned, fk)
 		if hasPart {
