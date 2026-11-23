@@ -3511,3 +3511,43 @@ func TestDefaultsRowSetsAndDependencies(t *testing.T) {
 		t.Errorf("reader of a dropped type after a metadata load: %s, want INVALID", got)
 	}
 }
+
+// TestPatternsRecordsAndSnapshotTypeBodies holds four more readings: a
+// compound MATCH_RECOGNIZE measure, a statement mixing a known table with a
+// dictionary view, VALUES rec, and a type body after a metadata load.
+func TestPatternsRecordsAndSnapshotTypeBodies(t *testing.T) {
+	status := func(c *Catalog, kind, name string) string {
+		for _, u := range c.unitStates() {
+			if u.kind == kind && u.name == name {
+				return strings.TrimSpace(u.status + " " + u.err)
+			}
+		}
+		return "missing"
+	}
+	c, err := LoadSQL("CREATE TABLE t (id NUMBER, v NUMBER);\n" +
+		"CREATE PROCEDURE pattern IS n NUMBER; BEGIN SELECT MAX(m) INTO n FROM t MATCH_RECOGNIZE (ORDER BY id MEASURES MATCH_NUMBER() + 1 AS m PATTERN (a b*) DEFINE b AS v > PREV(v)); END;\n/\n" +
+		"CREATE PROCEDURE mixed IS n NUMBER; BEGIN SELECT COUNT(*) INTO n FROM t WHERE EXISTS (SELECT 1 FROM user_tables); END;\n/\n" +
+		"CREATE PROCEDURE rec IS BEGIN INSERT INTO t VALUES missing_rec; END;\n/\n" +
+		"DROP TABLE t;\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []struct{ kind, name, status string }{
+		{unitProcedure, "PATTERN", "INVALID"},
+		{unitProcedure, "MIXED", "INVALID"},
+		{unitProcedure, "REC", "INVALID PLS-00201"},
+	} {
+		if got := status(c, want.kind, want.name); got != want.status {
+			t.Errorf("%s %s: %s, want %s", want.kind, want.name, got, want.status)
+		}
+	}
+
+	m := New()
+	m.SetMetadata(&metadatapb.DatabaseSchemaMetadata{Name: "APP", Schemas: []*metadatapb.SchemaMetadata{{Name: "APP"}}})
+	if _, err := m.Exec("CREATE OR REPLACE TYPE BODY synced_t AS MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; END;", nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := status(m, unitTypeBody, "SYNCED_T"); got != "VALID" {
+		t.Errorf("type body after a metadata load: %s, want VALID", got)
+	}
+}

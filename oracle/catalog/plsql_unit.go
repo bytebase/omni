@@ -170,7 +170,10 @@ func (c *plChecker) objectType(n *ast.CreateTypeStmt) {
 func (c *plChecker) typeBody(n *ast.CreateTypeStmt) {
 	t := c.e.units.types[c.name]
 	if t == nil || !t.spec {
-		c.fail("PLS-00201", "identifier '%s' must be declared", c.name)
+		if !c.e.units.typesUnknown {
+			c.fail("PLS-00201", "identifier '%s' must be declared", c.name)
+		}
+		// A schema loaded from metadata may hold the spec.
 		return
 	}
 	attrs := map[string]bool{}

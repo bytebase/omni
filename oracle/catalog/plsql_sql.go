@@ -24,6 +24,8 @@ func (c *plChecker) sql(n ast.StmtNode) map[string]bool {
 		return nil
 	}
 	if c.readsUnknown(n) {
+		// The statement still reads the objects the catalog knows.
+		c.readColumns(n)
 		return nil
 	}
 	a := c.analyzer()
@@ -207,7 +209,7 @@ func (c *plChecker) sqlCall(n *ast.FuncCallExpr) error {
 		return nil
 	}
 	name := n.FuncName.Name
-	if plsqlFunctions[name] || n.Over != nil || sqlQuantifiers[name] {
+	if plsqlFunctions[name] || n.Over != nil || sqlQuantifiers[name] || rowPatternFunctions[name] {
 		return nil
 	}
 	target := c.e.resolveSynonymTarget(name, "")
@@ -323,6 +325,10 @@ func (c *plChecker) insert(a *queryAnalyzer, s *ast.InsertStmt) error {
 			return err
 		}
 		given = len(res.cols)
+	}
+	if s.ValuesRecord != nil {
+		// VALUES rec: a record the unit declares.
+		c.expr(s.ValuesRecord)
 	}
 	switch {
 	case given < 0, s.ValuesRecord != nil:
@@ -493,3 +499,7 @@ func (c *plChecker) merge(a *queryAnalyzer, s *ast.MergeStmt) error {
 // sqlQuantifiers are the words the parser keeps as a call's name for a
 // quantified comparison's list: x = ANY (1, 2).
 var sqlQuantifiers = map[string]bool{"ALL": true, "ANY": true, "SOME": true}
+
+// rowPatternFunctions are MATCH_RECOGNIZE's, which the query analyzer reads
+// in a pattern's MEASURES and DEFINE.
+var rowPatternFunctions = map[string]bool{"MATCH_NUMBER": true, "CLASSIFIER": true, "PREV": true, "NEXT": true, "FIRST": true, "LAST": true}
