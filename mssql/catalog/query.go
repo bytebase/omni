@@ -167,10 +167,13 @@ type binder struct {
 	setOrder map[*ast.SelectStmt]bool
 	// hoisted holds the first operands whose WITH a set operation bound.
 	hoisted map[*ast.SelectStmt]bool
+	// existsBody holds the queries EXISTS tests, whose select list SQL
+	// Server does not hold to their GROUP BY.
+	existsBody map[*ast.SelectStmt]bool
 }
 
 func newBinder(c *Catalog, source, object string, depth int) *binder {
-	return &binder{c: c, source: source, object: object, vars: map[string]bool{}, bound: map[*ast.ColumnRef]colBinding{}, depth: depth, setOrder: map[*ast.SelectStmt]bool{}, hoisted: map[*ast.SelectStmt]bool{}}
+	return &binder{c: c, source: source, object: object, vars: map[string]bool{}, bound: map[*ast.ColumnRef]colBinding{}, depth: depth, setOrder: map[*ast.SelectStmt]bool{}, hoisted: map[*ast.SelectStmt]bool{}, existsBody: map[*ast.SelectStmt]bool{}}
 }
 
 // maxBindDepth bounds how deep views and functions that name each other are
@@ -1063,7 +1066,7 @@ func (b *binder) checkGrouping(sel *ast.SelectStmt, sc *qscope, blk *qblock, gro
 			return check(c)
 		})
 	}
-	if sel.TargetList != nil {
+	if sel.TargetList != nil && !b.existsBody[sel] {
 		for _, item := range sel.TargetList.Items {
 			rt, ok := item.(*ast.ResTarget)
 			if !ok {
@@ -1599,9 +1602,18 @@ func (b *binder) functionRel(f *ast.FuncCallExpr, alias string, columns *ast.Lis
 		}
 		switch strings.ToUpper(name) {
 		case "STRING_SPLIT":
+			// enable_ordinal adds an ordinal column when it is 1, and none
+			// when it is 0 or NULL; any other value is unknown here.
 			cols := []qcol{{name: "value", typ: qtString}}
 			if f.Args != nil && len(f.Args.Items) == 3 {
-				cols = append(cols, qcol{name: "ordinal", typ: qtNumber})
+				lit, ok := unparen(f.Args.Items[2]).(*ast.Literal)
+				switch {
+				case ok && lit.Type == ast.LitNull, ok && lit.Type == ast.LitInteger && lit.Ival == 0:
+				case ok && lit.Type == ast.LitInteger && lit.Ival == 1:
+					cols = append(cols, qcol{name: "ordinal", typ: qtNumber})
+				default:
+					return rel(nil, true), nil
+				}
 			}
 			return rel(cols, false), nil
 		case "GENERATE_SERIES":
@@ -2027,6 +2039,11 @@ func (b *binder) expr(n ast.Node, sc *qscope, x ectx) (qtype, error) {
 	case *ast.SubqueryExpr:
 		return b.subquery(e.Query, sc, x, true)
 	case *ast.ExistsExpr:
+		// An EXISTS projection is not checked against its GROUP BY: SELECT *
+		// FROM t GROUP BY id is a valid EXISTS body.
+		if sel, ok := e.Subquery.(*ast.SelectStmt); ok {
+			b.existsBody[sel] = true
+		}
 		_, err := b.subquery(e.Subquery, sc, x, false)
 		return qtNumber, err
 	case *ast.InExpr:
