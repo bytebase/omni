@@ -2518,10 +2518,14 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 		into.Outfile = p.cur.Str
 		p.advance()
 
-		// [CHARACTER SET charset_name]
-		if p.cur.Type == kwCHARACTER {
+		// [CHARACTER SET charset_name]: character_set is CHAR_SYM SET_SYM or
+		// CHARSET in sql_yacc.yy, and CHAR_SYM is both CHAR and CHARACTER
+		// (lex.h).
+		if p.cur.Type == kwCHARACTER || p.cur.Type == kwCHAR {
 			p.advance()
-			p.match(kwSET)
+			if _, err := p.expect(kwSET); err != nil {
+				return nil, err
+			}
 			charset, _, csErr := p.parseIdent()
 			if csErr != nil {
 				return nil, csErr

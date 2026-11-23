@@ -1924,7 +1924,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwDEFAULT:
 		// DEFAULT CHARSET or DEFAULT CHARACTER SET or DEFAULT COLLATE
 		next := p.peekNext()
-		if next.Type == kwCHARSET || next.Type == kwCHARACTER || next.Type == kwCOLLATE {
+		if next.Type == kwCHARSET || next.Type == kwCHARACTER || next.Type == kwCHAR || next.Type == kwCOLLATE {
 			p.advance() // consume DEFAULT
 			return p.parseTableOption()
 		}
@@ -1939,7 +1939,9 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		}
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "CHARSET", Value: val}, true, nil
 
-	case kwCHARACTER:
+	// character_set is CHAR_SYM SET_SYM or CHARSET in sql_yacc.yy, and
+	// CHAR_SYM is both CHAR and CHARACTER (lex.h).
+	case kwCHARACTER, kwCHAR:
 		p.advance()
 		if _, ok := p.match(kwSET); ok {
 			p.matchEqual()

@@ -1477,7 +1477,7 @@ type IntoClause struct {
 	Outfile            string
 	Dumpfile           string
 	Vars               []*VariableRef
-	Charset            string // CHARACTER SET charset_name
+	Charset            string // never set: TiDB's INTO OUTFILE takes no character set (parser.y:10333)
 	FieldsTerminatedBy string // FIELDS TERMINATED BY 'string'
 	FieldsEnclosedBy   string // [OPTIONALLY] ENCLOSED BY 'char'
 	FieldsOptionalEncl bool   // OPTIONALLY keyword before ENCLOSED BY
