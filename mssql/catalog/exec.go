@@ -1126,13 +1126,7 @@ func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt, source string) error {
 	var existingIdx *metadata.IndexMetadata
 	existingPos := -1
 	if n.Name != "" {
-		for i, idx := range table.Indexes {
-			if strings.EqualFold(idx.Name, n.Name) {
-				existingIdx = idx
-				existingPos = i
-				break
-			}
-		}
+		existingIdx, existingPos = resolveTableIndex(table, n.Name, false)
 	}
 	if dropExisting {
 		if existingIdx == nil {
@@ -1454,7 +1448,7 @@ func (c *Catalog) execAlterIndex(n *ast.AlterIndexStmt) error {
 	}
 	var idx *metadata.IndexMetadata
 	if table != nil {
-		idx = indexByName(table, n.IndexName)
+		idx, _ = resolveTableIndex(table, n.IndexName, false)
 	}
 	if idx == nil {
 		return mssqlErr(ErrIndexNotFound, "Cannot find index '%s'.", n.IndexName)
@@ -2076,6 +2070,7 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 		}
 		if action.Column.Constraints != nil {
 			schema := c.GetSchema(schemaName)
+			addingClustered := false
 			for _, ci := range action.Column.Constraints.Items {
 				cd, ok := ci.(*ast.ConstraintDef)
 				if !ok {
@@ -2086,6 +2081,12 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 				}
 				if cd.Type == ast.ConstraintPrimaryKey && tableHasPrimaryKey(table) {
 					return mssqlErr(ErrMultiplePrimaryKeys, "Table '%s' already has a primary key defined on it.", table.Name)
+				}
+				if !c.lenientMetadataLoad && (cd.Type == ast.ConstraintPrimaryKey || cd.Type == ast.ConstraintUnique) && cd.Clustered != nil && *cd.Clustered {
+					if addingClustered || tableHasClusteredIndex(table) {
+						return mssqlErr(ErrMultipleClusteredIndex, "Cannot create more than one clustered index on table '%s'.", table.Name)
+					}
+					addingClustered = true
 				}
 			}
 		}
@@ -2375,6 +2376,9 @@ func (c *Catalog) execAlterTableAddConstraint(table *metadata.TableMetadata, sch
 		}
 		if n.Type == ast.ConstraintPrimaryKey && tableHasPrimaryKey(table) {
 			return mssqlErr(ErrMultiplePrimaryKeys, "Table '%s' already has a primary key defined on it.", table.Name)
+		}
+		if !c.lenientMetadataLoad && n.Clustered != nil && *n.Clustered && tableHasClusteredIndex(table) {
+			return mssqlErr(ErrMultipleClusteredIndex, "Cannot create more than one clustered index on table '%s'.", table.Name)
 		}
 		for _, colName := range stringNodeList(n.Columns) {
 			if columnByName(table, colName) == nil {
@@ -3189,12 +3193,7 @@ func (c *Catalog) execDropIndex(n *ast.DropStmt) error {
 		}
 		var foundIdx *metadata.IndexMetadata
 		if table != nil {
-			for _, idx := range table.Indexes {
-				if strings.EqualFold(idx.Name, indexName) && !idx.IsConstraint {
-					foundIdx = idx
-					break
-				}
-			}
+			foundIdx, _ = resolveTableIndex(table, indexName, true)
 		}
 		if foundIdx == nil || seen[foundIdx] {
 			if n.IfExists {
@@ -3230,6 +3229,35 @@ func (c *Catalog) execDropIndex(n *ast.DropStmt) error {
 		})
 	}
 	return nil
+}
+
+func resolveTableIndex(table *metadata.TableMetadata, name string, excludeConstraints bool) (*metadata.IndexMetadata, int) {
+	if table == nil || name == "" {
+		return nil, -1
+	}
+	for i, idx := range table.Indexes {
+		if excludeConstraints && idx.IsConstraint {
+			continue
+		}
+		if idx.Name == name {
+			return idx, i
+		}
+	}
+	var match *metadata.IndexMetadata
+	matchPos := -1
+	for i, idx := range table.Indexes {
+		if excludeConstraints && idx.IsConstraint {
+			continue
+		}
+		if strings.EqualFold(idx.Name, name) {
+			if match != nil {
+				return nil, -1
+			}
+			match = idx
+			matchPos = i
+		}
+	}
+	return match, matchPos
 }
 
 func isSecondaryXMLIndexOf(idx *metadata.IndexMetadata, primaryName string) bool {

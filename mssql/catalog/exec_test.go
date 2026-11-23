@@ -948,4 +948,41 @@ CREATE VIEW [dbo].[v2] WITH SCHEMABINDING AS SELECT [a] FROM [dbo].[v1];
 	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ALTER COLUMN [id] BIGINT`, ErrColumnDependentObject)
 	require.Equal(t, "INT", columnByName(c.GetTable("dbo", "t"), "id").Type)
 	require.False(t, columnByName(c.GetTable("dbo", "t"), "id").Nullable)
+
+	// 65. ALTER TABLE ADD COLUMN / ADD CONSTRAINT rejects adding a second clustered index.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[t] ([a] INT NOT NULL);
+GO
+CREATE CLUSTERED INDEX [ix] ON [dbo].[t]([a]);
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ADD [id] INT NOT NULL CONSTRAINT [pk] PRIMARY KEY CLUSTERED`, ErrMultipleClusteredIndex)
+	require.Nil(t, columnByName(c.GetTable("dbo", "t"), "id"))
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ADD CONSTRAINT [pk] PRIMARY KEY CLUSTERED ([a])`, ErrMultipleClusteredIndex)
+	require.Nil(t, indexByName(c.GetTable("dbo", "t"), "pk"))
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] ADD [id] INT NOT NULL CONSTRAINT [pk] PRIMARY KEY NONCLUSTERED`)
+	require.NotNil(t, indexByName(c.GetTable("dbo", "t"), "pk"))
+
+	// 66. DROP INDEX resolves the exact index name in case-sensitive snapshots.
+	c = New()
+	require.NoError(t, c.LoadMetadata(t.Context(), &metadata.DatabaseSchemaMetadata{
+		Schemas: []*metadata.SchemaMetadata{
+			{
+				Name: "dbo",
+				Tables: []*metadata.TableMetadata{
+					{
+						Name:    "t",
+						Columns: []*metadata.ColumnMetadata{{Name: "a", Type: "int", Position: 1}},
+						Indexes: []*metadata.IndexMetadata{
+							{Name: "Foo", Type: "NONCLUSTERED", Expressions: []string{"a"}},
+							{Name: "foo", Type: "NONCLUSTERED", Expressions: []string{"a"}},
+						},
+					},
+				},
+			},
+		},
+	}))
+	execExpectOK(t, c, `DROP INDEX [foo] ON [dbo].[t]`)
+	require.Len(t, c.GetTable("dbo", "t").Indexes, 1)
+	require.Equal(t, "Foo", c.GetTable("dbo", "t").Indexes[0].Name)
 }
