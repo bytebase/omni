@@ -12,7 +12,10 @@ type Segment struct {
 	Empty     bool
 }
 
-// Split splits a CQL input into segments at top-level semicolons.
+// Split splits a CQL input into segments at top-level semicolons. A segment
+// holding no statement (a lone semicolon, or only whitespace and comments) is
+// returned with Empty set, so the segments account for every semicolon;
+// callers that want statements skip it.
 func Split(sql string) []Segment {
 	internal := parser.Split(sql)
 	result := make([]Segment, len(internal))
