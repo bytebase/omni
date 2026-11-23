@@ -73,3 +73,57 @@ func TestResolveQuerySpanValuesWithScopesSetOp(t *testing.T) {
 		t.Errorf("results %+v, want orders.id", span.Results)
 	}
 }
+
+// An encryption key, KEY name, is no column.
+func TestResolveQuerySpanEncryptKey(t *testing.T) {
+	span, err := resolveWithCatalog(t, "SELECT aes_encrypt(amount, KEY my_key) FROM orders")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if span.NotFoundError != nil {
+		t.Fatalf("NotFoundError %v", span.NotFoundError)
+	}
+	want := SourceColumnSet{ColumnResource{Database: "shop", Table: "orders", Column: "amount"}: true}
+	if len(span.Results) != 1 || len(span.Results[0].SourceColumns) != 1 || !span.Results[0].SourceColumns[ColumnResource{Database: "shop", Table: "orders", Column: "amount"}] {
+		t.Errorf("results %+v, want %v", span.Results, want)
+	}
+}
+
+// A star names a table of another catalog by its catalog too; the
+// metadata cannot expand it.
+func TestResolveQuerySpanExternalStar(t *testing.T) {
+	for _, statement := range []string{
+		"SELECT * FROM ext.shop.orders",
+		"SELECT ext.shop.orders.* FROM ext.shop.orders",
+		"SELECT o.* FROM ext.shop.orders o",
+	} {
+		span, err := resolveWithCatalog(t, statement)
+		if err != nil {
+			t.Fatalf("%s: %v", statement, err)
+		}
+		if span.NotFoundError != nil {
+			t.Fatalf("%s: NotFoundError %v", statement, span.NotFoundError)
+		}
+		if len(span.Results) != 1 || !span.Results[0].SelectAsterisk {
+			t.Errorf("%s: results %+v, want one unexpanded star", statement, span.Results)
+		}
+	}
+}
+
+// SelectAsterisk marks a star, never a column a star names.
+func TestResolveQuerySpanSelectAsterisk(t *testing.T) {
+	for _, statement := range []string{"SELECT '*'", "SELECT 1 AS '*'", "SELECT id AS 'o.*' FROM orders"} {
+		for _, opts := range []ResolveOptions{
+			{DefaultDatabase: "shop", Catalog: spanCatalog(spanFixture)},
+			{DefaultDatabase: "shop"},
+		} {
+			span, err := ResolveQuerySpan(statement, opts)
+			if err != nil {
+				t.Fatalf("%s: %v", statement, err)
+			}
+			if len(span.Results) != 1 || span.Results[0].SelectAsterisk {
+				t.Errorf("%s (catalog %t): results %+v, want one column", statement, opts.Catalog.GetDatabase != nil, span.Results)
+			}
+		}
+	}
+}

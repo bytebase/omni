@@ -46,13 +46,17 @@ type spanColumn struct {
 	name    string
 	sources SourceColumnSet
 	plain   bool
+	// star marks a * the metadata could not expand.
+	star bool
 }
 
 // relation is a table, view, CTE, derived table or table function in a
 // query's FROM clause.
 type relation struct {
-	// database is the database of a table or view, which a column
-	// reference may name (db.t.c); empty for a derived relation.
+	// catalog and database are the catalog and database of a table or
+	// view, which a column reference may name (catalog.db.t.c); empty for
+	// a derived relation.
+	catalog  string
 	database string
 	// name is the alias, or the table's name as written.
 	name    string
@@ -450,7 +454,7 @@ func (r *spanResolver) tableRef(ref *ast.TableRef, outer *spanScope, ctes *cteBi
 		// The grammar names at most catalog.db.table.
 		return nil
 	}
-	rel := &relation{database: database, name: alias(table)}
+	rel := &relation{catalog: catalog, database: database, name: alias(table)}
 	if !strings.EqualFold(catalog, internalCatalog) {
 		// A table of another catalog: the metadata describes none.
 		r.tables[ColumnResource{Database: database, Table: table}] = true
@@ -595,7 +599,7 @@ func (r *spanResolver) star(item *ast.SelectItem, sc *spanScope) []spanColumn {
 	for _, rel := range rels {
 		if rel.open {
 			// The metadata does not list its columns.
-			cols = append(cols, spanColumn{name: "*"})
+			cols = append(cols, spanColumn{name: "*", star: true})
 			continue
 		}
 		for _, c := range rel.columns {
@@ -613,20 +617,27 @@ func (r *spanResolver) star(item *ast.SelectItem, sc *spanScope) []spanColumn {
 // case-sensitively.
 func matching(rels []*relation, qualifier []string, r *spanResolver) []*relation {
 	table := qualifier[len(qualifier)-1]
-	database := ""
+	catalog, database := "", ""
 	switch len(qualifier) {
 	case 2:
 		database = qualifier[0]
 	case 3:
-		if !strings.EqualFold(qualifier[0], internalCatalog) {
-			return nil
-		}
-		database = qualifier[1]
+		catalog, database = qualifier[0], qualifier[1]
 	}
 	var out []*relation
 	for _, rel := range rels {
 		if !r.sameName(rel.name, table) {
 			continue
+		}
+		if catalog != "" {
+			// A derived relation is in the session's catalog.
+			relCatalog := rel.catalog
+			if relCatalog == "" {
+				relCatalog = internalCatalog
+			}
+			if !strings.EqualFold(relCatalog, catalog) {
+				continue
+			}
 		}
 		if database != "" && !r.sameName(rel.database, database) && !(rel.database == "" && r.sameName(r.database, database)) {
 			continue
@@ -662,7 +673,7 @@ func (r *spanResolver) expr(node ast.Node, sc *spanScope, ctes *cteBinding) Sour
 				}
 				return false
 			case *ast.ColumnRef:
-				if e.Name == nil || len(e.Name.Parts) == 0 {
+				if e.Name == nil || len(e.Name.Parts) == 0 || r.isEncryptKey(e) {
 					return false
 				}
 				if len(e.Name.Parts) == 1 && bound[strings.ToLower(e.Name.Parts[0])] > 0 {
@@ -702,11 +713,6 @@ func (r *spanResolver) expr(node ast.Node, sc *spanScope, ctes *cteBinding) Sour
 func (r *spanResolver) column(parts []string, sc *spanScope) SourceColumnSet {
 	name := parts[len(parts)-1]
 	qualifier := parts[:len(parts)-1]
-	if len(qualifier) == 3 {
-		if !strings.EqualFold(qualifier[0], internalCatalog) {
-			return nil
-		}
-	}
 	for s := sc; s != nil; s = s.parent {
 		rels := s.relations
 		if len(qualifier) > 0 {
@@ -759,6 +765,17 @@ func (r *spanResolver) column(parts []string, sc *spanScope) SourceColumnSet {
 		r.missing(NotFoundError{Column: &column})
 	}
 	return nil
+}
+
+// isEncryptKey reports whether ref is an encryption key, KEY [db.]name,
+// which the parser holds as a column reference whose first part is KEY. A
+// column of a table named KEY needs the name quoted, since KEY is reserved.
+func (r *spanResolver) isEncryptKey(ref *ast.ColumnRef) bool {
+	if len(ref.Name.Parts) < 2 || ref.Name.Parts[0] != "KEY" {
+		return false
+	}
+	start := ref.Loc.Start
+	return start >= 0 && start < len(r.text) && r.text[start] != '`'
 }
 
 // isColumnRef reports whether expr is a bare column reference, in any
@@ -860,7 +877,7 @@ func resolvedResults(cols []spanColumn) []QuerySpanResult {
 			Name:           c.name,
 			SourceColumns:  sources,
 			IsPlainField:   c.plain,
-			SelectAsterisk: c.name == "*" && len(sources) == 0,
+			SelectAsterisk: c.star,
 		})
 	}
 	return out
@@ -876,7 +893,7 @@ func syntacticResults(cols []ColumnInfo) []QuerySpanResult {
 		for _, ref := range c.SourceColumns {
 			sources[ColumnResource{Database: ref.Database, Table: ref.Table, Column: ref.Column}] = true
 		}
-		out = append(out, QuerySpanResult{Name: c.Name, SourceColumns: sources, SelectAsterisk: c.Name == "*" || strings.HasSuffix(c.Name, ".*")})
+		out = append(out, QuerySpanResult{Name: c.Name, SourceColumns: sources, SelectAsterisk: c.Star})
 	}
 	return out
 }
