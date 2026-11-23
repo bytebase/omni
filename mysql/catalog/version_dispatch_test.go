@@ -146,7 +146,14 @@ func TestVersionDispatch_BareCharsetEmitsNoCollate(t *testing.T) {
 	}
 }
 
-func versionName(Version) string { return "8.0" }
+func versionName(v Version) string {
+	switch v {
+	case MySQL84:
+		return "8.4"
+	default:
+		return "8.0"
+	}
+}
 
 // TestVersionDispatch_BareTimestampNoPhantom: LoadSDLWithVersion seeds the session
 // explicit_defaults_for_timestamp to the server default (ON), so a bare TIMESTAMP stays

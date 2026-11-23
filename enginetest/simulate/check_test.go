@@ -585,24 +585,24 @@ func TestVerifyRejectsUpdateCompatMissingPinRowsAndUnjudged(t *testing.T) {
 }
 
 func TestCheckUsesPinRole(t *testing.T) {
-	s := suite(t, "", map[string]Answer{"A": stored1}, map[string]Omni{"A": {Same: true}}, nil)
-	s.Rows = []Generated{{"fx", "r/A", "A"}}
-	s.PinRole = "pg18"
-	write(t, s.Pins, "default\timg:1\tsha256:abc\tv1\npg18\timg:18\tsha256:def\tv18\n")
-	write(t, s.Path, "# pin: pg18 img:18 sha256:def v18\n"+columnsHeader+"\n"+ok1+"\t"+ok1+"\tengine\tfx\tr/A\tA\n")
+	s := suite(t, "", map[string]Answer{"B": refused}, map[string]Omni{"B": {Code: "1060"}}, nil)
+	write(t, s.Pins, "default\timg:1\tsha256:abc\tv1\nalt\timg:84\tsha256:def\tv84\n")
+	write(t, s.Path, "# pin: alt img:84 sha256:def v84\n"+columnsHeader+"\n1060\t1060\tengine\tfx\tr/B\tB\n")
+	s.Rows = []Generated{{"fx", "r/B", "B"}}
+	s.PinRole = "alt"
 
 	if rec := run(t, s); !rec.passed() {
-		t.Fatalf("replay with PinRole=pg18: %q %q", rec.errors, rec.fatal)
+		t.Fatalf("replay with PinRole=alt: %q %q", rec.errors, rec.fatal)
 	}
 
-	// Changing the default row does not affect a PinRole=pg18 suite.
-	write(t, s.Pins, "default\timg:2\tsha256:999\tv2\npg18\timg:18\tsha256:def\tv18\n")
+	// Changing the default row does not affect a PinRole=alt suite.
+	write(t, s.Pins, "default\timg:2\tsha256:999\tv2\nalt\timg:84\tsha256:def\tv84\n")
 	if rec := run(t, s); !rec.passed() {
-		t.Fatalf("changing default pin broke PinRole=pg18: %q %q", rec.errors, rec.fatal)
+		t.Fatalf("changing default pin broke PinRole=alt: %q %q", rec.errors, rec.fatal)
 	}
 
-	// Changing the pg18 row fails replay with a pin mismatch.
-	write(t, s.Pins, "default\timg:1\tsha256:abc\tv1\npg18\timg:18.1\tsha256:999\tv18.1\n")
+	// Changing the alt row fails replay with a pin mismatch.
+	write(t, s.Pins, "default\timg:1\tsha256:abc\tv1\nalt\timg:85\tsha256:999\tv85\n")
 	if rec := run(t, s); !rec.failed("was recorded at pin") {
 		t.Errorf("changed PinRole row passed: %q %q", rec.errors, rec.fatal)
 	}
