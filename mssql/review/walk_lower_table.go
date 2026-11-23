@@ -770,6 +770,9 @@ func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTab
 		if known {
 			b.needs(spaceColumn, path, cn, nil, note(rng, msgMissingIn("column", ident(cn.spelling), r.written), nil))
 		}
+		if a.Type == ast.ATAlterColumnAddDrop {
+			b.columnOptions(r, a, rng)
+		}
 		b.markTableDirty(path)
 	case ast.ATSwitchPartition:
 		if a.TargetName != nil {
@@ -845,6 +848,25 @@ func (b *builder) addConstraintChecks(r objRef, path string, known bool, d *tabl
 	}
 	for _, c := range d.constraints {
 		switch c.Type {
+		case ast.ConstraintDefault:
+			// DEFAULT ... FOR a column the table has (1752) and that has
+			// no default yet (1781, verified).
+			if c.Columns != nil && len(c.Columns.Items) == 1 {
+				if s, ok := c.Columns.Items[0].(*ast.String); ok {
+					if cn, ok := keyed(s.Str); ok && !b.addsColumn(s.Str) {
+						b.needs(spaceColumn, path, cn, nil, note(rangeOf(c.Loc), msgMissingIn("column", ident(s.Str), r.written), nil))
+					}
+					// The synced default holds while its constraint does.
+					if st := b.syncedTable(r); st != nil && st.defaults[s.Str] != "" {
+						if dn, ok := keyed(st.defaults[s.Str]); ok {
+							if got := b.see(spaceConstraint, path, dn); got.fact == walk.Present {
+								msg := "Column " + review.Code(ident(s.Str)) + " of " + review.Code(r.written) + " already has a default."
+								b.Fail([]walk.Key{got.key}, walk.Present, &walkNote{rng: rangeOf(c.Loc), absent: msg, present: text(msg), fixed: review.UnsupportedForm})
+							}
+						}
+					}
+				}
+			}
 		case ast.ConstraintPrimaryKey:
 			if f, _ := b.l.Lookup(primaryKey(path)); f == walk.Present {
 				b.Need(primaryKey(path), walk.Absent, nil, note(rangeOf(c.Loc), "", text(review.Code(r.written)+" already has a primary key.")))
@@ -1361,4 +1383,63 @@ func (b *builder) dropIndexes(v *ast.DropStmt) bool {
 		}
 	}
 	return true
+}
+
+// maskingFunctions are the functions dynamic data masking takes.
+var maskingFunctions = []string{"default(", "email(", "random(", "partial(", "datetime("}
+
+// columnOptions checks ALTER COLUMN ... ADD or DROP of a column property:
+// a masking function SQL Server has (16006), and, on a synced column of a
+// system type, ROWGUIDCOL only on uniqueidentifier (2761, 4926), HIDDEN
+// only on a datetime2 period column (13735), and PERSISTED only on a
+// computed column (4919, verified).
+func (b *builder) columnOptions(r objRef, a *ast.AlterTableAction, rng review.Range) {
+	if a.Options == nil {
+		return
+	}
+	typ := b.knownColType(r, a.ColName)
+	system := typ != "" && isBuiltinSystemType(typ)
+	for _, item := range a.Options.Items {
+		o, ok := item.(*ast.AlterColumnOption)
+		if !ok {
+			continue
+		}
+		add := strings.EqualFold(o.Action, "ADD")
+		switch opt := strings.ToUpper(o.Option); {
+		case add && opt == "MASKED":
+			fn := strings.ToLower(strings.TrimSpace(o.MaskFunction))
+			known := false
+			for _, m := range maskingFunctions {
+				known = known || strings.HasPrefix(fn, m)
+			}
+			if !known {
+				b.fail(rng, review.UnsupportedForm, "SQL Server doesn't accept the masking function "+review.Code(o.MaskFunction)+".")
+				return
+			}
+		case opt == "ROWGUIDCOL" && system && typ != "uniqueidentifier",
+			add && opt == "HIDDEN" && system && typ != "datetime2",
+			add && opt == "PERSISTED" && typ != "":
+			b.fail(rng, review.UnsupportedForm, "SQL Server doesn't accept "+review.Code(o.Action+" "+o.Option)+" on column "+review.Code(ident(a.ColName))+" of type "+review.Code(typ)+".")
+			return
+		}
+	}
+}
+
+// addsColumn reports whether the statement, an ALTER TABLE, may add a
+// column of the name, which its other items see.
+func (b *builder) addsColumn(col string) bool {
+	at, ok := b.s.node.(*ast.AlterTableStmt)
+	if !ok || at.Actions == nil {
+		return true
+	}
+	for _, item := range at.Actions.Items {
+		a, ok := item.(*ast.AlterTableAction)
+		if !ok {
+			return true
+		}
+		if a.Type == ast.ATAddColumn && (a.Column == nil || !differ(a.Column.Name, col)) {
+			return true
+		}
+	}
+	return false
 }

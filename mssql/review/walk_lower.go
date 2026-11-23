@@ -45,7 +45,14 @@ func (b *builder) statement(n ast.Node) bool {
 	case *ast.CreateViewStmt:
 		return b.createView(v)
 	case *ast.CreateProcedureStmt:
-		return b.createModule(v.Loc, v.Name, v.OrAlter, kindProcedure, v.Number > 1)
+		if !b.createModule(v.Loc, v.Name, v.OrAlter, kindProcedure, v.Number > 1) {
+			return false
+		}
+		if v.ExternalName == "" {
+			defer b.enterModule(v.Name)()
+			b.moduleBody(v.Body, paramNames(v.Params), nil, "")
+		}
+		return true
 	case *ast.CreateFunctionStmt:
 		return b.createFunction(v)
 	case *ast.CreateTriggerStmt:
@@ -600,9 +607,8 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 	if !b.createModule(v.Loc, v.Name, v.OrAlter, kindView, false) {
 		return false
 	}
-	if starRng, bad := selectStarWithoutFrom(v.Query); bad {
-		b.fail(starRng, review.UnsupportedForm, "`SELECT *` requires a `FROM` clause.")
-	}
+	defer b.enterModule(v.Name)()
+	b.viewQuery(v.Query, v.Columns, "view", nil, v.SchemaBinding || hasOption(v.Options, "SCHEMABINDING"))
 	return true
 }
 
@@ -617,20 +623,59 @@ func (b *builder) createFunction(v *ast.CreateFunctionStmt) bool {
 	if v.ExternalName != "" || v.Body == nil {
 		return true
 	}
+	defer b.enterModule(v.Name)()
 	if v.ReturnsTable != nil && v.ReturnsTable.Variable == "" && v.ReturnsTable.Columns == nil {
 		if ret, ok := v.Body.(*ast.ReturnStmt); ok {
 			if sub, ok := ret.Value.(*ast.SubqueryExpr); ok {
-				if starRng, bad := selectStarWithoutFrom(sub.Query); bad {
-					b.fail(starRng, review.UnsupportedForm, "`SELECT *` requires a `FROM` clause.")
-				}
+				b.viewQuery(sub.Query, nil, "function", paramNames(v.Params), hasOption(v.Options, "SCHEMABINDING"))
 			}
 		}
 		return true
 	}
 	if selRng, bad := functionBodyReturnsData(v.Body); bad {
 		b.fail(selRng, review.UnsupportedForm, "SELECT statements inside a function cannot return data to a client.")
+		return true
 	}
+	if b.functionBody(v.Body) {
+		return true
+	}
+	if rt := v.ReturnsTable; rt != nil && rt.Columns != nil {
+		var names []string
+		for _, item := range rt.Columns.Items {
+			if cd, ok := item.(*ast.ColumnDef); ok {
+				names = append(names, cd.Name)
+			}
+		}
+		if n := twice(names); n != "" {
+			b.fail(rangeOf(rt.Loc), review.DuplicateName, msgTwice("declares", "column", ident(n)))
+			return true
+		}
+	}
+	if hasOption(v.Options, "SCHEMABINDING") && b.schemaBound(newBinder(b, v.Body, false), v.Body, "function", false) {
+		return true
+	}
+	params := paramNames(v.Params)
+	var tableVars []*ast.VariableDecl
+	if rt := v.ReturnsTable; rt != nil && rt.Variable != "" {
+		params = append(params, rt.Variable)
+		tableVars = append(tableVars, &ast.VariableDecl{Name: rt.Variable, IsTable: true, TableDef: rt.Columns})
+	}
+	b.moduleBody(v.Body, params, tableVars, "")
 	return true
+}
+
+// paramNames lists a module's parameters.
+func paramNames(params *ast.List) []string {
+	var out []string
+	if params == nil {
+		return nil
+	}
+	for _, item := range params.Items {
+		if p, ok := item.(*ast.ParamDef); ok {
+			out = append(out, p.Name)
+		}
+	}
+	return out
 }
 
 // selectStarWithoutFrom reports whether a SELECT statement (or any branch
@@ -724,6 +769,9 @@ func isSelectVarAssign(item ast.Node) bool {
 func (b *builder) insertStmt(v *ast.InsertStmt) bool {
 	if !b.dml(v.Relation, v.WithClause, nil, false) {
 		return false
+	}
+	if b.insertCounts(v) || b.setWidths(v) {
+		return true
 	}
 	if tr, ok := v.Relation.(*ast.TableRef); ok {
 		if _, isLocal := localTarget(tr, v.WithClause, nil); !isLocal {
@@ -991,6 +1039,9 @@ func localTarget(tr *ast.TableRef, with *ast.WithClause, from *ast.List) (*ast.T
 func (b *builder) selectStmt(v *ast.SelectStmt) bool {
 	if starRng, bad := selectStarWithoutFrom(v); bad {
 		b.fail(starRng, review.UnsupportedForm, "`SELECT *` requires a `FROM` clause.")
+		return true
+	}
+	if b.setWidths(v) {
 		return true
 	}
 	into := v

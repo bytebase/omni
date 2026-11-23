@@ -238,6 +238,11 @@ type builder struct {
 	// staged holds the class facts the statement's earlier parts set, for
 	// the effects of its later parts.
 	staged map[walk.Key]staged
+	// inModule is set while the body of a module is bound: an unqualified
+	// name there is looked up in the module's schema, modSchema, and then
+	// in dbo (verified), and placed nowhere when modSchema is "".
+	inModule  bool
+	modSchema string
 }
 
 type staged struct {
@@ -532,6 +537,9 @@ func (b *builder) refIn(tr *ast.TableRef, creating bool, lookup string) (objRef,
 // certainly does not.
 func (b *builder) defaultSchema(n name, creating bool, lookup string) string {
 	d := b.w.target.DefaultSchema
+	if b.inModule {
+		d = b.modSchema
+	}
 	if d == "" || creating || d == dboName.spelling {
 		return d
 	}
