@@ -108,7 +108,9 @@ func (b *builder) truncateReferencedFails(r tableRef) bool {
 // key, its own or another's referencing it, to an engine that keeps none
 // (3776, foreign_key_checks on or off, verified on mysql:8.0.46).
 func (b *builder) engineChangeFails(r tableRef, engine string) bool {
-	if keepsFKs(engine) || !mysqlEngines[strings.ToLower(engine)] {
+	// DEFAULT is the session's engine, and INNOBASE is InnoDB.
+	switch e := strings.ToLower(engine); {
+	case keepsFKs(engine), !mysqlEngines[e], e == "default", e == "innobase":
 		return false
 	}
 	keys := b.ownFKs(r)

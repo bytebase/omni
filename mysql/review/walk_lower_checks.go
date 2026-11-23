@@ -129,6 +129,10 @@ func (b *builder) forgetChecks(r tableRef, v *ast.AlterTableStmt) {
 			continue
 		}
 		switch c.Type {
+		case ast.ATDropColumn:
+			// A CHECK on the column alone goes with it, and the walk
+			// doesn't follow which.
+			b.MayRemove(walk.Scope{Space: spaceCheckConstraint, Parent: tablePath(r.db, r.name)})
 		case ast.ATDropConstraint:
 			add(c.Name)
 		case ast.ATAddConstraint:
