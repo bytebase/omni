@@ -1,6 +1,8 @@
 package catalog
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/oracle/ast"
 )
 
@@ -372,8 +374,21 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 	case "XMLELEMENT", "XMLFOREST", "XMLCONCAT", "XMLTYPE", "XMLPARSE", "XMLROOT", "XMLQUERY", "XMLCOMMENT", "XMLPI", "XMLCDATA", "XMLSEQUENCE":
 		return simpleType("XMLTYPE"), false, nil
 	case "STANDARD_HASH":
+		// The digest's length is its method's: SHA1 when none is named.
+		method := "SHA1"
+		if len(args) > 1 {
+			m, ok := literalString(argNode(n, 1))
+			if !ok {
+				return simpleType("UNKNOWN"), false, nil
+			}
+			method = strings.ToUpper(m)
+		}
+		bytes := map[string]int{"SHA1": 20, "SHA256": 32, "SHA384": 48, "SHA512": 64, "MD5": 16}[method]
+		if bytes == 0 {
+			return simpleType("UNKNOWN"), false, nil
+		}
 		t := simpleType("RAW")
-		t.bytes = 20
+		t.bytes = bytes
 		return t, false, nil
 	case "EMPTY_CLOB":
 		return simpleType("CLOB"), false, nil

@@ -114,6 +114,10 @@ func TestViewQueryRefusals(t *testing.T) {
 		{"all_row_subquery", `CREATE VIEW v AS SELECT id FROM t WHERE (id, n) = ALL (SELECT id, n FROM t)`, ""},
 		{"row_equals_subquery", `CREATE VIEW v AS SELECT id FROM t WHERE (id, n) = (SELECT id, n FROM t)`, ""},
 		{"xmltable_default_bind", `CREATE VIEW v AS SELECT * FROM XMLTABLE('/x' COLUMNS id NUMBER PATH '.' DEFAULT :x)`, "01027"},
+		{"distinct_order_by_built_from_selected", `CREATE VIEW v AS SELECT DISTINCT id FROM t ORDER BY id + 1`, ""},
+		{"distinct_order_by_built_from_unselected", `CREATE VIEW v AS SELECT DISTINCT id FROM t ORDER BY id + n`, "01791"},
+		{"match_recognize_offset_bind", `CREATE VIEW v AS SELECT * FROM t MATCH_RECOGNIZE (ORDER BY id MEASURES FIRST(a.id, :x) AS first_id PATTERN (a) DEFINE a AS id > 0)`, "01027"},
+		{"group_by_aggregate_alias", `CREATE VIEW v AS SELECT SUM(n) s FROM t GROUP BY s`, "00934"},
 		{"trim_mode_from", `CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM TO_CHAR(id)) trimmed FROM t`, ""},
 	}
 	for _, tc := range cases {
@@ -205,6 +209,19 @@ func TestViewQueryJSONReturning(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{"NUMBER", "CLOB", "VARCHAR2(4000 BYTE)", "VARCHAR2(4000 BYTE)"}
+	for i, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
+		if col.GetType() != want[i] {
+			t.Errorf("%s type = %s, want %s", col.GetName(), col.GetType(), want[i])
+		}
+	}
+}
+
+func TestViewQueryStandardHashLength(t *testing.T) {
+	c, err := LoadSQL(`CREATE VIEW v AS SELECT STANDARD_HASH('x') a, STANDARD_HASH('x', 'SHA256') b, STANDARD_HASH('x', 'MD5') c, STANDARD_HASH('x', 'SHA512') d FROM dual;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"RAW(20)", "RAW(32)", "RAW(16)", "RAW(64)"}
 	for i, col := range c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns() {
 		if col.GetType() != want[i] {
 			t.Errorf("%s type = %s, want %s", col.GetName(), col.GetType(), want[i])

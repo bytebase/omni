@@ -669,6 +669,12 @@ func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 				// A select alias grouped by (23ai) groups by what it names.
 				for _, t := range targets {
 					if t.rt.Name == ref.Column && t.rt.Expr != nil && !a.resolvesInFrom(ref, sc) {
+						if containsAggregate(t.rt.Expr, false) {
+							return nil, oraError("00934", "group function is not allowed here")
+						}
+						if containsWindow(t.rt.Expr) {
+							return nil, oraError("30483", "window  functions are not allowed here")
+						}
 						groupKeys = append(groupKeys, a.groupKey(t.rt.Expr, sc))
 					}
 				}
@@ -886,26 +892,52 @@ func (a *queryAnalyzer) modelExpr(x ast.ExprNode, sc *qscope) error {
 }
 
 // selectedExpression reports whether an ORDER BY item of a DISTINCT block
-// is one of its select-list items: a position, a column name, or an
-// expression written as a select-list one.
+// is built from its select list: a position, a selected column name or
+// alias, an expression written as a select-list one, or an expression whose
+// operands all are, or constants.
 func (a *queryAnalyzer) selectedExpression(x ast.ExprNode, targets []ast.ExprNode, cols []qcol, sc *qscope) bool {
 	if n, ok := unparen(x).(*ast.NumberLiteral); ok && !n.IsFloat {
 		return true
 	}
-	if ref, ok := unparen(x).(*ast.ColumnRef); ok && ref.Table == "" {
-		for _, c := range cols {
-			if c.name == ref.Column {
+	return a.builtFromSelected(x, targets, cols, sc)
+}
+
+func (a *queryAnalyzer) builtFromSelected(x ast.Node, targets []ast.ExprNode, cols []qcol, sc *qscope) bool {
+	if ex, ok := x.(ast.ExprNode); ok {
+		if ref, ok := unparen(ex).(*ast.ColumnRef); ok && ref.Table == "" {
+			for _, c := range cols {
+				if c.name == ref.Column {
+					return true
+				}
+			}
+		}
+		key := a.groupKey(ex, sc)
+		for _, t := range targets {
+			if a.groupKey(t, sc) == key {
 				return true
 			}
 		}
 	}
-	key := a.groupKey(x, sc)
-	for _, t := range targets {
-		if a.groupKey(t, sc) == key {
+	switch n := x.(type) {
+	case *ast.ColumnRef:
+		if _, ok := keywordValues[n.Column]; ok && n.Table == "" {
 			return true
 		}
+		return false
+	case *ast.SubqueryExpr, *ast.PseudoColumn:
+		return false
+	case *ast.FuncCallExpr:
+		if isAggregateCall(n) || n.Over != nil {
+			return false
+		}
 	}
-	return false
+	ok := true
+	walkChildren(x, func(child ast.Node) {
+		if ok && !a.builtFromSelected(child, targets, cols, sc) {
+			ok = false
+		}
+	})
+	return ok
 }
 
 // fetchClause checks a row-limiting clause's offset and count, which a view

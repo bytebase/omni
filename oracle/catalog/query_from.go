@@ -921,12 +921,22 @@ func (a *queryAnalyzer) measureType(x ast.ExprNode, sc *qscope) (qtype, error) {
 	if fc, ok := unparen(x).(*ast.FuncCallExpr); ok && fc.FuncName != nil {
 		switch fc.FuncName.Name {
 		case "FIRST", "LAST", "PREV", "NEXT":
-			if args := listItems(fc.Args); len(args) > 0 {
-				if arg, ok := args[0].(ast.ExprNode); ok {
-					t, _, err := a.expr(arg, sc, clauseSelect)
-					return t, err
+			// The value is the first argument's; an offset follows it.
+			result := simpleType("UNKNOWN")
+			for i, item := range listItems(fc.Args) {
+				arg, ok := item.(ast.ExprNode)
+				if !ok {
+					continue
+				}
+				t, _, err := a.expr(arg, sc, clauseSelect)
+				if err != nil {
+					return qtype{}, err
+				}
+				if i == 0 {
+					result = t
 				}
 			}
+			return result, nil
 		case "CLASSIFIER":
 			return varchar2Bytes(128), nil
 		case "MATCH_NUMBER":
