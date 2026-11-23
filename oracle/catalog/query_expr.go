@@ -885,7 +885,6 @@ func comparedSubquery(x ast.ExprNode) *ast.SubqueryExpr {
 	return nil
 }
 
-
 // charCapacity is how many characters a value holds once converted to
 // characters: a character type's length, a number's 40, a datetime's 75.
 func charCapacity(t qtype) int {
