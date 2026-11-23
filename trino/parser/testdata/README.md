@@ -12,8 +12,8 @@ read-only with `OMNI_RECORD=verify` on a fresh container.
 
 | Rows | Total | Agree | Only Trino accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 1,353 | 1,353 | 0 | 0 |
-| Near-misses | 3,487 | 3,487 | 0 | 0 |
+| One per alternative | 1,583 | 1,583 | 0 | 0 |
+| Near-misses | 3,791 | 3,791 | 0 | 0 |
 
 ## Suites
 
@@ -24,14 +24,14 @@ rows equal to the Go corpora they came from (`corpusSuites` in
 
 | Suite | Rows | Agree |
 | --- | --- | --- |
-| `suite:cte`, `relation`, `select`, `setop`, `window` | 257 | 257 |
-| `suite:ddl` | 275 | 275 |
+| `suite:cte`, `relation`, `select`, `setop`, `window` | 260 | 260 |
+| `suite:ddl` | 286 | 286 |
 | `suite:dml` | 85 | 85 |
 | `suite:dcl-tcl` | 132 | 132 |
 | `suite:match-recognize` | 134 | 134 |
 | `suite:routines` | 97 | 97 |
 
-All **5,820 / 5,820 (100.00%)** rows agree (`0` only Trino accepts, `0` only
+All **6,368 / 6,368 (100.00%)** rows agree (`0` only Trino accepts, `0` only
 omni accepts).
 
 The other oracle tests compare something else with Trino's verdict (an

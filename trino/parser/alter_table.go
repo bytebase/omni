@@ -30,7 +30,7 @@ import (
 //	   the legacy grammar; it is accepted here. The full column constraint set
 //	   (DEFAULT / NOT NULL / COMMENT / WITH) of a plain column definition applies.
 //	D-AT3 (ALTER COLUMN docs forms). Beyond the legacy `SET DATA TYPE type`,
-//	   Trino 481 accepts `ALTER COLUMN col SET DEFAULT expr`,
+//	   Trino 481 accepts `ALTER COLUMN col SET DEFAULT literal` (SqlBase.g4:98),
 //	   `ALTER COLUMN col DROP DEFAULT`, and `ALTER COLUMN col DROP NOT NULL`
 //	   (alter-table.html). All four are accepted; the oracle pins them.
 //	D-AT4 (EXECUTE named args). ALTER TABLE … EXECUTE proc(name => v, …) uses the
@@ -95,7 +95,7 @@ type AlterColumnAction int
 const (
 	// AlterColumnSetDataType is SET DATA TYPE new_type.
 	AlterColumnSetDataType AlterColumnAction = iota
-	// AlterColumnSetDefault is SET DEFAULT expr (D-AT3).
+	// AlterColumnSetDefault is SET DEFAULT literal (D-AT3).
 	AlterColumnSetDefault
 	// AlterColumnDropDefault is DROP DEFAULT (D-AT3).
 	AlterColumnDropDefault
@@ -128,7 +128,7 @@ type AlterTableStmt struct {
 	ColumnAction  AlterColumnAction
 	AlterColumn   *ast.QualifiedName // the column being altered
 	NewColumnType *DataType          // SET DATA TYPE
-	NewDefault    Expr               // SET DEFAULT expr
+	NewDefault    Expr               // SET DEFAULT literal
 
 	// SET AUTHORIZATION
 	Authorization *Principal
@@ -302,7 +302,7 @@ func (p *Parser) finishAlterTableDropColumn(stmt *AlterTableStmt) (ast.Node, err
 }
 
 // finishAlterTableAlterColumn handles `ALTER COLUMN col { SET DATA TYPE type |
-// SET DEFAULT expr | DROP DEFAULT | DROP NOT NULL }` (D-AT3).
+// SET DEFAULT literal | DROP DEFAULT | DROP NOT NULL }` (D-AT3).
 func (p *Parser) finishAlterTableAlterColumn(stmt *AlterTableStmt) (ast.Node, error) {
 	p.advance() // consume ALTER
 	if _, err := p.expect(kwCOLUMN); err != nil {
@@ -333,7 +333,8 @@ func (p *Parser) finishAlterTableAlterColumn(stmt *AlterTableStmt) (ast.Node, er
 			stmt.Loc.End = newType.Loc.End
 		case kwDEFAULT:
 			p.advance() // consume DEFAULT
-			def, err := p.parseExpr()
+			// SET DEFAULT literal (SqlBase.g4:98 setDefaultValue).
+			def, err := p.parseLiteral()
 			if err != nil {
 				return nil, err
 			}

@@ -236,9 +236,11 @@ const (
 	// (the singleGroupingSet rule via groupingSet). Exprs holds the expressions;
 	// for the bare-expression form it is a single element.
 	GroupingExprKind GroupingElementKind = iota
-	// GroupingRollup is `ROLLUP ( e, … )` (the rollup rule); the list may be empty.
+	// GroupingRollup is `ROLLUP ( groupingSet, … )` (the rollup rule); the list
+	// may be empty. Sets holds each grouping set's expression list.
 	GroupingRollup
-	// GroupingCube is `CUBE ( e, … )` (the cube rule); the list may be empty.
+	// GroupingCube is `CUBE ( groupingSet, … )` (the cube rule); the list may be
+	// empty. Sets holds each grouping set's expression list.
 	GroupingCube
 	// GroupingSets is `GROUPING SETS ( groupingSet, … )` (the multipleGroupingSets
 	// rule). Sets holds each grouping set's expression list.
@@ -251,8 +253,8 @@ const (
 // a single grouping set / bare expression, a ROLLUP, a CUBE, or a GROUPING SETS.
 type GroupingElement struct {
 	Kind  GroupingElementKind
-	Exprs []Expr   // for GroupingExprKind / GroupingRollup / GroupingCube
-	Sets  [][]Expr // for GroupingSets — each inner slice is one grouping set
+	Exprs []Expr   // for GroupingExprKind
+	Sets  [][]Expr // for GroupingRollup / GroupingCube / GroupingSets — each inner slice is one grouping set
 	Loc   ast.Loc
 }
 
@@ -892,21 +894,37 @@ func (p *Parser) parseGroupingElement() (GroupingElement, error) {
 	}
 }
 
-// parseRollupCube parses `ROLLUP ( e, … )` or `CUBE ( e, … )` (kind selects
-// which; the keyword is current). The expression list may be empty.
+// parseRollupCube parses `ROLLUP ( groupingSet, … )` or `CUBE ( groupingSet,
+// … )` (SqlBase.g4:337-338; kind selects which, the keyword is current). The
+// list may be empty, and each item is a groupingSet (SqlBase.g4:342): a
+// parenthesized expression list, possibly the empty `()`, or one expression.
+// Each item is one entry of Sets.
 func (p *Parser) parseRollupCube(kind GroupingElementKind) (GroupingElement, error) {
 	kwTok := p.advance() // consume ROLLUP / CUBE
 	if _, err := p.expect(int('(')); err != nil {
 		return GroupingElement{}, err
 	}
-	exprs, closeTok, err := p.parseBracketedExprList(int(')'))
+	sets := [][]Expr{}
+	if p.cur.Kind != int(')') {
+		for {
+			set, err := p.parseGroupingSetOrExpr()
+			if err != nil {
+				return GroupingElement{}, err
+			}
+			sets = append(sets, set.Exprs)
+			if _, ok := p.match(int(',')); !ok {
+				break
+			}
+		}
+	}
+	closeTok, err := p.expect(int(')'))
 	if err != nil {
 		return GroupingElement{}, err
 	}
 	return GroupingElement{
-		Kind:  kind,
-		Exprs: exprs,
-		Loc:   ast.Loc{Start: kwTok.Loc.Start, End: closeTok.Loc.End},
+		Kind: kind,
+		Sets: sets,
+		Loc:  ast.Loc{Start: kwTok.Loc.Start, End: closeTok.Loc.End},
 	}, nil
 }
 

@@ -89,6 +89,13 @@ var ddlOracleCorpus = []string{
 	"CREATE TABLE t (a bigint NOT NULL)",
 	"CREATE TABLE t (a bigint DEFAULT 5 NOT NULL)",             // D-CT2: DEFAULT then NOT NULL
 	"CREATE TABLE t (a bigint NOT NULL DEFAULT 5)",             // D-CT2: NOT NULL then DEFAULT
+	"CREATE TABLE t (a bigint DEFAULT -5)",                     // DEFAULT literal: number is MINUS? INTEGER_VALUE
+	"CREATE TABLE t (a double DEFAULT - 1.5E1)",                // MINUS? DOUBLE_VALUE
+	"CREATE TABLE t (a date DEFAULT DATE '2020-01-01')",        // a type constructor is a literal
+	"CREATE TABLE t (a bigint DEFAULT 1 + 1)",                  // DEFAULT takes a literal, not an expression
+	"CREATE TABLE t (a bigint DEFAULT +5)",                     // number has no PLUS
+	"CREATE TABLE t (a bigint DEFAULT (5))",                    // nor parentheses
+	"CREATE TABLE t (a timestamp DEFAULT current_timestamp)",   // nor a function
 	"CREATE TABLE t (a bigint COMMENT 'x' WITH (foo = 'bar'))", // column COMMENT + WITH
 	"CREATE TABLE t (a row(x bigint, y double))",
 	"CREATE TABLE t (a array(bigint))",
@@ -195,6 +202,10 @@ var ddlOracleCorpus = []string{
 	"ALTER TABLE users ALTER COLUMN id SET DATA TYPE bigint",
 	"ALTER TABLE foo.bar.baz ALTER COLUMN col1 SET DATA TYPE bigint",
 	"ALTER TABLE users ALTER COLUMN status SET DEFAULT 'active'",
+	"ALTER TABLE users ALTER COLUMN status SET DEFAULT -1.5",
+	"ALTER TABLE users ALTER COLUMN status SET DEFAULT INTERVAL -'1' DAY",
+	"ALTER TABLE users ALTER COLUMN status SET DEFAULT lower('a')",
+	"ALTER TABLE users ALTER COLUMN status SET DEFAULT -a",
 	"ALTER TABLE users ALTER COLUMN status DROP DEFAULT",
 	"ALTER TABLE users ALTER COLUMN id DROP NOT NULL",
 	"ALTER TABLE IF EXISTS users ALTER COLUMN id SET DATA TYPE bigint",

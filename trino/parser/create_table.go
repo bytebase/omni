@@ -43,7 +43,8 @@ import (
 //	D-CT1 (target ≤ catalog.schema.table). `CREATE TABLE a.b.c.d (…)` is a
 //	   SYNTAX_ERROR; the target qualifiedName is bounded to 3 parts.
 //	D-CT2 (column DEFAULT + FIXED clause order). Trino 481 accepts `col type
-//	   DEFAULT expr` in a column definition — the legacy grammar omits DEFAULT
+//	   DEFAULT literal` in a column definition (SqlBase.g4:253; not an
+//	   expression: `DEFAULT 1 + 1` is a SYNTAX_ERROR) — the legacy grammar omits DEFAULT
 //	   (docs-ahead, ddl.md create-table). The optional column-constraint clauses
 //	   appear in a FIXED order: DEFAULT, then NOT NULL, then COMMENT, then WITH,
 //	   each at most once. 481 REJECTS out-of-order clauses (`NOT NULL DEFAULT 5`,
@@ -192,13 +193,13 @@ func (p *Parser) parseOptionalWithProperties() ([]*Property, error) {
 // Column definitions / table elements
 // ---------------------------------------------------------------------------
 
-// ColumnDefinition is one `identifier type [DEFAULT expr] [NOT NULL]
+// ColumnDefinition is one `identifier type [DEFAULT literal] [NOT NULL]
 // [COMMENT str] [WITH (props)]` column of a CREATE TABLE body (columnDefinition
 // rule). Each constraint clause is optional and at most once.
 type ColumnDefinition struct {
 	Name       *ast.Identifier
 	Type       *DataType
-	Default    Expr // DEFAULT expr (D-CT2 docs-ahead extension); nil when absent
+	Default    Expr // DEFAULT literal (D-CT2); nil when absent
 	NotNull    bool
 	Comment    *string // COMMENT string literal value (decoded); nil when absent
 	Properties []*Property
@@ -261,7 +262,7 @@ func (p *Parser) parseLikeClause() (*LikeClause, error) {
 	return lc, nil
 }
 
-// parseColumnDefinition parses `identifier type [DEFAULT expr] [NOT NULL]
+// parseColumnDefinition parses `identifier type [DEFAULT literal] [NOT NULL]
 // [COMMENT str] [WITH (props)]`. The optional constraint clauses appear in a
 // FIXED order — DEFAULT, then NOT NULL, then COMMENT, then WITH — each at most
 // once. The order is oracle-pinned (D-CT2): Trino 481 rejects out-of-order
@@ -284,9 +285,9 @@ func (p *Parser) parseColumnDefinition() (*ColumnDefinition, error) {
 		Loc:  ast.Loc{Start: name.Loc.Start, End: colType.Loc.End},
 	}
 
-	// 1. DEFAULT expr (D-CT2 docs-ahead extension).
+	// 1. DEFAULT literal (SqlBase.g4:253 columnDefinition).
 	if _, ok := p.match(kwDEFAULT); ok {
-		def, err := p.parseExpr()
+		def, err := p.parseLiteral()
 		if err != nil {
 			return nil, err
 		}
