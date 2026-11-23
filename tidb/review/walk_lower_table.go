@@ -273,7 +273,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 		}
 		b.need(idxKey(r.db, r.name, k), walk.Present, nil, rng, notFound("index", ident(c.Name), r.written), "")
 	case ast.ATTableOption:
-		b.checkTableOption(r, c.Option, rng, true)
+		b.checkTableOption(c.Option, rng, true)
 	case ast.ATConvertCharset:
 		if strings.EqualFold(c.Name, "DEFAULT") {
 			b.fail(rng, nil, review.UnsupportedForm, engineName+" doesn't support "+review.Code("CONVERT TO CHARSET DEFAULT")+".")

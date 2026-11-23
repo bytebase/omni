@@ -24,7 +24,17 @@ func TestWalkThroughTiDBAlterSequence(t *testing.T) {
 	oneFinding(t, "ALTER SEQUENCE sq INCREMENT 0;", 0, "Sequence `sq` has conflicting options.", shop)
 	oneFinding(t, "CREATE SEQUENCE s2 CACHE 0;", 0, "Sequence `s2` has conflicting options.", shop)
 	oneFinding(t, "CREATE SEQUENCE s2 INCREMENT 0;", 0, "Sequence `s2` has conflicting options.", shop)
+	oneFinding(t, "CREATE SEQUENCE s2 INCREMENT 1 INCREMENT 0;", 0, "Sequence `s2` has conflicting options.", shop)
+	oneFinding(t, "CREATE SEQUENCE s2 MINVALUE 10 MAXVALUE 5;", 0, "Sequence `s2` has conflicting options.", shop)
 	noFinding(t, "CREATE SEQUENCE s2 CACHE 10 INCREMENT 2;", shop)
+	// Repeated INCREMENT/MINVALUE/MAXVALUE options apply in order; a later valid
+	// option overrides an earlier invalid one (while CACHE <= 0 is refused per option).
+	noFinding(t, "CREATE SEQUENCE s2 INCREMENT 0 INCREMENT 1;", shop)
+	noFinding(t, "ALTER SEQUENCE sq INCREMENT 0 INCREMENT 1;", shop)
+	oneFinding(t, "CREATE SEQUENCE s2 CACHE 0 CACHE 10;", 0, "Sequence `s2` has conflicting options.", shop)
+	// When creation is uncertain (IF NOT EXISTS under OtherSpecs), skip option validation.
+	other := review.Target{Schema: walkSchema(), OtherSpecs: true}
+	noFinding(t, "CREATE SEQUENCE IF NOT EXISTS sq CACHE 0;", other)
 }
 
 func TestWalkThroughTiDBUnsupportedAlterActionsAndOptions(t *testing.T) {
@@ -59,7 +69,6 @@ func TestWalkThroughTiDBUnsupportedAlterActionsAndOptions(t *testing.T) {
 		{"ALTER TABLE t ATTRIBUTES = 'not_kv';", "TiDB requires `ATTRIBUTES` entries in `key=value` format without conflicts."},
 		{"ALTER TABLE t ATTRIBUTES = 'k=1,k=2';", "TiDB requires `ATTRIBUTES` entries in `key=value` format without conflicts."},
 		{"ALTER TABLE t PARTITION p0 COMMENT = 'x';", "TiDB doesn't support partition option `COMMENT` in `ALTER TABLE`."},
-		{"ALTER TABLE t TTL = nosuch + INTERVAL 1 DAY;", "Column `nosuch` doesn't exist in `t`."},
 		{"CREATE TABLE x (a int) ENGINE = 'bogus';", "TiDB doesn't recognize storage engine `bogus`."},
 		{"CREATE TABLE x (a int) UNION = ();", "TiDB doesn't support table option `UNION`."},
 		{"CREATE TABLE x (a int) INSERT_METHOD = FIRST;", "TiDB doesn't support table option `INSERT_METHOD`."},

@@ -194,7 +194,7 @@ func (b *builder) createSequence(v *ast.CreateSequenceStmt) bool {
 		b.needFree(k, r.rng, r.written, relSequence) // 1050
 		prior = walk.Absent
 	}
-	if prior != walk.Present && b.checkSequenceOptionsValid(r.written, v.Options, b.anchor()) {
+	if prior == walk.Absent && b.checkSequenceOptionsValid(r.written, v.Options, b.anchor()) {
 		return true
 	}
 	switch prior {

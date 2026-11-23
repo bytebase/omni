@@ -352,7 +352,7 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 		return true
 	}
 	for _, opt := range v.Options {
-		if b.checkTableOption(tableRef{}, opt, rangeOf(opt.Loc), false) {
+		if b.checkTableOption(opt, rangeOf(opt.Loc), false) {
 			return true
 		}
 	}

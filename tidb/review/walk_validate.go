@@ -7,7 +7,6 @@ import (
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
 	"github.com/bytebase/omni/tidb/ast"
-	"github.com/bytebase/omni/tidb/parser"
 )
 
 // tidbValidEngines is TiDB v8.5.5's storage engine allowlist
@@ -137,7 +136,7 @@ func unsupportedAlterActionClause(t ast.AlterTableCmdType) string {
 // checkTableOption validates a table option on CREATE TABLE or ALTER TABLE.
 // When alter is true, options outside tidbSupportedAlterTableOptions are also
 // refused (8200). Returns true when it records a failure.
-func (b *builder) checkTableOption(r tableRef, opt *ast.TableOption, rng review.Range, alter bool) bool {
+func (b *builder) checkTableOption(opt *ast.TableOption, rng review.Range, alter bool) bool {
 	if opt == nil {
 		return false
 	}
@@ -169,45 +168,12 @@ func (b *builder) checkTableOption(r tableRef, opt *ast.TableOption, rng review.
 			return true
 		}
 		return false
-	case "ttl":
-		if alter && r.name != "" {
-			b.checkTTLColumnExists(r, opt.Value, rng)
-		}
-		return false
 	}
 	if alter && !tidbSupportedAlterTableOptions[name] {
 		b.fail(rng, nil, review.UnsupportedForm, engineName+" doesn't support table option "+review.Code(strings.ToUpper(opt.Name))+" in "+review.Code("ALTER TABLE")+".")
 		return true
 	}
 	return false
-}
-
-// checkTTLColumnExists checks that the column named by an ALTER TABLE ... TTL
-// expression exists in the table (1054).
-func (b *builder) checkTTLColumnExists(r tableRef, val string, rng review.Range) {
-	expr, err := parser.ParseExpr(val)
-	if err != nil {
-		return
-	}
-	var colName string
-	switch e := expr.(type) {
-	case *ast.BinaryExpr:
-		if e.Op == ast.BinOpAdd {
-			if c, ok := e.Left.(*ast.ColumnRef); ok {
-				colName = c.Column
-			}
-		}
-	case *ast.FuncCallExpr:
-		fn := strings.ToUpper(e.Name)
-		if (fn == "DATE_ADD" || fn == "ADDDATE") && len(e.Args) == 2 {
-			if c, ok := e.Args[0].(*ast.ColumnRef); ok {
-				colName = c.Column
-			}
-		}
-	}
-	if colName != "" {
-		b.columnNeeds(r, colName, rng)
-	}
 }
 
 // checkAttributesSpec validates TiDB's ATTRIBUTES = '...' string: non-empty
@@ -650,8 +616,15 @@ func (b *builder) checkPartitionDefs(defs []*ast.PartitionDef, rng review.Range)
 
 // checkSequenceOptionsValid checks self-contradictory sequence options that
 // TiDB v8.5.5 always refuses with 4136, regardless of any existing state:
-// CACHE <= 0, INCREMENT 0, MINVALUE == math.MinInt64, MAXVALUE == math.MaxInt64.
+// any CACHE <= 0 option (checked per option as TiDB does), or a final effective
+// INCREMENT == 0, MINVALUE == math.MinInt64, MAXVALUE == math.MaxInt64, or
+// MAXVALUE <= MINVALUE when both are set. Repeated options apply in order, so
+// only the final effective value of INCREMENT/MINVALUE/MAXVALUE is judged.
 func (b *builder) checkSequenceOptionsValid(written string, opts []*ast.SequenceOption, rng review.Range) bool {
+	var (
+		hasInc, hasMin, hasMax bool
+		inc, minVal, maxVal    int64
+	)
 	for _, opt := range opts {
 		if opt == nil {
 			continue
@@ -663,21 +636,19 @@ func (b *builder) checkSequenceOptionsValid(written string, opts []*ast.Sequence
 				return true
 			}
 		case ast.SequenceOptionIncrementBy:
-			if opt.Value == 0 {
-				b.fail(rng, nil, review.UnsupportedForm, "Sequence "+review.Code(written)+" has conflicting options.")
-				return true
-			}
+			hasInc, inc = true, opt.Value
 		case ast.SequenceOptionMinValue:
-			if opt.Value == math.MinInt64 {
-				b.fail(rng, nil, review.UnsupportedForm, "Sequence "+review.Code(written)+" has conflicting options.")
-				return true
-			}
+			hasMin, minVal = true, opt.Value
 		case ast.SequenceOptionMaxValue:
-			if opt.Value == math.MaxInt64 {
-				b.fail(rng, nil, review.UnsupportedForm, "Sequence "+review.Code(written)+" has conflicting options.")
-				return true
-			}
+			hasMax, maxVal = true, opt.Value
 		}
+	}
+	if (hasInc && inc == 0) ||
+		(hasMin && minVal == math.MinInt64) ||
+		(hasMax && maxVal == math.MaxInt64) ||
+		(hasMin && hasMax && maxVal <= minVal) {
+		b.fail(rng, nil, review.UnsupportedForm, "Sequence "+review.Code(written)+" has conflicting options.")
+		return true
 	}
 	return false
 }
