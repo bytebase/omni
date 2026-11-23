@@ -3,52 +3,52 @@ package analysis
 import (
 	"slices"
 
+	"github.com/bytebase/omni/analysis"
 	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser/statements"
 	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
 )
 
-// StatementType is the kind of change a statement makes. Its value is the
-// name of the matching Bytebase storepb.StatementType.
-type StatementType string
+// StatementType is the kind of change a statement makes.
+type StatementType = analysis.StatementType
 
 // StatementTypeUnspecified is a statement the classifier does not name.
-const StatementTypeUnspecified StatementType = ""
+const StatementTypeUnspecified = analysis.StatementTypeUnspecified
 
 const (
-	AlterDatabase   StatementType = "ALTER_DATABASE"
-	AlterIndex      StatementType = "ALTER_INDEX"
-	AlterSequence   StatementType = "ALTER_SEQUENCE"
-	AlterTable      StatementType = "ALTER_TABLE"
-	AlterType       StatementType = "ALTER_TYPE"
-	AlterView       StatementType = "ALTER_VIEW"
-	Comment         StatementType = "COMMENT"
-	CreateDatabase  StatementType = "CREATE_DATABASE"
-	CreateExtension StatementType = "CREATE_EXTENSION"
-	CreateFunction  StatementType = "CREATE_FUNCTION"
-	CreateIndex     StatementType = "CREATE_INDEX"
-	CreateSchema    StatementType = "CREATE_SCHEMA"
-	CreateSequence  StatementType = "CREATE_SEQUENCE"
-	CreateTable     StatementType = "CREATE_TABLE"
-	CreateTrigger   StatementType = "CREATE_TRIGGER"
-	CreateType      StatementType = "CREATE_TYPE"
-	CreateView      StatementType = "CREATE_VIEW"
-	Delete          StatementType = "DELETE"
-	DropDatabase    StatementType = "DROP_DATABASE"
-	DropFunction    StatementType = "DROP_FUNCTION"
-	DropIndex       StatementType = "DROP_INDEX"
-	DropSchema      StatementType = "DROP_SCHEMA"
-	DropSequence    StatementType = "DROP_SEQUENCE"
-	DropTable       StatementType = "DROP_TABLE"
-	DropTrigger     StatementType = "DROP_TRIGGER"
-	DropType        StatementType = "DROP_TYPE"
-	DropView        StatementType = "DROP_VIEW"
-	Execute         StatementType = "EXECUTE"
-	Insert          StatementType = "INSERT"
-	RenameIndex     StatementType = "RENAME_INDEX"
-	RenameSchema    StatementType = "RENAME_SCHEMA"
-	RenameSequence  StatementType = "RENAME_SEQUENCE"
-	Truncate        StatementType = "TRUNCATE"
-	Update          StatementType = "UPDATE"
+	AlterDatabase   = analysis.AlterDatabase
+	AlterIndex      = analysis.AlterIndex
+	AlterSequence   = analysis.AlterSequence
+	AlterTable      = analysis.AlterTable
+	AlterType       = analysis.AlterType
+	AlterView       = analysis.AlterView
+	Comment         = analysis.Comment
+	CreateDatabase  = analysis.CreateDatabase
+	CreateExtension = analysis.CreateExtension
+	CreateFunction  = analysis.CreateFunction
+	CreateIndex     = analysis.CreateIndex
+	CreateSchema    = analysis.CreateSchema
+	CreateSequence  = analysis.CreateSequence
+	CreateTable     = analysis.CreateTable
+	CreateTrigger   = analysis.CreateTrigger
+	CreateType      = analysis.CreateType
+	CreateView      = analysis.CreateView
+	Delete          = analysis.Delete
+	DropDatabase    = analysis.DropDatabase
+	DropFunction    = analysis.DropFunction
+	DropIndex       = analysis.DropIndex
+	DropSchema      = analysis.DropSchema
+	DropSequence    = analysis.DropSequence
+	DropTable       = analysis.DropTable
+	DropTrigger     = analysis.DropTrigger
+	DropType        = analysis.DropType
+	DropView        = analysis.DropView
+	Execute         = analysis.Execute
+	Insert          = analysis.Insert
+	RenameIndex     = analysis.RenameIndex
+	RenameSchema    = analysis.RenameSchema
+	RenameSequence  = analysis.RenameSequence
+	Truncate        = analysis.Truncate
+	Update          = analysis.Update
 )
 
 // StatementTypesFromParsed returns the StatementTypes of opaque

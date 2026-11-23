@@ -157,3 +157,40 @@ func TestClassifyWalkThroughStatement(t *testing.T) {
 		})
 	}
 }
+
+func TestIsCreateTableAs(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+		want bool
+	}{
+		{name: "ctas with AS", sql: "CREATE TABLE t2 AS SELECT * FROM t1;", want: true},
+		{name: "ctas without AS", sql: "CREATE TABLE t2 (b INT) SELECT a FROM t1;", want: true},
+		{name: "ctas temporary if not exists", sql: "CREATE TEMPORARY TABLE IF NOT EXISTS db.t2 AS SELECT 1;", want: true},
+		{name: "ctas values row", sql: "CREATE TABLE tvx SELECT x, z FROM (VALUES ROW(1,3,5), ROW(2,4,6)) AS v(x,y,z);", want: true},
+		{name: "ctas with comments", sql: "-- lead\nCREATE /* mid */ TEMPORARY # hash\nTABLE t2 AS SELECT 1", want: true},
+		{name: "ctas lowercase", sql: "create table t2 select 1", want: true},
+		{name: "ctas executable comment", sql: "CREATE TABLE t2 /*!50000 SELECT 1 */", want: true},
+		{name: "regular create table", sql: "CREATE TABLE t1 (id INT);", want: false},
+		{name: "select in single-quoted default", sql: "CREATE TABLE t1 (a VARCHAR(20) DEFAULT 'SELECT');", want: false},
+		{name: "select in escaped single quote", sql: `CREATE TABLE t1 (a VARCHAR(20) DEFAULT 'it\'s SELECT');`, want: false},
+		{name: "select in double-quoted comment", sql: `CREATE TABLE t1 (a INT COMMENT "SELECT 1");`, want: false},
+		{name: "select in backtick identifier", sql: "CREATE TABLE t1 (`select` INT);", want: false},
+		{name: "select in comments", sql: "CREATE TABLE t1 (a INT) /* SELECT */ -- SELECT\n# SELECT", want: false},
+		{name: "dot-qualified select table name", sql: "CREATE TABLE db.select (a INT);", want: false},
+		{name: "select-qualified schema name", sql: "CREATE TABLE select.t1 (a INT);", want: false},
+		{name: "select in next statement after semicolon", sql: "CREATE TABLE t1 (a INT); SELECT 1;", want: false},
+		{name: "create view as select", sql: "CREATE VIEW v1 AS SELECT 1;", want: false},
+		{name: "plain select", sql: "SELECT 1;", want: false},
+		{name: "empty", sql: "", want: false},
+		{name: "comment only", sql: "-- CREATE TABLE t AS SELECT 1", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsCreateTableAs(tt.sql); got != tt.want {
+				t.Errorf("IsCreateTableAs(%q) = %v, want %v", tt.sql, got, tt.want)
+			}
+		})
+	}
+}

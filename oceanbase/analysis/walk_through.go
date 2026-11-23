@@ -3,6 +3,7 @@ package analysis
 import (
 	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/oceanbase/ast"
+	"github.com/bytebase/omni/oceanbase/parser"
 )
 
 // TableRef is an engine-neutral schema-qualified table or object reference.
@@ -155,4 +156,38 @@ func ClassifyWalkThroughStatement(node ast.Node) WalkThroughStatement {
 	default:
 	}
 	return info
+}
+
+var (
+	ctasTokCreate    = parser.NewLexer("CREATE").NextToken().Type
+	ctasTokTemporary = parser.NewLexer("TEMPORARY").NextToken().Type
+	ctasTokExternal  = parser.NewLexer("EXTERNAL").NextToken().Type
+	ctasTokTable     = parser.NewLexer("TABLE").NextToken().Type
+	ctasTokSelect    = parser.NewLexer("SELECT").NextToken().Type
+)
+
+// IsCreateTableAs reports whether statement is a CREATE [TEMPORARY | EXTERNAL] TABLE ... SELECT
+// statement by scanning its OceanBase token stream. It provides a lexer-backed fallback
+// for CTAS forms that do not produce a CreateTableStmt AST.
+func IsCreateTableAs(statement string) bool {
+	lex := parser.NewLexer(statement)
+	if lex.NextToken().Type != ctasTokCreate {
+		return false
+	}
+	tok := lex.NextToken()
+	if tok.Type == ctasTokTemporary || tok.Type == ctasTokExternal {
+		tok = lex.NextToken()
+	}
+	if tok.Type != ctasTokTable {
+		return false
+	}
+	for {
+		tok = lex.NextToken()
+		if tok.Type == 0 || tok.Type == ';' {
+			return false
+		}
+		if tok.Type == ctasTokSelect {
+			return true
+		}
+	}
 }
