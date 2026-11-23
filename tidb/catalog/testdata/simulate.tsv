@@ -3017,3 +3017,23 @@ ok:c4d7dba6a371	ok:c4d7dba6a371	engine	objects@fk	RowFormat/ROW_FORMAT_EqOpt_TOK
 1060	1060	engine	objects@fk	TextString/hexLit	ALTER TABLE ident ADD ident ENUM(0x1)
 1060	1060	engine	objects@fk	TextString/bitLit	ALTER TABLE ident ADD ident ENUM(b'1')
 1060	1060	engine	objects@fk	TextStringList/TextStringList_,_TextString	ALTER TABLE ident ADD ident ENUM('binary', 'binary')
+3959	3959	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN starts, DROP COLUMN ends
+3959	3959	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN ends, DROP COLUMN starts
+3959	3959	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN starts
+3959	3959	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN ends
+ok:2f571c8ee69e	ok:2f571c8ee69e	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN guests
+ok:88a6fdf8dc33	ok:88a6fdf8dc33	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN nights
+ok:47b357dc28c2	ok:47b357dc28c2	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN note
+3959	3959	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN guests, DROP COLUMN starts
+8200	8200	engine	features@check	check:drop	ALTER TABLE bookings DROP CHECK chk_dates, DROP COLUMN starts, DROP COLUMN ends
+3959	3959	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN starts, DROP COLUMN ends, DROP CHECK chk_dates
+8200	8200	engine	features@check	check:drop	ALTER TABLE bookings DROP CONSTRAINT chk_dates, DROP COLUMN starts, DROP COLUMN ends
+8200	8200	engine	features@check	check:drop	ALTER TABLE bookings DROP CHECK chk_dates, DROP COLUMN starts
+3959	3959	engine	features@check	check:drop	ALTER TABLE bookings RENAME COLUMN starts TO begins, DROP COLUMN ends
+3959	3959	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN starts, ADD COLUMN starts DATE
+3959	3959	engine	features@check	check:drop	ALTER TABLE bookings RENAME COLUMN guests TO people
+ok:018baf1b1c72	ok:018baf1b1c72	engine	features@check	check:drop	ALTER TABLE bookings RENAME COLUMN note TO memo
+ok:22d5c7c67abc	ok:22d5c7c67abc	engine	features@check	check:drop	ALTER TABLE bookings CHANGE COLUMN nights stays INT
+ok:ffa5c58d72df	ok:ffa5c58d72df	engine	features@check	check:drop	ALTER TABLE bookings MODIFY COLUMN nights BIGINT
+ok:c0df186955e8	ok:c0df186955e8	engine	features@check	check:drop	ALTER TABLE rooms DROP COLUMN beds
+ok:aea76fbf1458	ok:aea76fbf1458	engine	features@check	check:drop	ALTER TABLE rooms ADD COLUMN floor INT
