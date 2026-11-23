@@ -517,18 +517,18 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		return p.parseCreateDatabaseStmt(start, orReplace)
 
 	case kwAGGREGATE:
-		// CREATE AGGREGATE FUNCTION — loadable UDF
+		// CREATE AGGREGATE FUNCTION: a loadable UDF, or a stored function with a body.
 		p.advance() // consume AGGREGATE
 		if p.cur.Type == kwFUNCTION {
-			return p.parseCreateLoadableFunction(start, orReplace, true)
+			return p.parseCreateFunctionStmt(start, orReplace, false, true)
 		}
 		return nil, &ParseError{Message: "expected FUNCTION after AGGREGATE", Position: p.cur.Loc}
 
 	case kwFUNCTION:
-		return p.parseCreateFunctionStmt(start, orReplace, false)
+		return p.parseCreateFunctionStmt(start, orReplace, false, false)
 
 	case kwPROCEDURE:
-		return p.parseCreateFunctionStmt(start, orReplace, true)
+		return p.parseCreateFunctionStmt(start, orReplace, true, false)
 
 	case kwTRIGGER:
 		return p.parseCreateTriggerStmt(start, orReplace)
@@ -582,8 +582,16 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 				stmt.SqlSecurity = sqlSecurity
 			}
 			return stmt, nil
-		case kwFUNCTION:
-			stmt, err := p.parseCreateFunctionStmt(start, orReplace, false)
+		case kwFUNCTION, kwAGGREGATE:
+			// create_routine takes DEFINER before a stored function, AGGREGATE or not.
+			aggregate := false
+			if _, ok := p.match(kwAGGREGATE); ok {
+				aggregate = true
+				if p.cur.Type != kwFUNCTION {
+					return nil, p.syntaxErrorAtCur()
+				}
+			}
+			stmt, err := p.parseCreateFunctionStmt(start, orReplace, false, aggregate)
 			if err != nil {
 				return nil, err
 			}
@@ -592,7 +600,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 			}
 			return stmt, nil
 		case kwPROCEDURE:
-			stmt, err := p.parseCreateFunctionStmt(start, orReplace, true)
+			stmt, err := p.parseCreateFunctionStmt(start, orReplace, true, false)
 			if err != nil {
 				return nil, err
 			}
@@ -655,7 +663,7 @@ func (p *Parser) parseCreateIfNotExists(orReplace bool) (bool, error) {
 		return false, err
 	}
 	if orReplace {
-		return false, &ParseError{Message: "Incorrect usage of OR REPLACE and IF NOT EXISTS", Position: ifPos}
+		return false, &ParseError{Message: "Incorrect usage of OR REPLACE and IF NOT EXISTS", Position: ifPos, Code: 1221}
 	}
 	return true, nil
 }

@@ -24,6 +24,7 @@ type routineScope struct {
 	function      bool     // inside a function, the one place RETURN may stand (1313 elsewhere)
 	sp            *spScope // the innermost scope of the stored program's names, nil outside one
 	hasReturn     bool     // a RETURN was read in the function's body
+	hasGroupFetch bool     // a FETCH GROUP NEXT ROW was read in the function's body
 	// compound is set inside a compound statement's body, at the top level too, which is a
 	// stored program of its own.
 	compound bool
@@ -62,7 +63,7 @@ func (p *Parser) refuseColumnOutsideProgram(expr nodes.Node, where string) error
 			if where != "" {
 				msg += " in '" + where + "'"
 			}
-			return &ParseError{Message: msg, Position: e.Loc.Start}
+			return &ParseError{Message: msg, Position: e.Loc.Start, Code: 1054}
 		}
 		nodes.Walk(&childCollector{root: n, out: &stack}, n)
 	}
@@ -92,7 +93,7 @@ func (p *Parser) refuseInProgram(what string, pos int) error {
 	if !p.inStoredProgram() {
 		return nil
 	}
-	return &ParseError{Message: what + " is not allowed in stored procedures", Position: pos}
+	return &ParseError{Message: what + " is not allowed in stored procedures", Position: pos, Code: 1314}
 }
 
 // refuseTriggerRowRead holds NEW.col and OLD.col, in any case and however quoted, to the
@@ -103,9 +104,9 @@ func (p *Parser) refuseTriggerRowRead(qualifier string, pos int) error {
 	}
 	switch {
 	case strings.EqualFold(qualifier, "NEW") && p.routine.triggerEvent == "DELETE":
-		return &ParseError{Message: "There is no NEW row in on DELETE trigger", Position: pos}
+		return &ParseError{Message: "There is no NEW row in on DELETE trigger", Position: pos, Code: 1363}
 	case strings.EqualFold(qualifier, "OLD") && p.routine.triggerEvent == "INSERT":
-		return &ParseError{Message: "There is no OLD row in on INSERT trigger", Position: pos}
+		return &ParseError{Message: "There is no OLD row in on INSERT trigger", Position: pos, Code: 1363}
 	}
 	return nil
 }
@@ -117,10 +118,10 @@ func (p *Parser) refuseTriggerRowWrite(qualifier string, pos int) error {
 		return nil
 	}
 	if strings.EqualFold(qualifier, "NEW") && p.routine.triggerEvent == "DELETE" {
-		return &ParseError{Message: "There is no NEW row in on DELETE trigger", Position: pos}
+		return &ParseError{Message: "There is no NEW row in on DELETE trigger", Position: pos, Code: 1363}
 	}
 	if strings.EqualFold(qualifier, "OLD") || p.routine.triggerTiming == "AFTER" {
-		return &ParseError{Message: "Updating of " + strings.ToUpper(qualifier) + " row is not allowed in trigger", Position: pos}
+		return &ParseError{Message: "Updating of " + strings.ToUpper(qualifier) + " row is not allowed in trigger", Position: pos, Code: 1362}
 	}
 	return nil
 }
@@ -144,7 +145,7 @@ func (p *Parser) refuseResultSet(stmt nodes.Node, pos int) error {
 		returns = !selectHasInto(s)
 	}
 	if returns {
-		return &ParseError{Message: "Not allowed to return a result set from a function or trigger", Position: pos}
+		return &ParseError{Message: "Not allowed to return a result set from a function or trigger", Position: pos, Code: 1415}
 	}
 	return nil
 }

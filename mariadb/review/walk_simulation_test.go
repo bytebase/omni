@@ -14,7 +14,7 @@ import (
 )
 
 // TestWalkSimulation holds MariaDB's WALK_THROUGH to mariadb/catalog's
-// simulate.tsv and queries/simulate.tsv offline: each fixture is built once
+// simulate.tsv, programs/simulate.tsv and queries/simulate.tsv offline: each fixture is built once
 // in the in-memory catalog, and every row is checked with no server started.
 func TestWalkSimulation(t *testing.T) {
 	same := (&mariadbEngine{}).Same
@@ -30,6 +30,13 @@ func TestWalkSimulation(t *testing.T) {
 		// refusals, ALGORITHM, or invisible and spatial column rules. The rows
 		// before them keep 4,208/4,340 (97.0%).
 		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 96.0, 4308},
+		// Of the 695 refusals, 180 are statements the parser refuses, which
+		// reach the review as a syntax finding. Of the rest the walk does not
+		// model a routine, event or trigger named in a database that does not
+		// exist, NEW and OLD columns, FOLLOWS and PRECEDES, an event's time
+		// strings and MICROSECOND intervals, or DROP FUNCTION of a name a
+		// loadable function may hold.
+		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 60.0, 418},
 		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 68.0, 135},
 	} {
 		t.Run(suite.name, func(t *testing.T) {

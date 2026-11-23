@@ -163,7 +163,7 @@ func (p *Parser) parsePackageRoutineSpec() (*nodes.PackageRoutineSpec, error) {
 	if p.cur.Type != ')' {
 		var names []string
 		for {
-			param, err := p.parseSpParam(routine.IsProcedure, names)
+			param, err := p.parseSpParam(true, names)
 			if err != nil {
 				return nil, err
 			}

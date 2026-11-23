@@ -7,6 +7,19 @@ import (
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
+// programDefiner is the account a stored program is created with: the one its
+// DEFINER clause names, or the session's when it names none or CURRENT_USER.
+// The catalog's session is `root`@`%`, as on the servers omni is measured on:
+// mariadb:11.8.8 stores CREATE DEFINER = CURRENT_USER PROCEDURE p() as
+// DEFINER=`root`@`%`.
+func programDefiner(definer string) string {
+	switch strings.ToUpper(definer) {
+	case "", "CURRENT_USER", "CURRENT_USER()":
+		return "`root`@`%`"
+	}
+	return definer
+}
+
 func (c *Catalog) createRoutine(stmt *nodes.CreateFunctionStmt) error {
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
@@ -21,7 +34,8 @@ func (c *Catalog) createRoutine(stmt *nodes.CreateFunctionStmt) error {
 		routineMap = db.Procedures
 	}
 
-	if _, exists := routineMap[key]; exists {
+	// CREATE OR REPLACE replaces a routine of the name (mariadb:11.8.8).
+	if _, exists := routineMap[key]; exists && !stmt.OrReplace {
 		if !stmt.IfNotExists {
 			if stmt.IsProcedure {
 				return errDupProcedure(name)
@@ -34,24 +48,27 @@ func (c *Catalog) createRoutine(stmt *nodes.CreateFunctionStmt) error {
 	// Build params.
 	params := make([]*RoutineParam, 0, len(stmt.Params))
 	for _, p := range stmt.Params {
-		params = append(params, &RoutineParam{
+		param := &RoutineParam{
 			Direction: p.Direction,
 			Name:      p.Name,
 			TypeName:  formatRoutineParamType(p),
-		})
+		}
+		if p.Default != nil {
+			param.Default = nodeToSQL(p.Default)
+		}
+		params = append(params, param)
 	}
 
 	// Build return type -- MySQL shows lowercase with CHARSET for string types.
 	var returns string
-	if stmt.Returns != nil {
+	switch {
+	case stmt.Returns != nil:
 		returns = formatReturnType(stmt.Returns, db)
+	case stmt.ReturnsAnchor != nil || len(stmt.ReturnsRow) > 0:
+		returns = formatAnchoredReturnType(&nodes.FuncParam{Anchor: stmt.ReturnsAnchor, RowFields: stmt.ReturnsRow}, db)
 	}
 
-	// MySQL always sets a definer. Default to `root`@`%` when not specified.
-	definer := stmt.Definer
-	if definer == "" {
-		definer = "`root`@`%`"
-	}
+	definer := programDefiner(stmt.Definer)
 
 	// Build characteristics.
 	chars := make(map[string]string)
@@ -63,6 +80,7 @@ func (c *Catalog) createRoutine(stmt *nodes.CreateFunctionStmt) error {
 		Name:            name,
 		Database:        db,
 		IsProcedure:     stmt.IsProcedure,
+		IsAggregate:     stmt.IsAggregate,
 		Definer:         definer,
 		Params:          params,
 		Returns:         returns,
@@ -247,6 +265,19 @@ func formatParamType(dt *nodes.DataType) string {
 	return strings.ToUpper(raw)
 }
 
+// formatAnchoredReturnType formats a RETURNS clause that is MariaDB's ROW(...),
+// TYPE OF a column or ROW TYPE OF a table. A column TYPE OF names without its
+// database is printed in the routine's: mariadb:11.8.8 prints RETURNS TYPE OF
+// t.c as RETURNS TYPE OF `db`.`t`.`c`.
+func formatAnchoredReturnType(p *nodes.FuncParam, db *Database) string {
+	if a := p.Anchor; a != nil && !a.Row && len(a.Names) == 2 {
+		qualified := *a
+		qualified.Names = append([]string{db.Name}, a.Names...)
+		p = &nodes.FuncParam{Anchor: &qualified}
+	}
+	return formatRoutineParamType(p)
+}
+
 // formatReturnType formats a DataType for display in the RETURNS clause, which
 // MariaDB normalizes where it leaves the parameter list as written:
 //
@@ -260,6 +291,10 @@ func formatReturnType(dt *nodes.DataType, db *Database) string {
 	dbCharset, dbCollation := db.Charset, db.Collation
 	raw := formatDataType(dt)
 	name := strings.ToLower(dt.Name)
+	if normalizedTypeName(name) == "boolean" {
+		// BOOLEAN is TINYINT(1): mariadb:11.8.8 prints RETURNS tinyint(1).
+		return "tinyint(1)"
+	}
 	if normalized := normalizedTypeName(name); isIntegerType(normalized) && dt.Length == 0 {
 		raw = fmt.Sprintf("%s(%d)", normalized, defaultIntDisplayWidth(normalized, dt.Unsigned))
 		if dt.Unsigned {
@@ -369,21 +404,27 @@ func showCreateRoutine(r *Routine) string {
 		b.WriteString(fmt.Sprintf(" DEFINER=%s", formatDefiner(r.Definer)))
 	}
 
-	if r.IsProcedure {
+	switch {
+	case r.IsProcedure:
 		b.WriteString(fmt.Sprintf(" PROCEDURE `%s`(", r.Name))
-	} else {
+	case r.IsAggregate:
+		b.WriteString(fmt.Sprintf(" AGGREGATE FUNCTION `%s`(", r.Name))
+	default:
 		b.WriteString(fmt.Sprintf(" FUNCTION `%s`(", r.Name))
 	}
 
-	// Parameters -- MySQL 8.0 separates with ", " (comma space).
+	// Parameters -- MySQL 8.0 separates with ", " (comma space). MariaDB takes a
+	// mode and a default on a function's parameters as on a procedure's.
 	for i, p := range r.Params {
 		if i > 0 {
 			b.WriteString(", ")
 		}
-		if r.IsProcedure && p.Direction != "" {
-			b.WriteString(fmt.Sprintf("%s %s %s", p.Direction, p.Name, p.TypeName))
-		} else {
-			b.WriteString(fmt.Sprintf("%s %s", p.Name, p.TypeName))
+		if p.Direction != "" {
+			b.WriteString(p.Direction + " ")
+		}
+		b.WriteString(fmt.Sprintf("%s %s", p.Name, p.TypeName))
+		if p.Default != "" {
+			b.WriteString(" DEFAULT " + p.Default)
 		}
 	}
 	b.WriteString(")")
@@ -395,12 +436,9 @@ func showCreateRoutine(r *Routine) string {
 
 	// Characteristics -- MySQL 8.0 outputs each on its own line with 4-space indent.
 	// Order: DETERMINISTIC, DATA ACCESS, SQL SECURITY, COMMENT
-	if v, ok := r.Characteristics["DETERMINISTIC"]; ok {
-		if v == "YES" {
-			b.WriteString("\n    DETERMINISTIC")
-		} else {
-			b.WriteString("\n    NOT DETERMINISTIC")
-		}
+	// NOT DETERMINISTIC is the default, which MariaDB does not print.
+	if r.Characteristics["DETERMINISTIC"] == "YES" {
+		b.WriteString("\n    DETERMINISTIC")
 	}
 
 	if v, ok := r.Characteristics["DATA ACCESS"]; ok && !strings.EqualFold(v, "CONTAINS SQL") {

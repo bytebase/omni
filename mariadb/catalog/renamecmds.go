@@ -64,6 +64,9 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 		tbl.Name = pair.New.Name
 		tbl.Database = newDB
 		newDB.Tables[newKey] = tbl
+		if oldDB == newDB {
+			renameTableTriggers(oldDB, oldName, tbl.Name)
+		}
 		// The foreign keys that reference the table follow it, and one that
 		// moves to another schema keeps naming the parents it left
 		// (mariadb:11.8.8, schemas@cross).
