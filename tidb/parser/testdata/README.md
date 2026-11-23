@@ -10,14 +10,14 @@ tests sent to TiDB and its answers (`enginetest/tape`).
 
 | Rule | Rows | From |
 |---|---|---|
-| Generated (`Rule/symbols`, near-misses `!drop-2`, `!swap`) | 11,055 | `../../testdata/parser.y` and `../../testdata/tokens.tsv` |
+| Generated (`Rule/symbols`, near-misses `!drop-2`, `!swap`) | 11,188 | `../../testdata/parser.y` and `../../testdata/tokens.tsv` |
 | `suite:pingcap-parser` | 3,849 | pingcap's parser test, one form at a time |
 | `suite:pingcap-parser-rest` | 884 | the rest of pingcap's parser tests, forms combined |
 | `suite:tidb-integrationtest` | 27,242 | TiDB's integration tests |
 | `suite:bytebase` | 520 | Bytebase's TiDB test files |
-| `suite:reject-fuzz-sweep` | 292 | mutants of accepted statements (`../reject_fuzz_test.go`) |
+| `suite:reject-fuzz-sweep` | 296 | mutants of accepted statements (`../reject_fuzz_test.go`) |
 | `suite:oracle-corpus`, `suite:tidb-extensions` | 104 | statements two oracle tests listed |
-| `suite:cited`, `suite:reject-fuzz` | 6 | statements a test cites, and minimised fuzz findings |
+| `suite:cited`, `suite:reject-fuzz` | 10 | statements a test cites, and minimised fuzz findings |
 
 **Generated rows.** For each alternative of each rule in `parser.y`
 (pkg/parser/parser.y at the pinned tag, vendored verbatim), the shortest
@@ -29,6 +29,10 @@ charset and a collation: TiDB looks those names up while parsing, and an
 unknown name answers before a later syntax error can. Three alternatives get no
 row, because the default SQL mode never lexes their tokens (`||` as
 concatenation, high-precedence `NOT`); `TestCompatibility` lists them.
+`IfNotExists` and `IfExists` are tried at every site: `tokens.tsv` marks them
+`(every site)`, so each alternative naming one gets a row labelled
+`<alternative>+<rule>` with the clause written out, and near-misses dropping
+each of its words.
 `TestCompatibility` regenerates these rows and fails if the file holds others.
 
 **Hand rows** carry a label in the rule column and survive regeneration. A

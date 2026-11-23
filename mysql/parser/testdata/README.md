@@ -16,6 +16,12 @@ the grammar and fails if the file holds others.
 - **Token forms** are in `../../testdata/tokens.tsv`, read off MySQL's keyword
   table (`sql/lex.h`) and lexer (`sql/sql_lex.cc`). A new release's tokens need
   rows there.
+- **`IF [NOT] EXISTS` is tried at every site.** A statement writes each
+  optional clause as nothing, so `opt_if_not_exists` and `if_exists` would
+  appear only where their own alternative's row reaches. `tokens.tsv` marks
+  them `(every site)`: each alternative naming one gets a row labelled
+  `<alternative>+<rule>` with the clause written out, and near-misses dropping
+  each of its words.
 - **Names are `utf8mb4`,** a character set, because MySQL looks a character set
   up while it parses (below). `lvalue_variable` is sampled as `autocommit`, a
   built-in system variable, so `SET` near-misses parse past the variable lookup
@@ -38,7 +44,7 @@ To judge new rows, or every row after a pin bump in `../../testdata/pins.tsv`
 OMNI_RECORD=1 go test ./mysql/parser/ -run '^TestCompatibility$'
 ```
 
-It starts the pinned image and judges all 12,283 rows in about 15 seconds.
+It starts the pinned image and judges all 12,393 rows in about 15 seconds.
 After a parser fix, commit the rows that now agree:
 
 ```bash

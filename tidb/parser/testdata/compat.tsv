@@ -438,6 +438,10 @@ reject	reject	engine	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_ColumnDef_C
 reject	reject	engine	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_ColumnDef_ColumnPosition!drop-3	ALTER TABLE ident ADD ident
 reject	reject	engine	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_ColumnDef_ColumnPosition!insert	ALTER TABLE ident ADD ident TINYINT zzz
 reject	reject	engine	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_ColumnDef_ColumnPosition!swap	ALTER TABLE ident ADDDATE ident TINYINT
+accept	accept	engine	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_ColumnDef_ColumnPosition+IfNotExists	ALTER TABLE ident ADD IF NOT EXISTS ident TINYINT
+reject	reject	engine	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_ColumnDef_ColumnPosition+IfNotExists!drop-2	ALTER TABLE ident ADD NOT EXISTS ident TINYINT
+reject	reject	engine	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_ColumnDef_ColumnPosition+IfNotExists!drop-3	ALTER TABLE ident ADD IF EXISTS ident TINYINT
+reject	reject	engine	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_ColumnDef_ColumnPosition+IfNotExists!drop-4	ALTER TABLE ident ADD IF NOT ident TINYINT
 accept	accept	engine	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_(_TableElementList_)	ALTER TABLE ident ADD(ident TINYINT)
 reject	reject	engine	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_(_TableElementList_)!drop-1	ALTER TABLE ident(ident TINYINT)
 reject	reject	engine	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_(_TableElementList_)!drop-2	ALTER TABLE ident ADD ident TINYINT)
@@ -446,6 +450,10 @@ reject	reject	engine	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_(_TableElem
 reject	reject	engine	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_(_TableElementList_)!drop-5	ALTER TABLE ident ADD(ident TINYINT
 reject	reject	engine	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_(_TableElementList_)!insert	ALTER TABLE ident ADD(ident TINYINT) zzz
 reject	reject	engine	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_(_TableElementList_)!swap	ALTER TABLE ident ADDDATE(ident TINYINT)
+accept	accept	engine	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_(_TableElementList_)+IfNotExists	ALTER TABLE ident ADD IF NOT EXISTS(ident TINYINT)
+reject	reject	engine	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_(_TableElementList_)+IfNotExists!drop-2	ALTER TABLE ident ADD NOT EXISTS(ident TINYINT)
+reject	reject	engine	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_(_TableElementList_)+IfNotExists!drop-3	ALTER TABLE ident ADD IF EXISTS(ident TINYINT)
+reject	reject	engine	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_(_TableElementList_)+IfNotExists!drop-4	ALTER TABLE ident ADD IF NOT(ident TINYINT)
 accept	accept	engine	AlterTableSpec/ADD_Constraint	ALTER TABLE ident ADD FULLTEXT(ident)
 reject	reject	engine	AlterTableSpec/ADD_Constraint!drop-1	ALTER TABLE ident FULLTEXT(ident)
 reject	reject	engine	AlterTableSpec/ADD_Constraint!drop-3	ALTER TABLE ident ADD FULLTEXT ident)
@@ -466,6 +474,10 @@ accept	accept	engine	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAli
 reject	reject	engine	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PartitionDefinitionListOpt!drop-2	ALTER TABLE ident ADD
 reject	reject	engine	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PartitionDefinitionListOpt!insert	ALTER TABLE ident ADD PARTITION zzz
 reject	reject	engine	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PartitionDefinitionListOpt!swap	ALTER TABLE ident ADDDATE PARTITION
+accept	accept	engine	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PartitionDefinitionListOpt+IfNotExists	ALTER TABLE ident ADD PARTITION IF NOT EXISTS
+reject	reject	engine	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PartitionDefinitionListOpt+IfNotExists!drop-3	ALTER TABLE ident ADD PARTITION NOT EXISTS
+reject	reject	engine	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PartitionDefinitionListOpt+IfNotExists!drop-4	ALTER TABLE ident ADD PARTITION IF EXISTS
+reject	reject	engine	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PartitionDefinitionListOpt+IfNotExists!drop-5	ALTER TABLE ident ADD PARTITION IF NOT
 accept	accept	engine	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PARTITIONS_NUM	ALTER TABLE ident ADD PARTITION PARTITIONS 1
 reject	reject	engine	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PARTITIONS_NUM!drop-1	ALTER TABLE ident PARTITION PARTITIONS 1
 reject	reject	engine	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PARTITIONS_NUM!drop-2	ALTER TABLE ident ADD PARTITIONS 1
@@ -473,6 +485,10 @@ reject	reject	engine	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAli
 reject	reject	engine	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PARTITIONS_NUM!drop-4	ALTER TABLE ident ADD PARTITION PARTITIONS
 reject	reject	engine	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PARTITIONS_NUM!insert	ALTER TABLE ident ADD PARTITION PARTITIONS 1 zzz
 reject	reject	engine	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PARTITIONS_NUM!swap	ALTER TABLE ident ADDDATE PARTITION PARTITIONS 1
+accept	accept	engine	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PARTITIONS_NUM+IfNotExists	ALTER TABLE ident ADD PARTITION IF NOT EXISTS PARTITIONS 1
+reject	reject	engine	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PARTITIONS_NUM+IfNotExists!drop-3	ALTER TABLE ident ADD PARTITION NOT EXISTS PARTITIONS 1
+reject	reject	engine	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PARTITIONS_NUM+IfNotExists!drop-4	ALTER TABLE ident ADD PARTITION IF EXISTS PARTITIONS 1
+reject	reject	engine	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PARTITIONS_NUM+IfNotExists!drop-5	ALTER TABLE ident ADD PARTITION IF NOT PARTITIONS 1
 accept	accept	engine	AlterTableSpec/LAST_PARTITION_LESS_THAN_(_BitExpr_)_NoWriteToBinLogAliasOpt	ALTER TABLE ident LAST PARTITION LESS THAN(ident)
 reject	reject	engine	AlterTableSpec/LAST_PARTITION_LESS_THAN_(_BitExpr_)_NoWriteToBinLogAliasOpt!drop-1	ALTER TABLE ident PARTITION LESS THAN(ident)
 reject	reject	engine	AlterTableSpec/LAST_PARTITION_LESS_THAN_(_BitExpr_)_NoWriteToBinLogAliasOpt!drop-2	ALTER TABLE ident LAST LESS THAN(ident)
@@ -493,6 +509,10 @@ reject	reject	engine	AlterTableSpec/ADD_STATS_EXTENDED_IfNotExists_Identifier_St
 reject	reject	engine	AlterTableSpec/ADD_STATS_EXTENDED_IfNotExists_Identifier_StatsType_(_ColumnNameList_)!drop-7	ALTER TABLE ident ADD STATS_EXTENDED ident CARDINALITY(ident
 reject	reject	engine	AlterTableSpec/ADD_STATS_EXTENDED_IfNotExists_Identifier_StatsType_(_ColumnNameList_)!insert	ALTER TABLE ident ADD STATS_EXTENDED ident CARDINALITY(ident) zzz
 reject	reject	engine	AlterTableSpec/ADD_STATS_EXTENDED_IfNotExists_Identifier_StatsType_(_ColumnNameList_)!swap	ALTER TABLE ident ADDDATE STATS_EXTENDED ident CARDINALITY(ident)
+accept	accept	engine	AlterTableSpec/ADD_STATS_EXTENDED_IfNotExists_Identifier_StatsType_(_ColumnNameList_)+IfNotExists	ALTER TABLE ident ADD STATS_EXTENDED IF NOT EXISTS ident CARDINALITY(ident)
+reject	reject	engine	AlterTableSpec/ADD_STATS_EXTENDED_IfNotExists_Identifier_StatsType_(_ColumnNameList_)+IfNotExists!drop-3	ALTER TABLE ident ADD STATS_EXTENDED NOT EXISTS ident CARDINALITY(ident)
+reject	reject	engine	AlterTableSpec/ADD_STATS_EXTENDED_IfNotExists_Identifier_StatsType_(_ColumnNameList_)+IfNotExists!drop-4	ALTER TABLE ident ADD STATS_EXTENDED IF EXISTS ident CARDINALITY(ident)
+reject	reject	engine	AlterTableSpec/ADD_STATS_EXTENDED_IfNotExists_Identifier_StatsType_(_ColumnNameList_)+IfNotExists!drop-5	ALTER TABLE ident ADD STATS_EXTENDED IF NOT ident CARDINALITY(ident)
 accept	accept	engine	AlterTableSpec/AttributesOpt	ALTER TABLE ident ATTRIBUTES DEFAULT
 accept	accept	engine	AlterTableSpec/StatsOptionsOpt	ALTER TABLE ident STATS_OPTIONS DEFAULT
 accept	accept	engine	AlterTableSpec/CHECK_PARTITION_AllOrPartitionNameList	ALTER TABLE ident CHECK PARTITION ALL
@@ -511,6 +531,9 @@ accept	accept	engine	AlterTableSpec/DROP_ColumnKeywordOpt_IfExists_ColumnName_Re
 reject	reject	engine	AlterTableSpec/DROP_ColumnKeywordOpt_IfExists_ColumnName_RestrictOrCascadeOpt!drop-2	ALTER TABLE ident DROP
 reject	reject	engine	AlterTableSpec/DROP_ColumnKeywordOpt_IfExists_ColumnName_RestrictOrCascadeOpt!insert	ALTER TABLE ident DROP ident zzz
 reject	reject	engine	AlterTableSpec/DROP_ColumnKeywordOpt_IfExists_ColumnName_RestrictOrCascadeOpt!swap	ALTER TABLE ident DRY ident
+accept	accept	engine	AlterTableSpec/DROP_ColumnKeywordOpt_IfExists_ColumnName_RestrictOrCascadeOpt+IfExists	ALTER TABLE ident DROP IF EXISTS ident
+reject	reject	engine	AlterTableSpec/DROP_ColumnKeywordOpt_IfExists_ColumnName_RestrictOrCascadeOpt+IfExists!drop-2	ALTER TABLE ident DROP EXISTS ident
+reject	reject	engine	AlterTableSpec/DROP_ColumnKeywordOpt_IfExists_ColumnName_RestrictOrCascadeOpt+IfExists!drop-3	ALTER TABLE ident DROP IF ident
 accept	accept	engine	AlterTableSpec/DROP_PRIMARY_KEY	ALTER TABLE ident DROP PRIMARY KEY
 reject	reject	engine	AlterTableSpec/DROP_PRIMARY_KEY!drop-1	ALTER TABLE ident PRIMARY KEY
 reject	reject	engine	AlterTableSpec/DROP_PRIMARY_KEY!drop-2	ALTER TABLE ident DROP KEY
@@ -521,6 +544,9 @@ accept	accept	engine	AlterTableSpec/DROP_PARTITION_IfExists_PartitionNameList	AL
 reject	reject	engine	AlterTableSpec/DROP_PARTITION_IfExists_PartitionNameList!drop-3	ALTER TABLE ident DROP PARTITION
 reject	reject	engine	AlterTableSpec/DROP_PARTITION_IfExists_PartitionNameList!insert	ALTER TABLE ident DROP PARTITION ident zzz
 reject	reject	engine	AlterTableSpec/DROP_PARTITION_IfExists_PartitionNameList!swap	ALTER TABLE ident DRY PARTITION ident
+accept	accept	engine	AlterTableSpec/DROP_PARTITION_IfExists_PartitionNameList+IfExists	ALTER TABLE ident DROP PARTITION IF EXISTS ident
+reject	reject	engine	AlterTableSpec/DROP_PARTITION_IfExists_PartitionNameList+IfExists!drop-3	ALTER TABLE ident DROP PARTITION EXISTS ident
+reject	reject	engine	AlterTableSpec/DROP_PARTITION_IfExists_PartitionNameList+IfExists!drop-4	ALTER TABLE ident DROP PARTITION IF ident
 accept	accept	engine	AlterTableSpec/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_IfExists	ALTER TABLE ident FIRST PARTITION LESS THAN(ident)
 reject	reject	engine	AlterTableSpec/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_IfExists!drop-2	ALTER TABLE ident FIRST LESS THAN(ident)
 reject	reject	engine	AlterTableSpec/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_IfExists!drop-3	ALTER TABLE ident FIRST PARTITION THAN(ident)
@@ -530,11 +556,17 @@ reject	reject	engine	AlterTableSpec/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_IfExis
 reject	reject	engine	AlterTableSpec/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_IfExists!drop-7	ALTER TABLE ident FIRST PARTITION LESS THAN(ident
 reject	reject	engine	AlterTableSpec/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_IfExists!insert	ALTER TABLE ident FIRST PARTITION LESS THAN(ident) zzz
 reject	reject	engine	AlterTableSpec/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_IfExists!swap	ALTER TABLE ident FIRST_VALUE PARTITION LESS THAN(ident)
+accept	accept	engine	AlterTableSpec/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_IfExists+IfExists	ALTER TABLE ident FIRST PARTITION LESS THAN(ident) IF EXISTS
+reject	reject	engine	AlterTableSpec/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_IfExists+IfExists!drop-8	ALTER TABLE ident FIRST PARTITION LESS THAN(ident) EXISTS
+reject	reject	engine	AlterTableSpec/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_IfExists+IfExists!drop-9	ALTER TABLE ident FIRST PARTITION LESS THAN(ident) IF
 accept	accept	engine	AlterTableSpec/DROP_STATS_EXTENDED_IfExists_Identifier	ALTER TABLE ident DROP STATS_EXTENDED ident
 reject	reject	engine	AlterTableSpec/DROP_STATS_EXTENDED_IfExists_Identifier!drop-1	ALTER TABLE ident STATS_EXTENDED ident
 reject	reject	engine	AlterTableSpec/DROP_STATS_EXTENDED_IfExists_Identifier!drop-3	ALTER TABLE ident DROP STATS_EXTENDED
 reject	reject	engine	AlterTableSpec/DROP_STATS_EXTENDED_IfExists_Identifier!insert	ALTER TABLE ident DROP STATS_EXTENDED ident zzz
 reject	reject	engine	AlterTableSpec/DROP_STATS_EXTENDED_IfExists_Identifier!swap	ALTER TABLE ident DRY STATS_EXTENDED ident
+accept	accept	engine	AlterTableSpec/DROP_STATS_EXTENDED_IfExists_Identifier+IfExists	ALTER TABLE ident DROP STATS_EXTENDED IF EXISTS ident
+reject	reject	engine	AlterTableSpec/DROP_STATS_EXTENDED_IfExists_Identifier+IfExists!drop-3	ALTER TABLE ident DROP STATS_EXTENDED EXISTS ident
+reject	reject	engine	AlterTableSpec/DROP_STATS_EXTENDED_IfExists_Identifier+IfExists!drop-4	ALTER TABLE ident DROP STATS_EXTENDED IF ident
 accept	accept	engine	AlterTableSpec/EXCHANGE_PARTITION_Identifier_WITH_TABLE_TableName_WithValidationOpt	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident
 reject	reject	engine	AlterTableSpec/EXCHANGE_PARTITION_Identifier_WITH_TABLE_TableName_WithValidationOpt!drop-1	ALTER TABLE ident PARTITION ident WITH TABLE ident
 reject	reject	engine	AlterTableSpec/EXCHANGE_PARTITION_Identifier_WITH_TABLE_TableName_WithValidationOpt!drop-2	ALTER TABLE ident EXCHANGE ident WITH TABLE ident
@@ -589,6 +621,9 @@ accept	accept	engine	AlterTableSpec/DROP_KeyOrIndex_IfExists_Identifier	ALTER TA
 reject	reject	engine	AlterTableSpec/DROP_KeyOrIndex_IfExists_Identifier!drop-1	ALTER TABLE ident KEY ident
 reject	reject	engine	AlterTableSpec/DROP_KeyOrIndex_IfExists_Identifier!insert	ALTER TABLE ident DROP KEY ident zzz
 reject	reject	engine	AlterTableSpec/DROP_KeyOrIndex_IfExists_Identifier!swap	ALTER TABLE ident DRY KEY ident
+accept	accept	engine	AlterTableSpec/DROP_KeyOrIndex_IfExists_Identifier+IfExists	ALTER TABLE ident DROP KEY IF EXISTS ident
+reject	reject	engine	AlterTableSpec/DROP_KeyOrIndex_IfExists_Identifier+IfExists!drop-3	ALTER TABLE ident DROP KEY EXISTS ident
+reject	reject	engine	AlterTableSpec/DROP_KeyOrIndex_IfExists_Identifier+IfExists!drop-4	ALTER TABLE ident DROP KEY IF ident
 accept	accept	engine	AlterTableSpec/DROP_FOREIGN_KEY_Symbol	ALTER TABLE ident DROP FOREIGN KEY ident
 reject	reject	engine	AlterTableSpec/DROP_FOREIGN_KEY_Symbol!drop-1	ALTER TABLE ident FOREIGN KEY ident
 reject	reject	engine	AlterTableSpec/DROP_FOREIGN_KEY_Symbol!drop-3	ALTER TABLE ident DROP FOREIGN ident
@@ -615,12 +650,18 @@ reject	reject	engine	AlterTableSpec/MODIFY_ColumnKeywordOpt_IfExists_ColumnDef_C
 reject	reject	engine	AlterTableSpec/MODIFY_ColumnKeywordOpt_IfExists_ColumnDef_ColumnPosition!drop-3	ALTER TABLE ident MODIFY ident
 reject	reject	engine	AlterTableSpec/MODIFY_ColumnKeywordOpt_IfExists_ColumnDef_ColumnPosition!insert	ALTER TABLE ident MODIFY ident TINYINT zzz
 reject	reject	engine	AlterTableSpec/MODIFY_ColumnKeywordOpt_IfExists_ColumnDef_ColumnPosition!swap	ALTER TABLE ident MONTH ident TINYINT
+accept	accept	engine	AlterTableSpec/MODIFY_ColumnKeywordOpt_IfExists_ColumnDef_ColumnPosition+IfExists	ALTER TABLE ident MODIFY IF EXISTS ident TINYINT
+reject	reject	engine	AlterTableSpec/MODIFY_ColumnKeywordOpt_IfExists_ColumnDef_ColumnPosition+IfExists!drop-2	ALTER TABLE ident MODIFY EXISTS ident TINYINT
+reject	reject	engine	AlterTableSpec/MODIFY_ColumnKeywordOpt_IfExists_ColumnDef_ColumnPosition+IfExists!drop-3	ALTER TABLE ident MODIFY IF ident TINYINT
 accept	accept	engine	AlterTableSpec/CHANGE_ColumnKeywordOpt_IfExists_ColumnName_ColumnDef_ColumnPosition	ALTER TABLE ident CHANGE ident ident TINYINT
 reject	reject	engine	AlterTableSpec/CHANGE_ColumnKeywordOpt_IfExists_ColumnName_ColumnDef_ColumnPosition!drop-1	ALTER TABLE ident ident ident TINYINT
 reject	reject	engine	AlterTableSpec/CHANGE_ColumnKeywordOpt_IfExists_ColumnName_ColumnDef_ColumnPosition!drop-2	ALTER TABLE ident CHANGE ident TINYINT
 reject	reject	engine	AlterTableSpec/CHANGE_ColumnKeywordOpt_IfExists_ColumnName_ColumnDef_ColumnPosition!drop-4	ALTER TABLE ident CHANGE ident ident
 reject	reject	engine	AlterTableSpec/CHANGE_ColumnKeywordOpt_IfExists_ColumnName_ColumnDef_ColumnPosition!insert	ALTER TABLE ident CHANGE ident ident TINYINT zzz
 reject	reject	engine	AlterTableSpec/CHANGE_ColumnKeywordOpt_IfExists_ColumnName_ColumnDef_ColumnPosition!swap	ALTER TABLE ident CHAR ident ident TINYINT
+accept	accept	engine	AlterTableSpec/CHANGE_ColumnKeywordOpt_IfExists_ColumnName_ColumnDef_ColumnPosition+IfExists	ALTER TABLE ident CHANGE IF EXISTS ident ident TINYINT
+reject	reject	engine	AlterTableSpec/CHANGE_ColumnKeywordOpt_IfExists_ColumnName_ColumnDef_ColumnPosition+IfExists!drop-2	ALTER TABLE ident CHANGE EXISTS ident ident TINYINT
+reject	reject	engine	AlterTableSpec/CHANGE_ColumnKeywordOpt_IfExists_ColumnName_ColumnDef_ColumnPosition+IfExists!drop-3	ALTER TABLE ident CHANGE IF ident ident TINYINT
 accept	accept	engine	AlterTableSpec/ALTER_ColumnKeywordOpt_ColumnName_SET_DEFAULT_SignedLiteral	ALTER TABLE ident ALTER ident SET DEFAULT FALSE
 reject	reject	engine	AlterTableSpec/ALTER_ColumnKeywordOpt_ColumnName_SET_DEFAULT_SignedLiteral!drop-1	ALTER TABLE ident ident SET DEFAULT FALSE
 reject	reject	engine	AlterTableSpec/ALTER_ColumnKeywordOpt_ColumnName_SET_DEFAULT_SignedLiteral!drop-2	ALTER TABLE ident ALTER SET DEFAULT FALSE
@@ -1496,6 +1537,10 @@ reject	reject	engine	ConstraintElem/KeyOrIndex_IfNotExists_IndexNameAndTypeOpt_(
 reject	reject	engine	ConstraintElem/KeyOrIndex_IfNotExists_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList!drop-4	ALTER TABLE ident ADD KEY(ident
 reject	reject	engine	ConstraintElem/KeyOrIndex_IfNotExists_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList!insert	ALTER TABLE ident ADD KEY(ident) zzz
 reject	reject	engine	ConstraintElem/KeyOrIndex_IfNotExists_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList!swap	ALTER TABLE ident ADD KEYS(ident)
+accept	accept	engine	ConstraintElem/KeyOrIndex_IfNotExists_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList+IfNotExists	ALTER TABLE ident ADD KEY IF NOT EXISTS(ident)
+reject	reject	engine	ConstraintElem/KeyOrIndex_IfNotExists_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList+IfNotExists!drop-2	ALTER TABLE ident ADD KEY NOT EXISTS(ident)
+reject	reject	engine	ConstraintElem/KeyOrIndex_IfNotExists_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList+IfNotExists!drop-3	ALTER TABLE ident ADD KEY IF EXISTS(ident)
+reject	reject	engine	ConstraintElem/KeyOrIndex_IfNotExists_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList+IfNotExists!drop-4	ALTER TABLE ident ADD KEY IF NOT(ident)
 accept	accept	engine	ConstraintElem/UNIQUE_KeyOrIndexOpt_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList	ALTER TABLE ident ADD UNIQUE(ident)
 reject	reject	engine	ConstraintElem/UNIQUE_KeyOrIndexOpt_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList!drop-2	ALTER TABLE ident ADD UNIQUE ident)
 reject	reject	engine	ConstraintElem/UNIQUE_KeyOrIndexOpt_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList!drop-3	ALTER TABLE ident ADD UNIQUE()
@@ -1512,6 +1557,10 @@ reject	reject	engine	ConstraintElem/FOREIGN_KEY_IfNotExists_IndexName_(_IndexPar
 reject	reject	engine	ConstraintElem/FOREIGN_KEY_IfNotExists_IndexName_(_IndexPartSpecificationList_)_ReferDef!drop-7	ALTER TABLE ident ADD FOREIGN KEY(ident) REFERENCES
 reject	reject	engine	ConstraintElem/FOREIGN_KEY_IfNotExists_IndexName_(_IndexPartSpecificationList_)_ReferDef!insert	ALTER TABLE ident ADD FOREIGN KEY(ident) REFERENCES ident zzz
 reject	reject	engine	ConstraintElem/FOREIGN_KEY_IfNotExists_IndexName_(_IndexPartSpecificationList_)_ReferDef!swap	ALTER TABLE ident ADD FORMAT KEY(ident) REFERENCES ident
+accept	accept	engine	ConstraintElem/FOREIGN_KEY_IfNotExists_IndexName_(_IndexPartSpecificationList_)_ReferDef+IfNotExists	ALTER TABLE ident ADD FOREIGN KEY IF NOT EXISTS(ident) REFERENCES ident
+reject	reject	engine	ConstraintElem/FOREIGN_KEY_IfNotExists_IndexName_(_IndexPartSpecificationList_)_ReferDef+IfNotExists!drop-3	ALTER TABLE ident ADD FOREIGN KEY NOT EXISTS(ident) REFERENCES ident
+reject	reject	engine	ConstraintElem/FOREIGN_KEY_IfNotExists_IndexName_(_IndexPartSpecificationList_)_ReferDef+IfNotExists!drop-4	ALTER TABLE ident ADD FOREIGN KEY IF EXISTS(ident) REFERENCES ident
+reject	reject	engine	ConstraintElem/FOREIGN_KEY_IfNotExists_IndexName_(_IndexPartSpecificationList_)_ReferDef+IfNotExists!drop-5	ALTER TABLE ident ADD FOREIGN KEY IF NOT(ident) REFERENCES ident
 accept	accept	engine	ConstraintElem/CHECK_(_Expression_)_EnforcedOrNotOpt	ALTER TABLE ident ADD CHECK(ident)
 reject	reject	engine	ConstraintElem/CHECK_(_Expression_)_EnforcedOrNotOpt!drop-2	ALTER TABLE ident ADD CHECK ident)
 reject	reject	engine	ConstraintElem/CHECK_(_Expression_)_EnforcedOrNotOpt!drop-3	ALTER TABLE ident ADD CHECK()
@@ -1742,6 +1791,10 @@ reject	reject	engine	CreateStatisticsStmt/CREATE_STATISTICS_IfNotExists_Identifi
 reject	reject	engine	CreateStatisticsStmt/CREATE_STATISTICS_IfNotExists_Identifier_(_StatsType_)_ON_TableName_(_ColumnNameList_)!drop-11	CREATE STATISTICS ident(CARDINALITY) ON ident(ident
 reject	reject	engine	CreateStatisticsStmt/CREATE_STATISTICS_IfNotExists_Identifier_(_StatsType_)_ON_TableName_(_ColumnNameList_)!insert	CREATE STATISTICS ident(CARDINALITY) ON ident(ident) zzz
 reject	reject	engine	CreateStatisticsStmt/CREATE_STATISTICS_IfNotExists_Identifier_(_StatsType_)_ON_TableName_(_ColumnNameList_)!swap	CROSS STATISTICS ident(CARDINALITY) ON ident(ident)
+accept	accept	engine	CreateStatisticsStmt/CREATE_STATISTICS_IfNotExists_Identifier_(_StatsType_)_ON_TableName_(_ColumnNameList_)+IfNotExists	CREATE STATISTICS IF NOT EXISTS ident(CARDINALITY) ON ident(ident)
+reject	reject	engine	CreateStatisticsStmt/CREATE_STATISTICS_IfNotExists_Identifier_(_StatsType_)_ON_TableName_(_ColumnNameList_)+IfNotExists!drop-3	CREATE STATISTICS NOT EXISTS ident(CARDINALITY) ON ident(ident)
+reject	reject	engine	CreateStatisticsStmt/CREATE_STATISTICS_IfNotExists_Identifier_(_StatsType_)_ON_TableName_(_ColumnNameList_)+IfNotExists!drop-4	CREATE STATISTICS IF EXISTS ident(CARDINALITY) ON ident(ident)
+reject	reject	engine	CreateStatisticsStmt/CREATE_STATISTICS_IfNotExists_Identifier_(_StatsType_)_ON_TableName_(_ColumnNameList_)+IfNotExists!drop-5	CREATE STATISTICS IF NOT ident(CARDINALITY) ON ident(ident)
 accept	accept	engine	DropStatisticsStmt/DROP_STATISTICS_Identifier	DROP STATISTICS ident
 reject	reject	engine	DropStatisticsStmt/DROP_STATISTICS_Identifier!drop-1	STATISTICS ident
 reject	reject	engine	DropStatisticsStmt/DROP_STATISTICS_Identifier!drop-2	DROP ident
@@ -1759,6 +1812,10 @@ reject	reject	engine	CreateIndexStmt/CREATE_IndexKeyTypeOpt_INDEX_IfNotExists_Id
 reject	reject	engine	CreateIndexStmt/CREATE_IndexKeyTypeOpt_INDEX_IfNotExists_Identifier_IndexTypeOpt_ON_TableName_(_IndexPartSpecificationList_)_IndexOptionList_IndexLockAndAlgorithmOpt!drop-8	CREATE INDEX ident ON ident(ident
 reject	reject	engine	CreateIndexStmt/CREATE_IndexKeyTypeOpt_INDEX_IfNotExists_Identifier_IndexTypeOpt_ON_TableName_(_IndexPartSpecificationList_)_IndexOptionList_IndexLockAndAlgorithmOpt!insert	CREATE INDEX ident ON ident(ident) zzz
 reject	reject	engine	CreateIndexStmt/CREATE_IndexKeyTypeOpt_INDEX_IfNotExists_Identifier_IndexTypeOpt_ON_TableName_(_IndexPartSpecificationList_)_IndexOptionList_IndexLockAndAlgorithmOpt!swap	CROSS INDEX ident ON ident(ident)
+accept	accept	engine	CreateIndexStmt/CREATE_IndexKeyTypeOpt_INDEX_IfNotExists_Identifier_IndexTypeOpt_ON_TableName_(_IndexPartSpecificationList_)_IndexOptionList_IndexLockAndAlgorithmOpt+IfNotExists	CREATE INDEX IF NOT EXISTS ident ON ident(ident)
+reject	reject	engine	CreateIndexStmt/CREATE_IndexKeyTypeOpt_INDEX_IfNotExists_Identifier_IndexTypeOpt_ON_TableName_(_IndexPartSpecificationList_)_IndexOptionList_IndexLockAndAlgorithmOpt+IfNotExists!drop-3	CREATE INDEX NOT EXISTS ident ON ident(ident)
+reject	reject	engine	CreateIndexStmt/CREATE_IndexKeyTypeOpt_INDEX_IfNotExists_Identifier_IndexTypeOpt_ON_TableName_(_IndexPartSpecificationList_)_IndexOptionList_IndexLockAndAlgorithmOpt+IfNotExists!drop-4	CREATE INDEX IF EXISTS ident ON ident(ident)
+reject	reject	engine	CreateIndexStmt/CREATE_IndexKeyTypeOpt_INDEX_IfNotExists_Identifier_IndexTypeOpt_ON_TableName_(_IndexPartSpecificationList_)_IndexOptionList_IndexLockAndAlgorithmOpt+IfNotExists!drop-5	CREATE INDEX IF NOT ident ON ident(ident)
 accept	accept	engine	IndexPartSpecificationListOpt/%empty	ALTER TABLE ident ADD ident TINYINT REFERENCES ident
 accept	accept	engine	IndexPartSpecificationListOpt/(_IndexPartSpecificationList_)	ALTER TABLE ident ADD ident TINYINT REFERENCES ident(ident)
 reject	reject	engine	IndexPartSpecificationListOpt/(_IndexPartSpecificationList_)!drop-1	ALTER TABLE ident ADD ident TINYINT REFERENCES ident ident)
@@ -1888,6 +1945,10 @@ accept	accept	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_Table
 reject	reject	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_TableElementListOpt_CreateTableOptionListOpt_PartitionOpt_DuplicateOpt_AsOpt_CreateTableSelectOpt_OnCommitOpt!drop-3	CREATE TABLE
 reject	reject	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_TableElementListOpt_CreateTableOptionListOpt_PartitionOpt_DuplicateOpt_AsOpt_CreateTableSelectOpt_OnCommitOpt!insert	CREATE TABLE ident zzz
 reject	reject	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_TableElementListOpt_CreateTableOptionListOpt_PartitionOpt_DuplicateOpt_AsOpt_CreateTableSelectOpt_OnCommitOpt!swap	CROSS TABLE ident
+accept	accept	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_TableElementListOpt_CreateTableOptionListOpt_PartitionOpt_DuplicateOpt_AsOpt_CreateTableSelectOpt_OnCommitOpt+IfNotExists	CREATE TABLE IF NOT EXISTS ident
+reject	reject	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_TableElementListOpt_CreateTableOptionListOpt_PartitionOpt_DuplicateOpt_AsOpt_CreateTableSelectOpt_OnCommitOpt+IfNotExists!drop-3	CREATE TABLE NOT EXISTS ident
+reject	reject	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_TableElementListOpt_CreateTableOptionListOpt_PartitionOpt_DuplicateOpt_AsOpt_CreateTableSelectOpt_OnCommitOpt+IfNotExists!drop-4	CREATE TABLE IF EXISTS ident
+reject	reject	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_TableElementListOpt_CreateTableOptionListOpt_PartitionOpt_DuplicateOpt_AsOpt_CreateTableSelectOpt_OnCommitOpt+IfNotExists!drop-5	CREATE TABLE IF NOT ident
 accept	accept	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt	CREATE TABLE ident LIKE ident
 reject	reject	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt!drop-1	TABLE ident LIKE ident
 reject	reject	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt!drop-2	CREATE ident LIKE ident
@@ -1896,6 +1957,10 @@ reject	reject	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_Table
 reject	reject	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt!drop-5	CREATE TABLE ident LIKE
 reject	reject	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt!insert	CREATE TABLE ident LIKE ident zzz
 reject	reject	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt!swap	CROSS TABLE ident LIKE ident
+accept	accept	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt+IfNotExists	CREATE TABLE IF NOT EXISTS ident LIKE ident
+reject	reject	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt+IfNotExists!drop-3	CREATE TABLE NOT EXISTS ident LIKE ident
+reject	reject	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt+IfNotExists!drop-4	CREATE TABLE IF EXISTS ident LIKE ident
+reject	reject	engine	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt+IfNotExists!drop-5	CREATE TABLE IF NOT ident LIKE ident
 accept	accept	engine	OnCommitOpt/%empty	CREATE TABLE ident
 reject	reject	engine	OnCommitOpt/ON_COMMIT_DELETE_ROWS	CREATE TABLE ident ON COMMIT DELETE ROWS
 reject	reject	engine	OnCommitOpt/ON_COMMIT_DELETE_ROWS!drop-1	CREATE TABLE ident COMMIT DELETE ROWS
@@ -2448,6 +2513,9 @@ accept	accept	engine	DropDatabaseStmt/DROP_DatabaseSym_IfExists_DBName	DROP DATA
 reject	reject	engine	DropDatabaseStmt/DROP_DatabaseSym_IfExists_DBName!drop-3	DROP DATABASE
 reject	reject	engine	DropDatabaseStmt/DROP_DatabaseSym_IfExists_DBName!insert	DROP DATABASE ident zzz
 reject	reject	engine	DropDatabaseStmt/DROP_DatabaseSym_IfExists_DBName!swap	DRY DATABASE ident
+accept	accept	engine	DropDatabaseStmt/DROP_DatabaseSym_IfExists_DBName+IfExists	DROP DATABASE IF EXISTS ident
+reject	reject	engine	DropDatabaseStmt/DROP_DatabaseSym_IfExists_DBName+IfExists!drop-3	DROP DATABASE EXISTS ident
+reject	reject	engine	DropDatabaseStmt/DROP_DatabaseSym_IfExists_DBName+IfExists!drop-4	DROP DATABASE IF ident
 accept	accept	engine	DropIndexStmt/DROP_INDEX_IfExists_Identifier_ON_TableName_IndexLockAndAlgorithmOpt	DROP INDEX ident ON ident
 reject	reject	engine	DropIndexStmt/DROP_INDEX_IfExists_Identifier_ON_TableName_IndexLockAndAlgorithmOpt!drop-1	INDEX ident ON ident
 reject	reject	engine	DropIndexStmt/DROP_INDEX_IfExists_Identifier_ON_TableName_IndexLockAndAlgorithmOpt!drop-2	DROP ident ON ident
@@ -2455,6 +2523,9 @@ reject	reject	engine	DropIndexStmt/DROP_INDEX_IfExists_Identifier_ON_TableName_I
 reject	reject	engine	DropIndexStmt/DROP_INDEX_IfExists_Identifier_ON_TableName_IndexLockAndAlgorithmOpt!drop-4	DROP INDEX ident ident
 reject	reject	engine	DropIndexStmt/DROP_INDEX_IfExists_Identifier_ON_TableName_IndexLockAndAlgorithmOpt!drop-5	DROP INDEX ident ON
 reject	reject	engine	DropIndexStmt/DROP_INDEX_IfExists_Identifier_ON_TableName_IndexLockAndAlgorithmOpt!swap	DRY INDEX ident ON ident
+accept	accept	engine	DropIndexStmt/DROP_INDEX_IfExists_Identifier_ON_TableName_IndexLockAndAlgorithmOpt+IfExists	DROP INDEX IF EXISTS ident ON ident
+reject	reject	engine	DropIndexStmt/DROP_INDEX_IfExists_Identifier_ON_TableName_IndexLockAndAlgorithmOpt+IfExists!drop-3	DROP INDEX EXISTS ident ON ident
+reject	reject	engine	DropIndexStmt/DROP_INDEX_IfExists_Identifier_ON_TableName_IndexLockAndAlgorithmOpt+IfExists!drop-4	DROP INDEX IF ident ON ident
 accept	accept	engine	DropIndexStmt/DROP_HYPO_INDEX_IfExists_Identifier_ON_TableName	DROP HYPO INDEX ident ON ident
 reject	reject	engine	DropIndexStmt/DROP_HYPO_INDEX_IfExists_Identifier_ON_TableName!drop-1	HYPO INDEX ident ON ident
 reject	reject	engine	DropIndexStmt/DROP_HYPO_INDEX_IfExists_Identifier_ON_TableName!drop-3	DROP HYPO ident ON ident
@@ -2463,10 +2534,16 @@ reject	reject	engine	DropIndexStmt/DROP_HYPO_INDEX_IfExists_Identifier_ON_TableN
 reject	reject	engine	DropIndexStmt/DROP_HYPO_INDEX_IfExists_Identifier_ON_TableName!drop-6	DROP HYPO INDEX ident ON
 reject	reject	engine	DropIndexStmt/DROP_HYPO_INDEX_IfExists_Identifier_ON_TableName!insert	DROP HYPO INDEX ident ON ident zzz
 reject	reject	engine	DropIndexStmt/DROP_HYPO_INDEX_IfExists_Identifier_ON_TableName!swap	DRY HYPO INDEX ident ON ident
+accept	accept	engine	DropIndexStmt/DROP_HYPO_INDEX_IfExists_Identifier_ON_TableName+IfExists	DROP HYPO INDEX IF EXISTS ident ON ident
+reject	reject	engine	DropIndexStmt/DROP_HYPO_INDEX_IfExists_Identifier_ON_TableName+IfExists!drop-4	DROP HYPO INDEX EXISTS ident ON ident
+reject	reject	engine	DropIndexStmt/DROP_HYPO_INDEX_IfExists_Identifier_ON_TableName+IfExists!drop-5	DROP HYPO INDEX IF ident ON ident
 accept	accept	engine	DropTableStmt/DROP_OptTemporary_TableOrTables_IfExists_TableNameList_RestrictOrCascadeOpt	DROP TABLE ident
 reject	reject	engine	DropTableStmt/DROP_OptTemporary_TableOrTables_IfExists_TableNameList_RestrictOrCascadeOpt!drop-3	DROP TABLE
 reject	reject	engine	DropTableStmt/DROP_OptTemporary_TableOrTables_IfExists_TableNameList_RestrictOrCascadeOpt!insert	DROP TABLE ident zzz
 reject	reject	engine	DropTableStmt/DROP_OptTemporary_TableOrTables_IfExists_TableNameList_RestrictOrCascadeOpt!swap	DRY TABLE ident
+accept	accept	engine	DropTableStmt/DROP_OptTemporary_TableOrTables_IfExists_TableNameList_RestrictOrCascadeOpt+IfExists	DROP TABLE IF EXISTS ident
+reject	reject	engine	DropTableStmt/DROP_OptTemporary_TableOrTables_IfExists_TableNameList_RestrictOrCascadeOpt+IfExists!drop-3	DROP TABLE EXISTS ident
+reject	reject	engine	DropTableStmt/DROP_OptTemporary_TableOrTables_IfExists_TableNameList_RestrictOrCascadeOpt+IfExists!drop-4	DROP TABLE IF ident
 accept	accept	engine	OptTemporary/%empty	CREATE TABLE ident
 reject	reject	engine	OptTemporary/%empty!insert	CREATE zzz TABLE ident
 accept	accept	engine	OptTemporary/TEMPORARY	CREATE TEMPORARY TABLE ident
@@ -7666,6 +7743,10 @@ reject	reject	engine	ShowStmt/SHOW_CREATE_DATABASE_IfNotExists_DBName!drop-2	SHO
 reject	reject	engine	ShowStmt/SHOW_CREATE_DATABASE_IfNotExists_DBName!drop-4	SHOW CREATE DATABASE
 reject	reject	engine	ShowStmt/SHOW_CREATE_DATABASE_IfNotExists_DBName!insert	SHOW CREATE DATABASE ident zzz
 reject	reject	engine	ShowStmt/SHOW_CREATE_DATABASE_IfNotExists_DBName!swap	SHUTDOWN CREATE DATABASE ident
+accept	accept	engine	ShowStmt/SHOW_CREATE_DATABASE_IfNotExists_DBName+IfNotExists	SHOW CREATE DATABASE IF NOT EXISTS ident
+reject	reject	engine	ShowStmt/SHOW_CREATE_DATABASE_IfNotExists_DBName+IfNotExists!drop-4	SHOW CREATE DATABASE NOT EXISTS ident
+reject	reject	engine	ShowStmt/SHOW_CREATE_DATABASE_IfNotExists_DBName+IfNotExists!drop-5	SHOW CREATE DATABASE IF EXISTS ident
+reject	reject	engine	ShowStmt/SHOW_CREATE_DATABASE_IfNotExists_DBName+IfNotExists!drop-6	SHOW CREATE DATABASE IF NOT ident
 accept	accept	engine	ShowStmt/SHOW_CREATE_SEQUENCE_TableName	SHOW CREATE SEQUENCE ident
 reject	reject	engine	ShowStmt/SHOW_CREATE_SEQUENCE_TableName!drop-2	SHOW SEQUENCE ident
 reject	reject	engine	ShowStmt/SHOW_CREATE_SEQUENCE_TableName!drop-4	SHOW CREATE SEQUENCE
@@ -8631,6 +8712,10 @@ reject	reject	engine	StatementList/StatementList_;_Statement!insert	; zzz
 accept	accept	engine	Constraint/ConstraintKeywordOpt_ConstraintElem	ALTER TABLE ident ADD FULLTEXT(ident)
 reject	reject	engine	ConstraintVectorIndex/VECTOR_INDEX_IfNotExists_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList	ALTER TABLE ident ADD VECTOR INDEX(ident)
 reject	reject	engine	ConstraintVectorIndex/VECTOR_INDEX_IfNotExists_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList!swap	ALTER TABLE ident ADD VERBOSE INDEX(ident)
+reject	reject	engine	ConstraintVectorIndex/VECTOR_INDEX_IfNotExists_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList+IfNotExists	ALTER TABLE ident ADD VECTOR INDEX IF NOT EXISTS(ident)
+reject	reject	engine	ConstraintVectorIndex/VECTOR_INDEX_IfNotExists_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList+IfNotExists!drop-3	ALTER TABLE ident ADD VECTOR INDEX NOT EXISTS(ident)
+reject	reject	engine	ConstraintVectorIndex/VECTOR_INDEX_IfNotExists_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList+IfNotExists!drop-4	ALTER TABLE ident ADD VECTOR INDEX IF EXISTS(ident)
+reject	reject	engine	ConstraintVectorIndex/VECTOR_INDEX_IfNotExists_IndexNameAndTypeOpt_(_IndexPartSpecificationList_)_IndexOptionList+IfNotExists!drop-5	ALTER TABLE ident ADD VECTOR INDEX IF NOT(ident)
 accept	accept	engine	ConstraintWithVectorIndex/ConstraintKeywordOpt_ConstraintElem	CREATE TABLE ident(FULLTEXT(ident))
 reject	reject	engine	ConstraintWithVectorIndex/ConstraintKeywordOpt_ConstraintElem!drop-1	CREATE TABLE ident((ident))
 reject	reject	engine	ConstraintWithVectorIndex/ConstraintKeywordOpt_ConstraintElem!drop-2	CREATE TABLE ident(FULLTEXT ident))
@@ -9295,7 +9380,15 @@ reject	reject	engine	WhereClause/WHERE_Expression!swap	SELECT * WHILE ident
 accept	accept	engine	WhereClauseOptional/%empty	SELECT *
 accept	accept	engine	WhereClauseOptional/WhereClause	SELECT * WHERE ident
 accept	accept	engine	CreateUserStmt/CREATE_USER_IfNotExists_UserSpecList_RequireClauseOpt_ConnectionOptions_PasswordOrLockOptions_CommentOrAttributeOption_ResourceGroupNameOption	CREATE USER 'binary'
+accept	accept	engine	CreateUserStmt/CREATE_USER_IfNotExists_UserSpecList_RequireClauseOpt_ConnectionOptions_PasswordOrLockOptions_CommentOrAttributeOption_ResourceGroupNameOption+IfNotExists	CREATE USER IF NOT EXISTS 'binary'
+reject	reject	engine	CreateUserStmt/CREATE_USER_IfNotExists_UserSpecList_RequireClauseOpt_ConnectionOptions_PasswordOrLockOptions_CommentOrAttributeOption_ResourceGroupNameOption+IfNotExists!drop-3	CREATE USER NOT EXISTS 'binary'
+reject	reject	engine	CreateUserStmt/CREATE_USER_IfNotExists_UserSpecList_RequireClauseOpt_ConnectionOptions_PasswordOrLockOptions_CommentOrAttributeOption_ResourceGroupNameOption+IfNotExists!drop-4	CREATE USER IF EXISTS 'binary'
+reject	reject	engine	CreateUserStmt/CREATE_USER_IfNotExists_UserSpecList_RequireClauseOpt_ConnectionOptions_PasswordOrLockOptions_CommentOrAttributeOption_ResourceGroupNameOption+IfNotExists!drop-5	CREATE USER IF NOT 'binary'
 accept	accept	engine	CreateRoleStmt/CREATE_ROLE_IfNotExists_RoleSpecList	CREATE ROLE 'binary'
+accept	accept	engine	CreateRoleStmt/CREATE_ROLE_IfNotExists_RoleSpecList+IfNotExists	CREATE ROLE IF NOT EXISTS 'binary'
+reject	reject	engine	CreateRoleStmt/CREATE_ROLE_IfNotExists_RoleSpecList+IfNotExists!drop-3	CREATE ROLE NOT EXISTS 'binary'
+reject	reject	engine	CreateRoleStmt/CREATE_ROLE_IfNotExists_RoleSpecList+IfNotExists!drop-4	CREATE ROLE IF EXISTS 'binary'
+reject	reject	engine	CreateRoleStmt/CREATE_ROLE_IfNotExists_RoleSpecList+IfNotExists!drop-5	CREATE ROLE IF NOT 'binary'
 accept	accept	engine	AlterUserStmt/ALTER_USER_IfExists_UserSpecList_RequireClauseOpt_ConnectionOptions_PasswordOrLockOptions_CommentOrAttributeOption_ResourceGroupNameOption	ALTER USER 'binary'
 accept	accept	engine	AlterUserStmt/ALTER_USER_IfExists_USER_(_)_IDENTIFIED_BY_AuthString	ALTER USER USER() IDENTIFIED BY 'binary'
 reject	reject	engine	AlterUserStmt/ALTER_USER_IfExists_USER_(_)_IDENTIFIED_BY_AuthString!drop-1	USER USER() IDENTIFIED BY 'binary'
@@ -9307,6 +9400,9 @@ reject	reject	engine	AlterUserStmt/ALTER_USER_IfExists_USER_(_)_IDENTIFIED_BY_Au
 reject	reject	engine	AlterUserStmt/ALTER_USER_IfExists_USER_(_)_IDENTIFIED_BY_AuthString!drop-8	ALTER USER USER() IDENTIFIED BY
 reject	reject	engine	AlterUserStmt/ALTER_USER_IfExists_USER_(_)_IDENTIFIED_BY_AuthString!insert	ALTER USER USER() IDENTIFIED BY 'binary' zzz
 reject	reject	engine	AlterUserStmt/ALTER_USER_IfExists_USER_(_)_IDENTIFIED_BY_AuthString!swap	ALWAYS USER USER() IDENTIFIED BY 'binary'
+accept	accept	engine	AlterUserStmt/ALTER_USER_IfExists_USER_(_)_IDENTIFIED_BY_AuthString+IfExists	ALTER USER IF EXISTS USER() IDENTIFIED BY 'binary'
+reject	reject	engine	AlterUserStmt/ALTER_USER_IfExists_USER_(_)_IDENTIFIED_BY_AuthString+IfExists!drop-3	ALTER USER EXISTS USER() IDENTIFIED BY 'binary'
+reject	reject	engine	AlterUserStmt/ALTER_USER_IfExists_USER_(_)_IDENTIFIED_BY_AuthString+IfExists!drop-4	ALTER USER IF USER() IDENTIFIED BY 'binary'
 accept	accept	engine	AlterInstanceStmt/ALTER_INSTANCE_InstanceOption	ALTER INSTANCE RELOAD TLS
 accept	accept	engine	AlterRangeStmt/ALTER_RANGE_Identifier_PlacementPolicyOption	ALTER RANGE ident PLACEMENT POLICY 'binary'
 accept	accept	engine	InstanceOption/RELOAD_TLS	ALTER INSTANCE RELOAD TLS
@@ -10289,12 +10385,36 @@ reject	reject	engine	UnlockStatsStmt/UNLOCK_STATS_TableName_PARTITION_(_Partitio
 reject	reject	engine	UnlockStatsStmt/UNLOCK_STATS_TableName_PARTITION_(_PartitionNameList_)!insert	UNLOCK STATS ident PARTITION(ident) zzz
 reject	reject	engine	UnlockStatsStmt/UNLOCK_STATS_TableName_PARTITION_(_PartitionNameList_)!swap	UNSET STATS ident PARTITION(ident)
 accept	accept	engine	DropPolicyStmt/DROP_PLACEMENT_POLICY_IfExists_PolicyName	DROP PLACEMENT POLICY ident
+accept	accept	engine	DropPolicyStmt/DROP_PLACEMENT_POLICY_IfExists_PolicyName+IfExists	DROP PLACEMENT POLICY IF EXISTS ident
+reject	reject	engine	DropPolicyStmt/DROP_PLACEMENT_POLICY_IfExists_PolicyName+IfExists!drop-4	DROP PLACEMENT POLICY EXISTS ident
+reject	reject	engine	DropPolicyStmt/DROP_PLACEMENT_POLICY_IfExists_PolicyName+IfExists!drop-5	DROP PLACEMENT POLICY IF ident
 accept	accept	engine	CreateResourceGroupStmt/CREATE_RESOURCE_GROUP_IfNotExists_ResourceGroupName_ResourceGroupOptionList	CREATE RESOURCE GROUP ident BURSTABLE
+accept	accept	engine	CreateResourceGroupStmt/CREATE_RESOURCE_GROUP_IfNotExists_ResourceGroupName_ResourceGroupOptionList+IfNotExists	CREATE RESOURCE GROUP IF NOT EXISTS ident BURSTABLE
+reject	reject	engine	CreateResourceGroupStmt/CREATE_RESOURCE_GROUP_IfNotExists_ResourceGroupName_ResourceGroupOptionList+IfNotExists!drop-4	CREATE RESOURCE GROUP NOT EXISTS ident BURSTABLE
+reject	reject	engine	CreateResourceGroupStmt/CREATE_RESOURCE_GROUP_IfNotExists_ResourceGroupName_ResourceGroupOptionList+IfNotExists!drop-5	CREATE RESOURCE GROUP IF EXISTS ident BURSTABLE
+reject	reject	engine	CreateResourceGroupStmt/CREATE_RESOURCE_GROUP_IfNotExists_ResourceGroupName_ResourceGroupOptionList+IfNotExists!drop-6	CREATE RESOURCE GROUP IF NOT ident BURSTABLE
 accept	accept	engine	AlterResourceGroupStmt/ALTER_RESOURCE_GROUP_IfExists_ResourceGroupName_ResourceGroupOptionList	ALTER RESOURCE GROUP ident BURSTABLE
+accept	accept	engine	AlterResourceGroupStmt/ALTER_RESOURCE_GROUP_IfExists_ResourceGroupName_ResourceGroupOptionList+IfExists	ALTER RESOURCE GROUP IF EXISTS ident BURSTABLE
+reject	reject	engine	AlterResourceGroupStmt/ALTER_RESOURCE_GROUP_IfExists_ResourceGroupName_ResourceGroupOptionList+IfExists!drop-4	ALTER RESOURCE GROUP EXISTS ident BURSTABLE
+reject	reject	engine	AlterResourceGroupStmt/ALTER_RESOURCE_GROUP_IfExists_ResourceGroupName_ResourceGroupOptionList+IfExists!drop-5	ALTER RESOURCE GROUP IF ident BURSTABLE
 accept	accept	engine	DropResourceGroupStmt/DROP_RESOURCE_GROUP_IfExists_ResourceGroupName	DROP RESOURCE GROUP ident
+accept	accept	engine	DropResourceGroupStmt/DROP_RESOURCE_GROUP_IfExists_ResourceGroupName+IfExists	DROP RESOURCE GROUP IF EXISTS ident
+reject	reject	engine	DropResourceGroupStmt/DROP_RESOURCE_GROUP_IfExists_ResourceGroupName+IfExists!drop-4	DROP RESOURCE GROUP EXISTS ident
+reject	reject	engine	DropResourceGroupStmt/DROP_RESOURCE_GROUP_IfExists_ResourceGroupName+IfExists!drop-5	DROP RESOURCE GROUP IF ident
 accept	accept	engine	CreatePolicyStmt/CREATE_OrReplace_PLACEMENT_POLICY_IfNotExists_PolicyName_PlacementOptionList	CREATE PLACEMENT POLICY ident PRIMARY_REGION 'binary'
+accept	accept	engine	CreatePolicyStmt/CREATE_OrReplace_PLACEMENT_POLICY_IfNotExists_PolicyName_PlacementOptionList+IfNotExists	CREATE PLACEMENT POLICY IF NOT EXISTS ident PRIMARY_REGION 'binary'
+reject	reject	engine	CreatePolicyStmt/CREATE_OrReplace_PLACEMENT_POLICY_IfNotExists_PolicyName_PlacementOptionList+IfNotExists!drop-4	CREATE PLACEMENT POLICY NOT EXISTS ident PRIMARY_REGION 'binary'
+reject	reject	engine	CreatePolicyStmt/CREATE_OrReplace_PLACEMENT_POLICY_IfNotExists_PolicyName_PlacementOptionList+IfNotExists!drop-5	CREATE PLACEMENT POLICY IF EXISTS ident PRIMARY_REGION 'binary'
+reject	reject	engine	CreatePolicyStmt/CREATE_OrReplace_PLACEMENT_POLICY_IfNotExists_PolicyName_PlacementOptionList+IfNotExists!drop-6	CREATE PLACEMENT POLICY IF NOT ident PRIMARY_REGION 'binary'
 accept	accept	engine	AlterPolicyStmt/ALTER_PLACEMENT_POLICY_IfExists_PolicyName_PlacementOptionList	ALTER PLACEMENT POLICY ident PRIMARY_REGION 'binary'
+accept	accept	engine	AlterPolicyStmt/ALTER_PLACEMENT_POLICY_IfExists_PolicyName_PlacementOptionList+IfExists	ALTER PLACEMENT POLICY IF EXISTS ident PRIMARY_REGION 'binary'
+reject	reject	engine	AlterPolicyStmt/ALTER_PLACEMENT_POLICY_IfExists_PolicyName_PlacementOptionList+IfExists!drop-4	ALTER PLACEMENT POLICY EXISTS ident PRIMARY_REGION 'binary'
+reject	reject	engine	AlterPolicyStmt/ALTER_PLACEMENT_POLICY_IfExists_PolicyName_PlacementOptionList+IfExists!drop-5	ALTER PLACEMENT POLICY IF ident PRIMARY_REGION 'binary'
 accept	accept	engine	CreateSequenceStmt/CREATE_SEQUENCE_IfNotExists_TableName_CreateSequenceOptionListOpt_CreateTableOptionListOpt	CREATE SEQUENCE ident
+accept	accept	engine	CreateSequenceStmt/CREATE_SEQUENCE_IfNotExists_TableName_CreateSequenceOptionListOpt_CreateTableOptionListOpt+IfNotExists	CREATE SEQUENCE IF NOT EXISTS ident
+reject	reject	engine	CreateSequenceStmt/CREATE_SEQUENCE_IfNotExists_TableName_CreateSequenceOptionListOpt_CreateTableOptionListOpt+IfNotExists!drop-3	CREATE SEQUENCE NOT EXISTS ident
+reject	reject	engine	CreateSequenceStmt/CREATE_SEQUENCE_IfNotExists_TableName_CreateSequenceOptionListOpt_CreateTableOptionListOpt+IfNotExists!drop-4	CREATE SEQUENCE IF EXISTS ident
+reject	reject	engine	CreateSequenceStmt/CREATE_SEQUENCE_IfNotExists_TableName_CreateSequenceOptionListOpt_CreateTableOptionListOpt+IfNotExists!drop-5	CREATE SEQUENCE IF NOT ident
 accept	accept	engine	CreateSequenceOptionListOpt/%empty	CREATE SEQUENCE ident
 accept	accept	engine	CreateSequenceOptionListOpt/SequenceOptionList	CREATE SEQUENCE ident NOMINVALUE
 reject	reject	engine	CreateSequenceOptionListOpt/SequenceOptionList!insert	CREATE SEQUENCE ident NOMINVALUE zzz
@@ -10367,7 +10487,13 @@ accept	accept	engine	SignedNum/-_NUM	ALTER SEQUENCE ident INCREMENT - 1
 reject	reject	engine	SignedNum/-_NUM!drop-2	ALTER SEQUENCE ident INCREMENT -
 reject	reject	engine	SignedNum/-_NUM!insert	ALTER SEQUENCE ident INCREMENT - 1 zzz
 accept	accept	engine	DropSequenceStmt/DROP_SEQUENCE_IfExists_TableNameList	DROP SEQUENCE ident
+accept	accept	engine	DropSequenceStmt/DROP_SEQUENCE_IfExists_TableNameList+IfExists	DROP SEQUENCE IF EXISTS ident
+reject	reject	engine	DropSequenceStmt/DROP_SEQUENCE_IfExists_TableNameList+IfExists!drop-3	DROP SEQUENCE EXISTS ident
+reject	reject	engine	DropSequenceStmt/DROP_SEQUENCE_IfExists_TableNameList+IfExists!drop-4	DROP SEQUENCE IF ident
 accept	accept	engine	AlterSequenceStmt/ALTER_SEQUENCE_IfExists_TableName_AlterSequenceOptionList	ALTER SEQUENCE ident NOMINVALUE
+accept	accept	engine	AlterSequenceStmt/ALTER_SEQUENCE_IfExists_TableName_AlterSequenceOptionList+IfExists	ALTER SEQUENCE IF EXISTS ident NOMINVALUE
+reject	reject	engine	AlterSequenceStmt/ALTER_SEQUENCE_IfExists_TableName_AlterSequenceOptionList+IfExists!drop-3	ALTER SEQUENCE EXISTS ident NOMINVALUE
+reject	reject	engine	AlterSequenceStmt/ALTER_SEQUENCE_IfExists_TableName_AlterSequenceOptionList+IfExists!drop-4	ALTER SEQUENCE IF ident NOMINVALUE
 accept	accept	engine	AlterSequenceOptionList/AlterSequenceOption	ALTER SEQUENCE ident NOMINVALUE
 accept	accept	engine	AlterSequenceOptionList/AlterSequenceOptionList_AlterSequenceOption	ALTER SEQUENCE ident NOMINVALUE NOMINVALUE
 reject	reject	engine	AlterSequenceOptionList/AlterSequenceOptionList_AlterSequenceOption!insert	ALTER SEQUENCE ident NOMINVALUE NOMINVALUE zzz
@@ -10948,7 +11074,14 @@ accept	accept	engine	ProcedureProcStmt/ProcedurelabeledLoopStmt	CREATE PROCEDURE
 accept	accept	engine	ProcedureProcStmt/ProcedureIterate	CREATE PROCEDURE ident() ITERATE ident
 accept	accept	engine	ProcedureProcStmt/ProcedureLeave	CREATE PROCEDURE ident() LEAVE ident
 accept	accept	engine	CreateProcedureStmt/CREATE_PROCEDURE_IfNotExists_TableName_(_OptSpPdparams_)_ProcedureProcStmt	CREATE PROCEDURE ident() COMMIT
+accept	accept	engine	CreateProcedureStmt/CREATE_PROCEDURE_IfNotExists_TableName_(_OptSpPdparams_)_ProcedureProcStmt+IfNotExists	CREATE PROCEDURE IF NOT EXISTS ident() COMMIT
+reject	reject	engine	CreateProcedureStmt/CREATE_PROCEDURE_IfNotExists_TableName_(_OptSpPdparams_)_ProcedureProcStmt+IfNotExists!drop-3	CREATE PROCEDURE NOT EXISTS ident() COMMIT
+reject	reject	engine	CreateProcedureStmt/CREATE_PROCEDURE_IfNotExists_TableName_(_OptSpPdparams_)_ProcedureProcStmt+IfNotExists!drop-4	CREATE PROCEDURE IF EXISTS ident() COMMIT
+reject	reject	engine	CreateProcedureStmt/CREATE_PROCEDURE_IfNotExists_TableName_(_OptSpPdparams_)_ProcedureProcStmt+IfNotExists!drop-5	CREATE PROCEDURE IF NOT ident() COMMIT
 accept	accept	engine	DropProcedureStmt/DROP_PROCEDURE_IfExists_TableName	DROP PROCEDURE ident
+accept	accept	engine	DropProcedureStmt/DROP_PROCEDURE_IfExists_TableName+IfExists	DROP PROCEDURE IF EXISTS ident
+reject	reject	engine	DropProcedureStmt/DROP_PROCEDURE_IfExists_TableName+IfExists!drop-3	DROP PROCEDURE EXISTS ident
+reject	reject	engine	DropProcedureStmt/DROP_PROCEDURE_IfExists_TableName+IfExists!drop-4	DROP PROCEDURE IF ident
 accept	accept	engine	CalibrateResourceStmt/CALIBRATE_RESOURCE_CalibrateOption	CALIBRATE RESOURCE
 accept	accept	engine	CalibrateOption/%empty	CALIBRATE RESOURCE
 accept	accept	engine	CalibrateOption/DynamicCalibrateOptionList	CALIBRATE RESOURCE START_TIME ident
@@ -11060,6 +11193,10 @@ accept	accept	engine	DropQueryWatchStmt/QUERY_WATCH_REMOVE_NUM	QUERY WATCH REMOV
 reject	reject	engine	suite:cited	USE TIDB_CURRENT_TSO
 accept	accept	engine	suite:cited	USE SEND_CREDENTIALS_TO_TIKV
 reject	reject	engine	suite:cited	ALTER DATABASE COLLATE 's' zzz
+reject	reject	engine	suite:cited	REVOKE IF EXISTS SELECT ON *.* FROM a
+reject	reject	engine	suite:cited	REVOKE IF EXISTS r FROM a
+reject	reject	engine	suite:cited	REVOKE IF EXISTS ALL, GRANT OPTION FROM a
+reject	reject	engine	suite:cited	REVOKE IF SELECT ON *.* FROM a
 reject	reject	engine	suite:reject-fuzz	select * = t
 reject	reject	engine	suite:reject-fuzz	select * = 1 from t
 reject	reject	engine	suite:reject-fuzz	select @@@tidb_index_lookup_pushdown_policy
@@ -43662,295 +43799,299 @@ accept	accept	engine	suite:tidb-extensions	CREATE DATABASE IF NOT EXISTS d_pp1 P
 accept	accept	engine	suite:tidb-extensions	ALTER TABLE t_tf SET TIFLASH REPLICA 0
 accept	accept	engine	suite:tidb-extensions	CREATE TABLE t_cmt1 (id BIGINT /*T! AUTO_RANDOM */ PRIMARY KEY)
 accept	accept	engine	suite:tidb-extensions	CREATE TABLE t_cmt2 (id BIGINT /*T![auto_rand] AUTO_RANDOM */ PRIMARY KEY)
-reject	reject	engine	suite:reject-fuzz-sweep	@@ sql_mode
-accept	accept	engine	suite:reject-fuzz-sweep	DO ident DIV idennt
-reject	reject	engine	suite:reject-fuzz-sweep	select a from test_json tj where a =
-reject	reject	engine	suite:reject-fuzz-sweep	create table insert_test_2 ( id int , int )
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' delete from t where (a,b) in (1,1),(2,2),(3,3),(4,4))
-reject	reject	engine	suite:reject-fuzz-sweep	insert into kankan1 values ( 2 , 'a' ) FROM
-reject	reject	engine	suite:reject-fuzz-sweep	create table t ) ( b bit ( 63 ) )
-reject	reject	engine	suite:reject-fuzz-sweep	create global binding for select * from t1 inner join tmp1 on 's' t1 . a = tmp1 . a using select * from t1 inner join tmp1 on t1 . a = tmp1 . a
-reject	reject	engine	suite:reject-fuzz-sweep	create table t2 ( a int , b int generated always as ( a % 10 ) stored , foreign key ( a ) references t1 ( ) on update restrict )
-reject	reject	engine	suite:reject-fuzz-sweep	SELECT CEIL ( - 1.23 ) ) ;
-reject	reject	engine	suite:reject-fuzz-sweep	select * from test order by cast update_user as char ) desc , id limit 3
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' select from * t where b < 50 or c < 5000000
-reject	reject	engine	suite:reject-fuzz-sweep	create table t (a int))
-reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE t ADD VECTOR INDEX ( ( lower ( a ) ) USING HNSW COMMENT 'a'
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t2 values ( 2 , 1 ) , 3 ( , 1 )
-reject	reject	engine	suite:reject-fuzz-sweep	SELEC FORMAT(1.234,1,'en_US')
-accept	accept	engine	suite:reject-fuzz-sweep	SET@_d = 1
-reject	reject	engine	suite:reject-fuzz-sweep	set set @@ session . tidb_merge_join_concurrency = 4
-reject	reject	engine	suite:reject-fuzz-sweep	ALTER RESOURCE GROUP ident NULL QUERY_LIMIT
-accept	accept	engine	suite:reject-fuzz-sweep	select *
-reject	reject	engine	suite:reject-fuzz-sweep	drop table if exsts dd
-accept	accept	engine	suite:reject-fuzz-sweep	create table t ( a int , key ( a ) )
-reject	reject	engine	suite:reject-fuzz-sweep	insert into tt1 values ( FROM 1 , 'a' , 'a' )
-reject	reject	engine	suite:reject-fuzz-sweep	ADMIN ALTER DDL JOBS 1 ident = - 's' 1
-reject	reject	engine	suite:reject-fuzz-sweep	insert 'nto t values ('A', 2, 'a')
-reject	reject	engine	suite:reject-fuzz-sweep	explain select b , a , c from t where _tidb_rowid < or _tidb_rowid < 10 or c > 11 order by a
-reject	reject	engine	suite:reject-fuzz-sweep	CREATE 'test_import_into' @'localhost'
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' select * from index_prune WHERE a = = 1010010404050976781 AND b = 26467085526790 GROUP BY b
-reject	reject	engine	suite:reject-fuzz-sweep	ALTE TABLE t1
-reject	reject	engine	suite:reject-fuzz-sweep	create table t3 (, int default nextval(seq))
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t values (
-reject	reject	engine	suite:reject-fuzz-sweep	nalyze table t with 0 topn
-reject	reject	engine	suite:reject-fuzz-sweep	SELECT FROM t WHERE a BETWEEN 3000000 AND 2999999
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' select * from t where a in ( 1.1 , ) 9.46347e37
-reject	reject	engine	suite:reject-fuzz-sweep	delete low_priority t1 , t2 from t1 ,
-reject	reject	engine	suite:reject-fuzz-sweep	create table
-reject	reject	engine	suite:reject-fuzz-sweep	replace into t1 t1 values ( 'A' )
-reject	reject	engine	suite:reject-fuzz-sweep	insert into values t ( '[]' )
-reject	reject	engine	suite:reject-fuzz-sweep	ALTER GROUP RESOURCE ident BURSTABLE
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' SELECT * FROM 1 t WHERE 1 = 1 AND a != - 1 AND a != 0 AND a != 1 AND a != 2 AND a != 3 AND a != 4 AND a != 5 AND a != 6
-reject	reject	engine	suite:reject-fuzz-sweep	alter table t modify r ) bigint
-reject	reject	engine	suite:reject-fuzz-sweep	create table t ( c_int
-reject	reject	engine	suite:reject-fuzz-sweep	SELECT * FROM (tabl
-accept	accept	engine	suite:reject-fuzz-sweep	select c fr
-reject	reject	engine	suite:reject-fuzz-sweep	create table thash ( a int , b int ) partition by hash ( a ) partitions
-reject	reject	engine	suite:reject-fuzz-sweep	select * from t use index ua ( )
-reject	reject	engine	suite:reject-fuzz-sweep	SELECT DATE_ADD ( '2007-03-28 22:08:28' , INTERVAL - SELECT 2.2 MINUTE_MICROSECOND )
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t1 values ( 7 , 'boring bouman' , '2020-05-10 00:01:04' , '2020-02-01 20:18:00' , 84.096168 , , 6.996000 'white' )
-reject	reject	engine	suite:reject-fuzz-sweep	create global binding for replace into t1 select * from t2 where t2 . b = 1 and t2 . c > 1 using replace into t1 select * from t2 t2 . b = 1 and t2 . c > 1
-reject	reject	engine	suite:reject-fuzz-sweep	REVOKE CONFIG ON *.* FROM ''dev1'@'localhost';
-accept	accept	engine	suite:reject-fuzz-sweep	explain format = 'brief' delete from t where a
-reject	reject	engine	suite:reject-fuzz-sweep	show
-reject	reject	engine	suite:reject-fuzz-sweep	select distinct approx_count_distinct ( a ) from t 's'
-reject	reject	engine	suite:reject-fuzz-sweep	create table auto_,andom_tbl4 (a bigint primary key auto_random(5), b varchar(255)) auto_random_base = 100
-reject	reject	engine	suite:reject-fuzz-sweep	select count'*) from information_schema.attributes where ID like 'schema/ddl__attributes_sql/def%'
-reject	reject	engine	suite:reject-fuzz-sweep	analyze table test*
-accept	accept	engine	suite:reject-fuzz-sweep	ALTER TABLE t TRUNCATE  PARTITION p0
-reject	reject	engine	suite:reject-fuzz-sweep	update t1 partition ( p0 , p1 ) set a =
-reject	reject	engine	suite:reject-fuzz-sweep	alter table t drop partition ( p2
-reject	reject	engine	suite:reject-fuzz-sweep	drop tableif exists posts
-reject	reject	engine	suite:reject-fuzz-sweep	ident ( ident )
-reject	reject	engine	suite:reject-fuzz-sweep	create table t ( a 's' int , b int , c int , index ( c ) )
-reject	reject	engine	suite:reject-fuzz-sweep	select * froom issue52465 t
-reject	reject	engine	suite:reject-fuzz-sweep	global set tidb_enable_auto_analyze = default
-reject	reject	engine	suite:reject-fuzz-sweep	explain select * from
-reject	reject	engine	suite:reject-fuzz-sweep	INSERTINTO dd(c) VALUES ('0000-00-00 20:00:00')
-reject	reject	engine	suite:reject-fuzz-sweep	create table t1 (id int key, leader int, leader2 int, index(leader), index(leader2), constrai
-reject	reject	engine	suite:reject-fuzz-sweep	explain format='brief' select a from tlist use index (ia) whee a > 10 order by a limit 10
-reject	reject	engine	suite:reject-fuzz-sweep	explain format='brief' SELECT * FROM t WHERE NOT (a <= 2 OR a > 
-reject	reject	engine	suite:reject-fuzz-sweep	admin s
-reject	reject	engine	suite:reject-fuzz-sweep	UPDATE t_generated SET a = = 4 WHERE b = 4
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' * from t where a = 1 and b = 1
-reject	reject	engine	suite:reject-fuzz-sweep	explain with recursive cte1 ( a ) as ( select 1 union select a + 1 from cte1 where a < 10 ) , cte2 ( a ) as ( select c2 from t1 union select a + 1 from cte2
-reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE t_n PTIMIZE PARTITION LOCAL local
-reject	reject	engine	suite:reject-fuzz-sweep	explain select /*+ use_index_merge(t1) */ * from t1 wwhere (c1 < 10 or c2 < 10) and truncate(c1, 1) = 1 order by 1
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' SELECT * zzz FROM t WHERE a BETWEEN 999998 AND 999997
-accept	accept	engine	suite:reject-fuzz-sweep	insert into tb values ( ) , ( 1 )
-reject	reject	engine	suite:reject-fuzz-sweep	insert into ipt select id + 20, concat('2',
-reject	reject	engine	suite:reject-fuzz-sweep	insert into test values ( 2 ,
-reject	reject	engine	suite:reject-fuzz-sweep	explain insert into t1  select t1.a, t1.b  from  t1 inner join (select t2.c from t2 inner join (with temp as (select e from t3 where 3.f = 1234) select e from temp) tt on t2.d = tt.e) t on t1.a = t.c
-reject	reject	engine	suite:reject-fuzz-sweep	CREATE PROCEDURE ident() BEGIN DECLARE ident,
-reject	reject	engine	suite:reject-fuzz-sweep	alter
-reject	reject	engine	suite:reject-fuzz-sweep	create table a 1 ( id int )
-reject	reject	engine	suite:reject-fuzz-sweep	create table m (id int primary key a.to_increment, code int unique)
-reject	reject	engine	suite:reject-fuzz-sweep	) select * from t where a > 'c' and a < 'Q'
-reject	reject	engine	suite:reject-fuzz-sweep	select id ,
-reject	reject	engine	suite:reject-fuzz-sweep	batch on session__nontransactional . tt . id limit 1 update t as tt join t2 tt2 as on tt . id = tt2 . id set tt . id = tt . id + 10
-reject	reject	engine	suite:reject-fuzz-sweep	i
-reject	reject	engine	suite:reject-fuzz-sweep	batch limit limit 10 dry run update t set c = 10
-reject	reject	engine	suite:reject-fuzz-sweep	insert into
-reject	reject	engine	suite:reject-fuzz-sweep	create table t ( a blob ( 10000 ) , b , time index idx ( a ( 3070 ) , b ) )
-reject	reject	engine	suite:reject-fuzz-sweep	create table nt32 (id bigint not nul
-accept	accept	engine	suite:reject-fuzz-sweep	drop sequence if exists se, seq2
-reject	reject	engine	suite:reject-fuzz-sweep	QUERY WATCH ADD RESOURCE GROUP rg1 ACTION ACTION COOLDOWN PLAN DIGEST 'd08bc323a934c39dc41948b0a073725be3398479b6fa4f6dd1db2a9b115f7f57'
-reject	reject	engine	suite:reject-fuzz-sweep	collation select ( compress ( 'abc' ) )
-reject	reject	engine	suite:reject-fuzz-sweep	call `x` . ( `y` 'p' , 'q' , 'r' ) ;
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t values values ( 5 )
-reject	reject	engine	suite:reject-fuzz-sweep	explain format='brief' SE
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t values ( 99 198 , )
-reject	reject	engine	suite:reject-fuzz-sweep	insert into ap . record ( id
-reject	reject	engine	suite:reject-fuzz-sweep	set @@tidb_partitio
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = select t1 . a , t2 . a from t1 join t2 on t1 . a = t2 . a and t1 . b = t2 . b
-reject	reject	engine	suite:reject-fuzz-sweep	select DATE_ADD ( , INTERVAL "-2.-2" HOUR_MINUTE )
-reject	reject	engine	suite:reject-fuzz-sweep	reate table t1 (pk int(11) primary key, a int(11) not null, b int(11), key idx_b(b), key idx_a(a))
-reject	reject	engine	suite:reject-fuzz-sweep	insert into values t ( 28 , 56 )
-reject	reject	engine	suite:reject-fuzz-sweep	explain
-reject	reject	engine	suite:reject-fuzz-sweep	select /+ INL_JOIN(t1, t2)*/ t1.a, t2.a from t1 join t2 on t1.a = t2.a
-reject	reject	engine	suite:reject-fuzz-sweep	select date_add ( "2011-11-11 10:10:10.123456" , interval interval "11-11" year_month )
-reject	reject	engine	suite:reject-fuzz-sweep	drop table if exi,ts table_int_float_varchar
-reject	reject	engine	suite:reject-fuzz-sweep	explain select * tp2 where a > 33 limit 5
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' select t . * , _tidb_rowid , date_format ( a , "" ) from t where
-reject	reject	engine	suite:reject-fuzz-sweep	SELECT * FROM t WHERE NOT ( a >= 2 AND a < 4 4 )
-reject	reject	engine	suite:reject-fuzz-sweep	create table test_zero_date ( ( a int )
-accept	accept	engine	suite:reject-fuzz-sweep	explain format='rief' SELECT * FROM t WHERE a != 0
-reject	reject	engine	suite:reject-fuzz-sweep	CREATE TABLE `IDT_HP24172` ( `COL1` mediumint ( ) 16 DEFAULT NULL , `COL2` varchar ( 20 ) DEFAULT NULL , `COL4` datetime DEFAULT NULL , `COL3` bigint ( 20 ) DEFAULT NULL , `COL5` float DEFAULT NULL , KEY `UM_COL` ( `COL1` , `COL3` ) ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_bin PARTITION BY HASH ( `COL1` + `COL3` ) PARTITIONS 8
-reject	reject	engine	suite:reject-fuzz-sweep	PAUSE BACKUP LOGS SEND_CREDENTIALS_TOO_TIKV 1
-reject	reject	engine	suite:reject-fuzz-sweep	insert int, t6 values ()
-accept	accept	engine	suite:reject-fuzz-sweep	DELETE test FROM test, test2 as t2 where test.id = t2id
-reject	reject	engine	suite:reject-fuzz-sweep	set glo'al tidb_external_ts=@@tidb_current_ts
-reject	reject	engine	suite:reject-fuzz-sweep	drop binding global for select * from t
-reject	reject	engine	suite:reject-fuzz-sweep	zzz select b from tr partition ( r0 ) order by a
-reject	reject	engine	suite:reject-fuzz-sweep	EXECUTE
-reject	reject	engine	suite:reject-fuzz-sweep	explain 
-reject	reject	engine	suite:reject-fuzz-sweep	SELECT FROM * FROM testjoin t1 RIGHT JOIN testjoin t2 ON t1 . a > t2 . a order by t1 . a , t2 . a
-reject	reject	engine	suite:reject-fuzz-sweep	drop global temporary table tt tt
-accept	accept	engine	suite:reject-fuzz-sweep	explain format = 'brief' select ( a , b )
-reject	reject	engine	suite:reject-fuzz-sweep	create table tcollist (a int, ; int) partition by list columns (a) (partition p0 values in (0))
-reject	reject	engine	suite:reject-fuzz-sweep	alter table test_rename_column rename column col1 to
-accept	accept	engine	suite:reject-fuzz-sweep	select v from t_bin where v
-reject	reject	engine	suite:reject-fuzz-sweep	with recursive tbl_3 ( col_19 , col_20 , col_21 , col_22 ) AS ( select 1 , 2 , 3 , 4 UNION select col_19 + 1 , col_20 + 1 , col_21 + 1 , concat ( col_22 , 1 ) from tbl_3 where col_19 < 5 , ) cte_4 ( col_23 , col_24 , col_25 , col_26 ) AS ( select 1 , 2 , cast ( "3" as char ( 20 ) ) , 4 UNION DISTINCT select col_23 + 1 , col_24 + 1 , concat ( col_25 , 1 ) , col_26 + 1 from cte_4 where col_23 < 5 ) select * from tbl_3 as cte_as_3 , cte_4 as cte_as_4 , tbl_3 as cte_as_5 order by cte_as_3 . col_19 , cte_as_4 . col_23 , cte_as_4 . col_25 , cte_as_4 . col_24 , cte_as_4 . col_26 , cte_as_3 . col_20 , cte_as_5 . col_22 , cte_as_3 . col_21 , cte_as_5 . col_20 , cte_as_3 . col_22 , cte_as_5 . col_19 , cte_as_5 . col_21
-accept	accept	engine	suite:reject-fuzz-sweep	explain format = 'brief' select /*+ straight_join() */ * from t1 join (select * from t4) t2 on t1.a=t2.a join t3 on t2.b=t3
-accept	accept	engine	suite:reject-fuzz-sweep	select * from t ignor
-reject	reject	engine	suite:reject-fuzz-sweep	alter testReuse identified by 'test1' PASSWORD HISTORY 0
-reject	reject	engine	suite:reject-fuzz-sweep	create table t ( a ) int auto_id_cache = 1
-reject	reject	engine	suite:reject-fuzz-sweep	explain select * from t where b in ( 1 , , 2 ) and a like '%a%'
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t1 v
-reject	reject	engine	suite:reject-fuzz-sweep	create table t1 ( a , char , b varchar ( 10 ) ) charset utf8mb4 collate utf8mb4_unicode_ci
-reject	reject	engine	suite:reject-fuzz-sweep	create table t(id int, a int, unique index idx(id)
-accept	accept	engine	suite:reject-fuzz-sweep	create database aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-reject	reject	engine	suite:reject-fuzz-sweep	replace into t values ( 10 'x' , ) , ( 50 , 'x' )
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t values ( 35 , '35' 35 , )
-reject	reject	engine	suite:reject-fuzz-sweep	select approx_count_distinct ( a ) ) , b from t group by b order by b desc
-accept	accept	engine	suite:reject-fuzz-sweep	update t set v = 222
-reject	reject	engine	suite:reject-fuzz-sweep	set @@ global . tidb_enable_plan_cache_for_param_limit = 11 11
-reject	reject	engine	suite:reject-fuzz-sweep	create table t ( a int , b varchar
-reject	reject	engine	suite:reject-fuzz-sweep	create table t11(a char(10) collate ut.8mb4_general_ci) partition by list columns (a) (partition p0 values in ('a', 'b'), partition p1 values in ('C', 'D'))
-reject	reject	engine	suite:reject-fuzz-sweep	CREATE USER lock_tables_user 's'
-reject	reject	engine	suite:reject-fuzz-sweep	DROP TABLE 's' IF EXISTS foo
-reject	reject	engine	suite:reject-fuzz-sweep	grant create temporary tables on NotExistsD29302.NotExistsT29302 to)u29302
-reject	reject	engine	suite:reject-fuzz-sweep	select * from t partition ( p13 p13 )
-reject	reject	engine	suite:reject-fuzz-sweep	create table t1 ( c1 bigint unsigned , c2
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t_sel_in_share values (11))
-reject	reject	engine	suite:reject-fuzz-sweep	replace delayed into t values ( 1
-reject	reject	engine	suite:reject-fuzz-sweep	delete frrom tcollist partition(p0, p2)
-reject	reject	engine	suite:reject-fuzz-sweep	select * from t1 left
-reject	reject	engine	suite:reject-fuzz-sweep	create table t8(a int, b int, key(a),
-reject	reject	engine	suite:reject-fuzz-sweep	inseert into t values (84, 168, default)
-accept	accept	engine	suite:reject-fuzz-sweep	desc format='brief' select * from information_schema.s
-reject	reject	engine	suite:reject-fuzz-sweep	create table t (id int, value decimal((,4), c1 int, c2 int)
-reject	reject	engine	suite:reject-fuzz-sweep	alter table t rename ndex k3 to k3
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t1 ( 83 , 0 ) , ( 26 , 0 ) , ( 43 , 81 )
-reject	reject	engine	suite:reject-fuzz-sweep	explain select * from t1 where exists ( with recursive cte1 as ( select c1 , c2 from t2 union all select c1 + 1 as c1 ,
-accept	accept	engine	suite:reject-fuzz-sweep	select @tmp1 
-reject	reject	engine	suite:reject-fuzz-sweep	explain select * * from tpk2 where a = 1 or b = 4
-reject	reject	engine	suite:reject-fuzz-sweep	st auto_increment_increment = 5
-reject	reject	engine	suite:reject-fuzz-sweep	insert ino t values (1174717)
-reject	reject	engine	suite:reject-fuzz-sweep	set tidb_ena
-reject	reject	engine	suite:reject-fuzz-sweep	ater table t modify y binary(30)
-reject	reject	engine	suite:reject-fuzz-sweep	table truncate t_trunc
-reject	reject	engine	suite:reject-fuzz-sweep	use
-reject	reject	engine	suite:reject-fuzz-sweep	select 2 from where t a < 20
-reject	reject	engine	suite:reject-fuzz-sweep	select ( 1 , 1 ) ) in ( select 1 , 1 from t2 ) from t1
-reject	reject	engine	suite:reject-fuzz-sweep	SELECT prepare p1 from 'show variables like "tidb_snapshot"'
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' select sum(a), (select sum(a)), count(a) from t group by b order by (select count(
-reject	reject	engine	suite:reject-fuzz-sweep	select cast(daate_add(cast('00:00:00' as time), interval 1.1 hour_microsecond) as char)
-reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE ide`t PLACEMENT POLICY 'binary'
-accept	accept	engine	suite:reject-fuzz-sweep	alter table tt modify f64 decimal(20, 10)
-reject	reject	engine	suite:reject-fuzz-sweep	create table t ( a int
-accept	accept	engine	suite:reject-fuzz-sweep	SELECT *, UNIX_TIMESTAMP(ts) FROM t WHERE ts <= '202(-03-30 02:00:00'
-reject	reject	engine	suite:reject-fuzz-sweep	S=OW IMPORT JOB 1
-reject	reject	engine	suite:reject-fuzz-sweep	select * from t1 partition p1 ( )
-reject	reject	engine	suite:reject-fuzz-sweep	ROLLBACK TO TO SAVEPOINT ident
-accept	accept	engine	suite:reject-fuzz-sweep	SELECT /*+ HASH_JOIN(t1,t2)  */ 1 from t1 left outer join t2  on t1.t2id=t2.id
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' select * from t where a = 1 update for
-reject	reject	engine	suite:reject-fuzz-sweep	update update_modified se col_1 = 2, col_2 = 'c'
-reject	reject	engine	suite:reject-fuzz-sweep	select /*+ use_ind
-accept	accept	engine	suite:reject-fuzz-sweep	SELECT * FROM t WHERE a > 299999
-reject	reject	engine	suite:reject-fuzz-sweep	GRANT ALTER on * , . * to 'test_import_into' @'localhost'
-accept	accept	engine	suite:reject-fuzz-sweep	select json_storage_free
-reject	reject	engine	suite:reject-fuzz-sweep	drop temporary table if exists temp1 xxx ,
-reject	reject	engine	suite:reject-fuzz-sweep	explain select /*+ use_index_merge(t1) */ * from t1where (pk < 10 or c2 < 10) and c3 < 10
-reject	reject	engine	suite:reject-fuzz-sweep	insert t values ( '11:11:11' , )
-reject	reject	engine	suite:reject-fuzz-sweep	create tabl= t1 (a int, b int, index(a))
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t values ( 'cn' , ) 298
-accept	accept	engine	suite:reject-fuzz-sweep	select * from PK_S_MULTI_30_tmp ignore index (eidx) where truncate(col1, 3) = truncate(-1.7976931348623157e308, 3)
-reject	reject	engine	suite:reject-fuzz-sweep	create table t1(pk varchar(100) primary key, c1 int, c2 int, index idx1(c1), indx idx2(c2))
-reject	reject	engine	suite:reject-fuzz-sweep	SELECT ATAN2(), ATAN2(1,);
-accept	accept	engine	suite:reject-fuzz-sweep	ALTER TABLE t1 ADD CHECK (IS_USEDLOCK(f4) != 0)
-reject	reject	engine	suite:reject-fuzz-sweep	select * from t1 where t1 a in ( select b from t2 where a in ( 1 , 2 ) ) order by a
-reject	reject	engine	suite:reject-fuzz-sweep	insert insert into t1 select a2 , b2 from t2 on duplicate key update b1 = b2
-reject	reject	engine	suite:reject-fuzz-sweep	explain select USER , , DB COMMAND , TIME , STATE , INFO , `DIGEST` from information_schema . processlist where DB = "planner__cascades__integration"
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t1 values ( 1 , 1 , , 1 1 )
-reject	reject	engine	suite:reject-fuzz-sweep	drop table if exist. t17
-reject	reject	engine	suite:reject-fuzz-sweep	create table issue3833 ( b char ( 0 ) , c binary ( 0 ) , d SELECT varchar ( 0 ) )
-reject	reject	engine	suite:reject-fuzz-sweep	kill tid, query 23123
-reject	reject	engine	suite:reject-fuzz-sweep	insert into test)son set j='{"test":"0000"}'
-reject	reject	engine	suite:reject-fuzz-sweep	ALTER 'nobodyuser2' IDENTIFIED BY ''
-reject	reject	engine	suite:reject-fuzz-sweep	alter table t alter column c1 set null
-reject	reject	engine	suite:reject-fuzz-sweep	CREATE TABLE t1 ( a VARCHAR ( 32 ) CHECK ( CURRENT_USER ( != ) a ) )
-reject	reject	engine	suite:reject-fuzz-sweep	MASTER SHOW STATUS
-reject	reject	engine	suite:reject-fuzz-sweep	ALTER USER 'root' @'localhost' IDENTIFIED BY 'new-password' , 's' 'root' @'127.0.0.1' IDENTIFIED BY PASSWORD 'hashstring'
-accept	accept	engine	suite:reject-fuzz-sweep	ALTER TABLE `t` ADD COLUMN ( `a1` INT , KEY ( `a1` ) )
-accept	accept	engine	suite:reject-fuzz-sweep	select json_unquot
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t values ('64', 12
-reject	reject	engine	suite:reject-fuzz-sweep	CREATE CREATE TABLE followers ( f1 int NOT NULL REFERENCES user_profiles ( uid ) ) ;
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t values 
-reject	reject	engine	suite:reject-fuzz-sweep	select ,ATE_ADD('2007-03-28 22:08:28',INTERVAL 2.2 MINUTE_SECOND)
-accept	accept	engine	suite:reject-fuzz-sweep	CREATE USER setgloal_a@localhost
-reject	reject	engine	suite:reject-fuzz-sweep	SELECT UUID ) ( ;
-accept	accept	engine	suite:reject-fuzz-sweep	ALTER TABLE t ADD COLUMN c4 DATE      NULL DEFAULT '1976-08-29'
-reject	reject	engine	suite:reject-fuzz-sweep	select 2 in (seelect 2)
-reject	reject	engine	suite:reject-fuzz-sweep	alter table t modify f decimal(20,(10)
-reject	reject	engine	suite:reject-fuzz-sweep	update city set = 77 where id = "06766b3ef41d484d8878606393f1ed0b"
-reject	reject	engine	suite:reject-fuzz-sweep	select * from t t1, t t2 wheret1.mb4general = t2.mb4unicode collate utf8mb4_general_ci
-accept	accept	engine	suite:reject-fuzz-sweep	explain format = 'brief' select min(col_304) from (select /*+ use_index_merge( tbl_43 ) */ * from tbl_43 where not( tbl_43.col_304 between 'YEpfYfPVvhMlHGHSMKm' and 'PE' ) or tbl_43.col_304 in ( 'LUBGzGMMA' ) and tbl_43.col_304 between 'HpsjfuSReCwBoh' and 'fta' or not( tbl_43.col_304 between 'MFWmuOsoyDv' and 'TSeMYpDXnFIyp' ) order by col_304) x
-reject	reject	engine	suite:reject-fuzz-sweep	select collation(concat(ascii_char cllate ascii_bin, gbk_char)) from t
-reject	reject	engine	suite:reject-fuzz-sweep	desc
-reject	reject	engine	suite:reject-fuzz-sweep	select DATE_ADD '2007-03-28 22:08:28' ( , INTERVAL - 2 HOUR_MICROSECOND )
-reject	reject	engine	suite:reject-fuzz-sweep	select date_add("2011-11-11 10:10:10.123456", interval 10:10" hour_minute)
-reject	reject	engine	suite:reject-fuzz-sweep	SELECT * from trange where = 2
-reject	reject	engine	suite:reject-fuzz-sweep	alter table t add index idx1 ( b ) ( global
-reject	reject	engine	suite:reject-fuzz-sweep	drop
-reject	reject	engine	suite:reject-fuzz-sweep	set SQL_MODE STRICT_ALL_TABLES =
-reject	reject	engine	suite:reject-fuzz-sweep	create table t ( a int default 1 b , int default 2 )
-reject	reject	engine	suite:reject-fuzz-sweep	create table issue9100t2 ( col1 int not null , col2 date not null , col3 int not null , unique key ( col1 , col3 ) ) partition by range ( col1 + col3 ) ( partition p1 values less than ( 11
-accept	accept	engine	suite:reject-fuzz-sweep	alter table s 
-reject	reject	engine	suite:reject-fuzz-sweep	spli
-reject	reject	engine	suite:reject-fuzz-sweep	se=ect std_samp(a) from t
-reject	reject	engine	suite:reject-fuzz-sweep	DO STDDEV_POP STDDEV_POP ( ident )
-reject	reject	engine	suite:reject-fuzz-sweep	CREAT PROCEDURE ident() BEGIN DECLARE ident TINYINT; END
-reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE ident CHECK PARTIT)ON ident
-reject	reject	engine	suite:reject-fuzz-sweep	select date_add ( , "2011-11-11 10:10:10.123456" interval 1 quarter )
-reject	reject	engine	suite:reject-fuzz-sweep	explain format='verbose' select /*+ use_index(t, primary) */ a from t where mod(a, ,0)<10
-reject	reject	engine	suite:reject-fuzz-sweep	explain select
-reject	reject	engine	suite:reject-fuzz-sweep	explain select * from t where a between 1 and 5 and and b != 200 and c = 20 limit 100000
-accept	accept	engine	suite:reject-fuzz-sweep	use session__nontrnsactional2
-reject	reject	engine	suite:reject-fuzz-sweep	in
-reject	reject	engine	suite:reject-fuzz-sweep	seleect a,a+1 from t where a<40
-reject	reject	engine	suite:reject-fuzz-sweep	create table detail (id varchar(8), start varchar(8), status int, iindex idx_start(start))
-reject	reject	engine	suite:reject-fuzz-sweep	crete or replace view v as select * from t union select * from t
-reject	reject	engine	suite:reject-fuzz-sweep	create view v as select *(from t_v1
-reject	reject	engine	suite:reject-fuzz-sweep	desc format = 'brief' select /*+ hash_agg()*/ count(*) from  (
-reject	reject	engine	suite:reject-fuzz-sweep	set tidb_enable_check_constraint global = OFF
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t values ( 1 , 2 ) , ( 2 , 3 ) , ( 3 , 4 ) , SELECT ( 4 , 5 )
-reject	reject	engine	suite:reject-fuzz-sweep	batch on session__nontransactional.t2.id limit 1 update t2 join t3 on t2.id=t3.*d set t2.v=t2.v*100, t3.v=t3.v*200
-reject	reject	engine	suite:reject-fuzz-sweep	DROP SESSION BINDING FOR DELETE FROM `t` WHERE `a`= USING DELETE /*+ USE_INDEX(`t` `a`)*/ FROM `t` WHERE `a`=1
-reject	reject	engine	suite:reject-fuzz-sweep	REVOKE SELECT ( ) ON mysql . db FROM test
-reject	reject	engine	suite:reject-fuzz-sweep	select a from
-reject	reject	engine	suite:reject-fuzz-sweep	create table t_decimal(column1 decimal(20,10), column2 int unsign
-reject	reject	engine	suite:reject-fuzz-sweep	ex=lain format = 'brief' select /*+ straight_join() */ * from t2, t1, t3, t where t.a = t1.a and t1.b=t2.b
-reject	reject	engine	suite:reject-fuzz-sweep	split region for table t1;by ('a'),('b'),('c')
-reject	reject	engine	suite:reject-fuzz-sweep	explain select * from t where 1 = id and 1 = k group by id k ,
-accept	accept	engine	suite:reject-fuzz-sweep	INSERT INTO t VALUES (56, '2025-03-30 03:00:00', 'NO_ZERO_DATE,NO_ZERO_IN_DATE,ALLOW_INVALID_DAATES')
-reject	reject	engine	suite:reject-fuzz-sweep	alter table t add column (b nt default 2, index i(a), primary key (a))
+reject	reject	engine	suite:reject-fuzz-sweep	explain FORMAT = 'brief' select b from t1 where b = 1 or b = or b = 33333
+accept	accept	engine	suite:reject-fuzz-sweep	select  ' \r\n  .col'
+reject	reject	engine	suite:reject-fuzz-sweep	show create information_schema . ddl_jobs
+reject	reject	engine	suite:reject-fuzz-sweep	explain = 'brief' SELECT * FROM t WHERE a <= 3000000
+accept	accept	engine	suite:reject-fuzz-sweep	update t2 set a=default(b), b=defaul(b)
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT * FROM t1 WHERE EXISTS ( SELECT 1 FROM t2 WHERE t2 . a = t1 . a ) FROM
+reject	reject	engine	suite:reject-fuzz-sweep	insert into temp_test ) ( id ) values ( 0 )
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT c1 + 's' 10 from t limit 1
+reject	reject	engine	suite:reject-fuzz-sweep	create table t3 ( a int b mediumint , primary key ( a ) )
+reject	reject	engine	suite:reject-fuzz-sweep	prepare prepare stmt from 'select * from PK_SIGNED_10094 where col1 != ? and col1 + 10 <=> ? + 10'
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t i = j + 100
+reject	reject	engine	suite:reject-fuzz-sweep	create global binding for update t1 inner join on tmp2 t1 . a = tmp2 . a set t1 . a = 1 using update t1 inner join tmp2 on t1 . a = tmp2 . a set t1 . a = 1
+reject	reject	engine	suite:reject-fuzz-sweep	select /*+ NO_ORDER_INDEX(test.t1@sel_1 c1) */ ** from t1 join t2
+reject	reject	engine	suite:reject-fuzz-sweep	table t ( a int , b int , c int , primary key ( a , b ) )
+reject	reject	engine	suite:reject-fuzz-sweep	table drop if exists cachetbl
+reject	reject	engine	suite:reject-fuzz-sweep	altertable t change c1 c1 enum('a', '') not null
+accept	accept	engine	suite:reject-fuzz-sweep	create table test(id int, value set ('a','b','c') charset utf8mb4 collate utf8mb4_general_ci default ',B ,C')
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' SELECT * FROM t WHERE WHERE a BETWEEN 2 AND - 1
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t select id + 16 fname , , lname , hired , separated , job_code , store_id + 16 from t
+accept	accept	engine	suite:reject-fuzz-sweep	SELECT S
+accept	accept	engine	suite:reject-fuzz-sweep	drop table if exists admin_est
+reject	reject	engine	suite:reject-fuzz-sweep	alter placement policy x primary_region = 'cn' regions = 'us' = schedule 'even'
+reject	reject	engine	suite:reject-fuzz-sweep	CREATE TABLE privilege__privileges . trigger_table ( a int ) FROM
+reject	reject	engine	suite:reject-fuzz-sweep	insert into tbl_2 values ( "0" , null 's' )
+reject	reject	engine	suite:reject-fuzz-sweep	explai' format = 'brief' select /*+ leading(t3) INL_JOIN(t1) */ * from t left join t1 on t.a = t1.a right join t2 on t1.b = t2.b join t3 on t2.b = t3.b
+reject	reject	engine	suite:reject-fuzz-sweep	drop session binding for select * from t union all select * from t using select * from t use index ( a ) union all select * from t index ( a )
+reject	reject	engine	suite:reject-fuzz-sweep	set @a = 1 , @b = 2 , @c = 3 , @d = 4 , = 5
+reject	reject	engine	suite:reject-fuzz-sweep	flashback database db1 to to db2
+accept	accept	engine	suite:reject-fuzz-sweep	SELECT DATE('2003-12-3101:02:03', '');
+reject	reject	engine	suite:reject-fuzz-sweep	explain select /*+ no_order_index(t, primary) */ * from t where a<10 order by a limi, 1
+accept	accept	engine	suite:reject-fuzz-sweep	select t . a from t
+accept	accept	engine	suite:reject-fuzz-sweep	set @@tidb_enableexchange_partition=1
+reject	reject	engine	suite:reject-fuzz-sweep	alter table t modify b set ( '-258.12345' , '333.33' , '2000000.20000002' , '323232323.3232323232' , , '-222222222222.222222222222222' , b'10101' )
+reject	reject	engine	suite:reject-fuzz-sweep	* SELECT FROM t WHERE a > 5
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT CAST ( - 9223372036854775807 as SIGNED ) - cast ( - 1 unsigned )
+reject	reject	engine	suite:reject-fuzz-sweep	set @@
+reject	reject	engine	suite:reject-fuzz-sweep	drop drop database if exists service
+reject	reject	engine	suite:reject-fuzz-sweep	select * from ( ( SELECT 1 a , 3 b ) UNION ( SELECT 2 , 1 ) ORDER ( BY SELECT 2 ) ) t order by a , b
+reject	reject	engine	suite:reject-fuzz-sweep	select collation ( '中 ' collate ) utf8mb4_general_ci
+reject	reject	engine	suite:reject-fuzz-sweep	create table t ( c int ) 1 STATS_SAMPLE_PAGES 10
+reject	reject	engine	suite:reject-fuzz-sweep	create table ) nt28 ( a int not null , b int , index ( a ) )
+reject	reject	engine	suite:reject-fuzz-sweep	select ( select t2 . c_str from t2 where t2 .
+accept	accept	engine	suite:reject-fuzz-sweep	SELECT * FROM t
+reject	reject	engine	suite:reject-fuzz-sweep	alter user 'test@localhost' password expire in
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT t1 . a , t1 . b FROM t1 WHERE t1 . in ( SELECT t2 . a FROM t2 )
+reject	reject	engine	suite:reject-fuzz-sweep	CREATE TABLE `t` ( `a` int ( 11 ) NOT NULL , `b` int ( 11 ) DEFAULT NULL , `c` int 11 ( ) DEFAULT NULL , KEY `idx_b` ( `b` ) ) PARTITION BY HASH ( `a` ) PARTITIONS 2
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT SELECT Host , User , authentication_string , plugin FROM mysql . User WHERE User = 'bob2'
+reject	reject	engine	suite:reject-fuzz-sweep	set @@ session tidb_enable_prepared_plan_cache_memory_monitor . = OFF
+reject	reject	engine	suite:reject-fuzz-sweep	select count ( * ) as x from t1 group by a having not in ( select a from t2 where x = t2 . b )
+reject	reject	engine	suite:reject-fuzz-sweep	eexplain format = 'brief' select /*+ hash_join_build(t1) straight_join() */ t1.a, t2.a from t1 join t2 on t1.a=t2.a and t1.b=t2.b join t3 on t2.a = t3.a
+accept	accept	engine	suite:reject-fuzz-sweep	explain  format = 'brief'select /*+ inl_hash_join(t1, t2) */ * from t t1 
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t values
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t1 values ( 3 , 3 's' , 1 )
+reject	reject	engine	suite:reject-fuzz-sweep	inser, into t(a) values(2000)
+reject	reject	engine	suite:reject-fuzz-sweep	insert into '1 set b=default
+accept	accept	engine	suite:reject-fuzz-sweep	explain format='brief' SELECT * FROM t WHERE NO* (a <= 2 OR a >= 3)
+reject	reject	engine	suite:reject-fuzz-sweep	create table t1(a tinyint, b datee default '2024-10-24 12:20')
+reject	reject	engine	suite:reject-fuzz-sweep	create table test_error_code_3 ( a text charset ascii unique ( a ( 3073 ) ) )
+reject	reject	engine	suite:reject-fuzz-sweep	EXECUTE ( NOMAXVALUE
+accept	accept	engine	suite:reject-fuzz-sweep	select max(col_304) from (select /*+ use_index_erge( tbl_43 ) */ * from tbl_43 where not( tbl_43.col_304 between 'YEpfYfPVvhMlHGHSMKm' and 'PE' ) or tbl_43.col_304 in ( 'LUBGzGMA' ) and tbl_43.col_304 between 'HpsjfuSReCwBoh' and 'fta' or not( tbl_43.col_304 between 'MFWmuOsoyDv' and 'TSeMYpDXnFIyp' ) order by col_304) x
+reject	reject	engine	suite:reject-fuzz-sweep	SET @@ SESSION autocommit = 1
+reject	reject	engine	suite:reject-fuzz-sweep	set @@ tidb_opt_tiflash_concurrency_factor 's' = 0
+reject	reject	engine	suite:reject-fuzz-sweep	seelect row(1, 1) > row(1, 1), row(1, 1, 1) > row(1, 1, 1)
+reject	reject	engine	suite:reject-fuzz-sweep	select * from t col_4 where in ( 'u^D92@_4' , null )
+accept	accept	engine	suite:reject-fuzz-sweep	select * from tik where a <=> null and b
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t values (abc')
+reject	reject	engine	suite:reject-fuzz-sweep	alter table t modi
+reject	reject	engine	suite:reject-fuzz-sweep	show global varibles like 'collation_server'
+reject	reject	engine	suite:reject-fuzz-sweep	INSERT INTO t VAL
+reject	reject	engine	suite:reject-fuzz-sweep	import into t (a,
+reject	reject	engine	suite:reject-fuzz-sweep	drop tab
+reject	reject	engine	suite:reject-fuzz-sweep	UPDATE dd SET SET b = '2000-01-00'
+reject	reject	engine	suite:reject-fuzz-sweep	table tcollist index a between ( 2 ) and ( 15 ) regions 10
+reject	reject	engine	suite:reject-fuzz-sweep	slect group_concat(value) from t
+reject	reject	engine	suite:reject-fuzz-sweep	select ""\a\r\n"
+reject	reject	engine	suite:reject-fuzz-sweep	select json_valid ( zzz 0 )
+reject	reject	engine	suite:reject-fuzz-sweep	create table t ( id int unsigned , val varchar ( 255 ) , comment varchar ( 255 ) ) partition by range id ) interval ( 0 ) first partition less than ( 0 ) last partition less than ( 10000000 ) NULL PARTITION MAXVALUE PARTITION
+reject	reject	engine	suite:reject-fuzz-sweep	set 
+reject	reject	engine	suite:reject-fuzz-sweep	CREATE
+accept	accept	engine	suite:reject-fuzz-sweep	insert into t values (6, '{"i": 0 "n": "n6"}')
+reject	reject	engine	suite:reject-fuzz-sweep	create databa
+reject	reject	engine	suite:reject-fuzz-sweep	CREATE 
+reject	reject	engine	suite:reject-fuzz-sweep	execute st using @a , 1 @a , @a , @a
+accept	accept	engine	suite:reject-fuzz-sweep	explain format='.rief' SELECT * FROM t WHERE a < 2 OR a >= 7
+reject	reject	engine	suite:reject-fuzz-sweep	set @@ global . tidb_enable_foreign_key = 1 )
 reject	reject	engine	suite:reject-fuzz-sweep	select
-reject	reject	engine	suite:reject-fuzz-sweep	select * * from dt1pi
-reject	reject	engine	suite:reject-fuzz-sweep	insert into t select c1 from t1 inters;ct select c2 from t2
-reject	reject	engine	suite:reject-fuzz-sweep	create table t2 (id int key, b int, foreign key fk_b(b) references ddl__foreign_key.t1(id
-accept	accept	engine	suite:reject-fuzz-sweep	select 's' exec_count , sum_errors , sum_warnings from information_schema . statements_summary where digest_text like "insert into `stmt_summary_test`%"
-reject	reject	engine	suite:reject-fuzz-sweep	* from thour partition ( p0 )
-reject	reject	engine	suite:reject-fuzz-sweep	create table t ( c1 bool , c2 bool , check ( c1 in ( 0 ,
-reject	reject	engine	suite:reject-fuzz-sweep	create test2 database
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' select * t , t1 , t2 , t3 where t . a = t1 . a and t1 . b = t2 . b
-reject	reject	engine	suite:reject-fuzz-sweep	d
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = NULL 'brief' select * from naaj_A where ( a , b ) != all ( select a , b from naaj_B )
-reject	reject	engine	suite:reject-fuzz-sweep	create table t (id char(255
-reject	reject	engine	suite:reject-fuzz-sweep	CREATE TABLE `log` (`LOG_ID` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,`ROUND_ID` bigint(20) UNSIGNED NOT NULL,`USER_ID` int(10) UNSIGNED NOT NULL,`USER_IP` int(10) UNSIGNED DEFAULT NULL,`END_TIME` datetime NOT NULL,`USER_TYPE` int(11) DEFAULT NULL,`APP_ID` int(11) DEFAULT NULL,PRIMARY KEY (`LOG_ID`,`END_TIME`) NONCLUSTERED,KEY `IDX_EndTime` (`END_TIME`),KEY `IDX_RoundId` (`ROUND_ID`),KEY `IDX_UserId_EndTime` )`USER_ID`,`END_TIME`)) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin AUTO_INCREMENT=505488 PARTITION BY RANGE ( month(`end_time`) ) (PARTITION `p1` VALUES LESS THAN (2),PARTITION `p2` VALUES LESS THAN (3),PARTITION `p3` VALUES LESS THAN (4),PARTITION `p4` VALUES LESS THAN (5),PARTITION `p5` VALUES LESS THAN (6),PARTITION `p6` VALUES LESS THAN (7),PARTITION `p7` VALUES LESS THAN (8),PARTITION `p8` VALUES LESS THAN (9),PARTITION `p9` VALUES LESS THAN (10),PARTITION `p10` VALUES LESS THAN (11),PARTITION `p11` VALUES LESS THAN (12),PARTITION `p12` VALUES LESS THAN (MAXVALUE))
-accept	accept	engine	suite:reject-fuzz-sweep	select * from t3 t3
-reject	reject	engine	suite:reject-fuzz-sweep	selec cast(date_add(cast('00:00:00' as time), interval 1.1 hour_second) as char)
-accept	accept	engine	suite:reject-fuzz-sweep	explain select b from t where a < 2 or b >= 10 or c > 100
-reject	reject	engine	suite:reject-fuzz-sweep	create table t1 ( j json , a bigint ( 20 ) , b int , primary key ( a , b ) , key mvi ( ( ( cast ( j as unsigned array ) ) ) )
-reject	reject	engine	suite:reject-fuzz-sweep	split ta*le pt between (0) and (40960) regions 30
+reject	reject	engine	suite:reject-fuzz-sweep	'a' select like 'A'
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t2 values(1,1
+reject	reject	engine	suite:reject-fuzz-sweep	grant CREATE USER on * . * * to testCreateRole
+accept	accept	engine	suite:reject-fuzz-sweep	explain format
+accept	accept	engine	suite:reject-fuzz-sweep	show variables
+reject	reject	engine	suite:reject-fuzz-sweep	* select from t3 where id = 2
+reject	reject	engine	suite:reject-fuzz-sweep	explain format='brief' select * from trange where a betwee
+reject	reject	engine	suite:reject-fuzz-sweep	create table issue3833_2 (b char(0), c binary(0), d varchar0), index(c))
+reject	reject	engine	suite:reject-fuzz-sweep	alter table t partition by key ( ( b ) partitions 3
+reject	reject	engine	suite:reject-fuzz-sweep	alter t table modify b year
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' select a , b from t where ( a 1 = and b = 1 ) or ( a = 2 and b = 2 )
+reject	reject	engine	suite:reject-fuzz-sweep	alter table cache_partition_range_table cache cache
+reject	reject	engine	suite:reject-fuzz-sweep	s
+reject	reject	engine	suite:reject-fuzz-sweep	grant delete on statistics__lock_table_stats . * myuser to @localhost
+reject	reject	engine	suite:reject-fuzz-sweep	select TABLE_SCHEMA , TABLE_NAME , KEY_NAME from
+reject	reject	engine	suite:reject-fuzz-sweep	a
+reject	reject	engine	suite:reject-fuzz-sweep	create table t id int primary key , a int , b int )
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT * FROM t WHERE a 3000000
+reject	reject	engine	suite:reject-fuzz-sweep	explain select /*+ AGG_TO_COP() */ count(distint c) from t group by c
+reject	reject	engine	suite:reject-fuzz-sweep	prepare from stmt 'select * from t'
+reject	reject	engine	suite:reject-fuzz-sweep	drop session binding
+reject	reject	engine	suite:reject-fuzz-sweep	select b from t orde by a limit 2, 2
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t values ( 45 45 , 90 )
+reject	reject	engine	suite:reject-fuzz-sweep	create table t (a,int primary key, b int as (a + 1), c int as (b + 1), d int as (c + 1))
+reject	reject	engine	suite:reject-fuzz-sweep	select c_enum , > 'a' from t order by c_enum
+reject	reject	engine	suite:reject-fuzz-sweep	alter table t1 modify column b
+reject	reject	engine	suite:reject-fuzz-sweep	create table t ( a int , check ( ( test . t . . a > 1 ) ) )
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t8 values ( ) )
+accept	accept	engine	suite:reject-fuzz-sweep	select  ( SELECT t1.a FROM  t1,  t2 WHERE t1.b = t2.a AND  t2.b = '3' AND t1.c = a.a) invode from t a
+reject	reject	engine	suite:reject-fuzz-sweep	table alter t add primary key ( b ) nonclustered
+accept	accept	engine	suite:reject-fuzz-sweep	alter table tt modify y text
+reject	reject	engine	suite:reject-fuzz-sweep	insert into tp . record ( id , name , age ) values ( 1 ,
+reject	reject	engine	suite:reject-fuzz-sweep	explain analyze select * from poin, where id = 1
+reject	reject	engine	suite:reject-fuzz-sweep	select * from twhere a > 3
+reject	reject	engine	suite:reject-fuzz-sweep	select @@tidb_opt_f'rce_inline_cte
+reject	reject	engine	suite:reject-fuzz-sweep	create table orders (
+accept	accept	engine	suite:reject-fuzz-sweep	explain select c + 1 from t where c ( + 1 ) > 3
+reject	reject	engine	suite:reject-fuzz-sweep	zzz EXECUTE DIRECTORY
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' select * from t1 where t1 . a in ( select t2 . a from t2 where t1 . b = t2 b )
+reject	reject	engine	suite:reject-fuzz-sweep	CREATE TABLE `c` (`serial_id` varchar(24),`occur_trade_date` date,`txt_account_id` varchar(24),`capital_sub_class` varchar(10),`occur_amount` decimal(16,2),`broker` varchar(10),PRIMARY KEY (`txt_account_id`,`occur_trade_date`,
+reject	reject	engine	suite:reject-fuzz-sweep	create table t1 ( FROM a int ( 11 ) )
+reject	reject	engine	suite:reject-fuzz-sweep	show show tables like 'T'
+reject	reject	engine	suite:reject-fuzz-sweep	alter table t reorganize partition p0 , p1 , p2 , p3 into ( partition paa values in ( 0 , 1 , 2 , 12 ,
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' select /*+ qb_name(qb_v_2, v2@sel_1 . v1@sel_2 . v@sel_2 .@sel_2), qb_name(qb_v_1, v2@sel_1 . v1@sel_2 . v@sel_2 .@sel_1), merge_join(t1@qb_v_2, t3@qb_v_2) */ * from;v2
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t values (
+accept	accept	engine	suite:reject-fuzz-sweep	select a
+reject	reject	engine	suite:reject-fuzz-sweep	into insert t1 values ( "" )
+accept	accept	engine	suite:reject-fuzz-sweep	explain FORM
+reject	reject	engine	suite:reject-fuzz-sweep	select coercibility(concat(1 collate `binar
+reject	reject	engine	suite:reject-fuzz-sweep	create table t ( varchar ( 10 ) , b varchar ( 10 ) , c varchar ( 1 ) , index idx ( a , b , c ) )
+reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE t CHANGE
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' SELECT * t FROM WHERE a > 3000001
+reject	reject	engine	suite:reject-fuzz-sweep	alter table t modify f64 decimal ( 20 , 10 , )
+reject	reject	engine	suite:reject-fuzz-sweep	create table s(a varchar(20),
+reject	reject	engine	suite:reject-fuzz-sweep	set , @@ tidb_enable_index_merge = default , @@ tidb_partition_prune_mode = default
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t values (cn', 119)
+reject	reject	engine	suite:reject-fuzz-sweep	drop stats t partitio
+reject	reject	engine	suite:reject-fuzz-sweep	insert into values t3 ( 1 , 3 )
+reject	reject	engine	suite:reject-fuzz-sweep	select 1 from t where a 20 <
+reject	reject	engine	suite:reject-fuzz-sweep	UPDATE test t1 INNER JOIN test2 t2 ON ON t1 . a = t2 . a SET c = 1 WHERE t1 . a = 1
+reject	reject	engine	suite:reject-fuzz-sweep	select * from
+reject	reject	engine	suite:reject-fuzz-sweep	EXECUTE EVENTS EVENTS
+reject	reject	engine	suite:reject-fuzz-sweep	REVOKE.EXECUTE ON FUNCTION db.func FROM 'user'@'localhost'
+reject	reject	engine	suite:reject-fuzz-sweep	alter table t partition p2 placement policy = default 's'
+reject	reject	engine	suite:reject-fuzz-sweep	create global temporary table t ( c1 int , 's' c2 mediumtext ) on commit delete rows
+reject	reject	engine	suite:reject-fuzz-sweep	insert INTO select_order_tes) VALUES (22, "zz")
+reject	reject	engine	suite:reject-fuzz-sweep	select * from ( select count ( * ) over ( partition by ref_0 . c_0b6nxb c_0b6nxb order by ref_0 . c_3pcik ) as c0 from t_tir89b as ref_0 ) as subq_0 where subq_0 . c0 <> 1
+accept	accept	engine	suite:reject-fuzz-sweep	explain select * from tstring
+reject	reject	engine	suite:reject-fuzz-sweep	CREATE INDEXX idx ON t ( a ) VISIBLE INVISIBLE
+reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE t ALTER
+reject	reject	engine	suite:reject-fuzz-sweep	select coalesce ( tm_fsp1 , tm_fsp0 , ) from t
+accept	accept	engine	suite:reject-fuzz-sweep	EXECUTE SECONDAARY
+reject	reject	engine	suite:reject-fuzz-sweep	INSERT INTO `t3` VA
+accept	accept	engine	suite:reject-fuzz-sweep	select /*+ index_lookup_pushdowwn(t2, i) */ * from t2 where b < 3 and a < 'c' limit 3
+accept	accept	engine	suite:reject-fuzz-sweep	select count(*) from t a
+reject	reject	engine	suite:reject-fuzz-sweep	select(p4 REGEXP n1 from t1
+reject	reject	engine	suite:reject-fuzz-sweep	insrt into test (id)  values (1)
+reject	reject	engine	suite:reject-fuzz-sweep	into t values ( 'cn' , 55 )
+reject	reject	engine	suite:reject-fuzz-sweep	D
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT * LIMIT 1 OFFSET 1 1
+accept	accept	engine	suite:reject-fuzz-sweep	INSERT INTO t VALUES (148307968, DEFAULT, 'nndsjofmpdxvhqv') ,  (-1327693824, DEFAULT, 'pnndsjofmdxvhqvfny') ,  (-277544960, DEFAULT, 'fpnndsjo')
+accept	accept	engine	suite:reject-fuzz-sweep	select * from t where c= 'a'
+reject	reject	engine	suite:reject-fuzz-sweep	select * fro
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT * FROM tWHERE a <= 1999999
+reject	reject	engine	suite:reject-fuzz-sweep	into replace t values ( 1 , 'c' )
+reject	reject	engine	suite:reject-fuzz-sweep	recommend index set A
+reject	reject	engine	suite:reject-fuzz-sweep	CREATE USER 'bob2' @'localhost' IDENTIFIED WITH authentication_ldap_sasl 'uid=bob2,ou=People,dc=example,dc=com' AS
+reject	reject	engine	suite:reject-fuzz-sweep	explain select * from t1 as of timestamp NOW ( ( 6 ) - interval 0.05 second
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' select a , b from t ignore index ( ab , ba ) where SELECT ( a , b ) in ( ( 1 , 1 ) , ( 2 , 2 ) )
+reject	reject	engine	suite:reject-fuzz-sweep	(select c1 from t1) intersect select c2 from t2 intersect (select c3 from t3) order by c1 limi
+reject	reject	engine	suite:reject-fuzz-sweep	create table like t1
+reject	reject	engine	suite:reject-fuzz-sweep	alter table t modiify nil bigint unsigned
+reject	reject	engine	suite:reject-fuzz-sweep	selec` current_time
+reject	reject	engine	suite:reject-fuzz-sweep	select a from tlist ordder by a
+accept	accept	engine	suite:reject-fuzz-sweep	select * from t where a > 'c' and a
+reject	reject	engine	suite:reject-fuzz-sweep	insert insert_test_xxx ((1) values ()
+reject	reject	engine	suite:reject-fuzz-sweep	EX=CUTE STDDEV
+reject	reject	engine	suite:reject-fuzz-sweep	create table pgt ( a varchar 64 ( ) , b varchar ( 64 ) , uk int , v int , primary key ( a , b ) , unique key uuk ( uk ) )
+accept	accept	engine	suite:reject-fuzz-sweep	select v1 from ttest ttest having count ( v2 )
+accept	accept	engine	suite:reject-fuzz-sweep	select approx_percentile(a, 10+70) from  t
+reject	reject	engine	suite:reject-fuzz-sweep	select * from where t1 c1 < 10 or c2 < 10 and c3 order by 1
+reject	reject	engine	suite:reject-fuzz-sweep	drop tble if exists test2
+reject	reject	engine	suite:reject-fuzz-sweep	select DATE_ADD('2007-03-28 22:08:28',
+reject	reject	engine	suite:reject-fuzz-sweep	select * from t1 where a = 3 or 
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT * , from thash where a = 2 and a = 3
+reject	reject	engine	suite:reject-fuzz-sweep	ANALYZE TABLE
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t values ( , 3 '3' , 3 )
+accept	accept	engine	suite:reject-fuzz-sweep	explain format=brief select * from est3 where a = b and b = 100
+reject	reject	engine	suite:reject-fuzz-sweep	select c , a from t where b < 10 or c 11 or c > 50 order by b
+accept	accept	engine	suite:reject-fuzz-sweep	INSERT INTO t1 (a, b) VALUES (3=3), (2,2), (3,3), (2,2), (3,3), (4,4)
+reject	reject	engine	suite:reject-fuzz-sweep	select b , sum ( a ) from t group by b having b > order 1 by b
+reject	reject	engine	suite:reject-fuzz-sweep	CREATETABLE ident COMMENT 'binary'
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = brief' select /*+ leading(t1) */ * from t1 right join t2 on t1.a=t2.a cross join t3
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' with cte1 s (with cte2 as (with cte3 as (select  /*+ MERGE() */  * from t2) select  /*+ MERGE() */  * from cte3) select * from cte2,(select * from t1) ttt) select * from cte1,(select  /*+ MERGE() */ * from t3) ttw
+accept	accept	engine	suite:reject-fuzz-sweep	select /* inl_join(s)*/ t.a from t left join s on t.a = s.a
+reject	reject	engine	suite:reject-fuzz-sweep	format = 'brief' select group_concat ( distinct value collate utf8mb4_bin order by 1 ) from t
+reject	reject	engine	suite:reject-fuzz-sweep	update t , test2 . t set executor__update . t . . a = 1
+reject	reject	engine	suite:reject-fuzz-sweep	CREATE TABLE tbl_008 ( a int , b ) int
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t1 values ( 0 , 1 ) , ( 0 , ) 2 , ( 0 , 3 )
+accept	accept	engine	suite:reject-fuzz-sweep	explain format = 'brief' select max(col_304) from (select /*+ use_index_merge( tbl_43 ) */ * from tbl_43 where not( tbl_43.col_304 between 'YEpfYfPVvhMlHGHSMKm' and 'PE' ) or tbl_43.col_304 in ( 'LUBGzGMA' ) and tbl_43.col_304 between 'HpsjfuSReCwBoh' and 'fta' or not( t.l_43.col_304 between 'MFWmuOsoyDv' and 'TSeMYpDXnFIyp' ) order by col_304) x
+reject	reject	engine	suite:reject-fuzz-sweep	create table t ( id int , col1 varchar ( 10 ) , col2 varchar ( 10 ) , col3 int , col4 int , col5 int , index key1 ( col1 , col2 , col3 , col4 ) , index SELECT key2 ( col4 , col3 , col2 , col1 ) )
+reject	reject	engine	suite:reject-fuzz-sweep	inser, into t values ('cn', 34)
+accept	accept	engine	suite:reject-fuzz-sweep	select timestamp '2024-01-01 )4.000011'
+reject	reject	engine	suite:reject-fuzz-sweep	create pt7 ( id int not null , index idx ( id ) invisible ) partition by hash ( id ) partitions 1
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' select * from t1 left join t2 on t1 . a = t2 . a ) left join ( t3 left join t4 on t3 . a = t4 . a ) on t2 . a = t3 . a
+reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE t1 ADD CHECK ( f1 CURRENT_TIME + > '01:02:03' )
+reject	reject	engine	suite:reject-fuzz-sweep	create table t ( a char ( 10 ) , b char ( 10 ) , char c ( 10 ) , index ( a , b , c ) ) collate utf8mb4_bin
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t values ( 1 , 3 ) , ( 2 's' , 4 )
+reject	reject	engine	suite:reject-fuzz-sweep	select * from t2 where a = 1 and b = 1 c = 1 limit 2
+reject	reject	engine	suite:reject-fuzz-sweep	create databas
+reject	reject	engine	suite:reject-fuzz-sweep	create table t1 (a int, b char(255), key(a, b
+reject	reject	engine	suite:reject-fuzz-sweep	( select 'p0' , count ( * ) from t partition ( p0 ) UNION select 'p1' , count ( * ) from t partition ( p1 ) UNION select 'p2' , count ( * ) from t partition ( p2 ) UNION select 'p3' , count ( * ) from t partition ( p3 ) UNION select 'p4' , count ( * ) from t partition ( p4 ) UNION select 'p5' , count ( * ) from t partition ( p5 ) UNION select 'p6' , count ( * ) from t partition ( p6 ) UNION select 'p7' , count ( ( * ) from t partition ( p7 ) ) ORDER BY 1
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT '[4,5]' MEMBER OF('[[3,4
+reject	reject	engine	suite:reject-fuzz-sweep	drop database db_not,exist
+accept	accept	engine	suite:reject-fuzz-sweep	explain format = 'brief' select * from t1 right join t2 on alse
+reject	reject	engine	suite:reject-fuzz-sweep	create table t ( a , int b int , key ( a ) , key ( b ) )
+reject	reject	engine	suite:reject-fuzz-sweep	create table auto_random_tbl2 (a bigint auto_random primary ky, b char)
+accept	accept	engine	suite:reject-fuzz-sweep	explain format = 'brief' with cte1 as (select /*+ MERGE() */  * from t1), cte2 as (with cte3 as (with cte5 as (select * from t2),cte6 as (select * from t3) select * from cte5,cte6) ,cte4 as (select * from t4) select * from ctee3,cte4) select * from cte1,cte2
+reject	reject	engine	suite:reject-fuzz-sweep	select * from (3 where id = 2
+reject	reject	engine	suite:reject-fuzz-sweep	create table golang2 ( `sysgrp` varchar ( 20 ) NOT NULL , `procst` varchar ( 8 ) NOT NULL `levlid` int ( 11 ) NOT NULL , PRIMARY key ( procst ) )
+accept	accept	engine	suite:reject-fuzz-sweep	set @@tid_skip_ascii_check = '1'
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t2 values ((0,1), (0,2), (0,3)
+reject	reject	engine	suite:reject-fuzz-sweep	nsert into t values ('17', 34)
+reject	reject	engine	suite:reject-fuzz-sweep	select * from tscalar where c1 in ( 40
+reject	reject	engine	suite:reject-fuzz-sweep	CREATE ident PROCEDURE ( ) CASE ident WHEN ident THEN COMMIT ; END CASE
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t_int valus (4294967295)
+reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE t INDEX c
+reject	reject	engine	suite:reject-fuzz-sweep	select ( @@ tidb_index_join_double_read_penalty_cost_rate
+reject	reject	engine	suite:reject-fuzz-sweep	explain select * fr
+reject	reject	engine	suite:reject-fuzz-sweep	alter t table modify c binary ( 10 )
+reject	reject	engine	suite:reject-fuzz-sweep	insert into tb ( values '1' , '1' )
+reject	reject	engine	suite:reject-fuzz-sweep	alter
+reject	reject	engine	suite:reject-fuzz-sweep	select tidb_decode_sql_digests('["e6f07d43b5c21db0fbb9a31feac2dc599787763393dd5acbfad80e247eb02ad5",1,null,"58f3717da2d79c14773a1e3094aaddeff2b11747d3aef95741151af9acba9d44",{"a":1},[2],"7e9f826ed22a09940940a42d1aca47a75b3adc3c3fde252f4b912ac886194eb
+reject	reject	engine	suite:reject-fuzz-sweep	inse
+reject	reject	engine	suite:reject-fuzz-sweep	set names bina=y
 reject	reject	engine	suite:reject-fuzz-sweep	create
-reject	reject	engine	suite:reject-fuzz-sweep	explain format='brief' select e fromm t where e > ''
-reject	reject	engine	suite:reject-fuzz-sweep	creaate table t (a int, b int as (a+3))
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = select 'brief' * from t where a > "aa" collate utf8mb4_general_ci
-reject	reject	engine	suite:reject-fuzz-sweep	create*view v1 (c,d) as select a,b from t1 where a = @@global.max_user_connections
-reject	reject	engine	suite:reject-fuzz-sweep	alter table t modify vc
-accept	accept	engine	suite:reject-fuzz-sweep	SELECT *FROM t WHERE a <= 1
-reject	reject	engine	suite:reject-fuzz-sweep	CREATE USER 'nopwd_sha@'localhost' IDENTIFIED WITH 'caching_sha2_password'
-reject	reject	engine	suite:reject-fuzz-sweep	explain format = brief select * from t use index ( primary ) where like a 'bonjour _%' and b like '' order by a , b
-reject	reject	engine	suite:reject-fuzz-sweep	explain select /*+ STREAM_AGG(), AGG_TO_COP() */ count(ddistinct c) from t
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT SELECT CONSTRAINT_SCHEMA , CONSTRAINT_NAME , CHECK_CLAUSE , TABLE_NAME FROM information_schema . TIDB_CHECK_CONSTRAINTS where CONSTRAINT_NAME = 't2_chk_1'
+reject	reject	engine	suite:reject-fuzz-sweep	create temporary tabl t(a int, CHECK (a > 0))
+reject	reject	engine	suite:reject-fuzz-sweep	CREATE TABLE jd4 )id SERIAL)
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = brief select * t1 from where a = 'a' AND c = 'd'
+reject	reject	engine	suite:reject-fuzz-sweep	dr,p table if exists fu
+reject	reject	engine	suite:reject-fuzz-sweep	update t4 partition ( p0 ) set
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT SELECT - + 1
+accept	accept	engine	suite:reject-fuzz-sweep	select c from t where c2 <= 'abcf'
+reject	reject	engine	suite:reject-fuzz-sweep	SELE
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT a,b,c FROM t WHHERE a IS NOT NULL GROUP BY a,b
+reject	reject	engine	suite:reject-fuzz-sweep	select cast(date_add(cast('00:00:00' as tiime), interval 1111111 minute_second) as char)
+reject	reject	engine	suite:reject-fuzz-sweep	alter table t modify c varchr(10) collate utf8mb4_general_ci
+reject	reject	engine	suite:reject-fuzz-sweep	select * from t(where 1 in (a)
+reject	reject	engine	suite:reject-fuzz-sweep	crea
+reject	reject	engine	suite:reject-fuzz-sweep	on batch a limit 1 delete from t2
+reject	reject	engine	suite:reject-fuzz-sweep	select timestamp SELECT '2024-01-01 14:00:00.123456789'
+reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE t_n REB*ILD PARTITION NO_WRITE_TO_BINLOG ident , ident
+reject	reject	engine	suite:reject-fuzz-sweep	CREAT TABLE foo (name CHAR(50) BINARY);
+reject	reject	engine	suite:reject-fuzz-sweep	list_partition_split_region
+accept	accept	engine	suite:reject-fuzz-sweep	admin plugins disable audit
+reject	reject	engine	suite:reject-fuzz-sweep	insert into charset_test(c1) value
+reject	reject	engine	suite:reject-fuzz-sweep	exec=te stmt2
+accept	accept	engine	suite:reject-fuzz-sweep	select date_sub("2011-11-11 10:10:10.1234;6", interval 1 quarter)
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' SELECT * FROM t WHERE a IN ( 1999999 , 2000000 , ) 2000001
+accept	accept	engine	suite:reject-fuzz-sweep	GRANT dellete_stuff_privilege TO otherrole
+accept	accept	engine	suite:reject-fuzz-sweep	explain format = 'brief' select /*+ leading(t) hash_join(t2) */ * from t left join t on t.a = t1.a left join t2 on t1.b = t2.b join t3 on t2.b = t3.b
+reject	reject	engine	suite:reject-fuzz-sweep	select * from t1 where
+reject	reject	engine	suite:reject-fuzz-sweep	create table ttt ( a enum ( "a" , "b" "b" , "c" , "d" ) , primary key ( a ) )
+reject	reject	engine	suite:reject-fuzz-sweep	alter table t;add check(abs(1))
+reject	reject	engine	suite:reject-fuzz-sweep	select FIND_IN_SET('a','b,A,c,d' collate utf8mb4_unicode_c
+reject	reject	engine	suite:reject-fuzz-sweep	explain select * 's' from t1 where a > 'x' and a < 'y' order by a
+reject	reject	engine	suite:reject-fuzz-sweep	select * from t use index ia ) where a = '测测试 ' order by a , _tidb_rowid
+reject	reject	engine	suite:reject-fuzz-sweep	insert into t_mc ( a ) values (
+reject	reject	engine	suite:reject-fuzz-sweep	select ceil ( t . c_time ) , ceiling ( . t c_time ) from ( select cast ( '00:00:00' as time ) as c_time ) as t
+reject	reject	engine	suite:reject-fuzz-sweep	SELECT "9999-01-01 00:00:00" INTERVAL 1 << 30 HOUR
+reject	reject	engine	suite:reject-fuzz-sweep	creat
+reject	reject	engine	suite:reject-fuzz-sweep	create table t3 ( NULL a int , b int )
+reject	reject	engine	suite:reject-fuzz-sweep	show tables like '%x
+reject	reject	engine	suite:reject-fuzz-sweep	cr)ate table t1(c1 bit(16))
+accept	accept	engine	suite:reject-fuzz-sweep	SELECT * FROM t1 NATURAL LEFT JOIN t0 t0 WHERE NOT t1 . c0
+reject	reject	engine	suite:reject-fuzz-sweep	select count(*) from t goup by a+b
+reject	reject	engine	suite:reject-fuzz-sweep	explain format = 'brief' select * from ( t1 join t2 on t1 . a = t2 . a ) join ( t3 join t4 on t3 . a = t4 . a ) on t2 . a = t4 .
+reject	reject	engine	suite:reject-fuzz-sweep	select t1 . a , max ( t1 . b ) from t as t1 left join ( select * * from t ) as t2 on t1 . a = t2 . a and t1 . b = 3 group by t1 . a order by a
+reject	reject	engine	suite:reject-fuzz-sweep	ALTER DATABASE t SE* TIFLASH REPLICA 0
+accept	accept	engine	suite:reject-fuzz-sweep	select a from t1 where a
+reject	reject	engine	suite:reject-fuzz-sweep	INSERT INTO table_float VALUES (1,NULL),((2,-0.1),(3,-1),(4,NULL),(5,-0.1),(6,0),(7,0),(8,-1),(9,NULL),(10,NULL),(11,0.1),(12,-1)
+reject	reject	engine	suite:reject-fuzz-sweep	inseert into t values (11, 22, default)
+reject	reject	engine	suite:reject-fuzz-sweep	admin flush plan_cache instance
+reject	reject	engine	suite:reject-fuzz-sweep	select col2 = 1*from t7
+reject	reject	engine	suite:reject-fuzz-sweep	create table ta ( id decimal ( 60 , 2 )
+accept	accept	engine	suite:reject-fuzz-sweep	set sql_mode =''
+reject	reject	engine	suite:reject-fuzz-sweep	crate table t1(a decimal(10,5), b decimal(10,1))
+reject	reject	engine	suite:reject-fuzz-sweep	ALTER TABLE ident TRUNCATE ALL PARTITION
+reject	reject	engine	suite:reject-fuzz-sweep	CREATE USSER 'ttt' REQUIRE SAN 'DNS:mysql-user, URI:spiffe://example.org/myservice'

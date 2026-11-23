@@ -8,6 +8,11 @@
 # get no generated row; (spaced) is a token written with a space on each side.
 # columns: token, form, note
 
+# Optional clauses tried at every site the grammar allows them, and not only
+# where their own alternative's row reaches (see grammar.EverySite).
+opt_if_not_exists	(every site)	IF NOT EXISTS
+opt_if_exists	(every site)	IF EXISTS
+
 # Literals, operators and the tokens the lexer forms from other text.
 NAME_OB	a
 .	(spaced)	the lexer reads a word, a dot and a word as one token ({start_identifier}"."{identifier}), so a dot that is a token of its own stands apart

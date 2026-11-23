@@ -23,12 +23,12 @@ func (p *Parser) parseCreateLoadableFunction(start int, isAggregate bool) (*node
 	}
 
 	// Optional IF NOT EXISTS
-	if p.cur.Type == kwIF {
-		p.advance() // consume IF
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
-		stmt.IfNotExists = true
+	// sql_yacc.yy udf_tail: [AGGREGATE_SYM] FUNCTION_SYM opt_if_not_exists ident RETURNS_SYM ...
+	ifNotExists, err := p.parseOptIfNotExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// Function name
 	ref, err := p.parseTableRef()
@@ -105,12 +105,12 @@ func (p *Parser) parseCreateFunctionStmt(start int, isProcedure bool) (*nodes.Cr
 	}
 
 	// Optional IF NOT EXISTS (MySQL 8.0.29+, applies to both FUNCTION and PROCEDURE)
-	if p.cur.Type == kwIF {
-		p.advance() // consume IF
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
-		stmt.IfNotExists = true
+	// sql_yacc.yy sf_tail: FUNCTION_SYM opt_if_not_exists sp_name; sp_tail: PROCEDURE_SYM opt_if_not_exists sp_name.
+	ifNotExists, err := p.parseOptIfNotExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// Function/procedure name
 	ref, err := p.parseNamedRoutineRef()

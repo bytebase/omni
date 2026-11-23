@@ -7,9 +7,9 @@ hash of the stored `SHOW CREATE` texts. `TestSimulation`
 (`../simulate_test.go`) replays it from `tapes/TestSimulation.tape` without a
 server; `mysql/review`'s `TestWalkSimulation` holds WALK_THROUGH to the same rows.
 
-**3,218 rows: 3,218 agree, 0 disagree (100.00%).**
+**3,267 rows: 3,267 agree, 0 disagree (100.00%).**
 
-- **2,877 generated rows:** the 411 statements MySQL accepts in
+- **2,926 generated rows:** the 418 statements MySQL accepts in
   `../../parser/testdata/compat.tsv`, on seven fixtures that name their objects
   `utf8mb4` as compat.tsv does (`one_table@{missing,table,column,index}`,
   `objects@{view,partitioned,fk}`).

@@ -14,6 +14,11 @@
 # Rules whose name the server looks up.
 lvalue_variable	autocommit	a system variable SET assigns: an unknown name answers 1193 before a trailing syntax error
 
+# Optional clauses tried at every site the grammar allows them, and not only
+# where their own alternative's row reaches (see grammar.EverySite).
+opt_if_not_exists	(every site)	IF NOT EXISTS
+if_exists	(every site)	IF EXISTS
+
 # Literals, operators and the tokens the lexer forms from other text.
 ABORT_SYM	(unreachable)	the lexer's error token
 BIN_NUM	b'1'

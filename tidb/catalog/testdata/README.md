@@ -10,7 +10,7 @@ engine's — an error number, or `ok:` and a hash of the `SHOW CREATE` texts the
 database holds afterwards. `TestSimulation` (`../simulate_test.go`) replays it
 from `tapes/TestSimulation.tape` and starts no server. The design is
 `docs/specs/2026-11-11-engine-compatibility-without-servers-design.md` §3.
-3,017 rows: 3,017 agree and 0 disagree.
+3,150 rows: 3,150 agree and 0 disagree.
 
 ## Commands
 

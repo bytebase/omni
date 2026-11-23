@@ -7,6 +7,7 @@
 1305	1305	engine	one_table@missing	simple_statement/drop_procedure_stmt	DROP PROCEDURE utf8mb4;
 1360	1360	engine	one_table@missing	simple_statement/drop_trigger_stmt	DROP TRIGGER utf8mb4;
 1054	1054	engine	one_table@missing	event_tail/EVENT_SYM_opt_if_not_exists_sp_name_ON_SYM_SCHEDULE_SYM_ev_schedule_time_opt_ev_on_completion_opt_ev_status_opt_ev_comment_DO_SYM_ev_sql_stmt	CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
+1054	1054	engine	one_table@missing	event_tail/EVENT_SYM_opt_if_not_exists_sp_name_ON_SYM_SCHEDULE_SYM_ev_schedule_time_opt_ev_on_completion_opt_ev_status_opt_ev_comment_DO_SYM_ev_sql_stmt+opt_if_not_exists	CREATE EVENT IF NOT EXISTS utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
 1054	1054	engine	one_table@missing	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends	ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4 DAY;
 1054	1054	engine	one_table@missing	ev_schedule_time/AT_SYM_expr	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4;
 1539	1539	engine	one_table@missing	opt_ev_status/ENABLE_SYM	ALTER EVENT utf8mb4 ENABLE;
@@ -74,8 +75,14 @@ ok:481c34c143f5	ok:481c34c143f5	engine	one_table@missing	sp_proc_stmt/sp_proc_st
 1054	1054	engine	one_table@missing	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time_ev_on_completion	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION PRESERVE;
 1551	1551	engine	one_table@missing	opt_ev_rename_to/RENAME_TO_SYM_sp_name	ALTER EVENT utf8mb4 RENAME TO utf8mb4;
 1305	1305	engine	one_table@missing	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident_._ident	DROP FUNCTION utf8mb4.utf8mb4;
+ok:75c7b3d9b21b	ok:75c7b3d9b21b	engine	one_table@missing	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident_._ident+if_exists	DROP FUNCTION IF EXISTS utf8mb4.utf8mb4;
+ok:75c7b3d9b21b	ok:75c7b3d9b21b	engine	one_table@missing	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident+if_exists	DROP FUNCTION IF EXISTS utf8mb4;
+ok:75c7b3d9b21b	ok:75c7b3d9b21b	engine	one_table@missing	drop_procedure_stmt/DROP_PROCEDURE_SYM_if_exists_sp_name+if_exists	DROP PROCEDURE IF EXISTS utf8mb4;
+ok:75c7b3d9b21b	ok:75c7b3d9b21b	engine	one_table@missing	drop_event_stmt/DROP_EVENT_SYM_if_exists_sp_name+if_exists	DROP EVENT IF EXISTS utf8mb4;
+ok:75c7b3d9b21b	ok:75c7b3d9b21b	engine	one_table@missing	drop_trigger_stmt/DROP_TRIGGER_SYM_if_exists_sp_name+if_exists	DROP TRIGGER IF EXISTS utf8mb4;
 ok:4128c6ee86bb	ok:4128c6ee86bb	engine	one_table@missing	definer_tail/sp_tail	CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4() COMMIT;
 1054	1054	engine	one_table@missing	definer_tail/event_tail	CREATE DEFINER = utf8mb4 EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
+ok:8e2d1695ab1a	ok:8e2d1695ab1a	engine	one_table@missing	sp_tail/PROCEDURE_SYM_opt_if_not_exists_sp_name_(_sp_pdparam_list_)_sp_c_chistics_sp_proc_stmt+opt_if_not_exists	CREATE PROCEDURE IF NOT EXISTS utf8mb4() COMMIT;
 1305	1305	engine	one_table@table	simple_statement/alter_function_stmt	ALTER FUNCTION utf8mb4;
 1305	1305	engine	one_table@table	simple_statement/alter_procedure_stmt	ALTER PROCEDURE utf8mb4;
 1539	1539	engine	one_table@table	simple_statement/drop_event_stmt	DROP EVENT utf8mb4;
@@ -83,6 +90,7 @@ ok:4128c6ee86bb	ok:4128c6ee86bb	engine	one_table@missing	definer_tail/sp_tail	CR
 1305	1305	engine	one_table@table	simple_statement/drop_procedure_stmt	DROP PROCEDURE utf8mb4;
 1360	1360	engine	one_table@table	simple_statement/drop_trigger_stmt	DROP TRIGGER utf8mb4;
 1054	1054	engine	one_table@table	event_tail/EVENT_SYM_opt_if_not_exists_sp_name_ON_SYM_SCHEDULE_SYM_ev_schedule_time_opt_ev_on_completion_opt_ev_status_opt_ev_comment_DO_SYM_ev_sql_stmt	CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
+1054	1054	engine	one_table@table	event_tail/EVENT_SYM_opt_if_not_exists_sp_name_ON_SYM_SCHEDULE_SYM_ev_schedule_time_opt_ev_on_completion_opt_ev_status_opt_ev_comment_DO_SYM_ev_sql_stmt+opt_if_not_exists	CREATE EVENT IF NOT EXISTS utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
 1054	1054	engine	one_table@table	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends	ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4 DAY;
 1054	1054	engine	one_table@table	ev_schedule_time/AT_SYM_expr	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4;
 1539	1539	engine	one_table@table	opt_ev_status/ENABLE_SYM	ALTER EVENT utf8mb4 ENABLE;
@@ -150,8 +158,14 @@ ok:5ee90d6ff285	ok:5ee90d6ff285	engine	one_table@table	sp_proc_stmt/sp_proc_stmt
 1054	1054	engine	one_table@table	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time_ev_on_completion	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION PRESERVE;
 1551	1551	engine	one_table@table	opt_ev_rename_to/RENAME_TO_SYM_sp_name	ALTER EVENT utf8mb4 RENAME TO utf8mb4;
 1305	1305	engine	one_table@table	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident_._ident	DROP FUNCTION utf8mb4.utf8mb4;
+ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident_._ident+if_exists	DROP FUNCTION IF EXISTS utf8mb4.utf8mb4;
+ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident+if_exists	DROP FUNCTION IF EXISTS utf8mb4;
+ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	drop_procedure_stmt/DROP_PROCEDURE_SYM_if_exists_sp_name+if_exists	DROP PROCEDURE IF EXISTS utf8mb4;
+ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	drop_event_stmt/DROP_EVENT_SYM_if_exists_sp_name+if_exists	DROP EVENT IF EXISTS utf8mb4;
+ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	drop_trigger_stmt/DROP_TRIGGER_SYM_if_exists_sp_name+if_exists	DROP TRIGGER IF EXISTS utf8mb4;
 ok:6c61e2379af3	ok:6c61e2379af3	engine	one_table@table	definer_tail/sp_tail	CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4() COMMIT;
 1054	1054	engine	one_table@table	definer_tail/event_tail	CREATE DEFINER = utf8mb4 EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
+ok:a04fb9762821	ok:a04fb9762821	engine	one_table@table	sp_tail/PROCEDURE_SYM_opt_if_not_exists_sp_name_(_sp_pdparam_list_)_sp_c_chistics_sp_proc_stmt+opt_if_not_exists	CREATE PROCEDURE IF NOT EXISTS utf8mb4() COMMIT;
 ok:bd2666094b16	ok:bd2666094b16	engine	objects@routine	simple_statement/alter_function_stmt	ALTER FUNCTION utf8mb4;
 ok:bd2666094b16	ok:bd2666094b16	engine	objects@routine	simple_statement/alter_procedure_stmt	ALTER PROCEDURE utf8mb4;
 1539	1539	engine	objects@routine	simple_statement/drop_event_stmt	DROP EVENT utf8mb4;
@@ -159,6 +173,7 @@ ok:c231ff8530d8	ok:c231ff8530d8	engine	objects@routine	simple_statement/drop_fun
 ok:0dd1fb555ed4	ok:0dd1fb555ed4	engine	objects@routine	simple_statement/drop_procedure_stmt	DROP PROCEDURE utf8mb4;
 1360	1360	engine	objects@routine	simple_statement/drop_trigger_stmt	DROP TRIGGER utf8mb4;
 1054	1054	engine	objects@routine	event_tail/EVENT_SYM_opt_if_not_exists_sp_name_ON_SYM_SCHEDULE_SYM_ev_schedule_time_opt_ev_on_completion_opt_ev_status_opt_ev_comment_DO_SYM_ev_sql_stmt	CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
+1054	1054	engine	objects@routine	event_tail/EVENT_SYM_opt_if_not_exists_sp_name_ON_SYM_SCHEDULE_SYM_ev_schedule_time_opt_ev_on_completion_opt_ev_status_opt_ev_comment_DO_SYM_ev_sql_stmt+opt_if_not_exists	CREATE EVENT IF NOT EXISTS utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
 1054	1054	engine	objects@routine	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends	ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4 DAY;
 1054	1054	engine	objects@routine	ev_schedule_time/AT_SYM_expr	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4;
 1539	1539	engine	objects@routine	opt_ev_status/ENABLE_SYM	ALTER EVENT utf8mb4 ENABLE;
@@ -226,8 +241,14 @@ ok:3b338dc77888	ok:3b338dc77888	engine	objects@routine	sp_suid/SQL_SYM_SECURITY_
 1054	1054	engine	objects@routine	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time_ev_on_completion	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION PRESERVE;
 1551	1551	engine	objects@routine	opt_ev_rename_to/RENAME_TO_SYM_sp_name	ALTER EVENT utf8mb4 RENAME TO utf8mb4;
 1305	1305	engine	objects@routine	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident_._ident	DROP FUNCTION utf8mb4.utf8mb4;
+ok:bd2666094b16	ok:bd2666094b16	engine	objects@routine	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident_._ident+if_exists	DROP FUNCTION IF EXISTS utf8mb4.utf8mb4;
+ok:c231ff8530d8	ok:c231ff8530d8	engine	objects@routine	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident+if_exists	DROP FUNCTION IF EXISTS utf8mb4;
+ok:0dd1fb555ed4	ok:0dd1fb555ed4	engine	objects@routine	drop_procedure_stmt/DROP_PROCEDURE_SYM_if_exists_sp_name+if_exists	DROP PROCEDURE IF EXISTS utf8mb4;
+ok:bd2666094b16	ok:bd2666094b16	engine	objects@routine	drop_event_stmt/DROP_EVENT_SYM_if_exists_sp_name+if_exists	DROP EVENT IF EXISTS utf8mb4;
+ok:bd2666094b16	ok:bd2666094b16	engine	objects@routine	drop_trigger_stmt/DROP_TRIGGER_SYM_if_exists_sp_name+if_exists	DROP TRIGGER IF EXISTS utf8mb4;
 1304	1304	engine	objects@routine	definer_tail/sp_tail	CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4() COMMIT;
 1054	1054	engine	objects@routine	definer_tail/event_tail	CREATE DEFINER = utf8mb4 EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
+ok:bd2666094b16	ok:bd2666094b16	engine	objects@routine	sp_tail/PROCEDURE_SYM_opt_if_not_exists_sp_name_(_sp_pdparam_list_)_sp_c_chistics_sp_proc_stmt+opt_if_not_exists	CREATE PROCEDURE IF NOT EXISTS utf8mb4() COMMIT;
 1305	1305	engine	objects@trigger	simple_statement/alter_function_stmt	ALTER FUNCTION utf8mb4;
 1305	1305	engine	objects@trigger	simple_statement/alter_procedure_stmt	ALTER PROCEDURE utf8mb4;
 1539	1539	engine	objects@trigger	simple_statement/drop_event_stmt	DROP EVENT utf8mb4;
@@ -235,6 +256,7 @@ ok:3b338dc77888	ok:3b338dc77888	engine	objects@routine	sp_suid/SQL_SYM_SECURITY_
 1305	1305	engine	objects@trigger	simple_statement/drop_procedure_stmt	DROP PROCEDURE utf8mb4;
 ok:6a102a367337	ok:6a102a367337	engine	objects@trigger	simple_statement/drop_trigger_stmt	DROP TRIGGER utf8mb4;
 1054	1054	engine	objects@trigger	event_tail/EVENT_SYM_opt_if_not_exists_sp_name_ON_SYM_SCHEDULE_SYM_ev_schedule_time_opt_ev_on_completion_opt_ev_status_opt_ev_comment_DO_SYM_ev_sql_stmt	CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
+1054	1054	engine	objects@trigger	event_tail/EVENT_SYM_opt_if_not_exists_sp_name_ON_SYM_SCHEDULE_SYM_ev_schedule_time_opt_ev_on_completion_opt_ev_status_opt_ev_comment_DO_SYM_ev_sql_stmt+opt_if_not_exists	CREATE EVENT IF NOT EXISTS utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
 1054	1054	engine	objects@trigger	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends	ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4 DAY;
 1054	1054	engine	objects@trigger	ev_schedule_time/AT_SYM_expr	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4;
 1539	1539	engine	objects@trigger	opt_ev_status/ENABLE_SYM	ALTER EVENT utf8mb4 ENABLE;
@@ -302,8 +324,14 @@ ok:468281bf1df1	ok:468281bf1df1	engine	objects@trigger	sp_proc_stmt/sp_proc_stmt
 1054	1054	engine	objects@trigger	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time_ev_on_completion	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION PRESERVE;
 1551	1551	engine	objects@trigger	opt_ev_rename_to/RENAME_TO_SYM_sp_name	ALTER EVENT utf8mb4 RENAME TO utf8mb4;
 1305	1305	engine	objects@trigger	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident_._ident	DROP FUNCTION utf8mb4.utf8mb4;
+ok:c56d144ed865	ok:c56d144ed865	engine	objects@trigger	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident_._ident+if_exists	DROP FUNCTION IF EXISTS utf8mb4.utf8mb4;
+ok:c56d144ed865	ok:c56d144ed865	engine	objects@trigger	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident+if_exists	DROP FUNCTION IF EXISTS utf8mb4;
+ok:c56d144ed865	ok:c56d144ed865	engine	objects@trigger	drop_procedure_stmt/DROP_PROCEDURE_SYM_if_exists_sp_name+if_exists	DROP PROCEDURE IF EXISTS utf8mb4;
+ok:c56d144ed865	ok:c56d144ed865	engine	objects@trigger	drop_event_stmt/DROP_EVENT_SYM_if_exists_sp_name+if_exists	DROP EVENT IF EXISTS utf8mb4;
+ok:6a102a367337	ok:6a102a367337	engine	objects@trigger	drop_trigger_stmt/DROP_TRIGGER_SYM_if_exists_sp_name+if_exists	DROP TRIGGER IF EXISTS utf8mb4;
 ok:ad8c424bf439	ok:ad8c424bf439	engine	objects@trigger	definer_tail/sp_tail	CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4() COMMIT;
 1054	1054	engine	objects@trigger	definer_tail/event_tail	CREATE DEFINER = utf8mb4 EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
+ok:57dfd558f5b8	ok:57dfd558f5b8	engine	objects@trigger	sp_tail/PROCEDURE_SYM_opt_if_not_exists_sp_name_(_sp_pdparam_list_)_sp_c_chistics_sp_proc_stmt+opt_if_not_exists	CREATE PROCEDURE IF NOT EXISTS utf8mb4() COMMIT;
 1305	1305	engine	objects@event	simple_statement/alter_function_stmt	ALTER FUNCTION utf8mb4;
 1305	1305	engine	objects@event	simple_statement/alter_procedure_stmt	ALTER PROCEDURE utf8mb4;
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@event	simple_statement/drop_event_stmt	DROP EVENT utf8mb4;
@@ -311,6 +339,7 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@event	simple_statement/drop_event
 1305	1305	engine	objects@event	simple_statement/drop_procedure_stmt	DROP PROCEDURE utf8mb4;
 1360	1360	engine	objects@event	simple_statement/drop_trigger_stmt	DROP TRIGGER utf8mb4;
 1054	1054	engine	objects@event	event_tail/EVENT_SYM_opt_if_not_exists_sp_name_ON_SYM_SCHEDULE_SYM_ev_schedule_time_opt_ev_on_completion_opt_ev_status_opt_ev_comment_DO_SYM_ev_sql_stmt	CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
+1054	1054	engine	objects@event	event_tail/EVENT_SYM_opt_if_not_exists_sp_name_ON_SYM_SCHEDULE_SYM_ev_schedule_time_opt_ev_on_completion_opt_ev_status_opt_ev_comment_DO_SYM_ev_sql_stmt+opt_if_not_exists	CREATE EVENT IF NOT EXISTS utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
 1054	1054	engine	objects@event	ev_schedule_time/EVERY_SYM_expr_interval_ev_starts_ev_ends	ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4 DAY;
 1054	1054	engine	objects@event	ev_schedule_time/AT_SYM_expr	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4;
 ok:36db948ea5c5	ok:36db948ea5c5	engine	objects@event	opt_ev_status/ENABLE_SYM	ALTER EVENT utf8mb4 ENABLE;
@@ -378,8 +407,14 @@ ok:9633fe9bfe86	ok:9633fe9bfe86	engine	objects@event	sp_unlabeled_control/REPEAT
 1054	1054	engine	objects@event	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time_ev_on_completion	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION PRESERVE;
 1551	1551	engine	objects@event	opt_ev_rename_to/RENAME_TO_SYM_sp_name	ALTER EVENT utf8mb4 RENAME TO utf8mb4;
 1305	1305	engine	objects@event	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident_._ident	DROP FUNCTION utf8mb4.utf8mb4;
+ok:36db948ea5c5	ok:36db948ea5c5	engine	objects@event	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident_._ident+if_exists	DROP FUNCTION IF EXISTS utf8mb4.utf8mb4;
+ok:36db948ea5c5	ok:36db948ea5c5	engine	objects@event	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident+if_exists	DROP FUNCTION IF EXISTS utf8mb4;
+ok:36db948ea5c5	ok:36db948ea5c5	engine	objects@event	drop_procedure_stmt/DROP_PROCEDURE_SYM_if_exists_sp_name+if_exists	DROP PROCEDURE IF EXISTS utf8mb4;
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	objects@event	drop_event_stmt/DROP_EVENT_SYM_if_exists_sp_name+if_exists	DROP EVENT IF EXISTS utf8mb4;
+ok:36db948ea5c5	ok:36db948ea5c5	engine	objects@event	drop_trigger_stmt/DROP_TRIGGER_SYM_if_exists_sp_name+if_exists	DROP TRIGGER IF EXISTS utf8mb4;
 ok:0bab460fb68a	ok:0bab460fb68a	engine	objects@event	definer_tail/sp_tail	CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4() COMMIT;
 1054	1054	engine	objects@event	definer_tail/event_tail	CREATE DEFINER = utf8mb4 EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
+ok:76722047e5fd	ok:76722047e5fd	engine	objects@event	sp_tail/PROCEDURE_SYM_opt_if_not_exists_sp_name_(_sp_pdparam_list_)_sp_c_chistics_sp_proc_stmt+opt_if_not_exists	CREATE PROCEDURE IF NOT EXISTS utf8mb4() COMMIT;
 ok:eb5074ef0cd6	ok:eb5074ef0cd6	engine	objects@event	event:alter	ALTER EVENT utf8mb4 RENAME TO cleanup
 ok:8d211f20ab58	ok:8d211f20ab58	engine	objects@event	event:alter	ALTER EVENT utf8mb4 ON SCHEDULE AT '2031-01-01 00:00:00'
 ok:bb65014e23b1	ok:bb65014e23b1	engine	objects@event	event:alter	ALTER EVENT utf8mb4 ON SCHEDULE EVERY 2 HOUR STARTS '2030-06-01 00:00:00' ENDS '2031-01-01 00:00:00'

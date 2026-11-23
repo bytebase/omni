@@ -24,12 +24,12 @@ func (p *Parser) parseCreateLoadableFunction(start int, isAggregate bool) (*node
 	}
 
 	// Optional IF NOT EXISTS
-	if p.cur.Type == kwIF {
-		p.advance() // consume IF
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
-		stmt.IfNotExists = true
+	// IF must be followed by NOT EXISTS: no grammar of OceanBase's reads IF alone here.
+	ifNotExists, err := p.parseOptIfNotExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// Function name
 	ref, err := p.parseTableRef()
@@ -113,12 +113,12 @@ func (p *Parser) parseCreateFunctionStmt(start int, isProcedure bool) (*nodes.Cr
 	}
 
 	// Optional IF NOT EXISTS (MySQL 8.0.29+, applies to both FUNCTION and PROCEDURE)
-	if p.cur.Type == kwIF {
-		p.advance() // consume IF
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
-		stmt.IfNotExists = true
+	// IF must be followed by NOT EXISTS: no grammar of OceanBase's reads IF alone here.
+	ifNotExists, err := p.parseOptIfNotExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// Function/procedure name
 	ref, err := p.parseTableRef()

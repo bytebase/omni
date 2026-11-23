@@ -1887,8 +1887,11 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 		p.advance()
 	}
 
+	// FORMAT is unreserved, so without = after it it is EXPLAIN tbl_name's
+	// table: parser.y ExplainStmt reads ExplainSym "FORMAT" "=" ... and
+	// ExplainSym TableName, and `EXPLAIN format` names a table.
 	hasFormat := false
-	if p.cur.Type == kwFORMAT {
+	if p.cur.Type == kwFORMAT && p.peekNext().Type == '=' {
 		hasFormat = true
 		p.advance() // consume FORMAT
 		if _, err := p.expect('='); err != nil {

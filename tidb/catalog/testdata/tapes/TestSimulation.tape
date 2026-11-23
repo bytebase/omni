@@ -208,7 +208,21 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD IF NOT EXISTS ident TINYINT
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD(ident TINYINT)
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD IF NOT EXISTS(ident TINYINT)
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -236,7 +250,21 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD PARTITION IF NOT EXISTS
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD PARTITION PARTITIONS 1
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION IF NOT EXISTS PARTITIONS 1
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -251,6 +279,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD STATS_EXTENDED ident CARDINALITY(ident)
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD STATS_EXTENDED IF NOT EXISTS ident CARDINALITY(ident)
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -278,6 +313,13 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident DROP IF EXISTS ident
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP PRIMARY KEY
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
@@ -292,6 +334,13 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident DROP PARTITION IF EXISTS ident
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident FIRST PARTITION LESS THAN(ident)
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
@@ -299,7 +348,21 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident FIRST PARTITION LESS THAN(ident) IF EXISTS
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP STATS_EXTENDED ident
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP STATS_EXTENDED IF EXISTS ident
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -376,6 +439,13 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident DROP KEY IF EXISTS ident
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP FOREIGN KEY ident
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
@@ -411,7 +481,21 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident MODIFY IF EXISTS ident TINYINT
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident CHANGE ident ident TINYINT
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident CHANGE IF EXISTS ident ident TINYINT
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -1006,6 +1090,13 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD KEY IF NOT EXISTS(ident)
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD UNIQUE(ident)
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
@@ -1014,6 +1105,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD FOREIGN KEY(ident) REFERENCES ident
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FOREIGN KEY IF NOT EXISTS(ident) REFERENCES ident
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -1244,6 +1342,13 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE INDEX IF NOT EXISTS ident ON ident(ident)
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident TINYINT REFERENCES ident(ident)
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
@@ -1328,7 +1433,21 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE IF NOT EXISTS ident
+< error
+| 1113 42000 A table must have at least 1 column
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE ident LIKE ident
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE IF NOT EXISTS ident LIKE ident
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -1713,9 +1832,48 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| DROP INDEX IF EXISTS ident ON ident
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | DROP TABLE ident
 < error
 | 1051 42S02 Unknown table 'simulation.ident'
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 > exec
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -3610,7 +3768,73 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD IF NOT EXISTS ident TINYINT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   `ident` tinyint DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD(ident TINYINT)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   `ident` tinyint DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD IF NOT EXISTS(ident TINYINT)
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -3689,7 +3913,21 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD PARTITION IF NOT EXISTS
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD PARTITION PARTITIONS 1
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION IF NOT EXISTS PARTITIONS 1
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
 > exec
@@ -3704,6 +3942,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD STATS_EXTENDED ident CARDINALITY(ident)
+< error
+| 1105 HY000 Extended statistics feature is not generally available now, and tidb_enable_extended_stats is OFF
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD STATS_EXTENDED IF NOT EXISTS ident CARDINALITY(ident)
 < error
 | 1105 HY000 Extended statistics feature is not generally available now, and tidb_enable_extended_stats is OFF
 > exec
@@ -3731,6 +3976,38 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident DROP IF EXISTS ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP PRIMARY KEY
 < error
 | 8200 HY000 Unsupported drop primary key when the table is using clustered index
@@ -3745,6 +4022,13 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident DROP PARTITION IF EXISTS ident
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident FIRST PARTITION LESS THAN(ident)
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
@@ -3752,7 +4036,21 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident FIRST PARTITION LESS THAN(ident) IF EXISTS
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP STATS_EXTENDED ident
+< error
+| 1105 HY000 Extended statistics feature is not generally available now, and tidb_enable_extended_stats is OFF
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP STATS_EXTENDED IF EXISTS ident
 < error
 | 1105 HY000 Extended statistics feature is not generally available now, and tidb_enable_extended_stats is OFF
 > exec
@@ -3825,6 +4123,38 @@
 | ALTER TABLE ident DROP KEY ident
 < error
 | 1091 42000 index ident doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP KEY IF EXISTS ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 > exec
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -3939,9 +4269,73 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident MODIFY IF EXISTS ident TINYINT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident CHANGE ident ident TINYINT
 < error
 | 1054 42S22 Unknown column 'ident' in 'ident'
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident CHANGE IF EXISTS ident ident TINYINT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 > exec
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -5575,6 +5969,13 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD KEY IF NOT EXISTS(ident)
+< error
+| 1072 42000 column does not exist: ident
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD UNIQUE(ident)
 < error
 | 1072 42000 column does not exist: ident
@@ -5583,6 +5984,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD FOREIGN KEY(ident) REFERENCES ident
+< error
+| 1239 42000 Incorrect foreign key definition for 'fk_1': Key reference and table reference don't match
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FOREIGN KEY IF NOT EXISTS(ident) REFERENCES ident
 < error
 | 1239 42000 Incorrect foreign key definition for 'fk_1': Key reference and table reference don't match
 > exec
@@ -6125,6 +6533,13 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE INDEX IF NOT EXISTS ident ON ident(ident)
+< error
+| 1072 42000 column does not exist: ident
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident TINYINT REFERENCES ident(ident)
 < ok 0 0
 > query
@@ -6285,9 +6700,48 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE IF NOT EXISTS ident
+< error
+| 1113 42000 A table must have at least 1 column
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE ident LIKE ident
 < error
 | 1050 42S01 Table 'simulation.ident' already exists
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE IF NOT EXISTS ident LIKE ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 > exec
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -6773,7 +7227,50 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| DROP INDEX IF EXISTS ident ON ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `c` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | DROP TABLE ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS ident
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -11743,9 +12240,73 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD IF NOT EXISTS ident TINYINT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD(ident TINYINT)
 < error
 | 1060 42S21 Duplicate column name 'ident'
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD IF NOT EXISTS(ident TINYINT)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 > exec
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -11822,7 +12383,21 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD PARTITION IF NOT EXISTS
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD PARTITION PARTITIONS 1
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION IF NOT EXISTS PARTITIONS 1
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
 > exec
@@ -11837,6 +12412,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD STATS_EXTENDED ident CARDINALITY(ident)
+< error
+| 1105 HY000 Extended statistics feature is not generally available now, and tidb_enable_extended_stats is OFF
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD STATS_EXTENDED IF NOT EXISTS ident CARDINALITY(ident)
 < error
 | 1105 HY000 Extended statistics feature is not generally available now, and tidb_enable_extended_stats is OFF
 > exec
@@ -11888,6 +12470,37 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident DROP IF EXISTS ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP PRIMARY KEY
 < error
 | 8200 HY000 Unsupported drop primary key when the table is using clustered index
@@ -11902,6 +12515,13 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident DROP PARTITION IF EXISTS ident
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident FIRST PARTITION LESS THAN(ident)
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
@@ -11909,7 +12529,21 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident FIRST PARTITION LESS THAN(ident) IF EXISTS
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP STATS_EXTENDED ident
+< error
+| 1105 HY000 Extended statistics feature is not generally available now, and tidb_enable_extended_stats is OFF
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP STATS_EXTENDED IF EXISTS ident
 < error
 | 1105 HY000 Extended statistics feature is not generally available now, and tidb_enable_extended_stats is OFF
 > exec
@@ -11982,6 +12616,38 @@
 | ALTER TABLE ident DROP KEY ident
 < error
 | 1091 42000 index ident doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP KEY IF EXISTS ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 > exec
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -12121,7 +12787,71 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident MODIFY IF EXISTS ident TINYINT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` tinyint DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident CHANGE ident ident TINYINT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` tinyint DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident CHANGE IF EXISTS ident ident TINYINT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -13491,6 +14221,39 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD KEY IF NOT EXISTS(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD UNIQUE(ident)
 < ok 0 0
 > query
@@ -13525,6 +14288,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD FOREIGN KEY(ident) REFERENCES ident
+< error
+| 1239 42000 Incorrect foreign key definition for 'fk_1': Key reference and table reference don't match
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FOREIGN KEY IF NOT EXISTS(ident) REFERENCES ident
 < error
 | 1239 42000 Incorrect foreign key definition for 'fk_1': Key reference and table reference don't match
 > exec
@@ -13781,6 +14551,39 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE INDEX IF NOT EXISTS ident ON ident(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident TINYINT REFERENCES ident(ident)
 < error
 | 1060 42S21 Duplicate column name 'ident'
@@ -13941,9 +14744,48 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE IF NOT EXISTS ident
+< error
+| 1113 42000 A table must have at least 1 column
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE TABLE ident LIKE ident
 < error
 | 1050 42S01 Table 'simulation.ident' already exists
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE IF NOT EXISTS ident LIKE ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 > exec
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -14429,7 +15271,50 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| DROP INDEX IF EXISTS ident ON ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | DROP TABLE ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS ident
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -17333,9 +18218,73 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD IF NOT EXISTS ident TINYINT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD(ident TINYINT)
 < error
 | 1060 42S21 Duplicate column name 'ident'
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD IF NOT EXISTS(ident TINYINT)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 > exec
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
@@ -17412,7 +18361,21 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD PARTITION IF NOT EXISTS
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD PARTITION PARTITIONS 1
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION IF NOT EXISTS PARTITIONS 1
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
 > exec
@@ -17427,6 +18390,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD STATS_EXTENDED ident CARDINALITY(ident)
+< error
+| 1105 HY000 Extended statistics feature is not generally available now, and tidb_enable_extended_stats is OFF
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD STATS_EXTENDED IF NOT EXISTS ident CARDINALITY(ident)
 < error
 | 1105 HY000 Extended statistics feature is not generally available now, and tidb_enable_extended_stats is OFF
 > exec
@@ -17478,6 +18448,37 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident DROP IF EXISTS ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP PRIMARY KEY
 < error
 | 8200 HY000 Unsupported drop primary key when the table is using clustered index
@@ -17492,6 +18493,13 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident DROP PARTITION IF EXISTS ident
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident FIRST PARTITION LESS THAN(ident)
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
@@ -17499,7 +18507,21 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident FIRST PARTITION LESS THAN(ident) IF EXISTS
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP STATS_EXTENDED ident
+< error
+| 1105 HY000 Extended statistics feature is not generally available now, and tidb_enable_extended_stats is OFF
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP STATS_EXTENDED IF EXISTS ident
 < error
 | 1105 HY000 Extended statistics feature is not generally available now, and tidb_enable_extended_stats is OFF
 > exec
@@ -17570,6 +18592,37 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident DROP KEY ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP KEY IF EXISTS ident
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -17735,7 +18788,71 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident MODIFY IF EXISTS ident TINYINT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` tinyint DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident CHANGE ident ident TINYINT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` tinyint DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident CHANGE IF EXISTS ident ident TINYINT
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -19179,6 +20296,39 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD KEY IF NOT EXISTS(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`),
+|   KEY `ident_2` (`ident`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD UNIQUE(ident)
 < ok 0 0
 > query
@@ -19213,6 +20363,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD FOREIGN KEY(ident) REFERENCES ident
+< error
+| 1239 42000 Incorrect foreign key definition for 'fk_1': Key reference and table reference don't match
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FOREIGN KEY IF NOT EXISTS(ident) REFERENCES ident
 < error
 | 1239 42000 Incorrect foreign key definition for 'fk_1': Key reference and table reference don't match
 > exec
@@ -19439,6 +20596,38 @@
 | CREATE INDEX ident ON ident(ident)
 < error
 | 1061 42000 Duplicate key name 'ident'
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| CREATE INDEX IF NOT EXISTS ident ON ident(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 > exec
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
@@ -19697,9 +20886,48 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| CREATE TABLE IF NOT EXISTS ident
+< error
+| 1113 42000 A table must have at least 1 column
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | CREATE TABLE ident LIKE ident
 < error
 | 1050 42S01 Table 'simulation.ident' already exists
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| CREATE TABLE IF NOT EXISTS ident LIKE ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `ident` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 > exec
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
@@ -20185,7 +21413,49 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
 < ok 0 0
 > exec
+| DROP INDEX IF EXISTS ident ON ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
 | DROP TABLE ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY ident (d))
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS ident
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -22934,7 +24204,23 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD IF NOT EXISTS ident TINYINT
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD(ident TINYINT)
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD IF NOT EXISTS(ident TINYINT)
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -22966,7 +24252,23 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD PARTITION IF NOT EXISTS
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD PARTITION PARTITIONS 1
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION IF NOT EXISTS PARTITIONS 1
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -22983,6 +24285,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD STATS_EXTENDED ident CARDINALITY(ident)
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD STATS_EXTENDED IF NOT EXISTS ident CARDINALITY(ident)
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -23014,6 +24324,14 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE ident DROP IF EXISTS ident
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP PRIMARY KEY
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
@@ -23030,6 +24348,14 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE ident DROP PARTITION IF EXISTS ident
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE ident FIRST PARTITION LESS THAN(ident)
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
@@ -23038,7 +24364,23 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE ident FIRST PARTITION LESS THAN(ident) IF EXISTS
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP STATS_EXTENDED ident
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP STATS_EXTENDED IF EXISTS ident
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -23126,6 +24468,14 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE ident DROP KEY IF EXISTS ident
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP FOREIGN KEY ident
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
@@ -23166,7 +24516,23 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE ident MODIFY IF EXISTS ident TINYINT
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE ident CHANGE ident ident TINYINT
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident CHANGE IF EXISTS ident ident TINYINT
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -23846,6 +25212,14 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD KEY IF NOT EXISTS(ident)
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD UNIQUE(ident)
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
@@ -23855,6 +25229,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD FOREIGN KEY(ident) REFERENCES ident
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FOREIGN KEY IF NOT EXISTS(ident) REFERENCES ident
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -24118,6 +25500,14 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| CREATE INDEX IF NOT EXISTS ident ON ident(ident)
+< error
+| 1105 HY000 Unknown charset 
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident TINYINT REFERENCES ident(ident)
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
@@ -24214,7 +25604,23 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| CREATE TABLE IF NOT EXISTS ident
+< error
+| 1113 42000 A table must have at least 1 column
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | CREATE TABLE ident LIKE ident
+< error
+| 1347 HY000 'simulation.ident' is not BASE TABLE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| CREATE TABLE IF NOT EXISTS ident LIKE ident
 < error
 | 1347 HY000 'simulation.ident' is not BASE TABLE
 > exec
@@ -24654,9 +26060,117 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| DROP INDEX IF EXISTS ident ON ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| VIEW
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `ident`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `ident` (`b`, `ident`, `d`) AS SELECT `b` AS `b`,`ident` AS `ident`,`d` AS `d` FROM `simulation`.`t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | DROP TABLE ident
 < error
 | 1051 42S02 Unknown table 'simulation.ident'
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| VIEW
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `ident`
+< result
+< column "View" "VARCHAR"
+< column "Create View" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `ident` (`b`, `ident`, `d`) AS SELECT `b` AS `b`,`ident` AS `ident`,`d` AS `d` FROM `simulation`.`t`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 > exec
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
@@ -26847,9 +28361,79 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD IF NOT EXISTS ident TINYINT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ident`)
+| (PARTITION `p0` VALUES LESS THAN (100),
+|  PARTITION `ident` VALUES LESS THAN (200))
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD(ident TINYINT)
 < error
 | 1060 42S21 Duplicate column name 'ident'
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD IF NOT EXISTS(ident TINYINT)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ident`)
+| (PARTITION `p0` VALUES LESS THAN (100),
+|  PARTITION `ident` VALUES LESS THAN (200))
 > exec
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
@@ -26932,7 +28516,21 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD PARTITION IF NOT EXISTS
+< error
+| 1492 HY000 For RANGE partitions each partition must be defined
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD PARTITION PARTITIONS 1
+< error
+| 1492 HY000 For RANGE partitions each partition must be defined
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION IF NOT EXISTS PARTITIONS 1
 < error
 | 1492 HY000 For RANGE partitions each partition must be defined
 > exec
@@ -26947,6 +28545,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD STATS_EXTENDED ident CARDINALITY(ident)
+< error
+| 1105 HY000 Extended statistics feature is not generally available now, and tidb_enable_extended_stats is OFF
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD STATS_EXTENDED IF NOT EXISTS ident CARDINALITY(ident)
 < error
 | 1105 HY000 Extended statistics feature is not generally available now, and tidb_enable_extended_stats is OFF
 > exec
@@ -26968,6 +28573,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident DROP ident
+< error
+| 8200 HY000 can't drop column ident with composite index covered or Primary Key covered now
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP IF EXISTS ident
 < error
 | 8200 HY000 can't drop column ident with composite index covered or Primary Key covered now
 > exec
@@ -27015,6 +28627,40 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE ident DROP PARTITION IF EXISTS ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ident`)
+| (PARTITION `p0` VALUES LESS THAN (100))
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE ident FIRST PARTITION LESS THAN(ident)
 < error
 | 1054 42S22 Unknown column 'ident' in 'expression'
@@ -27022,7 +28668,21 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE ident FIRST PARTITION LESS THAN(ident) IF EXISTS
+< error
+| 1054 42S22 Unknown column 'ident' in 'expression'
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP STATS_EXTENDED ident
+< error
+| 1105 HY000 Extended statistics feature is not generally available now, and tidb_enable_extended_stats is OFF
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP STATS_EXTENDED IF EXISTS ident
 < error
 | 1105 HY000 Extended statistics feature is not generally available now, and tidb_enable_extended_stats is OFF
 > exec
@@ -27123,6 +28783,41 @@
 | ALTER TABLE ident DROP KEY ident
 < error
 | 1091 42000 index ident doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP KEY IF EXISTS ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ident`)
+| (PARTITION `p0` VALUES LESS THAN (100),
+|  PARTITION `ident` VALUES LESS THAN (200))
 > exec
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
@@ -27246,7 +28941,21 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE ident MODIFY IF EXISTS ident TINYINT
+< error
+| 8200 HY000 Unsupported modify column: this column has primary key flag
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE ident CHANGE ident ident TINYINT
+< error
+| 8200 HY000 Unsupported modify column: this column has primary key flag
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident CHANGE IF EXISTS ident ident TINYINT
 < error
 | 8200 HY000 Unsupported modify column: this column has primary key flag
 > exec
@@ -28626,6 +30335,42 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD KEY IF NOT EXISTS(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ident`)
+| (PARTITION `p0` VALUES LESS THAN (100),
+|  PARTITION `ident` VALUES LESS THAN (200))
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD UNIQUE(ident)
 < ok 0 0
 > query
@@ -28663,6 +30408,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD FOREIGN KEY(ident) REFERENCES ident
+< error
+| 1239 42000 Incorrect foreign key definition for 'fk_1': Key reference and table reference don't match
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FOREIGN KEY IF NOT EXISTS(ident) REFERENCES ident
 < error
 | 1239 42000 Incorrect foreign key definition for 'fk_1': Key reference and table reference don't match
 > exec
@@ -28922,6 +30674,42 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| CREATE INDEX IF NOT EXISTS ident ON ident(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ident`)
+| (PARTITION `p0` VALUES LESS THAN (100),
+|  PARTITION `ident` VALUES LESS THAN (200))
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident TINYINT REFERENCES ident(ident)
 < error
 | 1060 42S21 Duplicate column name 'ident'
@@ -29091,9 +30879,51 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| CREATE TABLE IF NOT EXISTS ident
+< error
+| 1113 42000 A table must have at least 1 column
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | CREATE TABLE ident LIKE ident
 < error
 | 1050 42S01 Table 'simulation.ident' already exists
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| CREATE TABLE IF NOT EXISTS ident LIKE ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ident`)
+| (PARTITION `p0` VALUES LESS THAN (100),
+|  PARTITION `ident` VALUES LESS THAN (200))
 > exec
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
@@ -29608,7 +31438,53 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| DROP INDEX IF EXISTS ident ON ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int NOT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`,`ident`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY RANGE (`ident`)
+| (PARTITION `p0` VALUES LESS THAN (100),
+|  PARTITION `ident` VALUES LESS THAN (200))
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
 | DROP TABLE ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT, ident INT, d INT, PRIMARY KEY (b, ident), KEY idx_d (d)) PARTITION BY RANGE (ident) (PARTITION p0 VALUES LESS THAN (100), PARTITION ident VALUES LESS THAN (200))
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS ident
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -32877,9 +34753,115 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD IF NOT EXISTS ident TINYINT
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`),
+|   CONSTRAINT `ident` FOREIGN KEY (`ident`) REFERENCES `parent` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD(ident TINYINT)
 < error
 | 1060 42S21 Duplicate column name 'ident'
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD IF NOT EXISTS(ident TINYINT)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`),
+|   CONSTRAINT `ident` FOREIGN KEY (`ident`) REFERENCES `parent` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 > exec
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
@@ -33000,7 +34982,23 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD PARTITION IF NOT EXISTS
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD PARTITION PARTITIONS 1
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD PARTITION IF NOT EXISTS PARTITIONS 1
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
 > exec
@@ -33017,6 +35015,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD STATS_EXTENDED ident CARDINALITY(ident)
+< error
+| 1105 HY000 Extended statistics feature is not generally available now, and tidb_enable_extended_stats is OFF
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD STATS_EXTENDED IF NOT EXISTS ident CARDINALITY(ident)
 < error
 | 1105 HY000 Extended statistics feature is not generally available now, and tidb_enable_extended_stats is OFF
 > exec
@@ -33048,6 +35054,14 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| ALTER TABLE ident DROP IF EXISTS ident
+< error
+| 1828 HY000 Cannot drop column 'ident': needed in a foreign key constraint 'ident'
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP PRIMARY KEY
 < error
 | 8200 HY000 Unsupported drop primary key when the table is using clustered index
@@ -33064,6 +35078,14 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| ALTER TABLE ident DROP PARTITION IF EXISTS ident
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | ALTER TABLE ident FIRST PARTITION LESS THAN(ident)
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
@@ -33072,7 +35094,23 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| ALTER TABLE ident FIRST PARTITION LESS THAN(ident) IF EXISTS
+< error
+| 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | ALTER TABLE ident DROP STATS_EXTENDED ident
+< error
+| 1105 HY000 Extended statistics feature is not generally available now, and tidb_enable_extended_stats is OFF
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP STATS_EXTENDED IF EXISTS ident
 < error
 | 1105 HY000 Extended statistics feature is not generally available now, and tidb_enable_extended_stats is OFF
 > exec
@@ -33153,6 +35191,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident DROP KEY ident
+< error
+| 1553 HY000 Cannot drop index 'ident': needed in a foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident DROP KEY IF EXISTS ident
 < error
 | 1553 HY000 Cannot drop index 'ident': needed in a foreign key constraint
 > exec
@@ -33379,7 +35425,23 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| ALTER TABLE ident MODIFY IF EXISTS ident TINYINT
+< error
+| 3780 HY000 Referencing column 'ident' and referenced column 'b' in foreign key constraint 'ident' are incompatible.
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | ALTER TABLE ident CHANGE ident ident TINYINT
+< error
+| 3780 HY000 Referencing column 'ident' and referenced column 'b' in foreign key constraint 'ident' are incompatible.
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident CHANGE IF EXISTS ident ident TINYINT
 < error
 | 3780 HY000 Referencing column 'ident' and referenced column 'b' in foreign key constraint 'ident' are incompatible.
 > exec
@@ -35455,6 +37517,60 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| ALTER TABLE ident ADD KEY IF NOT EXISTS(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`),
+|   KEY `ident_2` (`ident`),
+|   CONSTRAINT `ident` FOREIGN KEY (`ident`) REFERENCES `parent` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD UNIQUE(ident)
 < ok 0 0
 > query
@@ -35510,6 +37626,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE ident ADD FOREIGN KEY(ident) REFERENCES ident
+< error
+| 1239 42000 Incorrect foreign key definition for 'fk_2': Key reference and table reference don't match
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| ALTER TABLE ident ADD FOREIGN KEY IF NOT EXISTS(ident) REFERENCES ident
 < error
 | 1239 42000 Incorrect foreign key definition for 'fk_2': Key reference and table reference don't match
 > exec
@@ -35773,6 +37897,59 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| CREATE INDEX IF NOT EXISTS ident ON ident(ident)
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`),
+|   CONSTRAINT `ident` FOREIGN KEY (`ident`) REFERENCES `parent` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | ALTER TABLE ident ADD ident TINYINT REFERENCES ident(ident)
 < error
 | 1060 42S21 Duplicate column name 'ident'
@@ -35959,9 +38136,70 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| CREATE TABLE IF NOT EXISTS ident
+< error
+| 1113 42000 A table must have at least 1 column
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | CREATE TABLE ident LIKE ident
 < error
 | 1050 42S01 Table 'simulation.ident' already exists
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| CREATE TABLE IF NOT EXISTS ident LIKE ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| BASE TABLE
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `ident`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE TABLE `ident` (
+|   `b` int NOT NULL,
+|   `ident` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */,
+|   KEY `idx_d` (`d`),
+|   KEY `ident` (`ident`),
+|   CONSTRAINT `ident` FOREIGN KEY (`ident`) REFERENCES `parent` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 > exec
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
@@ -36582,7 +38820,45 @@
 | CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
 < ok 0 0
 > exec
+| DROP INDEX IF EXISTS ident ON ident
+< error
+| 1553 HY000 Cannot drop index 'ident': needed in a foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
 | DROP TABLE ident
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| parent
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `parent`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| parent
+: bytes
+| CREATE TABLE `parent` (
+|   `b` int NOT NULL,
+|   PRIMARY KEY (`b`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE parent (b INT PRIMARY KEY);
+| CREATE TABLE ident (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d), CONSTRAINT ident FOREIGN KEY (ident) REFERENCES parent (b))
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS ident
 < ok 0 0
 > query
 | SHOW FULL TABLES

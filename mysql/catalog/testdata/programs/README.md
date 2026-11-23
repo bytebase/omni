@@ -24,9 +24,9 @@ from `../tapes/TestProgramSimulation.tape` without starting a server, and diffs
 every object kind against `mysql/catalog`. `mysql/review`'s `TestWalkSimulation`
 also verifies all rows offline (`programs` subtest).
 
-**405 rows (76 statements × 5 fixtures, and 25 `event:*` rows from
+**440 rows (83 statements × 5 fixtures, and 25 `event:*` rows from
 `../../simulate_families_test.go` on `objects@event` and `one_table@missing`):
-405 agree, 0 disagree (100.00%).**
+440 agree, 0 disagree (100.00%).**
 
 ## Commands
 

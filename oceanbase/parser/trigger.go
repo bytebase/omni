@@ -30,12 +30,12 @@ func (p *Parser) parseCreateTriggerStmt(start int) (*nodes.CreateTriggerStmt, er
 	stmt := &nodes.CreateTriggerStmt{Loc: nodes.Loc{Start: start}}
 
 	// IF NOT EXISTS
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
-		stmt.IfNotExists = true
+	// IF must be followed by NOT EXISTS: no grammar of OceanBase's reads IF alone here.
+	ifNotExists, err := p.parseOptIfNotExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// Trigger name, with its database or without. The migration generator writes the
 	// database, and OceanBase stores the statement as it was written.
@@ -173,12 +173,12 @@ func (p *Parser) parseCreateEventStmt(start int) (*nodes.CreateEventStmt, error)
 	stmt := &nodes.CreateEventStmt{Loc: nodes.Loc{Start: start}}
 
 	// IF NOT EXISTS
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
-		stmt.IfNotExists = true
+	// IF must be followed by NOT EXISTS: no grammar of OceanBase's reads IF alone here.
+	ifNotExists, err := p.parseOptIfNotExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// Event name
 	name, _, err := p.parseIdent()

@@ -351,11 +351,12 @@ func (p *Parser) parseDropTriggerStmt(start int) (*nodes.DropTriggerStmt, error)
 	}
 
 	// IF EXISTS
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		stmt.IfExists = true
+	// IF must be followed by EXISTS: no grammar of OceanBase's reads IF alone here.
+	ifExists, err := p.parseIfExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfExists = ifExists
 
 	// Completion: after DROP TRIGGER [IF EXISTS], offer trigger_ref.
 	p.checkCursor()
@@ -387,11 +388,12 @@ func (p *Parser) parseDropEventStmt(start int) (*nodes.DropEventStmt, error) {
 	}
 
 	// IF EXISTS
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		stmt.IfExists = true
+	// IF must be followed by EXISTS: no grammar of OceanBase's reads IF alone here.
+	ifExists, err := p.parseIfExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfExists = ifExists
 
 	// Completion: after DROP EVENT [IF EXISTS], offer event_ref.
 	p.checkCursor()

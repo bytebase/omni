@@ -183,12 +183,12 @@ func (p *Parser) parseDropRoutineStmt(start int, isProcedure bool) (*nodes.DropR
 		IsProcedure: isProcedure,
 	}
 
-	// IF EXISTS
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		stmt.IfExists = true
+	// IF EXISTS. parser.y DropProcedureStmt: "DROP" "PROCEDURE" IfExists TableName.
+	ifExists, err := p.parseIfExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfExists = ifExists
 
 	// Completion: after DROP FUNCTION/PROCEDURE [IF EXISTS], offer function_ref/procedure_ref.
 	p.checkCursor()

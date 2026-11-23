@@ -325,11 +325,12 @@ func (p *Parser) parseDropRoutineStmt(start int, isProcedure bool) (*nodes.DropR
 	}
 
 	// IF EXISTS
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		stmt.IfExists = true
+	// sql_yacc.yy drop_function_stmt: DROP FUNCTION_SYM if_exists ident; drop_procedure_stmt: DROP PROCEDURE_SYM if_exists sp_name.
+	ifExists, err := p.parseIfExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfExists = ifExists
 
 	// Completion: after DROP FUNCTION/PROCEDURE [IF EXISTS], offer function_ref/procedure_ref.
 	p.checkCursor()
@@ -365,11 +366,12 @@ func (p *Parser) parseDropTriggerStmt(start int) (*nodes.DropTriggerStmt, error)
 	}
 
 	// IF EXISTS
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		stmt.IfExists = true
+	// sql_yacc.yy drop_trigger_stmt: DROP TRIGGER_SYM if_exists sp_name.
+	ifExists, err := p.parseIfExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfExists = ifExists
 
 	// Completion: after DROP TRIGGER [IF EXISTS], offer trigger_ref.
 	p.checkCursor()
@@ -401,11 +403,12 @@ func (p *Parser) parseDropEventStmt(start int) (*nodes.DropEventStmt, error) {
 	}
 
 	// IF EXISTS
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwEXISTS_KW)
-		stmt.IfExists = true
+	// sql_yacc.yy drop_event_stmt: DROP EVENT_SYM if_exists sp_name.
+	ifExists, err := p.parseIfExists()
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfExists = ifExists
 
 	// Completion: after DROP EVENT [IF EXISTS], offer event_ref.
 	p.checkCursor()

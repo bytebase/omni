@@ -631,6 +631,7 @@ func TestWalkThroughMySQLRefusalFamilies(t *testing.T) {
 		{"1505 add partition on non-partitioned", "ALTER TABLE plain ADD PARTITION (PARTITION p0 VALUES LESS THAN (10));", "Table `plain` is not partitioned."},
 		{"1505 remove partitioning on non-partitioned", "ALTER TABLE plain REMOVE PARTITIONING;", "Table `plain` is not partitioned."},
 		{"1066 exchange partition with self", "ALTER TABLE parted EXCHANGE PARTITION p0 WITH TABLE parted;", "Table `parted` cannot exchange a partition with itself."},
+		{"1066 create table like itself", "CREATE TABLE IF NOT EXISTS plain LIKE plain;", "Table `plain` cannot be created LIKE itself."},
 		{"1492 partition by range without defs", "ALTER TABLE plain PARTITION BY RANGE (id);", "Each partition must be defined for `RANGE` or `LIST` partitioning."},
 		{"1492 add partition without defs on range", "ALTER TABLE parted ADD PARTITION PARTITIONS 1;", "Each partition must be defined for `RANGE` or `LIST` partitioning."},
 		{"1500 subpartition on key", "ALTER TABLE plain PARTITION BY KEY () SUBPARTITION BY HASH (id);", "`SUBPARTITION BY` is only supported with `RANGE` or `LIST` partitioning."},
