@@ -736,6 +736,18 @@
 | CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+|
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 |
 < error
@@ -749,6 +761,18 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+|
+< error
+| 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 |
 < error
 | 1088 9 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -941,6 +965,18 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+|
+< error
+| 15151 1 16 1 proc=a Cannot execute as the user 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 |
 < error
 | 15151 1 16 1 proc=a Cannot execute as the user 'a', because it does not exist or you do not have permission.
@@ -1503,6 +1539,18 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+|
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 |
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
@@ -2737,6 +2785,30 @@
 | CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+|
+< error
+| 8197 4 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+|
+< error
+| 8197 4 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 |
 < error
@@ -3228,6 +3300,18 @@
 | CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
+|
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a DROP a WITH(MOVE TO 'a')
 |
 < error
@@ -3696,6 +3780,18 @@
 | CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+|
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 |
 < error
@@ -3745,6 +3841,18 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+|
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
 |
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -3992,6 +4100,18 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+|
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 |
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -4405,6 +4525,18 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 |
 < error
@@ -4418,6 +4550,18 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 |
 < error
 | 2727 1 11 1 Cannot find index 'a'.
@@ -4640,6 +4784,18 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 |
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
@@ -5137,6 +5293,18 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+|
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 |
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
@@ -6274,6 +6442,30 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+|
+< error
+| 2714 2 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+|
+< error
+| 2714 2 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 |
 < error
@@ -6799,6 +6991,19 @@
 |
 < error
 | 3745 1 16 1 Only a clustered index can be dropped online.
+| 3727 0 16 1 Could not drop constraint. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
+|
+< error
+| 3728 2 16 1 'a' is not a constraint.
 | 3727 0 16 1 Could not drop constraint. See previous errors.
 > exec
 | EXEC [dbo].[_sim_reset]
@@ -7350,6 +7555,19 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 |
 < error
@@ -7421,6 +7639,18 @@
 | ALTER TABLE [dbo].[a] ADD CHECK ((1)=(1));
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
+|
+< error
+| 33411 4 16 1 The option 'FILETABLE_DIRECTORY' is only valid when used on a FileTable. Remove the option from the statement.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -7683,6 +7913,18 @@
 | ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
+|
+< error
+| 2715 6 16 1 Column, parameter, or variable #4: Cannot find data type a.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -8069,6 +8311,18 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 |
 < error
@@ -8082,6 +8336,18 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 |
 < error
 | 2727 1 11 1 Cannot find index 'a'.
@@ -8304,6 +8570,18 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 |
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
@@ -8801,6 +9079,18 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+|
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 |
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
@@ -10002,6 +10292,30 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+|
+< error
+| 2714 2 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+|
+< error
+| 2714 2 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 |
 < error
@@ -10557,6 +10871,19 @@
 |
 < error
 | 3745 1 16 1 Only a clustered index can be dropped online.
+| 3727 0 16 1 Could not drop constraint. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
+|
+< error
+| 3728 2 16 1 'a' is not a constraint.
 | 3727 0 16 1 Could not drop constraint. See previous errors.
 > exec
 | EXEC [dbo].[_sim_reset]
@@ -11136,6 +11463,34 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD UNIQUE NONCLUSTERED ([a] DESC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 |
 < error
@@ -11222,6 +11577,18 @@
 | ALTER TABLE [dbo].[a] ADD CHECK ((1)=(1));
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
+|
+< error
+| 33411 4 16 1 The option 'FILETABLE_DIRECTORY' is only valid when used on a FileTable. Remove the option from the statement.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -11484,6 +11851,18 @@
 | ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
+|
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -11870,6 +12249,18 @@
 | CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+|
+< error
+| 6333 2 16 1 Could not findSELECTIVE XML index named 'a' on table 'a'
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 |
 < error
@@ -11883,6 +12274,18 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+|
+< error
+| 6333 2 16 1 Could not findSELECTIVE XML index named 'a' on table 'a'
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 |
 < error
 | 6333 2 16 1 Could not findSELECTIVE XML index named 'a' on table 'a'
@@ -12120,6 +12523,18 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 |
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
@@ -12645,6 +13060,18 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+|
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 |
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
@@ -13782,6 +14209,30 @@
 | CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+|
+< error
+| 2714 2 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+|
+< error
+| 2714 2 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 |
 < error
@@ -14337,6 +14788,19 @@
 |
 < error
 | 3745 1 16 1 Only a clustered index can be dropped online.
+| 3727 0 16 1 Could not drop constraint. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
+|
+< error
+| 3728 2 16 1 'a' is not a constraint.
 | 3727 0 16 1 Could not drop constraint. See previous errors.
 > exec
 | EXEC [dbo].[_sim_reset]
@@ -14916,6 +15380,34 @@
 | CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD UNIQUE NONCLUSTERED ([a] DESC);
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 |
 < error
@@ -15002,6 +15494,18 @@
 | ALTER TABLE [dbo].[a] ADD CHECK ((1)=(1));
 | CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
+|
+< error
+| 33411 4 16 1 The option 'FILETABLE_DIRECTORY' is only valid when used on a FileTable. Remove the option from the statement.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -15264,6 +15768,18 @@
 | ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
 | CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
+|
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -15675,6 +16191,20 @@
 | CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 |
 < error
@@ -15690,6 +16220,20 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 |
 < error
 | 2727 1 11 1 Cannot find index 'a'.
@@ -15936,6 +16480,20 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 |
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
@@ -16541,6 +17099,20 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+|
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 |
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
@@ -17703,6 +18275,34 @@
 | CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+|
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+|
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 |
 < error
@@ -18236,6 +18836,20 @@
 < ok 0 -
 > exec
 | ALTER TABLE a DROP a WITH(ONLINE = ON)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -18795,6 +19409,20 @@
 | CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 |
 < error
@@ -18852,6 +19480,20 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -19105,6 +19747,20 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -19551,6 +20207,19 @@
 | CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 |
 < error
@@ -19565,6 +20234,19 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 |
 < error
 | 2727 1 11 1 Cannot find index 'a'.
@@ -19843,6 +20525,19 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 |
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
@@ -20408,6 +21103,19 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+|
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 |
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
@@ -21933,6 +22641,32 @@
 | CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+|
+< error
+| 2714 2 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+|
+< error
+| 2714 2 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 |
 < error
@@ -22578,6 +23312,20 @@
 |
 < error
 | 3745 1 16 1 Only a clustered index can be dropped online.
+| 3727 0 16 1 Could not drop constraint. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
+|
+< error
+| 3728 2 16 1 'a' is not a constraint.
 | 3727 0 16 1 Could not drop constraint. See previous errors.
 > exec
 | EXEC [dbo].[_sim_reset]
@@ -23297,6 +24045,55 @@
 | CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD UNIQUE NONCLUSTERED ([a] DESC);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [a_chk] CHECK ([d]>(0));
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.ch
+: string
+| CREATE TABLE [dbo].[ch] ([b] int NOT NULL, [a_b] int NULL);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.p
+: string
+| CREATE TABLE [dbo].[p] ([b] int NOT NULL, [d] int NULL);
+| ALTER TABLE [dbo].[p] ADD CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 |
 < error
@@ -23427,6 +24224,19 @@
 | CREATE TABLE [dbo].[p] ([b] int NOT NULL, [d] int NULL);
 | ALTER TABLE [dbo].[p] ADD CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
+|
+< error
+| 33411 4 16 1 The option 'FILETABLE_DIRECTORY' is only valid when used on a FileTable. Remove the option from the statement.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -23767,6 +24577,19 @@
 | CREATE TABLE [dbo].[p] ([b] int NOT NULL, [d] int NULL);
 | ALTER TABLE [dbo].[p] ADD CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
+|
+< error
+| 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -24197,6 +25020,20 @@
 | CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 |
 < error
@@ -24212,6 +25049,20 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+|
+< error
+| 2727 1 11 1 Cannot find index 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 |
 < error
 | 2727 1 11 1 Cannot find index 'a'.
@@ -24502,6 +25353,20 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 |
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
@@ -25133,6 +25998,20 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+|
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 |
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
@@ -26492,6 +27371,34 @@
 | CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+|
+< error
+| 2714 2 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+|
+< error
+| 2714 2 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 |
 < error
@@ -27121,6 +28028,21 @@
 |
 < error
 | 3745 1 16 1 Only a clustered index can be dropped online.
+| 3727 0 16 1 Could not drop constraint. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
+|
+< error
+| 3728 2 16 1 'a' is not a constraint.
 | 3727 0 16 1 Could not drop constraint. See previous errors.
 > exec
 | EXEC [dbo].[_sim_reset]
@@ -27773,6 +28695,21 @@
 | CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 |
 < error
@@ -27859,6 +28796,20 @@
 | ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
 | ALTER TABLE [dbo].[a] ADD CHECK ((1)=(1));
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
+|
+< error
+| 33411 4 16 1 The option 'FILETABLE_DIRECTORY' is only valid when used on a FileTable. Remove the option from the statement.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -28178,6 +29129,20 @@
 | CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
 | ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
+|
+< error
+| 2715 6 16 1 Column, parameter, or variable #4: Cannot find data type a.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -28549,6 +29514,18 @@
 | CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 |
 < error
@@ -28562,6 +29539,18 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 |
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
@@ -28754,6 +29743,18 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 |
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
@@ -29291,6 +30292,18 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+|
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 |
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
@@ -30419,6 +31432,30 @@
 | CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+|
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+|
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 |
 < error
@@ -30876,6 +31913,18 @@
 < ok 0 -
 > exec
 | ALTER TABLE a DROP a WITH(ONLINE = ON)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -31355,6 +32404,18 @@
 | CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 |
 < error
@@ -31404,6 +32465,18 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -31745,6 +32818,18 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -32111,6 +33196,18 @@
 | CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 |
 < error
@@ -32124,6 +33221,18 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 |
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
@@ -32316,6 +33425,18 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 |
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
@@ -32831,6 +33952,18 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+|
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 |
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
@@ -33827,6 +34960,30 @@
 | CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+|
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+|
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 |
 < error
@@ -34284,6 +35441,18 @@
 < ok 0 -
 > exec
 | ALTER TABLE a DROP a WITH(ONLINE = ON)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -34763,6 +35932,18 @@
 | CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 |
 < error
@@ -34812,6 +35993,18 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -35043,6 +36236,18 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -35526,6 +36731,20 @@
 | CREATE PROCEDURE [dbo].[a] AS SELECT 1;
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 |
 < error
@@ -35541,6 +36760,20 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 |
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
@@ -35765,6 +36998,20 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 |
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
@@ -36384,6 +37631,20 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+|
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 |
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
@@ -37546,6 +38807,34 @@
 | CREATE PROCEDURE [dbo].[a] AS SELECT 1;
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+|
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+|
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 |
 < error
@@ -38079,6 +39368,20 @@
 < ok 0 -
 > exec
 | ALTER TABLE a DROP a WITH(ONLINE = ON)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -38638,6 +39941,20 @@
 | CREATE PROCEDURE [dbo].[a] AS SELECT 1;
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 |
 < error
@@ -38695,6 +40012,20 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -38948,6 +40279,20 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -39393,6 +40738,20 @@
 | CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 |
 < error
@@ -39408,6 +40767,20 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 |
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
@@ -39632,6 +41005,20 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 |
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
@@ -40237,6 +41624,20 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+|
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 |
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
@@ -41399,6 +42800,34 @@
 | CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+|
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+|
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 |
 < error
@@ -41932,6 +43361,20 @@
 < ok 0 -
 > exec
 | ALTER TABLE a DROP a WITH(ONLINE = ON)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -42491,6 +43934,20 @@
 | CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 |
 < error
@@ -42548,6 +44005,20 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -42801,6 +44272,20 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -43217,6 +44702,20 @@
 | CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
 < ok 0 -
 > exec
+| ALTER INDEX a ON a FOR(ADD a = N'a')
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
 |
 < error
@@ -43232,6 +44731,20 @@
 < ok 0 -
 > exec
 | ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
+|
+< error
+| 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 |
 < error
 | 1914 3 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
@@ -43456,6 +44969,20 @@
 < ok 0 -
 > exec
 | CREATE PROC a WITH EXECUTE AS 'a' AS
+|
+< error
+| 2714 3 16 1 proc=a There is already an object named 'a' in the database.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE PROC a WITH EXEC AS N'a' AS
 |
 < error
 | 2714 3 16 1 proc=a There is already an object named 'a' in the database.
@@ -44049,6 +45576,20 @@
 < ok 0 -
 > exec
 | DROP TRIGGER a ON DATABASE
+|
+< error
+| 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| DROP TRIGGER a ON ALL SERVER
 |
 < error
 | 3701 5 11 1 Cannot drop the trigger 'a', because it does not exist or you do not have permission.
@@ -45211,6 +46752,34 @@
 | CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
 < ok 0 -
 > exec
+| CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+|
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
+|
+< error
+| 8197 6 16 1 proc=a The object 'a' does not exist or is invalid for this operation.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
 | CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 |
 < error
@@ -45744,6 +47313,20 @@
 < ok 0 -
 > exec
 | ALTER TABLE a DROP a WITH(ONLINE = ON)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a DROP a WITH(ONLINE = OFF)
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -46303,6 +47886,20 @@
 | CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a DESC)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
 | ALTER TABLE a ADD a zzz REFERENCES a
 |
 < error
@@ -46360,6 +47957,20 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -46613,6 +48224,20 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.

@@ -118,7 +118,9 @@ reject	reject	engine	singleValueTypeCopyOption/integer	COPY INTO a FROM 'a' WITH
 reject	reject	engine	singleValueTypeCopyOption/integer!insert	COPY INTO a FROM 'a' WITH(a = 1 zzz)
 reject	reject	engine	singleValueTypeCopyOption/stringLiteral	COPY INTO a FROM 'a' WITH(a = 'a')
 reject	reject	engine	singleValueTypeCopyOption/stringLiteral!insert	COPY INTO a FROM 'a' WITH(a = 'a' zzz)
+reject	reject	engine	singleValueTypeCopyOption/stringLiteral+stringLiteral/UnicodeStringLiteral	COPY INTO a FROM 'a' WITH(a = N'a')
 reject	reject	engine	copyCredentialOption/LeftParenthesis_Identity_EqualsSign_stringLiteral_(Comm~2eb64957	COPY INTO a FROM 'a' WITH(a =(IDENTITY = 'a'))
+reject	reject	engine	copyCredentialOption/LeftParenthesis_Identity_EqualsSign_stringLiteral_(Comm~2eb64957+stringLiteral/UnicodeStringLiteral	COPY INTO a FROM 'a' WITH(a =(IDENTITY = N'a'))
 reject	reject	engine	copyCredentialOption(Comma_SECRET_EqualsSign_stringLiteral)?/%empty	COPY INTO a FROM 'a' WITH(a =(IDENTITY = 'a'))
 reject	reject	engine	copyCredentialOption(Comma_SECRET_EqualsSign_stringLiteral)?/%empty!insert	COPY INTO a FROM 'a' WITH(a =(IDENTITY = 'a' zzz))
 reject	reject	engine	copyCredentialOption(Comma_SECRET_EqualsSign_stringLiteral)?/Comma_SECRET_EqualsSign_stringLiteral	COPY INTO a FROM 'a' WITH(a =(IDENTITY = 'a', SECRET = 'a'))
@@ -129,6 +131,7 @@ reject	reject	engine	copyCredentialOption(Comma_SECRET_EqualsSign_stringLiteral)
 reject	reject	engine	copyCredentialOption(Comma_SECRET_EqualsSign_stringLiteral)?/Comma_SECRET_EqualsSign_stringLiteral!truncate	COPY INTO a FROM 'a' WITH(a =(IDENTITY = 'a', SECRET =
 reject	reject	engine	copyCredentialOption(Comma_SECRET_EqualsSign_stringLiteral)?/Comma_SECRET_EqualsSign_stringLiteral!insert	COPY INTO a FROM 'a' WITH(a =(IDENTITY = 'a', SECRET = 'a' zzz))
 reject	reject	engine	copyCredentialOption(Comma_SECRET_EqualsSign_stringLiteral)?/Comma_SECRET_EqualsSign_stringLiteral!swap	COPY INTO a FROM 'a' WITH(a =(IDENTITY = 'a', SECURITY = 'a'))
+reject	reject	engine	copyCredentialOption(Comma_SECRET_EqualsSign_stringLiteral)?/Comma_SECRET_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	COPY INTO a FROM 'a' WITH(a =(IDENTITY = 'a', SECRET = N'a'))
 accept	accept	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 reject	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement!drop-1	CREATE TABLE a(HEAP) AS SELECT *
 reject	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement!drop-2	CREATE TABLE a WITH HEAP) AS SELECT *
@@ -1136,6 +1139,7 @@ reject	reject	engine	binaryOrString/binary!truncate	ALTER EXTERNAL LANGUAGE a SE
 reject	reject	engine	binaryOrString/binary!insert	ALTER EXTERNAL LANGUAGE a SET(CONTENT = 0x00 zzz, FILE_NAME = 'a')
 accept	accept	engine	binaryOrString/stringLiteral	ALTER EXTERNAL LANGUAGE a SET(CONTENT = 'a', FILE_NAME = 'a')
 reject	reject	engine	binaryOrString/stringLiteral!insert	ALTER EXTERNAL LANGUAGE a SET(CONTENT = 'a' zzz, FILE_NAME = 'a')
+accept	accept	engine	binaryOrString/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER EXTERNAL LANGUAGE a SET(CONTENT = N'a', FILE_NAME = 'a')
 accept	accept	engine	createExternalLibraryFileOption/LeftParenthesis_CONTENT_EqualsSign_binaryOrString_(Comm~b52933d1	CREATE EXTERNAL LIBRARY a FROM(CONTENT = 0x00) WITH(LANGUAGE = 'a')
 reject	reject	engine	createExternalLibraryFileOption/LeftParenthesis_CONTENT_EqualsSign_binaryOrString_(Comm~b52933d1!drop-1	CREATE EXTERNAL LIBRARY a FROM CONTENT = 0x00) WITH(LANGUAGE = 'a')
 reject	reject	engine	createExternalLibraryFileOption/LeftParenthesis_CONTENT_EqualsSign_binaryOrString_(Comm~b52933d1!drop-2	CREATE EXTERNAL LIBRARY a FROM(= 0x00) WITH(LANGUAGE = 'a')
@@ -1244,6 +1248,7 @@ reject	reject	engine	fileEncryptionSource/(EXECUTABLE)?_File_EqualsSign_stringLi
 reject	reject	engine	fileEncryptionSource/(EXECUTABLE)?_File_EqualsSign_stringLiteral!drop-3	CREATE CERTIFICATE a FROM FILE =
 reject	reject	engine	fileEncryptionSource/(EXECUTABLE)?_File_EqualsSign_stringLiteral!insert	CREATE CERTIFICATE a FROM FILE = 'a' zzz
 reject	reject	engine	fileEncryptionSource/(EXECUTABLE)?_File_EqualsSign_stringLiteral!swap	CREATE CERTIFICATE a FROM FILEGROUP = 'a'
+accept	accept	engine	fileEncryptionSource/(EXECUTABLE)?_File_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE CERTIFICATE a FROM FILE = N'a'
 accept	accept	engine	fileEncryptionSource(EXECUTABLE)?/%empty	CREATE CERTIFICATE a FROM FILE = 'a'
 reject	reject	engine	fileEncryptionSource(EXECUTABLE)?/%empty!insert	CREATE CERTIFICATE a FROM zzz FILE = 'a'
 accept	accept	engine	fileEncryptionSource(EXECUTABLE)?/EXECUTABLE	CREATE CERTIFICATE a FROM EXECUTABLE FILE = 'a'
@@ -1287,7 +1292,9 @@ reject	reject	engine	createCertificateActivityFlag/ACTIVE_For_BEGIN_DIALOG_Equal
 reject	reject	engine	createCertificateActivityFlag/ACTIVE_For_BEGIN_DIALOG_EqualsSign_optionOnOff!drop-5	ALTER CERTIFICATE a WITH ACTIVE FOR BEGIN_DIALOG =
 reject	reject	engine	createCertificateActivityFlag/ACTIVE_For_BEGIN_DIALOG_EqualsSign_optionOnOff!insert	ALTER CERTIFICATE a WITH ACTIVE FOR BEGIN_DIALOG = ON zzz
 reject	reject	engine	createCertificateActivityFlag/ACTIVE_For_BEGIN_DIALOG_EqualsSign_optionOnOff!swap	ALTER CERTIFICATE a WITH ADD FOR BEGIN_DIALOG = ON
+accept	accept	engine	createCertificateActivityFlag/ACTIVE_For_BEGIN_DIALOG_EqualsSign_optionOnOff+optionOnOff/Off	ALTER CERTIFICATE a WITH ACTIVE FOR BEGIN_DIALOG = OFF
 reject	reject	engine	certificateOption/Identifier_EqualsSign_stringLiteral	CREATE CERTIFICATE a WITH a = 'a'
+reject	reject	engine	certificateOption/Identifier_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE CERTIFICATE a WITH a = N'a'
 accept	accept	engine	certificateSource/(fileEncryptionSource_(With_privateKe~d572e29f)	CREATE CERTIFICATE a FROM ASSEMBLY a
 accept	accept	engine	certificateSource(fileEncryptionSource_(With_privateKe~d572e29f)/fileEncryptionSource_(With_privateKeySpec)?	CREATE CERTIFICATE a FROM FILE = 'a'
 accept	accept	engine	certificateSource(fileEncryptionSource_(With_privateKe~d572e29f)/assemblyEncryptionSource	CREATE CERTIFICATE a FROM ASSEMBLY a
@@ -1311,6 +1318,7 @@ reject	reject	engine	encryptClause/ENCRYPTION_By_PASSWORD_EqualsSign_stringLiter
 reject	reject	engine	encryptClause/ENCRYPTION_By_PASSWORD_EqualsSign_stringLiteral!drop-5	CREATE ASYMMETRIC KEY a FROM ASSEMBLY a ENCRYPTION BY PASSWORD =
 reject	reject	engine	encryptClause/ENCRYPTION_By_PASSWORD_EqualsSign_stringLiteral!insert	CREATE ASYMMETRIC KEY a FROM ASSEMBLY a ENCRYPTION BY PASSWORD = 'a' zzz
 reject	reject	engine	encryptClause/ENCRYPTION_By_PASSWORD_EqualsSign_stringLiteral!swap	CREATE ASYMMETRIC KEY a FROM ASSEMBLY a ENCRYPTION_TYPE BY PASSWORD = 'a'
+accept	accept	engine	encryptClause/ENCRYPTION_By_PASSWORD_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE ASYMMETRIC KEY a FROM ASSEMBLY a ENCRYPTION BY PASSWORD = N'a'
 accept	accept	engine	privateKeySpec/PRIVATE_Key_LeftParenthesis_certificatePrivateKeySpec_(~0a54eefc	ALTER CERTIFICATE a WITH PRIVATE KEY(FILE = 'a')
 reject	reject	engine	privateKeySpec/PRIVATE_Key_LeftParenthesis_certificatePrivateKeySpec_(~0a54eefc!drop-1	ALTER CERTIFICATE a WITH KEY(FILE = 'a')
 reject	reject	engine	privateKeySpec/PRIVATE_Key_LeftParenthesis_certificatePrivateKeySpec_(~0a54eefc!drop-2	ALTER CERTIFICATE a WITH PRIVATE(FILE = 'a')
@@ -1343,7 +1351,9 @@ reject	reject	engine	certificatePrivateKeySpec/passwordChangeOption!swap	ALTER C
 accept	accept	engine	certificatePrivateKeySpec/File_EqualsSign_stringLiteral	ALTER CERTIFICATE a WITH PRIVATE KEY(FILE = 'a')
 reject	reject	engine	certificatePrivateKeySpec/File_EqualsSign_stringLiteral!truncate	ALTER CERTIFICATE a WITH PRIVATE KEY(FILE =
 reject	reject	engine	certificatePrivateKeySpec/File_EqualsSign_stringLiteral!swap	ALTER CERTIFICATE a WITH PRIVATE KEY(FILEGROUP = 'a')
+accept	accept	engine	certificatePrivateKeySpec/File_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER CERTIFICATE a WITH PRIVATE KEY(FILE = N'a')
 reject	reject	engine	passwordChangeOption/(ENCRYPTION|DECRYPTION)_By_Identifier_EqualsSign_stringLiteral	ALTER CERTIFICATE a WITH PRIVATE KEY(ENCRYPTION BY a = 'a')
+reject	reject	engine	passwordChangeOption/(ENCRYPTION|DECRYPTION)_By_Identifier_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER CERTIFICATE a WITH PRIVATE KEY(ENCRYPTION BY a = N'a')
 reject	reject	engine	passwordChangeOption(ENCRYPTION|DECRYPTION)/ENCRYPTION	ALTER CERTIFICATE a WITH PRIVATE KEY(ENCRYPTION BY a = 'a')
 reject	reject	engine	passwordChangeOption(ENCRYPTION|DECRYPTION)/ENCRYPTION!truncate	ALTER CERTIFICATE a WITH PRIVATE KEY(
 reject	reject	engine	passwordChangeOption(ENCRYPTION|DECRYPTION)/ENCRYPTION!insert	ALTER CERTIFICATE a WITH PRIVATE KEY(ENCRYPTION zzz BY a = 'a')
@@ -1372,6 +1382,7 @@ reject	reject	engine	credentialStatementBody/CREDENTIAL_identifier_With_Identity
 reject	reject	engine	credentialStatementBody/CREDENTIAL_identifier_With_Identity_EqualsSign_stringLi~ad198098!drop-6	ALTER DATABASE SCOPED CREDENTIAL a WITH IDENTITY =
 reject	reject	engine	credentialStatementBody/CREDENTIAL_identifier_With_Identity_EqualsSign_stringLi~ad198098!insert	ALTER DATABASE SCOPED CREDENTIAL a WITH IDENTITY = 'a' zzz
 reject	reject	engine	credentialStatementBody/CREDENTIAL_identifier_With_Identity_EqualsSign_stringLi~ad198098!swap	ALTER DATABASE SCOPED CREDENTIAL_NAME a WITH IDENTITY = 'a'
+accept	accept	engine	credentialStatementBody/CREDENTIAL_identifier_With_Identity_EqualsSign_stringLi~ad198098+stringLiteral/UnicodeStringLiteral	ALTER DATABASE SCOPED CREDENTIAL a WITH IDENTITY = N'a'
 accept	accept	engine	credentialStatementBody(Comma_SECRET_EqualsSign_stringLiteral)?/%empty	ALTER DATABASE SCOPED CREDENTIAL a WITH IDENTITY = 'a'
 accept	accept	engine	credentialStatementBody(Comma_SECRET_EqualsSign_stringLiteral)?/Comma_SECRET_EqualsSign_stringLiteral	ALTER DATABASE SCOPED CREDENTIAL a WITH IDENTITY = 'a', SECRET = 'a'
 reject	reject	engine	credentialStatementBody(Comma_SECRET_EqualsSign_stringLiteral)?/Comma_SECRET_EqualsSign_stringLiteral!drop-1	ALTER DATABASE SCOPED CREDENTIAL a WITH IDENTITY = 'a' SECRET = 'a'
@@ -1380,6 +1391,7 @@ reject	reject	engine	credentialStatementBody(Comma_SECRET_EqualsSign_stringLiter
 reject	reject	engine	credentialStatementBody(Comma_SECRET_EqualsSign_stringLiteral)?/Comma_SECRET_EqualsSign_stringLiteral!drop-4	ALTER DATABASE SCOPED CREDENTIAL a WITH IDENTITY = 'a', SECRET =
 reject	reject	engine	credentialStatementBody(Comma_SECRET_EqualsSign_stringLiteral)?/Comma_SECRET_EqualsSign_stringLiteral!insert	ALTER DATABASE SCOPED CREDENTIAL a WITH IDENTITY = 'a', SECRET = 'a' zzz
 reject	reject	engine	credentialStatementBody(Comma_SECRET_EqualsSign_stringLiteral)?/Comma_SECRET_EqualsSign_stringLiteral!swap	ALTER DATABASE SCOPED CREDENTIAL a WITH IDENTITY = 'a', SECURITY = 'a'
+accept	accept	engine	credentialStatementBody(Comma_SECRET_EqualsSign_stringLiteral)?/Comma_SECRET_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER DATABASE SCOPED CREDENTIAL a WITH IDENTITY = 'a', SECRET = N'a'
 accept	accept	engine	createServerAuditStatement/identifier_auditTargetClause_(auditCreateWithClause)?_(~9dec463d	CREATE SERVER AUDIT a TO APPLICATION_LOG
 reject	reject	engine	createServerAuditStatement/identifier_auditTargetClause_(auditCreateWithClause)?_(~9dec463d!drop-1	CREATE SERVER AUDIT TO APPLICATION_LOG
 reject	reject	engine	createServerAuditStatement/identifier_auditTargetClause_(auditCreateWithClause)?_(~9dec463d!drop-2	CREATE SERVER AUDIT a APPLICATION_LOG
@@ -1496,6 +1508,7 @@ reject	reject	engine	auditUrlOption/pathAuditFileOption!truncate	ALTER SERVER AU
 reject	reject	engine	auditUrlOption/pathAuditFileOption!insert	ALTER SERVER AUDIT a TO URL(FILEPATH = 'a' zzz)
 reject	reject	engine	auditUrlOption/pathAuditFileOption!swap	ALTER SERVER AUDIT a TO URL(FILESTREAM = 'a')
 accept	accept	engine	pathAuditFileOption/(FILEPATH|PATH)_EqualsSign_stringLiteral	ALTER SERVER AUDIT a TO FILE(FILEPATH = 'a')
+accept	accept	engine	pathAuditFileOption/(FILEPATH|PATH)_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER SERVER AUDIT a TO FILE(FILEPATH = N'a')
 accept	accept	engine	pathAuditFileOption(FILEPATH|PATH)/FILEPATH	ALTER SERVER AUDIT a TO FILE(FILEPATH = 'a')
 reject	reject	engine	pathAuditFileOption(FILEPATH|PATH)/FILEPATH!truncate	ALTER SERVER AUDIT a TO FILE(
 reject	reject	engine	pathAuditFileOption(FILEPATH|PATH)/FILEPATH!insert	ALTER SERVER AUDIT a TO FILE(FILEPATH zzz = 'a')
@@ -1561,7 +1574,9 @@ reject	reject	engine	onFailureAuditOption(Continue|Shutdown|FAIL_OPERATION)/FAIL
 reject	reject	engine	onFailureAuditOption(Continue|Shutdown|FAIL_OPERATION)/FAIL_OPERATION!insert	ALTER SERVER AUDIT a WITH(a = FAIL_OPERATION zzz)
 reject	reject	engine	onFailureAuditOption(Continue|Shutdown|FAIL_OPERATION)/FAIL_OPERATION!swap	ALTER SERVER AUDIT a WITH(a = FALSE)
 reject	reject	engine	auditGuidAuditOption/stringLiteral	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = 'a')
+reject	reject	engine	auditGuidAuditOption/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE SERVER AUDIT a TO APPLICATION_LOG WITH(a = N'a')
 reject	reject	engine	operatorAuditOption/optionOnOff	ALTER SERVER AUDIT a WITH(a = ON)
+reject	reject	engine	operatorAuditOption/optionOnOff+optionOnOff/Off	ALTER SERVER AUDIT a WITH(a = OFF)
 reject	reject	engine	stateAuditOption/optionOnOff	ALTER SERVER AUDIT a WITH(a = ON)
 accept	accept	engine	createServerAuditSpecificationStatement/SPECIFICATION_identifier_auditSpecificationForClause_(c~18d51fe0	CREATE SERVER AUDIT SPECIFICATION a FOR SERVER AUDIT a
 reject	reject	engine	createServerAuditSpecificationStatement/SPECIFICATION_identifier_auditSpecificationForClause_(c~18d51fe0!drop-1	CREATE SERVER AUDIT a FOR SERVER AUDIT a
@@ -2050,6 +2065,7 @@ reject	reject	engine	dbOptionStateItem/alterDbOnOffOption!insert	ALTER DATABASE 
 reject	reject	engine	dbOptionStateItem/alterDbOnOffOption!swap	ALTER DATABASE a SET a ONLINE
 reject	reject	engine	dbSingleIdentOption/Identifier	ALTER DATABASE a SET a
 reject	reject	engine	alterDbOnOffOption/Identifier_(EqualsSign)?_optionOnOff	ALTER DATABASE a SET a ON
+reject	reject	engine	alterDbOnOffOption/Identifier_(EqualsSign)?_optionOnOff+optionOnOff/Off	ALTER DATABASE a SET a OFF
 reject	reject	engine	alterDbOnOffOption(EqualsSign)?/%empty	ALTER DATABASE a SET a ON
 reject	reject	engine	alterDbOnOffOption(EqualsSign)?/%empty!insert	ALTER DATABASE a SET a zzz ON
 reject	reject	engine	alterDbOnOffOption(EqualsSign)?/EqualsSign	ALTER DATABASE a SET a = ON
@@ -2364,6 +2380,7 @@ reject	reject	engine	azureOption/azureServiceObjectiveDatabaseOption!truncate	CR
 reject	reject	engine	azureOption/azureServiceObjectiveDatabaseOption!insert	CREATE DATABASE a(SERVICE_OBJECTIVE = 'a' zzz)
 reject	reject	engine	azureOption/azureServiceObjectiveDatabaseOption!swap	CREATE DATABASE a(SESSION = 'a')
 reject	reject	engine	azureServiceObjectiveDatabaseOption/SERVICE_OBJECTIVE_EqualsSign_stringLiteral	CREATE DATABASE a(SERVICE_OBJECTIVE = 'a')
+reject	reject	engine	azureServiceObjectiveDatabaseOption/SERVICE_OBJECTIVE_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE DATABASE a(SERVICE_OBJECTIVE = N'a')
 reject	reject	engine	azureElasticPoolServiceObjectiveDatabaseOption/SERVICE_OBJECTIVE_EqualsSign_ELASTIC_POOL_LeftParenthes~889b42de	CREATE DATABASE a(SERVICE_OBJECTIVE = ELASTIC_POOL(NAME = a))
 reject	reject	engine	azureAsCopyOf/As_COPY_Of_multiPartIdentifier	CREATE DATABASE a AS COPY OF a
 accept	accept	engine	recoveryUnitList/(onDisk)?_(LOG_On_fileDeclBodyList)?	CREATE DATABASE a
@@ -2543,6 +2560,7 @@ reject	reject	engine	createAlterDbEqualsSignOption(createAlterDbLiteralOption|cr
 reject	reject	engine	createAlterDbEqualsSignOption(createAlterDbLiteralOption|createAlt~f856cfe6)/createAlterDbOnOffOption!insert	ALTER DATABASE a SET a = ON zzz
 reject	reject	engine	createAlterDbEqualsSignOption(createAlterDbLiteralOption|createAlt~f856cfe6)/createAlterDbOnOffOption!swap	ALTER DATABASE a SET a = ONLINE
 reject	reject	engine	createAlterDbOnOffOption/optionOnOff	ALTER DATABASE a SET a = ON
+reject	reject	engine	createAlterDbOnOffOption/optionOnOff+optionOnOff/Off	ALTER DATABASE a SET a = OFF
 reject	reject	engine	createAlterDbLiteralOption/integer	ALTER DATABASE a SET a = 1
 reject	reject	engine	createAlterDbIdentifierOption/SQL_LATIN1_GENERAL_CP1_CI_AS	ALTER DATABASE a SET a = SQL_LATIN1_GENERAL_CP1_CI_AS
 reject	reject	engine	databaseConfigurationOptionOnOffPrimary/Primary	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = PRIMARY
@@ -2595,6 +2613,7 @@ reject	reject	engine	remoteDataArchiveDbSettingsList(Comma_remoteDataArchiveDbSe
 reject	reject	engine	remoteDataArchiveDbSettingsList(Comma_remoteDataArchiveDbSetting)*/Comma_remoteDataArchiveDbSetting_(Comma_remoteDataArchi~3013d2ab!swap	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER = 'a', SERVICE = 'a')
 accept	accept	engine	remoteDataArchiveDbSetting/identifier_SERVER_EqualsSign_stringLiteral	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER = 'a')
 reject	reject	engine	remoteDataArchiveDbSetting/identifier_SERVER_EqualsSign_stringLiteral!truncate	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER =
+accept	accept	engine	remoteDataArchiveDbSetting/identifier_SERVER_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(SERVER = N'a')
 accept	accept	engine	remoteDataArchiveDbSetting/identifier_CREDENTIAL_EqualsSign_identifier	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(CREDENTIAL = a)
 reject	reject	engine	remoteDataArchiveDbSetting/identifier_CREDENTIAL_EqualsSign_identifier!drop-1	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(= a)
 reject	reject	engine	remoteDataArchiveDbSetting/identifier_CREDENTIAL_EqualsSign_identifier!drop-2	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(CREDENTIAL a)
@@ -2685,6 +2704,12 @@ reject	reject	engine	auditActionSpecification(Comma_actionWithQual)*/Comma_actio
 reject	reject	engine	auditActionSpecification(Comma_actionWithQual)*/Comma_actionWithQual_(Comma_actionWithQual)*!truncate	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT,
 reject	reject	engine	auditActionSpecification(Comma_actionWithQual)*/Comma_actionWithQual_(Comma_actionWithQual)*!insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT, SELECT zzz ON a BY PUBLIC)
 reject	reject	engine	auditActionSpecification(Comma_actionWithQual)*/Comma_actionWithQual_(Comma_actionWithQual)*!swap	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT, SELECTIVE ON a BY PUBLIC)
+accept	accept	engine	auditActionSpecification(Comma_actionWithQual)*/Comma_actionWithQual_(Comma_actionWithQual)*+actionWithQual/Update	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT, UPDATE ON a BY PUBLIC)
+accept	accept	engine	auditActionSpecification(Comma_actionWithQual)*/Comma_actionWithQual_(Comma_actionWithQual)*+actionWithQual/Insert	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT, INSERT ON a BY PUBLIC)
+accept	accept	engine	auditActionSpecification(Comma_actionWithQual)*/Comma_actionWithQual_(Comma_actionWithQual)*+actionWithQual/Delete	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT, DELETE ON a BY PUBLIC)
+accept	accept	engine	auditActionSpecification(Comma_actionWithQual)*/Comma_actionWithQual_(Comma_actionWithQual)*+actionWithQual/Execute	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT, EXECUTE ON a BY PUBLIC)
+accept	accept	engine	auditActionSpecification(Comma_actionWithQual)*/Comma_actionWithQual_(Comma_actionWithQual)*+actionWithQual/RECEIVE	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT, RECEIVE ON a BY PUBLIC)
+accept	accept	engine	auditActionSpecification(Comma_actionWithQual)*/Comma_actionWithQual_(Comma_actionWithQual)*+actionWithQual/References	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT, REFERENCES ON a BY PUBLIC)
 accept	accept	engine	auditActionSpecification(Comma_principal)*/%empty	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC)
 accept	accept	engine	auditActionSpecification(Comma_principal)*/Comma_principal_(Comma_principal)*	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC, PUBLIC)
 reject	reject	engine	auditActionSpecification(Comma_principal)*/Comma_principal_(Comma_principal)*!drop-1	ALTER DATABASE AUDIT SPECIFICATION a ADD(SELECT ON a BY PUBLIC PUBLIC)
@@ -2722,6 +2747,7 @@ reject	reject	engine	auditSpecificationStateOpt(With_LeftParenthesis_STATE_Equal
 reject	reject	engine	auditSpecificationStateOpt(With_LeftParenthesis_STATE_EqualsSig~f02b3db1)?/With_LeftParenthesis_STATE_EqualsSign_optionOnOff_Right~757e38a7!drop-6	ALTER DATABASE AUDIT SPECIFICATION a WITH(STATE = ON
 reject	reject	engine	auditSpecificationStateOpt(With_LeftParenthesis_STATE_EqualsSig~f02b3db1)?/With_LeftParenthesis_STATE_EqualsSign_optionOnOff_Right~757e38a7!insert	ALTER DATABASE AUDIT SPECIFICATION a WITH(STATE = ON) zzz
 reject	reject	engine	auditSpecificationStateOpt(With_LeftParenthesis_STATE_EqualsSig~f02b3db1)?/With_LeftParenthesis_STATE_EqualsSign_optionOnOff_Right~757e38a7!swap	ALTER DATABASE AUDIT SPECIFICATION a WITHIN(STATE = ON)
+accept	accept	engine	auditSpecificationStateOpt(With_LeftParenthesis_STATE_EqualsSig~f02b3db1)?/With_LeftParenthesis_STATE_EqualsSign_optionOnOff_Right~757e38a7+optionOnOff/Off	ALTER DATABASE AUDIT SPECIFICATION a WITH(STATE = OFF)
 reject	reject	engine	createDatabaseEncryptionKey/ENCRYPTION_Key_With_ALGORITHM_EqualsSign_Identifier_ENC~8208c613	CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = a ENCRYPTION BY SERVER CERTIFICATE a
 accept	accept	engine	dekEncryptor/dekEncryptorType_identifier	ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER CERTIFICATE a
 reject	reject	engine	dekEncryptor/dekEncryptorType_identifier!swap	ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVICE CERTIFICATE a
@@ -2950,6 +2976,7 @@ reject	reject	engine	backupOption/Identifier_EqualsSign_(signedIntegerOrVariable
 reject	reject	engine	backupOption(signedIntegerOrVariable|stringLiteral)/signedIntegerOrVariable	BACKUP DATABASE @a WITH a = 1
 reject	reject	engine	backupOption(signedIntegerOrVariable|stringLiteral)/stringLiteral	BACKUP DATABASE @a WITH a = 'a'
 reject	reject	engine	backupOption(signedIntegerOrVariable|stringLiteral)/stringLiteral!insert	BACKUP DATABASE @a WITH a = 'a' zzz
+reject	reject	engine	backupOption(signedIntegerOrVariable|stringLiteral)/stringLiteral+stringLiteral/UnicodeStringLiteral	BACKUP DATABASE @a WITH a = N'a'
 reject	reject	engine	backupEncrytor/dekEncryptorType_EqualsSign_identifier	BACKUP DATABASE @a WITH ENCRYPTION(ALGORITHM = a, SERVER CERTIFICATE = a)
 reject	reject	engine	backupEncrytor/dekEncryptorType_EqualsSign_identifier!truncate	BACKUP DATABASE @a WITH ENCRYPTION(ALGORITHM = a, SERVER CERTIFICATE =
 reject	reject	engine	backupEncrytor/dekEncryptorType_EqualsSign_identifier!insert	BACKUP DATABASE @a WITH ENCRYPTION(ALGORITHM = a, SERVER CERTIFICATE = a zzz)
@@ -3005,9 +3032,14 @@ accept	accept	engine	fileRestoreOption/File_EqualsSign_signedIntegerOrVariable	R
 reject	reject	engine	afterClause/AFTER_stringOrVariable	RESTORE DATABASE @a WITH a = 'a' AFTER 'a'
 accept	accept	engine	restoreMasterKeyBody/MASTER_Key_From_File_EqualsSign_stringLiteral_DECRYPTIO~31d7ef20	RESTORE SERVICE MASTER KEY FROM FILE = 'a' DECRYPTION BY PASSWORD = 'a'
 reject	reject	engine	restoreMasterKeyBody/MASTER_Key_From_File_EqualsSign_stringLiteral_DECRYPTIO~31d7ef20!swap	RESTORE SERVICE MATCH KEY FROM FILE = 'a' DECRYPTION BY PASSWORD = 'a'
+accept	accept	engine	restoreMasterKeyBody/MASTER_Key_From_File_EqualsSign_stringLiteral_DECRYPTIO~31d7ef20+stringLiteral/UnicodeStringLiteral	RESTORE SERVICE MASTER KEY FROM FILE = N'a' DECRYPTION BY PASSWORD = 'a'
+accept	accept	engine	restoreMasterKeyBody/MASTER_Key_From_File_EqualsSign_stringLiteral_DECRYPTIO~31d7ef20+stringLiteral/UnicodeStringLiteral#2	RESTORE SERVICE MASTER KEY FROM FILE = 'a' DECRYPTION BY PASSWORD = N'a'
 accept	accept	engine	backupMasterKeyStatement/backupMasterKeyBody	BACKUP MASTER KEY TO FILE = 'a' ENCRYPTION BY PASSWORD = 'a'
 accept	accept	engine	backupMasterKeyBody/MASTER_Key_To_File_EqualsSign_stringLiteral_ENCRYPTION_~61d23ab6	BACKUP MASTER KEY TO FILE = 'a' ENCRYPTION BY PASSWORD = 'a'
+accept	accept	engine	backupMasterKeyBody/MASTER_Key_To_File_EqualsSign_stringLiteral_ENCRYPTION_~61d23ab6+stringLiteral/UnicodeStringLiteral	BACKUP MASTER KEY TO FILE = N'a' ENCRYPTION BY PASSWORD = 'a'
+accept	accept	engine	backupMasterKeyBody/MASTER_Key_To_File_EqualsSign_stringLiteral_ENCRYPTION_~61d23ab6+stringLiteral/UnicodeStringLiteral#2	BACKUP MASTER KEY TO FILE = 'a' ENCRYPTION BY PASSWORD = N'a'
 accept	accept	engine	restoreMasterKeyStatement/restoreMasterKeyBody_ENCRYPTION_By_PASSWORD_EqualsSign_~6d1ad99c	RESTORE MASTER KEY FROM FILE = 'a' DECRYPTION BY PASSWORD = 'a' ENCRYPTION BY PASSWORD = 'a'
+accept	accept	engine	restoreMasterKeyStatement/restoreMasterKeyBody_ENCRYPTION_By_PASSWORD_EqualsSign_~6d1ad99c+stringLiteral/UnicodeStringLiteral	RESTORE MASTER KEY FROM FILE = 'a' DECRYPTION BY PASSWORD = 'a' ENCRYPTION BY PASSWORD = N'a'
 accept	accept	engine	restoreMasterKeyStatement(FORCE)?/%empty	RESTORE MASTER KEY FROM FILE = 'a' DECRYPTION BY PASSWORD = 'a' ENCRYPTION BY PASSWORD = 'a'
 accept	accept	engine	restoreMasterKeyStatement(FORCE)?/FORCE	RESTORE MASTER KEY FROM FILE = 'a' DECRYPTION BY PASSWORD = 'a' ENCRYPTION BY PASSWORD = 'a' FORCE
 reject	reject	engine	restoreMasterKeyStatement(FORCE)?/FORCE!insert	RESTORE MASTER KEY FROM FILE = 'a' DECRYPTION BY PASSWORD = 'a' ENCRYPTION BY PASSWORD = 'a' FORCE zzz
@@ -3076,6 +3108,7 @@ reject	reject	engine	simpleBulkInsertOptionWithValue/Identifier_EqualsSign_(inte
 reject	reject	engine	simpleBulkInsertOptionWithValue(integerOrNumeric|stringLiteral|(TRUE|FALSE))/integerOrNumeric	DELETE OPENROWSET(BULK 'a', a = 1)
 reject	reject	engine	simpleBulkInsertOptionWithValue(integerOrNumeric|stringLiteral|(TRUE|FALSE))/stringLiteral	DELETE OPENROWSET(BULK 'a', a = 'a')
 reject	reject	engine	simpleBulkInsertOptionWithValue(integerOrNumeric|stringLiteral|(TRUE|FALSE))/stringLiteral!insert	DELETE OPENROWSET(BULK 'a', a = 'a' zzz)
+reject	reject	engine	simpleBulkInsertOptionWithValue(integerOrNumeric|stringLiteral|(TRUE|FALSE))/stringLiteral+stringLiteral/UnicodeStringLiteral	DELETE OPENROWSET(BULK 'a', a = N'a')
 reject	reject	engine	simpleBulkInsertOptionWithValue(integerOrNumeric|stringLiteral|(TRUE|FALSE))/(TRUE|FALSE)	DELETE OPENROWSET(BULK 'a', a = TRUE)
 reject	reject	engine	simpleBulkInsertOptionWithValue(integerOrNumeric|stringLiteral|(TRUE|FALSE))/(TRUE|FALSE)!insert	DELETE OPENROWSET(BULK 'a', a = TRUE zzz)
 reject	reject	engine	simpleBulkInsertOptionWithValue(integerOrNumeric|stringLiteral|(TRUE|FALSE))/(TRUE|FALSE)!swap	DELETE OPENROWSET(BULK 'a', a = TRUNCATE)
@@ -3519,6 +3552,7 @@ reject	reject	engine	enabledDisabled(ENABLED|DISABLED)/DISABLED!insert	ALTER END
 reject	reject	engine	enabledDisabled(ENABLED|DISABLED)/DISABLED!swap	ALTER ENDPOINT a FOR DATA_MIRRORING(BATCHES = DISTINCT)
 reject	reject	engine	databasePayloadOption/Database_EqualsSign_(stringLiteral|defaultLiteral)	ALTER ENDPOINT a FOR DATA_MIRRORING(DATABASE = 'a')
 reject	reject	engine	databasePayloadOption(stringLiteral|defaultLiteral)/stringLiteral	ALTER ENDPOINT a FOR DATA_MIRRORING(DATABASE = 'a')
+reject	reject	engine	databasePayloadOption(stringLiteral|defaultLiteral)/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER ENDPOINT a FOR DATA_MIRRORING(DATABASE = N'a')
 reject	reject	engine	databasePayloadOption(stringLiteral|defaultLiteral)/defaultLiteral	ALTER ENDPOINT a FOR DATA_MIRRORING(DATABASE = DEFAULT)
 reject	reject	engine	databasePayloadOption(stringLiteral|defaultLiteral)/defaultLiteral!insert	ALTER ENDPOINT a FOR DATA_MIRRORING(DATABASE = DEFAULT zzz)
 reject	reject	engine	databasePayloadOption(stringLiteral|defaultLiteral)/defaultLiteral!swap	ALTER ENDPOINT a FOR DATA_MIRRORING(DATABASE = DEFAULT_DATABASE)
@@ -3569,12 +3603,15 @@ reject	reject	engine	soapMethod(Comma_soapMethodOption)*/Comma_soapMethodOption_
 reject	reject	engine	soapMethod(Comma_soapMethodOption)*/Comma_soapMethodOption_(Comma_soapMethodOption)*!insert	ALTER ENDPOINT a FOR DATA_MIRRORING(WEBMETHOD 'a'(SCHEMA = NONE, SCHEMA = NONE zzz))
 reject	reject	engine	soapMethod(Comma_soapMethodOption)*/Comma_soapMethodOption_(Comma_soapMethodOption)*!swap	ALTER ENDPOINT a FOR DATA_MIRRORING(WEBMETHOD 'a'(SCHEMA = NONE, SCHEMABINDING = NONE))
 reject	reject	engine	soapMethodAlias/stringLiteral	ALTER ENDPOINT a FOR DATA_MIRRORING(DROP WEBMETHOD 'a')
+reject	reject	engine	soapMethodAlias/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER ENDPOINT a FOR DATA_MIRRORING(DROP WEBMETHOD N'a')
 reject	reject	engine	soapMethodAlias/stringLiteral_Dot_stringLiteral	ALTER ENDPOINT a FOR DATA_MIRRORING(DROP WEBMETHOD 'a'.'a')
 reject	reject	engine	soapMethodAlias/stringLiteral_Dot_stringLiteral!drop-1	ALTER ENDPOINT a FOR DATA_MIRRORING(DROP WEBMETHOD.'a')
 reject	reject	engine	soapMethodAlias/stringLiteral_Dot_stringLiteral!drop-2	ALTER ENDPOINT a FOR DATA_MIRRORING(DROP WEBMETHOD 'a' 'a')
 reject	reject	engine	soapMethodAlias/stringLiteral_Dot_stringLiteral!drop-3	ALTER ENDPOINT a FOR DATA_MIRRORING(DROP WEBMETHOD 'a'.)
 reject	reject	engine	soapMethodAlias/stringLiteral_Dot_stringLiteral!truncate	ALTER ENDPOINT a FOR DATA_MIRRORING(DROP WEBMETHOD 'a'.
 reject	reject	engine	soapMethodAlias/stringLiteral_Dot_stringLiteral!insert	ALTER ENDPOINT a FOR DATA_MIRRORING(DROP WEBMETHOD 'a'.'a' zzz)
+reject	reject	engine	soapMethodAlias/stringLiteral_Dot_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER ENDPOINT a FOR DATA_MIRRORING(DROP WEBMETHOD N'a'.'a')
+reject	reject	engine	soapMethodAlias/stringLiteral_Dot_stringLiteral+stringLiteral/UnicodeStringLiteral#2	ALTER ENDPOINT a FOR DATA_MIRRORING(DROP WEBMETHOD 'a'.N'a')
 reject	reject	engine	soapMethodOption/Schema_EqualsSign_((NONE|STANDARD)|Default)	ALTER ENDPOINT a FOR DATA_MIRRORING(WEBMETHOD 'a'(SCHEMA = NONE))
 reject	reject	engine	soapMethodOption/Schema_EqualsSign_((NONE|STANDARD)|Default)!truncate	ALTER ENDPOINT a FOR DATA_MIRRORING(WEBMETHOD 'a'(SCHEMA =
 reject	reject	engine	soapMethodOption/Schema_EqualsSign_((NONE|STANDARD)|Default)!swap	ALTER ENDPOINT a FOR DATA_MIRRORING(WEBMETHOD 'a'(SCHEMABINDING = NONE))
@@ -3596,6 +3633,7 @@ reject	reject	engine	soapMethodOption(NONE|STANDARD)/STANDARD!swap	ALTER ENDPOIN
 reject	reject	engine	soapMethodOption(Identifier|stringLiteral)/Identifier	ALTER ENDPOINT a FOR DATA_MIRRORING(WEBMETHOD 'a'(a = a))
 reject	reject	engine	soapMethodOption(Identifier|stringLiteral)/stringLiteral	ALTER ENDPOINT a FOR DATA_MIRRORING(WEBMETHOD 'a'(a = 'a'))
 reject	reject	engine	soapMethodOption(Identifier|stringLiteral)/stringLiteral!insert	ALTER ENDPOINT a FOR DATA_MIRRORING(WEBMETHOD 'a'(a = 'a' zzz))
+reject	reject	engine	soapMethodOption(Identifier|stringLiteral)/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER ENDPOINT a FOR DATA_MIRRORING(WEBMETHOD 'a'(a = N'a'))
 reject	reject	engine	eventTypeGroupContainer/Identifier	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE 'a', 'a'
 reject	reject	engine	eventTypeGroupContainer/Identifier!drop-1	CREATE EVENT NOTIFICATION a ON DATABASE FOR TO SERVICE 'a', 'a'
 reject	reject	engine	eventTypeGroupContainer/Identifier!truncate	CREATE EVENT NOTIFICATION a ON DATABASE FOR
@@ -3812,6 +3850,7 @@ reject	reject	engine	sessionOption/maxDispatchLatencySessionOption_MAX_DISPATCH_
 reject	reject	engine	integerSessionOptionValue/EqualsSign_integer_Identifier	ALTER EVENT SESSION a ON DATABASE WITH(MAX_MEMORY = 1 a)
 accept	accept	engine	onOffSessionOption/EqualsSign_optionOnOff	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ON)
 reject	reject	engine	onOffSessionOption/EqualsSign_optionOnOff!swap	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = ONLINE)
+accept	accept	engine	onOffSessionOption/EqualsSign_optionOnOff+optionOnOff/Off	ALTER EVENT SESSION a ON DATABASE WITH(TRACK_CAUSALITY = OFF)
 accept	accept	engine	eventDeclarationSetParameter/identifier_EqualsSign_eventDeclarationValue	ALTER EVENT SESSION a ON DATABASE ADD EVENT a.a(SET a = 1)
 accept	accept	engine	eventDeclarationValue/Minus_integerOrRealOrNumeric	ALTER SERVER AUDIT a WHERE a = - 1
 reject	reject	engine	eventDeclarationValue/Minus_integerOrRealOrNumeric!drop-2	ALTER SERVER AUDIT a WHERE a = -
@@ -3829,6 +3868,7 @@ accept	accept	engine	eventSessionLiteral/real	ALTER SERVER AUDIT a WHERE a = 1E1
 reject	reject	engine	eventSessionLiteral/real!insert	ALTER SERVER AUDIT a WHERE a = 1E1 zzz
 accept	accept	engine	eventSessionLiteral/stringLiteral	ALTER SERVER AUDIT a WHERE a = 'a'
 reject	reject	engine	eventSessionLiteral/stringLiteral!insert	ALTER SERVER AUDIT a WHERE a = 'a' zzz
+accept	accept	engine	eventSessionLiteral/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER SERVER AUDIT a WHERE a = N'a'
 accept	accept	engine	eventSessionExpressionParenthesis/LeftParenthesis_eventDeclarationValue_RightParenthesis	ALTER SERVER AUDIT a WHERE a =(1)
 accept	accept	engine	eventBooleanExpression/eventBooleanExpressionOr	ALTER SERVER AUDIT a WHERE a = 1
 accept	accept	engine	eventBooleanExpressionOr/eventBooleanExpressionAnd_(Or_eventBooleanExpressionAnd)*	ALTER SERVER AUDIT a WHERE a = 1
@@ -3936,6 +3976,7 @@ reject	reject	engine	createFulltextCatalogStatement(In_PATH_stringLiteral)?/In_P
 reject	reject	engine	createFulltextCatalogStatement(In_PATH_stringLiteral)?/In_PATH_stringLiteral!drop-3	CREATE FULLTEXT CATALOG a IN PATH
 reject	reject	engine	createFulltextCatalogStatement(In_PATH_stringLiteral)?/In_PATH_stringLiteral!insert	CREATE FULLTEXT CATALOG a IN PATH 'a' zzz
 reject	reject	engine	createFulltextCatalogStatement(In_PATH_stringLiteral)?/In_PATH_stringLiteral!swap	CREATE FULLTEXT CATALOG a INCLUDE PATH 'a'
+accept	accept	engine	createFulltextCatalogStatement(In_PATH_stringLiteral)?/In_PATH_stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE FULLTEXT CATALOG a IN PATH N'a'
 accept	accept	engine	createFulltextCatalogStatement(With_accentSensitivity)?/%empty	CREATE FULLTEXT CATALOG a
 accept	accept	engine	createFulltextCatalogStatement(With_accentSensitivity)?/With_accentSensitivity	CREATE FULLTEXT CATALOG a WITH ACCENT_SENSITIVITY = ON
 reject	reject	engine	createFulltextCatalogStatement(With_accentSensitivity)?/With_accentSensitivity!drop-1	CREATE FULLTEXT CATALOG a ACCENT_SENSITIVITY = ON
@@ -3952,6 +3993,7 @@ reject	reject	engine	createFulltextCatalogStatement(As_Default)?/As_Default!inse
 reject	reject	engine	createFulltextCatalogStatement(As_Default)?/As_Default!swap	CREATE FULLTEXT CATALOG a ASC DEFAULT
 accept	accept	engine	accentSensitivity/ACCENT_SENSITIVITY_EqualsSign_optionOnOff	CREATE FULLTEXT CATALOG a WITH ACCENT_SENSITIVITY = ON
 reject	reject	engine	accentSensitivity/ACCENT_SENSITIVITY_EqualsSign_optionOnOff!swap	CREATE FULLTEXT CATALOG a WITH ACTION = ON
+accept	accept	engine	accentSensitivity/ACCENT_SENSITIVITY_EqualsSign_optionOnOff+optionOnOff/Off	CREATE FULLTEXT CATALOG a WITH ACCENT_SENSITIVITY = OFF
 accept	accept	engine	fulltextIndexColumn/identifier_(TYPE_Column_identifier)?_(languageTerm_LANG~7b604f7c	ALTER FULLTEXT INDEX ON a ADD(a)
 reject	reject	engine	fulltextIndexColumn/identifier_(TYPE_Column_identifier)?_(languageTerm_LANG~7b604f7c!drop-1	ALTER FULLTEXT INDEX ON a ADD()
 reject	reject	engine	fulltextIndexColumn/identifier_(TYPE_Column_identifier)?_(languageTerm_LANG~7b604f7c!truncate	ALTER FULLTEXT INDEX ON a ADD(
@@ -4138,6 +4180,7 @@ reject	reject	engine	fulltextStoplistAction/dropFulltextStoplistAction!swap	ALTE
 reject	reject	engine	languageTerm/LANGUAGE_(stringLiteral|integer|identifier|binary)	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 'a'
 reject	reject	engine	languageTerm/LANGUAGE_(stringLiteral|integer|identifier|binary)!swap	ALTER FULLTEXT STOPLIST a ADD 'a' LAST_NODE 'a'
 reject	reject	engine	languageTerm(stringLiteral|integer|identifier|binary)/stringLiteral	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 'a'
+reject	reject	engine	languageTerm(stringLiteral|integer|identifier|binary)/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE N'a'
 reject	reject	engine	languageTerm(stringLiteral|integer|identifier|binary)/integer	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 1
 reject	reject	engine	languageTerm(stringLiteral|integer|identifier|binary)/integer!insert	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 1 zzz
 reject	reject	engine	languageTerm(stringLiteral|integer|identifier|binary)/identifier	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE a
@@ -4145,6 +4188,7 @@ reject	reject	engine	languageTerm(stringLiteral|integer|identifier|binary)/ident
 reject	reject	engine	languageTerm(stringLiteral|integer|identifier|binary)/binary	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 0x00
 reject	reject	engine	languageTerm(stringLiteral|integer|identifier|binary)/binary!insert	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 0x00 zzz
 reject	reject	engine	addFulltextStoplistAction/Add_stringLiteral_languageTerm	ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 'a'
+reject	reject	engine	addFulltextStoplistAction/Add_stringLiteral_languageTerm+stringLiteral/UnicodeStringLiteral	ALTER FULLTEXT STOPLIST a ADD N'a' LANGUAGE 'a'
 reject	reject	engine	dropFulltextStoplistAction/Drop_(stringLiteral_languageTerm|(All_(lan~e2a840b3)	ALTER FULLTEXT STOPLIST a DROP ALL
 reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm	ALTER FULLTEXT STOPLIST a DROP 'a' LANGUAGE 'a'
 reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm!drop-1	ALTER FULLTEXT STOPLIST a DROP LANGUAGE 'a'
@@ -4152,6 +4196,7 @@ reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_
 reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm!drop-3	ALTER FULLTEXT STOPLIST a DROP 'a' LANGUAGE
 reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm!insert	ALTER FULLTEXT STOPLIST a DROP 'a' LANGUAGE 'a' zzz
 reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm!swap	ALTER FULLTEXT STOPLIST a DROP 'a' LAST_NODE 'a'
+reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/stringLiteral_languageTerm+stringLiteral/UnicodeStringLiteral	ALTER FULLTEXT STOPLIST a DROP N'a' LANGUAGE 'a'
 reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/All_(languageTerm)?	ALTER FULLTEXT STOPLIST a DROP ALL
 reject	reject	engine	dropFulltextStoplistAction(stringLiteral_languageTerm|(All_(lan~e2a840b3)/All_(languageTerm)?!swap	ALTER FULLTEXT STOPLIST a DROP ALLOW_CONNECTIONS
 reject	reject	engine	dropFulltextStoplistAction(languageTerm)?/%empty	ALTER FULLTEXT STOPLIST a DROP ALL
@@ -4186,6 +4231,8 @@ reject	reject	engine	searchPropertyListAction/dropSearchPropertyListAction!drop-
 reject	reject	engine	searchPropertyListAction/dropSearchPropertyListAction!insert	ALTER SEARCH PROPERTY LIST a DROP 'a' zzz
 reject	reject	engine	searchPropertyListAction/dropSearchPropertyListAction!swap	ALTER SEARCH PROPERTY LIST a DROP_INDEX 'a'
 reject	reject	engine	addSearchPropertyListAction/Add_stringLiteral_With_LeftParenthesis_PROPERTY_SET_GUI~4d3dfd4c	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1)
+reject	reject	engine	addSearchPropertyListAction/Add_stringLiteral_With_LeftParenthesis_PROPERTY_SET_GUI~4d3dfd4c+stringLiteral/UnicodeStringLiteral	ALTER SEARCH PROPERTY LIST a ADD N'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1)
+reject	reject	engine	addSearchPropertyListAction/Add_stringLiteral_With_LeftParenthesis_PROPERTY_SET_GUI~4d3dfd4c+stringLiteral/UnicodeStringLiteral#2	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = N'a', PROPERTY_INT_ID = 1)
 reject	reject	engine	addSearchPropertyListAction(Comma_Identifier_EqualsSign_stringLiteral)?/%empty	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1)
 reject	reject	engine	addSearchPropertyListAction(Comma_Identifier_EqualsSign_stringLiteral)?/%empty!insert	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1 zzz)
 reject	reject	engine	addSearchPropertyListAction(Comma_Identifier_EqualsSign_stringLiteral)?/Comma_Identifier_EqualsSign_stringLiteral	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1, a = 'a')
@@ -4195,7 +4242,9 @@ reject	reject	engine	addSearchPropertyListAction(Comma_Identifier_EqualsSign_str
 reject	reject	engine	addSearchPropertyListAction(Comma_Identifier_EqualsSign_stringLiteral)?/Comma_Identifier_EqualsSign_stringLiteral!drop-4	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1, a =)
 reject	reject	engine	addSearchPropertyListAction(Comma_Identifier_EqualsSign_stringLiteral)?/Comma_Identifier_EqualsSign_stringLiteral!truncate	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1, a =
 reject	reject	engine	addSearchPropertyListAction(Comma_Identifier_EqualsSign_stringLiteral)?/Comma_Identifier_EqualsSign_stringLiteral!insert	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1, a = 'a' zzz)
+reject	reject	engine	addSearchPropertyListAction(Comma_Identifier_EqualsSign_stringLiteral)?/Comma_Identifier_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1, a = N'a')
 reject	reject	engine	dropSearchPropertyListAction/Drop_stringLiteral	ALTER SEARCH PROPERTY LIST a DROP 'a'
+reject	reject	engine	dropSearchPropertyListAction/Drop_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER SEARCH PROPERTY LIST a DROP N'a'
 accept	accept	engine	createExternalStatements/External_(createExternalTableStatement|createE~94c12a25)	CREATE EXTERNAL RESOURCE POOL a
 accept	accept	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalTableStatement	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
 reject	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalTableStatement!drop-1	CREATE EXTERNAL a WITH(DATA_SOURCE = a) AS SELECT *
@@ -4352,6 +4401,7 @@ reject	reject	engine	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringL
 reject	reject	engine	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec!drop-3	ALTER INDEX a ON a FOR(ADD a =)
 reject	reject	engine	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec!truncate	ALTER INDEX a ON a FOR(ADD a =
 reject	reject	engine	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec!insert	ALTER INDEX a ON a FOR(ADD a = 'a' zzz)
+accept	accept	engine	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 accept	accept	engine	promotedSelectiveXmlIndexPath(As_(identifier_XQUERY_(stringLiteral~9f7234f8)?/%empty	ALTER INDEX a ON a FOR(ADD a = 'a')
 reject	reject	engine	promotedSelectiveXmlIndexPath(As_(identifier_XQUERY_(stringLiteral~9f7234f8)?/As_(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)_sing~a6b079a1	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY)
 reject	reject	engine	promotedSelectiveXmlIndexPath(As_(identifier_XQUERY_(stringLiteral~9f7234f8)?/As_(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)_sing~a6b079a1!drop-1	ALTER INDEX a ON a FOR(ADD a = 'a' XQUERY)
@@ -4371,6 +4421,7 @@ reject	reject	engine	promotedSelectiveXmlIndexPath(stringLiteral)?/%empty	ALTER 
 accept	accept	engine	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 reject	reject	engine	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral!truncate	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY
 reject	reject	engine	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral!insert	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a' zzz)
+accept	accept	engine	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 reject	reject	engine	singletonOption/(identifier_SINGLETON)?	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY)
 reject	reject	engine	singletonOption(identifier_SINGLETON)?/%empty	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY)
 accept	accept	engine	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
@@ -4419,6 +4470,7 @@ reject	reject	engine	loginPassword/binary!drop-1	ALTER LOGIN a WITH a =
 reject	reject	engine	loginPassword/binary!insert	ALTER LOGIN a WITH a = 0x00 zzz
 reject	reject	engine	loginPassword/stringLiteral	ALTER LOGIN a WITH a = 'a'
 reject	reject	engine	loginPassword/stringLiteral!insert	ALTER LOGIN a WITH a = 'a' zzz
+reject	reject	engine	loginPassword/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER LOGIN a WITH a = N'a'
 accept	accept	engine	createLoginPasswordOption/(HASHED|MUST_CHANGE)	CREATE LOGIN a WITH PASSWORD = 0x00 HASHED
 accept	accept	engine	createLoginPasswordOption(HASHED|MUST_CHANGE)/HASHED	CREATE LOGIN a WITH PASSWORD = 0x00 HASHED
 reject	reject	engine	createLoginPasswordOption(HASHED|MUST_CHANGE)/MUST_CHANGE	CREATE LOGIN a WITH PASSWORD = 0x00 MUST_CHANGE
@@ -4433,6 +4485,7 @@ reject	reject	engine	createLoginParam(onOffPrincipalOption|binary|identifier)/id
 reject	reject	engine	onOffPrincipalOption/optionOnOff	ALTER LOGIN a WITH a = ON
 reject	reject	engine	onOffPrincipalOption/optionOnOff!insert	ALTER LOGIN a WITH a = ON zzz
 reject	reject	engine	onOffPrincipalOption/optionOnOff!swap	ALTER LOGIN a WITH a = ONLINE
+reject	reject	engine	onOffPrincipalOption/optionOnOff+optionOnOff/Off	ALTER LOGIN a WITH a = OFF
 reject	reject	engine	createLoginParamWin/Identifier_EqualsSign_identifier	CREATE LOGIN a FROM WINDOWS WITH a = a
 reject	reject	engine	createLoginParamWin/Identifier_EqualsSign_identifier!drop-1	CREATE LOGIN a FROM WINDOWS WITH = a
 reject	reject	engine	createLoginParamWin/Identifier_EqualsSign_identifier!drop-2	CREATE LOGIN a FROM WINDOWS WITH a a
@@ -4578,6 +4631,7 @@ reject	reject	engine	alterAvailabilityGroupFailoverOption/TARGET_EqualsSign_stri
 reject	reject	engine	alterAvailabilityGroupFailoverOption/TARGET_EqualsSign_stringLiteral!truncate	ALTER AVAILABILITY GROUP a FAILOVER WITH(TARGET =
 reject	reject	engine	alterAvailabilityGroupFailoverOption/TARGET_EqualsSign_stringLiteral!insert	ALTER AVAILABILITY GROUP a FAILOVER WITH(TARGET = 'a' zzz)
 reject	reject	engine	alterAvailabilityGroupFailoverOption/TARGET_EqualsSign_stringLiteral!swap	ALTER AVAILABILITY GROUP a FAILOVER WITH(TARGET_RECOVERY_TIME = 'a')
+reject	reject	engine	alterAvailabilityGroupFailoverOption/TARGET_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER AVAILABILITY GROUP a FAILOVER WITH(TARGET = N'a')
 reject	reject	engine	alterAvailabilityGroupAction/Identifier	ALTER AVAILABILITY GROUP a a
 accept	accept	engine	alterAvailabilityGroupAction/Join	ALTER AVAILABILITY GROUP a JOIN
 reject	reject	engine	alterAvailabilityGroupAction/Join!insert	ALTER AVAILABILITY GROUP a JOIN zzz
@@ -4589,8 +4643,10 @@ reject	reject	engine	availabilityGroupOption/REQUIRED_COPIES_TO_COMMIT_EqualsSig
 accept	accept	engine	availabilityReplicaName/stringLiteral	ALTER AVAILABILITY GROUP a REMOVE REPLICA ON 'a'
 reject	reject	engine	availabilityReplicaName/stringLiteral!drop-1	ALTER AVAILABILITY GROUP a REMOVE REPLICA ON
 reject	reject	engine	availabilityReplicaName/stringLiteral!insert	ALTER AVAILABILITY GROUP a REMOVE REPLICA ON 'a' zzz
+accept	accept	engine	availabilityReplicaName/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER AVAILABILITY GROUP a REMOVE REPLICA ON N'a'
 reject	reject	engine	availabilityReplica/stringLiteral_With_LeftParenthesis_availabilityReplicaO~2ffe396d	ALTER AVAILABILITY GROUP a ADD REPLICA ON 'a' WITH(AVAILABILITY_MODE = SYNCHRONOUS_COMMIT)
 reject	reject	engine	availabilityReplica/stringLiteral_With_LeftParenthesis_availabilityReplicaO~2ffe396d!swap	ALTER AVAILABILITY GROUP a ADD REPLICA ON 'a' WITHIN(AVAILABILITY_MODE = SYNCHRONOUS_COMMIT)
+reject	reject	engine	availabilityReplica/stringLiteral_With_LeftParenthesis_availabilityReplicaO~2ffe396d+stringLiteral/UnicodeStringLiteral	ALTER AVAILABILITY GROUP a ADD REPLICA ON N'a' WITH(AVAILABILITY_MODE = SYNCHRONOUS_COMMIT)
 reject	reject	engine	availabilityReplica(Comma_availabilityReplicaOption)*/%empty	ALTER AVAILABILITY GROUP a ADD REPLICA ON 'a' WITH(AVAILABILITY_MODE = SYNCHRONOUS_COMMIT)
 reject	reject	engine	availabilityReplica(Comma_availabilityReplicaOption)*/%empty!insert	ALTER AVAILABILITY GROUP a ADD REPLICA ON 'a' WITH(AVAILABILITY_MODE = SYNCHRONOUS_COMMIT zzz)
 reject	reject	engine	availabilityReplica(Comma_availabilityReplicaOption)*/Comma_availabilityReplicaOption_(Comma_availabilityRepl~46179ef9	ALTER AVAILABILITY GROUP a ADD REPLICA ON 'a' WITH(AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, AVAILABILITY_MODE = SYNCHRONOUS_COMMIT)
@@ -4638,6 +4694,7 @@ reject	reject	engine	availabilityReplicaOption/literalReplicaOption!truncate	ALT
 reject	reject	engine	availabilityReplicaOption/literalReplicaOption!insert	ALTER AVAILABILITY GROUP a ADD REPLICA ON 'a' WITH(a = 'a' zzz)
 reject	reject	engine	literalReplicaOption/Identifier_EqualsSign_(stringLiteral|integer)	ALTER AVAILABILITY GROUP a ADD REPLICA ON 'a' WITH(a = 'a')
 reject	reject	engine	literalReplicaOption(stringLiteral|integer)/stringLiteral	ALTER AVAILABILITY GROUP a ADD REPLICA ON 'a' WITH(a = 'a')
+reject	reject	engine	literalReplicaOption(stringLiteral|integer)/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER AVAILABILITY GROUP a ADD REPLICA ON 'a' WITH(a = N'a')
 reject	reject	engine	literalReplicaOption(stringLiteral|integer)/integer	ALTER AVAILABILITY GROUP a ADD REPLICA ON 'a' WITH(a = 1)
 reject	reject	engine	literalReplicaOption(stringLiteral|integer)/integer!insert	ALTER AVAILABILITY GROUP a ADD REPLICA ON 'a' WITH(a = 1 zzz)
 accept	accept	engine	createPartitionFunction/Function_identifier_LeftParenthesis_partitionParameterT~86654136	CREATE PARTITION FUNCTION a(a) AS RANGE FOR VALUES()
@@ -4736,6 +4793,7 @@ reject	reject	engine	bindingAnonymousOption/ANONYMOUS_EqualsSign_optionOnOff!dro
 reject	reject	engine	bindingAnonymousOption/ANONYMOUS_EqualsSign_optionOnOff!drop-3	ALTER REMOTE SERVICE BINDING a WITH ANONYMOUS =
 reject	reject	engine	bindingAnonymousOption/ANONYMOUS_EqualsSign_optionOnOff!insert	ALTER REMOTE SERVICE BINDING a WITH ANONYMOUS = ON zzz
 reject	reject	engine	bindingAnonymousOption/ANONYMOUS_EqualsSign_optionOnOff!swap	ALTER REMOTE SERVICE BINDING a WITH ANY = ON
+accept	accept	engine	bindingAnonymousOption/ANONYMOUS_EqualsSign_optionOnOff+optionOnOff/Off	ALTER REMOTE SERVICE BINDING a WITH ANONYMOUS = OFF
 accept	accept	engine	onQueueClause/On_QUEUE_schemaObjectThreePartName	ALTER SERVICE a ON QUEUE a
 reject	reject	engine	onQueueClause/On_QUEUE_schemaObjectThreePartName!drop-1	ALTER SERVICE a QUEUE a
 reject	reject	engine	onQueueClause/On_QUEUE_schemaObjectThreePartName!drop-2	ALTER SERVICE a ON a
@@ -4813,6 +4871,7 @@ reject	reject	engine	keySpec/identityValueKeySpec!truncate	CREATE SYMMETRIC KEY 
 reject	reject	engine	keySpec/identityValueKeySpec!insert	CREATE SYMMETRIC KEY a WITH IDENTITY_VALUE = 'a' zzz ENCRYPTION BY CERTIFICATE a
 reject	reject	engine	keySpec/identityValueKeySpec!swap	CREATE SYMMETRIC KEY a WITH IF = 'a' ENCRYPTION BY CERTIFICATE a
 accept	accept	engine	identityValueKeySpec/IDENTITY_VALUE_EqualsSign_stringLiteral	CREATE SYMMETRIC KEY a WITH IDENTITY_VALUE = 'a' ENCRYPTION BY CERTIFICATE a
+accept	accept	engine	identityValueKeySpec/IDENTITY_VALUE_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE SYMMETRIC KEY a WITH IDENTITY_VALUE = N'a' ENCRYPTION BY CERTIFICATE a
 accept	accept	engine	creationDispositionSourceOption/CREATION_DISPOSITION_EqualsSign_(CREATE_NEW|OPEN_EXISTING)	CREATE ASYMMETRIC KEY a FROM PROVIDER a WITH CREATION_DISPOSITION = CREATE_NEW
 reject	reject	engine	creationDispositionSourceOption/CREATION_DISPOSITION_EqualsSign_(CREATE_NEW|OPEN_EXISTING)!drop-1	CREATE ASYMMETRIC KEY a FROM PROVIDER a WITH = CREATE_NEW
 reject	reject	engine	creationDispositionSourceOption/CREATION_DISPOSITION_EqualsSign_(CREATE_NEW|OPEN_EXISTING)!drop-2	CREATE ASYMMETRIC KEY a FROM PROVIDER a WITH CREATION_DISPOSITION CREATE_NEW
@@ -4872,6 +4931,7 @@ reject	reject	engine	passwordCrypto/PASSWORD_EqualsSign_stringLiteral!drop-2	ADD
 reject	reject	engine	passwordCrypto/PASSWORD_EqualsSign_stringLiteral!drop-3	ADD SIGNATURE TO a BY PASSWORD =
 reject	reject	engine	passwordCrypto/PASSWORD_EqualsSign_stringLiteral!insert	ADD SIGNATURE TO a BY PASSWORD = 'a' zzz
 reject	reject	engine	passwordCrypto/PASSWORD_EqualsSign_stringLiteral!swap	ADD SIGNATURE TO a BY PATH = 'a'
+accept	accept	engine	passwordCrypto/PASSWORD_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	ADD SIGNATURE TO a BY PASSWORD = N'a'
 accept	accept	engine	providerKeySourceOptionsOpt/(providerKeySourceOptions)?	CREATE SYMMETRIC KEY a FROM PROVIDER a
 accept	accept	engine	providerKeySourceOptionsOpt(providerKeySourceOptions)?/%empty	CREATE SYMMETRIC KEY a FROM PROVIDER a
 reject	reject	engine	providerKeySourceOptionsOpt(providerKeySourceOptions)?/providerKeySourceOptions	CREATE SYMMETRIC KEY a FROM PROVIDER a WITH ALGORITHM = a
@@ -4987,6 +5047,7 @@ reject	reject	engine	identifierCreateUserOption/identifier	CREATE USER a WITH a 
 reject	reject	engine	literalCreateUserOption/binary	CREATE USER a WITH a = 0x00
 reject	reject	engine	literalCreateUserOption/stringLiteral	CREATE USER a WITH a = 'a'
 reject	reject	engine	literalCreateUserOption/stringLiteral!insert	CREATE USER a WITH a = 'a' zzz
+reject	reject	engine	literalCreateUserOption/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE USER a WITH a = N'a'
 reject	reject	engine	literalCreateUserOption/integer	CREATE USER a WITH a = 1
 reject	reject	engine	literalCreateUserOption/integer!insert	CREATE USER a WITH a = 1 zzz
 reject	reject	engine	literalCreateUserOption/nullLiteral	CREATE USER a WITH a = NULL
@@ -5239,6 +5300,7 @@ reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterMaterializedViewStatement_MATERIALIZED	ALTER MATERIALIZED VIEW a REBUILD
 accept	accept	engine	applicationRoleOption/PASSWORD_EqualsSign_stringLiteral	ALTER APPLICATION ROLE a WITH PASSWORD = 'a'
 reject	reject	engine	applicationRoleOption/PASSWORD_EqualsSign_stringLiteral!swap	ALTER APPLICATION ROLE a WITH PATH = 'a'
+accept	accept	engine	applicationRoleOption/PASSWORD_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER APPLICATION ROLE a WITH PASSWORD = N'a'
 reject	reject	engine	applicationRoleOption/Identifier_EqualsSign_identifier	ALTER APPLICATION ROLE a WITH a = a
 reject	reject	engine	applicationRoleOption/Identifier_EqualsSign_identifier!drop-1	ALTER APPLICATION ROLE a WITH = a
 reject	reject	engine	applicationRoleOption/Identifier_EqualsSign_identifier!drop-2	ALTER APPLICATION ROLE a WITH a a
@@ -5276,6 +5338,7 @@ reject	reject	engine	assemblyPermissionSetOrVisibilityOption(assemblyPermissionS
 reject	reject	engine	assemblyPermissionSetOrVisibilityOption(assemblyPermissionSetOption|assembly~654cef79)/assemblyVisibilityOption!swap	ALTER ASSEMBLY a WITH a = ONLINE
 reject	reject	engine	assemblyPermissionSetOption/Identifier	ALTER ASSEMBLY a WITH a = a
 reject	reject	engine	assemblyVisibilityOption/optionOnOff	ALTER ASSEMBLY a WITH a = ON
+reject	reject	engine	assemblyVisibilityOption/optionOnOff+optionOnOff/Off	ALTER ASSEMBLY a WITH a = OFF
 accept	accept	engine	assemblyUncheckedDataOption/UNCHECKED_DATA	ALTER ASSEMBLY a WITH UNCHECKED DATA
 accept	accept	engine	alterAssemblyDropFile/Drop_File_(All|stringLiteral_(Comma_stringLiteral)*)	ALTER ASSEMBLY a DROP FILE ALL
 reject	reject	engine	alterAssemblyDropFile/Drop_File_(All|stringLiteral_(Comma_stringLiteral)*)!drop-1	ALTER ASSEMBLY a FILE ALL
@@ -5287,11 +5350,13 @@ accept	accept	engine	alterAssemblyDropFile(All|stringLiteral_(Comma_stringLitera
 reject	reject	engine	alterAssemblyDropFile(All|stringLiteral_(Comma_stringLiteral)*)/All!swap	ALTER ASSEMBLY a DROP FILE ALLOW_CONNECTIONS
 accept	accept	engine	alterAssemblyDropFile(All|stringLiteral_(Comma_stringLiteral)*)/stringLiteral_(Comma_stringLiteral)*	ALTER ASSEMBLY a DROP FILE 'a'
 reject	reject	engine	alterAssemblyDropFile(All|stringLiteral_(Comma_stringLiteral)*)/stringLiteral_(Comma_stringLiteral)*!insert	ALTER ASSEMBLY a DROP FILE 'a' zzz
+accept	accept	engine	alterAssemblyDropFile(All|stringLiteral_(Comma_stringLiteral)*)/stringLiteral_(Comma_stringLiteral)*+stringLiteral/UnicodeStringLiteral	ALTER ASSEMBLY a DROP FILE N'a'
 accept	accept	engine	alterAssemblyDropFile(Comma_stringLiteral)*/%empty	ALTER ASSEMBLY a DROP FILE 'a'
 accept	accept	engine	alterAssemblyDropFile(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*	ALTER ASSEMBLY a DROP FILE 'a', 'a'
 reject	reject	engine	alterAssemblyDropFile(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*!drop-1	ALTER ASSEMBLY a DROP FILE 'a' 'a'
 reject	reject	engine	alterAssemblyDropFile(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*!drop-2	ALTER ASSEMBLY a DROP FILE 'a',
 reject	reject	engine	alterAssemblyDropFile(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*!insert	ALTER ASSEMBLY a DROP FILE 'a', 'a' zzz
+accept	accept	engine	alterAssemblyDropFile(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*+stringLiteral/UnicodeStringLiteral	ALTER ASSEMBLY a DROP FILE 'a', N'a'
 accept	accept	engine	alterAssemblyAddFile/Add_File_From_alterAssemblyAddFileSpec_(Comma_alterAsse~b1773d9a	ALTER ASSEMBLY a ADD FILE FROM 1
 reject	reject	engine	alterAssemblyAddFile/Add_File_From_alterAssemblyAddFileSpec_(Comma_alterAsse~b1773d9a!drop-1	ALTER ASSEMBLY a FILE FROM 1
 reject	reject	engine	alterAssemblyAddFile/Add_File_From_alterAssemblyAddFileSpec_(Comma_alterAsse~b1773d9a!drop-2	ALTER ASSEMBLY a ADD FROM 1
@@ -5311,6 +5376,7 @@ reject	reject	engine	alterAssemblyAddFileSpec(As_stringLiteral)?/As_stringLitera
 reject	reject	engine	alterAssemblyAddFileSpec(As_stringLiteral)?/As_stringLiteral!drop-2	ALTER ASSEMBLY a ADD FILE FROM 1 AS
 reject	reject	engine	alterAssemblyAddFileSpec(As_stringLiteral)?/As_stringLiteral!insert	ALTER ASSEMBLY a ADD FILE FROM 1 AS 'a' zzz
 reject	reject	engine	alterAssemblyAddFileSpec(As_stringLiteral)?/As_stringLiteral!swap	ALTER ASSEMBLY a ADD FILE FROM 1 ASC 'a'
+accept	accept	engine	alterAssemblyAddFileSpec(As_stringLiteral)?/As_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER ASSEMBLY a ADD FILE FROM 1 AS N'a'
 reject	reject	engine	alterFulltextCatalogStatement/Identifier_identifier_(((REORGANIZE|REBUILD)_(With_acce~c6fd6a4c	ALTER FULLTEXT a a REORGANIZE
 reject	reject	engine	alterFulltextCatalogStatement/Identifier_identifier_(((REORGANIZE|REBUILD)_(With_acce~c6fd6a4c!swap	ALTER FULLTEXT a a REPEATABLE
 reject	reject	engine	alterFulltextCatalogStatement(((REORGANIZE|REBUILD)_(With_accentSe~5e44bdd7)/(REORGANIZE|REBUILD)_(With_accentSensitivity)?	ALTER FULLTEXT a a REORGANIZE
@@ -5566,6 +5632,7 @@ reject	reject	engine	passwordAlterLoginOption(OLD_PASSWORD_EqualsSign_stringLite
 reject	reject	engine	passwordAlterLoginOption(OLD_PASSWORD_EqualsSign_stringLitera~30aaabbc)/OLD_PASSWORD_EqualsSign_stringLiteral!drop-3	ALTER LOGIN a WITH a = 0x00 OLD_PASSWORD =
 reject	reject	engine	passwordAlterLoginOption(OLD_PASSWORD_EqualsSign_stringLitera~30aaabbc)/OLD_PASSWORD_EqualsSign_stringLiteral!insert	ALTER LOGIN a WITH a = 0x00 OLD_PASSWORD = 'a' zzz
 reject	reject	engine	passwordAlterLoginOption(OLD_PASSWORD_EqualsSign_stringLitera~30aaabbc)/OLD_PASSWORD_EqualsSign_stringLiteral!swap	ALTER LOGIN a WITH a = 0x00 ON = 'a'
+reject	reject	engine	passwordAlterLoginOption(OLD_PASSWORD_EqualsSign_stringLitera~30aaabbc)/OLD_PASSWORD_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER LOGIN a WITH a = 0x00 OLD_PASSWORD = N'a'
 reject	reject	engine	passwordAlterLoginOption(OLD_PASSWORD_EqualsSign_stringLitera~30aaabbc)/(Identifier)*	ALTER LOGIN a WITH a = 0x00
 reject	reject	engine	passwordAlterLoginOption(Identifier)*/%empty	ALTER LOGIN a WITH a = 0x00
 reject	reject	engine	passwordAlterLoginOption(Identifier)*/Identifier_(Identifier)*	ALTER LOGIN a WITH a = 0x00 a
@@ -5610,6 +5677,7 @@ accept	accept	engine	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EX
 reject	reject	engine	executeAsClause(Exec|Execute)/Execute!insert	CREATE PROC a WITH EXECUTE zzz AS 'a' AS
 reject	reject	engine	executeAsClause(Exec|Execute)/Execute!swap	CREATE PROC a WITH EXISTS AS 'a' AS
 accept	accept	engine	executeAsClause(stringLiteral|Identifier)/stringLiteral	CREATE PROC a WITH EXEC AS 'a' AS
+accept	accept	engine	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
 reject	reject	engine	executeAsClause(stringLiteral|Identifier)/Identifier	CREATE PROC a WITH EXEC AS a AS
 reject	reject	engine	executeAsClause(stringLiteral|Identifier)/Identifier!insert	CREATE PROC a WITH EXEC AS a zzz AS
 accept	accept	engine	queueOptionList/With_queueOption_(Comma_queueOption)*	ALTER QUEUE a WITH STATUS = ON
@@ -5641,6 +5709,7 @@ reject	reject	engine	queueOption/queuePoisonMessageHandlingOption!drop-6	ALTER Q
 reject	reject	engine	queueOption/queuePoisonMessageHandlingOption!insert	ALTER QUEUE a WITH POISON_MESSAGE_HANDLING(STATUS = ON) zzz
 reject	reject	engine	queueOption/queuePoisonMessageHandlingOption!swap	ALTER QUEUE a WITH POLICY(STATUS = ON)
 accept	accept	engine	stateQueueOption/(STATUS|RETENTION)_EqualsSign_optionOnOff	ALTER QUEUE a WITH STATUS = ON
+accept	accept	engine	stateQueueOption/(STATUS|RETENTION)_EqualsSign_optionOnOff+optionOnOff/Off	ALTER QUEUE a WITH STATUS = OFF
 accept	accept	engine	stateQueueOption(STATUS|RETENTION)/STATUS	ALTER QUEUE a WITH STATUS = ON
 reject	reject	engine	stateQueueOption(STATUS|RETENTION)/STATUS!truncate	ALTER QUEUE a WITH
 reject	reject	engine	stateQueueOption(STATUS|RETENTION)/STATUS!insert	ALTER QUEUE a WITH STATUS zzz = ON
@@ -5671,11 +5740,13 @@ reject	reject	engine	activationQueueOptionArgument(statusQueueOptionArgument|pro
 reject	reject	engine	activationQueueOptionArgument(statusQueueOptionArgument|procedureN~c85e3bb9)/maxQueueReadersQueueOptionArgument	ALTER QUEUE a WITH ACTIVATION(a = 1)
 reject	reject	engine	activationQueueOptionArgument(statusQueueOptionArgument|procedureN~c85e3bb9)/maxQueueReadersQueueOptionArgument!insert	ALTER QUEUE a WITH ACTIVATION(a = 1 zzz)
 reject	reject	engine	statusQueueOptionArgument/optionOnOff	ALTER QUEUE a WITH ACTIVATION(a = ON)
+reject	reject	engine	statusQueueOptionArgument/optionOnOff+optionOnOff/Off	ALTER QUEUE a WITH ACTIVATION(a = OFF)
 reject	reject	engine	procedureNameQueueOptionArgument/schemaObjectThreePartName	ALTER QUEUE a WITH ACTIVATION(a = a)
 reject	reject	engine	maxQueueReadersQueueOptionArgument/integer	ALTER QUEUE a WITH ACTIVATION(a = 1)
 accept	accept	engine	dropQueueOptionArgument/Drop	ALTER QUEUE a WITH ACTIVATION(DROP)
 accept	accept	engine	executeAsQueueOptionArgument/executeAsClause	ALTER QUEUE a WITH ACTIVATION(EXEC AS 'a')
 accept	accept	engine	queuePoisonMessageHandlingOption/POISON_MESSAGE_HANDLING_LeftParenthesis_STATUS_EqualsSi~8247fe67	ALTER QUEUE a WITH POISON_MESSAGE_HANDLING(STATUS = ON)
+accept	accept	engine	queuePoisonMessageHandlingOption/POISON_MESSAGE_HANDLING_LeftParenthesis_STATUS_EqualsSi~8247fe67+optionOnOff/Off	ALTER QUEUE a WITH POISON_MESSAGE_HANDLING(STATUS = OFF)
 accept	accept	engine	alterRoleAction/addMemberAlterRoleAction	ALTER ROLE a ADD MEMBER a
 reject	reject	engine	alterRoleAction/addMemberAlterRoleAction!swap	ALTER ROLE a ADMIN MEMBER a
 accept	accept	engine	alterRoleAction/dropMemberAlterRoleAction	ALTER ROLE a DROP MEMBER a
@@ -5710,6 +5781,7 @@ reject	reject	engine	routeOption/Identifier_EqualsSign_stringLiteral!drop-1	ALTE
 reject	reject	engine	routeOption/Identifier_EqualsSign_stringLiteral!drop-2	ALTER ROUTE a WITH a 'a'
 reject	reject	engine	routeOption/Identifier_EqualsSign_stringLiteral!drop-3	ALTER ROUTE a WITH a =
 reject	reject	engine	routeOption/Identifier_EqualsSign_stringLiteral!insert	ALTER ROUTE a WITH a = 'a' zzz
+reject	reject	engine	routeOption/Identifier_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER ROUTE a WITH a = N'a'
 accept	accept	engine	alterSchemaStatement/Schema_identifier_TRANSFER_((OBJECT|TYPE)_DoubleColon|X~782f9873	ALTER SCHEMA a TRANSFER a
 accept	accept	engine	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/%empty	ALTER SCHEMA a TRANSFER a
 reject	reject	engine	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/%empty!insert	ALTER SCHEMA a TRANSFER zzz a
@@ -5758,6 +5830,8 @@ reject	reject	engine	alterServiceMasterKeyStatement(FORCE_REGENERATE|REGENERATE|
 reject	reject	engine	alterServiceMasterKeyStatement(FORCE_REGENERATE|REGENERATE|With_(OL~e16cab8d)/With_(OLD_ACCOUNT|NEW_ACCOUNT)_EqualsSign_stringLiteral~e2369a1e!drop-8	ALTER SERVICE MASTER KEY WITH OLD_ACCOUNT = 'a', OLD_PASSWORD =
 reject	reject	engine	alterServiceMasterKeyStatement(FORCE_REGENERATE|REGENERATE|With_(OL~e16cab8d)/With_(OLD_ACCOUNT|NEW_ACCOUNT)_EqualsSign_stringLiteral~e2369a1e!insert	ALTER SERVICE MASTER KEY WITH OLD_ACCOUNT = 'a', OLD_PASSWORD = 'a' zzz
 reject	reject	engine	alterServiceMasterKeyStatement(FORCE_REGENERATE|REGENERATE|With_(OL~e16cab8d)/With_(OLD_ACCOUNT|NEW_ACCOUNT)_EqualsSign_stringLiteral~e2369a1e!swap	ALTER SERVICE MASTER KEY WITHIN OLD_ACCOUNT = 'a', OLD_PASSWORD = 'a'
+accept	accept	engine	alterServiceMasterKeyStatement(FORCE_REGENERATE|REGENERATE|With_(OL~e16cab8d)/With_(OLD_ACCOUNT|NEW_ACCOUNT)_EqualsSign_stringLiteral~e2369a1e+stringLiteral/UnicodeStringLiteral	ALTER SERVICE MASTER KEY WITH OLD_ACCOUNT = N'a', OLD_PASSWORD = 'a'
+accept	accept	engine	alterServiceMasterKeyStatement(FORCE_REGENERATE|REGENERATE|With_(OL~e16cab8d)/With_(OLD_ACCOUNT|NEW_ACCOUNT)_EqualsSign_stringLiteral~e2369a1e+stringLiteral/UnicodeStringLiteral#2	ALTER SERVICE MASTER KEY WITH OLD_ACCOUNT = 'a', OLD_PASSWORD = N'a'
 accept	accept	engine	alterServiceMasterKeyStatement(OLD_ACCOUNT|NEW_ACCOUNT)/OLD_ACCOUNT	ALTER SERVICE MASTER KEY WITH OLD_ACCOUNT = 'a', OLD_PASSWORD = 'a'
 reject	reject	engine	alterServiceMasterKeyStatement(OLD_ACCOUNT|NEW_ACCOUNT)/OLD_ACCOUNT!truncate	ALTER SERVICE MASTER KEY WITH
 reject	reject	engine	alterServiceMasterKeyStatement(OLD_ACCOUNT|NEW_ACCOUNT)/OLD_ACCOUNT!insert	ALTER SERVICE MASTER KEY WITH OLD_ACCOUNT zzz = 'a', OLD_PASSWORD = 'a'
@@ -5791,6 +5865,7 @@ reject	reject	engine	passwordAlterUserOption(OLD_PASSWORD_EqualsSign_stringLiter
 reject	reject	engine	passwordAlterUserOption(OLD_PASSWORD_EqualsSign_stringLiteral)?/OLD_PASSWORD_EqualsSign_stringLiteral!drop-3	ALTER USER a WITH a = 0x00 OLD_PASSWORD =
 reject	reject	engine	passwordAlterUserOption(OLD_PASSWORD_EqualsSign_stringLiteral)?/OLD_PASSWORD_EqualsSign_stringLiteral!insert	ALTER USER a WITH a = 0x00 OLD_PASSWORD = 'a' zzz
 reject	reject	engine	passwordAlterUserOption(OLD_PASSWORD_EqualsSign_stringLiteral)?/OLD_PASSWORD_EqualsSign_stringLiteral!swap	ALTER USER a WITH a = 0x00 ON = 'a'
+reject	reject	engine	passwordAlterUserOption(OLD_PASSWORD_EqualsSign_stringLiteral)?/OLD_PASSWORD_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER USER a WITH a = 0x00 OLD_PASSWORD = N'a'
 reject	reject	engine	alterUserStatement/User_identifier_With_alterUserOption_(Comma_alterUserOption)*	ALTER USER a WITH a = 0x00
 reject	reject	engine	alterUserStatement(Comma_alterUserOption)*/%empty	ALTER USER a WITH a = 0x00
 reject	reject	engine	alterUserStatement(Comma_alterUserOption)*/Comma_alterUserOption_(Comma_alterUserOption)*	ALTER USER a WITH a = 0x00, a = 0x00
@@ -6213,6 +6288,7 @@ accept	accept	engine	killStatement/(signedInteger|stringLiteral)_(With_STATUSONL
 accept	accept	engine	killStatement(signedInteger|stringLiteral)/signedInteger	KILL 1
 reject	reject	engine	killStatement(signedInteger|stringLiteral)/stringLiteral	KILL 'a'
 reject	reject	engine	killStatement(signedInteger|stringLiteral)/stringLiteral!insert	KILL 'a' zzz
+reject	reject	engine	killStatement(signedInteger|stringLiteral)/stringLiteral+stringLiteral/UnicodeStringLiteral	KILL N'a'
 accept	accept	engine	killStatement(With_STATUSONLY)?/%empty	KILL 1
 accept	accept	engine	killStatement(With_STATUSONLY)?/With_STATUSONLY	KILL 1 WITH STATUSONLY
 reject	reject	engine	killStatement(With_STATUSONLY)?/With_STATUSONLY!drop-1	KILL 1 STATUSONLY
@@ -6479,6 +6555,7 @@ reject	reject	engine	writeString/nullLiteral	WRITETEXT a 0x00 NULL
 reject	reject	engine	writeString/nullLiteral!swap	WRITETEXT a 0x00 NULLIF
 reject	reject	engine	writeString/stringLiteral	WRITETEXT a 0x00 'a'
 reject	reject	engine	writeString/stringLiteral!insert	WRITETEXT a 0x00 'a' zzz
+reject	reject	engine	writeString/stringLiteral+stringLiteral/UnicodeStringLiteral	WRITETEXT a 0x00 N'a'
 reject	reject	engine	writeString/binary	WRITETEXT a 0x00 0x00
 reject	reject	engine	writeString/binary!insert	WRITETEXT a 0x00 0x00 zzz
 reject	reject	engine	writeString/variable	WRITETEXT a 0x00 @a
@@ -6534,6 +6611,7 @@ reject	reject	engine	decryptionMechanism(With_decryptionMechanismPassword)?/With
 reject	reject	engine	decryptionMechanism(With_decryptionMechanismPassword)?/With_decryptionMechanismPassword!swap	OPEN SYMMETRIC KEY a DECRYPTION BY CERTIFICATE a WITHIN PASSWORD = 'a'
 accept	accept	engine	decryptionMechanismPassword/PASSWORD_EqualsSign_stringLiteral	OPEN SYMMETRIC KEY a DECRYPTION BY CERTIFICATE a WITH PASSWORD = 'a'
 reject	reject	engine	decryptionMechanismPassword/PASSWORD_EqualsSign_stringLiteral!swap	OPEN SYMMETRIC KEY a DECRYPTION BY CERTIFICATE a WITH PATH = 'a'
+accept	accept	engine	decryptionMechanismPassword/PASSWORD_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	OPEN SYMMETRIC KEY a DECRYPTION BY CERTIFICATE a WITH PASSWORD = N'a'
 accept	accept	engine	openCursorStatement/cursorId	OPEN @a
 accept	accept	engine	closeStatements/Close_(closeMasterKeyStatement_MASTER|close~775d8c0d)	CLOSE @a
 accept	accept	engine	closeStatements(closeMasterKeyStatement_MASTER|close~775d8c0d)/closeMasterKeyStatement_MASTER	CLOSE MASTER KEY
@@ -7080,6 +7158,9 @@ reject	reject	engine	dropTriggerStatement(On_triggerScope)?/On_triggerScope!drop
 reject	reject	engine	dropTriggerStatement(On_triggerScope)?/On_triggerScope!drop-2	DROP TRIGGER a ON
 reject	reject	engine	dropTriggerStatement(On_triggerScope)?/On_triggerScope!insert	DROP TRIGGER a ON DATABASE zzz
 reject	reject	engine	dropTriggerStatement(On_triggerScope)?/On_triggerScope!swap	DROP TRIGGER a ONLINE DATABASE
+accept	accept	engine	dropTriggerStatement(On_triggerScope)?/On_triggerScope+triggerScope/All_SERVER	DROP TRIGGER a ON ALL SERVER
+reject	reject	engine	dropTriggerStatement(On_triggerScope)?/On_triggerScope+triggerScope/All_SERVER!drop-2	DROP TRIGGER a ON SERVER
+reject	reject	engine	dropTriggerStatement(On_triggerScope)?/On_triggerScope+triggerScope/All_SERVER!drop-3	DROP TRIGGER a ON ALL
 accept	accept	engine	dropExternalTableStatement/Table_dropObjectList	DROP EXTERNAL TABLE a
 reject	reject	engine	dropExternalTableStatement/Table_dropObjectList!swap	DROP EXTERNAL TABLESAMPLE a
 accept	accept	engine	dropObjectList/dropObject_(Comma_dropObject)*	DROP TABLE a
@@ -7219,6 +7300,7 @@ reject	reject	engine	withSignatureOrPasswordOpt(With_Identifier_EqualsSign_(stri
 reject	reject	engine	withSignatureOrPasswordOpt(With_Identifier_EqualsSign_(stringLi~6df5df52)?/With_Identifier_EqualsSign_(stringLiteral|binary)!insert	ADD SIGNATURE TO a BY CERTIFICATE a WITH a = 'a' zzz
 reject	reject	engine	withSignatureOrPasswordOpt(With_Identifier_EqualsSign_(stringLi~6df5df52)?/With_Identifier_EqualsSign_(stringLiteral|binary)!swap	ADD SIGNATURE TO a BY CERTIFICATE a WITHIN a = 'a'
 reject	reject	engine	withSignatureOrPasswordOpt(stringLiteral|binary)/stringLiteral	ADD SIGNATURE TO a BY CERTIFICATE a WITH a = 'a'
+reject	reject	engine	withSignatureOrPasswordOpt(stringLiteral|binary)/stringLiteral+stringLiteral/UnicodeStringLiteral	ADD SIGNATURE TO a BY CERTIFICATE a WITH a = N'a'
 reject	reject	engine	withSignatureOrPasswordOpt(stringLiteral|binary)/binary	ADD SIGNATURE TO a BY CERTIFICATE a WITH a = 0x00
 reject	reject	engine	withSignatureOrPasswordOpt(stringLiteral|binary)/binary!insert	ADD SIGNATURE TO a BY CERTIFICATE a WITH a = 0x00 zzz
 accept	accept	engine	labelStatement/Label	a:
@@ -7311,6 +7393,7 @@ reject	reject	engine	commitTransactionStatement(With_LeftParenthesis_DELAYED_DUR
 reject	reject	engine	commitTransactionStatement(With_LeftParenthesis_DELAYED_DURABIL~915ab869)?/With_LeftParenthesis_DELAYED_DURABILITY_EqualsSign_opti~cd97745a!drop-6	COMMIT WITH(DELAYED_DURABILITY = ON
 reject	reject	engine	commitTransactionStatement(With_LeftParenthesis_DELAYED_DURABIL~915ab869)?/With_LeftParenthesis_DELAYED_DURABILITY_EqualsSign_opti~cd97745a!insert	COMMIT WITH(DELAYED_DURABILITY = ON) zzz
 reject	reject	engine	commitTransactionStatement(With_LeftParenthesis_DELAYED_DURABIL~915ab869)?/With_LeftParenthesis_DELAYED_DURABILITY_EqualsSign_opti~cd97745a!swap	COMMIT WITHIN(DELAYED_DURABILITY = ON)
+accept	accept	engine	commitTransactionStatement(With_LeftParenthesis_DELAYED_DURABIL~915ab869)?/With_LeftParenthesis_DELAYED_DURABILITY_EqualsSign_opti~cd97745a+optionOnOff/Off	COMMIT WITH(DELAYED_DURABILITY = OFF)
 accept	accept	engine	beginTransactionStatement/Begin_(Distributed)?_(Tran|Transaction)_(transactionNam~48e408b4	BEGIN TRAN
 accept	accept	engine	beginTransactionStatement(Distributed)?/%empty	BEGIN TRAN
 reject	reject	engine	beginTransactionStatement(Distributed)?/%empty!insert	BEGIN zzz TRAN
@@ -7564,6 +7647,7 @@ reject	reject	engine	predicateSetStatement(Comma_Identifier)*/Comma_Identifier_(
 reject	reject	engine	predicateSetStatement(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*!insert	SET a, a zzz ON
 accept	accept	engine	setRowcountStatement/RowCount_integerOrVariable	SET ROWCOUNT 1
 accept	accept	engine	setOffsetsStatement/Offsets_offsetItem_(Comma_offsetItem)*_setOnOff	SET OFFSETS SELECT ON
+accept	accept	engine	setOffsetsStatement/Offsets_offsetItem_(Comma_offsetItem)*_setOnOff+setOnOff/Off	SET OFFSETS SELECT OFF
 accept	accept	engine	setOffsetsStatement(Comma_offsetItem)*/%empty	SET OFFSETS SELECT ON
 reject	reject	engine	setOffsetsStatement(Comma_offsetItem)*/%empty!insert	SET OFFSETS SELECT zzz ON
 accept	accept	engine	setOffsetsStatement(Comma_offsetItem)*/Comma_offsetItem_(Comma_offsetItem)*	SET OFFSETS SELECT, SELECT ON
@@ -7622,6 +7706,7 @@ accept	accept	engine	fipsFlaggerLevel/Off	SET FIPS_FLAGGER OFF
 reject	reject	engine	fipsFlaggerLevel/Off!swap	SET FIPS_FLAGGER OFFLINE
 reject	reject	engine	fipsFlaggerLevel/stringLiteral	SET FIPS_FLAGGER 'a'
 reject	reject	engine	fipsFlaggerLevel/stringLiteral!insert	SET FIPS_FLAGGER 'a' zzz
+reject	reject	engine	fipsFlaggerLevel/stringLiteral+stringLiteral/UnicodeStringLiteral	SET FIPS_FLAGGER N'a'
 accept	accept	engine	setTransactionIsolationLevelStatement/(Transaction|Tran)_ISOLATION_LEVEL_isolationLevel	SET TRANSACTION ISOLATION LEVEL SNAPSHOT
 accept	accept	engine	setTransactionIsolationLevelStatement(Transaction|Tran)/Transaction	SET TRANSACTION ISOLATION LEVEL SNAPSHOT
 reject	reject	engine	setTransactionIsolationLevelStatement(Transaction|Tran)/Transaction!truncate	SET
@@ -7651,8 +7736,10 @@ reject	reject	engine	isolationLevel(SNAPSHOT|SERIALIZABLE)/SERIALIZABLE!insert	S
 reject	reject	engine	isolationLevel(SNAPSHOT|SERIALIZABLE)/SERIALIZABLE!swap	SET TRANSACTION ISOLATION LEVEL SERVER
 accept	accept	engine	setTextSizeStatement/TextSize_signedInteger	SET TEXTSIZE 1
 accept	accept	engine	setIdentityInsertStatement/IdentityInsert_schemaObjectThreePartName_setOnOff	SET IDENTITY_INSERT a ON
+accept	accept	engine	setIdentityInsertStatement/IdentityInsert_schemaObjectThreePartName_setOnOff+setOnOff/Off	SET IDENTITY_INSERT a OFF
 accept	accept	engine	setErrorLevelStatement/Errlvl_signedInteger	SET ERRLVL 1
 reject	reject	engine	setStatisticsStatement/Statistics_Identifier_(Comma_Identifier)*_setOnOff	SET STATISTICS a ON
+reject	reject	engine	setStatisticsStatement/Statistics_Identifier_(Comma_Identifier)*_setOnOff+setOnOff/Off	SET STATISTICS a OFF
 reject	reject	engine	setStatisticsStatement(Comma_Identifier)*/%empty	SET STATISTICS a ON
 reject	reject	engine	setStatisticsStatement(Comma_Identifier)*/%empty!insert	SET STATISTICS a zzz ON
 reject	reject	engine	setStatisticsStatement(Comma_Identifier)*/Comma_Identifier_(Comma_Identifier)*	SET STATISTICS a, a ON
@@ -7824,6 +7911,7 @@ reject	reject	engine	indexKeyColumn(orderByOption)?/orderByOption	CREATE INDEX a
 reject	reject	engine	indexKeyColumn(orderByOption)?/orderByOption!truncate	CREATE INDEX a ON a($IDENTITY
 reject	reject	engine	indexKeyColumn(orderByOption)?/orderByOption!insert	CREATE INDEX a ON a($IDENTITY ASC zzz)
 reject	reject	engine	indexKeyColumn(orderByOption)?/orderByOption!swap	CREATE INDEX a ON a($IDENTITY ASSEMBLY)
+reject	reject	engine	indexKeyColumn(orderByOption)?/orderByOption+orderByOption/Desc	CREATE INDEX a ON a($IDENTITY DESC)
 accept	accept	engine	columnstoreIndexKeyColumnList/columnstoreIndexKeyColumn_(Comma_columnstoreIndexKeyColumn)*	CREATE COLUMNSTORE INDEX a ON a(a)
 reject	reject	engine	columnstoreIndexKeyColumnList/columnstoreIndexKeyColumn_(Comma_columnstoreIndexKeyColumn)*!drop-1	CREATE COLUMNSTORE INDEX a ON a()
 reject	reject	engine	columnstoreIndexKeyColumnList/columnstoreIndexKeyColumn_(Comma_columnstoreIndexKeyColumn)*!truncate	CREATE COLUMNSTORE INDEX a ON a(
@@ -8027,6 +8115,7 @@ reject	reject	engine	indexStateOption/Identifier_EqualsSign_optionOnOff!drop-3	A
 reject	reject	engine	indexStateOption/Identifier_EqualsSign_optionOnOff!truncate	ALTER TABLE a REBUILD WITH(a =
 reject	reject	engine	indexStateOption/Identifier_EqualsSign_optionOnOff!insert	ALTER TABLE a REBUILD WITH(a = ON zzz)
 reject	reject	engine	indexStateOption/Identifier_EqualsSign_optionOnOff!swap	ALTER TABLE a REBUILD WITH(a = ONLINE)
+reject	reject	engine	indexStateOption/Identifier_EqualsSign_optionOnOff+optionOnOff/Off	ALTER TABLE a REBUILD WITH(a = OFF)
 reject	reject	engine	orderIndexOption/Order_identifierColumnList	ALTER TABLE a REBUILD WITH(ORDER(a))
 reject	reject	engine	orderIndexOption/Order_identifierColumnList!drop-1	ALTER TABLE a REBUILD WITH((a))
 reject	reject	engine	orderIndexOption/Order_identifierColumnList!drop-2	ALTER TABLE a REBUILD WITH(ORDER a))
@@ -8168,7 +8257,9 @@ reject	reject	engine	xmlNamespacesElement/xmlNamespacesAliasElement!truncate	WIT
 reject	reject	engine	xmlNamespacesElement/xmlNamespacesAliasElement!insert	WITH XMLNAMESPACES('a' AS a zzz) SELECT *
 reject	reject	engine	xmlNamespacesElement/xmlNamespacesAliasElement!swap	WITH XMLNAMESPACES('a' ASC a) SELECT *
 accept	accept	engine	xmlNamespacesDefaultElement/Default_stringLiteral	WITH XMLNAMESPACES(DEFAULT 'a') SELECT *
+accept	accept	engine	xmlNamespacesDefaultElement/Default_stringLiteral+stringLiteral/UnicodeStringLiteral	WITH XMLNAMESPACES(DEFAULT N'a') SELECT *
 accept	accept	engine	xmlNamespacesAliasElement/stringLiteral_As_identifier	WITH XMLNAMESPACES('a' AS a) SELECT *
+accept	accept	engine	xmlNamespacesAliasElement/stringLiteral_As_identifier+stringLiteral/UnicodeStringLiteral	WITH XMLNAMESPACES(N'a' AS a) SELECT *
 accept	accept	engine	subqueryExpressionWithOptionalCTE/(withCommonTableExpressionsAndXmlNamespaces)?_subqueryExpression	CREATE VIEW a AS SELECT *
 reject	reject	engine	subqueryExpressionWithOptionalCTE/(withCommonTableExpressionsAndXmlNamespaces)?_subqueryExpression!swap	CREATE VIEW a AS SELECTIVE *
 accept	accept	engine	subqueryExpressionWithOptionalCTE(withCommonTableExpressionsAndXmlNamespaces)?/%empty	CREATE VIEW a AS SELECT *
@@ -9073,6 +9164,7 @@ reject	reject	engine	predictSchemaItem/columnDefinitionBasic_(stringLiteral)?_(A
 reject	reject	engine	predictSchemaItem(stringLiteral)?/%empty	SELECT * FROM PREDICT(MODEL = 1, a = a) WITH(a a)
 reject	reject	engine	predictSchemaItem(stringLiteral)?/stringLiteral	SELECT * FROM PREDICT(MODEL = 1, a = a) WITH(a a 'a')
 reject	reject	engine	predictSchemaItem(stringLiteral)?/stringLiteral!insert	SELECT * FROM PREDICT(MODEL = 1, a = a) WITH(a a 'a' zzz)
+reject	reject	engine	predictSchemaItem(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	SELECT * FROM PREDICT(MODEL = 1, a = a) WITH(a a N'a')
 reject	reject	engine	predictSchemaItem(As_PREDICT)?/%empty	SELECT * FROM PREDICT(MODEL = 1, a = a) WITH(a a)
 reject	reject	engine	predictSchemaItem(As_PREDICT)?/As_PREDICT	SELECT * FROM PREDICT(MODEL = 1, a = a) WITH(a a AS PREDICT)
 reject	reject	engine	predictSchemaItem(As_PREDICT)?/As_PREDICT!drop-1	SELECT * FROM PREDICT(MODEL = 1, a = a) WITH(a a PREDICT)
@@ -9422,6 +9514,14 @@ accept	accept	engine	setClauseStartingWithVariable((EqualsSign_(multiPartIdentif
 accept	accept	engine	setClauseStartingWithVariable((EqualsSign_(multiPartIdentifier_ass~86dbaaf1)/assignmentWithOp_expression	UPDATE a SET @a += 1
 reject	reject	engine	setClauseStartingWithVariable((EqualsSign_(multiPartIdentifier_ass~86dbaaf1)/assignmentWithOp_expression!drop-2	UPDATE a SET @a +=
 reject	reject	engine	setClauseStartingWithVariable((EqualsSign_(multiPartIdentifier_ass~86dbaaf1)/assignmentWithOp_expression!insert	UPDATE a SET @a += 1 zzz
+accept	accept	engine	setClauseStartingWithVariable((EqualsSign_(multiPartIdentifier_ass~86dbaaf1)/assignmentWithOp_expression+assignmentWithOp/SubtractEquals	UPDATE a SET @a -= 1
+accept	accept	engine	setClauseStartingWithVariable((EqualsSign_(multiPartIdentifier_ass~86dbaaf1)/assignmentWithOp_expression+assignmentWithOp/MultiplyEquals	UPDATE a SET @a *= 1
+accept	accept	engine	setClauseStartingWithVariable((EqualsSign_(multiPartIdentifier_ass~86dbaaf1)/assignmentWithOp_expression+assignmentWithOp/DivideEquals	UPDATE a SET @a /= 1
+accept	accept	engine	setClauseStartingWithVariable((EqualsSign_(multiPartIdentifier_ass~86dbaaf1)/assignmentWithOp_expression+assignmentWithOp/ModEquals	UPDATE a SET @a %= 1
+accept	accept	engine	setClauseStartingWithVariable((EqualsSign_(multiPartIdentifier_ass~86dbaaf1)/assignmentWithOp_expression+assignmentWithOp/BitwiseAndEquals	UPDATE a SET @a &= 1
+accept	accept	engine	setClauseStartingWithVariable((EqualsSign_(multiPartIdentifier_ass~86dbaaf1)/assignmentWithOp_expression+assignmentWithOp/BitwiseOrEquals	UPDATE a SET @a |= 1
+accept	accept	engine	setClauseStartingWithVariable((EqualsSign_(multiPartIdentifier_ass~86dbaaf1)/assignmentWithOp_expression+assignmentWithOp/BitwiseXorEquals	UPDATE a SET @a ^= 1
+reject	reject	engine	setClauseStartingWithVariable((EqualsSign_(multiPartIdentifier_ass~86dbaaf1)/assignmentWithOp_expression+assignmentWithOp/ConcatEquals	UPDATE a SET @a ||= 1
 accept	accept	engine	setClauseStartingWithVariable(multiPartIdentifier_assignmentWithOp~313f60c4)/multiPartIdentifier_assignmentWithOptOp_expressionWithDefault	UPDATE a SET @a = a = 1
 reject	reject	engine	setClauseStartingWithVariable(multiPartIdentifier_assignmentWithOp~313f60c4)/multiPartIdentifier_assignmentWithOptOp_expressionWithDefault!drop-1	UPDATE a SET @a = = 1
 reject	reject	engine	setClauseStartingWithVariable(multiPartIdentifier_assignmentWithOp~313f60c4)/multiPartIdentifier_assignmentWithOptOp_expressionWithDefault!drop-2	UPDATE a SET @a = a 1
@@ -9480,6 +9580,7 @@ reject	reject	engine	openRowsetColumn(integer|stringLiteral)?/integer!truncate	D
 reject	reject	engine	openRowsetColumn(integer|stringLiteral)?/integer!insert	DELETE OPENROWSET(BULK 'a') WITH(a a 1 zzz)
 reject	reject	engine	openRowsetColumn(integer|stringLiteral)?/stringLiteral	DELETE OPENROWSET(BULK 'a') WITH(a a 'a')
 reject	reject	engine	openRowsetColumn(integer|stringLiteral)?/stringLiteral!insert	DELETE OPENROWSET(BULK 'a') WITH(a a 'a' zzz)
+reject	reject	engine	openRowsetColumn(integer|stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	DELETE OPENROWSET(BULK 'a') WITH(a a N'a')
 accept	accept	engine	dmlTarget/schemaObjectDmlTarget	DELETE a
 reject	reject	engine	dmlTarget/openRowset	DELETE OPENROWSET(a)
 reject	reject	engine	dmlTarget/openRowset!drop-1	DELETE(a)
@@ -9610,6 +9711,7 @@ reject	reject	engine	fulltextTableColumnList/PROPERTY_LeftParenthesis_identifier
 reject	reject	engine	fulltextTableColumnList/PROPERTY_LeftParenthesis_identifierColumnReferenceExpre~a9369749!truncate	SELECT * FROM CONTAINSTABLE(a, PROPERTY(a, 'a'
 reject	reject	engine	fulltextTableColumnList/PROPERTY_LeftParenthesis_identifierColumnReferenceExpre~a9369749!insert	SELECT * FROM CONTAINSTABLE(a, PROPERTY(a, 'a') zzz, 'a')
 reject	reject	engine	fulltextTableColumnList/PROPERTY_LeftParenthesis_identifierColumnReferenceExpre~a9369749!swap	SELECT * FROM CONTAINSTABLE(a, PROPERTY_INT_ID(a, 'a'), 'a')
+accept	accept	engine	fulltextTableColumnList/PROPERTY_LeftParenthesis_identifierColumnReferenceExpre~a9369749+stringLiteral/UnicodeStringLiteral	SELECT * FROM CONTAINSTABLE(a, PROPERTY(a, N'a'), 'a')
 accept	accept	engine	fulltextSemanticTableColumnList/identifierColumnReferenceExpression	SELECT * FROM SEMANTICKEYPHRASETABLE(a, a)
 reject	reject	engine	fulltextSemanticTableColumnList/identifierColumnReferenceExpression!truncate	SELECT * FROM SEMANTICKEYPHRASETABLE(a,
 reject	reject	engine	fulltextSemanticTableColumnList/identifierColumnReferenceExpression!insert	SELECT * FROM SEMANTICKEYPHRASETABLE(a, a zzz)
@@ -9767,6 +9869,7 @@ accept	accept	engine	openJsonSchemaItem/columnDefinitionBasic_(stringLiteral)?_(
 accept	accept	engine	openJsonSchemaItem(stringLiteral)?/%empty	SELECT * FROM OPENJSON(1) WITH(a a)
 accept	accept	engine	openJsonSchemaItem(stringLiteral)?/stringLiteral	SELECT * FROM OPENJSON(1) WITH(a a 'a')
 reject	reject	engine	openJsonSchemaItem(stringLiteral)?/stringLiteral!insert	SELECT * FROM OPENJSON(1) WITH(a a 'a' zzz)
+accept	accept	engine	openJsonSchemaItem(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	SELECT * FROM OPENJSON(1) WITH(a a N'a')
 accept	accept	engine	openJsonSchemaItem(As_JSON)?/%empty	SELECT * FROM OPENJSON(1) WITH(a a)
 accept	accept	engine	openJsonSchemaItem(As_JSON)?/As_JSON	SELECT * FROM OPENJSON(1) WITH(a a AS JSON)
 reject	reject	engine	openJsonSchemaItem(As_JSON)?/As_JSON!drop-1	SELECT * FROM OPENJSON(1) WITH(a a JSON)
@@ -9861,18 +9964,21 @@ reject	reject	engine	openRowsetBulk/Bulk_((stringLiteral)|(LeftParenthesis_str~3
 reject	reject	engine	openRowsetBulk((stringLiteral)|(LeftParenthesis_str~3bba7f86)/stringLiteral	DELETE OPENROWSET(BULK 'a')
 reject	reject	engine	openRowsetBulk((stringLiteral)|(LeftParenthesis_str~3bba7f86)/stringLiteral!truncate	DELETE OPENROWSET(BULK
 reject	reject	engine	openRowsetBulk((stringLiteral)|(LeftParenthesis_str~3bba7f86)/stringLiteral!insert	DELETE OPENROWSET(BULK 'a' zzz)
+reject	reject	engine	openRowsetBulk((stringLiteral)|(LeftParenthesis_str~3bba7f86)/stringLiteral+stringLiteral/UnicodeStringLiteral	DELETE OPENROWSET(BULK N'a')
 reject	reject	engine	openRowsetBulk((stringLiteral)|(LeftParenthesis_str~3bba7f86)/LeftParenthesis_stringLiteral_(Comma_stringLiteral)*_(C~d5a57986	DELETE OPENROWSET(BULK('a'))
 reject	reject	engine	openRowsetBulk((stringLiteral)|(LeftParenthesis_str~3bba7f86)/LeftParenthesis_stringLiteral_(Comma_stringLiteral)*_(C~d5a57986!drop-1	DELETE OPENROWSET(BULK 'a'))
 reject	reject	engine	openRowsetBulk((stringLiteral)|(LeftParenthesis_str~3bba7f86)/LeftParenthesis_stringLiteral_(Comma_stringLiteral)*_(C~d5a57986!drop-2	DELETE OPENROWSET(BULK())
 reject	reject	engine	openRowsetBulk((stringLiteral)|(LeftParenthesis_str~3bba7f86)/LeftParenthesis_stringLiteral_(Comma_stringLiteral)*_(C~d5a57986!drop-3	DELETE OPENROWSET(BULK('a')
 reject	reject	engine	openRowsetBulk((stringLiteral)|(LeftParenthesis_str~3bba7f86)/LeftParenthesis_stringLiteral_(Comma_stringLiteral)*_(C~d5a57986!truncate	DELETE OPENROWSET(BULK('a'
 reject	reject	engine	openRowsetBulk((stringLiteral)|(LeftParenthesis_str~3bba7f86)/LeftParenthesis_stringLiteral_(Comma_stringLiteral)*_(C~d5a57986!insert	DELETE OPENROWSET(BULK('a') zzz)
+reject	reject	engine	openRowsetBulk((stringLiteral)|(LeftParenthesis_str~3bba7f86)/LeftParenthesis_stringLiteral_(Comma_stringLiteral)*_(C~d5a57986+stringLiteral/UnicodeStringLiteral	DELETE OPENROWSET(BULK(N'a'))
 reject	reject	engine	openRowsetBulk(Comma_stringLiteral)*/%empty	DELETE OPENROWSET(BULK('a'))
 reject	reject	engine	openRowsetBulk(Comma_stringLiteral)*/%empty!insert	DELETE OPENROWSET(BULK('a' zzz))
 reject	reject	engine	openRowsetBulk(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*	DELETE OPENROWSET(BULK('a', 'a'))
 reject	reject	engine	openRowsetBulk(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*!drop-1	DELETE OPENROWSET(BULK('a' 'a'))
 reject	reject	engine	openRowsetBulk(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*!truncate	DELETE OPENROWSET(BULK('a',
 reject	reject	engine	openRowsetBulk(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*!insert	DELETE OPENROWSET(BULK('a', 'a' zzz))
+reject	reject	engine	openRowsetBulk(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*+stringLiteral/UnicodeStringLiteral	DELETE OPENROWSET(BULK('a', N'a'))
 reject	reject	engine	openRowsetBulk(Comma)?/%empty	DELETE OPENROWSET(BULK('a'))
 reject	reject	engine	openRowsetBulk(Comma)?/Comma	DELETE OPENROWSET(BULK('a',))
 reject	reject	engine	openRowsetBulk(Comma)?/Comma!insert	DELETE OPENROWSET(BULK('a', zzz))
@@ -9905,26 +10011,32 @@ reject	reject	engine	openRowsetBulkHint/simpleBulkInsertOptionWithValue	DELETE O
 reject	reject	engine	openRowsetBulkHint/openRowsetBulkOrderHint	DELETE OPENROWSET(BULK 'a', ORDER(a))
 reject	reject	engine	openRowsetBulkHintNoValue/Identifier	DELETE OPENROWSET(BULK 'a', a)
 accept	accept	engine	openQueryRowset/OpenQuery_LeftParenthesis_identifier_Comma_stringLitera~ef6ae9e0	DELETE OPENQUERY(a, 'a')
+accept	accept	engine	openQueryRowset/OpenQuery_LeftParenthesis_identifier_Comma_stringLitera~ef6ae9e0+stringLiteral/UnicodeStringLiteral	DELETE OPENQUERY(a, N'a')
 accept	accept	engine	adhocRowset/adhocDataSource_Dot_objectOrString	DELETE OPENDATASOURCE('a', 'a').a
 reject	reject	engine	openRowsetParams/stringLiteral_Comma_((stringLiteral_Semicolon_(stringLi~88f996fa	DELETE OPENROWSET('a', 'a', a)
 reject	reject	engine	openRowsetParams/stringLiteral_Comma_((stringLiteral_Semicolon_(stringLi~88f996fa+simpleTableReferenceAliasOpt	DELETE OPENROWSET('a', 'a', a) a
+reject	reject	engine	openRowsetParams/stringLiteral_Comma_((stringLiteral_Semicolon_(stringLi~88f996fa+stringLiteral/UnicodeStringLiteral	DELETE OPENROWSET(N'a', 'a', a)
 reject	reject	engine	openRowsetParams((stringLiteral_Semicolon_(stringLite~58032b56)/stringLiteral_Semicolon_(stringLiteral)?_Semicolon_(str~635f2246	DELETE OPENROWSET('a', 'a';;, a)
 reject	reject	engine	openRowsetParams((stringLiteral_Semicolon_(stringLite~58032b56)/stringLiteral_Semicolon_(stringLiteral)?_Semicolon_(str~635f2246!drop-1	DELETE OPENROWSET('a',;;, a)
 reject	reject	engine	openRowsetParams((stringLiteral_Semicolon_(stringLite~58032b56)/stringLiteral_Semicolon_(stringLiteral)?_Semicolon_(str~635f2246!drop-2	DELETE OPENROWSET('a', 'a';, a)
 reject	reject	engine	openRowsetParams((stringLiteral_Semicolon_(stringLite~58032b56)/stringLiteral_Semicolon_(stringLiteral)?_Semicolon_(str~635f2246!truncate	DELETE OPENROWSET('a', 'a';
 reject	reject	engine	openRowsetParams((stringLiteral_Semicolon_(stringLite~58032b56)/stringLiteral_Semicolon_(stringLiteral)?_Semicolon_(str~635f2246!insert	DELETE OPENROWSET('a', 'a';; zzz, a)
+reject	reject	engine	openRowsetParams((stringLiteral_Semicolon_(stringLite~58032b56)/stringLiteral_Semicolon_(stringLiteral)?_Semicolon_(str~635f2246+stringLiteral/UnicodeStringLiteral	DELETE OPENROWSET('a', N'a';;, a)
 reject	reject	engine	openRowsetParams((stringLiteral_Semicolon_(stringLite~58032b56)/stringLiteral	DELETE OPENROWSET('a', 'a', a)
 reject	reject	engine	openRowsetParams((stringLiteral_Semicolon_(stringLite~58032b56)/stringLiteral!truncate	DELETE OPENROWSET('a',
 reject	reject	engine	openRowsetParams((stringLiteral_Semicolon_(stringLite~58032b56)/stringLiteral!insert	DELETE OPENROWSET('a', 'a' zzz, a)
+reject	reject	engine	openRowsetParams((stringLiteral_Semicolon_(stringLite~58032b56)/stringLiteral+stringLiteral/UnicodeStringLiteral	DELETE OPENROWSET('a', N'a', a)
 reject	reject	engine	openRowsetParams(stringLiteral)?/%empty	DELETE OPENROWSET('a', 'a';;, a)
 reject	reject	engine	openRowsetParams(stringLiteral)?/%empty!insert	DELETE OPENROWSET('a', 'a'; zzz;, a)
 reject	reject	engine	openRowsetParams(stringLiteral)?/stringLiteral	DELETE OPENROWSET('a', 'a'; 'a';, a)
 reject	reject	engine	openRowsetParams(stringLiteral)?/stringLiteral!insert	DELETE OPENROWSET('a', 'a'; 'a' zzz;, a)
+reject	reject	engine	openRowsetParams(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	DELETE OPENROWSET('a', 'a'; N'a';, a)
 reject	reject	engine	openRowsetParams(schemaObjectThreePartName|stringLiteral)/schemaObjectThreePartName	DELETE OPENROWSET('a', 'a', a)
 reject	reject	engine	openRowsetParams(schemaObjectThreePartName|stringLiteral)/schemaObjectThreePartName!truncate	DELETE OPENROWSET('a', 'a',
 reject	reject	engine	openRowsetParams(schemaObjectThreePartName|stringLiteral)/schemaObjectThreePartName!insert	DELETE OPENROWSET('a', 'a', a zzz)
 reject	reject	engine	openRowsetParams(schemaObjectThreePartName|stringLiteral)/stringLiteral	DELETE OPENROWSET('a', 'a', 'a')
 reject	reject	engine	openRowsetParams(schemaObjectThreePartName|stringLiteral)/stringLiteral!insert	DELETE OPENROWSET('a', 'a', 'a' zzz)
+reject	reject	engine	openRowsetParams(schemaObjectThreePartName|stringLiteral)/stringLiteral+stringLiteral/UnicodeStringLiteral	DELETE OPENROWSET('a', 'a', N'a')
 reject	reject	engine	openRowsetParams(With_(LeftParenthesis_openRowsetColu~99e4d421)?/%empty	DELETE OPENROWSET('a', 'a', a)
 reject	reject	engine	openRowsetParams(With_(LeftParenthesis_openRowsetColu~99e4d421)?/With_LeftParenthesis_openRowsetColumn_(Comma_openRowset~102e6e52	DELETE OPENROWSET('a', 'a', a) WITH(a a)
 reject	reject	engine	openRowsetParams(With_(LeftParenthesis_openRowsetColu~99e4d421)?/With_LeftParenthesis_openRowsetColumn_(Comma_openRowset~102e6e52!drop-1	DELETE OPENROWSET('a', 'a', a)(a a)
@@ -10179,6 +10291,7 @@ reject	reject	engine	xmlForClauseMode(LeftParenthesis_stringLiteral_RightP~c227c
 reject	reject	engine	xmlForClauseMode(LeftParenthesis_stringLiteral_RightP~c227cf22)?/LeftParenthesis_stringLiteral_RightParenthesis!drop-2	SELECT * FOR XML a()
 reject	reject	engine	xmlForClauseMode(LeftParenthesis_stringLiteral_RightP~c227cf22)?/LeftParenthesis_stringLiteral_RightParenthesis!drop-3	SELECT * FOR XML a('a'
 reject	reject	engine	xmlForClauseMode(LeftParenthesis_stringLiteral_RightP~c227cf22)?/LeftParenthesis_stringLiteral_RightParenthesis!insert	SELECT * FOR XML a('a') zzz
+reject	reject	engine	xmlForClauseMode(LeftParenthesis_stringLiteral_RightP~c227cf22)?/LeftParenthesis_stringLiteral_RightParenthesis+stringLiteral/UnicodeStringLiteral	SELECT * FOR XML a(N'a')
 reject	reject	engine	xmlParam/Identifier_(LeftParenthesis_stringLiteral_RightP~5a3e3d41)?	SELECT * FOR XML a, a
 reject	reject	engine	xmlParam/Identifier_(LeftParenthesis_stringLiteral_RightP~5a3e3d41)?!drop-1	SELECT * FOR XML a,
 reject	reject	engine	xmlParam/Identifier_(LeftParenthesis_stringLiteral_RightP~5a3e3d41)?!insert	SELECT * FOR XML a, a zzz
@@ -10188,6 +10301,7 @@ reject	reject	engine	xmlParam(LeftParenthesis_stringLiteral_RightP~5a3e3d41)?/Le
 reject	reject	engine	xmlParam(LeftParenthesis_stringLiteral_RightP~5a3e3d41)?/LeftParenthesis_stringLiteral_RightParenthesis!drop-2	SELECT * FOR XML a, a()
 reject	reject	engine	xmlParam(LeftParenthesis_stringLiteral_RightP~5a3e3d41)?/LeftParenthesis_stringLiteral_RightParenthesis!drop-3	SELECT * FOR XML a, a('a'
 reject	reject	engine	xmlParam(LeftParenthesis_stringLiteral_RightP~5a3e3d41)?/LeftParenthesis_stringLiteral_RightParenthesis!insert	SELECT * FOR XML a, a('a') zzz
+reject	reject	engine	xmlParam(LeftParenthesis_stringLiteral_RightP~5a3e3d41)?/LeftParenthesis_stringLiteral_RightParenthesis+stringLiteral/UnicodeStringLiteral	SELECT * FOR XML a, a(N'a')
 reject	reject	engine	xmlParam(LeftParenthesis_stringLiteral_RightP~5a3e3d41)?/(BASE64|XSINIL|ABSENT)	SELECT * FOR XML a, a BASE64
 reject	reject	engine	xmlParam(LeftParenthesis_stringLiteral_RightP~5a3e3d41)?/(BASE64|XSINIL|ABSENT)!insert	SELECT * FOR XML a, a BASE64 zzz
 reject	reject	engine	xmlParam(LeftParenthesis_stringLiteral_RightP~5a3e3d41)?/(BASE64|XSINIL|ABSENT)!swap	SELECT * FOR XML a, a BATCHES
@@ -10208,6 +10322,7 @@ reject	reject	engine	jsonParam(LeftParenthesis_stringLiteral_RightP~c227cf22)?/L
 reject	reject	engine	jsonParam(LeftParenthesis_stringLiteral_RightP~c227cf22)?/LeftParenthesis_stringLiteral_RightParenthesis!drop-2	SELECT * FOR JSON a, a()
 reject	reject	engine	jsonParam(LeftParenthesis_stringLiteral_RightP~c227cf22)?/LeftParenthesis_stringLiteral_RightParenthesis!drop-3	SELECT * FOR JSON a, a('a'
 reject	reject	engine	jsonParam(LeftParenthesis_stringLiteral_RightP~c227cf22)?/LeftParenthesis_stringLiteral_RightParenthesis!insert	SELECT * FOR JSON a, a('a') zzz
+reject	reject	engine	jsonParam(LeftParenthesis_stringLiteral_RightP~c227cf22)?/LeftParenthesis_stringLiteral_RightParenthesis+stringLiteral/UnicodeStringLiteral	SELECT * FOR JSON a, a(N'a')
 reject	reject	engine	updateForClause/Update_(Of_column_(Comma_column)*)?	SELECT * FOR UPDATE
 reject	reject	engine	updateForClause(Of_column_(Comma_column)*)?/%empty	SELECT * FOR UPDATE
 reject	reject	engine	updateForClause(Of_column_(Comma_column)*)?/Of_column_(Comma_column)*	SELECT * FOR UPDATE OF a
@@ -10328,7 +10443,9 @@ reject	reject	engine	literalOptimizerHint/Identifier_EqualsSign_(integerOrRealOr
 reject	reject	engine	literalOptimizerHint(integerOrRealOrNumeric|stringLiteral)/integerOrRealOrNumeric	SELECT * OPTION(a = 1)
 reject	reject	engine	literalOptimizerHint(integerOrRealOrNumeric|stringLiteral)/stringLiteral	SELECT * OPTION(a = 'a')
 reject	reject	engine	literalOptimizerHint(integerOrRealOrNumeric|stringLiteral)/stringLiteral!insert	SELECT * OPTION(a = 'a' zzz)
+reject	reject	engine	literalOptimizerHint(integerOrRealOrNumeric|stringLiteral)/stringLiteral+stringLiteral/UnicodeStringLiteral	SELECT * OPTION(a = N'a')
 accept	accept	engine	usePlanOptimizerHint/Use_Plan_stringLiteral	SELECT * OPTION(USE PLAN 'a')
+accept	accept	engine	usePlanOptimizerHint/Use_Plan_stringLiteral+stringLiteral/UnicodeStringLiteral	SELECT * OPTION(USE PLAN N'a')
 accept	accept	engine	optimizeForOptimizerHint/OPTIMIZE_For_(LeftParenthesis_variableValuePair_(C~e8d8e4d2)	SELECT * OPTION(OPTIMIZE FOR UNKNOWN)
 accept	accept	engine	optimizeForOptimizerHint(LeftParenthesis_variableValuePair_(C~e8d8e4d2)/LeftParenthesis_variableValuePair_(Comma_variableValueP~d0bbec3f	SELECT * OPTION(OPTIMIZE FOR(@a UNKNOWN))
 reject	reject	engine	optimizeForOptimizerHint(LeftParenthesis_variableValuePair_(C~e8d8e4d2)/LeftParenthesis_variableValuePair_(Comma_variableValueP~d0bbec3f!drop-1	SELECT * OPTION(OPTIMIZE FOR @a UNKNOWN))
@@ -10358,6 +10475,7 @@ reject	reject	engine	variableValuePair(EqualsSign_possibleNegativeConstant|UNKNO
 reject	reject	engine	variableValuePair(EqualsSign_possibleNegativeConstant|UNKNOWN)/EqualsSign_possibleNegativeConstant!insert	SELECT * OPTION(OPTIMIZE FOR(@a = 1 zzz))
 accept	accept	engine	variableValuePair(EqualsSign_possibleNegativeConstant|UNKNOWN)/UNKNOWN	SELECT * OPTION(OPTIMIZE FOR(@a UNKNOWN))
 reject	reject	engine	useHintClause/Use_HINT_LeftParenthesis_stringLiteral_(Comma_stringLit~4bcf12a7	SELECT * OPTION(USE HINT('a'))
+reject	reject	engine	useHintClause/Use_HINT_LeftParenthesis_stringLiteral_(Comma_stringLit~4bcf12a7+stringLiteral/UnicodeStringLiteral	SELECT * OPTION(USE HINT(N'a'))
 reject	reject	engine	useHintClause(Comma_stringLiteral)*/%empty	SELECT * OPTION(USE HINT('a'))
 reject	reject	engine	useHintClause(Comma_stringLiteral)*/%empty!insert	SELECT * OPTION(USE HINT('a' zzz))
 reject	reject	engine	useHintClause(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*	SELECT * OPTION(USE HINT('a', 'a'))
@@ -10365,6 +10483,7 @@ reject	reject	engine	useHintClause(Comma_stringLiteral)*/Comma_stringLiteral_(Co
 reject	reject	engine	useHintClause(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*!drop-2	SELECT * OPTION(USE HINT('a',))
 reject	reject	engine	useHintClause(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*!truncate	SELECT * OPTION(USE HINT('a',
 reject	reject	engine	useHintClause(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*!insert	SELECT * OPTION(USE HINT('a', 'a' zzz))
+reject	reject	engine	useHintClause(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*+stringLiteral/UnicodeStringLiteral	SELECT * OPTION(USE HINT('a', N'a'))
 reject	reject	engine	createRuleStatement/Create_Rule_schemaObjectThreePartName_As_booleanExpression	CREATE RULE a AS 1 = 1
 accept	accept	engine	cryptographicProviderFile/From_File_EqualsSign_stringLiteral	ALTER CRYPTOGRAPHIC PROVIDER a FROM FILE = 'a'
 reject	reject	engine	cryptographicProviderFile/From_File_EqualsSign_stringLiteral!drop-1	ALTER CRYPTOGRAPHIC PROVIDER a FILE = 'a'
@@ -10373,6 +10492,7 @@ reject	reject	engine	cryptographicProviderFile/From_File_EqualsSign_stringLitera
 reject	reject	engine	cryptographicProviderFile/From_File_EqualsSign_stringLiteral!drop-4	ALTER CRYPTOGRAPHIC PROVIDER a FROM FILE =
 reject	reject	engine	cryptographicProviderFile/From_File_EqualsSign_stringLiteral!insert	ALTER CRYPTOGRAPHIC PROVIDER a FROM FILE = 'a' zzz
 reject	reject	engine	cryptographicProviderFile/From_File_EqualsSign_stringLiteral!swap	ALTER CRYPTOGRAPHIC PROVIDER a FULL FILE = 'a'
+accept	accept	engine	cryptographicProviderFile/From_File_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER CRYPTOGRAPHIC PROVIDER a FROM FILE = N'a'
 reject	reject	engine	resourcePoolStatementBody/(With_LeftParenthesis_resourcePoolPar~5d1a7d62)?	ALTER RESOURCE POOL a
 reject	reject	engine	resourcePoolStatementBody(With_LeftParenthesis_resourcePoolPar~5d1a7d62)?/%empty	ALTER RESOURCE POOL a
 reject	reject	engine	resourcePoolStatementBody(With_LeftParenthesis_resourcePoolPar~5d1a7d62)?/With_LeftParenthesis_resourcePoolParameter_(Comma_resou~0a249a05	ALTER RESOURCE POOL a WITH(a = 1)
@@ -10531,6 +10651,7 @@ reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORK
 reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierEndTimeOption_END_TIME!insert	CREATE WORKLOAD CLASSIFIER a WITH(END_TIME = 'a' zzz)
 reject	reject	engine	workloadClassifierOption(classifierWorkloadGroupOption_WORKLO~86f48e92)/classifierEndTimeOption_END_TIME!swap	CREATE WORKLOAD CLASSIFIER a WITH(ENFORCED = 'a')
 reject	reject	engine	wlmTimeLiteral/stringLiteral	CREATE WORKLOAD CLASSIFIER a WITH(START_TIME = 'a')
+reject	reject	engine	wlmTimeLiteral/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE WORKLOAD CLASSIFIER a WITH(START_TIME = N'a')
 reject	reject	engine	brokerPriorityParameter/Identifier_EqualsSign_(identifier|stringLiteral|integer~f131aa02	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a)
 reject	reject	engine	brokerPriorityParameter/Identifier_EqualsSign_(identifier|stringLiteral|integer~f131aa02!drop-1	ALTER BROKER PRIORITY a FOR CONVERSATION SET(= a)
 reject	reject	engine	brokerPriorityParameter/Identifier_EqualsSign_(identifier|stringLiteral|integer~f131aa02!drop-2	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a a)
@@ -10540,6 +10661,7 @@ reject	reject	engine	brokerPriorityParameter/Identifier_EqualsSign_(identifier|s
 reject	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/identifier	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = a)
 reject	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/stringLiteral	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = 'a')
 reject	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/stringLiteral!insert	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = 'a' zzz)
+reject	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = N'a')
 reject	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/integer	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = 1)
 reject	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/integer!insert	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = 1 zzz)
 reject	reject	engine	brokerPriorityParameter(identifier|stringLiteral|integer|Default|Any)/Default	ALTER BROKER PRIORITY a FOR CONVERSATION SET(a = DEFAULT)
@@ -10745,6 +10867,7 @@ reject	reject	engine	securityPolicyOptionsList(Comma_securityPolicyOptionListEle
 reject	reject	engine	securityPolicyOptionsList(Comma_securityPolicyOptionListElement)*/Comma_securityPolicyOptionListElement_(Comma_securityPo~463b1a01!insert	ALTER SECURITY POLICY a WITH(STATE = ON, STATE = ON zzz)
 reject	reject	engine	securityPolicyOptionsList(Comma_securityPolicyOptionListElement)*/Comma_securityPolicyOptionListElement_(Comma_securityPo~463b1a01!swap	ALTER SECURITY POLICY a WITH(STATE = ON, STATEMENT = ON)
 accept	accept	engine	securityPolicyOptionListElement/(STATE|SCHEMABINDING)_EqualsSign_optionOnOff	ALTER SECURITY POLICY a WITH(STATE = ON)
+accept	accept	engine	securityPolicyOptionListElement/(STATE|SCHEMABINDING)_EqualsSign_optionOnOff+optionOnOff/Off	ALTER SECURITY POLICY a WITH(STATE = OFF)
 accept	accept	engine	securityPolicyOptionListElement(STATE|SCHEMABINDING)/STATE	ALTER SECURITY POLICY a WITH(STATE = ON)
 reject	reject	engine	securityPolicyOptionListElement(STATE|SCHEMABINDING)/STATE!truncate	ALTER SECURITY POLICY a WITH(
 reject	reject	engine	securityPolicyOptionListElement(STATE|SCHEMABINDING)/STATE!insert	ALTER SECURITY POLICY a WITH(STATE zzz = ON)
@@ -10790,6 +10913,7 @@ reject	reject	engine	externalDataSourceLiteralOrIdentifierOption/Identifier_Equa
 reject	reject	engine	externalDataSourceLiteralOrIdentifierOption(identifier|stringLiteral)/identifier	ALTER EXTERNAL DATA SOURCE a SET a = a
 reject	reject	engine	externalDataSourceLiteralOrIdentifierOption(identifier|stringLiteral)/stringLiteral	ALTER EXTERNAL DATA SOURCE a SET a = 'a'
 reject	reject	engine	externalDataSourceLiteralOrIdentifierOption(identifier|stringLiteral)/stringLiteral!insert	ALTER EXTERNAL DATA SOURCE a SET a = 'a' zzz
+reject	reject	engine	externalDataSourceLiteralOrIdentifierOption(identifier|stringLiteral)/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER EXTERNAL DATA SOURCE a SET a = N'a'
 reject	reject	engine	externalStreamLiteralOrIdentifierOption/Identifier_EqualsSign_(identifier|stringLiteral)	CREATE EXTERNAL STREAM a WITH(a = a)
 reject	reject	engine	externalStreamLiteralOrIdentifierOption/Identifier_EqualsSign_(identifier|stringLiteral)!drop-1	CREATE EXTERNAL STREAM a WITH(= a)
 reject	reject	engine	externalStreamLiteralOrIdentifierOption/Identifier_EqualsSign_(identifier|stringLiteral)!drop-2	CREATE EXTERNAL STREAM a WITH(a a)
@@ -10799,6 +10923,7 @@ reject	reject	engine	externalStreamLiteralOrIdentifierOption/Identifier_EqualsSi
 reject	reject	engine	externalStreamLiteralOrIdentifierOption(identifier|stringLiteral)/identifier	CREATE EXTERNAL STREAM a WITH(a = a)
 reject	reject	engine	externalStreamLiteralOrIdentifierOption(identifier|stringLiteral)/stringLiteral	CREATE EXTERNAL STREAM a WITH(a = 'a')
 reject	reject	engine	externalStreamLiteralOrIdentifierOption(identifier|stringLiteral)/stringLiteral!insert	CREATE EXTERNAL STREAM a WITH(a = 'a' zzz)
+reject	reject	engine	externalStreamLiteralOrIdentifierOption(identifier|stringLiteral)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE EXTERNAL STREAM a WITH(a = N'a')
 accept	accept	engine	createExternalFileFormatStatement/File_FORMAT_identifier_With_LeftParenthesis_FORMAT_TYPE~70baeb0e	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT)
 accept	accept	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/DELIMITEDTEXT	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT)
 reject	reject	engine	createExternalFileFormatStatement(DELIMITEDTEXT|RCFILE|ORC|PARQUET|JSON|DELTA)/DELIMITEDTEXT!truncate	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE =
@@ -10867,6 +10992,7 @@ reject	reject	engine	externalDataFormatOption/externalDataFormatLiteralOption!tr
 reject	reject	engine	externalDataFormatOption/externalDataFormatLiteralOption!insert	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(a = 'a' zzz))
 reject	reject	engine	externalDataFormatLiteralOption/Identifier_EqualsSign_(stringLiteral|integer)	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(a = 'a'))
 reject	reject	engine	externalDataFormatLiteralOption(stringLiteral|integer)/stringLiteral	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(a = 'a'))
+reject	reject	engine	externalDataFormatLiteralOption(stringLiteral|integer)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(a = N'a'))
 reject	reject	engine	externalDataFormatLiteralOption(stringLiteral|integer)/integer	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(a = 1))
 reject	reject	engine	externalDataFormatLiteralOption(stringLiteral|integer)/integer!insert	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(a = 1 zzz))
 accept	accept	engine	dropExternalFileFormatStatement/File_FORMAT_identifier	DROP EXTERNAL FILE FORMAT a
@@ -11244,6 +11370,8 @@ reject	reject	engine	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTrig
 reject	reject	engine	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*!truncate	CREATE TRIGGER a ON a FOR INSERT,
 reject	reject	engine	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*!insert	CREATE TRIGGER a ON a FOR INSERT, INSERT zzz AS SELECT 1
 reject	reject	engine	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*!swap	CREATE TRIGGER a ON a FOR INSERT, INSTEAD AS SELECT 1
+accept	accept	engine	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Update	CREATE TRIGGER a ON a FOR INSERT, UPDATE AS SELECT 1
+accept	accept	engine	dmlTriggerMidSection(Comma_dmlTriggerAction)*/Comma_dmlTriggerAction_(Comma_dmlTriggerAction)*+dmlTriggerAction/Delete	CREATE TRIGGER a ON a FOR INSERT, DELETE AS SELECT 1
 accept	accept	engine	dmlTriggerMidSection(Not_For_Replication)?/%empty	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
 accept	accept	engine	dmlTriggerMidSection(Not_For_Replication)?/Not_For_Replication	CREATE TRIGGER a ON a FOR INSERT NOT FOR REPLICATION AS SELECT 1
 reject	reject	engine	dmlTriggerMidSection(Not_For_Replication)?/Not_For_Replication!drop-1	CREATE TRIGGER a ON a FOR INSERT FOR REPLICATION AS SELECT 1
@@ -11368,6 +11496,7 @@ reject	reject	engine	beginConversationArgument(scalarExpressionBeginDialogConver
 reject	reject	engine	beginConversationArgument(scalarExpressionBeginDialogConversat~d3dfeaf6)/onOffBeginDialogConversationArgument!swap	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' WITH a = ONLINE
 reject	reject	engine	scalarExpressionBeginDialogConversationArgument/expression	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' WITH a = 1
 reject	reject	engine	onOffBeginDialogConversationArgument/optionOnOff	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' WITH a = ON
+reject	reject	engine	onOffBeginDialogConversationArgument/optionOnOff+optionOnOff/Off	BEGIN DIALOG @a FROM SERVICE @a TO SERVICE 'a' WITH a = OFF
 reject	reject	engine	mergeStatement/mergeStatementWithoutSemicolon_requiredSemicolon	MERGE a USING @a ON 1 = 1 WHEN MATCHED THEN DELETE
 reject	reject	engine	requiredSemicolon/(Semicolon)?	CREATE FULLTEXT STOPLIST a
 reject	reject	engine	requiredSemicolon(Semicolon)?/%empty	CREATE FULLTEXT STOPLIST a
@@ -11480,6 +11609,7 @@ reject	reject	engine	mergeInsertSource/Values_rowValueExpressionWithDefault!drop
 reject	reject	engine	mergeInsertSource/Values_rowValueExpressionWithDefault!insert	MERGE a USING @a ON 1 = 1 WHEN MATCHED THEN INSERT VALUES(1) zzz
 reject	reject	engine	mergeInsertSource/Values_rowValueExpressionWithDefault!swap	MERGE a USING @a ON 1 = 1 WHEN MATCHED THEN INSERT VARYING(1)
 reject	reject	engine	executeAsStatement/execStart_As_executeAsStatementContext_executeContextSt~ee2b3a5d	EXECUTE AS a
+reject	reject	engine	executeAsStatement/execStart_As_executeAsStatementContext_executeContextSt~ee2b3a5d+execStart/Exec	EXEC AS a
 accept	accept	engine	executeAsStatementContext/User_EqualsSign_expression	EXECUTE AS USER = 1
 reject	reject	engine	executeAsStatementContext/User_EqualsSign_expression!drop-1	EXECUTE AS = 1
 reject	reject	engine	executeAsStatementContext/User_EqualsSign_expression!drop-2	EXECUTE AS USER 1
@@ -11630,6 +11760,7 @@ reject	reject	engine	execCtxtStmt(execCtxtStmtPrincipal)?/execCtxtStmtPrincipal!
 reject	reject	engine	execCtxtStmt(execCtxtStmtPrincipal)?/execCtxtStmtPrincipal!drop-2	EXECUTE('a') AS USER =
 reject	reject	engine	execCtxtStmt(execCtxtStmtPrincipal)?/execCtxtStmtPrincipal!insert	EXECUTE('a') AS USER = 'a' zzz
 accept	accept	engine	execCtxtStmtPrincipal/EqualsSign_stringLiteral	EXECUTE('a') AS USER = 'a'
+accept	accept	engine	execCtxtStmtPrincipal/EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	EXECUTE('a') AS USER = N'a'
 accept	accept	engine	execStrTypes/execSqlList_(Comma_setParamList)?	EXECUTE('a')
 reject	reject	engine	execStrTypes/execSqlList_(Comma_setParamList)?!truncate	EXECUTE(
 reject	reject	engine	execStrTypes/execSqlList_(Comma_setParamList)?!insert	EXECUTE('a' zzz)
@@ -11710,6 +11841,8 @@ reject	reject	engine	setParam(OUTPUT|OUT)/OUT!swap	a 1 OUTER
 reject	reject	engine	adhocDataSource/OpenDataSource_LeftParenthesis_stringLiteral_Comma_stri~fff23d0b	EXECUTE OPENDATASOURCE('a', 'a').a
 reject	reject	engine	adhocDataSource/OpenDataSource_LeftParenthesis_stringLiteral_Comma_stri~fff23d0b!truncate	EXECUTE OPENDATASOURCE('a', 'a'
 reject	reject	engine	adhocDataSource/OpenDataSource_LeftParenthesis_stringLiteral_Comma_stri~fff23d0b!insert	EXECUTE OPENDATASOURCE('a', 'a') zzz.a
+reject	reject	engine	adhocDataSource/OpenDataSource_LeftParenthesis_stringLiteral_Comma_stri~fff23d0b+stringLiteral/UnicodeStringLiteral	EXECUTE OPENDATASOURCE(N'a', 'a').a
+reject	reject	engine	adhocDataSource/OpenDataSource_LeftParenthesis_stringLiteral_Comma_stri~fff23d0b+stringLiteral/UnicodeStringLiteral#2	EXECUTE OPENDATASOURCE('a', N'a').a
 accept	accept	engine	procNumOpt/ProcNameSemicolon_integer	a; 1
 accept	accept	engine	procNumOpt/ProcNameSemicolon_integer!insert	a; 1 zzz
 accept	accept	engine	procNumOpt/%empty	a
@@ -11932,6 +12065,7 @@ reject	reject	engine	memoryOptimizedTableOption/MEMORY_OPTIMIZED_EqualsSign_opti
 reject	reject	engine	memoryOptimizedTableOption/MEMORY_OPTIMIZED_EqualsSign_optionOnOff!truncate	CREATE TYPE a AS TABLE(a) WITH(MEMORY_OPTIMIZED =
 reject	reject	engine	memoryOptimizedTableOption/MEMORY_OPTIMIZED_EqualsSign_optionOnOff!insert	CREATE TYPE a AS TABLE(a) WITH(MEMORY_OPTIMIZED = ON zzz)
 reject	reject	engine	memoryOptimizedTableOption/MEMORY_OPTIMIZED_EqualsSign_optionOnOff!swap	CREATE TYPE a AS TABLE(a) WITH(MEMORY_OPTIMIZED_DATA = ON)
+reject	reject	engine	memoryOptimizedTableOption/MEMORY_OPTIMIZED_EqualsSign_optionOnOff+optionOnOff/Off	CREATE TYPE a AS TABLE(a) WITH(MEMORY_OPTIMIZED = OFF)
 reject	reject	engine	tableDistributionPolicy/tableReplicateDistributionPolicy_REPLICATE	CREATE TABLE a AS WITH(DISTRIBUTION = REPLICATE)
 reject	reject	engine	tableDistributionPolicy/tableReplicateDistributionPolicy_REPLICATE!swap	CREATE TABLE a AS WITH(DISTRIBUTION = REPLICATED)
 reject	reject	engine	tableDistributionPolicy/tableRoundRobinDistributionPolicy_ROUND_ROBIN	CREATE TABLE a AS WITH(DISTRIBUTION = ROUND_ROBIN)
@@ -12190,6 +12324,7 @@ reject	reject	engine	externalTableLiteralOrIdentifierOption/Identifier_EqualsSig
 reject	reject	engine	externalTableLiteralOrIdentifierOption(identifier|stringLiteral)/identifier	CREATE EXTERNAL TABLE a WITH(a = a) AS SELECT *
 reject	reject	engine	externalTableLiteralOrIdentifierOption(identifier|stringLiteral)/stringLiteral	CREATE EXTERNAL TABLE a WITH(a = 'a') AS SELECT *
 reject	reject	engine	externalTableLiteralOrIdentifierOption(identifier|stringLiteral)/stringLiteral!insert	CREATE EXTERNAL TABLE a WITH(a = 'a' zzz) AS SELECT *
+reject	reject	engine	externalTableLiteralOrIdentifierOption(identifier|stringLiteral)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE EXTERNAL TABLE a WITH(a = N'a') AS SELECT *
 accept	accept	engine	externalTableDistributionPolicy/externalTableReplicatedDistributionPolicy_REPLICATED	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = REPLICATED) AS SELECT *
 reject	reject	engine	externalTableDistributionPolicy/externalTableReplicatedDistributionPolicy_REPLICATED!swap	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = REPLICATION) AS SELECT *
 accept	accept	engine	externalTableDistributionPolicy/externalTableRoundRobinDistributionPolicy_ROUND_ROBIN	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = ROUND_ROBIN) AS SELECT *
@@ -12270,6 +12405,7 @@ reject	reject	engine	alterTableStatement(With_constraintEnforcement)?/With_const
 reject	reject	engine	alterTableStatement(With_constraintEnforcement)?/With_constraintEnforcement!truncate	ALTER TABLE a WITH
 reject	reject	engine	alterTableStatement(With_constraintEnforcement)?/With_constraintEnforcement!insert	ALTER TABLE a WITH CHECK zzz ADD a
 reject	reject	engine	alterTableStatement(With_constraintEnforcement)?/With_constraintEnforcement!swap	ALTER TABLE a WITHIN CHECK ADD a
+reject	reject	engine	alterTableStatement(With_constraintEnforcement)?/With_constraintEnforcement+constraintEnforcement/NoCheck	ALTER TABLE a WITH NOCHECK ADD a
 reject	reject	engine	alterTableStatement(alterTableAddTableElementStatement|a~953a4042)/alterTableAddTableElementStatement	ALTER TABLE a ADD a
 accept	accept	engine	alterTableStatement(alterTableAddTableElementStatement|a~953a4042)/alterTableConstraintModificationStatement	ALTER TABLE a CHECK CONSTRAINT ALL
 reject	reject	engine	alterTableStatement(alterTableAddTableElementStatement|a~953a4042)/alterTableConstraintModificationStatement!drop-1	ALTER TABLE a CONSTRAINT ALL
@@ -12299,6 +12435,7 @@ reject	reject	engine	alterTableChangeTrackingModificationStatement(With_LeftPare
 reject	reject	engine	alterTableChangeTrackingModificationStatement(With_LeftParenthesis_TRACK_COLUMNS_U~535a920b)?/With_LeftParenthesis_TRACK_COLUMNS_UPDATED_EqualsSign_o~ab2548b0!drop-6	ALTER TABLE a a CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = ON
 reject	reject	engine	alterTableChangeTrackingModificationStatement(With_LeftParenthesis_TRACK_COLUMNS_U~535a920b)?/With_LeftParenthesis_TRACK_COLUMNS_UPDATED_EqualsSign_o~ab2548b0!insert	ALTER TABLE a a CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = ON) zzz
 reject	reject	engine	alterTableChangeTrackingModificationStatement(With_LeftParenthesis_TRACK_COLUMNS_U~535a920b)?/With_LeftParenthesis_TRACK_COLUMNS_UPDATED_EqualsSign_o~ab2548b0!swap	ALTER TABLE a a CHANGE_TRACKING WITHIN(TRACK_COLUMNS_UPDATED = ON)
+reject	reject	engine	alterTableChangeTrackingModificationStatement(With_LeftParenthesis_TRACK_COLUMNS_U~535a920b)?/With_LeftParenthesis_TRACK_COLUMNS_UPDATED_EqualsSign_o~ab2548b0+optionOnOff/Off	ALTER TABLE a a CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = OFF)
 reject	reject	engine	alterTableFileTableNamespaceStatement/Identifier_FILETABLE_NAMESPACE	ALTER TABLE a a FILETABLE_NAMESPACE
 reject	reject	engine	alterTableSetStatement/Set_LeftParenthesis_tableOption_(Comma_tableOption)*_Ri~23876c19	ALTER TABLE a SET(LOCK_ESCALATION = a)
 reject	reject	engine	alterTableSetStatement(Comma_tableOption)*/%empty	ALTER TABLE a SET(LOCK_ESCALATION = a)
@@ -12550,6 +12687,7 @@ reject	reject	engine	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff
 reject	reject	engine	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff!truncate	ALTER TABLE a DROP a WITH(ONLINE =
 reject	reject	engine	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff!insert	ALTER TABLE a DROP a WITH(ONLINE = ON zzz)
 reject	reject	engine	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff!swap	ALTER TABLE a DROP a WITH(ONLY = ON)
+accept	accept	engine	dropClusteredConstraintOption/ONLINE_EqualsSign_optionOnOff+optionOnOff/Off	ALTER TABLE a DROP a WITH(ONLINE = OFF)
 accept	accept	engine	dropClusteredConstraintOption/MOVE_To_filegroupOrPartitionScheme	ALTER TABLE a DROP a WITH(MOVE TO 'a')
 reject	reject	engine	dropClusteredConstraintOption/MOVE_To_filegroupOrPartitionScheme!drop-1	ALTER TABLE a DROP a WITH(TO 'a')
 reject	reject	engine	dropClusteredConstraintOption/MOVE_To_filegroupOrPartitionScheme!drop-2	ALTER TABLE a DROP a WITH(MOVE 'a')
@@ -13062,6 +13200,7 @@ accept	accept	engine	columnWithSortOrder(orderByOption)?/%empty	ALTER TABLE a AD
 accept	accept	engine	columnWithSortOrder(orderByOption)?/orderByOption	ALTER TABLE a ADD UNIQUE(a ASC)
 reject	reject	engine	columnWithSortOrder(orderByOption)?/orderByOption!insert	ALTER TABLE a ADD UNIQUE(a ASC zzz)
 reject	reject	engine	columnWithSortOrder(orderByOption)?/orderByOption!swap	ALTER TABLE a ADD UNIQUE(a ASSEMBLY)
+accept	accept	engine	columnWithSortOrder(orderByOption)?/orderByOption+orderByOption/Desc	ALTER TABLE a ADD UNIQUE(a DESC)
 accept	accept	engine	identifierColumnReferenceExpression/multiPartIdentifier	ALTER TABLE a ADD UNIQUE(a)
 reject	reject	engine	deleteUpdateAction/NO_ACTION	ALTER TABLE a ADD a REFERENCES a ON DELETE NO ACTION
 reject	reject	engine	deleteUpdateAction/NO_ACTION!drop-1	ALTER TABLE a ADD a REFERENCES a ON DELETE ACTION
@@ -13608,6 +13747,7 @@ reject	reject	engine	fulltextPredicate(fulltextColumn|LeftParenthesis_(star~512e
 reject	reject	engine	fulltextPredicate(fulltextColumn|LeftParenthesis_(star~512ebcb9)/PROPERTY_LeftParenthesis_identifierColumnReferenceExpre~a9369749!truncate	IF CONTAINS(PROPERTY(a, 'a'
 reject	reject	engine	fulltextPredicate(fulltextColumn|LeftParenthesis_(star~512ebcb9)/PROPERTY_LeftParenthesis_identifierColumnReferenceExpre~a9369749!insert	IF CONTAINS(PROPERTY(a, 'a') zzz, 'a') SELECT 1
 reject	reject	engine	fulltextPredicate(fulltextColumn|LeftParenthesis_(star~512ebcb9)/PROPERTY_LeftParenthesis_identifierColumnReferenceExpre~a9369749!swap	IF CONTAINS(PROPERTY_INT_ID(a, 'a'), 'a') SELECT 1
+accept	accept	engine	fulltextPredicate(fulltextColumn|LeftParenthesis_(star~512ebcb9)/PROPERTY_LeftParenthesis_identifierColumnReferenceExpre~a9369749+stringLiteral/UnicodeStringLiteral	IF CONTAINS(PROPERTY(a, N'a'), 'a') SELECT 1
 accept	accept	engine	fulltextPredicate(starColumn|column_(Comma_column)*)/starColumn	IF CONTAINS((*), 'a') SELECT 1
 reject	reject	engine	fulltextPredicate(starColumn|column_(Comma_column)*)/starColumn!truncate	IF CONTAINS((
 reject	reject	engine	fulltextPredicate(starColumn|column_(Comma_column)*)/starColumn!insert	IF CONTAINS((* zzz), 'a') SELECT 1
@@ -13631,6 +13771,8 @@ accept	accept	engine	existsPredicate/Exists_subquery	IF EXISTS(SELECT *) SELECT 
 accept	accept	engine	comparisonPredicate/expressionWithFlags	IF 1 = 1 SELECT 1
 accept	accept	engine	subqueryComparisonPredicate/subqueryComparisonPredicateType_subquery	IF 1 = ALL(SELECT *) SELECT 1
 accept	accept	engine	subqueryComparisonDistinctPredicate/subqueryComparisonPredicateType_subquery	IF 1 IS DISTINCT FROM ALL(SELECT *) SELECT 1
+accept	accept	engine	subqueryComparisonDistinctPredicate/subqueryComparisonPredicateType_subquery+subqueryComparisonPredicateType/Any	IF 1 IS DISTINCT FROM ANY(SELECT *) SELECT 1
+accept	accept	engine	subqueryComparisonDistinctPredicate/subqueryComparisonPredicateType_subquery+subqueryComparisonPredicateType/Some	IF 1 IS DISTINCT FROM SOME(SELECT *) SELECT 1
 accept	accept	engine	inPredicate/In_(subquery|LeftParenthesis_expressionL~93d59486)	IF 1 IN(1) SELECT 1
 accept	accept	engine	inPredicate(subquery|LeftParenthesis_expressionL~93d59486)/subquery	IF 1 IN(SELECT *) SELECT 1
 reject	reject	engine	inPredicate(subquery|LeftParenthesis_expressionL~93d59486)/subquery!drop-1	IF 1 IN SELECT *) SELECT 1
@@ -14227,6 +14369,7 @@ reject	reject	engine	withinGroupOrOverClause(overClauseNoOrderBy)?/overClauseNoO
 reject	reject	engine	withinGroupOrOverClause(overClauseNoOrderBy)?/overClauseNoOrderBy!swap	SELECT a() WITHIN GROUP(GRAPH PATH) OVERRIDE()
 reject	reject	engine	starColumnReferenceExpression/Star	SELECT a(*)
 reject	reject	engine	aggregateBuiltInFunctionCall/uniqueRowFilter_expression_RightParenthesis_(overClause~18cac5ba	SELECT a(ALL 1)
+reject	reject	engine	aggregateBuiltInFunctionCall/uniqueRowFilter_expression_RightParenthesis_(overClause~18cac5ba+uniqueRowFilter/Distinct	SELECT a(DISTINCT 1)
 reject	reject	engine	aggregateBuiltInFunctionCall(overClauseNoOrderBy)?/%empty	SELECT a(ALL 1)
 reject	reject	engine	aggregateBuiltInFunctionCall(overClauseNoOrderBy)?/overClauseNoOrderBy	SELECT a(ALL 1) OVER()
 reject	reject	engine	aggregateBuiltInFunctionCall(overClauseNoOrderBy)?/overClauseNoOrderBy!drop-1	SELECT a(ALL 1)()
@@ -14431,6 +14574,7 @@ reject	reject	engine	signedIntegerOrVariableOrNull/nullLiteral	UPDATETEXT a 0x00
 reject	reject	engine	signedIntegerOrVariableOrNull/nullLiteral!insert	UPDATETEXT a 0x00 NULL zzz 1
 reject	reject	engine	signedIntegerOrVariableOrNull/nullLiteral!swap	UPDATETEXT a 0x00 NULLIF 1
 accept	accept	engine	stringLiteralOrNull/stringLiteral	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
+accept	accept	engine	stringLiteralOrNull/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER TABLE a SET(FILETABLE_DIRECTORY = N'a')
 reject	reject	engine	stringLiteralOrNull/nullLiteral	ALTER TABLE a SET(FILETABLE_DIRECTORY = NULL)
 reject	reject	engine	stringLiteralOrNull/nullLiteral!insert	ALTER TABLE a SET(FILETABLE_DIRECTORY = NULL zzz)
 reject	reject	engine	stringLiteralOrNull/nullLiteral!swap	ALTER TABLE a SET(FILETABLE_DIRECTORY = NULLIF)
@@ -14448,14 +14592,17 @@ accept	accept	engine	identifierOrVariable/variable	OPEN @a
 accept	accept	engine	identifierOrVariable/identifier	OPEN a
 reject	reject	engine	identifierOrVariable/identifier!insert	OPEN a zzz
 accept	accept	engine	stringOrVariable/stringLiteral	SETUSER 'a'
+accept	accept	engine	stringOrVariable/stringLiteral+stringLiteral/UnicodeStringLiteral	SETUSER N'a'
 accept	accept	engine	stringOrVariable/variable	SETUSER @a
 reject	reject	engine	stringOrVariable/variable!insert	SETUSER @a zzz
 accept	accept	engine	stringOrGlobalVariableOrVariable/stringLiteral	EXECUTE('a')
+accept	accept	engine	stringOrGlobalVariableOrVariable/stringLiteral+stringLiteral/UnicodeStringLiteral	EXECUTE(N'a')
 accept	accept	engine	stringOrGlobalVariableOrVariable/globalVariableOrVariableReference	EXECUTE(@a)
 reject	reject	engine	stringOrGlobalVariableOrVariable/globalVariableOrVariableReference!insert	EXECUTE(@a zzz)
 accept	accept	engine	objectOrString/schemaObjectThreePartName	DELETE OPENDATASOURCE('a', 'a').a
 reject	reject	engine	objectOrString/stringLiteral	DELETE OPENDATASOURCE('a', 'a').'a'
 reject	reject	engine	objectOrString/stringLiteral!insert	DELETE OPENDATASOURCE('a', 'a').'a' zzz
+reject	reject	engine	objectOrString/stringLiteral+stringLiteral/UnicodeStringLiteral	DELETE OPENDATASOURCE('a', 'a').N'a'
 accept	accept	engine	authorizationOpt/(authorization)?	CREATE SCHEMA a
 accept	accept	engine	authorizationOpt(authorization)?/%empty	CREATE SCHEMA a
 accept	accept	engine	authorizationOpt(authorization)?/authorization	CREATE SCHEMA a AUTHORIZATION a
@@ -14483,9 +14630,11 @@ reject	reject	engine	identifierOrInteger/identifier	DELETE a WITH(INDEX = a)
 reject	reject	engine	identifierOrInteger/integer	DELETE a WITH(INDEX = 1)
 reject	reject	engine	identifierOrInteger/integer!insert	DELETE a WITH(INDEX = 1 zzz)
 accept	accept	engine	stringOrIdentifier/stringLiteral	SELECT 1 'a'
+accept	accept	engine	stringOrIdentifier/stringLiteral+stringLiteral/UnicodeStringLiteral	SELECT 1 N'a'
 accept	accept	engine	stringOrIdentifier/identifier	SELECT 1 a
 reject	reject	engine	stringOrIdentifier/identifier!insert	SELECT 1 a zzz
 reject	reject	engine	stringOrSignedIntegerOrIdentifier/stringLiteral	ALTER DATABASE SCOPED CONFIGURATION SET a = 'a'
+reject	reject	engine	stringOrSignedIntegerOrIdentifier/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER DATABASE SCOPED CONFIGURATION SET a = N'a'
 reject	reject	engine	stringOrSignedIntegerOrIdentifier/signedInteger	ALTER DATABASE SCOPED CONFIGURATION SET a = 1
 reject	reject	engine	stringOrSignedIntegerOrIdentifier/signedInteger!insert	ALTER DATABASE SCOPED CONFIGURATION SET a = 1 zzz
 reject	reject	engine	stringOrSignedIntegerOrIdentifier/identifier	ALTER DATABASE SCOPED CONFIGURATION SET a = a
@@ -14517,6 +14666,7 @@ accept	accept	engine	max/MAX	DECLARE @a a(MAX)
 accept	accept	engine	binaryOrIntegerOrStringOrVariable/binary	IF CONTAINS(*, 'a', LANGUAGE 0x00) SELECT 1
 accept	accept	engine	binaryOrIntegerOrStringOrVariable/stringLiteral	IF CONTAINS(*, 'a', LANGUAGE 'a') SELECT 1
 reject	reject	engine	binaryOrIntegerOrStringOrVariable/stringLiteral!insert	IF CONTAINS(*, 'a', LANGUAGE 'a' zzz) SELECT 1
+accept	accept	engine	binaryOrIntegerOrStringOrVariable/stringLiteral+stringLiteral/UnicodeStringLiteral	IF CONTAINS(*, 'a', LANGUAGE N'a') SELECT 1
 accept	accept	engine	binaryOrIntegerOrStringOrVariable/integer	IF CONTAINS(*, 'a', LANGUAGE 1) SELECT 1
 reject	reject	engine	binaryOrIntegerOrStringOrVariable/integer!insert	IF CONTAINS(*, 'a', LANGUAGE 1 zzz) SELECT 1
 accept	accept	engine	binaryOrIntegerOrStringOrVariable/variable	IF CONTAINS(*, 'a', LANGUAGE @a) SELECT 1
@@ -14552,12 +14702,14 @@ accept	accept	engine	integer/Integer	a 1
 accept	accept	engine	numeric/Numeric	a 1.5
 accept	accept	engine	real/Real	a 1E1
 accept	accept	engine	nonEmptyString/stringLiteral	COPY INTO a FROM 'a'
+accept	accept	engine	nonEmptyString/stringLiteral+stringLiteral/UnicodeStringLiteral	COPY INTO a FROM N'a'
 accept	accept	engine	defaultValueLiteral/literal	COPY INTO a(a DEFAULT 1) FROM 'a'
 accept	accept	engine	defaultValueLiteral/signedIntegerOrReal	COPY INTO a(a DEFAULT 1) FROM 'a'
 accept	accept	engine	stringLiteral/AsciiStringLiteral	a 'a'
 accept	accept	engine	stringLiteral/UnicodeStringLiteral	a N'a'
 reject	reject	engine	stringLiteral/UnicodeStringLiteral!insert	a N'a' zzz
 accept	accept	engine	stringLiteralOrVariable/stringLiteral	SELECT * FROM a FOR SYSTEM_TIME AS OF 'a'
+accept	accept	engine	stringLiteralOrVariable/stringLiteral+stringLiteral/UnicodeStringLiteral	SELECT * FROM a FOR SYSTEM_TIME AS OF N'a'
 accept	accept	engine	stringLiteralOrVariable/variable	SELECT * FROM a FOR SYSTEM_TIME AS OF @a
 accept	accept	engine	stringLiteralOrVariable/variable!insert	SELECT * FROM a FOR SYSTEM_TIME AS OF @a zzz
 accept	accept	engine	binary/HexLiteral	a 0x00
@@ -14571,12 +14723,15 @@ reject	reject	engine	odbcLiteral(AsciiStringLiteral|UnicodeStringLiteral)/Unicod
 reject	reject	engine	odbcLiteral(AsciiStringLiteral|UnicodeStringLiteral)/UnicodeStringLiteral!insert	a { a N'a' zzz }
 accept	accept	engine	defaultLiteral/Default	a DEFAULT
 accept	accept	engine	onOffOptionValue/optionOnOff	ALTER SERVER CONFIGURATION SET SOFTNUMA ON
+accept	accept	engine	onOffOptionValue/optionOnOff+optionOnOff/Off	ALTER SERVER CONFIGURATION SET SOFTNUMA OFF
 reject	reject	engine	stringOrDefaultLiteralOptionValue/(stringLiteral|defaultLiteral)	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = 'a'
 reject	reject	engine	stringOrDefaultLiteralOptionValue(stringLiteral|defaultLiteral)/stringLiteral	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = 'a'
+reject	reject	engine	stringOrDefaultLiteralOptionValue(stringLiteral|defaultLiteral)/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = N'a'
 reject	reject	engine	stringOrDefaultLiteralOptionValue(stringLiteral|defaultLiteral)/defaultLiteral	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = DEFAULT
 reject	reject	engine	stringOrDefaultLiteralOptionValue(stringLiteral|defaultLiteral)/defaultLiteral!insert	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = DEFAULT zzz
 reject	reject	engine	stringOrDefaultLiteralOptionValue(stringLiteral|defaultLiteral)/defaultLiteral!swap	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = DEFAULT_DATABASE
 reject	reject	engine	stringLiteralOptionValue/stringLiteral	ALTER SERVER CONFIGURATION SET HADR CLUSTER a = 'a'
+reject	reject	engine	stringLiteralOptionValue/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER SERVER CONFIGURATION SET HADR CLUSTER a = N'a'
 reject	reject	engine	integerOrDefaultLiteralOptionValue/(integer|defaultLiteral)	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = 1
 reject	reject	engine	integerOrDefaultLiteralOptionValue(integer|defaultLiteral)/integer	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = 1
 reject	reject	engine	integerOrDefaultLiteralOptionValue(integer|defaultLiteral)/defaultLiteral	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = DEFAULT
@@ -15353,6 +15508,7 @@ reject	reject	engine	createContractStatement_CONTRACT(Comma_contractMessage)*/Co
 reject	reject	engine	createContractStatement_CONTRACT(Comma_contractMessage)*/Comma_contractMessage_(Comma_contractMessage)*!insert	CREATE CONTRACT a(a SENT BY ANY, a SENT BY ANY zzz)
 reject	reject	engine	createContractStatement_CONTRACT(Comma_contractMessage)*/Comma_contractMessage_(Comma_contractMessage)*!swap	CREATE CONTRACT a(a SENT BY ANY, a SEQUENCE BY ANY)
 accept	accept	engine	credentialStatementBody_CREDENTIAL/CREDENTIAL_identifier_With_Identity_EqualsSign_stringLi~ad198098	ALTER CREDENTIAL a WITH IDENTITY = 'a'
+accept	accept	engine	credentialStatementBody_CREDENTIAL/CREDENTIAL_identifier_With_Identity_EqualsSign_stringLi~ad198098+stringLiteral/UnicodeStringLiteral	ALTER CREDENTIAL a WITH IDENTITY = N'a'
 accept	accept	engine	credentialStatementBody_CREDENTIAL(Comma_SECRET_EqualsSign_stringLiteral)?/%empty	ALTER CREDENTIAL a WITH IDENTITY = 'a'
 accept	accept	engine	credentialStatementBody_CREDENTIAL(Comma_SECRET_EqualsSign_stringLiteral)?/Comma_SECRET_EqualsSign_stringLiteral	ALTER CREDENTIAL a WITH IDENTITY = 'a', SECRET = 'a'
 reject	reject	engine	credentialStatementBody_CREDENTIAL(Comma_SECRET_EqualsSign_stringLiteral)?/Comma_SECRET_EqualsSign_stringLiteral!drop-1	ALTER CREDENTIAL a WITH IDENTITY = 'a' SECRET = 'a'
@@ -15361,6 +15517,7 @@ reject	reject	engine	credentialStatementBody_CREDENTIAL(Comma_SECRET_EqualsSign_
 reject	reject	engine	credentialStatementBody_CREDENTIAL(Comma_SECRET_EqualsSign_stringLiteral)?/Comma_SECRET_EqualsSign_stringLiteral!drop-4	ALTER CREDENTIAL a WITH IDENTITY = 'a', SECRET =
 reject	reject	engine	credentialStatementBody_CREDENTIAL(Comma_SECRET_EqualsSign_stringLiteral)?/Comma_SECRET_EqualsSign_stringLiteral!insert	ALTER CREDENTIAL a WITH IDENTITY = 'a', SECRET = 'a' zzz
 reject	reject	engine	credentialStatementBody_CREDENTIAL(Comma_SECRET_EqualsSign_stringLiteral)?/Comma_SECRET_EqualsSign_stringLiteral!swap	ALTER CREDENTIAL a WITH IDENTITY = 'a', SECURITY = 'a'
+accept	accept	engine	credentialStatementBody_CREDENTIAL(Comma_SECRET_EqualsSign_stringLiteral)?/Comma_SECRET_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER CREDENTIAL a WITH IDENTITY = 'a', SECRET = N'a'
 accept	accept	engine	createCredentialStatement_CREDENTIAL/credentialStatementBody_CREDENTIAL_(For_CRYPTOGRAPHIC_P~7c4d745a	CREATE CREDENTIAL a WITH IDENTITY = 'a'
 accept	accept	engine	createCredentialStatement_CREDENTIAL(For_CRYPTOGRAPHIC_PROVIDER_identifier)?/%empty	CREATE CREDENTIAL a WITH IDENTITY = 'a'
 accept	accept	engine	createCredentialStatement_CREDENTIAL(For_CRYPTOGRAPHIC_PROVIDER_identifier)?/For_CRYPTOGRAPHIC_PROVIDER_identifier	CREATE CREDENTIAL a WITH IDENTITY = 'a' FOR CRYPTOGRAPHIC PROVIDER a
@@ -15469,6 +15626,7 @@ reject	reject	engine	createMasterKeyStatement_MASTER(ENCRYPTION_By_PASSWORD_Equa
 reject	reject	engine	createMasterKeyStatement_MASTER(ENCRYPTION_By_PASSWORD_EqualsSign_st~806d391f)?/ENCRYPTION_By_PASSWORD_EqualsSign_stringLiteral!drop-5	CREATE MASTER KEY ENCRYPTION BY PASSWORD =
 reject	reject	engine	createMasterKeyStatement_MASTER(ENCRYPTION_By_PASSWORD_EqualsSign_st~806d391f)?/ENCRYPTION_By_PASSWORD_EqualsSign_stringLiteral!insert	CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'a' zzz
 reject	reject	engine	createMasterKeyStatement_MASTER(ENCRYPTION_By_PASSWORD_EqualsSign_st~806d391f)?/ENCRYPTION_By_PASSWORD_EqualsSign_stringLiteral!swap	CREATE MASTER KEY ENCRYPTION_TYPE BY PASSWORD = 'a'
+accept	accept	engine	createMasterKeyStatement_MASTER(ENCRYPTION_By_PASSWORD_EqualsSign_st~806d391f)?/ENCRYPTION_By_PASSWORD_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE MASTER KEY ENCRYPTION BY PASSWORD = N'a'
 accept	accept	engine	createPartitionStatement_PARTITION/PARTITION_(createPartitionFunction|createPartitionScheme)	CREATE PARTITION SCHEME a AS PARTITION a TO('a')
 accept	accept	engine	createPartitionStatement_PARTITION(createPartitionFunction|createPartitionScheme)/createPartitionFunction	CREATE PARTITION FUNCTION a(a) AS RANGE FOR VALUES()
 accept	accept	engine	createPartitionStatement_PARTITION(createPartitionFunction|createPartitionScheme)/createPartitionScheme	CREATE PARTITION SCHEME a AS PARTITION a TO('a')
@@ -15491,6 +15649,7 @@ accept	accept	engine	createRemoteServiceBindingStatement_REMOTE/REMOTE_SERVICE_B
 accept	accept	engine	createRemoteServiceBindingStatement_REMOTE/REMOTE_SERVICE_BINDING_identifier_authorizationOpt_To_S~ce1dc16f+authorizationOpt	CREATE REMOTE SERVICE BINDING a AUTHORIZATION a TO SERVICE 'a' WITH USER = a
 reject	reject	engine	createRemoteServiceBindingStatement_REMOTE/REMOTE_SERVICE_BINDING_identifier_authorizationOpt_To_S~ce1dc16f+authorizationOpt!drop-5	CREATE REMOTE SERVICE BINDING a a TO SERVICE 'a' WITH USER = a
 reject	reject	engine	createRemoteServiceBindingStatement_REMOTE/REMOTE_SERVICE_BINDING_identifier_authorizationOpt_To_S~ce1dc16f+authorizationOpt!drop-6	CREATE REMOTE SERVICE BINDING a AUTHORIZATION TO SERVICE 'a' WITH USER = a
+accept	accept	engine	createRemoteServiceBindingStatement_REMOTE/REMOTE_SERVICE_BINDING_identifier_authorizationOpt_To_S~ce1dc16f+stringLiteral/UnicodeStringLiteral	CREATE REMOTE SERVICE BINDING a TO SERVICE N'a' WITH USER = a
 accept	accept	engine	createRemoteServiceBindingStatement_REMOTE((bindingUserOption_(Comma_bindingAno~ad647514)/bindingUserOption_(Comma_bindingAnonymousOption)?	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH USER = a
 reject	reject	engine	createRemoteServiceBindingStatement_REMOTE((bindingUserOption_(Comma_bindingAno~ad647514)/bindingUserOption_(Comma_bindingAnonymousOption)?!swap	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH USER_DB = a
 reject	reject	engine	createRemoteServiceBindingStatement_REMOTE((bindingUserOption_(Comma_bindingAno~ad647514)/bindingAnonymousOption_(Comma_bindingUserOption)?	CREATE REMOTE SERVICE BINDING a TO SERVICE 'a' WITH ANONYMOUS = ON
@@ -15695,6 +15854,7 @@ accept	accept	engine	maxRolloverFilesAuditFileOption_MAX_ROLLOVER_FILES(integer|
 reject	reject	engine	maxRolloverFilesAuditFileOption_MAX_ROLLOVER_FILES(integer|UNLIMITED)/UNLIMITED!insert	ALTER SERVER AUDIT a TO FILE(MAX_ROLLOVER_FILES = UNLIMITED zzz)
 reject	reject	engine	maxRolloverFilesAuditFileOption_MAX_ROLLOVER_FILES(integer|UNLIMITED)/UNLIMITED!swap	ALTER SERVER AUDIT a TO FILE(MAX_ROLLOVER_FILES = UNPIVOT)
 accept	accept	engine	reserveDiskSpaceAuditFileOption_RESERVE_DISK_SPACE/RESERVE_DISK_SPACE_EqualsSign_optionOnOff	ALTER SERVER AUDIT a TO FILE(RESERVE_DISK_SPACE = ON)
+accept	accept	engine	reserveDiskSpaceAuditFileOption_RESERVE_DISK_SPACE/RESERVE_DISK_SPACE_EqualsSign_optionOnOff+optionOnOff/Off	ALTER SERVER AUDIT a TO FILE(RESERVE_DISK_SPACE = OFF)
 accept	accept	engine	maxFilesAuditFileOption_MAX_FILES/MAX_FILES_EqualsSign_integer	ALTER SERVER AUDIT a TO FILE(MAX_FILES = 1)
 reject	reject	engine	retentionDaysAuditUrlOption_RETENTION_DAYS/RETENTION_DAYS_EqualsSign_integer	ALTER SERVER AUDIT a TO URL(RETENTION_DAYS = 1)
 reject	reject	engine	alterServerAuditStatements_AUDIT/AUDIT_(alterServerAuditSpecificationStateme~97d2dbe6)	ALTER SERVER AUDIT a
@@ -15826,7 +15986,11 @@ reject	reject	engine	alterDatabaseScopedMaxDopOption_MAXDOP(integer|Primary)/Pri
 reject	reject	engine	alterDatabaseScopedMaxDopOption_MAXDOP(integer|Primary)/Primary!swap	ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = PRIMARY_ROLE
 reject	reject	engine	alterDatabaseScopedOnOffPrimaryOption_QUERY_OPTIMIZER_HOTFIXES/QUERY_OPTIMIZER_HOTFIXES_EqualsSign_databaseConfigurati~a3514ede	ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = PRIMARY
 reject	reject	engine	alterDatabaseScopedOnOffPrimaryOption_PARAMETER_SNIFFING/PARAMETER_SNIFFING_EqualsSign_databaseConfigurationOpti~a3745063	ALTER DATABASE SCOPED CONFIGURATION SET PARAMETER_SNIFFING = PRIMARY
+accept	accept	engine	alterDatabaseScopedOnOffPrimaryOption_PARAMETER_SNIFFING/PARAMETER_SNIFFING_EqualsSign_databaseConfigurationOpti~a3745063+databaseConfigurationOptionOnOffPrimary/On	ALTER DATABASE SCOPED CONFIGURATION SET PARAMETER_SNIFFING = ON
+accept	accept	engine	alterDatabaseScopedOnOffPrimaryOption_PARAMETER_SNIFFING/PARAMETER_SNIFFING_EqualsSign_databaseConfigurationOpti~a3745063+databaseConfigurationOptionOnOffPrimary/Off	ALTER DATABASE SCOPED CONFIGURATION SET PARAMETER_SNIFFING = OFF
 reject	reject	engine	alterDatabaseScopedOnOffPrimaryOption_LEGACY_CARDINALITY_ESTIMATION/LEGACY_CARDINALITY_ESTIMATION_EqualsSign_databaseConfig~4601990c	ALTER DATABASE SCOPED CONFIGURATION SET LEGACY_CARDINALITY_ESTIMATION = PRIMARY
+accept	accept	engine	alterDatabaseScopedOnOffPrimaryOption_LEGACY_CARDINALITY_ESTIMATION/LEGACY_CARDINALITY_ESTIMATION_EqualsSign_databaseConfig~4601990c+databaseConfigurationOptionOnOffPrimary/On	ALTER DATABASE SCOPED CONFIGURATION SET LEGACY_CARDINALITY_ESTIMATION = ON
+accept	accept	engine	alterDatabaseScopedOnOffPrimaryOption_LEGACY_CARDINALITY_ESTIMATION/LEGACY_CARDINALITY_ESTIMATION_EqualsSign_databaseConfig~4601990c+databaseConfigurationOptionOnOffPrimary/Off	ALTER DATABASE SCOPED CONFIGURATION SET LEGACY_CARDINALITY_ESTIMATION = OFF
 accept	accept	engine	alterDbRemove_REMOVE/REMOVE_(File_identifier|FILEGROUP_identifier)	ALTER DATABASE a REMOVE FILE a
 accept	accept	engine	alterDbRemove_REMOVE(File_identifier|FILEGROUP_identifier)/File_identifier	ALTER DATABASE a REMOVE FILE a
 accept	accept	engine	alterDbRemove_REMOVE(File_identifier|FILEGROUP_identifier)/FILEGROUP_identifier	ALTER DATABASE a REMOVE FILEGROUP a
@@ -15863,6 +16027,7 @@ accept	accept	engine	partnerOption_PARTNER(((TIMEOUT_integer)|(SAFETY_(Full|Off~
 reject	reject	engine	partnerOption_PARTNER(((TIMEOUT_integer)|(SAFETY_(Full|Off~a2ed4878)/EqualsSign_stringLiteral!drop-1	ALTER DATABASE a SET PARTNER 'a'
 reject	reject	engine	partnerOption_PARTNER(((TIMEOUT_integer)|(SAFETY_(Full|Off~a2ed4878)/EqualsSign_stringLiteral!drop-2	ALTER DATABASE a SET PARTNER =
 reject	reject	engine	partnerOption_PARTNER(((TIMEOUT_integer)|(SAFETY_(Full|Off~a2ed4878)/EqualsSign_stringLiteral!insert	ALTER DATABASE a SET PARTNER = 'a' zzz
+accept	accept	engine	partnerOption_PARTNER(((TIMEOUT_integer)|(SAFETY_(Full|Off~a2ed4878)/EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER DATABASE a SET PARTNER = N'a'
 accept	accept	engine	partnerOption_PARTNER((TIMEOUT_integer)|(SAFETY_(Full|Off)~bd8002ca)/TIMEOUT_integer	ALTER DATABASE a SET PARTNER TIMEOUT 1
 reject	reject	engine	partnerOption_PARTNER((TIMEOUT_integer)|(SAFETY_(Full|Off)~bd8002ca)/TIMEOUT_integer!drop-1	ALTER DATABASE a SET PARTNER 1
 reject	reject	engine	partnerOption_PARTNER((TIMEOUT_integer)|(SAFETY_(Full|Off)~bd8002ca)/TIMEOUT_integer!drop-2	ALTER DATABASE a SET PARTNER TIMEOUT
@@ -15886,6 +16051,7 @@ accept	accept	engine	witnessOption_WITNESS(Off|EqualsSign_stringLiteral)/EqualsS
 reject	reject	engine	witnessOption_WITNESS(Off|EqualsSign_stringLiteral)/EqualsSign_stringLiteral!drop-1	ALTER DATABASE a SET WITNESS 'a'
 reject	reject	engine	witnessOption_WITNESS(Off|EqualsSign_stringLiteral)/EqualsSign_stringLiteral!drop-2	ALTER DATABASE a SET WITNESS =
 reject	reject	engine	witnessOption_WITNESS(Off|EqualsSign_stringLiteral)/EqualsSign_stringLiteral!insert	ALTER DATABASE a SET WITNESS = 'a' zzz
+accept	accept	engine	witnessOption_WITNESS(Off|EqualsSign_stringLiteral)/EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER DATABASE a SET WITNESS = N'a'
 accept	accept	engine	parameterizationOption_PARAMETERIZATION/PARAMETERIZATION_(SIMPLE|FORCED)	ALTER DATABASE a SET PARAMETERIZATION SIMPLE
 accept	accept	engine	parameterizationOption_PARAMETERIZATION(SIMPLE|FORCED)/SIMPLE	ALTER DATABASE a SET PARAMETERIZATION SIMPLE
 reject	reject	engine	parameterizationOption_PARAMETERIZATION(SIMPLE|FORCED)/SIMPLE!swap	ALTER DATABASE a SET PARAMETERIZATION SINGLETON
@@ -15938,6 +16104,7 @@ reject	reject	engine	autoCreateStatisticsDbOption_AUTO_CREATE_STATISTICS(LeftPar
 reject	reject	engine	autoCreateStatisticsDbOption_AUTO_CREATE_STATISTICS(LeftParenthesis_INCREMENTAL_EqualsSi~cd16bcba)?/LeftParenthesis_INCREMENTAL_EqualsSign_optionOnOff_Righ~77e0a474!drop-5	ALTER DATABASE a SET AUTO_CREATE_STATISTICS ON(INCREMENTAL = ON
 reject	reject	engine	autoCreateStatisticsDbOption_AUTO_CREATE_STATISTICS(LeftParenthesis_INCREMENTAL_EqualsSi~cd16bcba)?/LeftParenthesis_INCREMENTAL_EqualsSign_optionOnOff_Righ~77e0a474!insert	ALTER DATABASE a SET AUTO_CREATE_STATISTICS ON(INCREMENTAL = ON) zzz
 reject	reject	engine	autoCreateStatisticsDbOption_AUTO_CREATE_STATISTICS(LeftParenthesis_INCREMENTAL_EqualsSi~cd16bcba)?/LeftParenthesis_INCREMENTAL_EqualsSign_optionOnOff_Righ~77e0a474!swap	ALTER DATABASE a SET AUTO_CREATE_STATISTICS ON(INDEX = ON)
+accept	accept	engine	autoCreateStatisticsDbOption_AUTO_CREATE_STATISTICS(LeftParenthesis_INCREMENTAL_EqualsSi~cd16bcba)?/LeftParenthesis_INCREMENTAL_EqualsSign_optionOnOff_Righ~77e0a474+optionOnOff/Off	ALTER DATABASE a SET AUTO_CREATE_STATISTICS ON(INCREMENTAL = OFF)
 accept	accept	engine	remoteDataArchiveDbOption_REMOTE_DATA_ARCHIVE/REMOTE_DATA_ARCHIVE_((EqualsSign_Off)|(EqualsSign_On_(r~2235e52b	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE = OFF
 accept	accept	engine	remoteDataArchiveDbOption_REMOTE_DATA_ARCHIVE((EqualsSign_Off)|(EqualsSign_On_(rem~266ffe7a)/EqualsSign_Off	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE = OFF
 reject	reject	engine	remoteDataArchiveDbOption_REMOTE_DATA_ARCHIVE((EqualsSign_Off)|(EqualsSign_On_(rem~266ffe7a)/EqualsSign_Off!swap	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE = OFFLINE
@@ -16078,6 +16245,7 @@ reject	reject	engine	azureMaxSizeDatabaseOption_MAXSIZE(GB|MB)/MB	CREATE DATABAS
 reject	reject	engine	azureMaxSizeDatabaseOption_MAXSIZE(GB|MB)/MB!insert	CREATE DATABASE a(MAXSIZE = 1 MB zzz)
 reject	reject	engine	azureMaxSizeDatabaseOption_MAXSIZE(GB|MB)/MB!swap	CREATE DATABASE a(MAXSIZE = 1 MEMBER)
 reject	reject	engine	azureEditionDatabaseOption_EDITION/EDITION_EqualsSign_stringLiteral	CREATE DATABASE a(EDITION = 'a')
+reject	reject	engine	azureEditionDatabaseOption_EDITION/EDITION_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE DATABASE a(EDITION = N'a')
 reject	reject	engine	nameFileOption_NAME/NAME_EqualsSign_nonEmptyStringOrIdentifier	CREATE DATABASE a ON(NAME = 'a')
 accept	accept	engine	fileNameFileOption_FILENAME/FILENAME_EqualsSign_nonEmptyString	CREATE DATABASE a ON(FILENAME = 'a')
 reject	reject	engine	sizeFileOption_SIZE/SIZE_EqualsSign_integer_(memUnit)?	CREATE DATABASE a ON(SIZE = 1)
@@ -16103,8 +16271,11 @@ reject	reject	engine	newNameFileOption_NEWNAME/NEWNAME_EqualsSign_nonEmptyString
 reject	reject	engine	offlineFileOption_OFFLINE/OFFLINE	CREATE DATABASE a ON(OFFLINE)
 accept	accept	engine	restrictedUserCreateDbOption_RESTRICTED_USER/RESTRICTED_USER	ALTER DATABASE a SET RESTRICTED_USER
 accept	accept	engine	createDbOnOffOption_DB_CHAINING/DB_CHAINING_optionOnOff	ALTER DATABASE a SET DB_CHAINING ON
+accept	accept	engine	createDbOnOffOption_DB_CHAINING/DB_CHAINING_optionOnOff+optionOnOff/Off	ALTER DATABASE a SET DB_CHAINING OFF
 accept	accept	engine	createDbOnOffOption_TRUSTWORTHY/TRUSTWORTHY_optionOnOff	ALTER DATABASE a SET TRUSTWORTHY ON
+accept	accept	engine	createDbOnOffOption_TRUSTWORTHY/TRUSTWORTHY_optionOnOff+optionOnOff/Off	ALTER DATABASE a SET TRUSTWORTHY OFF
 reject	reject	engine	createDbOnOffOption_DATA_RETENTION/DATA_RETENTION_optionOnOff	ALTER DATABASE a SET DATA_RETENTION ON
+reject	reject	engine	createDbOnOffOption_DATA_RETENTION/DATA_RETENTION_optionOnOff+optionOnOff/Off	ALTER DATABASE a SET DATA_RETENTION OFF
 reject	reject	engine	fileStreamCreateAlterDbOption_FILESTREAM/FILESTREAM_LeftParenthesis_fileStreamOption_(Comma_file~5eadeebb	RESTORE DATABASE @a WITH FILESTREAM(a = OFF)
 reject	reject	engine	fileStreamCreateAlterDbOption_FILESTREAM(Comma_fileStreamOption)*/%empty	RESTORE DATABASE @a WITH FILESTREAM(a = OFF)
 reject	reject	engine	fileStreamCreateAlterDbOption_FILESTREAM(Comma_fileStreamOption)*/Comma_fileStreamOption_(Comma_fileStreamOption)*	RESTORE DATABASE @a WITH FILESTREAM(a = OFF, a = OFF)
@@ -16123,6 +16294,7 @@ reject	reject	engine	identifier_CREDENTIAL/CREDENTIAL!insert	ALTER DATABASE a SE
 accept	accept	engine	identifier_FEDERATED_SERVICE_ACCOUNT/FEDERATED_SERVICE_ACCOUNT	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(FEDERATED_SERVICE_ACCOUNT = ON)
 reject	reject	engine	identifier_FEDERATED_SERVICE_ACCOUNT/FEDERATED_SERVICE_ACCOUNT!insert	ALTER DATABASE a SET REMOTE_DATA_ARCHIVE(FEDERATED_SERVICE_ACCOUNT zzz = ON)
 accept	accept	engine	backupCertificateStatement_CERTIFICATE/CERTIFICATE_identifier_To_File_EqualsSign_stringLiteral~e1cd7065	BACKUP CERTIFICATE a TO FILE = 'a'
+accept	accept	engine	backupCertificateStatement_CERTIFICATE/CERTIFICATE_identifier_To_File_EqualsSign_stringLiteral~e1cd7065+stringLiteral/UnicodeStringLiteral	BACKUP CERTIFICATE a TO FILE = N'a'
 accept	accept	engine	backupCertificateStatement_CERTIFICATE(With_privateKeySpec)?/%empty	BACKUP CERTIFICATE a TO FILE = 'a'
 accept	accept	engine	backupCertificateStatement_CERTIFICATE(With_privateKeySpec)?/With_privateKeySpec	BACKUP CERTIFICATE a TO FILE = 'a' WITH PRIVATE KEY(FILE = 'a')
 reject	reject	engine	backupCertificateStatement_CERTIFICATE(With_privateKeySpec)?/With_privateKeySpec!drop-1	BACKUP CERTIFICATE a TO FILE = 'a' PRIVATE KEY(FILE = 'a')
@@ -16157,6 +16329,7 @@ reject	reject	engine	listenerIpProtocolOption_LISTENER_IP(ipAddressV4_(Colon_ipA
 reject	reject	engine	listenerIpProtocolOption_LISTENER_IP(ipAddressV4_(Colon_ipAddressV4)?|stringLiteral)/stringLiteral	ALTER ENDPOINT a AS a(LISTENER_IP =('a'))
 reject	reject	engine	listenerIpProtocolOption_LISTENER_IP(ipAddressV4_(Colon_ipAddressV4)?|stringLiteral)/stringLiteral!truncate	ALTER ENDPOINT a AS a(LISTENER_IP =(
 reject	reject	engine	listenerIpProtocolOption_LISTENER_IP(ipAddressV4_(Colon_ipAddressV4)?|stringLiteral)/stringLiteral!insert	ALTER ENDPOINT a AS a(LISTENER_IP =('a' zzz))
+reject	reject	engine	listenerIpProtocolOption_LISTENER_IP(ipAddressV4_(Colon_ipAddressV4)?|stringLiteral)/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER ENDPOINT a AS a(LISTENER_IP =(N'a'))
 reject	reject	engine	listenerIpProtocolOption_LISTENER_IP(Colon_ipAddressV4)?/%empty	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5))
 reject	reject	engine	listenerIpProtocolOption_LISTENER_IP(Colon_ipAddressV4)?/Colon_ipAddressV4	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5 : 1.5 1.5 1.5))
 reject	reject	engine	listenerIpProtocolOption_LISTENER_IP(Colon_ipAddressV4)?/Colon_ipAddressV4!drop-1	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5 1.5 1.5 1.5))
@@ -16165,7 +16338,9 @@ reject	reject	engine	listenerIpProtocolOption_LISTENER_IP(Colon_ipAddressV4)?/Co
 reject	reject	engine	listenerIpProtocolOption_LISTENER_IP(Colon_ipAddressV4)?/Colon_ipAddressV4!insert	ALTER ENDPOINT a AS a(LISTENER_IP =(1.5 1.5 1.5 : 1.5 1.5 1.5 zzz))
 reject	reject	engine	listenerPortProtocolOption_LISTENER_PORT/LISTENER_PORT_EqualsSign_integer	ALTER ENDPOINT a AS a(LISTENER_PORT = 1)
 reject	reject	engine	pathProtocolOption_PATH/PATH_EqualsSign_stringLiteral	ALTER ENDPOINT a AS a(PATH = 'a')
+reject	reject	engine	pathProtocolOption_PATH/PATH_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER ENDPOINT a AS a(PATH = N'a')
 reject	reject	engine	siteProtocolOption_SITE/SITE_EqualsSign_stringLiteral	ALTER ENDPOINT a AS a(SITE = 'a')
+reject	reject	engine	siteProtocolOption_SITE/SITE_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER ENDPOINT a AS a(SITE = N'a')
 reject	reject	engine	clearPortProtocolOption_CLEAR_PORT/CLEAR_PORT_EqualsSign_integer	ALTER ENDPOINT a AS a(CLEAR_PORT = 1)
 reject	reject	engine	sslPortProtocolOption_SSL_PORT/SSL_PORT_EqualsSign_integer	ALTER ENDPOINT a AS a(SSL_PORT = 1)
 reject	reject	engine	authenticationProtocolOption_AUTHENTICATION/AUTHENTICATION_EqualsSign_LeftParenthesis_Identifier_(C~cea0c784	ALTER ENDPOINT a AS a(AUTHENTICATION =(a))
@@ -16203,6 +16378,7 @@ reject	reject	engine	wsdlPayloadOption_WSDL(NONE|defaultLiteral|stringLiteral)/d
 reject	reject	engine	wsdlPayloadOption_WSDL(NONE|defaultLiteral|stringLiteral)/defaultLiteral!swap	ALTER ENDPOINT a FOR DATA_MIRRORING(WSDL = DEFAULT_DATABASE)
 reject	reject	engine	wsdlPayloadOption_WSDL(NONE|defaultLiteral|stringLiteral)/stringLiteral	ALTER ENDPOINT a FOR DATA_MIRRORING(WSDL = 'a')
 reject	reject	engine	wsdlPayloadOption_WSDL(NONE|defaultLiteral|stringLiteral)/stringLiteral!insert	ALTER ENDPOINT a FOR DATA_MIRRORING(WSDL = 'a' zzz)
+reject	reject	engine	wsdlPayloadOption_WSDL(NONE|defaultLiteral|stringLiteral)/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER ENDPOINT a FOR DATA_MIRRORING(WSDL = N'a')
 reject	reject	engine	sessionsPayloadOption_SESSIONS/SESSIONS_EqualsSign_enabledDisabled	ALTER ENDPOINT a FOR DATA_MIRRORING(SESSIONS = ENABLED)
 reject	reject	engine	loginTypePayloadOption_LOGIN_TYPE/LOGIN_TYPE_EqualsSign_(WINDOWS|MIXED)	ALTER ENDPOINT a FOR DATA_MIRRORING(LOGIN_TYPE = WINDOWS)
 reject	reject	engine	loginTypePayloadOption_LOGIN_TYPE(WINDOWS|MIXED)/WINDOWS	ALTER ENDPOINT a FOR DATA_MIRRORING(LOGIN_TYPE = WINDOWS)
@@ -16217,6 +16393,7 @@ reject	reject	engine	sessionTimeoutPayloadOption_SESSION_TIMEOUT(NEVER|integer)/
 reject	reject	engine	sessionTimeoutPayloadOption_SESSION_TIMEOUT(NEVER|integer)/integer!insert	ALTER ENDPOINT a FOR DATA_MIRRORING(SESSION_TIMEOUT = 1 zzz)
 reject	reject	engine	namespacePayloadOption_NAMESPACE/NAMESPACE_EqualsSign_(stringLiteral|defaultLiteral)	ALTER ENDPOINT a FOR DATA_MIRRORING(NAMESPACE = 'a')
 reject	reject	engine	namespacePayloadOption_NAMESPACE(stringLiteral|defaultLiteral)/stringLiteral	ALTER ENDPOINT a FOR DATA_MIRRORING(NAMESPACE = 'a')
+reject	reject	engine	namespacePayloadOption_NAMESPACE(stringLiteral|defaultLiteral)/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER ENDPOINT a FOR DATA_MIRRORING(NAMESPACE = N'a')
 reject	reject	engine	namespacePayloadOption_NAMESPACE(stringLiteral|defaultLiteral)/defaultLiteral	ALTER ENDPOINT a FOR DATA_MIRRORING(NAMESPACE = DEFAULT)
 reject	reject	engine	namespacePayloadOption_NAMESPACE(stringLiteral|defaultLiteral)/defaultLiteral!insert	ALTER ENDPOINT a FOR DATA_MIRRORING(NAMESPACE = DEFAULT zzz)
 reject	reject	engine	namespacePayloadOption_NAMESPACE(stringLiteral|defaultLiteral)/defaultLiteral!swap	ALTER ENDPOINT a FOR DATA_MIRRORING(NAMESPACE = DEFAULT_DATABASE)
@@ -16252,6 +16429,8 @@ reject	reject	engine	encryptionPayloadOption_ENCRYPTION(identifier|(identifier_i
 reject	reject	engine	messageForwardingPayloadOption_MESSAGE_FORWARDING/MESSAGE_FORWARDING_EqualsSign_enabledDisabled	ALTER ENDPOINT a FOR DATA_MIRRORING(MESSAGE_FORWARDING = ENABLED)
 reject	reject	engine	messageForwardSizePayloadOption_MESSAGE_FORWARD_SIZE/MESSAGE_FORWARD_SIZE_EqualsSign_integer	ALTER ENDPOINT a FOR DATA_MIRRORING(MESSAGE_FORWARD_SIZE = 1)
 reject	reject	engine	createEventNotificationStatement_NOTIFICATION/NOTIFICATION_identifier_eventNotificationObjectScope_(W~e5580776	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE 'a', 'a'
+reject	reject	engine	createEventNotificationStatement_NOTIFICATION/NOTIFICATION_identifier_eventNotificationObjectScope_(W~e5580776+stringLiteral/UnicodeStringLiteral	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE N'a', 'a'
+reject	reject	engine	createEventNotificationStatement_NOTIFICATION/NOTIFICATION_identifier_eventNotificationObjectScope_(W~e5580776+stringLiteral/UnicodeStringLiteral#2	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE 'a', N'a'
 reject	reject	engine	createEventNotificationStatement_NOTIFICATION(With_FAN_IN)?/%empty	CREATE EVENT NOTIFICATION a ON DATABASE FOR a TO SERVICE 'a', 'a'
 reject	reject	engine	createEventNotificationStatement_NOTIFICATION(With_FAN_IN)?/%empty!insert	CREATE EVENT NOTIFICATION a ON DATABASE zzz FOR a TO SERVICE 'a', 'a'
 reject	reject	engine	createEventNotificationStatement_NOTIFICATION(With_FAN_IN)?/With_FAN_IN	CREATE EVENT NOTIFICATION a ON DATABASE WITH FAN_IN FOR a TO SERVICE 'a', 'a'
@@ -16300,6 +16479,7 @@ reject	reject	engine	maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY(INFINI
 reject	reject	engine	maxDispatchLatencySessionOption_MAX_DISPATCH_LATENCY(INFINITE|integer_SECONDS)/integer_SECONDS!swap	ALTER EVENT SESSION a ON DATABASE WITH(MAX_DISPATCH_LATENCY = 1 SECRET)
 accept	accept	engine	languageTerm_LANGUAGE/LANGUAGE_(stringLiteral|integer|identifier|binary)	ALTER FULLTEXT INDEX ON a ADD(a LANGUAGE 'a')
 accept	accept	engine	languageTerm_LANGUAGE(stringLiteral|integer|identifier|binary)/stringLiteral	ALTER FULLTEXT INDEX ON a ADD(a LANGUAGE 'a')
+accept	accept	engine	languageTerm_LANGUAGE(stringLiteral|integer|identifier|binary)/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER FULLTEXT INDEX ON a ADD(a LANGUAGE N'a')
 accept	accept	engine	languageTerm_LANGUAGE(stringLiteral|integer|identifier|binary)/integer	ALTER FULLTEXT INDEX ON a ADD(a LANGUAGE 1)
 reject	reject	engine	languageTerm_LANGUAGE(stringLiteral|integer|identifier|binary)/integer!insert	ALTER FULLTEXT INDEX ON a ADD(a LANGUAGE 1 zzz)
 accept	accept	engine	languageTerm_LANGUAGE(stringLiteral|integer|identifier|binary)/identifier	ALTER FULLTEXT INDEX ON a ADD(a LANGUAGE a)
@@ -16561,8 +16741,10 @@ reject	reject	engine	primaryRoleReplicaOption_PRIMARY_ROLE(NO|READ_WRITE)/READ_W
 reject	reject	engine	primaryRoleReplicaOption_PRIMARY_ROLE(NO|READ_WRITE)/READ_WRITE!insert	ALTER AVAILABILITY GROUP a ADD REPLICA ON 'a' WITH(PRIMARY_ROLE(ALLOW_CONNECTIONS = READ_WRITE zzz))
 reject	reject	engine	primaryRoleReplicaOption_PRIMARY_ROLE(NO|READ_WRITE)/READ_WRITE!swap	ALTER AVAILABILITY GROUP a ADD REPLICA ON 'a' WITH(PRIMARY_ROLE(ALLOW_CONNECTIONS = READ_WRITE_FILEGROUPS))
 accept	accept	engine	keySourceKeySpec_KEY_SOURCE/KEY_SOURCE_EqualsSign_stringLiteral	CREATE SYMMETRIC KEY a WITH KEY_SOURCE = 'a' ENCRYPTION BY CERTIFICATE a
+accept	accept	engine	keySourceKeySpec_KEY_SOURCE/KEY_SOURCE_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE SYMMETRIC KEY a WITH KEY_SOURCE = N'a' ENCRYPTION BY CERTIFICATE a
 reject	reject	engine	algorithmKeySpec_ALGORITHM/ALGORITHM_EqualsSign_Identifier	CREATE ASYMMETRIC KEY a FROM PROVIDER a WITH ALGORITHM = a
 accept	accept	engine	providerKeyNameSourceOption_PROVIDER_KEY_NAME/PROVIDER_KEY_NAME_EqualsSign_stringLiteral	CREATE ASYMMETRIC KEY a FROM PROVIDER a WITH PROVIDER_KEY_NAME = 'a'
+accept	accept	engine	providerKeyNameSourceOption_PROVIDER_KEY_NAME/PROVIDER_KEY_NAME_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE ASYMMETRIC KEY a FROM PROVIDER a WITH PROVIDER_KEY_NAME = N'a'
 accept	accept	engine	alterApplicationRoleStatement_APPLICATION/applicationRoleStatement_APPLICATION	ALTER APPLICATION ROLE a WITH PASSWORD = 'a'
 reject	reject	engine	alterAssemblyStatement_ASSEMBLY/ASSEMBLY_identifier_(alterAssemblyFromClause)?_(alterAs~dfb56d6e	ALTER ASSEMBLY a
 reject	reject	engine	alterAssemblyStatement_ASSEMBLY(alterAssemblyFromClause)?/%empty	ALTER ASSEMBLY a
@@ -16595,6 +16777,7 @@ reject	reject	engine	alterAsymmetricKeyStatement_ASYMMETRIC(REMOVE_(PRIVATE_Key|
 reject	reject	engine	alterAsymmetricKeyStatement_ASYMMETRIC(REMOVE_(PRIVATE_Key|ATTESTED_Option)~1750c70e)/Identifier_By_stringLiteral!drop-3	ALTER ASYMMETRIC KEY a a BY
 reject	reject	engine	alterAsymmetricKeyStatement_ASYMMETRIC(REMOVE_(PRIVATE_Key|ATTESTED_Option)~1750c70e)/Identifier_By_stringLiteral!insert	ALTER ASYMMETRIC KEY a a BY 'a' zzz
 reject	reject	engine	alterAsymmetricKeyStatement_ASYMMETRIC(REMOVE_(PRIVATE_Key|ATTESTED_Option)~1750c70e)/Identifier_By_stringLiteral!swap	ALTER ASYMMETRIC KEY a a CACHE 'a'
+reject	reject	engine	alterAsymmetricKeyStatement_ASYMMETRIC(REMOVE_(PRIVATE_Key|ATTESTED_Option)~1750c70e)/Identifier_By_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER ASYMMETRIC KEY a a BY N'a'
 accept	accept	engine	alterAsymmetricKeyStatement_ASYMMETRIC(PRIVATE_Key|ATTESTED_Option)/PRIVATE_Key	ALTER ASYMMETRIC KEY a REMOVE PRIVATE KEY
 reject	reject	engine	alterAsymmetricKeyStatement_ASYMMETRIC(PRIVATE_Key|ATTESTED_Option)/PRIVATE_Key!swap	ALTER ASYMMETRIC KEY a REMOVE PROC KEY
 accept	accept	engine	alterAsymmetricKeyStatement_ASYMMETRIC(PRIVATE_Key|ATTESTED_Option)/ATTESTED_Option	ALTER ASYMMETRIC KEY a REMOVE ATTESTED OPTION
@@ -16688,6 +16871,7 @@ reject	reject	engine	alterCertificateStatement_CERTIFICATE(REMOVE_(PRIVATE_Key|A
 reject	reject	engine	alterCertificateStatement_CERTIFICATE(REMOVE_(PRIVATE_Key|ATTESTED_Option)~d3f64169)/ATTESTED_By_stringLiteral!drop-3	ALTER CERTIFICATE a ATTESTED BY
 reject	reject	engine	alterCertificateStatement_CERTIFICATE(REMOVE_(PRIVATE_Key|ATTESTED_Option)~d3f64169)/ATTESTED_By_stringLiteral!insert	ALTER CERTIFICATE a ATTESTED BY 'a' zzz
 reject	reject	engine	alterCertificateStatement_CERTIFICATE(REMOVE_(PRIVATE_Key|ATTESTED_Option)~d3f64169)/ATTESTED_By_stringLiteral!swap	ALTER CERTIFICATE a AUDIT BY 'a'
+accept	accept	engine	alterCertificateStatement_CERTIFICATE(REMOVE_(PRIVATE_Key|ATTESTED_Option)~d3f64169)/ATTESTED_By_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER CERTIFICATE a ATTESTED BY N'a'
 accept	accept	engine	alterCertificateStatement_CERTIFICATE(PRIVATE_Key|ATTESTED_Option)/PRIVATE_Key	ALTER CERTIFICATE a REMOVE PRIVATE KEY
 reject	reject	engine	alterCertificateStatement_CERTIFICATE(PRIVATE_Key|ATTESTED_Option)/PRIVATE_Key!swap	ALTER CERTIFICATE a REMOVE PROC KEY
 accept	accept	engine	alterCertificateStatement_CERTIFICATE(PRIVATE_Key|ATTESTED_Option)/ATTESTED_Option	ALTER CERTIFICATE a REMOVE ATTESTED OPTION
@@ -16724,6 +16908,7 @@ reject	reject	engine	alterMasterKeyStatement_MASTER(REGENERATE_With_ENCRYPTION_B
 reject	reject	engine	alterMasterKeyStatement_MASTER(REGENERATE_With_ENCRYPTION_By_PASSWO~486c6e78)/REGENERATE_With_ENCRYPTION_By_PASSWORD_EqualsSign_stringLiteral!drop-7	ALTER MASTER KEY REGENERATE WITH ENCRYPTION BY PASSWORD =
 reject	reject	engine	alterMasterKeyStatement_MASTER(REGENERATE_With_ENCRYPTION_By_PASSWO~486c6e78)/REGENERATE_With_ENCRYPTION_By_PASSWORD_EqualsSign_stringLiteral!insert	ALTER MASTER KEY REGENERATE WITH ENCRYPTION BY PASSWORD = 'a' zzz
 reject	reject	engine	alterMasterKeyStatement_MASTER(REGENERATE_With_ENCRYPTION_By_PASSWO~486c6e78)/REGENERATE_With_ENCRYPTION_By_PASSWORD_EqualsSign_stringLiteral!swap	ALTER MASTER KEY REJECT_SAMPLE_VALUE WITH ENCRYPTION BY PASSWORD = 'a'
+accept	accept	engine	alterMasterKeyStatement_MASTER(REGENERATE_With_ENCRYPTION_By_PASSWO~486c6e78)/REGENERATE_With_ENCRYPTION_By_PASSWORD_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER MASTER KEY REGENERATE WITH ENCRYPTION BY PASSWORD = N'a'
 accept	accept	engine	alterMasterKeyStatement_MASTER(REGENERATE_With_ENCRYPTION_By_PASSWO~486c6e78)/FORCE_REGENERATE_With_ENCRYPTION_By_PASSWORD_EqualsSign~0569144a	ALTER MASTER KEY FORCE REGENERATE WITH ENCRYPTION BY PASSWORD = 'a'
 reject	reject	engine	alterMasterKeyStatement_MASTER(REGENERATE_With_ENCRYPTION_By_PASSWO~486c6e78)/FORCE_REGENERATE_With_ENCRYPTION_By_PASSWORD_EqualsSign~0569144a!drop-2	ALTER MASTER KEY FORCE WITH ENCRYPTION BY PASSWORD = 'a'
 reject	reject	engine	alterMasterKeyStatement_MASTER(REGENERATE_With_ENCRYPTION_By_PASSWO~486c6e78)/FORCE_REGENERATE_With_ENCRYPTION_By_PASSWORD_EqualsSign~0569144a!drop-3	ALTER MASTER KEY FORCE REGENERATE ENCRYPTION BY PASSWORD = 'a'
@@ -16734,6 +16919,7 @@ reject	reject	engine	alterMasterKeyStatement_MASTER(REGENERATE_With_ENCRYPTION_B
 reject	reject	engine	alterMasterKeyStatement_MASTER(REGENERATE_With_ENCRYPTION_By_PASSWO~486c6e78)/FORCE_REGENERATE_With_ENCRYPTION_By_PASSWORD_EqualsSign~0569144a!drop-8	ALTER MASTER KEY FORCE REGENERATE WITH ENCRYPTION BY PASSWORD =
 reject	reject	engine	alterMasterKeyStatement_MASTER(REGENERATE_With_ENCRYPTION_By_PASSWO~486c6e78)/FORCE_REGENERATE_With_ENCRYPTION_By_PASSWORD_EqualsSign~0569144a!insert	ALTER MASTER KEY FORCE REGENERATE WITH ENCRYPTION BY PASSWORD = 'a' zzz
 reject	reject	engine	alterMasterKeyStatement_MASTER(REGENERATE_With_ENCRYPTION_By_PASSWO~486c6e78)/FORCE_REGENERATE_With_ENCRYPTION_By_PASSWORD_EqualsSign~0569144a!swap	ALTER MASTER KEY FORCED REGENERATE WITH ENCRYPTION BY PASSWORD = 'a'
+accept	accept	engine	alterMasterKeyStatement_MASTER(REGENERATE_With_ENCRYPTION_By_PASSWO~486c6e78)/FORCE_REGENERATE_With_ENCRYPTION_By_PASSWORD_EqualsSign~0569144a+stringLiteral/UnicodeStringLiteral	ALTER MASTER KEY FORCE REGENERATE WITH ENCRYPTION BY PASSWORD = N'a'
 accept	accept	engine	alterMasterKeyStatement_MASTER(REGENERATE_With_ENCRYPTION_By_PASSWO~486c6e78)/Add_ENCRYPTION_By_((SERVICE_MASTER_Key)|(PASSWORD_Equal~8e511d33	ALTER MASTER KEY ADD ENCRYPTION BY SERVICE MASTER KEY
 reject	reject	engine	alterMasterKeyStatement_MASTER(REGENERATE_With_ENCRYPTION_By_PASSWO~486c6e78)/Add_ENCRYPTION_By_((SERVICE_MASTER_Key)|(PASSWORD_Equal~8e511d33!swap	ALTER MASTER KEY ADMIN ENCRYPTION BY SERVICE MASTER KEY
 accept	accept	engine	alterMasterKeyStatement_MASTER(REGENERATE_With_ENCRYPTION_By_PASSWO~486c6e78)/Drop_ENCRYPTION_By_((SERVICE_MASTER_Key)|(PASSWORD_Equa~79069a44	ALTER MASTER KEY DROP ENCRYPTION BY SERVICE MASTER KEY
@@ -16752,6 +16938,7 @@ reject	reject	engine	alterMasterKeyStatement_MASTER((SERVICE_MASTER_Key)|(PASSWO
 reject	reject	engine	alterMasterKeyStatement_MASTER((SERVICE_MASTER_Key)|(PASSWORD_Equal~f8d7898d)/PASSWORD_EqualsSign_stringLiteral!drop-3	ALTER MASTER KEY ADD ENCRYPTION BY PASSWORD =
 reject	reject	engine	alterMasterKeyStatement_MASTER((SERVICE_MASTER_Key)|(PASSWORD_Equal~f8d7898d)/PASSWORD_EqualsSign_stringLiteral!insert	ALTER MASTER KEY ADD ENCRYPTION BY PASSWORD = 'a' zzz
 reject	reject	engine	alterMasterKeyStatement_MASTER((SERVICE_MASTER_Key)|(PASSWORD_Equal~f8d7898d)/PASSWORD_EqualsSign_stringLiteral!swap	ALTER MASTER KEY ADD ENCRYPTION BY PATH = 'a'
+accept	accept	engine	alterMasterKeyStatement_MASTER((SERVICE_MASTER_Key)|(PASSWORD_Equal~f8d7898d)/PASSWORD_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER MASTER KEY ADD ENCRYPTION BY PASSWORD = N'a'
 reject	reject	engine	alterMessageTypeStatement_MESSAGE/MESSAGE_TYPE_identifier_messageTypeValidation	ALTER MESSAGE TYPE a VALIDATION = a
 accept	accept	engine	alterPartitionStatement_PARTITION/PARTITION_(alterPartitionFunctionStatement|alte~377984f0)	ALTER PARTITION SCHEME a NEXT USED
 accept	accept	engine	alterPartitionStatement_PARTITION(alterPartitionFunctionStatement|alte~377984f0)/alterPartitionFunctionStatement	ALTER PARTITION FUNCTION a() SPLIT
@@ -16861,8 +17048,11 @@ accept	accept	engine	inlineFunctionOption_INLINE(On|Off)/Off	CREATE FUNCTION a()
 reject	reject	engine	inlineFunctionOption_INLINE(On|Off)/Off!insert	CREATE FUNCTION a() RETURNS a WITH INLINE = OFF zzz BEGIN SELECT 1 END
 reject	reject	engine	inlineFunctionOption_INLINE(On|Off)/Off!swap	CREATE FUNCTION a() RETURNS a WITH INLINE = OFFLINE BEGIN SELECT 1 END
 accept	accept	engine	incrementalStatisticsOption_INCREMENTAL/INCREMENTAL_EqualsSign_optionOnOff	UPDATE STATISTICS a WITH INCREMENTAL = ON
+accept	accept	engine	incrementalStatisticsOption_INCREMENTAL/INCREMENTAL_EqualsSign_optionOnOff+optionOnOff/Off	UPDATE STATISTICS a WITH INCREMENTAL = OFF
 accept	accept	engine	autoDropStatisticsOption_AUTO_DROP/AUTO_DROP_EqualsSign_optionOnOff	UPDATE STATISTICS a WITH AUTO_DROP = ON
+accept	accept	engine	autoDropStatisticsOption_AUTO_DROP/AUTO_DROP_EqualsSign_optionOnOff+optionOnOff/Off	UPDATE STATISTICS a WITH AUTO_DROP = OFF
 reject	reject	engine	persistSamplePercentStatisticsOption_PERSIST_SAMPLE_PERCENT/PERSIST_SAMPLE_PERCENT_EqualsSign_optionOnOff	UPDATE STATISTICS a WITH PERSIST_SAMPLE_PERCENT = ON
+reject	reject	engine	persistSamplePercentStatisticsOption_PERSIST_SAMPLE_PERCENT/PERSIST_SAMPLE_PERCENT_EqualsSign_optionOnOff+optionOnOff/Off	UPDATE STATISTICS a WITH PERSIST_SAMPLE_PERCENT = OFF
 accept	accept	engine	resampleStatisticsOption_RESAMPLE/RESAMPLE_(On_PARTITIONS_LeftParenthesis_statis~c986d32b)?	UPDATE STATISTICS a WITH RESAMPLE
 accept	accept	engine	resampleStatisticsOption_RESAMPLE(On_PARTITIONS_LeftParenthesis_statis~c986d32b)?/%empty	UPDATE STATISTICS a WITH RESAMPLE
 accept	accept	engine	resampleStatisticsOption_RESAMPLE(On_PARTITIONS_LeftParenthesis_statis~c986d32b)?/On_PARTITIONS_LeftParenthesis_statisticsPartitionRange_~abcbfc12	UPDATE STATISTICS a WITH RESAMPLE ON PARTITIONS(1)
@@ -16884,6 +17074,7 @@ reject	reject	engine	killQueryNotificationSubscriptionStatement_QUERY(All|intege
 accept	accept	engine	killQueryNotificationSubscriptionStatement_QUERY(All|integer)/integer	KILL QUERY NOTIFICATION SUBSCRIPTION 1
 reject	reject	engine	killQueryNotificationSubscriptionStatement_QUERY(All|integer)/integer!insert	KILL QUERY NOTIFICATION SUBSCRIPTION 1 zzz
 accept	accept	engine	openMasterKeyStatement_MASTER/MASTER_Key_DECRYPTION_By_PASSWORD_EqualsSign_stringLiteral	OPEN MASTER KEY DECRYPTION BY PASSWORD = 'a'
+accept	accept	engine	openMasterKeyStatement_MASTER/MASTER_Key_DECRYPTION_By_PASSWORD_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	OPEN MASTER KEY DECRYPTION BY PASSWORD = N'a'
 accept	accept	engine	openSymmetricKeyStatement_SYMMETRIC/SYMMETRIC_Key_identifier_DECRYPTION_By_decryptionMechanism	OPEN SYMMETRIC KEY a DECRYPTION BY CERTIFICATE a
 accept	accept	engine	closeMasterKeyStatement_MASTER/MASTER_Key	CLOSE MASTER KEY
 reject	reject	engine	addSensitivityClassificationStatement_SENSITIVITY/SENSITIVITY_CLASSIFICATION_To_column_(Comma_column)*_Wi~fd16f81e	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a')
@@ -17122,8 +17313,11 @@ accept	accept	engine	dropWorkloadGroupStatement_GROUP/GROUP_identifier	DROP WORK
 reject	reject	engine	dropWorkloadClassifierStatement_CLASSIFIER/CLASSIFIER_identifier	DROP WORKLOAD CLASSIFIER a
 reject	reject	engine	dateFirstOption_DATEFIRST/DATEFIRST_EqualsSign_integer	BEGIN ATOMIC WITH(DATEFIRST = 1) SELECT 1 END
 reject	reject	engine	dateFormatOption_DATEFORMAT/DATEFORMAT_EqualsSign_stringLiteral	BEGIN ATOMIC WITH(DATEFORMAT = 'a') SELECT 1 END
+reject	reject	engine	dateFormatOption_DATEFORMAT/DATEFORMAT_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	BEGIN ATOMIC WITH(DATEFORMAT = N'a') SELECT 1 END
 reject	reject	engine	delayedDurabilityOption_DELAYED_DURABILITY/DELAYED_DURABILITY_EqualsSign_optionOnOff	BEGIN ATOMIC WITH(DELAYED_DURABILITY = ON) SELECT 1 END
+reject	reject	engine	delayedDurabilityOption_DELAYED_DURABILITY/DELAYED_DURABILITY_EqualsSign_optionOnOff+optionOnOff/Off	BEGIN ATOMIC WITH(DELAYED_DURABILITY = OFF) SELECT 1 END
 reject	reject	engine	languageOption_LANGUAGE/LANGUAGE_EqualsSign_stringLiteral	BEGIN ATOMIC WITH(LANGUAGE = 'a') SELECT 1 END
+reject	reject	engine	languageOption_LANGUAGE/LANGUAGE_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	BEGIN ATOMIC WITH(LANGUAGE = N'a') SELECT 1 END
 reject	reject	engine	bucketCountOption_BUCKET_COUNT/BUCKET_COUNT_EqualsSign_integer	ALTER TABLE a REBUILD WITH(BUCKET_COUNT = 1)
 reject	reject	engine	compressionDelayOption_COMPRESSION_DELAY/COMPRESSION_DELAY_EqualsSign_integer_(Identifier)?	ALTER TABLE a REBUILD WITH(COMPRESSION_DELAY = 1)
 reject	reject	engine	compressionDelayOption_COMPRESSION_DELAY(Identifier)?/%empty	ALTER TABLE a REBUILD WITH(COMPRESSION_DELAY = 1)
@@ -17280,9 +17474,13 @@ reject	reject	engine	externalResourcePoolAffinitySpecification_AFFINITY(Comma_ex
 reject	reject	engine	externalResourcePoolAffinitySpecification_AFFINITY(Comma_externalPoolAffinityRange)*/Comma_externalPoolAffinityRange_(Comma_externalPoolAffi~38c45a89!truncate	ALTER EXTERNAL RESOURCE POOL a WITH(AFFINITY a =(1,
 reject	reject	engine	externalResourcePoolAffinitySpecification_AFFINITY(Comma_externalPoolAffinityRange)*/Comma_externalPoolAffinityRange_(Comma_externalPoolAffi~38c45a89!insert	ALTER EXTERNAL RESOURCE POOL a WITH(AFFINITY a =(1, 1 zzz))
 reject	reject	engine	classifierWorkloadGroupOption_WORKLOAD_GROUP/WORKLOAD_GROUP_EqualsSign_stringLiteral	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = 'a')
+reject	reject	engine	classifierWorkloadGroupOption_WORKLOAD_GROUP/WORKLOAD_GROUP_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE WORKLOAD CLASSIFIER a WITH(WORKLOAD_GROUP = N'a')
 reject	reject	engine	classifierMemberNameOption_MEMBERNAME/MEMBERNAME_EqualsSign_stringLiteral	CREATE WORKLOAD CLASSIFIER a WITH(MEMBERNAME = 'a')
+reject	reject	engine	classifierMemberNameOption_MEMBERNAME/MEMBERNAME_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE WORKLOAD CLASSIFIER a WITH(MEMBERNAME = N'a')
 reject	reject	engine	classifierWlmLabelOption_WLM_LABEL/WLM_LABEL_EqualsSign_stringLiteral	CREATE WORKLOAD CLASSIFIER a WITH(WLM_LABEL = 'a')
+reject	reject	engine	classifierWlmLabelOption_WLM_LABEL/WLM_LABEL_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE WORKLOAD CLASSIFIER a WITH(WLM_LABEL = N'a')
 reject	reject	engine	classifierWlmContextOption_WLM_CONTEXT/WLM_CONTEXT_EqualsSign_stringLiteral	CREATE WORKLOAD CLASSIFIER a WITH(WLM_CONTEXT = 'a')
+reject	reject	engine	classifierWlmContextOption_WLM_CONTEXT/WLM_CONTEXT_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE WORKLOAD CLASSIFIER a WITH(WLM_CONTEXT = N'a')
 reject	reject	engine	classifierImportanceOption_IMPORTANCE/IMPORTANCE_EqualsSign_Identifier	CREATE WORKLOAD CLASSIFIER a WITH(IMPORTANCE = a)
 reject	reject	engine	classifierStartTimeOption_START_TIME/START_TIME_EqualsSign_wlmTimeLiteral	CREATE WORKLOAD CLASSIFIER a WITH(START_TIME = 'a')
 reject	reject	engine	classifierEndTimeOption_END_TIME/END_TIME_EqualsSign_wlmTimeLiteral	CREATE WORKLOAD CLASSIFIER a WITH(END_TIME = 'a')
@@ -17342,10 +17540,13 @@ reject	reject	engine	createColumnEncryptionKeyStatement_ENCRYPTION(Comma_createC
 reject	reject	engine	createColumnEncryptionKeyStatement_ENCRYPTION(Comma_createColumnEncryptionKeyValue)?/Comma_createColumnEncryptionKeyValue!insert	CREATE COLUMN ENCRYPTION KEY a WITH VALUES(COLUMN_MASTER_KEY = a, COLUMN_MASTER_KEY = a, COLUMN_MASTER_KEY = a),(COLUMN_MASTER_KEY = a, COLUMN_MASTER_KEY = a, COLUMN_MASTER_KEY = a) zzz
 reject	reject	engine	createColumnEncryptionKeyStatement_ENCRYPTION(Comma_createColumnEncryptionKeyValue)?/Comma_createColumnEncryptionKeyValue!swap	CREATE COLUMN ENCRYPTION KEY a WITH VALUES(COLUMN_MASTER_KEY = a, COLUMN_MASTER_KEY = a, COLUMN_MASTER_KEY = a),(COLUMN_SET = a, COLUMN_MASTER_KEY = a, COLUMN_MASTER_KEY = a)
 reject	reject	engine	columnMasterKeyStoreProviderNameParameter_KEY_STORE_PROVIDER_NAME/KEY_STORE_PROVIDER_NAME_EqualsSign_stringLiteral	CREATE COLUMN MASTER KEY a WITH(KEY_STORE_PROVIDER_NAME = 'a', KEY_STORE_PROVIDER_NAME = 'a')
+reject	reject	engine	columnMasterKeyStoreProviderNameParameter_KEY_STORE_PROVIDER_NAME/KEY_STORE_PROVIDER_NAME_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE COLUMN MASTER KEY a WITH(KEY_STORE_PROVIDER_NAME = N'a', KEY_STORE_PROVIDER_NAME = 'a')
 accept	accept	engine	columnMasterKeyPathParameter_KEY_PATH/KEY_PATH_EqualsSign_stringLiteral	CREATE COLUMN MASTER KEY a WITH(KEY_PATH = 'a', KEY_STORE_PROVIDER_NAME = 'a')
+accept	accept	engine	columnMasterKeyPathParameter_KEY_PATH/KEY_PATH_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE COLUMN MASTER KEY a WITH(KEY_PATH = N'a', KEY_STORE_PROVIDER_NAME = 'a')
 reject	reject	engine	columnMasterKeyEnclaveComputationsParameter_ENCLAVE_COMPUTATIONS/ENCLAVE_COMPUTATIONS_LeftParenthesis_SIGNATURE_EqualsSi~2df4c558	CREATE COLUMN MASTER KEY a WITH(ENCLAVE_COMPUTATIONS(SIGNATURE = 0x00), KEY_STORE_PROVIDER_NAME = 'a')
 reject	reject	engine	columnMasterKeyNameParameter_COLUMN_MASTER_KEY/COLUMN_MASTER_KEY_EqualsSign_identifier	ALTER COLUMN ENCRYPTION KEY a ADD VALUE(COLUMN_MASTER_KEY = a, COLUMN_MASTER_KEY = a, COLUMN_MASTER_KEY = a)
 reject	reject	engine	columnEncryptionAlgorithmNameParameter_ALGORITHM/ALGORITHM_EqualsSign_stringLiteral	ALTER COLUMN ENCRYPTION KEY a ADD VALUE(ALGORITHM = 'a', COLUMN_MASTER_KEY = a, COLUMN_MASTER_KEY = a)
+reject	reject	engine	columnEncryptionAlgorithmNameParameter_ALGORITHM/ALGORITHM_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER COLUMN ENCRYPTION KEY a ADD VALUE(ALGORITHM = N'a', COLUMN_MASTER_KEY = a, COLUMN_MASTER_KEY = a)
 reject	reject	engine	encryptedValueParameter_ENCRYPTED_VALUE/ENCRYPTED_VALUE_EqualsSign_binary	ALTER COLUMN ENCRYPTION KEY a ADD VALUE(ENCRYPTED_VALUE = 0x00, COLUMN_MASTER_KEY = a, COLUMN_MASTER_KEY = a)
 reject	reject	engine	externalDataSourceType_TYPE/TYPE_EqualsSign_(HADOOP|RDBMS|SHARD_MAP_MANAGER|BLOB_STORAGE)	CREATE EXTERNAL DATA SOURCE a WITH(TYPE = HADOOP)
 reject	reject	engine	externalDataSourceType_TYPE(HADOOP|RDBMS|SHARD_MAP_MANAGER|BLOB_STORAGE)/HADOOP	CREATE EXTERNAL DATA SOURCE a WITH(TYPE = HADOOP)
@@ -17360,6 +17561,7 @@ accept	accept	engine	externalDataSourceType_TYPE(HADOOP|RDBMS|SHARD_MAP_MANAGER|
 reject	reject	engine	externalDataSourceType_TYPE(HADOOP|RDBMS|SHARD_MAP_MANAGER|BLOB_STORAGE)/BLOB_STORAGE!insert	CREATE EXTERNAL DATA SOURCE a WITH(TYPE = BLOB_STORAGE zzz)
 reject	reject	engine	externalDataSourceType_TYPE(HADOOP|RDBMS|SHARD_MAP_MANAGER|BLOB_STORAGE)/BLOB_STORAGE!swap	CREATE EXTERNAL DATA SOURCE a WITH(TYPE = BOTH)
 accept	accept	engine	externalDataSourceLocation_LOCATION/LOCATION_EqualsSign_stringLiteral	ALTER EXTERNAL DATA SOURCE a SET LOCATION = 'a'
+accept	accept	engine	externalDataSourceLocation_LOCATION/LOCATION_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER EXTERNAL DATA SOURCE a SET LOCATION = N'a'
 accept	accept	engine	externalDataSourcePushdownOption_PUSHDOWN/PUSHDOWN_EqualsSign_(On|Off)	ALTER EXTERNAL DATA SOURCE a SET PUSHDOWN = ON
 accept	accept	engine	externalDataSourcePushdownOption_PUSHDOWN(On|Off)/On	ALTER EXTERNAL DATA SOURCE a SET PUSHDOWN = ON
 reject	reject	engine	externalDataSourcePushdownOption_PUSHDOWN(On|Off)/On!swap	ALTER EXTERNAL DATA SOURCE a SET PUSHDOWN = ONLINE
@@ -17367,8 +17569,11 @@ accept	accept	engine	externalDataSourcePushdownOption_PUSHDOWN(On|Off)/Off	ALTER
 reject	reject	engine	externalDataSourcePushdownOption_PUSHDOWN(On|Off)/Off!insert	ALTER EXTERNAL DATA SOURCE a SET PUSHDOWN = OFF zzz
 reject	reject	engine	externalDataSourcePushdownOption_PUSHDOWN(On|Off)/Off!swap	ALTER EXTERNAL DATA SOURCE a SET PUSHDOWN = OFFLINE
 accept	accept	engine	externalStreamLocation_LOCATION/LOCATION_EqualsSign_stringLiteral	CREATE EXTERNAL STREAM a WITH(LOCATION = 'a')
+accept	accept	engine	externalStreamLocation_LOCATION/LOCATION_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE EXTERNAL STREAM a WITH(LOCATION = N'a')
 accept	accept	engine	externalStreamInputOptions_INPUT_OPTIONS/INPUT_OPTIONS_EqualsSign_stringLiteral	CREATE EXTERNAL STREAM a WITH(INPUT_OPTIONS = 'a')
+accept	accept	engine	externalStreamInputOptions_INPUT_OPTIONS/INPUT_OPTIONS_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE EXTERNAL STREAM a WITH(INPUT_OPTIONS = N'a')
 accept	accept	engine	externalStreamOutputOptions_OUTPUT_OPTIONS/OUTPUT_OPTIONS_EqualsSign_stringLiteral	CREATE EXTERNAL STREAM a WITH(OUTPUT_OPTIONS = 'a')
+accept	accept	engine	externalStreamOutputOptions_OUTPUT_OPTIONS/OUTPUT_OPTIONS_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE EXTERNAL STREAM a WITH(OUTPUT_OPTIONS = N'a')
 accept	accept	engine	externalFormatingContainerOption_FORMAT_OPTIONS/FORMAT_OPTIONS_LeftParenthesis_externalDataFormatOption~f556ef92	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE))
 accept	accept	engine	externalFormatingContainerOption_FORMAT_OPTIONS(Comma_externalDataFormatOption)*/%empty	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE))
 reject	reject	engine	externalFormatingContainerOption_FORMAT_OPTIONS(Comma_externalDataFormatOption)*/Comma_externalDataFormatOption_(Comma_externalDataFormatOption)*	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE, USE_TYPE_DEFAULT = TRUE))
@@ -17381,8 +17586,10 @@ reject	reject	engine	externalFormatingContainerOption_FORMAT_OPTIONS(Comma_exter
 reject	reject	engine	externalFormatingContainerOption_FORMAT_OPTIONS(Comma_externalDataFormatOption)*/Comma_externalDataFormatOption_(Comma_externalDataFormatOption)*!swap	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE, USING = TRUE))
 accept	accept	engine	externalFormatingOption_FORMAT_OPTIONS/externalFormatingContainerOption_FORMAT_OPTIONS	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE))
 accept	accept	engine	externalFileFormatLiteralOption_SERDE_METHOD/SERDE_METHOD_EqualsSign_stringLiteral	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a')
+accept	accept	engine	externalFileFormatLiteralOption_SERDE_METHOD/SERDE_METHOD_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = N'a')
 accept	accept	engine	externalFileFormatLiteralOptions_SERDE_METHOD/externalFileFormatLiteralOption_SERDE_METHOD	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, SERDE_METHOD = 'a')
 accept	accept	engine	externalFileFormatLiteralOption_DATA_COMPRESSION/DATA_COMPRESSION_EqualsSign_stringLiteral	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, DATA_COMPRESSION = 'a')
+accept	accept	engine	externalFileFormatLiteralOption_DATA_COMPRESSION/DATA_COMPRESSION_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, DATA_COMPRESSION = N'a')
 accept	accept	engine	externalFileFormatLiteralOptions_DATA_COMPRESSION/externalFileFormatLiteralOption_DATA_COMPRESSION	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, DATA_COMPRESSION = 'a')
 accept	accept	engine	externalDataFormatUseTypeDefaultOption_USE_TYPE_DEFAULT/USE_TYPE_DEFAULT_EqualsSign_(TRUE|FALSE)	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE))
 accept	accept	engine	externalDataFormatUseTypeDefaultOption_USE_TYPE_DEFAULT(TRUE|FALSE)/TRUE	CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS(USE_TYPE_DEFAULT = TRUE))
@@ -17414,6 +17621,7 @@ reject	reject	engine	tableXmlCompressionOption_XML_COMPRESSION/xmlCompressionOpt
 accept	accept	engine	fileTableDirectoryTableOption_FILETABLE_DIRECTORY/FILETABLE_DIRECTORY_EqualsSign_stringLiteralOrNull	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 reject	reject	engine	fileTableCollateFileNameTableOption_FILETABLE_COLLATE_FILENAME/FILETABLE_COLLATE_FILENAME_EqualsSign_nonQuotedIdentifier	CREATE TABLE a AS WITH(FILETABLE_COLLATE_FILENAME = a)
 reject	reject	engine	memoryOptimizedTableOption_MEMORY_OPTIMIZED/MEMORY_OPTIMIZED_EqualsSign_optionOnOff	CREATE TABLE a AS WITH(MEMORY_OPTIMIZED = ON)
+reject	reject	engine	memoryOptimizedTableOption_MEMORY_OPTIMIZED/MEMORY_OPTIMIZED_EqualsSign_optionOnOff+optionOnOff/Off	CREATE TABLE a AS WITH(MEMORY_OPTIMIZED = OFF)
 reject	reject	engine	durabilityTableOption_DURABILITY/DURABILITY_EqualsSign_Identifier	CREATE TABLE a AS WITH(DURABILITY = a)
 reject	reject	engine	remoteDataArchiveTableOption_REMOTE_DATA_ARCHIVE/REMOTE_DATA_ARCHIVE_EqualsSign_On_LeftParenthesis_remot~02fd8dae	CREATE TABLE a AS WITH(REMOTE_DATA_ARCHIVE = ON(a = a))
 accept	accept	engine	systemVersioningTableOnOffOption_SYSTEM_VERSIONING/SYSTEM_VERSIONING_EqualsSign_(Off|(On_(LeftParenthesis_~b3f334da	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
@@ -17541,6 +17749,7 @@ reject	reject	engine	generatedAlwaysClauseInAlter_GENERATED((START)|(End))/End	A
 reject	reject	engine	generatedAlwaysClauseInAlter_GENERATED((START)|(End))/End!insert	ALTER TABLE a ALTER COLUMN a a GENERATED ALWAYS AS a END zzz
 reject	reject	engine	generatedAlwaysClauseInAlter_GENERATED((START)|(End))/End!swap	ALTER TABLE a ALTER COLUMN a a GENERATED ALWAYS AS a ENDPOINT
 accept	accept	engine	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
+accept	accept	engine	maskedClause_MASKED/MASKED_With_LeftParenthesis_Function_EqualsSign_stringL~293e8f5d+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = N'a')
 reject	reject	engine	columnEncryptionClause_ENCRYPTED/ENCRYPTED_With_LeftParenthesis_columnEncryptionDefiniti~dddd34d4	ALTER TABLE a ADD a a ENCRYPTED WITH(COLUMN_ENCRYPTION_KEY = a, COLUMN_ENCRYPTION_KEY = a, COLUMN_ENCRYPTION_KEY = a)
 accept	accept	engine	columnStorage_SPARSE/SPARSE_((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)	ALTER TABLE a ALTER COLUMN a a SPARSE
 reject	reject	engine	columnStorage_SPARSE((FILESTREAM|SPARSE)|For_ALL_SPARSE_COLUMNS|)/(FILESTREAM|SPARSE)	ALTER TABLE a ALTER COLUMN a a SPARSE FILESTREAM
@@ -17613,6 +17822,7 @@ reject	reject	engine	columnEncryptionTypeParameter_ENCRYPTION_TYPE(DETERMINISTIC
 reject	reject	engine	columnEncryptionTypeParameter_ENCRYPTION_TYPE(DETERMINISTIC|RANDOMIZED)/RANDOMIZED!insert	ALTER TABLE a ADD a a ENCRYPTED WITH(ENCRYPTION_TYPE = RANDOMIZED zzz, COLUMN_ENCRYPTION_KEY = a, COLUMN_ENCRYPTION_KEY = a)
 reject	reject	engine	columnEncryptionTypeParameter_ENCRYPTION_TYPE(DETERMINISTIC|RANDOMIZED)/RANDOMIZED!swap	ALTER TABLE a ADD a a ENCRYPTED WITH(ENCRYPTION_TYPE = RANGE, COLUMN_ENCRYPTION_KEY = a, COLUMN_ENCRYPTION_KEY = a)
 reject	reject	engine	columnEncryptionAlgorithmParameter_ALGORITHM/ALGORITHM_EqualsSign_stringLiteral	ALTER TABLE a ADD a a ENCRYPTED WITH(ALGORITHM = 'a', COLUMN_ENCRYPTION_KEY = a, COLUMN_ENCRYPTION_KEY = a)
+reject	reject	engine	columnEncryptionAlgorithmParameter_ALGORITHM/ALGORITHM_EqualsSign_stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER TABLE a ADD a a ENCRYPTED WITH(ALGORITHM = N'a', COLUMN_ENCRYPTION_KEY = a, COLUMN_ENCRYPTION_KEY = a)
 reject	reject	engine	graphMatchRecursivePattern_SHORTEST_PATH/SHORTEST_PATH_LeftParenthesis_(graphMatchNodeExpression~60b7a06e	IF MATCH(SHORTEST_PATH(a() +)) SELECT 1
 reject	reject	engine	graphMatchRecursivePattern_SHORTEST_PATH(graphMatchNodeExpression_LeftParenth~a5c4b21d)/graphMatchNodeExpression_LeftParenthesis_graphMatchSPRi~ef19b9e2	IF MATCH(SHORTEST_PATH(a() +)) SELECT 1
 reject	reject	engine	graphMatchRecursivePattern_SHORTEST_PATH(graphMatchNodeExpression_LeftParenth~a5c4b21d)/LeftParenthesis_graphMatchSPLeftRecursivePattern_RightP~ac06a358	IF MATCH(SHORTEST_PATH(() + a)) SELECT 1
