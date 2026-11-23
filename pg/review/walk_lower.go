@@ -425,6 +425,9 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 	}
 
 	if prior == walk.Absent {
+		if v.AccessMethod == "" || v.AccessMethod == "heap" {
+			b.checkHeapRelOptions(v.Options, rng)
+		}
 		// The relations the new table names must exist (42P01): the ones
 		// it copies from and the tables its foreign keys reference, but
 		// itself. IF NOT EXISTS on a table that exists looks at none.
@@ -1076,6 +1079,9 @@ func (b *builder) createTableAs(into *ast.IntoClause, matview, ifNotExists bool,
 		b.fail(nil, walk.Absent, review.ObjectNotFound, "Query references a column with no `FROM` clause.") // 42703
 		return true
 	}
+	if !isExecute && b.queryRefused(query) {
+		return true
+	}
 	switch {
 	case !ifNotExists:
 		b.need(k, walk.Absent, nil, taken(rng, kind, relation(rv)))                                     // 42P07
@@ -1089,6 +1095,9 @@ func (b *builder) createTableAs(into *ast.IntoClause, matview, ifNotExists bool,
 		b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: alreadyExists("type", relation(rv))}) // 42710
 	}
 	if prior == walk.Absent {
+		if into.AccessMethod == "" || into.AccessMethod == "heap" {
+			b.checkHeapRelOptions(into.Options, rng)
+		}
 		if !temp && c.schema != tempSchema && into.OnCommit != ast.ONCOMMIT_NOOP && into.OnCommit != 0 {
 			b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`ON COMMIT` on a non-temporary table")) // 42P16
 			return true
@@ -2157,7 +2166,8 @@ func (b *builder) alterTableCmd(rv *ast.RangeVar, t walk.Key, cmd *ast.AlterTabl
 		sub == ast.AT_AddInherit, sub == ast.AT_DropInherit,
 		sub == ast.AT_AttachPartition, sub == ast.AT_DetachPartition, sub == ast.AT_DetachPartitionFinalize,
 		sub == ast.AT_SetRelOptions, sub == ast.AT_ReplaceRelOptions,
-		sub == ast.AT_EnableTrig, sub == ast.AT_EnableAlwaysTrig, sub == ast.AT_EnableReplicaTrig, sub == ast.AT_DisableTrig:
+		sub == ast.AT_EnableTrig, sub == ast.AT_EnableAlwaysTrig, sub == ast.AT_EnableReplicaTrig, sub == ast.AT_DisableTrig,
+		sub == ast.AT_EnableRule, sub == ast.AT_EnableAlwaysRule, sub == ast.AT_EnableReplicaRule, sub == ast.AT_DisableRule:
 		b.checkAlterTargetSubcmd(rv, resolved{fact: walk.Present, key: t, kind: relTable}, cmd)
 		if !atNoFacts[sub] {
 			b.Last = true
@@ -4097,6 +4107,16 @@ func (b *builder) alterObjectDepends(v *ast.AlterObjectDependsStmt) bool {
 			b.checkRoutine(owa, v.ObjectType, false, v.ObjectType != ast.OBJECT_PROCEDURE)
 		}
 	}
+	// DEPENDS and NO DEPENDS both look the extension up after the object
+	// (42704). CREATE and DROP EXTENSION end the walk, so the synced list
+	// holds throughout.
+	//
+	// pg: src/backend/commands/alter.c — ExecAlterObjectDependsStmt
+	if s, ok := v.Extname.(*ast.String); ok {
+		if name, ok := walkName(s.Str); ok {
+			b.need(extensionKey(name), walk.Present, nil, &walkNote{rng: b.anchor(), absent: notFound("extension", ident(s.Str))}) // 42704
+		}
+	}
 	return true
 }
 
@@ -4298,6 +4318,12 @@ func (b *builder) checkAlterTargetSubcmd(rv *ast.RangeVar, r resolved, cmd *ast.
 		if tn, ok := walkName(cmd.Name); ok {
 			b.need(trigKey(r.key, tn), walk.Present, nil, &walkNote{rng: rng, absent: notFoundIn("trigger", ident(cmd.Name), relation(rv))}) // 42704
 		}
+	case ast.AT_EnableRule, ast.AT_EnableAlwaysRule, ast.AT_EnableReplicaRule, ast.AT_DisableRule:
+		// A rule belongs to its table alone: no inheritance child or
+		// partition shares it (pg: rewriteDefine.c — EnableDisableRule).
+		if rn, ok := walkName(cmd.Name); ok {
+			b.need(ruleKey(r.key, rn), walk.Present, nil, &walkNote{rng: rng, absent: notFoundIn("rule", ident(cmd.Name), relation(rv))}) // 42704
+		}
 	case ast.AT_SetRelOptions, ast.AT_ReplaceRelOptions:
 		if opts, ok := cmd.Def.(*ast.List); ok {
 			if r.kind == relTable && b.w.partitioned[r.key] && hasNonToastRelOption(opts) {
@@ -4305,6 +4331,9 @@ func (b *builder) checkAlterTargetSubcmd(rv *ast.RangeVar, r resolved, cmd *ast.
 				return
 			}
 			b.checkRelOptions(r.kind, opts, rng)
+			if sub == ast.AT_SetRelOptions && (r.kind == relTable || r.kind == relMatview) {
+				b.checkHeapRelOptions(opts, rng)
+			}
 			if r.kind == relIndex && !b.w.isTableDirty(r.key) && b.w.pg != nil {
 				if idx := b.w.pg.indexDefs[[2]string{schemaOfKey(r.key), r.key.Name}]; idx != nil && idx.accessMethod == "btree" {
 					b.checkBtreeRelOptions(opts, rng)
@@ -4511,6 +4540,15 @@ func (b *builder) checkViewQuery(v *ast.ViewStmt, k walk.Key, prior walk.Fact) {
 	}
 	if selectHasUnboundColumn(sel) {
 		b.fail(nil, walk.Absent, review.ObjectNotFound, "Query references a column with no `FROM` clause.") // 42703
+		return
+	}
+	if sel.IntoClause != nil {
+		// pg: src/backend/parser/analyze.c — transformSelectStmt's caller,
+		// "views must not contain SELECT INTO"
+		b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`SELECT INTO` in a view")) // 0A000
+		return
+	}
+	if b.queryRefused(sel) {
 		return
 	}
 	if v.WithCheckOption != 0 && sel.Op == ast.SETOP_NONE && (sel.FromClause == nil || len(sel.FromClause.Items) == 0) {
@@ -5324,101 +5362,269 @@ func (b *builder) checkRelOptions(relKind string, opts *ast.List, rng review.Ran
 	}
 }
 
-// selectHasUnboundColumn reports whether q is a plain FROM-less SELECT that
-// directly references a column outside any subquery (42703).
+// heapRelOptions lists the storage parameters of PostgreSQL's heap, which
+// tables and materialized views take, in any release from 12 to 18.
+//
+// pg: src/backend/access/common/reloptions.c — boolRelOpts, intRelOpts,
+// realRelOpts, enumRelOpts (RELOPT_KIND_HEAP); "oids" is accepted as false
+// by CREATE TABLE
+var heapRelOptions = map[string]bool{
+	"fillfactor":                            true,
+	"autovacuum_enabled":                    true,
+	"user_catalog_table":                    true,
+	"vacuum_truncate":                       true,
+	"vacuum_index_cleanup":                  true,
+	"parallel_workers":                      true,
+	"toast_tuple_target":                    true,
+	"log_autovacuum_min_duration":           true,
+	"oids":                                  true,
+	"autovacuum_vacuum_threshold":           true,
+	"autovacuum_vacuum_max_threshold":       true,
+	"autovacuum_vacuum_insert_threshold":    true,
+	"autovacuum_analyze_threshold":          true,
+	"autovacuum_vacuum_cost_limit":          true,
+	"autovacuum_vacuum_cost_delay":          true,
+	"autovacuum_freeze_min_age":             true,
+	"autovacuum_freeze_max_age":             true,
+	"autovacuum_freeze_table_age":           true,
+	"autovacuum_multixact_freeze_min_age":   true,
+	"autovacuum_multixact_freeze_max_age":   true,
+	"autovacuum_multixact_freeze_table_age": true,
+	"autovacuum_vacuum_scale_factor":        true,
+	"autovacuum_vacuum_insert_scale_factor": true,
+	"autovacuum_analyze_scale_factor":       true,
+	"vacuum_max_eager_freeze_failure_rate":  true,
+}
+
+// checkHeapRelOptions refuses a storage parameter a table or materialized
+// view does not have, or a namespace other than toast (22023). An
+// extension may register parameters or take a namespace's (TimescaleDB's
+// timescaledb., Citus's columnar.), and may bring a table access method of
+// its own, so the check holds only while the synced schema lists none but
+// plpgsql; CREATE EXTENSION ends the walk.
+func (b *builder) checkHeapRelOptions(opts *ast.List, rng review.Range) {
+	if opts == nil || b.w.pg == nil || b.w.pg.extensions {
+		return
+	}
+	for _, item := range opts.Items {
+		de, ok := item.(*ast.DefElem)
+		if !ok {
+			continue
+		}
+		switch {
+		case de.Defnamespace != "":
+			if !strings.EqualFold(de.Defnamespace, "toast") {
+				b.failAt(rng, nil, review.UnsupportedForm, unsupported("storage parameter namespace "+review.Code(ident(de.Defnamespace)))) // 22023
+				return
+			}
+		case !heapRelOptions[strings.ToLower(de.Defname)]:
+			b.failAt(rng, nil, review.UnsupportedForm, unsupported("storage parameter "+review.Code(ident(de.Defname)))) // 22023
+			return
+		}
+	}
+}
+
+// selectHasUnboundColumn reports whether q references a column that no
+// FROM item can supply, outside any subquery (42703). A query with no
+// outer query (a view's, or CREATE TABLE AS's) resolves a column only
+// against its own FROM items:
+//   - in a FROM-less SELECT or VALUES, every column reference of the
+//     target list, WHERE, HAVING, LIMIT, OFFSET, and WINDOW clause, and of
+//     GROUP BY, ORDER BY, and DISTINCT ON except a bare name that may be an
+//     output column's (pg: parse_clause.c — findTargetlistEntrySQL92);
+//   - in each arm of a set operation, as in a query of its own;
+//   - in the first FROM item's function arguments or table function
+//     expressions, which no earlier item precedes to be LATERAL to.
 func selectHasUnboundColumn(q ast.Node) bool {
 	sel, ok := q.(*ast.SelectStmt)
-	if !ok || sel.Op != ast.SETOP_NONE || sel.ValuesLists != nil {
+	if !ok || sel == nil {
 		return false
+	}
+	if sel.Op != ast.SETOP_NONE {
+		// ORDER BY of a set operation sees its output columns, so only
+		// the arms are judged.
+		return selectHasUnboundColumn(sel.Larg) || selectHasUnboundColumn(sel.Rarg)
 	}
 	if sel.FromClause != nil && len(sel.FromClause.Items) > 0 {
-		return false
+		return fromItemHasColumnRef(sel.FromClause.Items[0])
 	}
-	if sel.TargetList != nil {
-		for _, item := range sel.TargetList.Items {
-			if exprHasColumnRef(item) {
+	if sel.ValuesLists != nil {
+		return exprHasColumnRef(sel.ValuesLists)
+	}
+	if exprHasColumnRef(sel.TargetList) || exprHasColumnRef(sel.WhereClause) || exprHasColumnRef(sel.HavingClause) ||
+		exprHasColumnRef(sel.LimitCount) || exprHasColumnRef(sel.LimitOffset) {
+		return true
+	}
+	if sel.WindowClause != nil {
+		// PARTITION BY and ORDER BY of a window follow SQL99 rules and
+		// see no output column (pg: parse_clause.c — transformWindowDefinitions).
+		for _, item := range sel.WindowClause.Items {
+			if wd, ok := item.(*ast.WindowDef); ok && windowHasColumnRef(wd) {
 				return true
 			}
 		}
 	}
-	return exprHasColumnRef(sel.WhereClause) || exprHasColumnRef(sel.HavingClause)
+	names, known := outputNames(sel)
+	if sel.SortClause != nil {
+		for _, item := range sel.SortClause.Items {
+			if sb, ok := item.(*ast.SortBy); ok && groupItemHasColumnRef(sb.Node, names, known, false) {
+				return true
+			}
+		}
+	}
+	if sel.DistinctClause != nil {
+		for _, item := range sel.DistinctClause.Items {
+			if groupItemHasColumnRef(item, names, known, false) {
+				return true
+			}
+		}
+	}
+	if sel.GroupClause != nil {
+		for _, item := range sel.GroupClause.Items {
+			if groupItemHasColumnRef(item, names, known, true) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
-func exprHasColumnRef(n ast.Node) bool {
-	if n == nil {
-		return false
+// outputNames lists the names a SELECT's output columns take, and whether
+// the list is complete: a column with no alias is named by
+// FigureColname, which is followed here only for a constant and a function
+// call.
+func outputNames(sel *ast.SelectStmt) (map[string]bool, bool) {
+	names := make(map[string]bool)
+	if sel.TargetList == nil {
+		return names, true
 	}
+	known := true
+	for _, item := range sel.TargetList.Items {
+		rt, ok := item.(*ast.ResTarget)
+		if !ok {
+			known = false
+			continue
+		}
+		if rt.Name != "" {
+			names[rt.Name] = true
+			continue
+		}
+		switch v := rt.Val.(type) {
+		case *ast.A_Const:
+			names["?column?"] = true
+		case *ast.FuncCall:
+			if parts := nameParts(v.Funcname); len(parts) > 0 {
+				names[parts[len(parts)-1]] = true
+			} else {
+				known = false
+			}
+		default:
+			known = false
+		}
+	}
+	return names, known
+}
+
+// groupItemHasColumnRef judges one ORDER BY, DISTINCT ON, or GROUP BY item
+// of a FROM-less SELECT. A bare name is first matched against the output
+// columns; in GROUP BY, so is each member of a grouping set or an implicit
+// row (pg: parse_agg.c — flatten_grouping_sets).
+func groupItemHasColumnRef(n ast.Node, names map[string]bool, known, group bool) bool {
 	switch v := n.(type) {
+	case nil:
+		return false
 	case *ast.ColumnRef:
+		if v.Fields != nil && len(v.Fields.Items) == 1 {
+			if s, ok := v.Fields.Items[0].(*ast.String); ok {
+				return known && !names[s.Str]
+			}
+		}
 		return true
-	case *ast.ResTarget:
-		return exprHasColumnRef(v.Val)
-	case *ast.A_Expr:
-		return exprHasColumnRef(v.Lexpr) || exprHasColumnRef(v.Rexpr)
-	case *ast.BoolExpr:
-		if v.Args != nil {
-			for _, item := range v.Args.Items {
-				if exprHasColumnRef(item) {
+	case *ast.GroupingSet:
+		if group && v.Content != nil {
+			for _, item := range v.Content.Items {
+				if groupItemHasColumnRef(item, names, known, group) {
 					return true
 				}
 			}
+			return false
 		}
-	case *ast.NullTest:
-		return exprHasColumnRef(v.Arg)
-	case *ast.BooleanTest:
-		return exprHasColumnRef(v.Arg)
-	case *ast.TypeCast:
-		return exprHasColumnRef(v.Arg)
-	case *ast.CoalesceExpr:
-		if v.Args != nil {
-			for _, item := range v.Args.Items {
-				if exprHasColumnRef(item) {
-					return true
-				}
-			}
-		}
-	case *ast.CaseExpr:
-		if exprHasColumnRef(v.Arg) || exprHasColumnRef(v.Defresult) {
-			return true
-		}
-		if v.Args != nil {
-			for _, item := range v.Args.Items {
-				if cw, ok := item.(*ast.CaseWhen); ok {
-					if exprHasColumnRef(cw.Expr) || exprHasColumnRef(cw.Result) {
+	case *ast.RowExpr:
+		if group {
+			if v.Args != nil {
+				for _, item := range v.Args.Items {
+					if groupItemHasColumnRef(item, names, known, group) {
 						return true
 					}
 				}
 			}
+			return false
 		}
-	case *ast.FuncCall:
-		if v.Args != nil {
-			for _, item := range v.Args.Items {
-				if exprHasColumnRef(item) {
-					return true
-				}
+	}
+	return exprHasColumnRef(n)
+}
+
+func windowHasColumnRef(wd *ast.WindowDef) bool {
+	if exprHasColumnRef(wd.PartitionClause) || exprHasColumnRef(wd.StartOffset) || exprHasColumnRef(wd.EndOffset) {
+		return true
+	}
+	if wd.OrderClause != nil {
+		for _, item := range wd.OrderClause.Items {
+			if sb, ok := item.(*ast.SortBy); ok && exprHasColumnRef(sb.Node) {
+				return true
 			}
 		}
-		if exprHasColumnRef(v.AggFilter) {
+	}
+	return false
+}
+
+// fromItemHasColumnRef reports whether the first FROM item is a function
+// or table function whose expressions reference a column: nothing precedes
+// it to supply one.
+func fromItemHasColumnRef(n ast.Node) bool {
+	switch v := n.(type) {
+	case *ast.RangeFunction:
+		return exprHasColumnRef(v.Functions)
+	case *ast.RangeTableFunc:
+		if exprHasColumnRef(v.Docexpr) || exprHasColumnRef(v.Rowexpr) || exprHasColumnRef(v.Namespaces) {
 			return true
 		}
-	case *ast.A_ArrayExpr:
-		if v.Elements != nil {
-			for _, item := range v.Elements.Items {
-				if exprHasColumnRef(item) {
-					return true
-				}
-			}
-		}
-	case *ast.RowExpr:
-		if v.Args != nil {
-			for _, item := range v.Args.Items {
-				if exprHasColumnRef(item) {
+		if v.Columns != nil {
+			for _, item := range v.Columns.Items {
+				if col, ok := item.(*ast.RangeTableFuncCol); ok && (exprHasColumnRef(col.Colexpr) || exprHasColumnRef(col.Coldefexpr)) {
 					return true
 				}
 			}
 		}
 	}
 	return false
+}
+
+// exprHasColumnRef reports whether an expression references a column
+// outside any subquery. A type name's modifiers are skipped: they may be
+// identifiers (geometry(Point, 4326)) rather than columns.
+func exprHasColumnRef(n ast.Node) bool {
+	if n == nil {
+		return false
+	}
+	found := false
+	ast.Inspect(n, func(m ast.Node) bool {
+		if found {
+			return false
+		}
+		switch v := m.(type) {
+		case *ast.ColumnRef:
+			found = true
+			return false
+		case *ast.SubLink:
+			found = exprHasColumnRef(v.Testexpr)
+			return false
+		case *ast.SelectStmt, *ast.RangeSubselect, *ast.TypeName, *ast.WithClause, *ast.ColumnDef:
+			return false
+		}
+		return true
+	})
+	return found
 }
 
 // hasBareTriggerColumn reports whether a trigger WHEN expression directly
@@ -5987,4 +6193,230 @@ func routineArgCount(owa *ast.ObjectWithArgs) (int, bool) {
 		n++
 	}
 	return n, true
+}
+
+// queryRefused fails a query PostgreSQL's analysis refuses whatever the
+// data: a name two FROM items of one level both take (42712), or a call
+// with no arguments to a function no schema on the path holds (42883).
+func (b *builder) queryRefused(q ast.Node) bool {
+	if name, ok := duplicateFromName(q); ok {
+		b.fail(nil, walk.Present, review.UnsupportedForm, "Table name "+review.Code(ident(name))+" is specified more than once in `FROM`.") // 42712
+		return true
+	}
+	if msg := refusedForm(q); msg != "" {
+		b.fail(nil, walk.Present, review.UnsupportedForm, msg)
+		return true
+	}
+	var call []string
+	var r resolved
+	ast.Inspect(q, func(n ast.Node) bool {
+		if call != nil {
+			return false
+		}
+		switch v := n.(type) {
+		case *ast.TypeName:
+			return false
+		case *ast.FuncCall:
+			// A call with no arguments is neither a type cast nor field
+			// selection, and reaches no aggregate: a parameterless one is
+			// called as f(*) and an ordered-set one with WITHIN GROUP
+			// (pg: parse_func.c — ParseFuncOrColumn). The sync lists every
+			// other function, so one it proves absent is absent.
+			if (v.Args == nil || len(v.Args.Items) == 0) && !v.AggStar && !v.AggWithinGroup && !v.FuncVariadic {
+				parts := nameParts(v.Funcname)
+				if rr := b.resolveRoutine(parts, ast.OBJECT_FUNCTION); rr.fail == "" && rr.fact == walk.Absent && rr.missingSchema == "" && len(parts) > 0 {
+					call, r = parts, rr
+					return false
+				}
+			}
+		}
+		return true
+	})
+	if call != nil {
+		b.fail(r.keys, walk.Absent, review.ObjectNotFound, notFound("function", qualified(call))) // 42883
+		return true
+	}
+	return false
+}
+
+// fromName is a name a FROM item takes in its query's namespace. An
+// unaliased table takes its own name, which another table of that name in
+// another schema may share (pg: parse_relation.c — checkNameSpaceConflicts).
+type fromName struct {
+	name   string
+	schema string
+	table  bool
+}
+
+// duplicateFromName finds a name two FROM items of one level of a query
+// both take, in a plain query or an arm of a set operation, outside
+// subqueries.
+func duplicateFromName(q ast.Node) (string, bool) {
+	sel, ok := q.(*ast.SelectStmt)
+	if !ok || sel == nil {
+		return "", false
+	}
+	if sel.Op != ast.SETOP_NONE {
+		if name, ok := duplicateFromName(sel.Larg); ok {
+			return name, true
+		}
+		return duplicateFromName(sel.Rarg)
+	}
+	if sel.FromClause == nil {
+		return "", false
+	}
+	var seen []fromName
+	for _, item := range sel.FromClause.Items {
+		names, dup, ok := fromItemNames(item)
+		if ok {
+			return dup, true
+		}
+		if dup, ok := conflict(seen, names); ok {
+			return dup, true
+		}
+		seen = append(seen, names...)
+	}
+	return "", false
+}
+
+// fromItemNames lists the names a FROM item takes and reports a conflict
+// inside a join. An item whose name is not followed here takes none.
+func fromItemNames(n ast.Node) ([]fromName, string, bool) {
+	switch v := n.(type) {
+	case *ast.RangeVar:
+		if v.Alias != nil && v.Alias.Aliasname != "" {
+			return []fromName{{name: v.Alias.Aliasname}}, "", false
+		}
+		if v.Catalogname != "" {
+			return nil, "", false
+		}
+		return []fromName{{name: v.Relname, schema: v.Schemaname, table: true}}, "", false
+	case *ast.RangeSubselect:
+		if v.Alias != nil && v.Alias.Aliasname != "" {
+			return []fromName{{name: v.Alias.Aliasname}}, "", false
+		}
+	case *ast.RangeFunction:
+		if v.Alias != nil && v.Alias.Aliasname != "" {
+			return []fromName{{name: v.Alias.Aliasname}}, "", false
+		}
+	case *ast.JoinExpr:
+		left, dup, ok := fromItemNames(v.Larg)
+		if ok {
+			return nil, dup, true
+		}
+		right, dup, ok := fromItemNames(v.Rarg)
+		if ok {
+			return nil, dup, true
+		}
+		if dup, ok := conflict(left, right); ok {
+			return nil, dup, true
+		}
+		if v.Alias != nil && v.Alias.Aliasname != "" {
+			// The alias hides the joined items.
+			return []fromName{{name: v.Alias.Aliasname}}, "", false
+		}
+		return append(left, right...), "", false
+	}
+	return nil, "", false
+}
+
+func conflict(seen, names []fromName) (string, bool) {
+	for _, a := range names {
+		for _, s := range seen {
+			if a.name != s.name {
+				continue
+			}
+			if a.table && s.table && a.schema != s.schema {
+				continue
+			}
+			return a.name, true
+		}
+	}
+	return "", false
+}
+
+// refusedForm finds a form PostgreSQL refuses in any query with no outer
+// statement, outside a data-modifying WITH query, which brings its own
+// rules:
+//   - a parameter, which nothing supplies (42P02);
+//   - DEFAULT, which only INSERT and UPDATE take (42601);
+//   - MERGE_ACTION(), which only MERGE's RETURNING takes (42601);
+//   - an empty ARRAY[] not cast, whose type nothing determines (42P18);
+//   - ARRAY(SELECT) or a scalar subquery of no column (42601);
+//   - a WINDOW clause that defines a name twice (42P20) or refers to one
+//     not defined before it (42704).
+//
+// pg: src/backend/parser/parse_expr.c — transformParamRef,
+// transformArrayExpr, transformSubLink; parse_clause.c —
+// transformWindowDefinitions
+func refusedForm(q ast.Node) string {
+	msg := ""
+	ast.Inspect(q, func(n ast.Node) bool {
+		if msg != "" {
+			return false
+		}
+		switch v := n.(type) {
+		case *ast.TypeName, *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.MergeStmt:
+			return false
+		case *ast.TypeCast:
+			if _, ok := v.Arg.(*ast.A_ArrayExpr); ok {
+				// The cast gives the array its type.
+				return false
+			}
+		case *ast.ParamRef:
+			msg = "Query references parameter `$" + strconv.Itoa(v.Number) + "`, which nothing supplies here."
+		case *ast.SetToDefault:
+			msg = unsupported("`DEFAULT` in a query")
+		case *ast.MergeSupportFunc:
+			msg = unsupported("`MERGE_ACTION()` outside `MERGE`")
+		case *ast.A_ArrayExpr:
+			if emptyArray(v) {
+				msg = unsupported("an empty `ARRAY` with no cast to give its type")
+			}
+			// An element array takes its type from this one.
+			return false
+		case *ast.SubLink:
+			if ast.SubLinkType(v.SubLinkType) == ast.ARRAY_SUBLINK || ast.SubLinkType(v.SubLinkType) == ast.EXPR_SUBLINK {
+				if sel, ok := v.Subselect.(*ast.SelectStmt); ok && sel.Op == ast.SETOP_NONE && sel.ValuesLists == nil &&
+					(sel.TargetList == nil || len(sel.TargetList.Items) == 0) {
+					msg = unsupported("a subquery of no column as a value")
+				}
+			}
+		case *ast.SelectStmt:
+			if v.WindowClause != nil {
+				defined := make(map[string]bool, len(v.WindowClause.Items))
+				for _, item := range v.WindowClause.Items {
+					wd, ok := item.(*ast.WindowDef)
+					if !ok {
+						continue
+					}
+					if wd.Refname != "" && !defined[wd.Refname] {
+						msg = notFound("window", ident(wd.Refname))
+						return false
+					}
+					if defined[wd.Name] {
+						msg = unsupported("window " + review.Code(ident(wd.Name)) + " defined twice")
+						return false
+					}
+					defined[wd.Name] = true
+				}
+			}
+		}
+		return msg == ""
+	})
+	return msg
+}
+
+// emptyArray reports whether an ARRAY[] holds no element at any depth.
+func emptyArray(a *ast.A_ArrayExpr) bool {
+	if a.Elements == nil {
+		return true
+	}
+	for _, item := range a.Elements.Items {
+		sub, ok := item.(*ast.A_ArrayExpr)
+		if !ok || !emptyArray(sub) {
+			return false
+		}
+	}
+	return true
 }

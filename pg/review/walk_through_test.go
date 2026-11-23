@@ -606,12 +606,17 @@ func TestWalkThroughFunctionsTriggersPoliciesAndAlterSubcommands(t *testing.T) {
 		"COMMENT ON CONSTRAINT c ON t_a_idx IS 'x';":        review.WrongObjectKind,
 		"ALTER MATERIALIZED VIEW t DEPENDS ON EXTENSION e;": review.WrongObjectKind,
 		"ALTER INDEX t DEPENDS ON EXTENSION e;":             review.WrongObjectKind,
+		"ALTER INDEX t_a_idx DEPENDS ON EXTENSION e;":       review.ObjectNotFound,
+		"ALTER INDEX t_a_idx NO DEPENDS ON EXTENSION e;":    review.ObjectNotFound,
 	} {
 		got := walkFindings(t, sql, target)
 		if len(got) != 1 || !slices.Equal(got[0].Codes, []review.FindingCode{wantCode}) {
 			t.Errorf("%q: findings = %+v, want one %s", sql, got, wantCode)
 		}
 	}
+
+	// The extension the controls depend on is synced.
+	schema.Extensions = append(schema.Extensions, &metadata.ExtensionMetadata{Name: "e", Schema: "public"})
 
 	// Control cases (0 false positives).
 	for _, sql := range []string{
@@ -652,6 +657,7 @@ func TestWalkThroughFunctionsTriggersPoliciesAndAlterSubcommands(t *testing.T) {
 		"ALTER SEQUENCE q INCREMENT 2 NO CYCLE;",
 		"ALTER MATERIALIZED VIEW mv DEPENDS ON EXTENSION e;",
 		"ALTER INDEX t_a_idx DEPENDS ON EXTENSION e;",
+		"ALTER INDEX t_a_idx DEPENDS ON EXTENSION plpgsql;",
 	} {
 		if got := walkFindings(t, sql, target); len(got) != 0 {
 			t.Errorf("%q: findings = %+v, want none", sql, got)
@@ -812,6 +818,9 @@ func TestWalkThroughRoutinesExcludedMiddleAndOptions(t *testing.T) {
 			t.Errorf("%q: findings = %+v, want one %s", sql, got, wantCode)
 		}
 	}
+
+	// The extension the controls depend on is synced.
+	schema.Extensions = append(schema.Extensions, &metadata.ExtensionMetadata{Name: "e", Schema: "public"})
 
 	// Control cases (0 false positives): valid routines, overloads, built-in
 	// pg_catalog / system-excluded routines, search_path shadowing for domains,
@@ -1101,5 +1110,123 @@ func TestWalkThroughSyncedColumnAndDependencyChecks(t *testing.T) {
 	}
 	if got := walkFindings(t, "ALTER FUNCTION missing_schema.f() IMMUTABLE;", tsTarget); len(got) != 1 || !slices.Equal(got[0].Codes, []review.FindingCode{review.ObjectNotFound}) {
 		t.Errorf("timescaledb missing schema: findings = %+v, want one ObjectNotFound", got)
+	}
+}
+
+// TestWalkThroughQueriesRulesOptionsAndExtensions holds the checks on view
+// and CREATE TABLE AS queries, storage parameters, rewrite rules, and
+// DEPENDS ON EXTENSION: each refusal, and the statements beside them
+// PostgreSQL accepts.
+func TestWalkThroughQueriesRulesOptionsAndExtensions(t *testing.T) {
+	schema := walkSchema()
+	pub := schema.Schemas[0]
+	pub.Tables[0].Rules = []*metadata.RuleMetadata{{Name: "r_existing"}}
+	pub.Views = []*metadata.ViewMetadata{{Name: "v", Rules: []*metadata.RuleMetadata{{Name: "v_rule"}}}}
+	pub.MaterializedViews = []*metadata.MaterializedViewMetadata{{Name: "mv"}}
+	pub.Functions = []*metadata.FunctionMetadata{{Name: "f0", Definition: "CREATE OR REPLACE FUNCTION public.f0() RETURNS integer LANGUAGE sql AS 'SELECT 1'"}}
+	target := review.Target{Schema: schema, SessionUser: "u"}
+
+	for sql, want := range map[string]string{
+		// A column no FROM item supplies (42703).
+		"CREATE VIEW v2 AS SELECT ORDER BY x;":                        "Query references a column with no `FROM` clause.",
+		"CREATE VIEW v2 AS SELECT 1 AS y ORDER BY x;":                 "Query references a column with no `FROM` clause.",
+		"CREATE VIEW v2 AS SELECT 1 AS y ORDER BY y + x;":             "Query references a column with no `FROM` clause.",
+		"CREATE VIEW v2 AS SELECT GROUP BY CUBE(x);":                  "Query references a column with no `FROM` clause.",
+		"CREATE VIEW v2 AS SELECT LIMIT x;":                           "Query references a column with no `FROM` clause.",
+		"CREATE VIEW v2 AS SELECT x UNION SELECT 1;":                  "Query references a column with no `FROM` clause.",
+		"CREATE VIEW v2 AS SELECT 1 WINDOW w AS (PARTITION BY x);":    "Query references a column with no `FROM` clause.",
+		"CREATE VIEW v2 AS SELECT x COLLATE \"C\";":                   "Query references a column with no `FROM` clause.",
+		"CREATE VIEW v2 AS SELECT x IN (SELECT 1);":                   "Query references a column with no `FROM` clause.",
+		"CREATE VIEW v2 AS SELECT GREATEST(x, 1);":                    "Query references a column with no `FROM` clause.",
+		"CREATE VIEW v2 AS SELECT XMLCONCAT(x);":                      "Query references a column with no `FROM` clause.",
+		"CREATE VIEW v2 AS SELECT FROM generate_series(1, x);":        "Query references a column with no `FROM` clause.",
+		"CREATE VIEW v2 AS VALUES (x);":                               "Query references a column with no `FROM` clause.",
+		"CREATE TABLE t2 AS SELECT 1 ORDER BY x;":                     "Query references a column with no `FROM` clause.",
+		"CREATE VIEW v2 AS SELECT INTO x;":                            "PostgreSQL doesn't accept `SELECT INTO` in a view.",
+		"CREATE VIEW v2 AS SELECT FROM t, t;":                         "Table name `t` is specified more than once in `FROM`.",
+		"CREATE VIEW v2 AS SELECT FROM t JOIN public.t AS t ON true;": "Table name `t` is specified more than once in `FROM`.",
+		"CREATE VIEW v2 AS SELECT FROM t NATURAL JOIN t;":             "Table name `t` is specified more than once in `FROM`.",
+		"CREATE VIEW v2 AS SELECT nosuch_fn();":                       "Function `nosuch_fn` doesn't exist.",
+		"CREATE VIEW v2 AS SELECT FROM nosuch_fn();":                  "Function `nosuch_fn` doesn't exist.",
+		"CREATE VIEW v2 AS SELECT $1;":                                "Query references parameter `$1`, which nothing supplies here.",
+		"CREATE VIEW v2 AS SELECT DEFAULT;":                           "PostgreSQL doesn't accept `DEFAULT` in a query.",
+		"CREATE VIEW v2 AS SELECT MERGE_ACTION();":                    "PostgreSQL doesn't accept `MERGE_ACTION()` outside `MERGE`.",
+		"CREATE VIEW v2 AS SELECT ARRAY[[], []];":                     "PostgreSQL doesn't accept an empty `ARRAY` with no cast to give its type.",
+		"CREATE VIEW v2 AS SELECT ARRAY(SELECT);":                     "PostgreSQL doesn't accept a subquery of no column as a value.",
+		"CREATE VIEW v2 AS SELECT WINDOW w AS (), w AS ();":           "PostgreSQL doesn't accept window `w` defined twice.",
+		"CREATE VIEW v2 AS SELECT WINDOW w AS (w2);":                  "Window `w2` doesn't exist.",
+		// Storage parameters (22023).
+		"ALTER TABLE t SET (nosuch = 1);":                "PostgreSQL doesn't accept storage parameter `nosuch`.",
+		"ALTER TABLE t SET (ns.fillfactor = 1);":         "PostgreSQL doesn't accept storage parameter namespace `ns`.",
+		"ALTER MATERIALIZED VIEW mv SET (nosuch = 1);":   "PostgreSQL doesn't accept storage parameter `nosuch`.",
+		"CREATE TABLE t2 (a int) WITH (nosuch = 1);":     "PostgreSQL doesn't accept storage parameter `nosuch`.",
+		"CREATE TABLE t2 WITH (nosuch = 1) AS SELECT 1;": "PostgreSQL doesn't accept storage parameter `nosuch`.",
+		// Rules and extensions (42704).
+		"ALTER TABLE t ENABLE RULE nosuch;":                          "Rule `nosuch` doesn't exist in `t`.",
+		"ALTER TABLE t DISABLE RULE v_rule;":                         "Rule `v_rule` doesn't exist in `t`.",
+		"CREATE TABLE t2 (a int);\nALTER TABLE t2 ENABLE RULE r;":    "Rule `r` doesn't exist in `t2`.",
+		"ALTER INDEX mv DEPENDS ON EXTENSION nosuch;":                "`mv` is a materialized view, not an index.",
+		"ALTER MATERIALIZED VIEW mv DEPENDS ON EXTENSION nosuch;":    "Extension `nosuch` doesn't exist.",
+		"ALTER MATERIALIZED VIEW mv NO DEPENDS ON EXTENSION nosuch;": "Extension `nosuch` doesn't exist.",
+	} {
+		got := walkFindings(t, sql, target)
+		if len(got) != 1 || got[0].Message != want {
+			t.Errorf("%q: findings = %+v, want %q", sql, got, want)
+		}
+	}
+
+	// Control cases (0 false positives).
+	for _, sql := range []string{
+		"CREATE VIEW v2 AS SELECT 1 AS x ORDER BY x;",
+		"CREATE VIEW v2 AS SELECT 1 AS x GROUP BY x;",
+		"CREATE VIEW v2 AS SELECT 1 AS x GROUP BY CUBE(x);",
+		"CREATE VIEW v2 AS SELECT count(*) ORDER BY count;",
+		"CREATE VIEW v2 AS SELECT DISTINCT ON (x) 1 AS x;",
+		"CREATE VIEW v2 AS SELECT 1 + 1 ORDER BY x;",
+		"CREATE VIEW v2 AS SELECT 1 AS x UNION SELECT 2 ORDER BY x;",
+		"CREATE VIEW v2 AS SELECT NULL::geometry(Point, 4326);",
+		"CREATE VIEW v2 AS SELECT EXISTS (SELECT a FROM t);",
+		"CREATE VIEW v2 AS SELECT a FROM t, generate_series(1, a) g;",
+		"CREATE VIEW v2 AS SELECT FROM t, t AS t2;",
+		"CREATE VIEW v2 AS SELECT FROM t, public.t;",
+		"CREATE VIEW v2 AS SELECT FROM (t JOIN t AS t2 ON true) j, t;",
+		"CREATE VIEW v2 AS SELECT FROM (SELECT FROM t, t AS t2) s, t;",
+		"CREATE VIEW v2 AS SELECT f0();",
+		"CREATE VIEW v2 AS SELECT now();",
+		"CREATE VIEW v2 AS SELECT unsynced_agg(*);",
+		"CREATE VIEW v2 AS SELECT unsynced_agg() WITHIN GROUP (ORDER BY 1);",
+		"CREATE VIEW v2 AS SELECT nosuch_fn(1);",
+		"CREATE VIEW v2 AS SELECT ARRAY[]::int[];",
+		"CREATE VIEW v2 AS SELECT CAST(ARRAY[[]] AS int[][]);",
+		"CREATE VIEW v2 AS SELECT ARRAY(SELECT 1);",
+		"CREATE VIEW v2 AS SELECT EXISTS (SELECT);",
+		"CREATE VIEW v2 AS SELECT 1 WINDOW w AS (), w2 AS (w);",
+		"ALTER TABLE t SET (fillfactor = 80, autovacuum_enabled = false, toast.autovacuum_enabled = false);",
+		"ALTER TABLE t RESET (nosuch);",
+		"CREATE TABLE t2 (a int) WITH (oids = false);",
+		"CREATE TABLE t2 (a int) USING other_am WITH (nosuch = 1);",
+		"ALTER TABLE t ENABLE RULE r_existing;",
+		"ALTER TABLE t DISABLE RULE r_existing;",
+		"ALTER MATERIALIZED VIEW mv DEPENDS ON EXTENSION plpgsql;",
+		"ALTER MATERIALIZED VIEW mv DEPENDS ON EXTENSION adminpack;",
+	} {
+		if got := walkFindings(t, sql, target); len(got) != 0 {
+			t.Errorf("%q: findings = %+v, want none", sql, got)
+		}
+	}
+
+	// An extension other than plpgsql may bring storage parameters and a
+	// table access method of its own.
+	ext := walkSchema()
+	ext.Schemas[0].MaterializedViews = []*metadata.MaterializedViewMetadata{{Name: "mv"}}
+	ext.Extensions = []*metadata.ExtensionMetadata{{Name: "timescaledb", Schema: "public"}}
+	for _, sql := range []string{
+		"ALTER MATERIALIZED VIEW mv DEPENDS ON EXTENSION timescaledb;",
+		"ALTER TABLE t SET (timescaledb.compress = true);",
+		"ALTER TABLE t SET (custom_option = 1);",
+	} {
+		if got := walkFindings(t, sql, review.Target{Schema: ext, SessionUser: "u"}); len(got) != 0 {
+			t.Errorf("%q with an extension: findings = %+v, want none", sql, got)
+		}
 	}
 }
