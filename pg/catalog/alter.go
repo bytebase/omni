@@ -990,7 +990,7 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 
 	case nodes.AT_DropColumn:
 		hadIdx, had := rel.colByName[atc.Name]
-		hadNotNull := had && rel.Columns[hadIdx].NotNull
+		hadNotNull := had && rel.Columns[hadIdx].NotNull && !c.isNotNullNoInherit(rel, rel.Columns[hadIdx].AttNum)
 		if had && !recursing {
 			if recurse {
 				// The drop reaches the children after this relation: refuse
@@ -2767,13 +2767,13 @@ func (c *Catalog) setNotNullTree(rel *Relation, colName string, propagate, recur
 			break
 		}
 	}
-	if !recursing {
-		if nnCon != nil && nnCon.ConNoInherit && propagate {
-			return &Error{
-				Code:    CodeInvalidTableDefinition,
-				Message: fmt.Sprintf("cannot change NO INHERIT status of NOT NULL constraint %q on relation %q", nnCon.Name, rel.Name),
-			}
+	if nnCon != nil && nnCon.ConNoInherit && (propagate || recursing) {
+		return &Error{
+			Code:    CodeInvalidTableDefinition,
+			Message: fmt.Sprintf("cannot change NO INHERIT status of NOT NULL constraint %q on relation %q", nnCon.Name, rel.Name),
 		}
+	}
+	if !recursing {
 		hasChildren := len(c.findChildRelations(rel.OID)) > 0
 		if !propagate && rel.RelKind == 'p' && !wasNotNull && hasChildren {
 			return &Error{

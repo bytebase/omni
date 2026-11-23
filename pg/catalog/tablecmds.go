@@ -1941,11 +1941,43 @@ func (c *Catalog) cloneIndexToPartition(schema *Schema, parent, partition *Relat
 
 	partIdxName := fmt.Sprintf("%s_%s_idx", partition.Name, idx.Name)
 	if idx.IsPrimary {
-		partIdxName = partition.Name + "_pkey"
+		partIdxName = makePGObjectName(partition.Name, "", "pkey")
 	}
-	// Ensure uniqueness.
-	for _, exists := schema.Indexes[partIdxName]; exists; _, exists = schema.Indexes[partIdxName] {
-		partIdxName = partIdxName + "1"
+	// Ensure uniqueness against schema relation/index/sequence names and
+	// partition constraint names (for PK indexes that name the PK constraint).
+	nameInUse := func(name string) bool {
+		if _, exists := schema.Indexes[name]; exists {
+			return true
+		}
+		if _, exists := schema.Relations[name]; exists {
+			return true
+		}
+		if _, exists := schema.Sequences[name]; exists {
+			return true
+		}
+		if idx.IsPrimary {
+			for _, con := range c.consByRel[partition.OID] {
+				if con.Name == name {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	if nameInUse(partIdxName) {
+		base := partIdxName
+		for suffix := 1; ; suffix++ {
+			suf := fmt.Sprintf("%d", suffix)
+			cand := base
+			for len(cand)+len(suf) > 63 {
+				cand = trimOneRune(cand)
+			}
+			cand += suf
+			if !nameInUse(cand) {
+				partIdxName = cand
+				break
+			}
+		}
 	}
 
 	// Clone IndOption.

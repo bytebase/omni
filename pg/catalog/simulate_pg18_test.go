@@ -752,6 +752,45 @@ CREATE TABLE c_ois () INHERITS (p_ois);
 			assertErrorCode(t, res[0].Error, CodeInvalidTableDefinition)
 		}
 	}
+
+	// Non-recursive DROP COLUMN on a parent whose NOT NULL is NO INHERIT does not decrement
+	// a child's NOT NULL inheritance count inherited from another parent.
+	onlyDropNoInhSetup := `
+CREATE TABLE p_odni (x int);
+CREATE TABLE q_odni (x int NOT NULL);
+CREATE TABLE c_odni () INHERITS (p_odni, q_odni);
+ALTER TABLE ONLY p_odni ALTER COLUMN x SET NOT NULL;
+`
+	if got, c := execCodeVersion(t, PG18, onlyDropNoInhSetup, "ALTER TABLE ONLY p_odni DROP COLUMN x"); got != "" {
+		t.Fatalf("PG18 ALTER TABLE ONLY DROP COLUMN with NO INHERIT NOT NULL: got %q, want ok", got)
+	} else {
+		if res, err := c.Exec("ALTER TABLE c_odni ALTER COLUMN x DROP NOT NULL", nil); err != nil {
+			t.Fatal(err)
+		} else if len(res) == 0 || res[0].Error == nil {
+			t.Fatalf("expected c_odni DROP NOT NULL to fail while q_odni still requires NOT NULL")
+		} else {
+			assertErrorCode(t, res[0].Error, CodeInvalidTableDefinition)
+		}
+	}
+
+	// Recursive SET NOT NULL on an ancestor fails with 42P16 and rolls back when a descendant
+	// holds a NO INHERIT NOT NULL constraint on the same column.
+	descNoInhSetup := `
+CREATE TABLE p_dni (x int);
+CREATE TABLE c_dni () INHERITS (p_dni);
+CREATE TABLE g_dni () INHERITS (c_dni);
+ALTER TABLE ONLY c_dni ALTER COLUMN x SET NOT NULL;
+`
+	if got, c := execCodeVersion(t, PG18, descNoInhSetup, "ALTER TABLE p_dni ALTER COLUMN x SET NOT NULL"); got != CodeInvalidTableDefinition {
+		t.Fatalf("PG18 recursive SET NOT NULL with descendant NO INHERIT conflict: got %q, want %q", got, CodeInvalidTableDefinition)
+	} else {
+		p := c.GetRelation("public", "p_dni")
+		ch := c.GetRelation("public", "c_dni")
+		g := c.GetRelation("public", "g_dni")
+		if p.Columns[0].NotNull || !ch.Columns[0].NotNull || g.Columns[0].NotNull {
+			t.Fatalf("expected rollback on descendant NO INHERIT conflict (p=%v, c=%v, g=%v)", p.Columns[0].NotNull, ch.Columns[0].NotNull, g.Columns[0].NotNull)
+		}
+	}
 }
 
 func TestPG18PartitionDetachPKNameAndJsonExpr(t *testing.T) {
@@ -767,6 +806,27 @@ CREATE TABLE a_p1 PARTITION OF a FOR VALUES FROM (0) TO (100);
 		pk := c.findPKConstraint(p1.OID)
 		if pk == nil || pk.Name != "a_p1_pkey" {
 			t.Fatalf("detached partition PK constraint = %+v, want Name=%q", pk, "a_p1_pkey")
+		}
+	}
+
+	// Attaching a partition that already has a CHECK named <part>_pkey picks <part>_pkey1
+	// for the cloned PK index and constraint instead of creating a duplicate constraint name.
+	pkCollisionSetup := `
+CREATE TABLE p_pkc (id int PRIMARY KEY) PARTITION BY RANGE (id);
+CREATE TABLE c_pkc (id int NOT NULL, CONSTRAINT c_pkc_pkey CHECK (id > 0));
+`
+	if got, c := execCodeVersion(t, PG18, pkCollisionSetup, "ALTER TABLE p_pkc ATTACH PARTITION c_pkc FOR VALUES FROM (0) TO (100)"); got != "" {
+		t.Fatalf("ATTACH PARTITION with c_pkc_pkey collision: got %q, want ok", got)
+	} else {
+		part := c.GetRelation("public", "c_pkc")
+		pk := c.findPKConstraint(part.OID)
+		if pk == nil || pk.Name != "c_pkc_pkey1" {
+			t.Fatalf("attached partition PK constraint = %+v, want Name=%q", pk, "c_pkc_pkey1")
+		}
+		if res, err := c.Exec("COMMENT ON CONSTRAINT c_pkc_pkey1 ON c_pkc IS 'pk'", nil); err != nil {
+			t.Fatal(err)
+		} else if len(res) == 0 || res[0].Error != nil {
+			t.Fatalf("COMMENT ON CONSTRAINT c_pkc_pkey1 failed: %v", res[0].Error)
 		}
 	}
 
