@@ -3,16 +3,81 @@ package catalog
 import (
 	"context"
 	"fmt"
+	"math/big"
 
 	metadatapb "github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/oracle"
 	"github.com/bytebase/omni/oracle/ast"
 )
 
+// ServerConfig models Oracle database instance and container settings that
+// gate feature-specific DDL validation in Exec.
+//
+// The zero value keeps LoadSQL and GetDatabaseMetadata permissive for schema
+// dumps from extended-collation, sharded, application-common, TDE-enabled, or
+// cross-schema databases, while StandardOracle23ServerConfig matches a default
+// Oracle 23ai Free PDB.
+type ServerConfig struct {
+	// MaxStringSize models Oracle's MAX_STRING_SIZE parameter. When set to
+	// "STANDARD", column COLLATE and table/view DEFAULT COLLATION clauses are
+	// refused with ORA-43929 before table/column/view existence checks.
+	MaxStringSize string
+
+	// DisableShardDDL models a non-sharded Oracle database (SHARD DDL disabled,
+	// toggled via ALTER SESSION ENABLE/DISABLE SHARD DDL). When true, sequence
+	// SHARD/NOSHARD clauses fail with ORA-02511.
+	DisableShardDDL bool
+
+	// NonApplicationRoot models a standard PDB outside an Oracle Application
+	// Root container. When true, SHARING = METADATA | DATA | EXTENDED DATA
+	// clauses fail with ORA-65021.
+	NonApplicationRoot bool
+
+	// KeystoreClosed models a database whose TDE keystore/wallet is not open.
+	// When true, column ENCRYPT clauses fail with ORA-28365 after
+	// table/column/foreign-key validation.
+	KeystoreClosed bool
+
+	// ValidateExternalSchemaRefs, when true, refuses foreign-key REFERENCES
+	// targeting an external schema (other than the catalog owner) with
+	// ORA-00942 instead of preserving unvalidated cross-schema foreign keys.
+	ValidateExternalSchemaRefs bool
+
+	// ValidateEditions, when true, validates named editions referenced by
+	// virtual-column EVALUATE USING / UNUSABLE clauses against the catalog's
+	// tracked editions (seeded with ORA$BASE), returning ORA-38802 when absent.
+	// When false, schema dumps referencing pre-existing database editions load
+	// permissively.
+	ValidateEditions bool
+
+	// ApplySetUnused, when true, executes ALTER TABLE ... SET UNUSED COLUMN by
+	// marking the columns unused (removing them and their dependent indexes
+	// and constraints from visible table metadata). When false, LoadSQL keeps
+	// its legacy refusal of SET UNUSED.
+	ApplySetUnused bool
+}
+
+// StandardOracle23ServerConfig returns the instance configuration of a default
+// Oracle 23ai Free pluggable database (MAX_STRING_SIZE=STANDARD, non-sharded,
+// non-application-root, TDE keystore closed, isolated schema without external
+// grants, database edition validation, and live SET UNUSED execution).
+func StandardOracle23ServerConfig() ServerConfig {
+	return ServerConfig{
+		MaxStringSize:              "STANDARD",
+		DisableShardDDL:            true,
+		NonApplicationRoot:         true,
+		KeystoreClosed:             true,
+		ValidateExternalSchemaRefs: true,
+		ValidateEditions:           true,
+		ApplySetUnused:             true,
+	}
+}
+
 // Catalog is the in-memory Oracle catalog. Oracle has one schema per user, so a
 // snapshot is normally one schema; the metadata type still carries the list.
 type Catalog struct {
 	meta                 *metadatapb.DatabaseSchemaMetadata
+	serverConfig         ServerConfig
 	namedNotNull         map[string]bool
 	primaryKeyNotNull    map[string]bool
 	syntheticConstraints map[string]bool
@@ -20,6 +85,8 @@ type Catalog struct {
 	editioningViews      map[string]bool
 	encryptedColumns     map[string]bool
 	domains              map[string]bool
+	editions             map[string]bool
+	sequenceCurrent      map[string]*big.Int
 }
 
 // New returns an empty catalog.
@@ -33,7 +100,25 @@ func New() *Catalog {
 		editioningViews:      map[string]bool{},
 		encryptedColumns:     map[string]bool{},
 		domains:              map[string]bool{},
+		editions:             map[string]bool{"ORA$BASE": true},
+		sequenceCurrent:      map[string]*big.Int{},
 	}
+}
+
+// ServerConfig returns the catalog's active Oracle server configuration.
+func (c *Catalog) ServerConfig() ServerConfig {
+	if c == nil {
+		return ServerConfig{}
+	}
+	return c.serverConfig
+}
+
+// SetServerConfig replaces the catalog's Oracle server configuration.
+func (c *Catalog) SetServerConfig(cfg ServerConfig) {
+	if c == nil {
+		return
+	}
+	c.serverConfig = cfg
 }
 
 // Metadata returns the catalog's snapshot.
@@ -57,6 +142,8 @@ func (c *Catalog) SetMetadata(meta *metadatapb.DatabaseSchemaMetadata) {
 	c.editioningViews = map[string]bool{}
 	c.encryptedColumns = map[string]bool{}
 	c.domains = map[string]bool{}
+	c.editions = map[string]bool{"ORA$BASE": true}
+	c.sequenceCurrent = map[string]*big.Int{}
 }
 
 // LoadMetadataReport lists snapshot objects that could not be installed as
@@ -81,6 +168,8 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadatapb.DatabaseSch
 	c.editioningViews = map[string]bool{}
 	c.encryptedColumns = map[string]bool{}
 	c.domains = map[string]bool{}
+	c.editions = map[string]bool{"ORA$BASE": true}
+	c.sequenceCurrent = map[string]*big.Int{}
 	if meta == nil {
 		c.meta = &metadatapb.DatabaseSchemaMetadata{}
 		return report, nil
@@ -167,6 +256,7 @@ func isDML(stmt ast.StmtNode) bool {
 
 func (c *Catalog) applyStatement(stmt ast.StmtNode, source string) error {
 	extractor := newMetadataExtractorFromMetadata(c.meta, source)
+	extractor.serverConfig = c.serverConfig
 	for key := range c.namedNotNull {
 		extractor.namedNotNull[key] = true
 	}
@@ -187,6 +277,17 @@ func (c *Catalog) applyStatement(stmt ast.StmtNode, source string) error {
 	}
 	for dom := range c.domains {
 		extractor.domains[dom] = true
+	}
+	if len(c.editions) > 0 {
+		extractor.editions = make(map[string]bool, len(c.editions))
+		for ed := range c.editions {
+			extractor.editions[ed] = true
+		}
+	}
+	for seqName, val := range c.sequenceCurrent {
+		if val != nil {
+			extractor.sequenceCurrent[seqName] = new(big.Int).Set(val)
+		}
 	}
 	extractor.extractStatement(stmt)
 	if extractor.err != nil {
@@ -220,6 +321,7 @@ func (c *Catalog) applyStatement(stmt ast.StmtNode, source string) error {
 	}
 	result.PublicSynonyms = meta.GetPublicSynonyms()
 	c.meta = result
+	c.serverConfig = extractor.serverConfig
 	c.namedNotNull = extractor.namedNotNull
 	c.primaryKeyNotNull = extractor.primaryKeyNotNull
 	c.syntheticConstraints = extractor.syntheticConstraints
@@ -227,6 +329,8 @@ func (c *Catalog) applyStatement(stmt ast.StmtNode, source string) error {
 	c.editioningViews = extractor.editioningViews
 	c.encryptedColumns = extractor.encryptedColumns
 	c.domains = extractor.domains
+	c.editions = extractor.editions
+	c.sequenceCurrent = extractor.sequenceCurrent
 	return nil
 }
 

@@ -26,10 +26,8 @@ back from Oracle's data dictionary afterwards. `TestSimulation`
 with zero Docker containers. The design is
 `docs/specs/2026-11-11-engine-compatibility-without-servers-design.md` §3.
 
-**2,348 / 2,472 rows (94.98%) agree** (up from 225 / 2,472 baseline before
-`oracle/catalog` `Exec` error-code and schema-state fidelity fixes); **124 rows
-disagree** (4 only engine takes, 29 only omni takes, 15 other schema, 76 other
-code).
+**2,472 / 2,472 rows (100.00%) agree** (up from 225 / 2,472 baseline and
+2,348 / 2,472 initial simulation suite); **0 rows disagree**.
 
 ## Commands
 
@@ -59,27 +57,20 @@ Show both schemas and the catalog diff for rows matching text:
 go test -v ./oracle/catalog/ -run '^TestSimulation$' -args -simulate-show='DROP PRIMARY KEY'
 ```
 
-## What the 124 remaining rows disagree on
+## Server configuration and catalog fidelity
 
-### Deployment and server-mode configuration (93 rows)
+`TestSimulation` configures the catalog with `StandardOracle23ServerConfig()`,
+matching the pinned Oracle 23ai Free PDB:
 
-These refusals depend on the server's deployment mode or configuration rather
-than schema structure, so omni does not hardcode them:
+- `MAX_STRING_SIZE=STANDARD` (`ORA-43929` on column `COLLATE` and table/view `DEFAULT COLLATION`).
+- Non-sharded database (`ORA-02511` on sequence `SHARD` / `NOSHARD` unless enabled via `ALTER SESSION ENABLE SHARD DDL`).
+- Non-application-root container (`ORA-65021` on `SHARING = METADATA | DATA | EXTENDED DATA`).
+- TDE keystore closed (`ORA-28365` on column `ENCRYPT` after table, column, and FK checks).
+- Isolated single-schema external-reference validation (`ORA-00942` on `REFERENCES other.t`).
+- Live `ALTER TABLE ... SET UNUSED COLUMN` execution (with `ORA-00904`, `ORA-00957`, `ORA-12983`, `ORA-12992` checks).
 
-| Rows | Oracle error | Statements | Why omni leaves them open |
-|---:|---|---|---|
-| 40 | `ORA-43929` | `ALTER TABLE ... COLLATE a`, `CREATE VIEW ... DEFAULT COLLATION a` (5 statements × 8 fixtures) | The `default` pin runs with `MAX_STRING_SIZE=STANDARD`, which refuses column/view collation clauses before checking the table or column. On `MAX_STRING_SIZE=EXTENDED` (`TestCollationMigrationRunsOnOracle`), Oracle parses and applies them. |
-| 24 | `ORA-02511` | `CREATE/ALTER SEQUENCE a SHARD / NOSHARD` (3 statements × 8 fixtures) | Shard DDL is disabled on a non-sharded database. |
-| 24 | `ORA-65021` | `CREATE SEQUENCE/SYNONYM ... SHARING = DATA \| METADATA` (3 statements × 8 fixtures) | `SHARING = DATA \| METADATA` is only valid inside an application root container. |
-| 5 | `ORA-28365` | `ALTER TABLE a ADD/MODIFY (... ENCRYPT ...)` on non-FK columns | Transparent Data Encryption (TDE) keystore/wallet is not open on the default container. (Encrypting a foreign-key column is still refused with `ORA-28335` on `objects@fk`.) |
-
-### Unmodeled catalog metadata, external schemas, and runtime state (31 rows)
-
-| Rows | Category | Statements | Why omni leaves them open |
-|---:|---|---|---|
-| 11 | `other schema` | `ALTER TABLE a ADD (a AS (1) ...)` on `one_table@table` | `oracle/catalog` intentionally keeps `ColumnMetadata.Type` empty for untyped virtual columns so `DatabaseDefinition` round-trips `AS (expr)` verbatim (pinned by `TestVirtualColumnWithoutTypeStaysUntyped`), whereas Oracle infers `NUMBER`. |
-| 7 | `only omni takes` | `CREATE TABLE a(a REFERENCES a.a)`, `ALTER TABLE a ADD/MODIFY (... REFERENCES a.a)` | `oracle/catalog` models a single schema and preserves foreign keys referencing external schemas (`REFERENCES other.p`) instead of assuming the external table is absent (`TestExtractCrossSchemaForeignKey`). |
-| 4 | `other schema` | `CREATE TABLE a(PERIOD FOR a)`, `ALTER TABLE a ADD(PERIOD FOR a ...)` | Oracle synthesizes hidden `TIMESTAMP WITH TIME ZONE` start/end columns and a check constraint for temporal validity (`PERIOD FOR`), which `oracle/catalog` does not model yet. |
-| 4 | `only engine takes` | `ALTER TABLE a SET UNUSED COLUMN a [ONLINE]` on `one_table@column` and `objects@fk` | `SET UNUSED` is intentionally refused by `oracle/catalog` (pinned by `TestSetUnusedIsRejected`); missing-table (`ORA-00942`) and missing-column (`ORA-00904`) checks still run first. |
-| 3 | `ORA-38802` | `ALTER TABLE a ADD (a AS (1) EVALUATE USING EDITION a / UNUSABLE ... EDITION a)` on `one_table@table` | Editions are not tracked in `DatabaseSchemaMetadata`. |
-| 2 | `ORA-04007` | `ALTER SEQUENCE a MINVALUE 1`, `ALTER SEQUENCE a NOMINVALUE` on `objects@sequence` | `ORA-04007` ("MINVALUE cannot exceed the current value") depends on runtime sequence `CURRVAL` state before the first `NEXTVAL`. |
+Catalog state tracking also models database editions (seeded with `ORA$BASE`,
+updated by `CREATE`/`DROP EDITION`, validated with `ORA-38802` on virtual column
+edition clauses), numeric type inference for untyped virtual columns,
+temporal-validity `PERIOD FOR` check constraints, and initial sequence current
+values (`ORA-04007` / `ORA-04009` on `ALTER SEQUENCE`).

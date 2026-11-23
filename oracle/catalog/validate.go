@@ -77,6 +77,19 @@ func (e *oracleMetadataExtractor) isForeignSchema(schema string) bool {
 	return owner != "" && schema != owner
 }
 
+// isUnresolvedExternalSchema reports whether schema explicitly names a schema
+// outside this catalog (including when the catalog has no owner yet).
+func (e *oracleMetadataExtractor) isUnresolvedExternalSchema(schema string) bool {
+	if schema == "" {
+		return false
+	}
+	owner := e.currentSchema
+	if owner == "" {
+		owner = e.owner
+	}
+	return owner == "" || schema != owner
+}
+
 // objectExistsInNamespace reports whether name is already taken in Oracle's
 // schema object namespace (tables, views, materialized views, sequences,
 // private synonyms, functions, procedures, and packages). Indexes and
@@ -612,6 +625,10 @@ func (e *oracleMetadataExtractor) validateAlterForeignKey(table *metadatapb.Tabl
 	if refTable == nil || objectName(refTable) == "" {
 		return true
 	}
+	if e.serverConfig.ValidateExternalSchemaRefs && e.isUnresolvedExternalSchema(refTable.Schema) {
+		e.setError(oraError("00942", "table or view %q.%q does not exist", refTable.Schema, objectName(refTable)))
+		return false
+	}
 	if e.isForeignSchema(refTable.Schema) {
 		// The catalog models a single schema, so it cannot assert absence of
 		// an external schema's table; preserve cross-schema foreign keys.
@@ -937,4 +954,595 @@ func (e *oracleMetadataExtractor) columnInForeignKey(table *metadatapb.TableMeta
 		}
 	}
 	return e.columnsHaveIncomingForeignKeys(table.Name, []string{colName})
+}
+
+func (e *oracleMetadataExtractor) isStandardMaxStringSize() bool {
+	return strings.EqualFold(strings.TrimSpace(e.serverConfig.MaxStringSize), "STANDARD")
+}
+
+func isApplicationSharing(sharing string) bool {
+	s := strings.TrimSpace(sharing)
+	return s != "" && !strings.EqualFold(s, "NONE")
+}
+
+func isColumnEncrypt(encrypt string) bool {
+	s := strings.TrimSpace(encrypt)
+	return s != "" && !strings.EqualFold(s, "DECRYPT")
+}
+
+func (e *oracleMetadataExtractor) columnReferencedByIncomingForeignKey(table *metadatapb.TableMetadata, colName string) bool {
+	if table == nil || colName == "" {
+		return false
+	}
+	pkCols := primaryKeyColumns(table)
+	for _, other := range e.tables {
+		for _, fk := range other.ForeignKeys {
+			if fk.ReferencedTable != table.Name {
+				continue
+			}
+			if fk.ReferencedSchema != "" && fk.ReferencedSchema != e.currentSchema {
+				continue
+			}
+			refCols := fk.ReferencedColumns
+			if len(refCols) == 0 {
+				refCols = pkCols
+			}
+			for _, rc := range refCols {
+				if strings.Trim(rc, `"`) == colName {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func alterTableHasCollationClause(actions *ast.List) bool {
+	for _, item := range listItems(actions) {
+		action, ok := item.(*ast.AlterTableCmd)
+		if !ok {
+			continue
+		}
+		switch action.Action {
+		case ast.AT_ADD_COLUMN, ast.AT_MODIFY_COLUMN:
+			if action.ColumnDef != nil && action.ColumnDef.Collation != "" {
+				return true
+			}
+			for _, citem := range listItems(action.ColumnDefs) {
+				if col, ok := citem.(*ast.ColumnDef); ok && col.Collation != "" {
+					return true
+				}
+			}
+		case ast.AT_ALTER_PROPERTY:
+			if strings.EqualFold(action.Subtype, "DEFAULT COLLATION") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// inferVirtualColumnType infers the Oracle data type of an untyped virtual
+// column numeric literal or arithmetic expression using Oracle's numeric type
+// precedence (BINARY_DOUBLE > BINARY_FLOAT > NUMBER). Non-numeric expressions
+// (such as UPPER(C)) stay untyped so DatabaseDefinition preserves AS (expr).
+func inferVirtualColumnType(expr ast.ExprNode) string {
+	for expr != nil {
+		switch v := expr.(type) {
+		case *ast.ParenExpr:
+			expr = v.Expr
+		case *ast.UnaryExpr:
+			if v.Op == "+" || v.Op == "-" {
+				expr = v.Operand
+				continue
+			}
+			return ""
+		case *ast.NumberLiteral:
+			return inferNumberLiteralType(v.Val)
+		case *ast.BinaryExpr:
+			switch v.Op {
+			case "+", "-", "*", "/":
+				lt := inferVirtualColumnType(v.Left)
+				rt := inferVirtualColumnType(v.Right)
+				if lt == "" || rt == "" {
+					return ""
+				}
+				if lt == "BINARY_DOUBLE" || rt == "BINARY_DOUBLE" {
+					return "BINARY_DOUBLE"
+				}
+				if lt == "BINARY_FLOAT" || rt == "BINARY_FLOAT" {
+					return "BINARY_FLOAT"
+				}
+				return "NUMBER"
+			}
+			return ""
+		default:
+			return ""
+		}
+	}
+	return ""
+}
+
+func inferNumberLiteralType(val string) string {
+	val = strings.TrimSpace(val)
+	if val == "" {
+		return ""
+	}
+	switch val[len(val)-1] {
+	case 'f', 'F':
+		return "BINARY_FLOAT"
+	case 'd', 'D':
+		return "BINARY_DOUBLE"
+	default:
+		return "NUMBER"
+	}
+}
+
+// virtualColumnEditionRefs extracts edition names referenced in virtual-column
+// evaluation/usability clauses (EVALUATE USING EDITION <name>, UNUSABLE BEFORE
+// EDITION <name>, UNUSABLE BEGINNING WITH EDITION <name>) at top-level depth.
+// CURRENT EDITION and NULL EDITION are not named editions and are ignored.
+func virtualColumnEditionRefs(colText string) []string {
+	if colText == "" {
+		return nil
+	}
+	type lexTok struct {
+		str    string
+		typ    int
+		quoted bool
+	}
+	lexer := oracleparser.NewLexer(colText)
+	depth := 0
+	var top []lexTok
+	for {
+		tok := lexer.NextToken()
+		if tok.Type == 0 {
+			break
+		}
+		if tok.Type == '(' {
+			depth++
+			continue
+		}
+		if tok.Type == ')' {
+			if depth > 0 {
+				depth--
+			}
+			continue
+		}
+		if depth != 0 {
+			continue
+		}
+		quoted := tok.Loc >= 0 && tok.Loc < len(colText) && colText[tok.Loc] == '"'
+		top = append(top, lexTok{str: tok.Str, typ: tok.Type, quoted: quoted})
+	}
+	isWord := func(idx int, word string) bool {
+		return idx >= 0 && idx < len(top) && !top[idx].quoted && strings.EqualFold(top[idx].str, word)
+	}
+	var editions []string
+	for i := 0; i+1 < len(top); i++ {
+		if !isWord(i, "EDITION") {
+			continue
+		}
+		// Named edition clauses always follow USING, BEFORE, or WITH:
+		//   EVALUATE USING EDITION <name>
+		//   UNUSABLE BEFORE EDITION <name>
+		//   UNUSABLE BEGINNING WITH EDITION <name>
+		// In contrast, CURRENT EDITION and NULL EDITION put CURRENT/NULL
+		// immediately before EDITION.
+		if isWord(i-1, "USING") || isWord(i-1, "BEFORE") || isWord(i-1, "WITH") {
+			name := top[i+1].str
+			if !top[i+1].quoted {
+				name = strings.ToUpper(name)
+			}
+			if name != "" {
+				editions = append(editions, name)
+			}
+			i++
+		}
+	}
+	return editions
+}
+
+func (e *oracleMetadataExtractor) validateVirtualColumnEditions(col *ast.ColumnDef) bool {
+	if !e.serverConfig.ValidateEditions || col == nil || col.Virtual == nil {
+		return true
+	}
+	for _, ed := range virtualColumnEditionRefs(e.nodeText(col)) {
+		if !e.editions[ed] {
+			e.setError(oraError("38802", "edition %q does not exist", ed))
+			return false
+		}
+	}
+	return true
+}
+
+func (e *oracleMetadataExtractor) extractAdminDDL(n *ast.AdminDDLStmt) {
+	if n == nil {
+		return
+	}
+	if n.ObjectType == ast.OBJECT_EDITION && strings.EqualFold(n.Action, "CREATE") {
+		name := objectName(n.Name)
+		if name == "" {
+			return
+		}
+		if e.editions[name] {
+			if n.IfNotExists {
+				return
+			}
+			e.setError(oraError("00955", "name %q is already used by an existing object", name))
+			return
+		}
+		e.editions[name] = true
+	}
+}
+
+func (e *oracleMetadataExtractor) extractAlterSession(n *ast.AlterSessionStmt) {
+	if n == nil {
+		return
+	}
+	if strings.EqualFold(n.Feature, "SHARD_DDL") {
+		switch strings.ToUpper(n.Action) {
+		case "ENABLE":
+			e.serverConfig.DisableShardDDL = false
+		case "DISABLE":
+			e.serverConfig.DisableShardDDL = true
+		}
+	}
+}
+
+// parsePeriodForClause parses `[... PERIOD FOR] valid_time_col [(start_col, end_col)]`.
+// When hasPrefix is true, it scans forward for the PERIOD FOR keywords first
+// (as in ALTER TABLE ... ADD (PERIOD FOR ...)); when false, it parses from the
+// start of the text (as in CreateTableStmt's DDLOption value after PERIOD FOR).
+func parsePeriodForClause(text string, hasPrefix bool) (period, startCol, endCol string, ok bool) {
+	lexer := oracleparser.NewLexer(text)
+	nextTok := func() (string, oracleparser.Token, bool) {
+		tok := lexer.NextToken()
+		if tok.Type == 0 {
+			return "", tok, false
+		}
+		quoted := tok.Loc >= 0 && tok.Loc < len(text) && text[tok.Loc] == '"'
+		name := tok.Str
+		if !quoted {
+			name = strings.ToUpper(name)
+		}
+		return name, tok, quoted
+	}
+	if hasPrefix {
+		found := false
+		prevPeriod := false
+		for {
+			word, tok, quoted := nextTok()
+			if tok.Type == 0 {
+				break
+			}
+			if prevPeriod && !quoted && word == "FOR" {
+				found = true
+				break
+			}
+			prevPeriod = !quoted && word == "PERIOD"
+		}
+		if !found {
+			return "", "", "", false
+		}
+	}
+	var tok oracleparser.Token
+	period, tok, _ = nextTok()
+	if tok.Type == 0 || period == "" {
+		return "", "", "", false
+	}
+	peek := lexer.NextToken()
+	if peek.Type == '(' {
+		s, st, _ := nextTok()
+		if st.Type == 0 || s == "" {
+			return period, "", "", true
+		}
+		comma := lexer.NextToken()
+		if comma.Type != ',' {
+			return period, "", "", true
+		}
+		en, et, _ := nextTok()
+		if et.Type == 0 || en == "" {
+			return period, "", "", true
+		}
+		return period, s, en, true
+	}
+	return period, "", "", true
+}
+
+func escapeOracleDoubleQuote(ident string) string {
+	return strings.ReplaceAll(ident, `"`, `""`)
+}
+
+// addPeriodConstraint records the temporal-validity check constraint Oracle
+// synthesizes for PERIOD FOR <period> [(<start>, <end>)].
+func (e *oracleMetadataExtractor) addPeriodConstraint(table *metadatapb.TableMetadata, period, startCol, endCol string) {
+	if table == nil || period == "" {
+		return
+	}
+	var expr string
+	if startCol == "" || endCol == "" {
+		p := escapeOracleDoubleQuote(period)
+		expr = fmt.Sprintf(`"%s_START" < "%s_END"`, p, p)
+	} else {
+		s := escapeOracleDoubleQuote(startCol)
+		en := escapeOracleDoubleQuote(endCol)
+		p := escapeOracleDoubleQuote(period)
+		expr = fmt.Sprintf(`("%s" < "%s") and ("%s" > 0)`, s, en, p)
+	}
+	checkName := e.checkConstraintName(table, "", fmt.Sprintf("CHK_%s_%s", table.Name, period))
+	e.syntheticConstraints[table.Name+"\x00"+checkName] = true
+	e.reserveCheckConstraintName(table, checkName)
+	table.CheckConstraints = append(table.CheckConstraints, &metadatapb.CheckConstraintMetadata{
+		Name:       checkName,
+		Expression: expr,
+	})
+}
+
+// periodForCheckConstraint recognizes an Oracle temporal-validity check
+// constraint whose synthetic period column(s) are not present in table.Columns
+// and returns the corresponding PERIOD FOR clause so DatabaseDefinition and
+// GenerateMigration emit valid PERIOD FOR DDL instead of a CHECK referencing
+// nonexistent hidden columns.
+func periodForCheckConstraint(table *metadatapb.TableMetadata, check *metadatapb.CheckConstraintMetadata) (periodName, clause string, ok bool) {
+	if table == nil || check == nil {
+		return "", "", false
+	}
+	expr := strings.TrimSpace(check.GetExpression())
+	if expr == "" {
+		return "", "", false
+	}
+	type tokItem struct {
+		str    string
+		typ    int
+		quoted bool
+	}
+	lexer := oracleparser.NewLexer(expr)
+	var toks []tokItem
+	for {
+		tok := lexer.NextToken()
+		if tok.Type == 0 {
+			break
+		}
+		quoted := tok.Loc >= 0 && tok.Loc < len(expr) && expr[tok.Loc] == '"'
+		toks = append(toks, tokItem{str: tok.Str, typ: tok.Type, quoted: quoted})
+	}
+	// Pattern 1 (implicit endpoints): "<P>_START" < "<P>_END"
+	if len(toks) == 3 && toks[0].quoted && toks[1].typ == '<' && toks[2].quoted {
+		startName, endName := toks[0].str, toks[2].str
+		if p1, ok1 := strings.CutSuffix(startName, "_START"); ok1 && p1 != "" && endName == p1+"_END" {
+			if tableFindColumn(table, startName) == nil && tableFindColumn(table, endName) == nil {
+				return p1, fmt.Sprintf(`PERIOD FOR "%s"`, escapeOracleDoubleQuote(p1)), true
+			}
+		}
+	}
+	// Pattern 2 (explicit endpoints): ("<S>" < "<E>") and ("<P>" > 0)
+	if len(toks) == 11 &&
+		toks[0].typ == '(' && toks[1].quoted && toks[2].typ == '<' && toks[3].quoted && toks[4].typ == ')' &&
+		!toks[5].quoted && strings.EqualFold(toks[5].str, "AND") &&
+		toks[6].typ == '(' && toks[7].quoted && toks[8].typ == '>' && !toks[9].quoted && toks[9].str == "0" && toks[10].typ == ')' {
+		startCol, endCol, period := toks[1].str, toks[3].str, toks[7].str
+		if period != "" && tableFindColumn(table, period) == nil {
+			return period, fmt.Sprintf(`PERIOD FOR "%s" ("%s", "%s")`,
+				escapeOracleDoubleQuote(period),
+				escapeOracleDoubleQuote(startCol),
+				escapeOracleDoubleQuote(endCol)), true
+		}
+	}
+	return "", "", false
+}
+
+func (e *oracleMetadataExtractor) dropPeriodConstraint(table *metadatapb.TableMetadata, periodName string) {
+	if table == nil || periodName == "" {
+		return
+	}
+	var remaining []*metadatapb.CheckConstraintMetadata
+	for _, check := range table.CheckConstraints {
+		if p, _, ok := periodForCheckConstraint(table, check); ok && p == periodName {
+			delete(e.syntheticConstraints, table.Name+"\x00"+check.Name)
+			continue
+		}
+		remaining = append(remaining, check)
+	}
+	table.CheckConstraints = remaining
+}
+
+// extractSetUnusedSpec parses SET UNUSED { COLUMN col | (col [, col ...]) }
+// [CASCADE CONSTRAINTS] [INVALIDATE] [ONLINE] from the action slice text.
+func extractSetUnusedSpec(actionText, fallbackCol string) (columns []string, cascade bool) {
+	if strings.TrimSpace(actionText) == "" {
+		if fallbackCol != "" {
+			return []string{fallbackCol}, false
+		}
+		return nil, false
+	}
+	lexer := oracleparser.NewLexer(actionText)
+	// Skip leading SET UNUSED.
+	for {
+		tok := lexer.NextToken()
+		if tok.Type == 0 {
+			break
+		}
+		quoted := tok.Loc >= 0 && tok.Loc < len(actionText) && actionText[tok.Loc] == '"'
+		if !quoted && strings.EqualFold(tok.Str, "UNUSED") {
+			break
+		}
+	}
+	tok := lexer.NextToken()
+	if tok.Type == '(' {
+		for {
+			item := lexer.NextToken()
+			if item.Type == 0 || item.Type == ')' {
+				break
+			}
+			if item.Type == ',' {
+				continue
+			}
+			name := item.Str
+			quoted := item.Loc >= 0 && item.Loc < len(actionText) && actionText[item.Loc] == '"'
+			if !quoted {
+				name = strings.ToUpper(name)
+			}
+			if name != "" {
+				columns = append(columns, name)
+			}
+		}
+	} else {
+		quoted := tok.Loc >= 0 && tok.Loc < len(actionText) && actionText[tok.Loc] == '"'
+		if !quoted && strings.EqualFold(tok.Str, "COLUMN") {
+			tok = lexer.NextToken()
+			quoted = tok.Loc >= 0 && tok.Loc < len(actionText) && actionText[tok.Loc] == '"'
+		}
+		if tok.Type != 0 && tok.Str != "" {
+			name := tok.Str
+			if !quoted {
+				name = strings.ToUpper(name)
+			}
+			columns = append(columns, name)
+		}
+	}
+	for {
+		t := lexer.NextToken()
+		if t.Type == 0 {
+			break
+		}
+		quoted := t.Loc >= 0 && t.Loc < len(actionText) && actionText[t.Loc] == '"'
+		if !quoted && strings.EqualFold(t.Str, "CASCADE") {
+			cascade = true
+		}
+	}
+	if len(columns) == 0 && fallbackCol != "" {
+		columns = []string{fallbackCol}
+	}
+	return columns, cascade
+}
+
+// setUnusedMultiColumnConstraintColumn returns the first column in dropSet
+// that is referenced together with at least one remaining column of table in a
+// multi-column CHECK, PRIMARY KEY, UNIQUE, or FOREIGN KEY constraint.
+func setUnusedMultiColumnConstraintColumn(table *metadatapb.TableMetadata, dropSet map[string]bool) string {
+	if table == nil || len(dropSet) == 0 {
+		return ""
+	}
+	checkColList := func(cols []string) string {
+		droppedCol := ""
+		hasRemaining := false
+		for _, raw := range cols {
+			col := strings.Trim(raw, `"`)
+			if dropSet[col] {
+				if droppedCol == "" {
+					droppedCol = col
+				}
+			} else if col != "" {
+				hasRemaining = true
+			}
+		}
+		if droppedCol != "" && hasRemaining {
+			return droppedCol
+		}
+		return ""
+	}
+	for _, idx := range table.Indexes {
+		if !idx.IsConstraint {
+			continue
+		}
+		if len(idx.Constraints) > 0 {
+			for _, c := range idx.Constraints {
+				cols := c.Columns
+				if len(cols) == 0 {
+					cols = idx.Expressions
+				}
+				if hit := checkColList(cols); hit != "" {
+					return hit
+				}
+			}
+		} else if hit := checkColList(idx.Expressions); hit != "" {
+			return hit
+		}
+	}
+	for _, fk := range table.ForeignKeys {
+		if hit := checkColList(fk.Columns); hit != "" {
+			return hit
+		}
+	}
+	for _, check := range table.CheckConstraints {
+		droppedCol := ""
+		hasRemaining := false
+		for _, col := range table.Columns {
+			if !expressionReferencesColumn(check.Expression, col.Name) {
+				continue
+			}
+			if dropSet[col.Name] {
+				if droppedCol == "" {
+					droppedCol = col.Name
+				}
+			} else {
+				hasRemaining = true
+			}
+		}
+		if droppedCol != "" && hasRemaining {
+			return droppedCol
+		}
+	}
+	return ""
+}
+
+// setUnusedVirtualDependencyColumn returns the first column in dropSet that is
+// referenced by a surviving virtual column's generation expression.
+func setUnusedVirtualDependencyColumn(table *metadatapb.TableMetadata, dropSet map[string]bool) string {
+	if table == nil || len(dropSet) == 0 {
+		return ""
+	}
+	for _, col := range table.Columns {
+		if dropSet[col.Name] || col.GetGeneration() == nil {
+			continue
+		}
+		expr := col.GetGeneration().GetExpression()
+		for _, candidate := range table.Columns {
+			if dropSet[candidate.Name] && expressionReferencesColumn(expr, candidate.Name) {
+				return candidate.Name
+			}
+		}
+	}
+	return ""
+}
+
+// setUnusedLeavesOnlyVirtualColumns reports whether removing dropSet leaves
+// the table with at least one column, all of which are virtual.
+func setUnusedLeavesOnlyVirtualColumns(table *metadatapb.TableMetadata, dropSet map[string]bool) bool {
+	if table == nil || len(dropSet) == 0 {
+		return false
+	}
+	surviving := 0
+	for _, col := range table.Columns {
+		if dropSet[col.Name] {
+			continue
+		}
+		surviving++
+		if col.GetGeneration() == nil {
+			return false
+		}
+	}
+	return surviving > 0
+}
+
+func (e *oracleMetadataExtractor) sequenceInitialCurrent(inc, startVal, minVal, maxVal *big.Int, hasStart, hasMin, hasMax bool) *big.Int {
+	var start *big.Int
+	switch {
+	case hasStart && startVal != nil:
+		start = new(big.Int).Set(startVal)
+	case inc.Sign() > 0:
+		if hasMin && minVal != nil {
+			start = new(big.Int).Set(minVal)
+		} else {
+			start = big.NewInt(1)
+		}
+	default:
+		if hasMax && maxVal != nil {
+			start = new(big.Int).Set(maxVal)
+		} else {
+			start = big.NewInt(-1)
+		}
+	}
+	return new(big.Int).Sub(start, inc)
 }

@@ -594,7 +594,7 @@ func compareTable(schemaName, tableName string, oldTable, newTable *metadatapb.T
 
 	tableDiff.IndexChanges = compareIndexes(oldTable.GetIndexes(), newTable.GetIndexes())
 	tableDiff.ForeignKeyChanges = compareForeignKeys(oldTable.GetForeignKeys(), newTable.GetForeignKeys())
-	tableDiff.CheckConstraintChanges = compareCheckConstraints(oldTable.GetCheckConstraints(), newTable.GetCheckConstraints())
+	tableDiff.CheckConstraintChanges = compareCheckConstraints(oldTable, newTable)
 	tableDiff.TriggerChanges = compareTriggers(oldTable.GetTriggers(), newTable.GetTriggers())
 	if len(tableDiff.IndexChanges) > 0 || len(tableDiff.ForeignKeyChanges) > 0 || len(tableDiff.CheckConstraintChanges) > 0 || len(tableDiff.TriggerChanges) > 0 || oldTable.GetComment() != newTable.GetComment() {
 		changed = true
@@ -768,28 +768,46 @@ func foreignKeyEqual(a, b *metadatapb.ForeignKeyMetadata) bool {
 		slices.Equal(unquoteIdentifiers(a.GetReferencedColumns()), unquoteIdentifiers(b.GetReferencedColumns()))
 }
 
-func compareCheckConstraints(oldChecks, newChecks []*metadatapb.CheckConstraintMetadata) []*CheckConstraintDiff {
-	oldMap := make(map[string]*metadatapb.CheckConstraintMetadata, len(oldChecks))
-	for _, check := range oldChecks {
-		oldMap[check.GetName()] = check
+func compareCheckConstraints(oldTable, newTable *metadatapb.TableMetadata) []*CheckConstraintDiff {
+	type checkEntry struct {
+		check        *metadatapb.CheckConstraintMetadata
+		periodClause string
 	}
-	newMap := make(map[string]*metadatapb.CheckConstraintMetadata, len(newChecks))
-	for _, check := range newChecks {
-		newMap[check.GetName()] = check
+	buildMap := func(table *metadatapb.TableMetadata) map[string]checkEntry {
+		checks := table.GetCheckConstraints()
+		m := make(map[string]checkEntry, len(checks))
+		for _, check := range checks {
+			if period, clause, ok := periodForCheckConstraint(table, check); ok {
+				m["period:\x00"+period] = checkEntry{check: check, periodClause: clause}
+			} else {
+				m["check:\x00"+check.GetName()] = checkEntry{check: check}
+			}
+		}
+		return m
 	}
+	oldMap := buildMap(oldTable)
+	newMap := buildMap(newTable)
 	var changes []*CheckConstraintDiff
-	for name, oldCheck := range oldMap {
-		if _, ok := newMap[name]; !ok {
-			changes = append(changes, &CheckConstraintDiff{Action: DiffActionDrop, OldCheckConstraint: oldCheck})
+	for key, oldEntry := range oldMap {
+		if _, ok := newMap[key]; !ok {
+			changes = append(changes, &CheckConstraintDiff{Action: DiffActionDrop, OldCheckConstraint: oldEntry.check})
 		}
 	}
-	for name, newCheck := range newMap {
-		oldCheck, ok := oldMap[name]
+	for key, newEntry := range newMap {
+		oldEntry, ok := oldMap[key]
 		if !ok {
-			changes = append(changes, &CheckConstraintDiff{Action: DiffActionCreate, NewCheckConstraint: newCheck})
-		} else if normalizeExpression(oldCheck.GetExpression()) != normalizeExpression(newCheck.GetExpression()) {
-			changes = append(changes, &CheckConstraintDiff{Action: DiffActionDrop, OldCheckConstraint: oldCheck})
-			changes = append(changes, &CheckConstraintDiff{Action: DiffActionCreate, NewCheckConstraint: newCheck})
+			changes = append(changes, &CheckConstraintDiff{Action: DiffActionCreate, NewCheckConstraint: newEntry.check})
+			continue
+		}
+		same := false
+		if oldEntry.periodClause != "" || newEntry.periodClause != "" {
+			same = oldEntry.periodClause == newEntry.periodClause
+		} else {
+			same = normalizeExpression(oldEntry.check.GetExpression()) == normalizeExpression(newEntry.check.GetExpression())
+		}
+		if !same {
+			changes = append(changes, &CheckConstraintDiff{Action: DiffActionDrop, OldCheckConstraint: oldEntry.check})
+			changes = append(changes, &CheckConstraintDiff{Action: DiffActionCreate, NewCheckConstraint: newEntry.check})
 		}
 	}
 	return changes

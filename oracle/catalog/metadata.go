@@ -82,6 +82,8 @@ func newMetadataExtractor(schemaText string) *oracleMetadataExtractor {
 		editioningViews:      make(map[string]bool),
 		encryptedColumns:     make(map[string]bool),
 		domains:              make(map[string]bool),
+		editions:             map[string]bool{"ORA$BASE": true},
+		sequenceCurrent:      make(map[string]*big.Int),
 		tables:               make(map[string]*metadatapb.TableMetadata),
 		views:                make(map[string]*metadatapb.ViewMetadata),
 		materializedViews:    make(map[string]*metadatapb.MaterializedViewMetadata),
@@ -100,6 +102,7 @@ func newMetadataExtractor(schemaText string) *oracleMetadataExtractor {
 
 type oracleMetadataExtractor struct {
 	err                         error
+	serverConfig                ServerConfig
 	allowUsingExistingIndex     bool
 	omitMaterializedViewClauses bool
 	namedNotNull                map[string]bool
@@ -109,6 +112,8 @@ type oracleMetadataExtractor struct {
 	editioningViews             map[string]bool
 	encryptedColumns            map[string]bool
 	domains                     map[string]bool
+	editions                    map[string]bool
+	sequenceCurrent             map[string]*big.Int
 	explicitSchema              bool
 	owner                       string
 	currentDatabase             string
@@ -328,6 +333,10 @@ func (e *oracleMetadataExtractor) extractStatement(stmt ast.StmtNode) {
 		e.extractAlterIndex(n)
 	case *ast.DropStmt:
 		e.extractDrop(n)
+	case *ast.AdminDDLStmt:
+		e.extractAdminDDL(n)
+	case *ast.AlterSessionStmt:
+		e.extractAlterSession(n)
 	default:
 	}
 }
@@ -349,6 +358,22 @@ func (e *oracleMetadataExtractor) extractCreateTable(n *ast.CreateTableStmt) {
 	tableName := objectName(n.Name)
 	if tableName == "" {
 		return
+	}
+	if e.serverConfig.NonApplicationRoot && isApplicationSharing(n.Sharing) {
+		e.setError(oraError("65021", "illegal use of SHARING clause"))
+		return
+	}
+	if e.isStandardMaxStringSize() {
+		if n.Collation != "" {
+			e.setError(oraError("43929", "Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set"))
+			return
+		}
+		for _, item := range listItems(n.Columns) {
+			if col, ok := item.(*ast.ColumnDef); ok && col.Collation != "" {
+				e.setError(oraError("43929", "Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set"))
+				return
+			}
+		}
 	}
 	if !e.useSchema(n.Name.Schema) {
 		return
@@ -430,6 +455,21 @@ func (e *oracleMetadataExtractor) extractCreateTable(n *ast.CreateTableStmt) {
 		e.setError(oraError("00955", "name %q is already used by an existing object", tableName))
 		return
 	}
+	for _, column := range colDefs {
+		if !e.validateVirtualColumnEditions(column) {
+			return
+		}
+		if isColumnEncrypt(column.Encrypt) {
+			if colHasInlineReferences(column) {
+				e.setError(oraError("28335", "referenced or referencing foreign key constraint column %q cannot be encrypted", column.Name))
+				return
+			}
+			if e.serverConfig.KeystoreClosed {
+				e.setError(oraError("28365", "wallet is not open"))
+				return
+			}
+		}
+	}
 
 	table := e.getOrCreateTable(tableName)
 	for _, item := range listItems(n.Columns) {
@@ -446,25 +486,46 @@ func (e *oracleMetadataExtractor) extractCreateTable(n *ast.CreateTableStmt) {
 		}
 		e.extractTableConstraint(constraint, table)
 	}
-	// Validate untyped inline REFERENCES constraints (whose column type must be
-	// inferred from the referenced table).
-	for _, item := range listItems(n.Columns) {
-		column, ok := item.(*ast.ColumnDef)
-		if !ok || column.TypeName != nil || column.Virtual != nil || column.Domain != nil {
+	for _, item := range listItems(n.Options) {
+		opt, ok := item.(*ast.DDLOption)
+		if !ok || !strings.EqualFold(opt.Key, "PERIOD FOR") {
 			continue
 		}
+		if period, startCol, endCol, ok := parsePeriodForClause(opt.Value, false); ok {
+			e.addPeriodConstraint(table, period, startCol, endCol)
+		}
+	}
+	// Validate inline REFERENCES constraints: untyped columns must resolve
+	// against the target table, and external schema references are refused
+	// when ValidateExternalSchemaRefs is enabled.
+	for _, item := range listItems(n.Columns) {
+		column, ok := item.(*ast.ColumnDef)
+		if !ok || column.Virtual != nil || column.Domain != nil {
+			continue
+		}
+		untyped := column.TypeName == nil
 		for _, citem := range listItems(column.Constraints) {
 			cc, ok := citem.(*ast.ColumnConstraint)
 			if !ok || cc.Type != ast.CONSTRAINT_FOREIGN || cc.RefTable == nil {
 				continue
 			}
+			if e.serverConfig.ValidateExternalSchemaRefs && e.isUnresolvedExternalSchema(cc.RefTable.Schema) {
+				e.setError(oraError("00942", "table or view %q.%q does not exist", cc.RefTable.Schema, objectName(cc.RefTable)))
+				e.dropTableProvenance(tableName)
+				delete(e.tables, tableName)
+				return
+			}
 			if e.isForeignSchema(cc.RefTable.Schema) {
+				continue
+			}
+			if !untyped {
 				continue
 			}
 			refName := objectName(cc.RefTable)
 			target := e.tables[refName]
 			if target == nil {
 				e.setError(oraError("00942", "table or view %q does not exist", refName))
+				e.dropTableProvenance(tableName)
 				delete(e.tables, tableName)
 				return
 			}
@@ -472,11 +533,27 @@ func (e *oracleMetadataExtractor) extractCreateTable(n *ast.CreateTableStmt) {
 			if len(refCols) == 0 {
 				if !hasPrimaryIndex(target) {
 					e.setError(oraError("02268", "referenced table %q does not have a primary key", refName))
+					e.dropTableProvenance(tableName)
 					delete(e.tables, tableName)
 					return
 				}
 			} else if !tableHasUniqueKey(target, refCols) {
 				e.setError(oraError("02270", "no matching unique or primary key for this column-list on %q", refName))
+				e.dropTableProvenance(tableName)
+				delete(e.tables, tableName)
+				return
+			}
+		}
+	}
+	if e.serverConfig.ValidateExternalSchemaRefs {
+		for _, item := range listItems(n.Constraints) {
+			tc, ok := item.(*ast.TableConstraint)
+			if !ok || tc.Type != ast.CONSTRAINT_FOREIGN || tc.RefTable == nil {
+				continue
+			}
+			if e.isUnresolvedExternalSchema(tc.RefTable.Schema) {
+				e.setError(oraError("00942", "table or view %q.%q does not exist", tc.RefTable.Schema, objectName(tc.RefTable)))
+				e.dropTableProvenance(tableName)
 				delete(e.tables, tableName)
 				return
 			}
@@ -509,6 +586,8 @@ func (e *oracleMetadataExtractor) extractColumn(n *ast.ColumnDef, table *metadat
 		column.Type = normalizeDataTypeText(e.nodeText(n.TypeName))
 	} else if n.Domain != nil {
 		column.Type = objectName(n.Domain)
+	} else if n.Virtual != nil {
+		column.Type = inferVirtualColumnType(n.Virtual)
 	}
 	if n.Default != nil {
 		column.Default = e.nodeText(n.Default)
@@ -852,6 +931,10 @@ func (e *oracleMetadataExtractor) renameSequence(oldName, newName string) bool {
 		return false
 	}
 	delete(e.sequences, oldName)
+	if curr, ok := e.sequenceCurrent[oldName]; ok {
+		delete(e.sequenceCurrent, oldName)
+		e.sequenceCurrent[newName] = curr
+	}
 	sequence.Name = newName
 	e.sequences[newName] = sequence
 	return true
@@ -896,6 +979,10 @@ func (e *oracleMetadataExtractor) renameMaterializedView(oldName, newName string
 func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 	tableName := objectName(n.Name)
 	if tableName == "" {
+		return
+	}
+	if e.isStandardMaxStringSize() && alterTableHasCollationClause(n.Actions) {
+		e.setError(oraError("43929", "Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set"))
 		return
 	}
 	// Check intra-statement duplicate column lists before table lookup, matching Oracle.
@@ -1008,6 +1095,19 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 					e.setError(oraError("01430", "column %q being added already exists in table %q", col.Name, table.Name))
 					return
 				}
+				if !e.validateVirtualColumnEditions(col) {
+					return
+				}
+				if isColumnEncrypt(col.Encrypt) {
+					if colHasInlineReferences(col) {
+						e.setError(oraError("28335", "referenced or referencing foreign key constraint column %q cannot be encrypted", col.Name))
+						return
+					}
+					if e.serverConfig.KeystoreClosed {
+						e.setError(oraError("28365", "wallet is not open"))
+						return
+					}
+				}
 				for _, citem := range listItems(col.Constraints) {
 					cc, ok := citem.(*ast.ColumnConstraint)
 					if !ok {
@@ -1038,6 +1138,15 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 			if action.ColumnName != "" && tableFindColumn(table, action.ColumnName) != nil {
 				e.setError(oraError("01430", "column %q being added already exists in table %q", action.ColumnName, table.Name))
 				return
+			}
+			if period, startCol, endCol, ok := parsePeriodForClause(e.nodeText(action), true); ok {
+				e.addPeriodConstraint(table, period, startCol, endCol)
+			} else if action.ColumnName != "" {
+				e.addPeriodConstraint(table, action.ColumnName, "", "")
+			}
+		case ast.AT_DROP_PERIOD:
+			if action.ColumnName != "" {
+				e.dropPeriodConstraint(table, action.ColumnName)
 			}
 		case ast.AT_MODIFY_COLUMN:
 			if action.ColumnDef != nil {
@@ -1177,20 +1286,55 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 			}
 			return
 		case ast.AT_SET_UNUSED:
-			columns := []string{action.ColumnName}
-			if action.Options != nil && len(action.Options.Items) > 0 {
-				columns = stringList(action.Options)
-			}
+			columns, cascade := extractSetUnusedSpec(e.nodeText(action), action.ColumnName)
+			seen := make(map[string]bool, len(columns))
 			for _, column := range columns {
-				if column != "" && tableFindColumn(table, column) == nil {
+				if column == "" {
+					continue
+				}
+				if seen[column] {
+					e.setError(oraError("00957", "duplicate column name %q", column))
+					return
+				}
+				seen[column] = true
+				if tableFindColumn(table, column) == nil {
 					e.setError(oraError("00904", "%q: invalid identifier", column))
 					return
 				}
 			}
-			if e.err == nil {
-				e.err = fmt.Errorf("SET UNUSED is not supported by oracle/catalog")
+			if !e.serverConfig.ApplySetUnused {
+				if e.err == nil {
+					e.err = fmt.Errorf("SET UNUSED is not supported by oracle/catalog")
+				}
+				return
 			}
-			return
+			if len(seen) > 0 && len(seen) >= len(table.Columns) {
+				e.setError(oraError("12983", "cannot drop all columns in a table"))
+				return
+			}
+			if setUnusedLeavesOnlyVirtualColumns(table, seen) {
+				e.setError(oraError("54037", "table must have at least 1 column that is not virtual"))
+				return
+			}
+			if col := setUnusedVirtualDependencyColumn(table, seen); col != "" {
+				e.setError(oraError("54031", "column %q to be dropped is used in a virtual column expression", col))
+				return
+			}
+			if !cascade {
+				if col := setUnusedMultiColumnConstraintColumn(table, seen); col != "" {
+					e.setError(oraError("12991", "column %q is referenced in a multi-column constraint", col))
+					return
+				}
+				for _, column := range columns {
+					if e.columnReferencedByIncomingForeignKey(table, column) {
+						e.setError(oraError("12992", "cannot drop parent key column %q", column))
+						return
+					}
+				}
+			}
+			for _, column := range columns {
+				e.dropColumn(table, column)
+			}
 		case ast.AT_RENAME_CONSTRAINT:
 			if !tableHasConstraint(table, action.ColumnName) {
 				e.setError(oraError("23292", "constraint %q does not exist", action.ColumnName))
@@ -1234,6 +1378,9 @@ func (e *oracleMetadataExtractor) modifyColumn(def *ast.ColumnDef, table *metada
 		e.setError(oraError("54026", "real column %q cannot have an expression", def.Name))
 		return nil
 	}
+	if !e.validateVirtualColumnEditions(def) {
+		return nil
+	}
 	if (def.Identity != nil || def.DropIdentity) && !column.IsIdentity {
 		e.setError(oraError("30673", "column %q to be modified is not an identity column", def.Name))
 		return nil
@@ -1244,9 +1391,15 @@ func (e *oracleMetadataExtractor) modifyColumn(def *ast.ColumnDef, table *metada
 			return nil
 		}
 	}
-	if def.Encrypt != "" && !strings.EqualFold(def.Encrypt, "DECRYPT") && e.columnInForeignKey(table, def.Name) {
-		e.setError(oraError("28335", "referenced or referencing foreign key constraint column %q cannot be encrypted", def.Name))
-		return nil
+	if isColumnEncrypt(def.Encrypt) {
+		if e.columnInForeignKey(table, def.Name) || colHasInlineReferences(def) {
+			e.setError(oraError("28335", "referenced or referencing foreign key constraint column %q cannot be encrypted", def.Name))
+			return nil
+		}
+		if e.serverConfig.KeystoreClosed {
+			e.setError(oraError("28365", "wallet is not open"))
+			return nil
+		}
 	}
 	if def.Null && column.Nullable {
 		e.setError(oraError("01451", "column %q to be modified to NULL cannot be modified to NULL", def.Name))
@@ -1281,6 +1434,8 @@ func (e *oracleMetadataExtractor) modifyColumn(def *ast.ColumnDef, table *metada
 		column.Type = normalizeDataTypeText(e.nodeText(def.TypeName))
 	} else if def.Domain != nil {
 		column.Type = objectName(def.Domain)
+	} else if def.Virtual != nil {
+		column.Type = inferVirtualColumnType(def.Virtual)
 	}
 	if def.Default != nil {
 		column.Default = e.nodeText(def.Default)
@@ -2129,6 +2284,7 @@ func (e *oracleMetadataExtractor) extractDrop(n *ast.DropStmt) {
 				return
 			}
 			delete(e.sequences, name)
+			delete(e.sequenceCurrent, name)
 		case ast.OBJECT_FUNCTION:
 			if !e.useSchema(nameNode.Schema) {
 				continue
@@ -2213,6 +2369,15 @@ func (e *oracleMetadataExtractor) extractDrop(n *ast.DropStmt) {
 				return
 			}
 			delete(e.domains, name)
+		case ast.OBJECT_EDITION:
+			if !e.editions[name] {
+				if n.IfExists {
+					continue
+				}
+				e.setError(oraError("38802", "edition %q does not exist", name))
+				return
+			}
+			delete(e.editions, name)
 		default:
 			if !e.useSchema(nameNode.Schema) {
 				continue
@@ -2680,6 +2845,14 @@ func (e *oracleMetadataExtractor) extractCreateView(n *ast.CreateViewStmt) {
 	if viewName == "" {
 		return
 	}
+	if e.serverConfig.NonApplicationRoot && isApplicationSharing(n.Sharing) {
+		e.setError(oraError("65021", "illegal use of SHARING clause"))
+		return
+	}
+	if e.isStandardMaxStringSize() && n.DefaultCollation != "" {
+		e.setError(oraError("43929", "Collation cannot be specified if parameter MAX_STRING_SIZE=STANDARD is set"))
+		return
+	}
 	// Check duplicate explicit column names before schema/existence checks, matching Oracle.
 	if !n.Materialized && n.Columns != nil && n.Columns.Len() > 0 {
 		seen := map[string]bool{}
@@ -2867,6 +3040,14 @@ func (e *oracleMetadataExtractor) extractCreateSequence(n *ast.CreateSequenceStm
 	if sequenceName == "" {
 		return
 	}
+	if e.serverConfig.NonApplicationRoot && isApplicationSharing(n.Sharing) {
+		e.setError(oraError("65021", "illegal use of SHARING clause"))
+		return
+	}
+	if e.serverConfig.DisableShardDDL && (n.Shard || n.ShardExtend || n.ShardNoExtend || n.NoShard) {
+		e.setError(oraError("02511", "Shard DDL is not enabled"))
+		return
+	}
 	if !e.checkSchema(n.Name.Schema, "01031") {
 		return
 	}
@@ -2896,10 +3077,12 @@ func (e *oracleMetadataExtractor) extractCreateSequence(n *ast.CreateSequenceStm
 	if strings.TrimSpace(minText) == "" && inc.Sign() > 0 {
 		minVal, hasMin = big.NewInt(1), true
 	}
-	if maxVal, hasMax := parseSignedBigInt(e.nodeText(n.MaxValue)); hasMax && hasMin && minVal.Cmp(maxVal) >= 0 {
+	maxVal, hasMax := parseSignedBigInt(e.nodeText(n.MaxValue))
+	if hasMax && hasMin && minVal.Cmp(maxVal) >= 0 {
 		e.setError(oraError("04004", "MINVALUE must be less than MAXVALUE"))
 		return
 	}
+	startVal, hasStart := parseSignedBigInt(e.nodeText(n.StartWith))
 
 	sequence := &metadatapb.SequenceMetadata{Name: sequenceName}
 	if start := e.nodeText(n.StartWith); start != "" {
@@ -2916,11 +3099,16 @@ func (e *oracleMetadataExtractor) extractCreateSequence(n *ast.CreateSequenceStm
 	}
 	sequence.Cycle = n.Cycle
 	e.sequences[sequenceName] = sequence
+	e.sequenceCurrent[sequenceName] = e.sequenceInitialCurrent(inc, startVal, minVal, maxVal, hasStart, hasMin, hasMax)
 }
 
 func (e *oracleMetadataExtractor) extractAlterSequence(n *ast.AlterSequenceStmt) {
 	name := objectName(n.Name)
 	if name == "" {
+		return
+	}
+	if e.serverConfig.DisableShardDDL && (n.Shard || n.ShardExtend || n.ShardNoExtend || n.NoShard) {
+		e.setError(oraError("02511", "Shard DDL is not enabled"))
 		return
 	}
 	if !e.checkSchema(n.Name.Schema, "02289") {
@@ -2963,9 +3151,23 @@ func (e *oracleMetadataExtractor) extractAlterSequence(n *ast.AlterSequenceStmt)
 	} else if n.NoMaxValue {
 		maxText = ""
 	}
-	if maxVal, hasMax := parseSignedBigInt(maxText); hasMax && hasMin && minVal.Cmp(maxVal) >= 0 {
+	maxVal, hasMax := parseSignedBigInt(maxText)
+	if strings.TrimSpace(maxText) == "" && inc.Sign() < 0 {
+		maxVal, hasMax = big.NewInt(-1), true
+	}
+	if hasMax && hasMin && minVal.Cmp(maxVal) >= 0 {
 		e.setError(oraError("04004", "MINVALUE must be less than MAXVALUE"))
 		return
+	}
+	if currVal, hasCurr := e.sequenceCurrent[name]; hasCurr && currVal != nil && !n.Restart && n.RestartWith == nil {
+		if (n.MinValue != nil || n.NoMinValue) && hasMin && minVal.Cmp(currVal) > 0 {
+			e.setError(oraError("04007", "MINVALUE cannot be made to exceed the current value"))
+			return
+		}
+		if (n.MaxValue != nil || n.NoMaxValue) && hasMax && maxVal.Cmp(currVal) < 0 {
+			e.setError(oraError("04009", "MAXVALUE cannot be made to be less than the current value"))
+			return
+		}
 	}
 
 	if n.IncrementBy != nil {
@@ -2994,6 +3196,11 @@ func (e *oracleMetadataExtractor) extractAlterSequence(n *ast.AlterSequenceStmt)
 	}
 	if n.RestartWith != nil {
 		sequence.Start = e.nodeText(n.RestartWith)
+		if restartVal, ok := parseSignedBigInt(sequence.Start); ok {
+			e.sequenceCurrent[name] = new(big.Int).Sub(restartVal, inc)
+		}
+	} else if n.Restart {
+		e.sequenceCurrent[name] = e.sequenceInitialCurrent(inc, nil, minVal, maxVal, false, hasMin, hasMax)
 	}
 }
 
@@ -3621,6 +3828,10 @@ func identityTextHasOnNull(text string) bool {
 func (e *oracleMetadataExtractor) extractCreateSynonym(n *ast.CreateSynonymStmt) {
 	name := objectName(n.Name)
 	if name == "" || n.Target == nil || objectName(n.Target) == "" {
+		return
+	}
+	if e.serverConfig.NonApplicationRoot && isApplicationSharing(n.Sharing) {
+		e.setError(oraError("65021", "illegal use of SHARING clause"))
 		return
 	}
 	if !n.Public && !e.checkSchema(n.Name.Schema, "01031") {
