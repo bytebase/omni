@@ -445,7 +445,7 @@ func compareColumns(oldTable, newTable *metadata.TableMetadata, collation string
 				Action:           DiffAlter,
 				OldColumn:        oldColumn,
 				NewColumn:        newColumn,
-				collationChanged: collationChanged(oldColumn, newColumn, collation),
+				collationChanged: collationChanged(oldColumn, newColumn, columnCollationDefault(oldColumn, newColumn, collation)),
 			})
 		}
 	}
@@ -482,7 +482,18 @@ func collationChanged(a, b *metadata.ColumnMetadata, collation string) bool {
 	return a.Collation != b.Collation
 }
 
+// columnCollationDefault is the collation an omitted COLLATE resolves to for
+// the pair: the database's default, or none for a computed column, which
+// takes its expression's collation.
+func columnCollationDefault(a, b *metadata.ColumnMetadata, collation string) string {
+	if isComputedColumnType(a.Type) || isComputedColumnType(b.Type) {
+		return ""
+	}
+	return collation
+}
+
 func columnsEqual(a, b *metadata.ColumnMetadata, collation string) bool {
+	collation = columnCollationDefault(a, b, collation)
 	if isComputedColumnType(a.Type) || isComputedColumnType(b.Type) {
 		if !expressionsEqual(a.Type, b.Type) {
 			return false

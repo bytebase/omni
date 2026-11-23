@@ -2201,3 +2201,22 @@ func TestOmittedCollationResolvesToDatabaseDefault(t *testing.T) {
 		})
 	}
 }
+
+// TestComputedColumnCollationIsNotTheDatabaseDefault holds that a computed
+// column, which takes its expression's collation, is not compared against the
+// database's default when one side omits it.
+func TestComputedColumnCollationIsNotTheDatabaseDefault(t *testing.T) {
+	ddl := `CREATE TABLE [dbo].[t] ([a] varchar(20) COLLATE Latin1_General_CS_AS NULL, [c] AS ([a]));`
+	synced, err := LoadSQL(ddl)
+	require.NoError(t, err)
+	meta := synced.Metadata()
+	meta.Collation = "SQL_Latin1_General_CP1_CI_AS"
+	// SQL Server stores the expression's collation on the computed column.
+	meta.Schemas[0].Tables[0].Columns[1].Collation = "Latin1_General_CS_AS"
+	from := New()
+	require.NoError(t, from.LoadMetadata(context.Background(), meta))
+	to, err := LoadSQL(ddl)
+	require.NoError(t, err)
+	diff := Diff(from, to)
+	require.True(t, diff.IsEmpty(), GenerateMigration(from, to, diff).SQL())
+}
