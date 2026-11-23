@@ -23,8 +23,11 @@ const (
 	ErrObjectNotFound             = 1088
 	ErrDropIndexFilestreamOn      = 1716
 	ErrAddDefaultColumnNotFound   = 1752
+	ErrFKCrossDatabase            = 1763
+	ErrFKInvalidRefTable          = 1767
 	ErrFKColumnNotFound           = 1769
 	ErrFKColumnCountMismatch      = 1774
+	ErrFKNoCandidateKey           = 1776
 	ErrMultiplePrimaryKeys        = 1779
 	ErrColumnAlreadyHasDefault    = 1781
 	ErrMultipleClusteredIndex     = 1902

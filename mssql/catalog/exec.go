@@ -57,13 +57,78 @@ func (c *Catalog) lookupSchemaObject(schema *metadata.SchemaMetadata, name strin
 	if schema == nil || name == "" {
 		return kindNone
 	}
-	if exactTableCase {
-		for _, t := range schema.Tables {
-			if t.Name == name {
-				return kindTable
+	// Pass 1: exact name match across the entire schema-object namespace so
+	// case-distinct objects in case-sensitive databases remain independently
+	// addressable regardless of object kind.
+	for _, t := range schema.Tables {
+		if t.Name == name {
+			return kindTable
+		}
+	}
+	for _, v := range schema.Views {
+		if v.Name == name {
+			return kindView
+		}
+	}
+	for _, p := range schema.Procedures {
+		if p.Name == name {
+			return kindProcedure
+		}
+	}
+	for _, fn := range schema.Functions {
+		if fn.Name == name {
+			return kindFunction
+		}
+	}
+	for _, sq := range schema.Sequences {
+		if sq.Name == name {
+			return kindSequence
+		}
+	}
+	for _, sy := range schema.Synonyms {
+		if sy.Name == name {
+			return kindSynonym
+		}
+	}
+	for _, t := range schema.Tables {
+		for _, tr := range t.Triggers {
+			if tr.Name == name {
+				return kindTrigger
 			}
 		}
-	} else if c.resolveTableInSchema(schema, name) != nil {
+	}
+	for _, v := range schema.Views {
+		for _, tr := range v.Triggers {
+			if tr.Name == name {
+				return kindTrigger
+			}
+		}
+	}
+	for _, t := range schema.Tables {
+		for _, idx := range t.Indexes {
+			if idx.IsConstraint && idx.Name != "" && idx.Name == name {
+				return kindConstraint
+			}
+		}
+		for _, fk := range t.ForeignKeys {
+			if fk.Name != "" && fk.Name == name {
+				return kindConstraint
+			}
+		}
+		for _, ck := range t.CheckConstraints {
+			if ck.Name != "" && ck.Name == name {
+				return kindConstraint
+			}
+		}
+		for _, col := range t.Columns {
+			if col.DefaultConstraintName != "" && col.DefaultConstraintName == name {
+				return kindConstraint
+			}
+		}
+	}
+
+	// Pass 2: case-folded fallback.
+	if !exactTableCase && c.resolveTableInSchema(schema, name) != nil {
 		return kindTable
 	}
 	for _, v := range schema.Views {
@@ -1656,6 +1721,11 @@ func (c *Catalog) execCreateOrAlterFunction(n *ast.CreateFunctionStmt, source st
 			if consumer, bound := schemaBoundFunctionConsumer(c, schema.Name, fn.Name, nil); bound {
 				return mssqlErr(ErrDropSchemaNotEmpty, "Cannot ALTER FUNCTION '%s' because it is being referenced by object '%s'.", fn.Name, consumer)
 			}
+			oldCat := definitionFunctionCategory(fn.Definition)
+			newCat := functionCategory(n)
+			if oldCat != "" && newCat != "" && oldCat != newCat {
+				return mssqlErr(ErrIncompatibleAlterType, "Cannot perform alter on '%s' because it is an incompatible object type.", fn.Name)
+			}
 			fn.Definition = creationDefinition(definition)
 			return nil
 		}
@@ -1665,6 +1735,30 @@ func (c *Catalog) execCreateOrAlterFunction(n *ast.CreateFunctionStmt, source st
 	}
 	schema.Functions = append(schema.Functions, &metadata.FunctionMetadata{Name: name, Definition: definition})
 	return nil
+}
+
+func functionCategory(n *ast.CreateFunctionStmt) string {
+	if n == nil {
+		return ""
+	}
+	if n.ReturnsTable == nil {
+		return "scalar"
+	}
+	if n.ReturnsTable.Variable != "" {
+		return "mstvf"
+	}
+	return "itvf"
+}
+
+func definitionFunctionCategory(def string) string {
+	stmts, err := mssql.Parse(creationDefinition(def))
+	if err != nil || len(stmts) == 0 {
+		return ""
+	}
+	if fn, ok := stmts[0].AST.(*ast.CreateFunctionStmt); ok {
+		return functionCategory(fn)
+	}
+	return ""
 }
 
 func (c *Catalog) execCreateOrAlterTrigger(n *ast.CreateTriggerStmt, source string) error {
@@ -2085,6 +2179,11 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 					}
 					addingClustered = true
 				}
+				if !c.lenientMetadataLoad && cd.Type == ast.ConstraintForeignKey {
+					if err := c.validateForeignKeyTarget(table, []string{action.Column.Name}, cd); err != nil {
+						return err
+					}
+				}
 			}
 		}
 		c.extractColumn(action.Column, table, schemaName, source)
@@ -2449,6 +2548,11 @@ func (c *Catalog) execAlterTableAddConstraint(table *metadata.TableMetadata, sch
 				return mssqlErr(ErrDupObject, "There is already an object named '%s' in the database.", n.Name)
 			}
 		}
+		if !c.lenientMetadataLoad {
+			if err := c.validateForeignKeyTarget(table, cols, n); err != nil {
+				return err
+			}
+		}
 		c.extractTableConstraint(n, table, schemaName, source)
 		return nil
 
@@ -2460,6 +2564,79 @@ func (c *Catalog) execAlterTableAddConstraint(table *metadata.TableMetadata, sch
 		}
 		c.extractTableConstraint(n, table, schemaName, source)
 		return nil
+	}
+	return nil
+}
+
+func (c *Catalog) validateForeignKeyTarget(srcTable *metadata.TableMetadata, srcCols []string, n *ast.ConstraintDef) error {
+	if n == nil || n.RefTable == nil {
+		return nil
+	}
+	if n.RefTable.Database != "" && (c.database == "" || !strings.EqualFold(n.RefTable.Database, c.database)) {
+		return mssqlErr(ErrFKCrossDatabase, "Cross-database foreign key references are not supported. Foreign key '%s'.", n.Name)
+	}
+	refSchema, refTableName := tableRefSchemaObject(n.RefTable, c.defaultSchema)
+	refTable := c.GetTable(refSchema, refTableName)
+	if refTable == nil {
+		return mssqlErr(ErrFKInvalidRefTable, "Foreign key '%s' references invalid table '%s'.", n.Name, refTableName)
+	}
+	refCols := stringNodeList(n.RefColumns)
+	if len(refCols) == 0 {
+		var pk *metadata.IndexMetadata
+		for _, idx := range refTable.Indexes {
+			if idx.Primary {
+				pk = idx
+				break
+			}
+		}
+		if pk == nil {
+			return mssqlErr(ErrFKNoCandidateKey, "There are no primary or candidate keys in the referenced table '%s' that match the referencing column list in the foreign key '%s'.", refTableName, n.Name)
+		}
+		if len(srcCols) != len(pk.Expressions) {
+			return mssqlErr(ErrFKColumnCountMismatch, "The number of columns in the referencing column list does not match those of the primary key in the referenced table '%s'.", refTableName)
+		}
+		return nil
+	}
+	if len(srcCols) != len(refCols) {
+		return mssqlErr(ErrFKColumnCountMismatch, "The number of columns in the referencing column list does not match those of the primary key in the referenced table '%s'.", refTableName)
+	}
+	for _, rc := range refCols {
+		if columnByName(refTable, rc) == nil {
+			return mssqlErr(ErrFKColumnNotFound, "Foreign key '%s' references invalid column '%s' in referenced table '%s'.", n.Name, rc, refTableName)
+		}
+	}
+	hasCandidateKey := false
+	for _, idx := range refTable.Indexes {
+		if !idx.Primary && !idx.Unique {
+			continue
+		}
+		if indexWhereClause(idx.Definition) != "" {
+			continue
+		}
+		if len(idx.Expressions) != len(refCols) {
+			continue
+		}
+		allMatch := true
+		for _, rc := range refCols {
+			found := false
+			for _, ic := range idx.Expressions {
+				if strings.EqualFold(rc, ic) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				allMatch = false
+				break
+			}
+		}
+		if allMatch {
+			hasCandidateKey = true
+			break
+		}
+	}
+	if !hasCandidateKey {
+		return mssqlErr(ErrFKNoCandidateKey, "There are no primary or candidate keys in the referenced table '%s' that match the referencing column list in the foreign key '%s'.", refTableName, n.Name)
 	}
 	return nil
 }

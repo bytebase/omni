@@ -1045,4 +1045,49 @@ CREATE CLUSTERED INDEX [ix] ON [dbo].[t]([a]);
 	require.Equal(t, "AS ([a] + 1) PERSISTED", columnByName(c.GetTable("dbo", "t"), "b").Type)
 	execExpectOK(t, c, `ALTER TABLE [dbo].[t] ALTER COLUMN [b] DROP PERSISTED`)
 	require.Equal(t, "AS ([a] + 1)", columnByName(c.GetTable("dbo", "t"), "b").Type)
+
+	// 71. lookupSchemaObject resolves exact names across object kinds before case-folded fallback.
+	c = New()
+	require.NoError(t, c.LoadMetadata(t.Context(), &metadata.DatabaseSchemaMetadata{
+		Schemas: []*metadata.SchemaMetadata{
+			{
+				Name: "dbo",
+				Tables: []*metadata.TableMetadata{
+					{Name: "Foo", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int", Position: 1}}},
+				},
+				Views: []*metadata.ViewMetadata{
+					{Name: "foo", Definition: "CREATE VIEW [dbo].[foo] AS SELECT 1 AS a;"},
+				},
+			},
+		},
+	}))
+	execExpectOK(t, c, `ALTER VIEW [dbo].[foo] AS SELECT 2 AS a`)
+	require.Contains(t, c.GetSchema("dbo").Views[0].Definition, "SELECT 2 AS a")
+	execExpectOK(t, c, `DROP VIEW [dbo].[foo]`)
+	require.Empty(t, c.GetSchema("dbo").Views)
+	require.NotNil(t, c.GetTable("dbo", "Foo"))
+
+	// 72. ALTER TABLE ADD COLUMN validates inline foreign-key targets (table, columns, candidate key).
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[p] ([id] INT NOT NULL PRIMARY KEY, [val] INT);
+GO
+CREATE TABLE [dbo].[t] ([a] INT);
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ADD [pid] INT REFERENCES [dbo].[missing]([id])`, ErrFKInvalidRefTable)
+	require.Nil(t, columnByName(c.GetTable("dbo", "t"), "pid"))
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] ADD [pid] INT REFERENCES [dbo].[p]([val])`, ErrFKNoCandidateKey)
+	require.Nil(t, columnByName(c.GetTable("dbo", "t"), "pid"))
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] ADD [pid] INT REFERENCES [dbo].[p]([id])`)
+	require.NotNil(t, columnByName(c.GetTable("dbo", "t"), "pid"))
+	require.Len(t, c.GetTable("dbo", "t").ForeignKeys, 1)
+
+	// 73. ALTER FUNCTION / CREATE OR ALTER FUNCTION rejects changing a function's category.
+	c, err = LoadSQL(`CREATE FUNCTION [dbo].[f]() RETURNS INT AS BEGIN RETURN 1; END;`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER FUNCTION [dbo].[f]() RETURNS TABLE AS RETURN (SELECT 1 AS [x])`, ErrIncompatibleAlterType)
+	execExpectCode(t, c, `CREATE OR ALTER FUNCTION [dbo].[f]() RETURNS @t TABLE ([x] INT) AS BEGIN RETURN; END`, ErrIncompatibleAlterType)
+	require.Contains(t, c.GetSchema("dbo").Functions[0].Definition, "RETURNS INT")
+	execExpectOK(t, c, `ALTER FUNCTION [dbo].[f]() RETURNS INT AS BEGIN RETURN 2; END`)
+	require.Contains(t, c.GetSchema("dbo").Functions[0].Definition, "RETURN 2")
 }

@@ -513,11 +513,28 @@ func loadSimulationForms(forms []simulate.Form) (*Catalog, error) {
 		script.WriteString(text)
 		script.WriteByte('\n')
 	}
+	var deferredFKs []string
 	for _, kind := range []string{"SCHEMA", "SEQUENCE", "SYNONYM", "TABLE", "VIEW", "FUNCTION", "PROCEDURE"} {
 		for _, f := range forms {
-			if f.Kind == kind {
-				write(f.Text)
+			if f.Kind != kind {
+				continue
 			}
+			if kind == "TABLE" {
+				var keep []string
+				for _, line := range strings.Split(f.Text, "\n") {
+					if strings.HasPrefix(line, "ALTER TABLE ") && strings.Contains(line, " FOREIGN KEY ") {
+						deferredFKs = append(deferredFKs, line)
+						continue
+					}
+					keep = append(keep, line)
+				}
+				write(strings.Join(keep, "\n"))
+				continue
+			}
+			write(f.Text)
+		}
+		if kind == "TABLE" && len(deferredFKs) > 0 {
+			write(strings.Join(deferredFKs, "\n"))
 		}
 	}
 	c, err := LoadSQL(script.String())
