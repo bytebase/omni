@@ -154,6 +154,16 @@ func oceanBaseCodes(m, stmt string) []string {
 		{strings.Contains(m, " refuses updating NEW row in an AFTER trigger."), []string{"1362"}},
 		{strings.Contains(m, " refuses column reference ") && strings.HasSuffix(m, " in an event schedule."), []string{"1525"}},
 		{strings.HasPrefix(m, "Event ") && strings.HasSuffix(m, " cannot be renamed to itself."), []string{"1551"}},
+		{strings.HasPrefix(m, "Check constraint ") && strings.Contains(m, " doesn't exist"), []string{"3821"}},
+		{strings.HasPrefix(m, "Constraint ") && strings.Contains(m, " doesn't exist"), []string{"3940"}},
+		{strings.HasPrefix(m, "Window ") && strings.HasSuffix(m, " is not defined."), []string{"5929"}},
+		{strings.HasPrefix(m, "A view's query cannot use variable "), []string{"1351"}},
+		{m == "A view's query cannot use a parameter marker.", []string{"1064", "1351"}},
+		{strings.HasSuffix(m, " is in more than one table of this query."), []string{"1052"}},
+		{strings.HasSuffix(m, " twice in one FROM clause."), []string{"1066"}},
+		{strings.HasPrefix(m, "Each row of a VALUES query must have "), []string{"3942"}},
+		{m == "A VALUES query cannot use `DEFAULT`.", []string{"3943"}},
+		{m == "This query reads `*` but names no table.", []string{"1096"}},
 	} {
 		if c.match {
 			codes = append(codes, c.codes...)

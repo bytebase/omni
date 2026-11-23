@@ -3548,3 +3548,38 @@ reject	reject	engine	identifierOrNull/NULL_SQL!insert	DESCRIBE a FORMAT NULL zzz
 accept	accept	engine	identifierOrNull/NULL_SQL!swap	DESCRIBE a FORMAT NULLS
 accept	accept	engine	enumValue/stringLiteral_EQ_SINGLE_numberLiteral	SELECT 1e1 :: a(X'00' = 1e1)
 reject	reject	engine	enumValue/stringLiteral_EQ_SINGLE_numberLiteral!truncate	SELECT 1e1 :: a(X'00' =
+reject	reject	engine	suite:access-or-replace	CREATE OR REPLACE ROW POLICY p ON d.t
+accept	accept	engine	suite:access-or-replace	CREATE ROW POLICY OR REPLACE p ON d.t
+accept	accept	engine	suite:access-or-replace	CREATE ROW POLICY IF NOT EXISTS p ON d.t
+reject	reject	engine	suite:access-or-replace	CREATE ROW POLICY OR REPLACE IF NOT EXISTS p ON d.t
+reject	reject	engine	suite:access-or-replace	ALTER ROW POLICY OR REPLACE p ON d.t
+reject	reject	engine	suite:access-or-replace	CREATE OR REPLACE POLICY p ON d.t
+accept	accept	engine	suite:access-or-replace	CREATE POLICY OR REPLACE p ON d.t
+accept	accept	engine	suite:access-or-replace	CREATE POLICY IF NOT EXISTS p ON d.t
+reject	reject	engine	suite:access-or-replace	CREATE POLICY OR REPLACE IF NOT EXISTS p ON d.t
+reject	reject	engine	suite:access-or-replace	ALTER POLICY OR REPLACE p ON d.t
+reject	reject	engine	suite:access-or-replace	CREATE OR REPLACE USER u
+accept	accept	engine	suite:access-or-replace	CREATE USER OR REPLACE u
+accept	accept	engine	suite:access-or-replace	CREATE USER IF NOT EXISTS u
+reject	reject	engine	suite:access-or-replace	CREATE USER OR REPLACE IF NOT EXISTS u
+reject	reject	engine	suite:access-or-replace	ALTER USER OR REPLACE u
+reject	reject	engine	suite:access-or-replace	CREATE OR REPLACE ROLE r
+accept	accept	engine	suite:access-or-replace	CREATE ROLE OR REPLACE r
+accept	accept	engine	suite:access-or-replace	CREATE ROLE IF NOT EXISTS r
+reject	reject	engine	suite:access-or-replace	CREATE ROLE OR REPLACE IF NOT EXISTS r
+reject	reject	engine	suite:access-or-replace	ALTER ROLE OR REPLACE r
+reject	reject	engine	suite:access-or-replace	CREATE OR REPLACE QUOTA q
+accept	accept	engine	suite:access-or-replace	CREATE QUOTA OR REPLACE q
+accept	accept	engine	suite:access-or-replace	CREATE QUOTA IF NOT EXISTS q
+reject	reject	engine	suite:access-or-replace	CREATE QUOTA OR REPLACE IF NOT EXISTS q
+reject	reject	engine	suite:access-or-replace	ALTER QUOTA OR REPLACE q
+reject	reject	engine	suite:access-or-replace	CREATE OR REPLACE SETTINGS PROFILE s
+accept	accept	engine	suite:access-or-replace	CREATE SETTINGS PROFILE OR REPLACE s
+accept	accept	engine	suite:access-or-replace	CREATE SETTINGS PROFILE IF NOT EXISTS s
+reject	reject	engine	suite:access-or-replace	CREATE SETTINGS PROFILE OR REPLACE IF NOT EXISTS s
+reject	reject	engine	suite:access-or-replace	ALTER SETTINGS PROFILE OR REPLACE s
+reject	reject	engine	suite:access-or-replace	CREATE OR REPLACE PROFILE s
+accept	accept	engine	suite:access-or-replace	CREATE PROFILE OR REPLACE s
+accept	accept	engine	suite:access-or-replace	CREATE PROFILE IF NOT EXISTS s
+reject	reject	engine	suite:access-or-replace	CREATE PROFILE OR REPLACE IF NOT EXISTS s
+reject	reject	engine	suite:access-or-replace	ALTER PROFILE OR REPLACE s

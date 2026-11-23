@@ -288,6 +288,48 @@ PROPERTIES("replication_num" = "1")`)
 			}
 		},
 	},
+	{
+		name: "global-function-definition",
+		reason: "A view that calls a global function dumps without it. SHOW CREATE VIEW states the call " +
+			"bare (dump_gap_global(1)), and no statement states a global function's definition: SHOW " +
+			"CREATE GLOBAL FUNCTION is not a statement the server takes, and SHOW FULL GLOBAL FUNCTIONS " +
+			"states the catalogue's properties, as for a database's function. Doris states the definition, " +
+			"and its dump carries the global functions a view calls; this dump restores such a view only " +
+			"on a server that has the function. Fails if the server states the definition.",
+		check: func(t *testing.T) {
+			const (
+				db       = "omni_dump_gap_global_function"
+				function = "dump_gap_global"
+			)
+			ctx := context.Background()
+			dropGlobalFunctions := func() {
+				testcontainer.Reset(t, func(ctx context.Context, db *sql.DB) error {
+					return testcontainer.DropInstanceObjects(ctx, db)
+				})
+			}
+			dropGlobalFunctions()
+			t.Cleanup(dropGlobalFunctions)
+			d := openTestDriver(t, db)
+			execDumpScript(t, d.db, `CREATE GLOBAL FUNCTION `+function+`(INT) RETURNS INT PROPERTIES("type" = "Python", "file" = "file:///data/deploy/starrocks/fe/conf/fe.conf", "symbol" = "f", "input_type" = "INT");
+CREATE VIEW calls_global (g) AS SELECT `+function+`(1)`)
+
+			dumped := dumpScript(t, d)
+			if !strings.Contains(dumped, function+"(1)") {
+				t.Fatalf("the dump does not state the view's call to %s:\n%s", function, dumped)
+			}
+			if strings.Contains(dumped, "CREATE GLOBAL FUNCTION") {
+				t.Errorf("the dump carries the global function now; remove this entry and test it")
+			}
+
+			rows, err := d.db.QueryContext(ctx, "SHOW CREATE GLOBAL FUNCTION "+function+"(INT)")
+			if err == nil {
+				rows.Close()
+				t.Errorf("SHOW CREATE GLOBAL FUNCTION is a statement the server takes now; remove this entry and dump the function")
+			} else if want := "No viable statement for input 'SHOW CREATE GLOBAL'"; !strings.Contains(err.Error(), want) {
+				t.Fatalf("SHOW CREATE GLOBAL FUNCTION %s(INT): %v, want %q", function, err, want)
+			}
+		},
+	},
 }
 
 func readDumpCorpus(t *testing.T) string {

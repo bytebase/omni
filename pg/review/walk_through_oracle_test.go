@@ -986,6 +986,8 @@ func walkStates(msg string) []string {
 		strings.HasPrefix(msg, "Domain ") && strings.HasSuffix(msg, " doesn't exist."),
 		strings.HasPrefix(msg, "Constraint ") && strings.Contains(msg, " doesn't exist in "),
 		strings.HasPrefix(msg, "Trigger ") && strings.Contains(msg, " doesn't exist in "),
+		strings.HasPrefix(msg, "Rule ") && strings.Contains(msg, " doesn't exist in "),
+		strings.HasPrefix(msg, "Extension ") && strings.HasSuffix(msg, " doesn't exist."),
 		strings.HasPrefix(msg, "Policy ") && strings.Contains(msg, " doesn't exist in "),
 		strings.HasPrefix(msg, "This statement drops constraint "):
 		return []string{"42704"}
@@ -1043,6 +1045,20 @@ func walkStates(msg string) []string {
 		strings.HasPrefix(msg, "Trigger ") && strings.Contains(msg, " already exists in "),
 		strings.HasPrefix(msg, "Policy ") && strings.Contains(msg, " already exists in "):
 		return []string{"42710"}
+	case strings.HasPrefix(msg, "Table name ") && strings.HasSuffix(msg, " is specified more than once in `FROM`."):
+		return []string{"42712"}
+	case strings.HasPrefix(msg, "Query references parameter "):
+		return []string{"42P02"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept `DEFAULT` in a query"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `MERGE_ACTION()` outside `MERGE`"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept a subquery of no column as a value"):
+		return []string{"42601"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept an empty `ARRAY` with no cast"):
+		return []string{"42P18"}
+	case strings.HasPrefix(msg, "Window ") && strings.HasSuffix(msg, " doesn't exist."):
+		return []string{"42704"}
+	case strings.HasPrefix(msg, "PostgreSQL doesn't accept window ") && strings.HasSuffix(msg, " defined twice."):
+		return []string{"42P20"}
 	case strings.HasPrefix(msg, "Composite type ") && strings.HasSuffix(msg, " can't reference itself."):
 		return []string{"42704", "42710", "42P16"}
 	case strings.HasPrefix(msg, "Domain ") && strings.HasSuffix(msg, " can't use itself as its underlying type."),
@@ -1067,6 +1083,7 @@ func walkStates(msg string) []string {
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `FOR EACH ROW` trigger with transition tables"),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `ALTER TABLE ... ALTER COLUMN` by column number"),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `WITH CHECK OPTION` on a non-updatable view"),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `SELECT INTO` in a view"),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `SET WITHOUT CLUSTER` on partitioned table "),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `TRUNCATE` on table "),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `SET STATISTICS` on non-expression index column"):
@@ -1103,6 +1120,7 @@ func walkStates(msg string) []string {
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept view option "),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept btree index option "),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept duplicate storage parameter "),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept storage parameter "),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `ADD GENERATED AS IDENTITY` on non-integer column "),
 		strings.HasPrefix(msg, "PostgreSQL doesn't accept `ROWS` on a function that doesn't return a set"):
 		return []string{"22023"}

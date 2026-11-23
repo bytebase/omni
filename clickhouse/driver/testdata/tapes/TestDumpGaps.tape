@@ -138,6 +138,25 @@
 < row
 : string
 |    Set
+> query
+|
+| 		SELECT
+| 			short_name,
+| 			table
+| 		FROM system.row_policies
+| 		WHERE database = ?
+| 		ORDER BY table, short_name
+: string
+| omni_gap_mv
+< result
+< column "short_name" "String" "string"
+< column "table" "String" "string"
+> query ^
+: string
+| omni_gap_mv
+< result
+< column "short_name" "String" "string"
+< column "table" "String" "string"
 > exec
 | DROP DATABASE IF EXISTS `omni_gap_mv`
 < ok 0 -
@@ -235,6 +254,25 @@
 | ENGINE = MergeTree
 | ORDER BY id
 | SETTINGS index_granularity = 8192
+> query
+|
+| 		SELECT
+| 			short_name,
+| 			table
+| 		FROM system.row_policies
+| 		WHERE database = ?
+| 		ORDER BY table, short_name
+: string
+| omni_gap_database
+< result
+< column "short_name" "String" "string"
+< column "table" "String" "string"
+> query ^
+: string
+| omni_gap_database
+< result
+< column "short_name" "String" "string"
+< column "table" "String" "string"
 > exec
 | DROP DATABASE IF EXISTS `omni_gap_database`
 < ok 0 -

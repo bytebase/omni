@@ -408,3 +408,108 @@ func TestWalkThroughOceanBaseRecallFamilies(t *testing.T) {
 		oneFindingOB(t, "ALTER EVENT ev_ok RENAME TO ev_ok;", 0, "Event `ev_ok` cannot be renamed to itself.", target)
 	})
 }
+
+// TestWalkThroughOceanBaseQueries pins what the walk finds in the query of a
+// view or of CREATE TABLE ... AS: each refusal was answered by OceanBase in
+// oceanbase/catalog/testdata/queries/simulate.tsv.
+func TestWalkThroughOceanBaseQueries(t *testing.T) {
+	shop := review.Target{Schema: oceanBaseSchema(), LowerCaseTableNames: 1}
+	for _, c := range []struct{ sql, message string }{
+		{"CREATE VIEW w AS SELECT a FROM t JOIN t;", "This query names table `t` twice in one FROM clause."},
+		{"CREATE VIEW w AS SELECT 1 FROM t x, r x;", "This query names table `x` twice in one FROM clause."},
+		{"CREATE VIEW w AS SELECT a FROM t JOIN t t2;", "Column `a` is in more than one table of this query."},
+		{"CREATE VIEW w AS SELECT 1 FROM t, r WHERE id > 0;", "Column `id` is in more than one table of this query."},
+		{"CREATE VIEW w AS SELECT a FROM nosuch;", "`nosuch` doesn't exist."},
+		{"CREATE VIEW w AS SELECT a FROM t JOIN nosuch x ON 1;", "`nosuch` doesn't exist."},
+		{"CREATE VIEW w AS SELECT RANK() OVER w1 FROM t;", "Window `w1` is not defined."},
+		{"CREATE VIEW w AS SELECT RANK() OVER (w1 ORDER BY a) FROM t WINDOW w2 AS ();", "Window `w1` is not defined."},
+		{"CREATE VIEW w AS SELECT @v;", "A view's query cannot use variable `@v`."},
+		{"CREATE VIEW w AS SELECT RANK() OVER (ROWS ? PRECEDING) FROM t;", "A view's query cannot use a parameter marker."},
+		{"CREATE VIEW w AS SELECT a FROM t WHERE a > @@autocommit;", "A view's query cannot use variable `@@autocommit`."},
+		{"CREATE VIEW w AS VALUES ROW();", "Each row of a VALUES query must have at least one column."},
+		{"CREATE VIEW w AS VALUES ROW(DEFAULT);", "A VALUES query cannot use `DEFAULT`."},
+		{"CREATE VIEW w AS VALUES ROW(a);", "Column `a` doesn't exist."},
+		{"CREATE VIEW w AS SELECT EXISTS(SELECT a);", "Column `a` doesn't exist."},
+		{"CREATE VIEW w AS SELECT a FROM (SELECT a) d;", "Column `a` doesn't exist."},
+		{"CREATE VIEW w AS SELECT a FROM DUAL;", "Column `a` doesn't exist."},
+		{"CREATE VIEW w AS SELECT DEFAULT(a);", "Column `a` doesn't exist."},
+		{"CREATE VIEW w AS SELECT *;", "This query reads `*` but names no table."},
+		{"CREATE VIEW w AS SELECT x.*;", "Table `x` doesn't exist."},
+		{"CREATE TABLE x AS SELECT a FROM nosuch;", "`nosuch` doesn't exist."},
+		{"ALTER VIEW v AS SELECT a FROM t, t;", "This query names table `t` twice in one FROM clause."},
+	} {
+		oneFindingOB(t, c.sql, 0, c.message, shop)
+	}
+	for _, sql := range []string{
+		"CREATE VIEW w AS SELECT t.a FROM t JOIN t t2;",
+		"CREATE VIEW w AS SELECT a FROM t NATURAL JOIN t t2;",
+		"CREATE VIEW w AS SELECT a FROM t JOIN t t2 USING (id);",
+		"CREATE VIEW w AS SELECT a FROM t JOIN r;",
+		"CREATE VIEW w AS SELECT x.a FROM t JOIN other.t x;",
+		"CREATE VIEW w AS WITH nosuch AS (SELECT 1 AS a) SELECT a FROM nosuch;",
+		"CREATE TABLE nosuch (a int);\nCREATE VIEW w AS SELECT a FROM nosuch;",
+		"CREATE VIEW w AS SELECT a FROM other.nosuch;",
+		"CREATE VIEW w AS SELECT RANK() OVER w1 FROM t WINDOW w1 AS (ORDER BY a);",
+		"CREATE VIEW w AS SELECT RANK() OVER () FROM t;",
+		"CREATE TABLE x AS SELECT @v AS a;",
+		"CREATE VIEW w AS SELECT (SELECT a) FROM t;",
+		"CREATE VIEW w AS SELECT 1 AS a, (SELECT a);",
+		"CREATE VIEW w AS SELECT d.a FROM t, LATERAL (SELECT a) d;",
+		"CREATE VIEW w AS SELECT b FROM (SELECT a AS b FROM t) d;",
+		"CREATE VIEW w AS SELECT 1 FROM DUAL;",
+		"CREATE VIEW w AS SELECT COUNT(*);",
+		"CREATE VIEW w AS VALUES ROW(1), ROW(2);",
+	} {
+		noFindingOB(t, sql, shop)
+	}
+}
+
+// TestWalkThroughOceanBaseChecks pins the CHECK constraints the walk follows
+// on OceanBase, as the sync lists them.
+func TestWalkThroughOceanBaseChecks(t *testing.T) {
+	schema := oceanBaseSchema()
+	schema.Schemas[0].Tables[0].CheckConstraints = []*metadata.CheckConstraintMetadata{{Name: "ck", Expression: "(`a` > 0)"}}
+	shop := review.Target{Schema: schema, LowerCaseTableNames: 1}
+	for _, c := range []struct {
+		sql       string
+		statement int
+		message   string
+	}{
+		{"ALTER TABLE t DROP CHECK nosuch;", 0, "Check constraint `nosuch` doesn't exist in `t`."},
+		{"ALTER TABLE t DROP CHECK ck;\nALTER TABLE t DROP CHECK CK;", 1, "Check constraint `CK` doesn't exist in `t`."},
+		{"ALTER TABLE t ALTER CHECK nosuch ENFORCED;", 0, "Check constraint `nosuch` doesn't exist in `t`."},
+		{"CREATE TABLE x (a int);\nALTER TABLE x DROP CHECK c;", 1, "Check constraint `c` doesn't exist in `x`."},
+		{"RENAME TABLE t TO t2;\nALTER TABLE t2 DROP CHECK nosuch;", 1, "Check constraint `nosuch` doesn't exist in `t2`."},
+		// Written with parentheses, DROP CONSTRAINT drops CHECK constraints
+		// alone: a foreign key of the name is none.
+		{"ALTER TABLE t DROP CONSTRAINT (fk1);", 0, "Check constraint `fk1` doesn't exist in `t`."},
+		{"ALTER TABLE t DROP CONSTRAINT nosuch;", 0, "Constraint `nosuch` doesn't exist in `t`."},
+		{"ALTER TABLE t ALTER CONSTRAINT nosuch NOT ENFORCED;", 0, "Constraint `nosuch` doesn't exist in `t`."},
+	} {
+		oneFindingOB(t, c.sql, c.statement, c.message, shop)
+	}
+	for _, sql := range []string{
+		"ALTER TABLE t DROP CHECK ck;",
+		"ALTER TABLE t ALTER CHECK ck NOT ENFORCED;",
+		"ALTER TABLE t DROP CONSTRAINT ck;",
+		"ALTER TABLE t DROP CONSTRAINT fk1;",
+		"ALTER TABLE t DROP CONSTRAINT (ck);",
+		// An index of the name may be a unique key.
+		"ALTER TABLE t DROP CONSTRAINT (i);",
+		"ALTER TABLE t DROP CONSTRAINT i;",
+		"ALTER TABLE t ADD CONSTRAINT c2 CHECK (a > 0);\nALTER TABLE t DROP CHECK c2;",
+		"ALTER TABLE t ADD CHECK (a > 0);\nALTER TABLE t DROP CHECK t_OBCHECK_1;",
+		"ALTER TABLE t ADD COLUMN b int CHECK (b > 0);\nALTER TABLE t DROP CHECK t_OBCHECK_1;",
+		"ALTER TABLE t MODIFY COLUMN a int CONSTRAINT c3 CHECK (a > 0);\nALTER TABLE t DROP CHECK c3;",
+		"CREATE TABLE x (a int CHECK (a > 0));\nALTER TABLE x DROP CHECK x_OBCHECK_1;",
+		"CREATE TABLE x (a int, CONSTRAINT c4 CHECK (a > 0));\nALTER TABLE x DROP CHECK c4;",
+		"CREATE TABLE x LIKE t;\nALTER TABLE x DROP CHECK nosuch;",
+		"ALTER TABLE t DROP COLUMN a;\nALTER TABLE t DROP CHECK ck;",
+		"RENAME TABLE t TO t2;\nALTER TABLE t2 DROP CHECK ck;",
+		"ALTER TABLE t DROP CONSTRAINT ck;\nALTER TABLE t DROP CONSTRAINT ck;",
+	} {
+		noFindingOB(t, sql, shop)
+	}
+	// MySQL's walk does not follow CHECK constraints.
+	noFinding(t, "ALTER TABLE t DROP CHECK nosuch;", review.Target{Schema: schema, LowerCaseTableNames: 1})
+}

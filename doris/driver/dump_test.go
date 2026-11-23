@@ -577,3 +577,89 @@ func dumpObjectNames(objects []*dumpObject) []string {
 	}
 	return names
 }
+
+// TestDumpGlobalFunction holds the dump of a view that calls a global function:
+// the dump states the function, with IF NOT EXISTS, before the view, and leaves
+// out a global function no definition calls. The script restores twice to the
+// same bytes: on the server it came from, where the function is still there,
+// and on one without the function, which the test makes by dropping it.
+func TestDumpGlobalFunction(t *testing.T) {
+	ctx := context.Background()
+	dropGlobalFunctions := func() {
+		testcontainer.Reset(t, func(ctx context.Context, db *sql.DB) error {
+			return testcontainer.DropInstanceObjects(ctx, db)
+		})
+	}
+	dropGlobalFunctions()
+	t.Cleanup(dropGlobalFunctions)
+	d := openTestDriver(t, "omni_dump_global_function")
+	execDumpScript(t, d.db, `CREATE GLOBAL ALIAS FUNCTION dump_global_called(INT) WITH PARAMETER(x) AS abs(x);
+CREATE GLOBAL ALIAS FUNCTION dump_global_called(INT, INT) WITH PARAMETER(x, y) AS greatest(x, y);
+CREATE GLOBAL ALIAS FUNCTION dump_global_unused(INT) WITH PARAMETER(x) AS abs(x);
+CREATE ALIAS FUNCTION dump_local(INT) WITH PARAMETER(x) AS abs(x);
+CREATE VIEW calls_functions AS SELECT dump_global_called(-1) AS g, dump_local(-2) AS l`)
+	first := dumpScript(t, d)
+	for _, want := range []string{
+		"-- Global function structure for dump_global_called(int)\n--\nCREATE GLOBAL ALIAS FUNCTION IF NOT EXISTS dump_global_called(int)",
+		"-- Global function structure for dump_global_called(int, int)\n--\nCREATE GLOBAL ALIAS FUNCTION IF NOT EXISTS dump_global_called(int, int)",
+		"-- Function structure for dump_local(int)",
+	} {
+		if !strings.Contains(first, want) {
+			t.Errorf("the dump does not state %q:\n%s", want, first)
+		}
+	}
+	if strings.Contains(first, "dump_global_unused") {
+		t.Errorf("the dump states a global function no definition calls:\n%s", first)
+	}
+	if global, view := strings.Index(first, "dump_global_called"), strings.Index(first, "CREATE VIEW"); global < 0 || view < global {
+		t.Errorf("the global function does not precede the view that calls it:\n%s", first)
+	}
+
+	restore := func(dropFunctions bool) {
+		t.Helper()
+		if dropFunctions {
+			dropGlobalFunctions()
+		}
+		for _, stmt := range []string{
+			"DROP DATABASE " + quoteBacktick(d.databaseName),
+			"CREATE DATABASE " + quoteBacktick(d.databaseName),
+			"USE " + quoteBacktick(d.databaseName),
+		} {
+			if _, err := d.db.ExecContext(ctx, stmt); err != nil {
+				t.Fatalf("%s: %v", stmt, err)
+			}
+		}
+		execDumpScript(t, d.db, first)
+		if diff := cmp.Diff(first, dumpScript(t, d)); diff != "" {
+			t.Errorf("restoring the dump (global functions dropped: %v) changes it (-dumped +restored):\n%s", dropFunctions, diff)
+		}
+	}
+	restore(false)
+	restore(true)
+}
+
+func TestGlobalFunctionIfNotExists(t *testing.T) {
+	tests := []struct{ stmt, want string }{
+		{
+			stmt: "CREATE GLOBAL ALIAS FUNCTION gf(int) WITH PARAMETER(x) AS abs(`x`)",
+			want: "CREATE GLOBAL ALIAS FUNCTION IF NOT EXISTS gf(int) WITH PARAMETER(x) AS abs(`x`)",
+		},
+		{
+			stmt: `CREATE GLOBAL AGGREGATE FUNCTION ga(int) RETURNS bigint PROPERTIES ("file"="file:///f.jar", "symbol"="S", "type"="JAVA_UDF")`,
+			want: `CREATE GLOBAL AGGREGATE FUNCTION IF NOT EXISTS ga(int) RETURNS bigint PROPERTIES ("file"="file:///f.jar", "symbol"="S", "type"="JAVA_UDF")`,
+		},
+		{
+			stmt: "CREATE GLOBAL ALIAS FUNCTION IF NOT EXISTS gf(int) WITH PARAMETER(x) AS abs(`x`)",
+			want: "CREATE GLOBAL ALIAS FUNCTION IF NOT EXISTS gf(int) WITH PARAMETER(x) AS abs(`x`)",
+		},
+	}
+	for _, test := range tests {
+		got, err := globalFunctionIfNotExists(test.stmt)
+		if err != nil || got != test.want {
+			t.Errorf("globalFunctionIfNotExists(%q) = %q, %v; want %q", test.stmt, got, err, test.want)
+		}
+	}
+	if got, err := globalFunctionIfNotExists("CREATE ALIAS FUNCTION f(int) WITH PARAMETER(x) AS abs(`x`)"); err == nil {
+		t.Errorf("globalFunctionIfNotExists of a database function = %q, want an error", got)
+	}
+}

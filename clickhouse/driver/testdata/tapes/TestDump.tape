@@ -8,11 +8,12 @@
 | -- uses for a materialized view's storage; a name that holds a line break; a
 | -- dictionary, and a table that reads it; a view, and a view over it under a name
 | -- that sorts first; two materialized views, the first holding the other's name
-| -- in a literal; and a materialized view with its own engine, whose inner table
-| -- only the server names.
+| -- in a literal; row policies, one of them on the whole database; and a
+| -- materialized view with its own engine, whose inner table only the server
+| -- names.
 | --
 | -- omni_testdump stands for the database the test created, which the dictionary's
-| -- source and the materialized view's literal name.
+| -- source, the materialized view's literal and a row policy name.
 | CREATE TABLE src (
 |   id UInt64,
 |   name String,
@@ -225,6 +226,30 @@
 | -- sorts first: creating it needs the dictionary table, which loads the
 | -- dictionary.
 | CREATE MATERIALIZED VIEW a_dict TO target AS SELECT id, 'z' AS name FROM dict_table;
+< ok 0 -
+> exec
+|
+|
+| -- Row policies: one a role reads through, a restrictive one whose name needs
+| -- backquotes and that applies to everyone but that role, and one on every table
+| -- of the database. A row policy is an access entity that outlives the database,
+| -- so the dump states each with OR REPLACE.
+| CREATE ROLE omni_dump_reader;
+< ok 0 -
+> exec
+|
+|
+| CREATE ROW POLICY tenant ON src FOR SELECT USING name != '' TO omni_dump_reader;
+< ok 0 -
+> exec
+|
+|
+| CREATE ROW POLICY `odd policy` ON src AS RESTRICTIVE FOR SELECT USING id > 0 TO ALL EXCEPT omni_dump_reader;
+< ok 0 -
+> exec
+|
+|
+| CREATE ROW POLICY everything ON omni_testdump.* USING 1 TO omni_dump_reader;
 < ok 0 -
 > exec
 |
@@ -1466,3 +1491,52 @@
 < row
 : string
 |  ViewTargets
+> query
+|
+| 		SELECT
+| 			short_name,
+| 			table
+| 		FROM system.row_policies
+| 		WHERE database = ?
+| 		ORDER BY table, short_name
+: string
+| omni_testdump
+< result
+< column "short_name" "String" "string"
+< column "table" "String" "string"
+< row
+: string
+| everything
+: string
+|
+< row
+: string
+| odd policy
+: string
+| src
+< row
+: string
+| tenant
+: string
+| src
+> query
+| SHOW CREATE ROW POLICY `everything` ON `omni_testdump`.*
+< result
+< column "CREATE ROW POLICY everything ON omni_testdump.*" "String" "string"
+< row
+: string
+| CREATE ROW POLICY everything ON omni_testdump.* FOR SELECT USING 1 TO omni_dump_reader
+> query
+| SHOW CREATE ROW POLICY `odd policy` ON `omni_testdump`.`src`
+< result
+< column "CREATE ROW POLICY `odd policy` ON omni_testdump.src" "String" "string"
+< row
+: string
+| CREATE ROW POLICY `odd policy` ON omni_testdump.src AS RESTRICTIVE FOR SELECT USING id > 0 TO ALL EXCEPT omni_dump_reader
+> query
+| SHOW CREATE ROW POLICY `tenant` ON `omni_testdump`.`src`
+< result
+< column "CREATE ROW POLICY tenant ON omni_testdump.src" "String" "string"
+< row
+: string
+| CREATE ROW POLICY tenant ON omni_testdump.src FOR SELECT USING name != '' TO omni_dump_reader

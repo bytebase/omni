@@ -152,11 +152,8 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 	if v.Name.Schema != "" {
 		b.databaseNeeds(r.db, v.Name.Schema, r.rng) // 1049
 	}
-	if b.w.oceanBase && v.Select != nil {
-		if col, ok := selectWithoutFromColRef(v.Select); ok {
-			b.fail(r.rng, nil, review.ObjectNotFound, notFound("column", ident(col), ""))
-			return true
-		}
+	if b.w.oceanBase && v.Select != nil && b.queryFails(v.Select, true) {
+		return true
 	}
 	k := relKey(r.db, r.name)
 	if v.OrReplace && b.w.materialized[k] {
@@ -343,11 +340,8 @@ func (b *builder) alterView(v *ast.AlterViewStmt) bool {
 			return true
 		}
 		b.needKind(k, []string{relView}, r.rng, notFound("view", r.written, ""), r.written, "view") // 1146, 1347
-		if b.w.oceanBase && v.Select != nil {
-			if col, ok := selectWithoutFromColRef(v.Select); ok {
-				b.fail(r.rng, nil, review.ObjectNotFound, notFound("column", ident(col), ""))
-				return true
-			}
+		if b.w.oceanBase && v.Select != nil && b.queryFails(v.Select, true) {
+			return true
 		}
 	}
 	return true

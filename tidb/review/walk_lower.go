@@ -298,7 +298,7 @@ func (b *builder) dropDatabase(v *ast.DropDatabaseStmt) bool {
 // aside: a session's temporary tables outlive DROP DATABASE of theirs
 // (verified).
 func (b *builder) clearDatabase(d string) {
-	for _, space := range []string{spaceRelation, spaceColumn, spaceIndex, spaceTableForeignKey} {
+	for _, space := range []string{spaceRelation, spaceColumn, spaceIndex, spaceTableForeignKey, spacePartitioning, spacePartition, spaceTableCharset, spaceSequenceBounds, spaceAutoRandom} {
 		b.Clear(walk.Scope{Space: space, Parent: walk.Path(d), Deep: true})
 	}
 }
@@ -562,6 +562,11 @@ func (b *builder) created(v *ast.CreateTableStmt, r tableRef) {
 	}
 	if !primary && v.Like == nil && v.Select == nil {
 		b.Set(idxKey(r.db, r.name, primaryIndex), walk.Absent, "")
+	}
+	if v.Like == nil && v.Select == nil {
+		b.setPartitioning(r, v.Partitions)
+		b.createdCharset(v, r)
+		b.createdAutoRandom(v, r)
 	}
 	b.Set(colKey(r.db, r.name, rowIDColumn), walk.Unknown, "")
 }

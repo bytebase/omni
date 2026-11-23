@@ -32,8 +32,8 @@ func systemDatabaseExclusion() string {
 	return strings.Join([]string{"'information_schema'", "'_statistics_'", "'sys'"}, ", ")
 }
 
-// SyncInstance reads the server version, lower_case_table_names, and
-// non-system databases.
+// SyncInstance reads the server version, lower_case_table_names, the
+// non-system databases, and the accounts and roles with their privileges.
 func (d *Driver) SyncInstance(ctx context.Context) (*driver.Instance, error) {
 	version, _, err := d.getVersion(ctx)
 	if err != nil {
@@ -79,9 +79,15 @@ func (d *Driver) SyncInstance(ctx context.Context) (*driver.Instance, error) {
 		return nil, err
 	}
 
+	roles, err := d.getInstanceRoles(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	return &driver.Instance{
 		Version:             version,
 		Databases:           databases,
+		Roles:               roles,
 		LowerCaseTableNames: lowerCaseTableNames,
 	}, nil
 }

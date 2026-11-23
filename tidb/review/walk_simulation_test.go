@@ -14,7 +14,7 @@ import (
 )
 
 // TestWalkSimulation holds TiDB's WALK_THROUGH to tidb/catalog's
-// simulate.tsv and sequences/simulate.tsv offline: each fixture is built once
+// simulate.tsv, sequences/simulate.tsv and queries/simulate.tsv offline: each fixture is built once
 // in the in-memory catalog, and every row is checked with no server started.
 func TestWalkSimulation(t *testing.T) {
 	same := (&tidbEngine{}).Same
@@ -23,8 +23,9 @@ func TestWalkSimulation(t *testing.T) {
 		path      string
 		minRecall float64
 	}{
-		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 90.0},
-		{"sequences", filepath.Join("..", "catalog", "testdata", "sequences", "simulate.tsv"), 95.0},
+		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 97.0},
+		{"sequences", filepath.Join("..", "catalog", "testdata", "sequences", "simulate.tsv"), 100.0},
+		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 92.0},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
 			res := walktest.CheckSimulation(t, walktest.Simulation{
