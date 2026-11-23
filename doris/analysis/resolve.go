@@ -25,17 +25,24 @@ type ResolvedQuerySpan struct {
 	Type QueryType
 	// SourceColumns holds one table-level resource per distinct table read.
 	SourceColumns SourceColumnSet
-	// Results is the outermost SELECT's output columns.
-	Results []ColumnInfo
+	// Results is the outermost query's output columns. With a catalog each
+	// names the table columns it reads; without one, each names the column
+	// references its expression holds, qualified as written.
+	Results []QuerySpanResult
+	// NotFoundError is set when the catalog lacks a database, table or
+	// column the query names; Results is then empty.
+	NotFoundError *NotFoundError
 }
 
 // ResolveOptions carries the session facts the caller resolves before the
 // analysis. DefaultDatabase fills in a table reference with no database
 // qualifier. IgnoreCaseSensitive folds database names when the caller's
-// metadata is case-insensitive.
+// metadata is case-insensitive. Catalog, when set, resolves a query's
+// columns and the views it reads.
 type ResolveOptions struct {
 	DefaultDatabase     string
 	IgnoreCaseSensitive bool
+	Catalog             Catalog
 }
 
 // ErrMixUserSystemTables reports a statement that reads user and system tables
@@ -74,7 +81,7 @@ func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedQuerySpan
 	if nonEmpty == 0 {
 		return &ResolvedQuerySpan{
 			SourceColumns: SourceColumnSet{},
-			Results:       []ColumnInfo{},
+			Results:       []QuerySpanResult{},
 		}, nil
 	}
 	if nonEmpty > 1 {
@@ -115,6 +122,18 @@ func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedQuerySpan
 		}
 		sources[ColumnResource{Database: database, Table: table.Table}] = true
 	}
+	results := syntacticResults(span.Results)
+	var notFound *NotFoundError
+	if opts.Catalog.GetDatabase != nil && isQuery(node) {
+		// The catalog resolves each column to the table columns it reads,
+		// and each view to the tables behind it, which the plan reads too.
+		r := newSpanResolver(opts, single)
+		cols := r.query(node, nil, nil)
+		sources, results, notFound = r.tables, results[:0], r.notFound
+		if notFound == nil {
+			results = resolvedResults(cols)
+		}
+	}
 
 	allSystems, mixed := isMixedQuery(sources, opts.IgnoreCaseSensitive)
 	if mixed {
@@ -126,7 +145,8 @@ func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedQuerySpan
 	return &ResolvedQuerySpan{
 		Type:          queryType,
 		SourceColumns: sources,
-		Results:       span.Results,
+		Results:       results,
+		NotFoundError: notFound,
 	}, nil
 }
 
