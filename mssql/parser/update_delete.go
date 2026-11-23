@@ -114,7 +114,7 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 
 	// FROM clause
 	if _, ok := p.match(kwFROM); ok {
-		from, err := p.parseFromClause()
+		from, err := p.parseDMLFromClause()
 		if err != nil {
 			return nil, err
 		}
@@ -223,7 +223,7 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 
 	// FROM clause (second FROM for join)
 	if _, ok := p.match(kwFROM); ok {
-		from, err := p.parseFromClause()
+		from, err := p.parseDMLFromClause()
 		if err != nil {
 			return nil, err
 		}
@@ -640,4 +640,19 @@ func (p *Parser) parseSetTarget() (*nodes.ColumnRef, error) {
 	}
 
 	return ref, nil
+}
+
+// parseDMLFromClause parses the table sources after an UPDATE's or a
+// DELETE's FROM. fromClauseOpt (TSql160.g:18561) is FROM and one table
+// source at least, and SQL Server refuses UPDATE a SET @a = 1 FROM and
+// DELETE a FROM (measured, Msg 102).
+func (p *Parser) parseDMLFromClause() (*nodes.List, error) {
+	from, err := p.parseFromClause()
+	if err != nil {
+		return nil, err
+	}
+	if len(from.Items) == 0 {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return from, nil
 }

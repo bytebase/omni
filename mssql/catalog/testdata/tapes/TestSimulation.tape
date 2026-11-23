@@ -1563,6 +1563,18 @@
 | CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
 < ok 0 -
 > exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
+|
+< error
+| 1088 12 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
 | CREATE INDEX a ON a(a) INCLUDE(a)
 |
 < error
@@ -2964,6 +2976,18 @@
 | CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 |
 < error
@@ -3132,6 +3156,18 @@
 | CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
+|
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a DROP INDEX a
 |
 < error
@@ -3288,6 +3324,18 @@
 | CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 |
 < error
@@ -3400,6 +3448,18 @@
 |
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -3612,6 +3672,18 @@
 | CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+|
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 |
 < error
@@ -3661,6 +3733,18 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+|
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 |
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -3923,6 +4007,66 @@
 |
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+|
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+|
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| PROCEDURE
+: string
+| dbo.a
+: string
+| CREATE   PROC a AS SELECT 1
+|
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d] ASC);
+|
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -5044,6 +5188,18 @@
 |
 < error
 | 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
+|
+< error
+| 1716 2 16 1 FILESTREAM_ON cannot be specified when a table has no FILESTREAM columns. Remove the FILESTREAM_ON clause from the statement, or add a FILESTREAM column to the table.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -6365,6 +6521,18 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 |
 < error
@@ -6526,6 +6694,33 @@
 |
 < error
 | 4924 1 16 1 ALTER TABLE DROP COLUMN failed because column 'a' does not exist in table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -6718,6 +6913,20 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 |
 < error
@@ -6869,6 +7078,18 @@
 |
 < error
 | 2715 6 16 1 Column, parameter, or variable #4: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -7103,6 +7324,19 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 |
 < error
@@ -7159,6 +7393,34 @@
 < error
 | 1769 1 16 1 Foreign key 'a' references invalid column 'a' in referencing table 'a'.
 | 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD CHECK ((1)=(1));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -7433,6 +7695,42 @@
 |
 < error
 | 4924 1 16 1 ALTER TABLE ALTER COLUMN failed because column 'a' does not exist in table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+|
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+|
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+|
+< error
+| 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -8570,6 +8868,18 @@
 |
 < error
 | 1902 3 16 1 Cannot create more than one clustered index on table 'a'. Drop the existing clustered index 'PK_a' before creating another.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
+|
+< error
+| 1716 2 16 1 FILESTREAM_ON cannot be specified when a table has no FILESTREAM columns. Remove the FILESTREAM_ON clause from the statement, or add a FILESTREAM column to the table.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -9939,6 +10249,18 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 |
 < error
@@ -10112,6 +10434,33 @@
 < ok 0 -
 > exec
 | ALTER TABLE a DROP COLUMN a
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
 |
 < ok 0 -
 > query
@@ -10322,6 +10671,20 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 |
 < error
@@ -10458,6 +10821,18 @@
 |
 < error
 | 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -10720,6 +11095,19 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+|
+< error
+| 1921 1 16 1 Invalid filegroup 'a' specified.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 |
 < ok 0 -
@@ -10804,6 +11192,34 @@
 | CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
 | ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
 | ALTER TABLE [dbo].[a] ADD FOREIGN KEY ([a]) REFERENCES [dbo].[a] ([b]);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD CHECK ((1)=(1));
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
 |
 > exec
@@ -11080,6 +11496,42 @@
 |
 < error
 | 2715 6 16 1 Column, parameter, or variable #3: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+|
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+|
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+|
+< error
+| 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -12244,6 +12696,18 @@
 |
 < error
 | 1913 1 16 1 The operation failed because an index or statistics with name 'a' already exists on table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
+|
+< error
+| 1716 2 16 1 FILESTREAM_ON cannot be specified when a table has no FILESTREAM columns. Remove the FILESTREAM_ON clause from the statement, or add a FILESTREAM column to the table.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -13565,6 +14029,18 @@
 | CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 |
 < error
@@ -13738,6 +14214,33 @@
 < ok 0 -
 > exec
 | ALTER TABLE a DROP COLUMN a
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
 |
 < ok 0 -
 > query
@@ -13948,6 +14451,20 @@
 | CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 |
 < error
@@ -14084,6 +14601,18 @@
 |
 < error
 | 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -14346,6 +14875,19 @@
 | CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+|
+< error
+| 1921 1 16 1 Invalid filegroup 'a' specified.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 |
 < ok 0 -
@@ -14430,6 +14972,34 @@
 | CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
 | ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
 | ALTER TABLE [dbo].[a] ADD FOREIGN KEY ([a]) REFERENCES [dbo].[a] ([b]);
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD CHECK ((1)=(1));
 | CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d] ASC);
 |
 > exec
@@ -14706,6 +15276,42 @@
 |
 < error
 | 2715 6 16 1 Column, parameter, or variable #3: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+|
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+|
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+|
+< error
+| 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -15995,6 +16601,20 @@
 |
 < error
 | 1939 1 16 1 Cannot create index on view 'a' because the view is not schema bound.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
+|
+< error
+| 1716 2 16 1 FILESTREAM_ON cannot be specified when a table has no FILESTREAM columns. Remove the FILESTREAM_ON clause from the statement, or add a FILESTREAM column to the table.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -17335,6 +17955,20 @@
 | CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 |
 < error
@@ -17531,6 +18165,20 @@
 | CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
 < ok 0 -
 > exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
 | ALTER TABLE a DROP INDEX a
 |
 < error
@@ -17713,6 +18361,20 @@
 | CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 |
 < error
@@ -17843,6 +18505,20 @@
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -18091,6 +18767,20 @@
 | CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 |
 < error
@@ -18148,6 +18838,20 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -18418,6 +19122,48 @@
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+|
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+|
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+|
+< error
+| 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -19763,6 +20509,19 @@
 | CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
 < ok 0 -
 > exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
+|
+< error
+| 1716 2 16 1 FILESTREAM_ON cannot be specified when a table has no FILESTREAM columns. Remove the FILESTREAM_ON clause from the statement, or add a FILESTREAM column to the table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
 | CREATE INDEX a ON a(a) INCLUDE(a)
 |
 < error
@@ -21479,6 +22238,19 @@
 | CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 |
 < error
@@ -21685,6 +22457,20 @@
 < ok 0 -
 > exec
 | ALTER TABLE a DROP COLUMN a
+|
+< error
+| 5074 1 16 1 The object 'FK_a_p' is dependent on column 'a'.
+| 4922 9 16 1 ALTER TABLE DROP COLUMN a failed because one or more objects access this column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
 |
 < error
 | 5074 1 16 1 The object 'FK_a_p' is dependent on column 'a'.
@@ -21915,6 +22701,21 @@
 | CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 |
 < error
@@ -22080,6 +22881,19 @@
 |
 < error
 | 2705 4 16 1 Column names in each table must be unique. Column name 'a' in table 'a' is specified more than once.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -22420,6 +23234,20 @@
 | CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+|
+< error
+| 1921 1 16 1 Invalid filegroup 'a' specified.
+| 1750 1 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 |
 < ok 0 -
@@ -22530,6 +23358,55 @@
 | ALTER TABLE [dbo].[a] ADD CONSTRAINT [a_chk] CHECK ([d]>(0));
 | ALTER TABLE [dbo].[a] ADD CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]);
 | ALTER TABLE [dbo].[a] ADD FOREIGN KEY ([a]) REFERENCES [dbo].[a] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.ch
+: string
+| CREATE TABLE [dbo].[ch] ([b] int NOT NULL, [a_b] int NULL);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.p
+: string
+| CREATE TABLE [dbo].[p] ([b] int NOT NULL, [d] int NULL);
+| ALTER TABLE [dbo].[p] ADD CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [a_chk] CHECK ([d]>(0));
+| ALTER TABLE [dbo].[a] ADD CHECK ((1)=(1));
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]);
 |
 < row
 : string
@@ -22903,6 +23780,45 @@
 |
 < error
 | 2715 6 16 1 Column, parameter, or variable #3: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+|
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+|
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+|
+< error
+| 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -24286,6 +25202,20 @@
 | CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
 < ok 0 -
 > exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
+|
+< error
+| 1716 2 16 1 FILESTREAM_ON cannot be specified when a table has no FILESTREAM columns. Remove the FILESTREAM_ON clause from the statement, or add a FILESTREAM column to the table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
 | CREATE INDEX a ON a(a) INCLUDE(a)
 |
 < error
@@ -25859,6 +26789,20 @@
 | CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 |
 < error
@@ -26046,6 +26990,42 @@
 |
 < error
 | 4924 1 16 1 ALTER TABLE DROP COLUMN failed because column 'a' does not exist in table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| SCHEMA
+: string
+| a
+: string
+| CREATE SCHEMA [a];
+|
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -26273,6 +27253,22 @@
 | CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 10785 1 16 1 The operation 'ALTER TABLE ADD INDEX' is supported only with memory optimized tables.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 |
 < error
@@ -26456,6 +27452,20 @@
 |
 < error
 | 2715 6 16 1 Column, parameter, or variable #4: Cannot find data type a.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -26733,6 +27743,21 @@
 | CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+|
+< error
+| 1911 1 16 1 Column name 'a' does not exist in the target table or view.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 |
 < error
@@ -26797,6 +27822,43 @@
 < error
 | 1769 1 16 1 Foreign key 'a' references invalid column 'a' in referencing table 'a'.
 | 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| SCHEMA
+: string
+| a
+: string
+| CREATE SCHEMA [a];
+|
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD CHECK ((1)=(1));
+|
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -27130,6 +28192,48 @@
 |
 < error
 | 4924 1 16 1 ALTER TABLE ALTER COLUMN failed because column 'a' does not exist in table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+|
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+|
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+|
+< error
+| 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -28236,6 +29340,18 @@
 < ok 0 -
 > exec
 | CREATE CLUSTERED INDEX a ON a(a)
+|
+< error
+| 1914 2 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 |
 < error
 | 1914 2 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
@@ -29519,6 +30635,18 @@
 | CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 |
 < error
@@ -29687,6 +30815,18 @@
 | CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
 < ok 0 -
 > exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
 | ALTER TABLE a DROP INDEX a
 |
 < error
@@ -29843,6 +30983,18 @@
 | CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 |
 < error
@@ -29955,6 +31107,18 @@
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -30167,6 +31331,18 @@
 | CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 |
 < error
@@ -30216,6 +31392,18 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -30572,6 +31760,42 @@
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+|
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+|
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+|
+< error
+| 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -31656,6 +32880,18 @@
 < ok 0 -
 > exec
 | CREATE CLUSTERED INDEX a ON a(a)
+|
+< error
+| 1914 2 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 |
 < error
 | 1914 2 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
@@ -32807,6 +34043,18 @@
 | CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 |
 < error
@@ -32975,6 +34223,18 @@
 | CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
 < ok 0 -
 > exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
 | ALTER TABLE a DROP INDEX a
 |
 < error
@@ -33131,6 +34391,18 @@
 | CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 |
 < error
@@ -33243,6 +34515,18 @@
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -33455,6 +34739,18 @@
 | CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 |
 < error
@@ -33504,6 +34800,18 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -33750,6 +35058,42 @@
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+|
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+|
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+|
+< error
+| 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -35110,6 +36454,20 @@
 | CREATE PROCEDURE [dbo].[a] AS SELECT 1;
 < ok 0 -
 > exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
+|
+< error
+| 1914 2 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
 | CREATE INDEX a ON a(a) INCLUDE(a)
 |
 < error
@@ -36440,6 +37798,20 @@
 | CREATE PROCEDURE [dbo].[a] AS SELECT 1;
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 |
 < error
@@ -36636,6 +38008,20 @@
 | CREATE PROCEDURE [dbo].[a] AS SELECT 1;
 < ok 0 -
 > exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
 | ALTER TABLE a DROP INDEX a
 |
 < error
@@ -36818,6 +38204,20 @@
 | CREATE PROCEDURE [dbo].[a] AS SELECT 1;
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 |
 < error
@@ -36948,6 +38348,20 @@
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -37196,6 +38610,20 @@
 | CREATE PROCEDURE [dbo].[a] AS SELECT 1;
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 |
 < error
@@ -37253,6 +38681,20 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -37530,6 +38972,71 @@
 | CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
 < ok 0 -
 > exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+|
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+|
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| PROCEDURE
+: string
+| dbo.a
+: string
+| CREATE   PROC a AS SELECT 1
+|
+|
+< row
+: string
+| TABLE
+: string
+| dbo.t
+: string
+| CREATE TABLE [dbo].[t] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[t] ADD CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
 | CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
 < ok 0 -
 > exec
@@ -38787,6 +40294,20 @@
 < ok 0 -
 > exec
 | CREATE CLUSTERED INDEX a ON a(a)
+|
+< error
+| 1914 2 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 |
 < error
 | 1914 2 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
@@ -40130,6 +41651,20 @@
 | CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 |
 < error
@@ -40326,6 +41861,20 @@
 | CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
 < ok 0 -
 > exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
 | ALTER TABLE a DROP INDEX a
 |
 < error
@@ -40508,6 +42057,20 @@
 | CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 |
 < error
@@ -40638,6 +42201,20 @@
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -40886,6 +42463,20 @@
 | CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 |
 < error
@@ -40943,6 +42534,20 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -41213,6 +42818,48 @@
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+|
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+|
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+|
+< error
+| 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -42459,6 +44106,20 @@
 < ok 0 -
 > exec
 | CREATE CLUSTERED INDEX a ON a(a)
+|
+< error
+| 1914 2 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE INDEX a ON a(a) FILESTREAM_ON 'a'
 |
 < error
 | 1914 2 16 1 Index cannot be created on object 'a' because the object is not a user table or view.
@@ -43802,6 +45463,20 @@
 | CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
 < ok 0 -
 > exec
+| ALTER TABLE a ALTER COLUMN a a COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
 | ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 |
 < error
@@ -43998,6 +45673,20 @@
 | CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
 < ok 0 -
 > exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
 | ALTER TABLE a DROP INDEX a
 |
 < error
@@ -44180,6 +45869,20 @@
 | CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a FILESTREAM_ON 'a'
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a UNIQUE
 |
 < error
@@ -44310,6 +46013,20 @@
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD a a COLLATE a
+|
+< error
+| 448 2 16 1 Invalid collation 'a'.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -44558,6 +46275,20 @@
 | CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
 < ok 0 -
 > exec
+| ALTER TABLE a ADD UNIQUE(a) ON 'a'
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
 | ALTER TABLE a ADD UNIQUE(a ASC)
 |
 < error
@@ -44615,6 +46346,20 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD CHECK NOT FOR REPLICATION(1 = 1)
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -44885,3 +46630,45 @@
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a DROP COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a
+|
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a DROP CONSTRAINT IF EXISTS a, COLUMN IF EXISTS a
+|
+< error
+| 8168 0 16 1 Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named 'a' in this context. Duplicate names are not allowed.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE OR ALTER PROC a AS SELECT 1
+|
+< error
+| 2010 1 16 1 proc=a Cannot perform alter on 'a' because it is an incompatible object type.

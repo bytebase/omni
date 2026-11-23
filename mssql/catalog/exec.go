@@ -1186,6 +1186,15 @@ func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt, source string) error {
 		return mssqlErr(ErrInvalidObjectName, "Invalid object name '%s'.", tableName)
 	}
 
+	// FILESTREAM_ON needs a FILESTREAM column, which no table here holds:
+	// the server has no FILESTREAM filegroup (1969). SQL Server checks it
+	// before the view, column and name checks:
+	// CREATE INDEX a ON a(a) FILESTREAM_ON 'a' is 1716 on a view, on a
+	// table without column a and beside an index a (measured).
+	if !c.lenientMetadataLoad && n.FilestreamOn != "" && (kind == kindTable || kind == kindView) {
+		return mssqlErr(ErrDropIndexFilestreamOn, "FILESTREAM_ON cannot be specified when a table has no FILESTREAM columns.")
+	}
+
 	switch kind {
 	case kindNone:
 		return mssqlErr(ErrObjectNotFound, "Cannot find the object \"%s\" because it does not exist or you do not have permissions.", tableName)
@@ -2306,11 +2315,21 @@ func checkAlterTablePreLookup(n *ast.AlterTableStmt) error {
 			if action.Index == nil || action.Index.Columns == nil || len(action.Index.Columns.Items) == 0 {
 				return mssqlErr(ErrAlterTableAddIndexSyntax, "Table level constraint or index does not specify column list.")
 			}
-		case ast.ATDropConstraint:
-			if action.Constraint != nil && action.Constraint.Name != "" {
-				low := strings.ToLower(action.Constraint.Name)
+		case ast.ATDropConstraint, ast.ATDropColumn:
+			// One DROP list names a column and a constraint alike: DROP
+			// COLUMN IF EXISTS a, CONSTRAINT IF EXISTS a is 8168 before
+			// the table is looked up (measured).
+			name := action.ColName
+			if action.Type == ast.ATDropConstraint {
+				name = ""
+				if action.Constraint != nil {
+					name = action.Constraint.Name
+				}
+			}
+			if name != "" {
+				low := strings.ToLower(name)
 				if seenDrop[low] {
-					return mssqlErr(ErrDupTargetInAlter, "Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named '%s' in this context.", action.Constraint.Name)
+					return mssqlErr(ErrDupTargetInAlter, "Cannot create, drop, enable, or disable more than one constraint, column, index, or trigger named '%s' in this context.", name)
 				}
 				seenDrop[low] = true
 			}
@@ -2700,6 +2719,11 @@ func (c *Catalog) execAlterTableAddConstraint(table *metadata.TableMetadata, sch
 			if columnByName(table, colName) == nil {
 				return mssqlErr(ErrIndexColumnNotFound, "Column name '%s' does not exist in the target table or view.", colName)
 			}
+		}
+		// ADD UNIQUE(a) ON 'a' names a filegroup the database lacks: 1921
+		// after the column check (measured).
+		if !c.lenientMetadataLoad && !isValidFilegroup(n.OnFilegroup) {
+			return mssqlErr(ErrInvalidFilegroup, "Invalid filegroup '%s' specified.", n.OnFilegroup)
 		}
 		if n.Name != "" {
 			if schema := c.GetSchema(schemaName); schema != nil && c.lookupSchemaObject(schema, n.Name, false) != kindNone {
