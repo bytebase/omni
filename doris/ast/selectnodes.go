@@ -177,7 +177,11 @@ type SelectItem struct {
 	TableName *ObjectName
 	// For SELECT * EXCEPT (col1, col2, ...) — list of column names to exclude.
 	ExceptColumns []string
-	Loc           Loc
+	// ExceptNames is each excluded column as written, qualifier included
+	// (t.id), beside ExceptColumns; nil for an entry that is no column
+	// reference.
+	ExceptNames []*ObjectName
+	Loc         Loc
 }
 
 // Tag implements Node.

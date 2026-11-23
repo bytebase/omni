@@ -62,7 +62,8 @@ queries that hold the text.
 
 ### Known differences
 
-- An unqualified column two joined tables share, `USING` columns included:
-  Doris refuses it as ambiguous, and omni names the column of both tables.
+- An unqualified column two joined tables share, `USING` columns and
+  `* EXCEPT (id)` included: Doris refuses it as ambiguous, and omni names (or
+  excludes) the column of both tables.
   Doris returns no rows, so no masked value can pass, and both sides are what
   a masking policy on either needs.

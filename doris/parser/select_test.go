@@ -448,6 +448,9 @@ func TestSelectStarExcept(t *testing.T) {
 	if len(stmt.Items) != 1 || !stmt.Items[0].Star || len(stmt.Items[0].ExceptColumns) != 2 || stmt.Items[0].ExceptColumns[1] != "b" {
 		t.Errorf("Items = %+v, want * EXCEPT (a, b)", stmt.Items)
 	}
+	if names := stmt.Items[0].ExceptNames; len(names) != 2 || len(names[1].Parts) != 2 || names[1].Parts[0] != "t" {
+		t.Errorf("ExceptNames = %+v, want a and t.b as written", names)
+	}
 	for _, sql := range []string{"SELECT * EXCEPT (a)", "SELECT a, * EXCEPT (b) FROM t"} {
 		if _, errs := parseForTest(sql); len(errs) == 0 {
 			t.Errorf("%s parsed, want an error", sql)
