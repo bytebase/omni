@@ -355,11 +355,23 @@ var walkCodes = []struct {
 	{func(m, _ string) bool { return saysTwice(m, "foreign key", "declares", "adds") }, []string{"1826", "1061"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "MySQL doesn't accept `RENAME TABLE` of view ") }, []string{"1450"}},
 	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Foreign key in ") && strings.HasSuffix(m, " must name matching referenced columns.")
+	}, []string{"1239"}},
+	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Foreign key ") && strings.HasSuffix(m, " already exists.")
 	}, []string{"1826", "1022"}},
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Foreign key ") || saysTwice(m, "foreign key", "drops")
 	}, []string{"1091"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, " must have at least one column.")
+	}, []string{"4028"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, " cannot exchange a partition with itself.")
+	}, []string{"1066"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, " is not partitioned.")
+	}, []string{"1505"}},
 	{func(m, _ string) bool {
 		return (strings.HasPrefix(m, "Table ") || strings.HasPrefix(m, "View ")) && strings.HasSuffix(m, " already exists.") ||
 			strings.HasPrefix(m, "The name ") && strings.HasSuffix(m, " is already taken.")
@@ -381,9 +393,34 @@ var walkCodes = []struct {
 	{func(m, _ string) bool { return strings.HasPrefix(m, "Database ") }, []string{"1049", "1008", "1025"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "No database is selected for ") }, []string{"1046"}},
 	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.Contains(m, " has a display width or length ")
+	}, []string{"1439"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Column ") && strings.Contains(m, "`SRID`") }, []string{"1221"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Column ") && strings.Contains(m, "`ON UPDATE`") }, []string{"1294"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.HasSuffix(m, " has an invalid default value.")
+	}, []string{"1067"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.Contains(m, "`AUTO_INCREMENT`")
+	}, []string{"1075"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Column ") && strings.Contains(m, "`FULLTEXT`") }, []string{"1283"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Column ") && strings.Contains(m, "`SPATIAL`") }, []string{"1687"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.HasSuffix(m, " cannot use an index prefix length.")
+	}, []string{"1089"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.HasSuffix(m, " is used by the table's partitioning function.")
+	}, []string{"3855"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.HasSuffix(m, " is needed by a foreign key constraint.")
+	}, []string{"1828"}},
+	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Column ") && strings.Contains(m, " already exists in ") || saysTwice(m, "column", "declares", "adds", "drops")
 	}, []string{"1060", "1091"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "Column ") }, []string{"1054", "1091"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Index ") && strings.HasSuffix(m, " is needed by a foreign key constraint.")
+	}, []string{"1553"}},
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Index ") && strings.Contains(m, " already exists in ") || saysTwice(m, "index", "declares", "adds")
 	}, []string{"1061"}},
@@ -400,12 +437,71 @@ var walkCodes = []struct {
 	}, []string{"1304"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "Procedure ") || strings.HasPrefix(m, "Function ") }, []string{"1305"}},
 	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Event ") && strings.HasSuffix(m, " cannot be renamed to the same name.")
+	}, []string{"1551"}},
+	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Event ") && strings.HasSuffix(m, " already exists.")
 	}, []string{"1537"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "Event ") }, []string{"1539"}},
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "The name ") && strings.HasSuffix(m, "'s 64-character limit.")
 	}, []string{"1059"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Spatial reference system requires a ") }, []string{"3708"}},
+	{func(m, _ string) bool {
+		return strings.Contains(m, "spatial reference system SRID 0")
+	}, []string{"3714"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Spatial reference system `NAME` ") }, []string{"3710"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Spatial reference system `DEFINITION` ") }, []string{"3517"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Key column ") && strings.Contains(m, " doesn't exist in ")
+	}, []string{"1072"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Partition column ") }, []string{"1488"}},
+	{func(m, _ string) bool { return saysTwice(m, "column", "names") }, []string{"1060"}},
+	{func(m, _ string) bool { return saysTwice(m, "partition column", "lists") }, []string{"1652"}},
+	{func(m, _ string) bool {
+		return saysTwice(m, "partition", "adds") || strings.HasPrefix(m, "Partition ") && strings.Contains(m, " already exists in ")
+	}, []string{"1517"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Partition ") && strings.Contains(m, " requires a `VALUES` ")
+	}, []string{"1479"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Generated column ") }, []string{"3107"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Default expression of column ") }, []string{"3767"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Check constraint ") && strings.HasSuffix(m, " must be a boolean expression.")
+	}, []string{"3812"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Check constraint ") && strings.Contains(m, " doesn't exist in ")
+	}, []string{"3821"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Constraint ") && strings.HasSuffix(m, " is not a check constraint.")
+	}, []string{"3941"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Constraint ") && strings.Contains(m, " doesn't exist in ")
+	}, []string{"3940"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Functional index key part ") }, []string{"3762"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Partitioned table ") && strings.Contains(m, "`FULLTEXT`")
+	}, []string{"1214"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Partitioned table ") && strings.Contains(m, "foreign keys.")
+	}, []string{"1506"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Every unique key of ") && strings.Contains(m, "partitioning function.")
+	}, []string{"1503"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Each partition must be defined ") }, []string{"1492"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "`SUBPARTITION BY` is only supported ") }, []string{"1500"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "`REORGANIZE PARTITION` without parameters ") }, []string{"1511"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "`COALESCE PARTITION` is only valid ") }, []string{"1509"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Cannot remove all partitions ") }, []string{"1508"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Invalid `ENCRYPTION` option value ") }, []string{"3184"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "InnoDB doesn't support ") }, []string{"1478"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "`AUTOEXTEND_SIZE` value ") }, []string{"4025"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "`WITH/WITHOUT VALIDATION` requires ") }, []string{"1221"}},
+	{func(m, _ string) bool { return strings.Contains(m, "`START TRANSACTION` as a table option.") }, []string{"3979"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Primary key of ") && strings.HasSuffix(m, " is needed by a foreign key constraint.")
+	}, []string{"1553"}},
+	{func(m, _ string) bool { return strings.Contains(m, "`AUTO_INCREMENT`") }, []string{"1075"}},
 }
 
 // saysTwice reports whether a message says the statement names kind twice, by

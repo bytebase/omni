@@ -51,8 +51,38 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	} else if !b.isFKGenerated(ik) {
 		b.need(ik, walk.Absent, nil, rng, "", alreadyExists("index", ident(v.IndexName), r.written)) // 1061
 	}
+	rel := relKey(r.db, r.name)
+	parts := indexStmtKeyParts(v.Columns)
+	partitioned := b.w.partitionState[rel] != nil && b.w.partitionState[rel].partitioned
+	spatial := v.Spatial || isSpatialIndexType(v.IndexType)
+	if b.checkIndexParts(r, parts, v.Fulltext, spatial, false, partitioned, rng, func(colName string) (walk.Fact, string, bool) {
+		ck, ok := b.key(spaceColumn, colName)
+		if !ok {
+			return walk.Unknown, "", false
+		}
+		key := colKey(r.db, r.name, ck)
+		f, _ := b.l.Lookup(key)
+		return f, b.w.colTypes[key], false
+	}) {
+		return true
+	}
 	b.Set(ik, walk.Present, "")
 	b.onIndexAdded(r, ik, true)
+	im := &indexMeta{unique: v.Unique, fulltext: v.Fulltext, spatial: spatial}
+	for _, p := range parts {
+		if p.functional {
+			break
+		}
+		if p.length > 0 {
+			im.hasPrefix = true
+		}
+		im.cols = append(im.cols, strings.ToLower(p.name))
+	}
+	b.Session(func() {
+		if b.w.tableIndexes[rel] != nil {
+			b.w.tableIndexes[rel][k] = im
+		}
+	})
 	return true
 }
 
@@ -61,7 +91,25 @@ func (b *builder) dropIndex(v *ast.DropIndexStmt) bool {
 	if !ok {
 		return lowered
 	}
-	return b.dropIndexName(r, v.Name, b.anchor())
+	rel := relKey(r.db, r.name)
+	b.fks = !b.w.ignoresFKs[rel]
+	if k, ok := b.key(spaceIndex, v.Name); ok {
+		if b.dropIndexNeededByFK(r, k, nil, nil, nil) {
+			b.fail(b.anchor(), nil, review.IndexBacksConstraint, "Index "+review.Code(ident(v.Name))+" in "+review.Code(r.written)+" is needed by a foreign key constraint.")
+			return true
+		}
+	}
+	if !b.dropIndexName(r, v.Name, b.anchor()) {
+		return false
+	}
+	if k, ok := b.key(spaceIndex, v.Name); ok {
+		b.Session(func() {
+			if b.w.tableIndexes[rel] != nil {
+				delete(b.w.tableIndexes[rel], k)
+			}
+		})
+	}
+	return true
 }
 
 func (b *builder) createView(v *ast.CreateViewStmt) bool {
@@ -86,6 +134,10 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 	} else {
 		b.needFree(k, r.rng, r.written, relView) // 1050
 	}
+	if col, ok := selectFromlessColumn(v.Select); ok {
+		b.fail(r.rng, nil, review.ObjectNotFound, "Column "+review.Code(ident(col))+" doesn't exist in the query.")
+		return true
+	}
 	b.Set(k, walk.Present, relView)
 	return true
 }
@@ -96,7 +148,15 @@ func (b *builder) alterView(v *ast.AlterViewStmt) bool {
 	case refFailed:
 		return true
 	case refOK:
-		b.needKind(relKey(r.db, r.name), []string{relView}, r.rng, notFound("view", r.written, ""), r.written, "view") // 1146, 1347
+		k := relKey(r.db, r.name)
+		f, kind := b.l.Lookup(k)
+		b.needKind(k, []string{relView}, r.rng, notFound("view", r.written, ""), r.written, "view") // 1146, 1347
+		if f == walk.Present && kind == relView {
+			if col, ok := selectFromlessColumn(v.Select); ok {
+				b.fail(r.rng, nil, review.ObjectNotFound, "Column "+review.Code(ident(col))+" doesn't exist in the query.")
+				return true
+			}
+		}
 	}
 	return true
 }
@@ -322,6 +382,9 @@ func (b *builder) createEvent(v *ast.CreateEventStmt) bool {
 	if st != refOK {
 		return st == refFailed
 	}
+	if b.eventScheduleFails(v.Schedule) {
+		return true
+	}
 	if !v.IfNotExists {
 		b.need(ek, walk.Absent, nil, b.anchor(), "", alreadyExists("event", ident(v.Name), "")) // 1537
 	}
@@ -334,18 +397,25 @@ func (b *builder) alterEvent(v *ast.AlterEventStmt) bool {
 	if st != refOK {
 		return st == refFailed
 	}
-	b.need(ek, walk.Present, nil, b.anchor(), notFound("event", ident(v.Name), ""), "") // 1539
+	if b.eventScheduleFails(v.Schedule) {
+		return true
+	}
 	if v.RenameTo != "" {
 		nk, st := b.event(v.RenameSchema, v.RenameTo)
 		if st != refOK {
 			return st == refFailed
 		}
-		if nk != ek {
-			b.need(nk, walk.Absent, nil, b.anchor(), "", alreadyExists("event", ident(v.RenameTo), "")) // 1537
-			b.Set(ek, walk.Absent, "")
+		if nk == ek {
+			b.fail(b.anchor(), nil, review.UnsupportedForm, "Event "+review.Code(ident(v.Name))+" cannot be renamed to the same name.") // 1551
+			return true
 		}
+		b.need(ek, walk.Present, nil, b.anchor(), notFound("event", ident(v.Name), ""), "")         // 1539
+		b.need(nk, walk.Absent, nil, b.anchor(), "", alreadyExists("event", ident(v.RenameTo), "")) // 1537
+		b.Set(ek, walk.Absent, "")
 		b.Set(nk, walk.Present, "")
+		return true
 	}
+	b.need(ek, walk.Present, nil, b.anchor(), notFound("event", ident(v.Name), ""), "") // 1539
 	return true
 }
 

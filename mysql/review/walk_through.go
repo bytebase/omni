@@ -44,6 +44,13 @@ func walkThrough(ctx context.Context, sql string, stmts []statement, t review.Ta
 		w.anyTrigger = true
 		w.anyFunction = true
 		w.fkGeneratedIndexes = make(map[walk.Key]map[string]bool)
+		w.engines = make(map[walk.Key]string)
+		w.colTypes = make(map[walk.Key]string)
+		w.partitionState = make(map[walk.Key]*tablePartitionInfo)
+		w.tableIndexes = make(map[walk.Key]map[string]*indexMeta)
+		w.tableIndexesComplete = make(map[walk.Key]bool)
+		w.tableFKs = make(map[walk.Key]map[string][]string)
+		w.referencedByFK = make(map[walk.Key]map[fkRefKey]bool)
 	}
 	return walk.Run(ctx, len(stmts), snap, w.lower)
 }
@@ -184,6 +191,12 @@ func ownedBy(owner string) string {
 	return " in " + review.Code(owner)
 }
 
+// fkRefKey identifies one foreign key on a child table referencing a parent.
+type fkRefKey struct {
+	child walk.Key
+	fk    string
+}
+
 // walker is the session the change runs in, as far as the walk follows
 // it.
 type walker struct {
@@ -214,27 +227,86 @@ type walker struct {
 	// candidate; adding an index consumes it (and marks other candidates on the
 	// table Unknown).
 	fkGeneratedIndexes map[walk.Key]map[string]bool
+	// engines records known table storage engines ("" means default/InnoDB);
+	// absence from the map means the engine is unknown.
+	engines map[walk.Key]string
+	// colTypes records known base data types keyed by colKey(db, tbl, col).
+	colTypes map[walk.Key]string
+	// partitionState records known partitioning state keyed by relKey(db, tbl).
+	partitionState map[walk.Key]*tablePartitionInfo
+	// tableIndexes records known index column lists keyed by relKey(db, tbl).
+	tableIndexes map[walk.Key]map[string]*indexMeta
+	// tableIndexesComplete reports whether tableIndexes[rel] lists every index
+	// on the table (false once an unnamed/unknown index may have been added).
+	tableIndexesComplete map[walk.Key]bool
+	// tableFKs records known foreign key column lists keyed by relKey(db, tbl).
+	tableFKs map[walk.Key]map[string][]string
+	// referencedByFK maps a parent relKey to the child FKs referencing it.
+	referencedByFK map[walk.Key]map[fkRefKey]bool
 }
 
 func newWalker(sql string, stmts []statement, t review.Target) *walker {
 	fold := t.LowerCaseTableNames != 0
 	snap := newMySQLSnapshot(t.Schema, fold)
 	w := &walker{
-		sql:                sql,
-		stmts:              stmts,
-		snap:               snap,
-		foldTables:         fold,
-		current:            snap.db,
-		fkChecks:           t.ForeignKeyChecks,
-		triggered:          make(map[walk.Key]bool),
-		ignoresFKs:         make(map[walk.Key]bool),
-		fkGeneratedIndexes: make(map[walk.Key]map[string]bool),
+		sql:                  sql,
+		stmts:                stmts,
+		snap:                 snap,
+		foldTables:           fold,
+		current:              snap.db,
+		fkChecks:             t.ForeignKeyChecks,
+		triggered:            make(map[walk.Key]bool),
+		ignoresFKs:           make(map[walk.Key]bool),
+		fkGeneratedIndexes:   make(map[walk.Key]map[string]bool),
+		engines:              make(map[walk.Key]string),
+		colTypes:             make(map[walk.Key]string),
+		partitionState:       make(map[walk.Key]*tablePartitionInfo),
+		tableIndexes:         make(map[walk.Key]map[string]*indexMeta),
+		tableIndexesComplete: make(map[walk.Key]bool),
+		tableFKs:             make(map[walk.Key]map[string][]string),
+		referencedByFK:       make(map[walk.Key]map[fkRefKey]bool),
 	}
 	for name := range snap.triggered {
 		w.triggered[relKey(snap.db, name)] = true
 	}
 	for name := range snap.ignoresFKs {
 		w.ignoresFKs[relKey(snap.db, name)] = true
+	}
+	for name, eng := range snap.engines {
+		w.engines[relKey(snap.db, name)] = eng
+	}
+	for tbl, cols := range snap.colTypes {
+		for col, bt := range cols {
+			w.colTypes[colKey(snap.db, tbl, col)] = bt
+		}
+	}
+	for tbl, pi := range snap.partitionState {
+		w.partitionState[relKey(snap.db, tbl)] = pi.clone()
+	}
+	for tbl, idxs := range snap.tableIndexes {
+		rel := relKey(snap.db, tbl)
+		cp := make(map[string]*indexMeta, len(idxs))
+		for k, im := range idxs {
+			cp[k] = im.clone()
+		}
+		w.tableIndexes[rel] = cp
+		w.tableIndexesComplete[rel] = true
+	}
+	for tbl, fks := range snap.tableFKs {
+		rel := relKey(snap.db, tbl)
+		cp := make(map[string][]string, len(fks))
+		for k, cols := range fks {
+			cp[k] = append([]string(nil), cols...)
+		}
+		w.tableFKs[rel] = cp
+	}
+	for parent, refs := range snap.referencedByFK {
+		pRel := relKey(snap.db, parent)
+		cp := make(map[fkRefKey]bool, len(refs))
+		for pair := range refs {
+			cp[fkRefKey{child: relKey(snap.db, pair[0]), fk: pair[1]}] = true
+		}
+		w.referencedByFK[pRel] = cp
 	}
 	for tbl, idxs := range snap.fkGeneratedIndexes {
 		for idx, owners := range idxs {
@@ -393,6 +465,10 @@ func idxKey(db, table, name string) walk.Key {
 	return walk.Key{Space: spaceIndex, Parent: tablePath(db, table), Name: name}
 }
 
+func chkKey(db, table, name string) walk.Key {
+	return walk.Key{Space: spaceCheckConstraint, Parent: tablePath(db, table), Name: name}
+}
+
 // objKey keys a foreign key, trigger, routine, or event of a database.
 func objKey(space, db, name string) walk.Key {
 	return walk.Key{Space: space, Parent: walk.Path(db), Name: name}
@@ -422,7 +498,7 @@ func keepsFKs(engine string) bool {
 func engineOf(opts []*ast.TableOption) string {
 	engine := ""
 	for _, o := range opts {
-		if o != nil && strings.EqualFold(o.Name, "ENGINE") {
+		if o != nil && (strings.EqualFold(o.Name, "ENGINE") || strings.EqualFold(o.Name, "STORAGE ENGINE")) {
 			engine = strings.Trim(o.Value, "`'\"")
 		}
 	}
@@ -660,10 +736,31 @@ func (b *builder) onIndexAdded(r tableRef, ik walk.Key, knownName bool) {
 // the table at (db, name) when the table is dropped or recreated.
 func (b *builder) clearTableFKGenerated(db, name string) {
 	parent := tablePath(db, name)
+	rel := relKey(db, name)
 	b.Session(func() {
 		for gk := range b.w.fkGeneratedIndexes {
 			if gk.Parent == parent {
 				delete(b.w.fkGeneratedIndexes, gk)
+			}
+		}
+		delete(b.w.engines, rel)
+		delete(b.w.partitionState, rel)
+		delete(b.w.tableIndexes, rel)
+		delete(b.w.tableIndexesComplete, rel)
+		delete(b.w.tableFKs, rel)
+		for ck := range b.w.colTypes {
+			if ck.Parent == parent {
+				delete(b.w.colTypes, ck)
+			}
+		}
+		for pRel, refs := range b.w.referencedByFK {
+			for ref := range refs {
+				if ref.child == rel {
+					delete(refs, ref)
+				}
+			}
+			if len(refs) == 0 {
+				delete(b.w.referencedByFK, pRel)
 			}
 		}
 	})
