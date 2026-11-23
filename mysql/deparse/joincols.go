@@ -119,6 +119,18 @@ func (sc *fromScope) schemaOf(e scopepkg.Entry) string {
 	return sc.schemaEntries[e]
 }
 
+// entriesNamed returns the scope's tables that the name, matched without
+// case, names.
+func (sc *fromScope) entriesNamed(name string) []scopepkg.Entry {
+	var out []scopepkg.Entry
+	for _, e := range sc.tables {
+		if strings.EqualFold(e.Name, name) {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
 // cteNamed reports whether a CTE of the name is in scope.
 func (sc *fromScope) cteNamed(name string) bool {
 	for cur := sc; cur != nil; cur = cur.parent {

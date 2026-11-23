@@ -471,3 +471,14 @@ func TestRoundFourReviewCases(t *testing.T) {
 		t.Errorf("SRID 3857 stays projected: got %d", got)
 	}
 }
+
+func TestViewKeepsSchemaOfCorrelatedReference(t *testing.T) {
+	// a.t.id inside the subquery is the outer a.t; dropping a. would bind it
+	// to the subquery's o.t.
+	c := familiesCatalog(t, "CREATE TABLE t (id INT); CREATE TABLE o.t (id INT);")
+	mustExec(t, c, "CREATE VIEW v AS SELECT (SELECT a.t.id FROM o.t WHERE o.t.id = a.t.id) AS x FROM a.t")
+	const want = "select (select `a`.`t`.`id` from `o`.`t` where (`o`.`t`.`id` = `a`.`t`.`id`)) AS `x` from `t`"
+	if got := c.GetDatabase("a").Views["v"].Definition; got != want {
+		t.Errorf("v:\n got %s\nwant %s", got, want)
+	}
+}

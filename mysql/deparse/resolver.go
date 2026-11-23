@@ -741,6 +741,9 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 // table in scope (or an enclosing correlated scope) contains the column.
 func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprNode {
 	// Already qualified — just validate the table name maps to an alias
+	if col.Table != "" && col.Schema != "" && r.DefaultSchema != "" {
+		return r.resolveSchemaQualifiedColumn(col, sc)
+	}
 	if col.Table != "" {
 		for cur := sc; cur != nil; cur = cur.parent {
 			if cur.GetTable(col.Table) != nil {
@@ -751,12 +754,8 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprN
 					// may each give the FROM clause a table of its name,
 					// except the view's own, which goes where no CTE of
 					// the name could take the reference.
-					switch {
-					case r.DefaultSchema == "":
-					case col.Schema == "":
+					if r.DefaultSchema != "" && col.Schema == "" {
 						col.Schema = cur.schemaOf(entry)
-					case strings.EqualFold(col.Schema, r.DefaultSchema) && !cur.cteNamed(col.Table):
-						col.Schema = ""
 					}
 				}
 				return col
@@ -782,6 +781,42 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprN
 		}
 	}
 	// Column not found — return as-is (could be a literal alias or error)
+	return col
+}
+
+// resolveSchemaQualifiedColumn binds db.t.c in a view to the table of that
+// schema and name, in the nearest query that has one: two schemas may each
+// give a query, or a query and a subquery of it, a table of one name. The
+// view's own schema is then left out where t alone still names that table
+// (no nearer query and no CTE has a t, and no other table of the query is a
+// bare t; another schema's t keeps its own qualifier), as MySQL stores the
+// view, and kept where it would not, so SELECT (SELECT a.t.id FROM o.t ...)
+// FROM a.t keeps reading the outer a.t.
+func (r *Resolver) resolveSchemaQualifiedColumn(col *ast.ColumnRef, sc *fromScope) ast.ExprNode {
+	own := strings.EqualFold(col.Schema, r.DefaultSchema)
+	nearest := true // no nearer query has a table of the name
+	for cur := sc; cur != nil; cur = cur.parent {
+		named := cur.entriesNamed(col.Table)
+		unqualified := 0 // tables of the name a bare t could mean
+		for _, e := range named {
+			if cur.schemaOf(e) == "" {
+				unqualified++
+			}
+		}
+		for _, e := range named {
+			schema := cur.schemaOf(e)
+			if strings.EqualFold(schema, col.Schema) || (own && schema == "") {
+				col.Table = e.Name
+				if own && nearest && unqualified == 1 && !cur.cteNamed(col.Table) {
+					col.Schema = ""
+				}
+				return col
+			}
+		}
+		if len(named) > 0 {
+			nearest = false
+		}
+	}
 	return col
 }
 
