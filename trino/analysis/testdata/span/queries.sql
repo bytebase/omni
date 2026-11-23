@@ -57,6 +57,7 @@ SELECT name FROM customers c WHERE EXISTS (SELECT 1 FROM orders o WHERE o.custom
 SELECT id, (SELECT name FROM customers c WHERE c.id = b.customer_id) FROM big_orders b
 SELECT name FROM customers WHERE region IN (SELECT region FROM hr.depts)
 SELECT (SELECT max(doubled) FROM big_orders) AS top, (SELECT count(*) FROM hr.employees) AS n
+SELECT (SELECT name FROM hr.depts) AS n FROM customers AS depts
 
 -- Common table expressions.
 WITH big AS (SELECT id, amount FROM orders WHERE amount > 10) SELECT id, amount FROM big

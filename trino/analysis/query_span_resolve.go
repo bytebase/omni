@@ -1300,8 +1300,15 @@ func (s *rscope) starExpansion(qualifier string) []outCol {
 // no derived relation (a base table or an unknown relation) is returned
 // unchanged.
 func (s *rscope) resolveRef(ref ColumnRef) []ColumnRef {
+	resolving := s.cte.viewState().resolving()
+	if resolving && allQualified([]ColumnRef{ref}) {
+		// A catalog-qualified ref is a physical column already, resolved in
+		// the scope that read it. An outer relation whose alias happens to
+		// be its table's name does not rebind it.
+		return []ColumnRef{ref}
+	}
 	out := s.recoverRef(ref)
-	if len(out) > 1 && s.cte.viewState().resolving() && allQualified(out[1:]) && s.known() {
+	if len(out) > 1 && resolving && allQualified(out[1:]) && s.known() {
 		// Every relation in scope has a known projection, so the relation the
 		// ref names is among them and the qualified columns it recovered are
 		// its whole lineage. ResolveQuerySpan matches a written ref by name

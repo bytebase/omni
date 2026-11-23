@@ -238,6 +238,11 @@
 | {"columns":["top","n"],"tables":[{"name":"memory.sales.orders"},{"name":"memory.sales.big_orders","view":true},{"name":"memory.hr.employees"}],"lineage":[["memory.sales.big_orders.doubled"],[]]}
 > raw
 | span memory.sales
+| SELECT (SELECT name FROM hr.depts) AS n FROM customers AS depts
+< raw
+| {"columns":["n"],"tables":[{"name":"memory.sales.customers"},{"name":"memory.hr.depts"}],"lineage":[["memory.hr.depts.name"]]}
+> raw
+| span memory.sales
 | WITH big AS (SELECT id, amount FROM orders WHERE amount > 10) SELECT id, amount FROM big
 < raw
 | {"columns":["id","amount"],"tables":[{"name":"memory.sales.orders"}],"lineage":[["memory.sales.orders.id"],["memory.sales.orders.amount"]]}
