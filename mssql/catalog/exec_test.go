@@ -165,10 +165,12 @@ func TestExecExpressionAndSequenceDiffNormalization(t *testing.T) {
 	require.True(t, Diff(from, to).IsEmpty())
 	require.True(t, Diff(to, from).IsEmpty())
 
-	// Double-quoted identifiers and lone '!' must terminate cleanly without hanging.
+	// Double-quoted identifiers, lone '!', and SQL comments must normalize accurately.
 	require.False(t, expressionsEqual(`"x" + 1`, `"x" + 2`))
 	require.True(t, expressionsEqual(`("x") + (1)`, `"x" + 1`))
 	require.False(t, expressionsEqual(`!a`, `!b`))
+	require.False(t, expressionsEqual("[X] -- [Y]\n > 0", "[X] - - [Y] > 0"))
+	require.True(t, expressionsEqual("[X] /* comment */ > 0", "[X] > 0"))
 }
 
 func TestExecReviewRegressions(t *testing.T) {
@@ -235,4 +237,64 @@ CREATE TABLE [dbo].[a.b] ([id] INT NOT NULL);
 	execExpectOK(t, c, `ALTER SCHEMA [app] TRANSFER [dbo].[a.b]`)
 	require.Nil(t, c.GetTable("dbo", "a.b"))
 	require.NotNil(t, c.GetTable("app", "a.b"))
+
+	// 7. Opaque filegroup names are preserved during GetDatabaseMetadata.
+	meta, err = GetDatabaseMetadata(`
+CREATE TABLE [dbo].[t] ([a] INT NOT NULL);
+CREATE INDEX [ix] ON [dbo].[t]([a]) ON [data_fg];
+`)
+	require.NoError(t, err)
+	require.Len(t, meta.Schemas[0].Tables[0].Indexes, 1)
+
+	// 8. CREATE INDEX WITH (DROP_EXISTING = ON) rebuilds an existing index in place.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[t] ([a] INT NOT NULL, [b] INT NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([a]));
+CREATE INDEX [ix] ON [dbo].[t]([a]);
+`)
+	require.NoError(t, err)
+	execExpectOK(t, c, `CREATE INDEX [ix] ON [dbo].[t]([b]) WITH (DROP_EXISTING = ON)`)
+	ix := indexByName(c.GetTable("dbo", "t"), "ix")
+	require.NotNil(t, ix)
+	require.Equal(t, []string{"b"}, ix.Expressions)
+	execExpectOK(t, c, `CREATE UNIQUE CLUSTERED INDEX [PK_t] ON [dbo].[t]([a]) WITH (DROP_EXISTING = ON)`)
+	pk := indexByName(c.GetTable("dbo", "t"), "PK_t")
+	require.NotNil(t, pk)
+	require.True(t, pk.Primary)
+	require.True(t, pk.IsConstraint)
+	execExpectCode(t, c, `CREATE INDEX [missing_ix] ON [dbo].[t]([a]) WITH (DROP_EXISTING = ON)`, ErrIndexNotFound)
+
+	// 9. Failed CREATE SCHEMA rolls back cached tables in tableByName.
+	c = New()
+	execExpectCode(t, c, `CREATE SCHEMA [app] CREATE TABLE [t] ([a] INT) CREATE TABLE [t] ([b] INT)`, ErrDupObject)
+	require.Nil(t, c.GetSchema("app"))
+	require.Nil(t, c.GetTable("app", "t"))
+	execExpectOK(t, c, `CREATE SCHEMA [app]`)
+	execExpectOK(t, c, `CREATE TABLE [app].[t] ([c] INT)`)
+	appSchema := c.GetSchema("app")
+	require.Len(t, appSchema.Tables, 1)
+	require.Len(t, appSchema.Tables[0].Columns, 1)
+	require.Equal(t, "c", appSchema.Tables[0].Columns[0].Name)
+
+	// 10. DROP COLUMN rejects columns referenced by a CHECK constraint.
+	c, err = LoadSQL(`CREATE TABLE [dbo].[t] ([a] INT, [b] INT, CONSTRAINT [ck_a] CHECK ([a] > 0));`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] DROP COLUMN [a]`, ErrColumnDependentObject)
+	require.NotNil(t, columnByName(c.GetTable("dbo", "t"), "a"))
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] DROP CONSTRAINT [ck_a]`)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] DROP COLUMN [a]`)
+
+	// 11. Filtered index IDENTITYCOL check inspects ColumnRef nodes rather than substrings.
+	c, err = LoadSQL(`CREATE TABLE [dbo].[t] ([a] INT, [identitycol_value] INT, [tag] NVARCHAR(50));`)
+	require.NoError(t, err)
+	execExpectOK(t, c, `CREATE INDEX [ix1] ON [dbo].[t]([a]) WHERE [identitycol_value] IS NOT NULL`)
+	execExpectOK(t, c, `CREATE INDEX [ix2] ON [dbo].[t]([a]) WHERE [tag] = 'IDENTITYCOL'`)
+	execExpectCode(t, c, `CREATE INDEX [ix3] ON [dbo].[t]([a]) WHERE IDENTITYCOL IS NOT NULL`, ErrInvalidColumnName)
+
+	// 12. ALTER TABLE DROP CONSTRAINT WITH (ONLINE = OFF/ON) honors the option value and constraint kind.
+	c, err = LoadSQL(`CREATE TABLE [dbo].[t] ([id] INT NOT NULL, [u] INT NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([id]), CONSTRAINT [UQ_t_u] UNIQUE NONCLUSTERED ([u]));`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] DROP CONSTRAINT [UQ_t_u] WITH (ONLINE = ON)`, ErrOnlineDropNonClustered)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] DROP CONSTRAINT [UQ_t_u] WITH (ONLINE = OFF)`)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] DROP CONSTRAINT [PK_t] WITH (ONLINE = ON)`)
+	require.Empty(t, c.GetTable("dbo", "t").Indexes)
 }

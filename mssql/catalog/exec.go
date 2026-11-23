@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/mssql"
 	"github.com/bytebase/omni/mssql/ast"
 )
 
@@ -170,10 +171,17 @@ func hasInboundFKExcluding(c *Catalog, targetSchema, targetTable string, exclude
 }
 
 func tableHasClusteredIndex(table *metadata.TableMetadata) bool {
+	return tableHasClusteredIndexExcluding(table, nil)
+}
+
+func tableHasClusteredIndexExcluding(table *metadata.TableMetadata, exclude *metadata.IndexMetadata) bool {
 	if table == nil {
 		return false
 	}
 	for _, idx := range table.Indexes {
+		if idx == exclude {
+			continue
+		}
 		if strings.EqualFold(idx.Type, "CLUSTERED") || strings.EqualFold(idx.Type, "CLUSTERED COLUMNSTORE") {
 			return true
 		}
@@ -255,6 +263,7 @@ func (c *Catalog) execCreateSchema(n *ast.CreateSchemaStmt, source string) error
 	}
 	schema := c.getOrCreateSchema(n.Name)
 	if n.Elements != nil {
+		savedIndexCounter := c.indexCounter
 		previous := c.defaultSchema
 		if n.Name != "" {
 			c.defaultSchema = n.Name
@@ -262,6 +271,7 @@ func (c *Catalog) execCreateSchema(n *ast.CreateSchemaStmt, source string) error
 		for _, item := range n.Elements.Items {
 			if err := c.execStatement(item, source); err != nil {
 				c.defaultSchema = previous
+				c.indexCounter = savedIndexCounter
 				c.removeSchema(schema.Name)
 				return err
 			}
@@ -274,8 +284,12 @@ func (c *Catalog) execCreateSchema(n *ast.CreateSchemaStmt, source string) error
 func (c *Catalog) removeSchema(name string) {
 	for i, s := range c.schemas {
 		if strings.EqualFold(s.Name, name) {
-			delete(c.schemaByName, s.Name)
 			fold := normalize(s.Name)
+			for _, t := range s.Tables {
+				delete(c.tableByName, tableKey{schema: s.Name, table: t.Name})
+				delete(c.systemTimeTables, tableKey{schema: fold, table: t.Name})
+			}
+			delete(c.schemaByName, s.Name)
 			var kept []*metadata.SchemaMetadata
 			for _, fs := range c.schemasByFold[fold] {
 				if fs != s {
@@ -563,13 +577,28 @@ func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt, source string) error {
 		return mssqlErr(ErrObjectNotFound, "Cannot find the object \"%s\" because it does not exist or you do not have permissions.", tableName)
 	}
 	if n.WhereClause != nil {
-		whereText := strings.ToUpper(nodeText(n.WhereClause, source))
-		if strings.Contains(whereText, "IDENTITYCOL") && !tableHasIdentityColumn(table) {
+		if exprReferencesColumn(n.WhereClause, "IDENTITYCOL") && columnByName(table, "IDENTITYCOL") == nil && !tableHasIdentityColumn(table) {
 			return mssqlErr(ErrInvalidColumnName, "Invalid column name 'IDENTITYCOL'.")
 		}
 	}
 
-	if n.Name != "" && indexByName(table, n.Name) != nil {
+	dropExisting := hasOptionOn(n.Options, "DROP_EXISTING")
+	var existingIdx *metadata.IndexMetadata
+	existingPos := -1
+	if n.Name != "" {
+		for i, idx := range table.Indexes {
+			if strings.EqualFold(idx.Name, n.Name) {
+				existingIdx = idx
+				existingPos = i
+				break
+			}
+		}
+	}
+	if dropExisting {
+		if existingIdx == nil {
+			return mssqlErr(ErrIndexNotFound, "Could not find any index named '%s' for table '%s'.", n.Name, tableName)
+		}
+	} else if existingIdx != nil {
 		return mssqlErr(ErrDupIndex, "The operation failed because an index or statistics with name '%s' already exists on table '%s'.", n.Name, tableName)
 	}
 
@@ -594,17 +623,17 @@ func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt, source string) error {
 
 	if !c.lenientMetadataLoad {
 		if n.Columnstore && n.Clustered != nil && *n.Clustered {
-			if tableHasClusteredIndex(table) {
+			if tableHasClusteredIndexExcluding(table, existingIdx) {
 				return mssqlErr(ErrClusteredCSExists, "You cannot create more than one clustered index on table '%s'.", tableName)
 			}
 		} else if n.Clustered != nil && *n.Clustered {
-			if tableHasClusteredIndex(table) {
+			if tableHasClusteredIndexExcluding(table, existingIdx) {
 				return mssqlErr(ErrMultipleClusteredIndex, "Cannot create more than one clustered index on table '%s'.", tableName)
 			}
 		}
 	}
 
-	if !isValidFilegroup(n.OnFileGroup) {
+	if !c.lenientMetadataLoad && !isValidFilegroup(n.OnFileGroup) {
 		return mssqlErr(ErrInvalidFilegroup, "Invalid filegroup '%s' specified.", n.OnFileGroup)
 	}
 
@@ -618,7 +647,13 @@ func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt, source string) error {
 	}
 	appendIndexColumns(index, n.Columns)
 	index.Definition = indexDefinition(n.IncludeCols, n.WhereClause, source)
-	table.Indexes = append(table.Indexes, index)
+	if dropExisting && existingPos >= 0 {
+		index.Primary = existingIdx.Primary
+		index.IsConstraint = existingIdx.IsConstraint
+		table.Indexes[existingPos] = index
+	} else {
+		table.Indexes = append(table.Indexes, index)
+	}
 	return nil
 }
 
@@ -1326,13 +1361,26 @@ func (c *Catalog) execAlterTableAction(table *metadata.TableMetadata, schemaName
 		return c.execAlterTableAddConstraint(table, schemaName, action.Constraint, source)
 
 	case ast.ATDropConstraint:
-		if hasOnlineOption(action.Options) {
-			return mssqlErr(ErrOnlineDropNonClustered, "Only a clustered index can be dropped online.")
-		}
 		if action.Constraint == nil {
+			if hasOnlineOption(action.Options) {
+				return mssqlErr(ErrOnlineDropNonClustered, "Only a clustered index can be dropped online.")
+			}
 			return nil
 		}
 		name := action.Constraint.Name
+		if hasOnlineOption(action.Options) {
+			isClustered := false
+			for _, idx := range table.Indexes {
+				if idx.IsConstraint && strings.EqualFold(idx.Name, name) &&
+					(strings.EqualFold(idx.Type, "CLUSTERED") || strings.EqualFold(idx.Type, "CLUSTERED COLUMNSTORE") || (idx.Type == "" && idx.Primary)) {
+					isClustered = true
+					break
+				}
+			}
+			if !isClustered {
+				return mssqlErr(ErrOnlineDropNonClustered, "Only a clustered index can be dropped online.")
+			}
+		}
 		if c.dropTableConstraint(table, name) {
 			return nil
 		}
@@ -1614,6 +1662,15 @@ func columnDependency(c *Catalog, schemaName string, table *metadata.TableMetada
 			}
 		}
 	}
+	for _, ck := range table.CheckConstraints {
+		if checkExprReferencesColumn(ck.Expression, table.Name, col.Name) {
+			name := ck.Name
+			if name == "" {
+				name = "CHECK"
+			}
+			return name, true
+		}
+	}
 	for _, s := range c.schemas {
 		for _, t := range s.Tables {
 			for _, fk := range t.ForeignKeys {
@@ -1634,7 +1691,55 @@ func columnDependency(c *Catalog, schemaName string, table *metadata.TableMetada
 	return "", false
 }
 
-func hasOnlineOption(opts *ast.List) bool {
+func exprReferencesColumn(node ast.Node, colName string) bool {
+	found := false
+	ast.Inspect(node, func(n ast.Node) bool {
+		if found {
+			return false
+		}
+		if ref, ok := n.(*ast.ColumnRef); ok && strings.EqualFold(ref.Column, colName) {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
+}
+
+func checkExprReferencesColumn(expr, tableName, colName string) bool {
+	if strings.TrimSpace(expr) == "" {
+		return false
+	}
+	stmts, err := mssql.Parse("SELECT 1 WHERE (" + expr + ")")
+	if err != nil || len(stmts) == 0 {
+		return false
+	}
+	sel, ok := stmts[0].AST.(*ast.SelectStmt)
+	if !ok || sel.WhereClause == nil {
+		return false
+	}
+	found := false
+	ast.Inspect(sel.WhereClause, func(n ast.Node) bool {
+		if found {
+			return false
+		}
+		ref, ok := n.(*ast.ColumnRef)
+		if !ok {
+			return true
+		}
+		if strings.EqualFold(ref.Column, colName) && (ref.Table == "" || strings.EqualFold(ref.Table, tableName)) {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
+}
+
+// hasOptionOn reports whether opts contains optionName set to ON.
+// Parser option lists use either a single "NAME=VALUE" entry (CREATE/DROP INDEX)
+// or paired "NAME", "VALUE" entries (ALTER TABLE DROP CONSTRAINT).
+func hasOptionOn(opts *ast.List, optionName string) bool {
 	if opts == nil {
 		return false
 	}
@@ -1643,19 +1748,24 @@ func hasOnlineOption(opts *ast.List) bool {
 		if !ok {
 			continue
 		}
-		upper := strings.ToUpper(strings.TrimSpace(s.Str))
-		if strings.HasPrefix(upper, "ONLINE") {
-			if strings.Contains(upper, "ON") && !strings.Contains(upper, "OFF") {
-				return true
+		raw := strings.TrimSpace(s.Str)
+		if k, v, hasEq := strings.Cut(raw, "="); hasEq {
+			if strings.EqualFold(strings.TrimSpace(k), optionName) {
+				return strings.EqualFold(strings.TrimSpace(v), "ON")
 			}
-			if i+1 < len(opts.Items) {
-				if next, ok := opts.Items[i+1].(*ast.String); ok && strings.EqualFold(strings.TrimSpace(next.Str), "ON") {
-					return true
-				}
+			continue
+		}
+		if strings.EqualFold(raw, optionName) && i+1 < len(opts.Items) {
+			if next, ok := opts.Items[i+1].(*ast.String); ok {
+				return strings.EqualFold(strings.TrimSpace(next.Str), "ON")
 			}
 		}
 	}
 	return false
+}
+
+func hasOnlineOption(opts *ast.List) bool {
+	return hasOptionOn(opts, "ONLINE")
 }
 
 func (c *Catalog) execAlterTableSet(schemaName string, table *metadata.TableMetadata, opts *ast.List) error {
@@ -1686,7 +1796,7 @@ func (c *Catalog) execAlterTableSet(schemaName string, table *metadata.TableMeta
 				return mssqlErr(ErrSystemVersioningNotEnabled, "SYSTEM_VERSIONING is not turned ON for table '%s'.", table.Name)
 			}
 		case "FILESTREAM_ON":
-			if !isValidFilegroup(val) {
+			if !c.lenientMetadataLoad && !isValidFilegroup(val) {
 				return mssqlErr(ErrInvalidFilegroup, "Invalid filegroup '%s' specified.", val)
 			}
 		case "FILETABLE_DIRECTORY":
@@ -1852,6 +1962,9 @@ func checkDropIndexOptions(opts *ast.List, tableName, indexName string, isCluste
 	if opts == nil {
 		return nil
 	}
+	if hasOptionOn(opts, "ONLINE") && !isClustered {
+		return mssqlErr(ErrOnlineDropNonClustered, "Only a clustered index can be dropped online.")
+	}
 	for _, item := range opts.Items {
 		s, ok := item.(*ast.String)
 		if !ok {
@@ -1861,10 +1974,6 @@ func checkDropIndexOptions(opts *ast.List, tableName, indexName string, isCluste
 		switch {
 		case strings.HasPrefix(upper, "FILESTREAM_ON"):
 			return mssqlErr(ErrDropIndexFilestreamOn, "FILESTREAM_ON cannot be specified when a table has no FILESTREAM columns.")
-		case strings.HasPrefix(upper, "ONLINE") && strings.Contains(upper, "ON") && !strings.Contains(upper, "OFF"):
-			if !isClustered {
-				return mssqlErr(ErrOnlineDropNonClustered, "Only a clustered index can be dropped online.")
-			}
 		case strings.HasPrefix(upper, "MAXDOP") || strings.HasPrefix(upper, "MOVE"):
 			if !isClustered {
 				return mssqlErr(ErrDropIndexClusteredOpt, "Cannot drop non-clustered index '%s.%s' using drop clustered index clause.", tableName, indexName)
@@ -1923,6 +2032,7 @@ func (c *Catalog) removeObject(schema *metadata.SchemaMetadata, kind objectKind,
 		for i, t := range schema.Tables {
 			if t == target || (target == nil && strings.EqualFold(t.Name, name)) {
 				delete(c.tableByName, tableKey{schema: schema.Name, table: t.Name})
+				delete(c.systemTimeTables, tableKey{schema: normalize(schema.Name), table: t.Name})
 				schema.Tables = append(schema.Tables[:i], schema.Tables[i+1:]...)
 				return
 			}

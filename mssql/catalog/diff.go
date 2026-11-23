@@ -1263,6 +1263,29 @@ func canonicalizeSQLExpr(expr string) string {
 			i++
 			continue
 		}
+		if ch == '-' && i+1 < len(expr) && expr[i+1] == '-' {
+			i += 2
+			for i < len(expr) && expr[i] != '\n' {
+				i++
+			}
+			continue
+		}
+		if ch == '/' && i+1 < len(expr) && expr[i+1] == '*' {
+			depth := 1
+			i += 2
+			for i < len(expr) && depth > 0 {
+				if expr[i] == '/' && i+1 < len(expr) && expr[i+1] == '*' {
+					depth++
+					i += 2
+				} else if expr[i] == '*' && i+1 < len(expr) && expr[i+1] == '/' {
+					depth--
+					i += 2
+				} else {
+					i++
+				}
+			}
+			continue
+		}
 		if ch == '\'' {
 			start := i
 			i++
