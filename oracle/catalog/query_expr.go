@@ -137,10 +137,14 @@ func (a *queryAnalyzer) expr(x ast.ExprNode, sc *qscope, clause exprClause) (qty
 		if _, _, err := a.expr(n.Expr, sc, clause); err != nil {
 			return qtype{}, false, err
 		}
+		width := 1
+		if row, ok := unparen(n.Expr).(*ast.FuncCallExpr); ok && (row.FuncName == nil || row.FuncName.Name == "") {
+			width = len(listItems(row.Args))
+		}
 		for _, item := range listItems(n.List) {
 			if ex, ok := item.(ast.ExprNode); ok {
 				if sq, ok := ex.(*ast.SubqueryExpr); ok {
-					if err := a.subquery(sq, sc, -1); err != nil {
+					if err := a.subquery(sq, sc, width); err != nil {
 						return qtype{}, false, err
 					}
 					continue
@@ -249,8 +253,11 @@ func (a *queryAnalyzer) subquery(sq *ast.SubqueryExpr, sc *qscope, want int) err
 	if err != nil {
 		return err
 	}
-	if want >= 0 && len(res.cols) > want {
+	switch {
+	case want >= 0 && len(res.cols) > want:
 		return oraError("00913", "too many values")
+	case want >= 0 && len(res.cols) < want:
+		return oraError("00947", "not enough values")
 	}
 	return nil
 }
@@ -663,10 +670,11 @@ func containsWindow(x ast.Node) bool {
 
 // checkGrouped checks an expression of a grouped query block: each column
 // it reads outside an aggregate is a GROUP BY expression.
-func checkGrouped(x ast.Node, keys []string, hasGroupBy, positional, nested bool) error {
+func checkGrouped(x ast.Node, keys []string, keyOf func(ast.Node) string, hasGroupBy, positional, nested bool) error {
 	if ex, ok := x.(ast.ExprNode); ok {
+		key := keyOf(ex)
 		for _, k := range keys {
-			if k == exprKey(ex) {
+			if k == key {
 				if nested {
 					return oraError("00937", "not a single-group group function")
 				}
@@ -701,7 +709,7 @@ func checkGrouped(x ast.Node, keys []string, hasGroupBy, positional, nested bool
 	var err error
 	walkChildren(x, func(child ast.Node) {
 		if err == nil {
-			err = checkGrouped(child, keys, hasGroupBy, positional, nested)
+			err = checkGrouped(child, keys, keyOf, hasGroupBy, positional, nested)
 		}
 	})
 	return err

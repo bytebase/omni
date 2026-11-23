@@ -72,3 +72,69 @@ func TestViewQueryValidation(t *testing.T) {
 		t.Fatalf("FORCE view refused: %v %+v", err, results)
 	}
 }
+
+func TestViewQueryRefusals(t *testing.T) {
+	const fixture = `CREATE TABLE t (id NUMBER, n NUMBER(5,-1), m NUMBER(*,-2));`
+	cases := []struct {
+		name, sql, code string
+	}{
+		{"recursive_anchor_reads_itself", `CREATE VIEW v AS WITH r(n) AS (SELECT n FROM r) SELECT n FROM r`, "32040"},
+		{"recursive_anchor_union_reads_itself", `CREATE VIEW v AS WITH r(n) AS (SELECT n FROM r UNION ALL SELECT n FROM r) SELECT n FROM r`, "32043"},
+		{"compound_unaliased_expression", `CREATE VIEW v AS SELECT 1 FROM dual UNION ALL SELECT 2 FROM dual`, "00998"},
+		{"named_window_missing_column", `CREATE VIEW v AS SELECT SUM(id) OVER w s FROM t WINDOW w AS (PARTITION BY nosuch)`, "00904"},
+		{"in_subquery_too_wide", `CREATE VIEW v AS SELECT id FROM t WHERE id IN (SELECT id, id FROM t)`, "00913"},
+		{"in_row_subquery_too_narrow", `CREATE VIEW v AS SELECT id FROM t WHERE (id, n) IN (SELECT id FROM t)`, "00947"},
+		{"qualified_grouped_column", `CREATE VIEW v AS SELECT t.id FROM t GROUP BY id`, ""},
+		{"cross_join_lateral_reads_left", `CREATE VIEW v AS SELECT x.id FROM t CROSS JOIN LATERAL (SELECT t.id FROM dual) x`, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, strict := range []bool{false, true} {
+				c, err := LoadSQL(fixture)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if strict {
+					c.SetServerConfig(StandardOracle23ServerConfig())
+				}
+				results, err := c.Exec(tc.sql, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var refusal *Error
+				got := ""
+				if errors.As(results[0].Error, &refusal) {
+					got = refusal.Code
+				} else if results[0].Error != nil {
+					t.Fatalf("strict=%v: %v", strict, results[0].Error)
+				}
+				want := tc.code
+				if !strict {
+					want = ""
+					if tc.code == "00998" {
+						// The catalog refuses an unaliased view expression
+						// under any configuration.
+						want = tc.code
+					}
+				}
+				if got != want {
+					t.Errorf("strict=%v: code %q, want %q", strict, got, want)
+				}
+			}
+		})
+	}
+}
+
+func TestViewQueryNegativeScales(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TABLE t (n NUMBER(5,-1), m NUMBER(*,-2));
+CREATE VIEW v AS SELECT n, m FROM t;
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cols := c.Metadata().GetSchemas()[0].GetViews()[0].GetColumns()
+	if len(cols) != 2 || cols[0].GetType() != "NUMBER(5,-1)" || cols[1].GetType() != "NUMBER(*,-2)" {
+		t.Fatalf("columns = %v, want NUMBER(5,-1) and NUMBER(*,-2)", cols)
+	}
+}

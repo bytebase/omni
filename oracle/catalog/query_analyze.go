@@ -88,6 +88,8 @@ type qscope struct {
 	aliases []qcol
 	// hierarchical reports a CONNECT BY clause.
 	hierarchical bool
+	// windows are the block's WINDOW clause definitions, by name.
+	windows map[string]*ast.WindowSpec
 }
 
 type cteDef struct {
@@ -247,7 +249,9 @@ func (a *queryAnalyzer) query(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 			}
 			t = merged
 		}
-		cols[i] = qcol{name: first.cols[i].name, typ: t}
+		// The first branch names the column, and its expression still needs
+		// an alias in a view (ORA-00998).
+		cols[i] = qcol{name: first.cols[i].name, typ: t, expr: first.cols[i].expr}
 	}
 	// A compound query compares whole rows unless every operator is ALL.
 	for i, op := range ops {
@@ -417,7 +421,17 @@ func (a *queryAnalyzer) analyzeCTE(d *cteDef, outer *qscope, env *cteEnv) error 
 			return oraError("32039", "missing column alias list in recursive WITH clause element %s", c.Name)
 		}
 		ops, _, _ := flattenSetOp(sel)
+		if len(ops) != 2 || !ops[1].all || ops[1].op != ast.SETOP_UNION {
+			return oraError("32040", "recursive WITH clause must use a UNION ALL operation")
+		}
+		anchorBlock := *ops[0].sel
+		anchorBlock.Op, anchorBlock.Rarg = ast.SETOP_NONE, nil
+		if selectReferencesTable(&anchorBlock, c.Name) {
+			return oraError("32043", "recursive WITH clause needs an initialization branch")
+		}
+		d.analyzing = true
 		anchor, err := a.block(ops[0].sel, outer, env, false, true)
+		d.analyzing = false
 		if err != nil {
 			return err
 		}
@@ -552,6 +566,23 @@ func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 		sc.from.flat = append(sc.from.flat, f.flat...)
 	}
 	sc.hierarchical = sel.Hierarchical != nil
+	for _, w := range sel.WindowDefs {
+		if w == nil || w.Spec == nil {
+			continue
+		}
+		if sc.windows == nil {
+			sc.windows = map[string]*ast.WindowSpec{}
+		}
+		sc.windows[w.Name] = w.Spec
+	}
+	for _, w := range sel.WindowDefs {
+		if w == nil || w.Spec == nil {
+			continue
+		}
+		if err := a.windowSpec(w.Spec, sc, map[string]bool{w.Name: true}); err != nil {
+			return nil, err
+		}
+	}
 
 	// Oracle's (+) outer joins in WHERE null-extend the tables they mark.
 	if sel.WhereClause != nil {
@@ -607,12 +638,12 @@ func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 			if err := a.groupByExpr(g, sc); err != nil {
 				return nil, err
 			}
-			groupKeys = append(groupKeys, exprKey(g))
+			groupKeys = append(groupKeys, a.groupKey(g, sc))
 			if ref, ok := unparen(g).(*ast.ColumnRef); ok && ref.Table == "" {
 				// A select alias grouped by (23ai) groups by what it names.
 				for _, t := range targets {
 					if t.rt.Name == ref.Column && t.rt.Expr != nil && !a.resolvesInFrom(ref, sc) {
-						groupKeys = append(groupKeys, exprKey(t.rt.Expr))
+						groupKeys = append(groupKeys, a.groupKey(t.rt.Expr, sc))
 					}
 				}
 			}
@@ -647,7 +678,8 @@ func (a *queryAnalyzer) block(sel *ast.SelectStmt, outer *qscope, ctes *cteEnv, 
 	}
 	if grouped {
 		for _, x := range exprs {
-			if err := checkGrouped(x, groupKeys, len(listItems(sel.GroupClause)) > 0, positional, nested); err != nil {
+			keyOf := func(n ast.Node) string { return a.groupKey(n, sc) }
+			if err := checkGrouped(x, groupKeys, keyOf, len(listItems(sel.GroupClause)) > 0, positional, nested); err != nil {
 				return nil, err
 			}
 		}
@@ -1131,26 +1163,70 @@ func unparen(x ast.ExprNode) ast.ExprNode {
 	}
 }
 
-// exprKey renders an expression's tree without positions, so two
-// expressions written alike compare equal.
-func exprKey(n ast.Node) string {
+// groupKey renders an expression's tree without positions, each column
+// reference as the column it resolves to, so two expressions written alike,
+// or t.id and id, compare equal in a GROUP BY check.
+func (a *queryAnalyzer) groupKey(n ast.Node, sc *qscope) string {
 	var b strings.Builder
-	writeKey(reflect.ValueOf(n), &b)
+	writeKey(reflect.ValueOf(n), &b, func(ref *ast.ColumnRef) string { return a.columnIdentity(ref, sc) })
 	return b.String()
 }
 
-func writeKey(v reflect.Value, b *strings.Builder) {
+// columnIdentity names the column a reference resolves to, or "" when it
+// resolves to none.
+func (a *queryAnalyzer) columnIdentity(ref *ast.ColumnRef, sc *qscope) string {
+	for s := sc; s != nil; s = s.parent {
+		if s.from == nil {
+			continue
+		}
+		if ref.Table == "" {
+			var hits []string
+			for i, it := range s.from.items {
+				if it.rel == nil {
+					if it.col.name == ref.Column {
+						return fmt.Sprintf("merged:%p#%d", s.from, i)
+					}
+					continue
+				}
+				if it.rel.cols[it.idx].name == ref.Column && !it.rel.merged[ref.Column] {
+					hits = append(hits, fmt.Sprintf("col:%p.%s", it.rel, ref.Column))
+				}
+			}
+			if len(hits) == 1 {
+				return hits[0]
+			}
+			if len(hits) > 1 {
+				return ""
+			}
+			continue
+		}
+		for _, r := range s.from.rels {
+			if r.name == ref.Table && (ref.Schema == "" || ref.Schema == r.schema) {
+				return fmt.Sprintf("col:%p.%s", r, ref.Column)
+			}
+		}
+	}
+	return ""
+}
+
+func writeKey(v reflect.Value, b *strings.Builder, colKey func(*ast.ColumnRef) string) {
 	for v.Kind() == reflect.Interface || v.Kind() == reflect.Ptr {
 		if v.IsNil() {
 			b.WriteString("nil")
 			return
+		}
+		if ref, ok := v.Interface().(*ast.ColumnRef); ok && colKey != nil {
+			if k := colKey(ref); k != "" {
+				b.WriteString(k)
+				return
+			}
 		}
 		v = v.Elem()
 	}
 	switch v.Kind() {
 	case reflect.Struct:
 		if v.Type() == reflect.TypeOf(ast.ParenExpr{}) {
-			writeKey(v.FieldByName("Expr"), b)
+			writeKey(v.FieldByName("Expr"), b, colKey)
 			return
 		}
 		b.WriteString(v.Type().Name())
@@ -1162,14 +1238,14 @@ func writeKey(v reflect.Value, b *strings.Builder) {
 			}
 			b.WriteString(f.Name)
 			b.WriteByte(':')
-			writeKey(v.Field(i), b)
+			writeKey(v.Field(i), b, colKey)
 			b.WriteByte(' ')
 		}
 		b.WriteByte('}')
 	case reflect.Slice:
 		b.WriteByte('[')
 		for i := 0; i < v.Len(); i++ {
-			writeKey(v.Index(i), b)
+			writeKey(v.Index(i), b, colKey)
 			b.WriteByte(',')
 		}
 		b.WriteByte(']')

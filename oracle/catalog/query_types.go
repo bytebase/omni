@@ -36,30 +36,34 @@ type qtype struct {
 	chars int
 	// charSem reports CHAR length semantics.
 	charSem bool
-	// prec and scale are a NUMBER's or FLOAT's; -1 when absent.
+	// prec is a NUMBER's or FLOAT's precision, -1 when absent; scale is a
+	// NUMBER's scale, noScale when absent (a scale may be negative).
 	prec, scale int
 	// frac is a TIMESTAMP's or INTERVAL DAY TO SECOND's fractional-second
 	// precision; lead is an INTERVAL's leading-field precision.
 	frac, lead int
 }
 
-func numberType() qtype { return qtype{kind: "NUMBER", prec: -1, scale: -1} }
+// noScale marks a NUMBER without a scale.
+const noScale = -1 << 20
 
-func nullType() qtype { return qtype{kind: "NULL", prec: -1, scale: -1} }
+func numberType() qtype { return qtype{kind: "NUMBER", prec: -1, scale: noScale} }
 
-func simpleType(kind string) qtype { return qtype{kind: kind, prec: -1, scale: -1} }
+func nullType() qtype { return qtype{kind: "NULL", prec: -1, scale: noScale} }
+
+func simpleType(kind string) qtype { return qtype{kind: kind, prec: -1, scale: noScale} }
 
 func varchar2Bytes(n int) qtype {
-	return qtype{kind: "VARCHAR2", bytes: min(n, maxVarchar2Bytes), chars: n, prec: -1, scale: -1}
+	return qtype{kind: "VARCHAR2", bytes: min(n, maxVarchar2Bytes), chars: n, prec: -1, scale: noScale}
 }
 
 func charLiteralType(val string) qtype {
 	n := len(val)
-	return qtype{kind: "CHAR", bytes: n, chars: utf8.RuneCountInString(val), prec: -1, scale: -1}
+	return qtype{kind: "CHAR", bytes: n, chars: utf8.RuneCountInString(val), prec: -1, scale: noScale}
 }
 
 func timestampType(kind string, frac int) qtype {
-	return qtype{kind: kind, frac: frac, prec: -1, scale: -1}
+	return qtype{kind: kind, frac: frac, prec: -1, scale: noScale}
 }
 
 func (t qtype) isNull() bool { return t.kind == "NULL" }
@@ -137,11 +141,11 @@ func (t qtype) String() string {
 		return "VARCHAR2(0 BYTE)"
 	case "NUMBER":
 		switch {
-		case t.prec < 0 && t.scale >= 0:
+		case t.prec < 0 && t.scale != noScale:
 			return fmt.Sprintf("NUMBER(*,%d)", t.scale)
 		case t.prec < 0:
 			return "NUMBER"
-		case t.scale > 0 || t.scale < -1:
+		case t.scale != 0 && t.scale != noScale:
 			return fmt.Sprintf("NUMBER(%d,%d)", t.prec, t.scale)
 		default:
 			return fmt.Sprintf("NUMBER(%d)", t.prec)
@@ -208,7 +212,7 @@ func parseColumnType(text string) qtype {
 				t.prec = atoiOr(args[0], -1)
 			}
 			if len(args) > 1 {
-				t.scale = atoiOr(args[1], -1)
+				t.scale = atoiOr(args[1], noScale)
 			} else if t.prec >= 0 {
 				t.scale = 0
 			}
@@ -287,7 +291,7 @@ func parseColumnType(text string) qtype {
 // characterType is a character type of n units: bytes, or characters when
 // charSem is set or the type is an N type.
 func characterType(kind string, n int, charSem bool) qtype {
-	t := qtype{kind: kind, prec: -1, scale: -1}
+	t := qtype{kind: kind, prec: -1, scale: noScale}
 	limit := maxVarchar2Bytes
 	if kind == "CHAR" || kind == "NCHAR" {
 		limit = maxCharBytes

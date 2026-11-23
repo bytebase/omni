@@ -108,25 +108,8 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 		}
 	}
 	if n.Over != nil {
-		for _, item := range listItems(n.Over.PartitionBy) {
-			if ex, ok := item.(ast.ExprNode); ok {
-				if _, _, err := a.expr(ex, sc, clauseSelect); err != nil {
-					return qtype{}, false, err
-				}
-			}
-		}
-		for _, item := range listItems(n.Over.OrderBy) {
-			sb, ok := item.(*ast.SortBy)
-			if !ok {
-				continue
-			}
-			t, _, err := a.expr(sb.Expr, sc, clauseSelect)
-			if err != nil {
-				return qtype{}, false, err
-			}
-			if t.isLOB() {
-				return qtype{}, false, oraError("22848", "cannot use %s type as comparison key", t.kind)
-			}
+		if err := a.windowSpec(n.Over, sc, map[string]bool{}); err != nil {
+			return qtype{}, false, err
 		}
 	}
 	arg := func(i int) qtype {
@@ -472,4 +455,39 @@ func firstLiteralInt(n *ast.FuncCallExpr) (int, bool) {
 		return 0, false
 	}
 	return literalInt(items[0])
+}
+
+// windowSpec checks an analytic function's window: its partitioning and
+// ordering expressions, and those of the WINDOW clause definition it names.
+func (a *queryAnalyzer) windowSpec(w *ast.WindowSpec, sc *qscope, seen map[string]bool) error {
+	for _, item := range listItems(w.PartitionBy) {
+		if ex, ok := item.(ast.ExprNode); ok {
+			if _, _, err := a.expr(ex, sc, clauseSelect); err != nil {
+				return err
+			}
+		}
+	}
+	for _, item := range listItems(w.OrderBy) {
+		sb, ok := item.(*ast.SortBy)
+		if !ok {
+			continue
+		}
+		t, _, err := a.expr(sb.Expr, sc, clauseSelect)
+		if err != nil {
+			return err
+		}
+		if t.isLOB() {
+			return oraError("22848", "cannot use %s type as comparison key", t.kind)
+		}
+	}
+	if w.WindowName == "" || seen[w.WindowName] {
+		return nil
+	}
+	for s := sc; s != nil; s = s.parent {
+		if def := s.windows[w.WindowName]; def != nil {
+			seen[w.WindowName] = true
+			return a.windowSpec(def, s, seen)
+		}
+	}
+	return nil
 }

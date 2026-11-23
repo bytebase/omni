@@ -141,7 +141,12 @@ func (a *queryAnalyzer) tableRef(n *ast.TableRef, sc *qscope) (*qfrom, error) {
 	}
 	if schema == "" {
 		if d := sc.ctes.lookup(name); d != nil {
-			if !d.analyzed && !d.analyzing {
+			if d.analyzing {
+				// A WITH element that reads itself before its column list
+				// is known: Oracle wants an initialization branch.
+				return nil, oraError("32043", "recursive WITH clause needs an initialization branch")
+			}
+			if !d.analyzed {
 				if err := a.analyzeCTE(d, sc.parent, sc.ctes); err != nil {
 					return nil, err
 				}
@@ -257,8 +262,9 @@ func (a *queryAnalyzer) join(n *ast.JoinClause, sc *qscope) (*qfrom, error) {
 		return nil, err
 	}
 	var right *qfrom
-	switch n.Type {
-	case ast.JOIN_CROSS_APPLY, ast.JOIN_OUTER_APPLY:
+	_, lateral := n.Right.(*ast.LateralRef)
+	switch {
+	case lateral || n.Type == ast.JOIN_CROSS_APPLY || n.Type == ast.JOIN_OUTER_APPLY:
 		// The right side reads the left side's columns.
 		lat := &qscope{parent: sc.parent, ctes: sc.ctes, from: &qfrom{
 			rels:  append(append([]*qrel{}, sc.from.rels...), left.rels...),
@@ -266,6 +272,17 @@ func (a *queryAnalyzer) join(n *ast.JoinClause, sc *qscope) (*qfrom, error) {
 		}}
 		switch r := n.Right.(type) {
 		case *ast.SubqueryRef:
+			sel, ok := r.Subquery.(*ast.SelectStmt)
+			if !ok {
+				right = &qfrom{}
+				break
+			}
+			res, err := a.query(sel, lat, sc.ctes, false)
+			if err != nil {
+				return nil, err
+			}
+			right = relFrom(&qrel{name: aliasName(r.Alias), cols: res.cols})
+		case *ast.LateralRef:
 			sel, ok := r.Subquery.(*ast.SelectStmt)
 			if !ok {
 				right = &qfrom{}
