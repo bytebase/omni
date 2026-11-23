@@ -636,8 +636,7 @@ func TestWalkThroughFunctionsTriggersPoliciesAndAlterSubcommands(t *testing.T) {
 		"DROP POLICY IF EXISTS p ON q;",
 		"DROP POLICY unsynced_pol ON t;",
 		"ALTER POLICY unsynced_pol ON t USING (true);",
-		"CREATE INDEX IF NOT EXISTS t_a_idx ON t (nosuch);",
-		"CREATE INDEX IF NOT EXISTS t_a_idx ON t ((CURRENT_DATE));",
+		"CREATE INDEX IF NOT EXISTS t_a_idx ON t (a);",
 		"CREATE INDEX ON t ((CASE WHEN false THEN CURRENT_DATE ELSE DATE '2000-01-01' END));",
 		"CREATE INDEX ON t (a);",
 		"CREATE VIEW v2 AS SELECT a FROM t WITH CHECK OPTION;",
@@ -1167,6 +1166,24 @@ func TestWalkThroughQueriesRulesOptionsAndExtensions(t *testing.T) {
 		"ALTER INDEX mv DEPENDS ON EXTENSION nosuch;":                "`mv` is a materialized view, not an index.",
 		"ALTER MATERIALIZED VIEW mv DEPENDS ON EXTENSION nosuch;":    "Extension `nosuch` doesn't exist.",
 		"ALTER MATERIALIZED VIEW mv NO DEPENDS ON EXTENSION nosuch;": "Extension `nosuch` doesn't exist.",
+		// An index's columns are resolved before IF NOT EXISTS meets its
+		// name (42703, 42P17).
+		"CREATE INDEX t_i ON t (a);\nCREATE INDEX IF NOT EXISTS t_i ON t (nosuch);": "Column `nosuch` doesn't exist in `t`.",
+		"CREATE INDEX IF NOT EXISTS t ON t ((CURRENT_DATE));":                       "PostgreSQL doesn't accept non-immutable expression in index.",
+		// Forms the analyzer refuses whatever the catalog holds.
+		"CREATE VIEW v2 AS SELECT INT 's';":                                    "PostgreSQL doesn't accept this literal as `int4`.",
+		"CREATE VIEW v2 AS SELECT CASE WHEN false THEN 'x'::int END;":          "PostgreSQL doesn't accept this literal as `int4`.",
+		"CREATE VIEW v2 AS SELECT BOOLEAN 'o';":                                "PostgreSQL doesn't accept this literal as `bool`.",
+		"CREATE VIEW v2 AS SELECT BIT 'b12';":                                  "PostgreSQL doesn't accept this literal as `bit`.",
+		"CREATE VIEW v2 AS SELECT JSON '{';":                                   "PostgreSQL doesn't accept this literal as `json`.",
+		"CREATE VIEW v2 AS SELECT FROM CURRENT_DATE AS (a int);":               "PostgreSQL doesn't accept a column definition list on a function that doesn't return `record`.",
+		"CREATE VIEW v2 AS SELECT FROM ROWS FROM (CURRENT_USER AS (a text));":  "PostgreSQL doesn't accept a column definition list on a function that doesn't return `record`.",
+		"CREATE VIEW v2 AS SELECT ROW(1, 2);":                                  "PostgreSQL doesn't accept a `ROW(...)` column, whose type is the pseudo-type `record`.",
+		"CREATE TABLE IF NOT EXISTS t2 AS SELECT ROW(1, 2);":                   "PostgreSQL doesn't accept a `ROW(...)` column, whose type is the pseudo-type `record`.",
+		"CREATE TABLE t2 AS SELECT (1, 2);":                                    "PostgreSQL doesn't accept a `ROW(...)` column, whose type is the pseudo-type `record`.",
+		"CREATE VIEW v2 AS SELECT JSON_ARRAY(SELECT 1, 2);":                    "PostgreSQL doesn't accept a `JSON_ARRAY` subquery of other than one column.",
+		"CREATE VIEW v2 AS SELECT count(*) OVER (GROUPS UNBOUNDED PRECEDING);": "PostgreSQL doesn't accept a `GROUPS` frame without `ORDER BY`.",
+		"CREATE VIEW v2 AS SELECT 1 FOR SHARE OF t;":                           "Relation `t` in `FOR UPDATE` or `FOR SHARE` isn't in `FROM`.",
 	} {
 		got := walkFindings(t, sql, target)
 		if len(got) != 1 || got[0].Message != want {
@@ -1209,6 +1226,15 @@ func TestWalkThroughQueriesRulesOptionsAndExtensions(t *testing.T) {
 		"ALTER RULE r_existing ON t RENAME TO r_new;\nALTER TABLE t ENABLE RULE r_new;",
 		"ALTER MATERIALIZED VIEW mv DEPENDS ON EXTENSION plpgsql;",
 		"ALTER MATERIALIZED VIEW mv DEPENDS ON EXTENSION adminpack;",
+		"CREATE INDEX IF NOT EXISTS t ON t (a);",
+		"CREATE VIEW v2 AS SELECT INT '0x1F' AS i, BOOLEAN ' of ' AS b, BIT 'x1f' AS c, JSON ' {\"a\": 1} ' AS d, NULL::int AS e;",
+		"CREATE VIEW v2 AS SELECT FROM json_to_record('{}') AS (a int);",
+		"CREATE VIEW v2 AS SELECT ROW(1, 2) = ROW(1, 2), ROW(1, 2)::text;",
+		"CREATE VIEW v2 AS SELECT JSON_ARRAY(SELECT 1);",
+		"CREATE VIEW v2 AS SELECT count(*) OVER (ORDER BY 1 GROUPS UNBOUNDED PRECEDING);",
+		"CREATE VIEW v2 AS SELECT count(*) OVER (w GROUPS UNBOUNDED PRECEDING) WINDOW w AS (ORDER BY 1);",
+		"CREATE VIEW v2 AS SELECT a FROM t FOR SHARE OF t;",
+		"CREATE TABLE IF NOT EXISTS t AS SELECT ROW(1, 2);",
 	} {
 		if got := walkFindings(t, sql, target); len(got) != 0 {
 			t.Errorf("%q: findings = %+v, want none", sql, got)
