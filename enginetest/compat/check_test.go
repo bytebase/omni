@@ -716,3 +716,25 @@ func TestVerifyRejectsUpdateCompatPinMismatchMissingFileGeneratedDiffAndUnjudged
 		t.Errorf("File.Write in verify mode created %s", directPath)
 	}
 }
+
+// TestCheckEverySiteRuleOfAnyGrammar pins a tokens.tsv shared by more than
+// one grammar, as Doris's is: an (every site) row names a rule of one of
+// them, and a rule none of them has fails.
+func TestCheckEverySiteRuleOfAnyGrammar(t *testing.T) {
+	s := suite(t, "", nil)
+	dir := filepath.Dir(s.Path)
+	s.Grammar, s.Tokens = filepath.Join(dir, "one.g4"), filepath.Join(dir, "tokens.tsv")
+	s.More = []string{filepath.Join(dir, "two.g4")}
+	write(t, s.Grammar, "grammar One;\nstmt : 'DROP' 'TABLE' ('IF' 'EXISTS')? NAME ;\n")
+	write(t, s.More[0], "grammar Two;\nshow : 'SHOW' opt_full 'TABLES' ;\nopt_full : | 'FULL' ;\n")
+	write(t, s.Tokens, "NAME\ta\nstmt(IF_EXISTS)?\t(every site)\nopt_full\t(every site)\n")
+	// The two grammars generate rows the empty file lacks, an error and no
+	// fatal.
+	if rec := run(t, s); rec.fatal != "" || !rec.failed("to add") {
+		t.Errorf("a rule of one grammar: %q, %q", rec.fatal, rec.errors)
+	}
+	write(t, s.Tokens, "NAME\ta\nopt_tmp\t(every site)\n")
+	if rec := run(t, s); !rec.failed("opt_tmp the form (every site), which only a rule takes, and no grammar of the suite has") {
+		t.Errorf("a rule of no grammar: %q, %q", rec.fatal, rec.errors)
+	}
+}

@@ -16,14 +16,21 @@ a fresh server wrote the same file.
 | `DorisParser.g4`, near-misses | 5,961 | 5,961 | 0 | 0 |
 | `DorisLegacyParser.g4`, one per alternative | 1,769 | 1,769 | 0 | 0 |
 | `DorisLegacyParser.g4`, near-misses | 5,883 | 5,883 | 0 | 0 |
+| `DorisParser.g4`, an optional clause at every site, with near-misses | 157 | 157 | 0 | 0 |
+| `DorisLegacyParser.g4`, an optional clause at every site, with near-misses | 270 | 270 | 0 | 0 |
 
-Every row agrees: the 15,967 generated rows and the 346 `suite:` rows below.
+Every row agrees: the 16,394 generated rows and the 346 `suite:` rows below.
 #1461 closed the last 201 of them, the tails the grammar derives and omni read
 loosely: `INTERVAL 1 a` with a unit that is not one, `opt_partition`'s
 argument lists, the identifier set `nonReserved`, `EXPLAIN`'s table, function
 and partition forms, `INSERT`'s `@BRANCH`, `DORIS_INTERNAL_TABLE_ID` and
 `[hints]` forms, `SELECT (*)`, and the four inverted-index objects and
 `CREATE STAGE`'s required `PROPERTIES`.
+
+The optional clauses `../../testdata/tokens.tsv` names with `(every site)`,
+`IF [NOT] EXISTS`, `OR REPLACE`, `TEMPORARY`, `FORCE` and `FULL`, get a row
+at each alternative that can write them, not only at the one the clause's
+own row reaches. Their 427 rows agreed when first recorded, 2026-11-23.
 
 24 of `DorisParser.g4`'s alternatives get no row: its other entry points,
 `singleStatement` and `expressionWithEof`, and `selectHint`, which Doris reads

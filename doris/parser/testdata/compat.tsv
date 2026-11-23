@@ -815,6 +815,10 @@ reject	reject	engine	supportedCreateStatement/CREATE_(OR_REPLACE)?_VIEW_(IF_NOT_
 reject	reject	engine	supportedCreateStatement/CREATE_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_multipartIde~25d67d74!drop-5	CREATE VIEW a SELECT
 accept	accept	engine	supportedCreateStatement/CREATE_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_multipartIde~25d67d74!insert	CREATE VIEW a SELECT CURRENT_DATE zzz
 reject	reject	engine	supportedCreateStatement/CREATE_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_multipartIde~25d67d74!swap	CREATION VIEW a SELECT CURRENT_DATE
+accept	accept	engine	supportedCreateStatement/CREATE_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_multipartIde~25d67d74+supportedCreateStatement(IF_NOT_EXISTS)?	CREATE VIEW IF NOT EXISTS a SELECT CURRENT_DATE
+reject	reject	engine	supportedCreateStatement/CREATE_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_multipartIde~25d67d74+supportedCreateStatement(IF_NOT_EXISTS)?!drop-3	CREATE VIEW NOT EXISTS a SELECT CURRENT_DATE
+reject	reject	engine	supportedCreateStatement/CREATE_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_multipartIde~25d67d74+supportedCreateStatement(IF_NOT_EXISTS)?!drop-4	CREATE VIEW IF EXISTS a SELECT CURRENT_DATE
+reject	reject	engine	supportedCreateStatement/CREATE_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_multipartIde~25d67d74+supportedCreateStatement(IF_NOT_EXISTS)?!drop-5	CREATE VIEW IF NOT a SELECT CURRENT_DATE
 accept	accept	engine	supportedCreateStatement/CREATE_(EXTERNAL|TEMPORARY)?_TABLE_(IF_NOT_EXISTS)?_mul~b16a62bd	CREATE TABLE a LIKE a
 reject	reject	engine	supportedCreateStatement/CREATE_(EXTERNAL|TEMPORARY)?_TABLE_(IF_NOT_EXISTS)?_mul~b16a62bd!drop-1	TABLE a LIKE a
 reject	reject	engine	supportedCreateStatement/CREATE_(EXTERNAL|TEMPORARY)?_TABLE_(IF_NOT_EXISTS)?_mul~b16a62bd!drop-2	CREATE a LIKE a
@@ -823,6 +827,10 @@ reject	reject	engine	supportedCreateStatement/CREATE_(EXTERNAL|TEMPORARY)?_TABLE
 reject	reject	engine	supportedCreateStatement/CREATE_(EXTERNAL|TEMPORARY)?_TABLE_(IF_NOT_EXISTS)?_mul~b16a62bd!drop-5	CREATE TABLE a LIKE
 reject	reject	engine	supportedCreateStatement/CREATE_(EXTERNAL|TEMPORARY)?_TABLE_(IF_NOT_EXISTS)?_mul~b16a62bd!insert	CREATE TABLE a LIKE a zzz
 reject	reject	engine	supportedCreateStatement/CREATE_(EXTERNAL|TEMPORARY)?_TABLE_(IF_NOT_EXISTS)?_mul~b16a62bd!swap	CREATION TABLE a LIKE a
+accept	accept	engine	supportedCreateStatement/CREATE_(EXTERNAL|TEMPORARY)?_TABLE_(IF_NOT_EXISTS)?_mul~b16a62bd+supportedCreateStatement(IF_NOT_EXISTS)?	CREATE TABLE IF NOT EXISTS a LIKE a
+reject	reject	engine	supportedCreateStatement/CREATE_(EXTERNAL|TEMPORARY)?_TABLE_(IF_NOT_EXISTS)?_mul~b16a62bd+supportedCreateStatement(IF_NOT_EXISTS)?!drop-3	CREATE TABLE NOT EXISTS a LIKE a
+reject	reject	engine	supportedCreateStatement/CREATE_(EXTERNAL|TEMPORARY)?_TABLE_(IF_NOT_EXISTS)?_mul~b16a62bd+supportedCreateStatement(IF_NOT_EXISTS)?!drop-4	CREATE TABLE IF EXISTS a LIKE a
+reject	reject	engine	supportedCreateStatement/CREATE_(EXTERNAL|TEMPORARY)?_TABLE_(IF_NOT_EXISTS)?_mul~b16a62bd+supportedCreateStatement(IF_NOT_EXISTS)?!drop-5	CREATE TABLE IF NOT a LIKE a
 accept	accept	engine	supportedCreateStatement/CREATE_ROW_POLICY_(IF_NOT_EXISTS)?_identifier_ON_multip~9ed61567	CREATE ROW POLICY a ON a AS RESTRICTIVE TO a USING(CURRENT_DATE)
 reject	reject	engine	supportedCreateStatement/CREATE_ROW_POLICY_(IF_NOT_EXISTS)?_identifier_ON_multip~9ed61567!drop-1	ROW POLICY a ON a AS RESTRICTIVE TO a USING(CURRENT_DATE)
 reject	reject	engine	supportedCreateStatement/CREATE_ROW_POLICY_(IF_NOT_EXISTS)?_identifier_ON_multip~9ed61567!drop-2	CREATE POLICY a ON a AS RESTRICTIVE TO a USING(CURRENT_DATE)
@@ -840,6 +848,10 @@ reject	reject	engine	supportedCreateStatement/CREATE_ROW_POLICY_(IF_NOT_EXISTS)?
 reject	reject	engine	supportedCreateStatement/CREATE_ROW_POLICY_(IF_NOT_EXISTS)?_identifier_ON_multip~9ed61567!drop-14	CREATE ROW POLICY a ON a AS RESTRICTIVE TO a USING(CURRENT_DATE
 reject	reject	engine	supportedCreateStatement/CREATE_ROW_POLICY_(IF_NOT_EXISTS)?_identifier_ON_multip~9ed61567!insert	CREATE ROW POLICY a ON a AS RESTRICTIVE TO a USING(CURRENT_DATE) zzz
 reject	reject	engine	supportedCreateStatement/CREATE_ROW_POLICY_(IF_NOT_EXISTS)?_identifier_ON_multip~9ed61567!swap	CREATION ROW POLICY a ON a AS RESTRICTIVE TO a USING(CURRENT_DATE)
+accept	accept	engine	supportedCreateStatement/CREATE_ROW_POLICY_(IF_NOT_EXISTS)?_identifier_ON_multip~9ed61567+supportedCreateStatement(IF_NOT_EXISTS)?	CREATE ROW POLICY IF NOT EXISTS a ON a AS RESTRICTIVE TO a USING(CURRENT_DATE)
+reject	reject	engine	supportedCreateStatement/CREATE_ROW_POLICY_(IF_NOT_EXISTS)?_identifier_ON_multip~9ed61567+supportedCreateStatement(IF_NOT_EXISTS)?!drop-4	CREATE ROW POLICY NOT EXISTS a ON a AS RESTRICTIVE TO a USING(CURRENT_DATE)
+reject	reject	engine	supportedCreateStatement/CREATE_ROW_POLICY_(IF_NOT_EXISTS)?_identifier_ON_multip~9ed61567+supportedCreateStatement(IF_NOT_EXISTS)?!drop-5	CREATE ROW POLICY IF EXISTS a ON a AS RESTRICTIVE TO a USING(CURRENT_DATE)
+reject	reject	engine	supportedCreateStatement/CREATE_ROW_POLICY_(IF_NOT_EXISTS)?_identifier_ON_multip~9ed61567+supportedCreateStatement(IF_NOT_EXISTS)?!drop-6	CREATE ROW POLICY IF NOT a ON a AS RESTRICTIVE TO a USING(CURRENT_DATE)
 accept	accept	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_ANALYZER_(IF_NOT_EXISTS)?_identif~860f4bf2	CREATE INVERTED INDEX ANALYZER a
 reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_ANALYZER_(IF_NOT_EXISTS)?_identif~860f4bf2!drop-1	INVERTED INDEX ANALYZER a
 reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_ANALYZER_(IF_NOT_EXISTS)?_identif~860f4bf2!drop-2	CREATE INDEX ANALYZER a
@@ -848,6 +860,10 @@ reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_ANALYZER_(IF
 reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_ANALYZER_(IF_NOT_EXISTS)?_identif~860f4bf2!drop-5	CREATE INVERTED INDEX ANALYZER
 reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_ANALYZER_(IF_NOT_EXISTS)?_identif~860f4bf2!insert	CREATE INVERTED INDEX ANALYZER a zzz
 reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_ANALYZER_(IF_NOT_EXISTS)?_identif~860f4bf2!swap	CREATION INVERTED INDEX ANALYZER a
+accept	accept	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_ANALYZER_(IF_NOT_EXISTS)?_identif~860f4bf2+supportedCreateStatement(IF_NOT_EXISTS)?	CREATE INVERTED INDEX ANALYZER IF NOT EXISTS a
+reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_ANALYZER_(IF_NOT_EXISTS)?_identif~860f4bf2+supportedCreateStatement(IF_NOT_EXISTS)?!drop-5	CREATE INVERTED INDEX ANALYZER NOT EXISTS a
+reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_ANALYZER_(IF_NOT_EXISTS)?_identif~860f4bf2+supportedCreateStatement(IF_NOT_EXISTS)?!drop-6	CREATE INVERTED INDEX ANALYZER IF EXISTS a
+reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_ANALYZER_(IF_NOT_EXISTS)?_identif~860f4bf2+supportedCreateStatement(IF_NOT_EXISTS)?!drop-7	CREATE INVERTED INDEX ANALYZER IF NOT a
 accept	accept	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_TOKENIZER_(IF_NOT_EXISTS)?_identi~f34708cd	CREATE INVERTED INDEX TOKENIZER a
 reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_TOKENIZER_(IF_NOT_EXISTS)?_identi~f34708cd!drop-1	INVERTED INDEX TOKENIZER a
 reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_TOKENIZER_(IF_NOT_EXISTS)?_identi~f34708cd!drop-2	CREATE INDEX TOKENIZER a
@@ -855,6 +871,10 @@ reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_TOKENIZER_(I
 reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_TOKENIZER_(IF_NOT_EXISTS)?_identi~f34708cd!drop-5	CREATE INVERTED INDEX TOKENIZER
 reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_TOKENIZER_(IF_NOT_EXISTS)?_identi~f34708cd!insert	CREATE INVERTED INDEX TOKENIZER a zzz
 reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_TOKENIZER_(IF_NOT_EXISTS)?_identi~f34708cd!swap	CREATION INVERTED INDEX TOKENIZER a
+accept	accept	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_TOKENIZER_(IF_NOT_EXISTS)?_identi~f34708cd+supportedCreateStatement(IF_NOT_EXISTS)?	CREATE INVERTED INDEX TOKENIZER IF NOT EXISTS a
+reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_TOKENIZER_(IF_NOT_EXISTS)?_identi~f34708cd+supportedCreateStatement(IF_NOT_EXISTS)?!drop-5	CREATE INVERTED INDEX TOKENIZER NOT EXISTS a
+reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_TOKENIZER_(IF_NOT_EXISTS)?_identi~f34708cd+supportedCreateStatement(IF_NOT_EXISTS)?!drop-6	CREATE INVERTED INDEX TOKENIZER IF EXISTS a
+reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_TOKENIZER_(IF_NOT_EXISTS)?_identi~f34708cd+supportedCreateStatement(IF_NOT_EXISTS)?!drop-7	CREATE INVERTED INDEX TOKENIZER IF NOT a
 accept	accept	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_TOKEN_FILTER_(IF_NOT_EXISTS)?_ide~f90e233c	CREATE INVERTED INDEX TOKEN_FILTER a
 reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_TOKEN_FILTER_(IF_NOT_EXISTS)?_ide~f90e233c!drop-1	INVERTED INDEX TOKEN_FILTER a
 reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_TOKEN_FILTER_(IF_NOT_EXISTS)?_ide~f90e233c!drop-2	CREATE INDEX TOKEN_FILTER a
@@ -862,6 +882,10 @@ reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_TOKEN_FILTER
 reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_TOKEN_FILTER_(IF_NOT_EXISTS)?_ide~f90e233c!drop-5	CREATE INVERTED INDEX TOKEN_FILTER
 reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_TOKEN_FILTER_(IF_NOT_EXISTS)?_ide~f90e233c!insert	CREATE INVERTED INDEX TOKEN_FILTER a zzz
 reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_TOKEN_FILTER_(IF_NOT_EXISTS)?_ide~f90e233c!swap	CREATION INVERTED INDEX TOKEN_FILTER a
+accept	accept	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_TOKEN_FILTER_(IF_NOT_EXISTS)?_ide~f90e233c+supportedCreateStatement(IF_NOT_EXISTS)?	CREATE INVERTED INDEX TOKEN_FILTER IF NOT EXISTS a
+reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_TOKEN_FILTER_(IF_NOT_EXISTS)?_ide~f90e233c+supportedCreateStatement(IF_NOT_EXISTS)?!drop-5	CREATE INVERTED INDEX TOKEN_FILTER NOT EXISTS a
+reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_TOKEN_FILTER_(IF_NOT_EXISTS)?_ide~f90e233c+supportedCreateStatement(IF_NOT_EXISTS)?!drop-6	CREATE INVERTED INDEX TOKEN_FILTER IF EXISTS a
+reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_TOKEN_FILTER_(IF_NOT_EXISTS)?_ide~f90e233c+supportedCreateStatement(IF_NOT_EXISTS)?!drop-7	CREATE INVERTED INDEX TOKEN_FILTER IF NOT a
 accept	accept	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_CHAR_FILTER_(IF_NOT_EXISTS)?_iden~4fd38755	CREATE INVERTED INDEX CHAR_FILTER a
 reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_CHAR_FILTER_(IF_NOT_EXISTS)?_iden~4fd38755!drop-1	INVERTED INDEX CHAR_FILTER a
 reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_CHAR_FILTER_(IF_NOT_EXISTS)?_iden~4fd38755!drop-2	CREATE INDEX CHAR_FILTER a
@@ -869,6 +893,10 @@ reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_CHAR_FILTER_
 reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_CHAR_FILTER_(IF_NOT_EXISTS)?_iden~4fd38755!drop-5	CREATE INVERTED INDEX CHAR_FILTER
 reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_CHAR_FILTER_(IF_NOT_EXISTS)?_iden~4fd38755!insert	CREATE INVERTED INDEX CHAR_FILTER a zzz
 reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_CHAR_FILTER_(IF_NOT_EXISTS)?_iden~4fd38755!swap	CREATION INVERTED INDEX CHAR_FILTER a
+accept	accept	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_CHAR_FILTER_(IF_NOT_EXISTS)?_iden~4fd38755+supportedCreateStatement(IF_NOT_EXISTS)?	CREATE INVERTED INDEX CHAR_FILTER IF NOT EXISTS a
+reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_CHAR_FILTER_(IF_NOT_EXISTS)?_iden~4fd38755+supportedCreateStatement(IF_NOT_EXISTS)?!drop-5	CREATE INVERTED INDEX CHAR_FILTER NOT EXISTS a
+reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_CHAR_FILTER_(IF_NOT_EXISTS)?_iden~4fd38755+supportedCreateStatement(IF_NOT_EXISTS)?!drop-6	CREATE INVERTED INDEX CHAR_FILTER IF EXISTS a
+reject	reject	engine	supportedCreateStatement/CREATE_INVERTED_INDEX_CHAR_FILTER_(IF_NOT_EXISTS)?_iden~4fd38755+supportedCreateStatement(IF_NOT_EXISTS)?!drop-7	CREATE INVERTED INDEX CHAR_FILTER IF NOT a
 accept	accept	engine	supportedCreateStatement(EXTERNAL|TEMPORARY)?/%empty	CREATE TABLE a
 reject	reject	engine	supportedCreateStatement(EXTERNAL|TEMPORARY)?/%empty!insert	CREATE zzz TABLE a
 accept	accept	engine	supportedCreateStatement(EXTERNAL|TEMPORARY)?/EXTERNAL	CREATE EXTERNAL TABLE a
@@ -1152,24 +1180,36 @@ reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_ANALYZER_(IF_EXI
 reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_ANALYZER_(IF_EXISTS)?_identifier!drop-5	DROP INVERTED INDEX ANALYZER
 reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_ANALYZER_(IF_EXISTS)?_identifier!insert	DROP INVERTED INDEX ANALYZER a zzz
 reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_ANALYZER_(IF_EXISTS)?_identifier!swap	DROPP INVERTED INDEX ANALYZER a
+accept	accept	engine	supportedDropStatement/DROP_INVERTED_INDEX_ANALYZER_(IF_EXISTS)?_identifier+supportedDropStatement(IF_EXISTS)?	DROP INVERTED INDEX ANALYZER IF EXISTS a
+reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_ANALYZER_(IF_EXISTS)?_identifier+supportedDropStatement(IF_EXISTS)?!drop-5	DROP INVERTED INDEX ANALYZER EXISTS a
+reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_ANALYZER_(IF_EXISTS)?_identifier+supportedDropStatement(IF_EXISTS)?!drop-6	DROP INVERTED INDEX ANALYZER IF a
 accept	accept	engine	supportedDropStatement/DROP_INVERTED_INDEX_TOKENIZER_(IF_EXISTS)?_identifier	DROP INVERTED INDEX TOKENIZER a
 reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_TOKENIZER_(IF_EXISTS)?_identifier!drop-2	DROP INDEX TOKENIZER a
 reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_TOKENIZER_(IF_EXISTS)?_identifier!drop-3	DROP INVERTED TOKENIZER a
 reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_TOKENIZER_(IF_EXISTS)?_identifier!drop-5	DROP INVERTED INDEX TOKENIZER
 reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_TOKENIZER_(IF_EXISTS)?_identifier!insert	DROP INVERTED INDEX TOKENIZER a zzz
 reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_TOKENIZER_(IF_EXISTS)?_identifier!swap	DROPP INVERTED INDEX TOKENIZER a
+accept	accept	engine	supportedDropStatement/DROP_INVERTED_INDEX_TOKENIZER_(IF_EXISTS)?_identifier+supportedDropStatement(IF_EXISTS)?	DROP INVERTED INDEX TOKENIZER IF EXISTS a
+reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_TOKENIZER_(IF_EXISTS)?_identifier+supportedDropStatement(IF_EXISTS)?!drop-5	DROP INVERTED INDEX TOKENIZER EXISTS a
+reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_TOKENIZER_(IF_EXISTS)?_identifier+supportedDropStatement(IF_EXISTS)?!drop-6	DROP INVERTED INDEX TOKENIZER IF a
 accept	accept	engine	supportedDropStatement/DROP_INVERTED_INDEX_TOKEN_FILTER_(IF_EXISTS)?_identifier	DROP INVERTED INDEX TOKEN_FILTER a
 reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_TOKEN_FILTER_(IF_EXISTS)?_identifier!drop-2	DROP INDEX TOKEN_FILTER a
 reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_TOKEN_FILTER_(IF_EXISTS)?_identifier!drop-3	DROP INVERTED TOKEN_FILTER a
 reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_TOKEN_FILTER_(IF_EXISTS)?_identifier!drop-5	DROP INVERTED INDEX TOKEN_FILTER
 reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_TOKEN_FILTER_(IF_EXISTS)?_identifier!insert	DROP INVERTED INDEX TOKEN_FILTER a zzz
 reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_TOKEN_FILTER_(IF_EXISTS)?_identifier!swap	DROPP INVERTED INDEX TOKEN_FILTER a
+accept	accept	engine	supportedDropStatement/DROP_INVERTED_INDEX_TOKEN_FILTER_(IF_EXISTS)?_identifier+supportedDropStatement(IF_EXISTS)?	DROP INVERTED INDEX TOKEN_FILTER IF EXISTS a
+reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_TOKEN_FILTER_(IF_EXISTS)?_identifier+supportedDropStatement(IF_EXISTS)?!drop-5	DROP INVERTED INDEX TOKEN_FILTER EXISTS a
+reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_TOKEN_FILTER_(IF_EXISTS)?_identifier+supportedDropStatement(IF_EXISTS)?!drop-6	DROP INVERTED INDEX TOKEN_FILTER IF a
 accept	accept	engine	supportedDropStatement/DROP_INVERTED_INDEX_CHAR_FILTER_(IF_EXISTS)?_identifier	DROP INVERTED INDEX CHAR_FILTER a
 reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_CHAR_FILTER_(IF_EXISTS)?_identifier!drop-2	DROP INDEX CHAR_FILTER a
 reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_CHAR_FILTER_(IF_EXISTS)?_identifier!drop-3	DROP INVERTED CHAR_FILTER a
 reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_CHAR_FILTER_(IF_EXISTS)?_identifier!drop-5	DROP INVERTED INDEX CHAR_FILTER
 reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_CHAR_FILTER_(IF_EXISTS)?_identifier!insert	DROP INVERTED INDEX CHAR_FILTER a zzz
 reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_CHAR_FILTER_(IF_EXISTS)?_identifier!swap	DROPP INVERTED INDEX CHAR_FILTER a
+accept	accept	engine	supportedDropStatement/DROP_INVERTED_INDEX_CHAR_FILTER_(IF_EXISTS)?_identifier+supportedDropStatement(IF_EXISTS)?	DROP INVERTED INDEX CHAR_FILTER IF EXISTS a
+reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_CHAR_FILTER_(IF_EXISTS)?_identifier+supportedDropStatement(IF_EXISTS)?!drop-5	DROP INVERTED INDEX CHAR_FILTER EXISTS a
+reject	reject	engine	supportedDropStatement/DROP_INVERTED_INDEX_CHAR_FILTER_(IF_EXISTS)?_identifier+supportedDropStatement(IF_EXISTS)?!drop-6	DROP INVERTED INDEX CHAR_FILTER IF a
 accept	accept	engine	supportedDropStatement(IF_EXISTS)?/%empty	DROP ROLE a
 reject	reject	engine	supportedDropStatement(IF_EXISTS)?/%empty!insert	DROP ROLE zzz a
 accept	accept	engine	supportedDropStatement(IF_EXISTS)?/IF_EXISTS	DROP ROLE IF EXISTS a
@@ -1445,6 +1485,7 @@ accept	accept	engine	unsupportedShowStatement/SHOW_(FULL)?_VIEWS_((FROM|IN)_mult
 reject	reject	engine	unsupportedShowStatement/SHOW_(FULL)?_VIEWS_((FROM|IN)_multipartIdentifier)?_(wildWhere)?!drop-1	VIEWS
 reject	reject	engine	unsupportedShowStatement/SHOW_(FULL)?_VIEWS_((FROM|IN)_multipartIdentifier)?_(wildWhere)?!insert	SHOW VIEWS zzz
 reject	reject	engine	unsupportedShowStatement/SHOW_(FULL)?_VIEWS_((FROM|IN)_multipartIdentifier)?_(wildWhere)?!swap	SIGNED VIEWS
+accept	accept	engine	unsupportedShowStatement/SHOW_(FULL)?_VIEWS_((FROM|IN)_multipartIdentifier)?_(wildWhere)?+unsupportedShowStatement(FULL)?	SHOW FULL VIEWS
 accept	accept	engine	unsupportedShowStatement/SHOW_TABLE_INTEGER_VALUE	SHOW TABLE 1
 reject	reject	engine	unsupportedShowStatement/SHOW_TABLE_INTEGER_VALUE!drop-1	TABLE 1
 reject	reject	engine	unsupportedShowStatement/SHOW_TABLE_INTEGER_VALUE!drop-2	SHOW 1
@@ -1454,6 +1495,7 @@ accept	accept	engine	unsupportedShowStatement/SHOW_(FULL)?_PROCESSLIST	SHOW PROC
 reject	reject	engine	unsupportedShowStatement/SHOW_(FULL)?_PROCESSLIST!drop-1	PROCESSLIST
 reject	reject	engine	unsupportedShowStatement/SHOW_(FULL)?_PROCESSLIST!insert	SHOW PROCESSLIST zzz
 reject	reject	engine	unsupportedShowStatement/SHOW_(FULL)?_PROCESSLIST!swap	SIGNED PROCESSLIST
+accept	accept	engine	unsupportedShowStatement/SHOW_(FULL)?_PROCESSLIST+unsupportedShowStatement(FULL)?	SHOW FULL PROCESSLIST
 accept	accept	engine	unsupportedShowStatement/SHOW_(GLOBAL|SESSION|LOCAL)?_STATUS_(wildWhere)?	SHOW STATUS
 reject	reject	engine	unsupportedShowStatement/SHOW_(GLOBAL|SESSION|LOCAL)?_STATUS_(wildWhere)?!drop-1	STATUS
 reject	reject	engine	unsupportedShowStatement/SHOW_(GLOBAL|SESSION|LOCAL)?_STATUS_(wildWhere)?!insert	SHOW STATUS zzz
@@ -1462,6 +1504,7 @@ accept	accept	engine	unsupportedShowStatement/SHOW_(FULL)?_TRIGGERS_((FROM|IN)_m
 reject	reject	engine	unsupportedShowStatement/SHOW_(FULL)?_TRIGGERS_((FROM|IN)_multipartIdentifier)?_~73153adf!drop-1	TRIGGERS
 reject	reject	engine	unsupportedShowStatement/SHOW_(FULL)?_TRIGGERS_((FROM|IN)_multipartIdentifier)?_~73153adf!insert	SHOW TRIGGERS zzz
 reject	reject	engine	unsupportedShowStatement/SHOW_(FULL)?_TRIGGERS_((FROM|IN)_multipartIdentifier)?_~73153adf!swap	SIGNED TRIGGERS
+accept	accept	engine	unsupportedShowStatement/SHOW_(FULL)?_TRIGGERS_((FROM|IN)_multipartIdentifier)?_~73153adf+unsupportedShowStatement(FULL)?	SHOW FULL TRIGGERS
 accept	accept	engine	unsupportedShowStatement/SHOW_EVENTS_((FROM|IN)_multipartIdentifier)?_(wildWhere)?	SHOW EVENTS
 reject	reject	engine	unsupportedShowStatement/SHOW_EVENTS_((FROM|IN)_multipartIdentifier)?_(wildWhere)?!drop-1	EVENTS
 reject	reject	engine	unsupportedShowStatement/SHOW_EVENTS_((FROM|IN)_multipartIdentifier)?_(wildWhere)?!insert	SHOW EVENTS zzz
@@ -1544,6 +1587,7 @@ reject	reject	engine	unsupportedShowStatement/SHOW_(FULL)?_(COLUMNS|FIELDS)_(FRO
 reject	reject	engine	unsupportedShowStatement/SHOW_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_multipartIdenti~0fd84f44!drop-4	SHOW COLUMNS FROM
 reject	reject	engine	unsupportedShowStatement/SHOW_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_multipartIdenti~0fd84f44!insert	SHOW COLUMNS FROM a zzz
 reject	reject	engine	unsupportedShowStatement/SHOW_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_multipartIdenti~0fd84f44!swap	SIGNED COLUMNS FROM a
+accept	accept	engine	unsupportedShowStatement/SHOW_(FULL)?_(COLUMNS|FIELDS)_(FROM|IN)_multipartIdenti~0fd84f44+unsupportedShowStatement(FULL)?	SHOW FULL COLUMNS FROM a
 accept	accept	engine	unsupportedShowStatement/SHOW_COLLATION_(wildWhere)?	SHOW COLLATION
 reject	reject	engine	unsupportedShowStatement/SHOW_COLLATION_(wildWhere)?!drop-1	COLLATION
 reject	reject	engine	unsupportedShowStatement/SHOW_COLLATION_(wildWhere)?!insert	SHOW COLLATION zzz
@@ -1711,11 +1755,13 @@ accept	accept	engine	unsupportedShowStatement/SHOW_(FULL)?_(BUILTIN)?_FUNCTIONS_
 reject	reject	engine	unsupportedShowStatement/SHOW_(FULL)?_(BUILTIN)?_FUNCTIONS_((FROM|IN)_multipartI~d57f5a1f!drop-1	FUNCTIONS
 reject	reject	engine	unsupportedShowStatement/SHOW_(FULL)?_(BUILTIN)?_FUNCTIONS_((FROM|IN)_multipartI~d57f5a1f!insert	SHOW FUNCTIONS zzz
 reject	reject	engine	unsupportedShowStatement/SHOW_(FULL)?_(BUILTIN)?_FUNCTIONS_((FROM|IN)_multipartI~d57f5a1f!swap	SIGNED FUNCTIONS
+accept	accept	engine	unsupportedShowStatement/SHOW_(FULL)?_(BUILTIN)?_FUNCTIONS_((FROM|IN)_multipartI~d57f5a1f+unsupportedShowStatement(FULL)?	SHOW FULL FUNCTIONS
 accept	accept	engine	unsupportedShowStatement/SHOW_GLOBAL_(FULL)?_FUNCTIONS_(wildWhere)?	SHOW GLOBAL FUNCTIONS
 reject	reject	engine	unsupportedShowStatement/SHOW_GLOBAL_(FULL)?_FUNCTIONS_(wildWhere)?!drop-1	GLOBAL FUNCTIONS
 reject	reject	engine	unsupportedShowStatement/SHOW_GLOBAL_(FULL)?_FUNCTIONS_(wildWhere)?!drop-3	SHOW GLOBAL
 reject	reject	engine	unsupportedShowStatement/SHOW_GLOBAL_(FULL)?_FUNCTIONS_(wildWhere)?!insert	SHOW GLOBAL FUNCTIONS zzz
 reject	reject	engine	unsupportedShowStatement/SHOW_GLOBAL_(FULL)?_FUNCTIONS_(wildWhere)?!swap	SIGNED GLOBAL FUNCTIONS
+accept	accept	engine	unsupportedShowStatement/SHOW_GLOBAL_(FULL)?_FUNCTIONS_(wildWhere)?+unsupportedShowStatement(FULL)?	SHOW GLOBAL FULL FUNCTIONS
 accept	accept	engine	unsupportedShowStatement/SHOW_TYPECAST_((FROM|IN)_multipartIdentifier)?	SHOW TYPE_CAST
 reject	reject	engine	unsupportedShowStatement/SHOW_TYPECAST_((FROM|IN)_multipartIdentifier)?!drop-1	TYPE_CAST
 reject	reject	engine	unsupportedShowStatement/SHOW_TYPECAST_((FROM|IN)_multipartIdentifier)?!insert	SHOW TYPE_CAST zzz
@@ -3384,6 +3430,8 @@ accept	accept	engine	alterTableClause/DROP_(TEMPORARY)?_PARTITION_(IF_EXISTS)?_i
 reject	reject	engine	alterTableClause/DROP_(TEMPORARY)?_PARTITION_(IF_EXISTS)?_identifier_(FO~4e5abb69!drop-3	ALTER TABLE a DROP PARTITION
 reject	reject	engine	alterTableClause/DROP_(TEMPORARY)?_PARTITION_(IF_EXISTS)?_identifier_(FO~4e5abb69!insert	ALTER TABLE a DROP PARTITION a zzz
 reject	reject	engine	alterTableClause/DROP_(TEMPORARY)?_PARTITION_(IF_EXISTS)?_identifier_(FO~4e5abb69!swap	ALTER TABLE a DROPP PARTITION a
+accept	accept	engine	alterTableClause/DROP_(TEMPORARY)?_PARTITION_(IF_EXISTS)?_identifier_(FO~4e5abb69+alterTableClause(TEMPORARY)?	ALTER TABLE a DROP TEMPORARY PARTITION a
+accept	accept	engine	alterTableClause/DROP_(TEMPORARY)?_PARTITION_(IF_EXISTS)?_identifier_(FO~4e5abb69+alterTableClause(FORCE)?	ALTER TABLE a DROP PARTITION a FORCE
 reject	reject	engine	alterTableClause/MODIFY_(TEMPORARY)?_PARTITION_(IF_EXISTS)?_(identifier|~4b201bbd	ALTER TABLE a MODIFY PARTITION a SET(a = a)
 reject	reject	engine	alterTableClause/MODIFY_(TEMPORARY)?_PARTITION_(IF_EXISTS)?_(identifier|~4b201bbd!drop-1	ALTER TABLE a PARTITION a SET(a = a)
 reject	reject	engine	alterTableClause/MODIFY_(TEMPORARY)?_PARTITION_(IF_EXISTS)?_(identifier|~4b201bbd!drop-2	ALTER TABLE a MODIFY a SET(a = a)
@@ -3396,6 +3444,10 @@ reject	reject	engine	alterTableClause/MODIFY_(TEMPORARY)?_PARTITION_(IF_EXISTS)?
 reject	reject	engine	alterTableClause/MODIFY_(TEMPORARY)?_PARTITION_(IF_EXISTS)?_(identifier|~4b201bbd!drop-9	ALTER TABLE a MODIFY PARTITION a SET(a = a
 reject	reject	engine	alterTableClause/MODIFY_(TEMPORARY)?_PARTITION_(IF_EXISTS)?_(identifier|~4b201bbd!insert	ALTER TABLE a MODIFY PARTITION a SET(a = a) zzz
 reject	reject	engine	alterTableClause/MODIFY_(TEMPORARY)?_PARTITION_(IF_EXISTS)?_(identifier|~4b201bbd!swap	ALTER TABLE a MONTH PARTITION a SET(a = a)
+reject	reject	engine	alterTableClause/MODIFY_(TEMPORARY)?_PARTITION_(IF_EXISTS)?_(identifier|~4b201bbd+alterTableClause(TEMPORARY)?	ALTER TABLE a MODIFY TEMPORARY PARTITION a SET(a = a)
+reject	reject	engine	alterTableClause/MODIFY_(TEMPORARY)?_PARTITION_(IF_EXISTS)?_(identifier|~4b201bbd+alterTableClause(IF_EXISTS)?	ALTER TABLE a MODIFY PARTITION IF EXISTS a SET(a = a)
+reject	reject	engine	alterTableClause/MODIFY_(TEMPORARY)?_PARTITION_(IF_EXISTS)?_(identifier|~4b201bbd+alterTableClause(IF_EXISTS)?!drop-3	ALTER TABLE a MODIFY PARTITION EXISTS a SET(a = a)
+reject	reject	engine	alterTableClause/MODIFY_(TEMPORARY)?_PARTITION_(IF_EXISTS)?_(identifier|~4b201bbd+alterTableClause(IF_EXISTS)?!drop-4	ALTER TABLE a MODIFY PARTITION IF a SET(a = a)
 reject	reject	engine	alterTableClause/REPLACE_(partitionSpec)?_WITH_(partitionSpec)?_(FORCE)?~03574ab2	ALTER TABLE a REPLACE WITH
 reject	reject	engine	alterTableClause/REPLACE_(partitionSpec)?_WITH_(partitionSpec)?_(FORCE)?~03574ab2!swap	ALTER TABLE a REPLACE_IF_NOT_NULL WITH
 accept	accept	engine	alterTableClause/REPLACE_WITH_TABLE_identifier_(propertyClause)?	ALTER TABLE a REPLACE WITH TABLE a
@@ -3439,6 +3491,9 @@ reject	reject	engine	alterTableClause/DROP_INDEX_(IF_EXISTS)?_identifier!drop-1	
 reject	reject	engine	alterTableClause/DROP_INDEX_(IF_EXISTS)?_identifier!drop-3	ALTER TABLE a DROP INDEX
 reject	reject	engine	alterTableClause/DROP_INDEX_(IF_EXISTS)?_identifier!insert	ALTER TABLE a DROP INDEX a zzz
 reject	reject	engine	alterTableClause/DROP_INDEX_(IF_EXISTS)?_identifier!swap	ALTER TABLE a DROPP INDEX a
+accept	accept	engine	alterTableClause/DROP_INDEX_(IF_EXISTS)?_identifier+alterTableClause(IF_EXISTS)?	ALTER TABLE a DROP INDEX IF EXISTS a
+reject	reject	engine	alterTableClause/DROP_INDEX_(IF_EXISTS)?_identifier+alterTableClause(IF_EXISTS)?!drop-3	ALTER TABLE a DROP INDEX EXISTS a
+reject	reject	engine	alterTableClause/DROP_INDEX_(IF_EXISTS)?_identifier+alterTableClause(IF_EXISTS)?!drop-4	ALTER TABLE a DROP INDEX IF a
 accept	accept	engine	alterTableClause/ENABLE_FEATURE_STRING_LITERAL_(WITH_propertyClause)?	ALTER TABLE a ENABLE FEATURE 'a'
 reject	reject	engine	alterTableClause/ENABLE_FEATURE_STRING_LITERAL_(WITH_propertyClause)?!drop-1	ALTER TABLE a FEATURE 'a'
 reject	reject	engine	alterTableClause/ENABLE_FEATURE_STRING_LITERAL_(WITH_propertyClause)?!drop-2	ALTER TABLE a ENABLE 'a'
@@ -3486,6 +3541,7 @@ reject	reject	engine	alterTableClause/ADD_(TEMPORARY)?_PARTITIONS_FROM_partition
 reject	reject	engine	alterTableClause/ADD_(TEMPORARY)?_PARTITIONS_FROM_partitionValueList_TO_~4450d967!drop-12	ALTER TABLE a ADD PARTITIONS FROM(1) TO(1) INTERVAL
 accept	accept	engine	alterTableClause/ADD_(TEMPORARY)?_PARTITIONS_FROM_partitionValueList_TO_~4450d967!insert	ALTER TABLE a ADD PARTITIONS FROM(1) TO(1) INTERVAL 1 zzz
 reject	reject	engine	alterTableClause/ADD_(TEMPORARY)?_PARTITIONS_FROM_partitionValueList_TO_~4450d967!swap	ALTER TABLE a ADMIN PARTITIONS FROM(1) TO(1) INTERVAL 1
+accept	accept	engine	alterTableClause/ADD_(TEMPORARY)?_PARTITIONS_FROM_partitionValueList_TO_~4450d967+alterTableClause(TEMPORARY)?	ALTER TABLE a ADD TEMPORARY PARTITIONS FROM(1) TO(1) INTERVAL 1
 accept	accept	engine	alterTableClause/createOrReplaceTagClause	ALTER TABLE a CREATE TAG a
 reject	reject	engine	alterTableClause/createOrReplaceTagClause!drop-1	ALTER TABLE a TAG a
 reject	reject	engine	alterTableClause/createOrReplaceTagClause!drop-2	ALTER TABLE a CREATE a
@@ -3810,6 +3866,9 @@ accept	accept	engine	unsupportedDropStatement/DROP_CATALOG_(IF_EXISTS)?_identifi
 reject	reject	engine	unsupportedDropStatement/DROP_CATALOG_(IF_EXISTS)?_identifier!drop-3	DROP CATALOG
 reject	reject	engine	unsupportedDropStatement/DROP_CATALOG_(IF_EXISTS)?_identifier!insert	DROP CATALOG a zzz
 reject	reject	engine	unsupportedDropStatement/DROP_CATALOG_(IF_EXISTS)?_identifier!swap	DROPP CATALOG a
+accept	accept	engine	unsupportedDropStatement/DROP_CATALOG_(IF_EXISTS)?_identifier+unsupportedDropStatement(IF_EXISTS)?	DROP CATALOG IF EXISTS a
+reject	reject	engine	unsupportedDropStatement/DROP_CATALOG_(IF_EXISTS)?_identifier+unsupportedDropStatement(IF_EXISTS)?!drop-3	DROP CATALOG EXISTS a
+reject	reject	engine	unsupportedDropStatement/DROP_CATALOG_(IF_EXISTS)?_identifier+unsupportedDropStatement(IF_EXISTS)?!drop-4	DROP CATALOG IF a
 accept	accept	engine	unsupportedDropStatement/DROP_(GLOBAL|SESSION|LOCAL)?_FUNCTION_(IF_EXISTS)?_func~e7e53777	DROP FUNCTION a()
 reject	reject	engine	unsupportedDropStatement/DROP_(GLOBAL|SESSION|LOCAL)?_FUNCTION_(IF_EXISTS)?_func~e7e53777!drop-1	FUNCTION a()
 reject	reject	engine	unsupportedDropStatement/DROP_(GLOBAL|SESSION|LOCAL)?_FUNCTION_(IF_EXISTS)?_func~e7e53777!drop-2	DROP a()
@@ -3818,19 +3877,32 @@ reject	reject	engine	unsupportedDropStatement/DROP_(GLOBAL|SESSION|LOCAL)?_FUNCT
 reject	reject	engine	unsupportedDropStatement/DROP_(GLOBAL|SESSION|LOCAL)?_FUNCTION_(IF_EXISTS)?_func~e7e53777!drop-5	DROP FUNCTION a(
 reject	reject	engine	unsupportedDropStatement/DROP_(GLOBAL|SESSION|LOCAL)?_FUNCTION_(IF_EXISTS)?_func~e7e53777!insert	DROP FUNCTION a() zzz
 reject	reject	engine	unsupportedDropStatement/DROP_(GLOBAL|SESSION|LOCAL)?_FUNCTION_(IF_EXISTS)?_func~e7e53777!swap	DROPP FUNCTION a()
+accept	accept	engine	unsupportedDropStatement/DROP_(GLOBAL|SESSION|LOCAL)?_FUNCTION_(IF_EXISTS)?_func~e7e53777+unsupportedDropStatement(IF_EXISTS)?	DROP FUNCTION IF EXISTS a()
+reject	reject	engine	unsupportedDropStatement/DROP_(GLOBAL|SESSION|LOCAL)?_FUNCTION_(IF_EXISTS)?_func~e7e53777+unsupportedDropStatement(IF_EXISTS)?!drop-3	DROP FUNCTION EXISTS a()
+reject	reject	engine	unsupportedDropStatement/DROP_(GLOBAL|SESSION|LOCAL)?_FUNCTION_(IF_EXISTS)?_func~e7e53777+unsupportedDropStatement(IF_EXISTS)?!drop-4	DROP FUNCTION IF a()
 accept	accept	engine	unsupportedDropStatement/DROP_(TEMPORARY)?_TABLE_(IF_EXISTS)?_multipartIdentifie~7f9f9545	DROP TABLE a
 reject	reject	engine	unsupportedDropStatement/DROP_(TEMPORARY)?_TABLE_(IF_EXISTS)?_multipartIdentifie~7f9f9545!drop-3	DROP TABLE
 reject	reject	engine	unsupportedDropStatement/DROP_(TEMPORARY)?_TABLE_(IF_EXISTS)?_multipartIdentifie~7f9f9545!insert	DROP TABLE a zzz
 reject	reject	engine	unsupportedDropStatement/DROP_(TEMPORARY)?_TABLE_(IF_EXISTS)?_multipartIdentifie~7f9f9545!swap	DROPP TABLE a
+accept	accept	engine	unsupportedDropStatement/DROP_(TEMPORARY)?_TABLE_(IF_EXISTS)?_multipartIdentifie~7f9f9545+unsupportedDropStatement(IF_EXISTS)?	DROP TABLE IF EXISTS a
+reject	reject	engine	unsupportedDropStatement/DROP_(TEMPORARY)?_TABLE_(IF_EXISTS)?_multipartIdentifie~7f9f9545+unsupportedDropStatement(IF_EXISTS)?!drop-3	DROP TABLE EXISTS a
+reject	reject	engine	unsupportedDropStatement/DROP_(TEMPORARY)?_TABLE_(IF_EXISTS)?_multipartIdentifie~7f9f9545+unsupportedDropStatement(IF_EXISTS)?!drop-4	DROP TABLE IF a
+accept	accept	engine	unsupportedDropStatement/DROP_(TEMPORARY)?_TABLE_(IF_EXISTS)?_multipartIdentifie~7f9f9545+unsupportedDropStatement(FORCE)?	DROP TABLE a FORCE
 accept	accept	engine	unsupportedDropStatement/DROP_USER_(IF_EXISTS)?_userIdentify	DROP USER a
 reject	reject	engine	unsupportedDropStatement/DROP_USER_(IF_EXISTS)?_userIdentify!drop-3	DROP USER
 reject	reject	engine	unsupportedDropStatement/DROP_USER_(IF_EXISTS)?_userIdentify!insert	DROP USER a zzz
 reject	reject	engine	unsupportedDropStatement/DROP_USER_(IF_EXISTS)?_userIdentify!swap	DROPP USER a
+accept	accept	engine	unsupportedDropStatement/DROP_USER_(IF_EXISTS)?_userIdentify+unsupportedDropStatement(IF_EXISTS)?	DROP USER IF EXISTS a
+reject	reject	engine	unsupportedDropStatement/DROP_USER_(IF_EXISTS)?_userIdentify+unsupportedDropStatement(IF_EXISTS)?!drop-3	DROP USER EXISTS a
+reject	reject	engine	unsupportedDropStatement/DROP_USER_(IF_EXISTS)?_userIdentify+unsupportedDropStatement(IF_EXISTS)?!drop-4	DROP USER IF a
 accept	accept	engine	unsupportedDropStatement/DROP_VIEW_(IF_EXISTS)?_multipartIdentifier	DROP VIEW a
 reject	reject	engine	unsupportedDropStatement/DROP_VIEW_(IF_EXISTS)?_multipartIdentifier!drop-1	VIEW a
 reject	reject	engine	unsupportedDropStatement/DROP_VIEW_(IF_EXISTS)?_multipartIdentifier!drop-3	DROP VIEW
 reject	reject	engine	unsupportedDropStatement/DROP_VIEW_(IF_EXISTS)?_multipartIdentifier!insert	DROP VIEW a zzz
 reject	reject	engine	unsupportedDropStatement/DROP_VIEW_(IF_EXISTS)?_multipartIdentifier!swap	DROPP VIEW a
+accept	accept	engine	unsupportedDropStatement/DROP_VIEW_(IF_EXISTS)?_multipartIdentifier+unsupportedDropStatement(IF_EXISTS)?	DROP VIEW IF EXISTS a
+reject	reject	engine	unsupportedDropStatement/DROP_VIEW_(IF_EXISTS)?_multipartIdentifier+unsupportedDropStatement(IF_EXISTS)?!drop-3	DROP VIEW EXISTS a
+reject	reject	engine	unsupportedDropStatement/DROP_VIEW_(IF_EXISTS)?_multipartIdentifier+unsupportedDropStatement(IF_EXISTS)?!drop-4	DROP VIEW IF a
 accept	accept	engine	unsupportedDropStatement/DROP_REPOSITORY_identifier	DROP REPOSITORY a
 reject	reject	engine	unsupportedDropStatement/DROP_REPOSITORY_identifier!drop-3	DROP REPOSITORY
 reject	reject	engine	unsupportedDropStatement/DROP_REPOSITORY_identifier!insert	DROP REPOSITORY a zzz
@@ -3855,30 +3927,48 @@ reject	reject	engine	unsupportedDropStatement/DROP_INDEX_(IF_EXISTS)?_identifier
 reject	reject	engine	unsupportedDropStatement/DROP_INDEX_(IF_EXISTS)?_identifier_ON_multipartIdentifier!drop-5	DROP INDEX a ON
 reject	reject	engine	unsupportedDropStatement/DROP_INDEX_(IF_EXISTS)?_identifier_ON_multipartIdentifier!insert	DROP INDEX a ON a zzz
 reject	reject	engine	unsupportedDropStatement/DROP_INDEX_(IF_EXISTS)?_identifier_ON_multipartIdentifier!swap	DROPP INDEX a ON a
+accept	accept	engine	unsupportedDropStatement/DROP_INDEX_(IF_EXISTS)?_identifier_ON_multipartIdentifier+unsupportedDropStatement(IF_EXISTS)?	DROP INDEX IF EXISTS a ON a
+reject	reject	engine	unsupportedDropStatement/DROP_INDEX_(IF_EXISTS)?_identifier_ON_multipartIdentifier+unsupportedDropStatement(IF_EXISTS)?!drop-3	DROP INDEX EXISTS a ON a
+reject	reject	engine	unsupportedDropStatement/DROP_INDEX_(IF_EXISTS)?_identifier_ON_multipartIdentifier+unsupportedDropStatement(IF_EXISTS)?!drop-4	DROP INDEX IF a ON a
 accept	accept	engine	unsupportedDropStatement/DROP_RESOURCE_(IF_EXISTS)?_identifierOrText	DROP RESOURCE a
 reject	reject	engine	unsupportedDropStatement/DROP_RESOURCE_(IF_EXISTS)?_identifierOrText!drop-3	DROP RESOURCE
 reject	reject	engine	unsupportedDropStatement/DROP_RESOURCE_(IF_EXISTS)?_identifierOrText!insert	DROP RESOURCE a zzz
 reject	reject	engine	unsupportedDropStatement/DROP_RESOURCE_(IF_EXISTS)?_identifierOrText!swap	DROPP RESOURCE a
+accept	accept	engine	unsupportedDropStatement/DROP_RESOURCE_(IF_EXISTS)?_identifierOrText+unsupportedDropStatement(IF_EXISTS)?	DROP RESOURCE IF EXISTS a
+reject	reject	engine	unsupportedDropStatement/DROP_RESOURCE_(IF_EXISTS)?_identifierOrText+unsupportedDropStatement(IF_EXISTS)?!drop-3	DROP RESOURCE EXISTS a
+reject	reject	engine	unsupportedDropStatement/DROP_RESOURCE_(IF_EXISTS)?_identifierOrText+unsupportedDropStatement(IF_EXISTS)?!drop-4	DROP RESOURCE IF a
 accept	accept	engine	unsupportedDropStatement/DROP_WORKLOAD_GROUP_(IF_EXISTS)?_identifierOrText	DROP WORKLOAD GROUP a
 reject	reject	engine	unsupportedDropStatement/DROP_WORKLOAD_GROUP_(IF_EXISTS)?_identifierOrText!drop-2	DROP GROUP a
 reject	reject	engine	unsupportedDropStatement/DROP_WORKLOAD_GROUP_(IF_EXISTS)?_identifierOrText!drop-3	DROP WORKLOAD a
 reject	reject	engine	unsupportedDropStatement/DROP_WORKLOAD_GROUP_(IF_EXISTS)?_identifierOrText!drop-4	DROP WORKLOAD GROUP
 reject	reject	engine	unsupportedDropStatement/DROP_WORKLOAD_GROUP_(IF_EXISTS)?_identifierOrText!insert	DROP WORKLOAD GROUP a zzz
 reject	reject	engine	unsupportedDropStatement/DROP_WORKLOAD_GROUP_(IF_EXISTS)?_identifierOrText!swap	DROPP WORKLOAD GROUP a
+accept	accept	engine	unsupportedDropStatement/DROP_WORKLOAD_GROUP_(IF_EXISTS)?_identifierOrText+unsupportedDropStatement(IF_EXISTS)?	DROP WORKLOAD GROUP IF EXISTS a
+reject	reject	engine	unsupportedDropStatement/DROP_WORKLOAD_GROUP_(IF_EXISTS)?_identifierOrText+unsupportedDropStatement(IF_EXISTS)?!drop-4	DROP WORKLOAD GROUP EXISTS a
+reject	reject	engine	unsupportedDropStatement/DROP_WORKLOAD_GROUP_(IF_EXISTS)?_identifierOrText+unsupportedDropStatement(IF_EXISTS)?!drop-5	DROP WORKLOAD GROUP IF a
 accept	accept	engine	unsupportedDropStatement/DROP_WORKLOAD_POLICY_(IF_EXISTS)?_identifierOrText	DROP WORKLOAD POLICY a
 reject	reject	engine	unsupportedDropStatement/DROP_WORKLOAD_POLICY_(IF_EXISTS)?_identifierOrText!drop-2	DROP POLICY a
 reject	reject	engine	unsupportedDropStatement/DROP_WORKLOAD_POLICY_(IF_EXISTS)?_identifierOrText!drop-4	DROP WORKLOAD POLICY
 reject	reject	engine	unsupportedDropStatement/DROP_WORKLOAD_POLICY_(IF_EXISTS)?_identifierOrText!insert	DROP WORKLOAD POLICY a zzz
 reject	reject	engine	unsupportedDropStatement/DROP_WORKLOAD_POLICY_(IF_EXISTS)?_identifierOrText!swap	DROPP WORKLOAD POLICY a
+accept	accept	engine	unsupportedDropStatement/DROP_WORKLOAD_POLICY_(IF_EXISTS)?_identifierOrText+unsupportedDropStatement(IF_EXISTS)?	DROP WORKLOAD POLICY IF EXISTS a
+reject	reject	engine	unsupportedDropStatement/DROP_WORKLOAD_POLICY_(IF_EXISTS)?_identifierOrText+unsupportedDropStatement(IF_EXISTS)?!drop-4	DROP WORKLOAD POLICY EXISTS a
+reject	reject	engine	unsupportedDropStatement/DROP_WORKLOAD_POLICY_(IF_EXISTS)?_identifierOrText+unsupportedDropStatement(IF_EXISTS)?!drop-5	DROP WORKLOAD POLICY IF a
 accept	accept	engine	unsupportedDropStatement/DROP_ENCRYPTKEY_(IF_EXISTS)?_multipartIdentifier	DROP ENCRYPTKEY a
 reject	reject	engine	unsupportedDropStatement/DROP_ENCRYPTKEY_(IF_EXISTS)?_multipartIdentifier!drop-1	ENCRYPTKEY a
 reject	reject	engine	unsupportedDropStatement/DROP_ENCRYPTKEY_(IF_EXISTS)?_multipartIdentifier!drop-3	DROP ENCRYPTKEY
 reject	reject	engine	unsupportedDropStatement/DROP_ENCRYPTKEY_(IF_EXISTS)?_multipartIdentifier!insert	DROP ENCRYPTKEY a zzz
 reject	reject	engine	unsupportedDropStatement/DROP_ENCRYPTKEY_(IF_EXISTS)?_multipartIdentifier!swap	DROPP ENCRYPTKEY a
+accept	accept	engine	unsupportedDropStatement/DROP_ENCRYPTKEY_(IF_EXISTS)?_multipartIdentifier+unsupportedDropStatement(IF_EXISTS)?	DROP ENCRYPTKEY IF EXISTS a
+reject	reject	engine	unsupportedDropStatement/DROP_ENCRYPTKEY_(IF_EXISTS)?_multipartIdentifier+unsupportedDropStatement(IF_EXISTS)?!drop-3	DROP ENCRYPTKEY EXISTS a
+reject	reject	engine	unsupportedDropStatement/DROP_ENCRYPTKEY_(IF_EXISTS)?_multipartIdentifier+unsupportedDropStatement(IF_EXISTS)?!drop-4	DROP ENCRYPTKEY IF a
 accept	accept	engine	unsupportedDropStatement/DROP_SQL_BLOCK_RULE_(IF_EXISTS)?_identifierSeq	DROP SQL_BLOCK_RULE a
 reject	reject	engine	unsupportedDropStatement/DROP_SQL_BLOCK_RULE_(IF_EXISTS)?_identifierSeq!drop-3	DROP SQL_BLOCK_RULE
 reject	reject	engine	unsupportedDropStatement/DROP_SQL_BLOCK_RULE_(IF_EXISTS)?_identifierSeq!insert	DROP SQL_BLOCK_RULE a zzz
 reject	reject	engine	unsupportedDropStatement/DROP_SQL_BLOCK_RULE_(IF_EXISTS)?_identifierSeq!swap	DROPP SQL_BLOCK_RULE a
+accept	accept	engine	unsupportedDropStatement/DROP_SQL_BLOCK_RULE_(IF_EXISTS)?_identifierSeq+unsupportedDropStatement(IF_EXISTS)?	DROP SQL_BLOCK_RULE IF EXISTS a
+reject	reject	engine	unsupportedDropStatement/DROP_SQL_BLOCK_RULE_(IF_EXISTS)?_identifierSeq+unsupportedDropStatement(IF_EXISTS)?!drop-3	DROP SQL_BLOCK_RULE EXISTS a
+reject	reject	engine	unsupportedDropStatement/DROP_SQL_BLOCK_RULE_(IF_EXISTS)?_identifierSeq+unsupportedDropStatement(IF_EXISTS)?!drop-4	DROP SQL_BLOCK_RULE IF a
 accept	accept	engine	unsupportedDropStatement/DROP_ROW_POLICY_(IF_EXISTS)?_identifier_ON_multipartIde~c4e97525	DROP ROW POLICY a ON a
 reject	reject	engine	unsupportedDropStatement/DROP_ROW_POLICY_(IF_EXISTS)?_identifier_ON_multipartIde~c4e97525!drop-1	ROW POLICY a ON a
 reject	reject	engine	unsupportedDropStatement/DROP_ROW_POLICY_(IF_EXISTS)?_identifier_ON_multipartIde~c4e97525!drop-2	DROP POLICY a ON a
@@ -3888,17 +3978,26 @@ reject	reject	engine	unsupportedDropStatement/DROP_ROW_POLICY_(IF_EXISTS)?_ident
 reject	reject	engine	unsupportedDropStatement/DROP_ROW_POLICY_(IF_EXISTS)?_identifier_ON_multipartIde~c4e97525!drop-6	DROP ROW POLICY a ON
 reject	reject	engine	unsupportedDropStatement/DROP_ROW_POLICY_(IF_EXISTS)?_identifier_ON_multipartIde~c4e97525!insert	DROP ROW POLICY a ON a zzz
 reject	reject	engine	unsupportedDropStatement/DROP_ROW_POLICY_(IF_EXISTS)?_identifier_ON_multipartIde~c4e97525!swap	DROPP ROW POLICY a ON a
+accept	accept	engine	unsupportedDropStatement/DROP_ROW_POLICY_(IF_EXISTS)?_identifier_ON_multipartIde~c4e97525+unsupportedDropStatement(IF_EXISTS)?	DROP ROW POLICY IF EXISTS a ON a
+reject	reject	engine	unsupportedDropStatement/DROP_ROW_POLICY_(IF_EXISTS)?_identifier_ON_multipartIde~c4e97525+unsupportedDropStatement(IF_EXISTS)?!drop-4	DROP ROW POLICY EXISTS a ON a
+reject	reject	engine	unsupportedDropStatement/DROP_ROW_POLICY_(IF_EXISTS)?_identifier_ON_multipartIde~c4e97525+unsupportedDropStatement(IF_EXISTS)?!drop-5	DROP ROW POLICY IF a ON a
 accept	accept	engine	unsupportedDropStatement/DROP_STORAGE_POLICY_(IF_EXISTS)?_identifier	DROP STORAGE POLICY a
 reject	reject	engine	unsupportedDropStatement/DROP_STORAGE_POLICY_(IF_EXISTS)?_identifier!drop-1	STORAGE POLICY a
 reject	reject	engine	unsupportedDropStatement/DROP_STORAGE_POLICY_(IF_EXISTS)?_identifier!drop-3	DROP STORAGE a
 reject	reject	engine	unsupportedDropStatement/DROP_STORAGE_POLICY_(IF_EXISTS)?_identifier!drop-4	DROP STORAGE POLICY
 reject	reject	engine	unsupportedDropStatement/DROP_STORAGE_POLICY_(IF_EXISTS)?_identifier!insert	DROP STORAGE POLICY a zzz
 reject	reject	engine	unsupportedDropStatement/DROP_STORAGE_POLICY_(IF_EXISTS)?_identifier!swap	DROPP STORAGE POLICY a
+accept	accept	engine	unsupportedDropStatement/DROP_STORAGE_POLICY_(IF_EXISTS)?_identifier+unsupportedDropStatement(IF_EXISTS)?	DROP STORAGE POLICY IF EXISTS a
+reject	reject	engine	unsupportedDropStatement/DROP_STORAGE_POLICY_(IF_EXISTS)?_identifier+unsupportedDropStatement(IF_EXISTS)?!drop-4	DROP STORAGE POLICY EXISTS a
+reject	reject	engine	unsupportedDropStatement/DROP_STORAGE_POLICY_(IF_EXISTS)?_identifier+unsupportedDropStatement(IF_EXISTS)?!drop-5	DROP STORAGE POLICY IF a
 accept	accept	engine	unsupportedDropStatement/DROP_STAGE_(IF_EXISTS)?_identifier	DROP STAGE a
 reject	reject	engine	unsupportedDropStatement/DROP_STAGE_(IF_EXISTS)?_identifier!drop-1	STAGE a
 reject	reject	engine	unsupportedDropStatement/DROP_STAGE_(IF_EXISTS)?_identifier!drop-3	DROP STAGE
 reject	reject	engine	unsupportedDropStatement/DROP_STAGE_(IF_EXISTS)?_identifier!insert	DROP STAGE a zzz
 reject	reject	engine	unsupportedDropStatement/DROP_STAGE_(IF_EXISTS)?_identifier!swap	DROPP STAGE a
+accept	accept	engine	unsupportedDropStatement/DROP_STAGE_(IF_EXISTS)?_identifier+unsupportedDropStatement(IF_EXISTS)?	DROP STAGE IF EXISTS a
+reject	reject	engine	unsupportedDropStatement/DROP_STAGE_(IF_EXISTS)?_identifier+unsupportedDropStatement(IF_EXISTS)?!drop-3	DROP STAGE EXISTS a
+reject	reject	engine	unsupportedDropStatement/DROP_STAGE_(IF_EXISTS)?_identifier+unsupportedDropStatement(IF_EXISTS)?!drop-4	DROP STAGE IF a
 accept	accept	engine	unsupportedDropStatement(DATABASE|SCHEMA)/DATABASE	DROP DATABASE a
 reject	reject	engine	unsupportedDropStatement(DATABASE|SCHEMA)/DATABASE!insert	DROP DATABASE zzz a
 reject	reject	engine	unsupportedDropStatement(DATABASE|SCHEMA)/DATABASE!swap	DROP DATABASES a
@@ -4175,6 +4274,10 @@ accept	accept	engine	unsupportedCreateStatement/CREATE_CATALOG_(IF_NOT_EXISTS)?_
 reject	reject	engine	unsupportedCreateStatement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_(WITH_RESOUR~766ae71c!drop-3	CREATE CATALOG
 reject	reject	engine	unsupportedCreateStatement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_(WITH_RESOUR~766ae71c!insert	CREATE CATALOG a zzz
 reject	reject	engine	unsupportedCreateStatement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_(WITH_RESOUR~766ae71c!swap	CREATION CATALOG a
+accept	accept	engine	unsupportedCreateStatement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_(WITH_RESOUR~766ae71c+unsupportedCreateStatement(IF_NOT_EXISTS)?	CREATE CATALOG IF NOT EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_(WITH_RESOUR~766ae71c+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-3	CREATE CATALOG NOT EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_(WITH_RESOUR~766ae71c+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-4	CREATE CATALOG IF EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_CATALOG_(IF_NOT_EXISTS)?_identifier_(WITH_RESOUR~766ae71c+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-5	CREATE CATALOG IF NOT a
 accept	accept	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59	CREATE FUNCTION a() RETURNS VARIANT
 reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59!drop-1	FUNCTION a() RETURNS VARIANT
 reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59!drop-2	CREATE a() RETURNS VARIANT
@@ -4185,6 +4288,10 @@ reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(
 reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59!drop-7	CREATE FUNCTION a() RETURNS
 reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59!insert	CREATE FUNCTION a() RETURNS VARIANT zzz
 reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59!swap	CREATION FUNCTION a() RETURNS VARIANT
+accept	accept	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59+unsupportedCreateStatement(IF_NOT_EXISTS)?	CREATE FUNCTION IF NOT EXISTS a() RETURNS VARIANT
+reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-3	CREATE FUNCTION NOT EXISTS a() RETURNS VARIANT
+reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-4	CREATE FUNCTION IF EXISTS a() RETURNS VARIANT
+reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_(TABLES|AGGREGATE)?_FUNC~6a837b59+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-5	CREATE FUNCTION IF NOT a() RETURNS VARIANT
 accept	accept	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095	CREATE ALIAS FUNCTION a() WITH PARAMETER() AS CURRENT_DATE
 reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-1	ALIAS FUNCTION a() WITH PARAMETER() AS CURRENT_DATE
 reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-2	CREATE FUNCTION a() WITH PARAMETER() AS CURRENT_DATE
@@ -4200,10 +4307,18 @@ reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_A
 reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!drop-12	CREATE ALIAS FUNCTION a() WITH PARAMETER() AS
 reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!insert	CREATE ALIAS FUNCTION a() WITH PARAMETER() AS CURRENT_DATE zzz
 reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095!swap	CREATION ALIAS FUNCTION a() WITH PARAMETER() AS CURRENT_DATE
+accept	accept	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095+unsupportedCreateStatement(IF_NOT_EXISTS)?	CREATE ALIAS FUNCTION IF NOT EXISTS a() WITH PARAMETER() AS CURRENT_DATE
+reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-4	CREATE ALIAS FUNCTION NOT EXISTS a() WITH PARAMETER() AS CURRENT_DATE
+reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-5	CREATE ALIAS FUNCTION IF EXISTS a() WITH PARAMETER() AS CURRENT_DATE
+reject	reject	engine	unsupportedCreateStatement/CREATE_(GLOBAL|SESSION|LOCAL)?_ALIAS_FUNCTION_(IF_NOT_E~1528f095+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-6	CREATE ALIAS FUNCTION IF NOT a() WITH PARAMETER() AS CURRENT_DATE
 accept	accept	engine	unsupportedCreateStatement/CREATE_USER_(IF_NOT_EXISTS)?_grantUserIdentify_(SUPERUS~ec5b8d27	CREATE USER a
 reject	reject	engine	unsupportedCreateStatement/CREATE_USER_(IF_NOT_EXISTS)?_grantUserIdentify_(SUPERUS~ec5b8d27!drop-3	CREATE USER
 reject	reject	engine	unsupportedCreateStatement/CREATE_USER_(IF_NOT_EXISTS)?_grantUserIdentify_(SUPERUS~ec5b8d27!insert	CREATE USER a zzz
 reject	reject	engine	unsupportedCreateStatement/CREATE_USER_(IF_NOT_EXISTS)?_grantUserIdentify_(SUPERUS~ec5b8d27!swap	CREATION USER a
+accept	accept	engine	unsupportedCreateStatement/CREATE_USER_(IF_NOT_EXISTS)?_grantUserIdentify_(SUPERUS~ec5b8d27+unsupportedCreateStatement(IF_NOT_EXISTS)?	CREATE USER IF NOT EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_USER_(IF_NOT_EXISTS)?_grantUserIdentify_(SUPERUS~ec5b8d27+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-3	CREATE USER NOT EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_USER_(IF_NOT_EXISTS)?_grantUserIdentify_(SUPERUS~ec5b8d27+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-4	CREATE USER IF EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_USER_(IF_NOT_EXISTS)?_grantUserIdentify_(SUPERUS~ec5b8d27+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-5	CREATE USER IF NOT a
 reject	reject	engine	unsupportedCreateStatement/CREATE_(READ_ONLY)?_REPOSITORY_identifier_WITH_storageBackend	CREATE REPOSITORY a WITH BROKER ON LOCATION 'a'
 reject	reject	engine	unsupportedCreateStatement/CREATE_(READ_ONLY)?_REPOSITORY_identifier_WITH_storageBackend!drop-1	REPOSITORY a WITH BROKER ON LOCATION 'a'
 reject	reject	engine	unsupportedCreateStatement/CREATE_(READ_ONLY)?_REPOSITORY_identifier_WITH_storageBackend!drop-2	CREATE a WITH BROKER ON LOCATION 'a'
@@ -4219,6 +4334,10 @@ accept	accept	engine	unsupportedCreateStatement/CREATE_ROLE_(IF_NOT_EXISTS)?_ide
 reject	reject	engine	unsupportedCreateStatement/CREATE_ROLE_(IF_NOT_EXISTS)?_identifier_(COMMENT_STRING~f9bc4970!drop-3	CREATE ROLE
 reject	reject	engine	unsupportedCreateStatement/CREATE_ROLE_(IF_NOT_EXISTS)?_identifier_(COMMENT_STRING~f9bc4970!insert	CREATE ROLE a zzz
 reject	reject	engine	unsupportedCreateStatement/CREATE_ROLE_(IF_NOT_EXISTS)?_identifier_(COMMENT_STRING~f9bc4970!swap	CREATION ROLE a
+accept	accept	engine	unsupportedCreateStatement/CREATE_ROLE_(IF_NOT_EXISTS)?_identifier_(COMMENT_STRING~f9bc4970+unsupportedCreateStatement(IF_NOT_EXISTS)?	CREATE ROLE IF NOT EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_ROLE_(IF_NOT_EXISTS)?_identifier_(COMMENT_STRING~f9bc4970+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-3	CREATE ROLE NOT EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_ROLE_(IF_NOT_EXISTS)?_identifier_(COMMENT_STRING~f9bc4970+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-4	CREATE ROLE IF EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_ROLE_(IF_NOT_EXISTS)?_identifier_(COMMENT_STRING~f9bc4970+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-5	CREATE ROLE IF NOT a
 reject	reject	engine	unsupportedCreateStatement/CREATE_FILE_STRING_LITERAL_((FROM|IN)_identifier)?_prop~8cbdcb98	CREATE FILE 'a' PROPERTIES(a = a)
 reject	reject	engine	unsupportedCreateStatement/CREATE_FILE_STRING_LITERAL_((FROM|IN)_identifier)?_prop~8cbdcb98!drop-2	CREATE 'a' PROPERTIES(a = a)
 reject	reject	engine	unsupportedCreateStatement/CREATE_FILE_STRING_LITERAL_((FROM|IN)_identifier)?_prop~8cbdcb98!drop-3	CREATE FILE PROPERTIES(a = a)
@@ -4241,10 +4360,18 @@ reject	reject	engine	unsupportedCreateStatement/CREATE_INDEX_(IF_NOT_EXISTS)?_id
 reject	reject	engine	unsupportedCreateStatement/CREATE_INDEX_(IF_NOT_EXISTS)?_identifier_ON_multipartId~41f810e2!drop-8	CREATE INDEX a ON a(a
 reject	reject	engine	unsupportedCreateStatement/CREATE_INDEX_(IF_NOT_EXISTS)?_identifier_ON_multipartId~41f810e2!insert	CREATE INDEX a ON a(a) zzz
 reject	reject	engine	unsupportedCreateStatement/CREATE_INDEX_(IF_NOT_EXISTS)?_identifier_ON_multipartId~41f810e2!swap	CREATION INDEX a ON a(a)
+accept	accept	engine	unsupportedCreateStatement/CREATE_INDEX_(IF_NOT_EXISTS)?_identifier_ON_multipartId~41f810e2+unsupportedCreateStatement(IF_NOT_EXISTS)?	CREATE INDEX IF NOT EXISTS a ON a(a)
+reject	reject	engine	unsupportedCreateStatement/CREATE_INDEX_(IF_NOT_EXISTS)?_identifier_ON_multipartId~41f810e2+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-3	CREATE INDEX NOT EXISTS a ON a(a)
+reject	reject	engine	unsupportedCreateStatement/CREATE_INDEX_(IF_NOT_EXISTS)?_identifier_ON_multipartId~41f810e2+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-4	CREATE INDEX IF EXISTS a ON a(a)
+reject	reject	engine	unsupportedCreateStatement/CREATE_INDEX_(IF_NOT_EXISTS)?_identifier_ON_multipartId~41f810e2+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-5	CREATE INDEX IF NOT a ON a(a)
 accept	accept	engine	unsupportedCreateStatement/CREATE_(EXTERNAL)?_RESOURCE_(IF_NOT_EXISTS)?_identifier~83ff3418	CREATE RESOURCE a
 reject	reject	engine	unsupportedCreateStatement/CREATE_(EXTERNAL)?_RESOURCE_(IF_NOT_EXISTS)?_identifier~83ff3418!drop-3	CREATE RESOURCE
 reject	reject	engine	unsupportedCreateStatement/CREATE_(EXTERNAL)?_RESOURCE_(IF_NOT_EXISTS)?_identifier~83ff3418!insert	CREATE RESOURCE a zzz
 reject	reject	engine	unsupportedCreateStatement/CREATE_(EXTERNAL)?_RESOURCE_(IF_NOT_EXISTS)?_identifier~83ff3418!swap	CREATION RESOURCE a
+accept	accept	engine	unsupportedCreateStatement/CREATE_(EXTERNAL)?_RESOURCE_(IF_NOT_EXISTS)?_identifier~83ff3418+unsupportedCreateStatement(IF_NOT_EXISTS)?	CREATE RESOURCE IF NOT EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_(EXTERNAL)?_RESOURCE_(IF_NOT_EXISTS)?_identifier~83ff3418+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-3	CREATE RESOURCE NOT EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_(EXTERNAL)?_RESOURCE_(IF_NOT_EXISTS)?_identifier~83ff3418+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-4	CREATE RESOURCE IF EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_(EXTERNAL)?_RESOURCE_(IF_NOT_EXISTS)?_identifier~83ff3418+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-5	CREATE RESOURCE IF NOT a
 accept	accept	engine	unsupportedCreateStatement/CREATE_STORAGE_VAULT_(IF_NOT_EXISTS)?_identifierOrText_~55c5583a	CREATE STORAGE VAULT a
 reject	reject	engine	unsupportedCreateStatement/CREATE_STORAGE_VAULT_(IF_NOT_EXISTS)?_identifierOrText_~55c5583a!drop-1	STORAGE VAULT a
 reject	reject	engine	unsupportedCreateStatement/CREATE_STORAGE_VAULT_(IF_NOT_EXISTS)?_identifierOrText_~55c5583a!drop-2	CREATE VAULT a
@@ -4252,17 +4379,29 @@ reject	reject	engine	unsupportedCreateStatement/CREATE_STORAGE_VAULT_(IF_NOT_EXI
 reject	reject	engine	unsupportedCreateStatement/CREATE_STORAGE_VAULT_(IF_NOT_EXISTS)?_identifierOrText_~55c5583a!drop-4	CREATE STORAGE VAULT
 reject	reject	engine	unsupportedCreateStatement/CREATE_STORAGE_VAULT_(IF_NOT_EXISTS)?_identifierOrText_~55c5583a!insert	CREATE STORAGE VAULT a zzz
 reject	reject	engine	unsupportedCreateStatement/CREATE_STORAGE_VAULT_(IF_NOT_EXISTS)?_identifierOrText_~55c5583a!swap	CREATION STORAGE VAULT a
+accept	accept	engine	unsupportedCreateStatement/CREATE_STORAGE_VAULT_(IF_NOT_EXISTS)?_identifierOrText_~55c5583a+unsupportedCreateStatement(IF_NOT_EXISTS)?	CREATE STORAGE VAULT IF NOT EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_STORAGE_VAULT_(IF_NOT_EXISTS)?_identifierOrText_~55c5583a+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-4	CREATE STORAGE VAULT NOT EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_STORAGE_VAULT_(IF_NOT_EXISTS)?_identifierOrText_~55c5583a+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-5	CREATE STORAGE VAULT IF EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_STORAGE_VAULT_(IF_NOT_EXISTS)?_identifierOrText_~55c5583a+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-6	CREATE STORAGE VAULT IF NOT a
 accept	accept	engine	unsupportedCreateStatement/CREATE_WORKLOAD_GROUP_(IF_NOT_EXISTS)?_identifierOrText~d793ee7e	CREATE WORKLOAD GROUP a
 reject	reject	engine	unsupportedCreateStatement/CREATE_WORKLOAD_GROUP_(IF_NOT_EXISTS)?_identifierOrText~d793ee7e!drop-2	CREATE GROUP a
 reject	reject	engine	unsupportedCreateStatement/CREATE_WORKLOAD_GROUP_(IF_NOT_EXISTS)?_identifierOrText~d793ee7e!drop-3	CREATE WORKLOAD a
 reject	reject	engine	unsupportedCreateStatement/CREATE_WORKLOAD_GROUP_(IF_NOT_EXISTS)?_identifierOrText~d793ee7e!drop-4	CREATE WORKLOAD GROUP
 reject	reject	engine	unsupportedCreateStatement/CREATE_WORKLOAD_GROUP_(IF_NOT_EXISTS)?_identifierOrText~d793ee7e!insert	CREATE WORKLOAD GROUP a zzz
 reject	reject	engine	unsupportedCreateStatement/CREATE_WORKLOAD_GROUP_(IF_NOT_EXISTS)?_identifierOrText~d793ee7e!swap	CREATION WORKLOAD GROUP a
+accept	accept	engine	unsupportedCreateStatement/CREATE_WORKLOAD_GROUP_(IF_NOT_EXISTS)?_identifierOrText~d793ee7e+unsupportedCreateStatement(IF_NOT_EXISTS)?	CREATE WORKLOAD GROUP IF NOT EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_WORKLOAD_GROUP_(IF_NOT_EXISTS)?_identifierOrText~d793ee7e+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-4	CREATE WORKLOAD GROUP NOT EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_WORKLOAD_GROUP_(IF_NOT_EXISTS)?_identifierOrText~d793ee7e+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-5	CREATE WORKLOAD GROUP IF EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_WORKLOAD_GROUP_(IF_NOT_EXISTS)?_identifierOrText~d793ee7e+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-6	CREATE WORKLOAD GROUP IF NOT a
 accept	accept	engine	unsupportedCreateStatement/CREATE_WORKLOAD_POLICY_(IF_NOT_EXISTS)?_identifierOrTex~5f168327	CREATE WORKLOAD POLICY a
 reject	reject	engine	unsupportedCreateStatement/CREATE_WORKLOAD_POLICY_(IF_NOT_EXISTS)?_identifierOrTex~5f168327!drop-2	CREATE POLICY a
 reject	reject	engine	unsupportedCreateStatement/CREATE_WORKLOAD_POLICY_(IF_NOT_EXISTS)?_identifierOrTex~5f168327!drop-4	CREATE WORKLOAD POLICY
 reject	reject	engine	unsupportedCreateStatement/CREATE_WORKLOAD_POLICY_(IF_NOT_EXISTS)?_identifierOrTex~5f168327!insert	CREATE WORKLOAD POLICY a zzz
 reject	reject	engine	unsupportedCreateStatement/CREATE_WORKLOAD_POLICY_(IF_NOT_EXISTS)?_identifierOrTex~5f168327!swap	CREATION WORKLOAD POLICY a
+accept	accept	engine	unsupportedCreateStatement/CREATE_WORKLOAD_POLICY_(IF_NOT_EXISTS)?_identifierOrTex~5f168327+unsupportedCreateStatement(IF_NOT_EXISTS)?	CREATE WORKLOAD POLICY IF NOT EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_WORKLOAD_POLICY_(IF_NOT_EXISTS)?_identifierOrTex~5f168327+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-4	CREATE WORKLOAD POLICY NOT EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_WORKLOAD_POLICY_(IF_NOT_EXISTS)?_identifierOrTex~5f168327+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-5	CREATE WORKLOAD POLICY IF EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_WORKLOAD_POLICY_(IF_NOT_EXISTS)?_identifierOrTex~5f168327+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-6	CREATE WORKLOAD POLICY IF NOT a
 accept	accept	engine	unsupportedCreateStatement/CREATE_ENCRYPTKEY_(IF_NOT_EXISTS)?_multipartIdentifier_~fc2e8d62	CREATE ENCRYPTKEY a AS 'a'
 reject	reject	engine	unsupportedCreateStatement/CREATE_ENCRYPTKEY_(IF_NOT_EXISTS)?_multipartIdentifier_~fc2e8d62!drop-1	ENCRYPTKEY a AS 'a'
 reject	reject	engine	unsupportedCreateStatement/CREATE_ENCRYPTKEY_(IF_NOT_EXISTS)?_multipartIdentifier_~fc2e8d62!drop-2	CREATE a AS 'a'
@@ -4271,14 +4410,26 @@ reject	reject	engine	unsupportedCreateStatement/CREATE_ENCRYPTKEY_(IF_NOT_EXISTS
 reject	reject	engine	unsupportedCreateStatement/CREATE_ENCRYPTKEY_(IF_NOT_EXISTS)?_multipartIdentifier_~fc2e8d62!drop-5	CREATE ENCRYPTKEY a AS
 reject	reject	engine	unsupportedCreateStatement/CREATE_ENCRYPTKEY_(IF_NOT_EXISTS)?_multipartIdentifier_~fc2e8d62!insert	CREATE ENCRYPTKEY a AS 'a' zzz
 reject	reject	engine	unsupportedCreateStatement/CREATE_ENCRYPTKEY_(IF_NOT_EXISTS)?_multipartIdentifier_~fc2e8d62!swap	CREATION ENCRYPTKEY a AS 'a'
+accept	accept	engine	unsupportedCreateStatement/CREATE_ENCRYPTKEY_(IF_NOT_EXISTS)?_multipartIdentifier_~fc2e8d62+unsupportedCreateStatement(IF_NOT_EXISTS)?	CREATE ENCRYPTKEY IF NOT EXISTS a AS 'a'
+reject	reject	engine	unsupportedCreateStatement/CREATE_ENCRYPTKEY_(IF_NOT_EXISTS)?_multipartIdentifier_~fc2e8d62+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-3	CREATE ENCRYPTKEY NOT EXISTS a AS 'a'
+reject	reject	engine	unsupportedCreateStatement/CREATE_ENCRYPTKEY_(IF_NOT_EXISTS)?_multipartIdentifier_~fc2e8d62+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-4	CREATE ENCRYPTKEY IF EXISTS a AS 'a'
+reject	reject	engine	unsupportedCreateStatement/CREATE_ENCRYPTKEY_(IF_NOT_EXISTS)?_multipartIdentifier_~fc2e8d62+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-5	CREATE ENCRYPTKEY IF NOT a AS 'a'
 accept	accept	engine	unsupportedCreateStatement/CREATE_SQL_BLOCK_RULE_(IF_NOT_EXISTS)?_identifier_(prop~995d3e14	CREATE SQL_BLOCK_RULE a
 reject	reject	engine	unsupportedCreateStatement/CREATE_SQL_BLOCK_RULE_(IF_NOT_EXISTS)?_identifier_(prop~995d3e14!drop-3	CREATE SQL_BLOCK_RULE
 reject	reject	engine	unsupportedCreateStatement/CREATE_SQL_BLOCK_RULE_(IF_NOT_EXISTS)?_identifier_(prop~995d3e14!insert	CREATE SQL_BLOCK_RULE a zzz
 reject	reject	engine	unsupportedCreateStatement/CREATE_SQL_BLOCK_RULE_(IF_NOT_EXISTS)?_identifier_(prop~995d3e14!swap	CREATION SQL_BLOCK_RULE a
+accept	accept	engine	unsupportedCreateStatement/CREATE_SQL_BLOCK_RULE_(IF_NOT_EXISTS)?_identifier_(prop~995d3e14+unsupportedCreateStatement(IF_NOT_EXISTS)?	CREATE SQL_BLOCK_RULE IF NOT EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_SQL_BLOCK_RULE_(IF_NOT_EXISTS)?_identifier_(prop~995d3e14+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-3	CREATE SQL_BLOCK_RULE NOT EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_SQL_BLOCK_RULE_(IF_NOT_EXISTS)?_identifier_(prop~995d3e14+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-4	CREATE SQL_BLOCK_RULE IF EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_SQL_BLOCK_RULE_(IF_NOT_EXISTS)?_identifier_(prop~995d3e14+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-5	CREATE SQL_BLOCK_RULE IF NOT a
 accept	accept	engine	unsupportedCreateStatement/CREATE_STORAGE_POLICY_(IF_NOT_EXISTS)?_identifier_(prop~95b6b501	CREATE STORAGE POLICY a
 reject	reject	engine	unsupportedCreateStatement/CREATE_STORAGE_POLICY_(IF_NOT_EXISTS)?_identifier_(prop~95b6b501!drop-4	CREATE STORAGE POLICY
 reject	reject	engine	unsupportedCreateStatement/CREATE_STORAGE_POLICY_(IF_NOT_EXISTS)?_identifier_(prop~95b6b501!insert	CREATE STORAGE POLICY a zzz
 reject	reject	engine	unsupportedCreateStatement/CREATE_STORAGE_POLICY_(IF_NOT_EXISTS)?_identifier_(prop~95b6b501!swap	CREATION STORAGE POLICY a
+accept	accept	engine	unsupportedCreateStatement/CREATE_STORAGE_POLICY_(IF_NOT_EXISTS)?_identifier_(prop~95b6b501+unsupportedCreateStatement(IF_NOT_EXISTS)?	CREATE STORAGE POLICY IF NOT EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_STORAGE_POLICY_(IF_NOT_EXISTS)?_identifier_(prop~95b6b501+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-4	CREATE STORAGE POLICY NOT EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_STORAGE_POLICY_(IF_NOT_EXISTS)?_identifier_(prop~95b6b501+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-5	CREATE STORAGE POLICY IF EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_STORAGE_POLICY_(IF_NOT_EXISTS)?_identifier_(prop~95b6b501+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-6	CREATE STORAGE POLICY IF NOT a
 accept	accept	engine	unsupportedCreateStatement/BUILD_INDEX_identifier_ON_multipartIdentifier_(partitionSpec)?	BUILD INDEX a ON a
 reject	reject	engine	unsupportedCreateStatement/BUILD_INDEX_identifier_ON_multipartIdentifier_(partitionSpec)?!drop-2	BUILD a ON a
 reject	reject	engine	unsupportedCreateStatement/BUILD_INDEX_identifier_ON_multipartIdentifier_(partitionSpec)?!drop-4	BUILD INDEX a a
@@ -4289,6 +4440,10 @@ reject	reject	engine	unsupportedCreateStatement/CREATE_STAGE_(IF_NOT_EXISTS)?_id
 reject	reject	engine	unsupportedCreateStatement/CREATE_STAGE_(IF_NOT_EXISTS)?_identifier_(propertyClause)?!drop-3	CREATE STAGE
 reject	reject	engine	unsupportedCreateStatement/CREATE_STAGE_(IF_NOT_EXISTS)?_identifier_(propertyClause)?!insert	CREATE STAGE a zzz
 reject	reject	engine	unsupportedCreateStatement/CREATE_STAGE_(IF_NOT_EXISTS)?_identifier_(propertyClause)?!swap	CREATION STAGE a
+reject	reject	engine	unsupportedCreateStatement/CREATE_STAGE_(IF_NOT_EXISTS)?_identifier_(propertyClause)?+unsupportedCreateStatement(IF_NOT_EXISTS)?	CREATE STAGE IF NOT EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_STAGE_(IF_NOT_EXISTS)?_identifier_(propertyClause)?+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-3	CREATE STAGE NOT EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_STAGE_(IF_NOT_EXISTS)?_identifier_(propertyClause)?+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-4	CREATE STAGE IF EXISTS a
+reject	reject	engine	unsupportedCreateStatement/CREATE_STAGE_(IF_NOT_EXISTS)?_identifier_(propertyClause)?+unsupportedCreateStatement(IF_NOT_EXISTS)?!drop-5	CREATE STAGE IF NOT a
 accept	accept	engine	unsupportedCreateStatement(DATABASE|SCHEMA)/DATABASE	CREATE DATABASE a
 reject	reject	engine	unsupportedCreateStatement(DATABASE|SCHEMA)/DATABASE!insert	CREATE DATABASE zzz a
 reject	reject	engine	unsupportedCreateStatement(DATABASE|SCHEMA)/DATABASE!swap	CREATE DATABASES a
@@ -4972,6 +5127,7 @@ reject	reject	engine	partitionSpec/(TEMPORARY)?_(PARTITION|PARTITIONS)_identifie
 reject	reject	engine	partitionSpec/(TEMPORARY)?_(PARTITION|PARTITIONS)_identifierList!drop-3	DELETE FROM a PARTITION()
 reject	reject	engine	partitionSpec/(TEMPORARY)?_(PARTITION|PARTITIONS)_identifierList!drop-4	DELETE FROM a PARTITION(a
 accept	accept	engine	partitionSpec/(TEMPORARY)?_(PARTITION|PARTITIONS)_identifierList!insert	DELETE FROM a PARTITION(a) zzz
+accept	accept	engine	partitionSpec/(TEMPORARY)?_(PARTITION|PARTITIONS)_identifierList+partitionSpec(TEMPORARY)?	DELETE FROM a TEMPORARY PARTITION(a)
 accept	accept	engine	partitionSpec/(TEMPORARY)?_PARTITION_errorCapturingIdentifier	DELETE FROM a PARTITION a
 accept	accept	engine	partitionSpec/(PARTITION|PARTITIONS)_LEFT_PAREN_ASTERISK_RIGHT_PAREN	DELETE FROM a PARTITION(*)
 reject	reject	engine	partitionSpec/(PARTITION|PARTITIONS)_LEFT_PAREN_ASTERISK_RIGHT_PAREN!drop-1	DELETE FROM a(*)
@@ -7133,6 +7289,7 @@ reject	reject	engine	specifiedPartition/(TEMPORARY)?_PARTITIONS_identifierList!d
 reject	reject	engine	specifiedPartition/(TEMPORARY)?_PARTITIONS_identifierList!drop-4	EXPLAIN a PARTITIONS(a
 reject	reject	engine	specifiedPartition/(TEMPORARY)?_PARTITIONS_identifierList!insert	EXPLAIN a PARTITIONS(a) zzz
 reject	reject	engine	specifiedPartition/(TEMPORARY)?_PARTITIONS_identifierList!swap	EXPLAIN a PASSWORD(a)
+accept	accept	engine	specifiedPartition/(TEMPORARY)?_PARTITIONS_identifierList+specifiedPartition(TEMPORARY)?	EXPLAIN a TEMPORARY PARTITIONS(a)
 accept	accept	engine	specifiedPartition(TEMPORARY)?/%empty	EXPLAIN a PARTITION a
 reject	reject	engine	specifiedPartition(TEMPORARY)?/%empty!insert	EXPLAIN a zzz PARTITION a
 accept	accept	engine	specifiedPartition(TEMPORARY)?/TEMPORARY	EXPLAIN a TEMPORARY PARTITION a
@@ -9016,12 +9173,16 @@ accept	accept	engine	alter_stmt/ALTER_USER_opt_if_exists_grant_user_opt_password
 reject	reject	engine	alter_stmt/ALTER_USER_opt_if_exists_grant_user_opt_password_option~8682ca36!drop-3	ALTER USER
 reject	reject	engine	alter_stmt/ALTER_USER_opt_if_exists_grant_user_opt_password_option~8682ca36!insert	ALTER USER a zzz
 reject	reject	engine	alter_stmt/ALTER_USER_opt_if_exists_grant_user_opt_password_option~8682ca36!swap	ALWAYS USER a
+accept	accept	engine	alter_stmt/ALTER_USER_opt_if_exists_grant_user_opt_password_option~8682ca36+opt_if_exists	ALTER USER IF EXISTS a
+reject	reject	engine	alter_stmt/ALTER_USER_opt_if_exists_grant_user_opt_password_option~8682ca36+opt_if_exists!drop-3	ALTER USER EXISTS a
+reject	reject	engine	alter_stmt/ALTER_USER_opt_if_exists_grant_user_opt_password_option~8682ca36+opt_if_exists!drop-4	ALTER USER IF a
 accept	accept	engine	alter_stmt/ALTER_REPOSITORY_ident_opt_properties	ALTER REPOSITORY a
 reject	reject	engine	alter_stmt/ALTER_REPOSITORY_ident_opt_properties!drop-1	REPOSITORY a
 reject	reject	engine	alter_stmt/ALTER_REPOSITORY_ident_opt_properties!drop-3	ALTER REPOSITORY
 reject	reject	engine	alter_stmt/ALTER_REPOSITORY_ident_opt_properties!insert	ALTER REPOSITORY a zzz
 reject	reject	engine	alter_stmt/ALTER_REPOSITORY_ident_opt_properties!swap	ALWAYS REPOSITORY a
 accept	accept	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_CLUSTER_ident_opt_force_opt_~677d43a5	WARM UP CLUSTER a WITH CLUSTER a
+accept	accept	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_CLUSTER_ident_opt_force_opt_~677d43a5+opt_force	WARM UP CLUSTER a WITH CLUSTER a FORCE
 accept	accept	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_warm_up_list_opt_force	WARM UP CLUSTER a WITH TABLE a
 reject	reject	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_warm_up_list_opt_force!drop-1	UP CLUSTER a WITH TABLE a
 reject	reject	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_warm_up_list_opt_force!drop-2	WARM CLUSTER a WITH TABLE a
@@ -9031,6 +9192,7 @@ reject	reject	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_warm_up_list_opt_fo
 reject	reject	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_warm_up_list_opt_force!drop-7	WARM UP CLUSTER a WITH TABLE
 reject	reject	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_warm_up_list_opt_force!insert	WARM UP CLUSTER a WITH TABLE a zzz
 reject	reject	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_warm_up_list_opt_force!swap	WARNINGS UP CLUSTER a WITH TABLE a
+accept	accept	engine	warm_up_stmt/WARM_UP_CLUSTER_ident_WITH_warm_up_list_opt_force+opt_force	WARM UP CLUSTER a WITH TABLE a FORCE
 accept	accept	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9	WARM UP COMPUTE GROUP a WITH COMPUTE GROUP a
 reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9!drop-1	UP COMPUTE GROUP a WITH COMPUTE GROUP a
 reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9!drop-2	WARM COMPUTE GROUP a WITH COMPUTE GROUP a
@@ -9043,6 +9205,7 @@ reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP
 reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9!drop-9	WARM UP COMPUTE GROUP a WITH COMPUTE GROUP
 reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9!insert	WARM UP COMPUTE GROUP a WITH COMPUTE GROUP a zzz
 reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9!swap	WARNINGS UP COMPUTE GROUP a WITH COMPUTE GROUP a
+accept	accept	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_COMPUTE_GROUP_ident_op~7b2f24d9+opt_force	WARM UP COMPUTE GROUP a WITH COMPUTE GROUP a FORCE
 accept	accept	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force	WARM UP COMPUTE GROUP a WITH TABLE a
 reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force!drop-1	UP COMPUTE GROUP a WITH TABLE a
 reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force!drop-2	WARM COMPUTE GROUP a WITH TABLE a
@@ -9054,6 +9217,7 @@ reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_
 reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force!drop-8	WARM UP COMPUTE GROUP a WITH TABLE
 reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force!insert	WARM UP COMPUTE GROUP a WITH TABLE a zzz
 reject	reject	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force!swap	WARNINGS UP COMPUTE GROUP a WITH TABLE a
+accept	accept	engine	warm_up_stmt/WARM_UP_COMPUTE_GROUP_ident_WITH_warm_up_list_opt_force+opt_force	WARM UP COMPUTE GROUP a WITH TABLE a FORCE
 accept	accept	engine	warm_up_item/TABLE_table_name	WARM UP CLUSTER a WITH TABLE a
 reject	reject	engine	warm_up_item/TABLE_table_name!swap	WARM UP CLUSTER a WITH TABLES a
 accept	accept	engine	warm_up_item/TABLE_table_name_PARTITION_ident	WARM UP CLUSTER a WITH TABLE a PARTITION a
@@ -9201,10 +9365,16 @@ reject	reject	engine	alter_table_clause/ADD_opt_tmp_single_partition_desc_opt_di
 reject	reject	engine	alter_table_clause/ADD_opt_tmp_single_partition_desc_opt_distribution_opt_~ba15ba1d!drop-3	ALTER TABLE a ADD PARTITION
 reject	reject	engine	alter_table_clause/ADD_opt_tmp_single_partition_desc_opt_distribution_opt_~ba15ba1d!insert	ALTER TABLE a ADD PARTITION a zzz
 reject	reject	engine	alter_table_clause/ADD_opt_tmp_single_partition_desc_opt_distribution_opt_~ba15ba1d!swap	ALTER TABLE a ADMIN PARTITION a
+accept	accept	engine	alter_table_clause/ADD_opt_tmp_single_partition_desc_opt_distribution_opt_~ba15ba1d+opt_tmp	ALTER TABLE a ADD TEMPORARY PARTITION a
 accept	accept	engine	alter_table_clause/DROP_opt_tmp_PARTITION_opt_if_exists_ident_opt_force	ALTER TABLE a DROP PARTITION a
 reject	reject	engine	alter_table_clause/DROP_opt_tmp_PARTITION_opt_if_exists_ident_opt_force!drop-3	ALTER TABLE a DROP PARTITION
 reject	reject	engine	alter_table_clause/DROP_opt_tmp_PARTITION_opt_if_exists_ident_opt_force!insert	ALTER TABLE a DROP PARTITION a zzz
 reject	reject	engine	alter_table_clause/DROP_opt_tmp_PARTITION_opt_if_exists_ident_opt_force!swap	ALTER TABLE a DROPP PARTITION a
+accept	accept	engine	alter_table_clause/DROP_opt_tmp_PARTITION_opt_if_exists_ident_opt_force+opt_tmp	ALTER TABLE a DROP TEMPORARY PARTITION a
+accept	accept	engine	alter_table_clause/DROP_opt_tmp_PARTITION_opt_if_exists_ident_opt_force+opt_if_exists	ALTER TABLE a DROP PARTITION IF EXISTS a
+reject	reject	engine	alter_table_clause/DROP_opt_tmp_PARTITION_opt_if_exists_ident_opt_force+opt_if_exists!drop-3	ALTER TABLE a DROP PARTITION EXISTS a
+reject	reject	engine	alter_table_clause/DROP_opt_tmp_PARTITION_opt_if_exists_ident_opt_force+opt_if_exists!drop-4	ALTER TABLE a DROP PARTITION IF a
+accept	accept	engine	alter_table_clause/DROP_opt_tmp_PARTITION_opt_if_exists_ident_opt_force+opt_force	ALTER TABLE a DROP PARTITION a FORCE
 accept	accept	engine	alter_table_clause/DROP_opt_tmp_PARTITION_opt_if_exists_ident_opt_force_FR~2d553cb4	ALTER TABLE a DROP PARTITION a FROM INDEX a
 reject	reject	engine	alter_table_clause/DROP_opt_tmp_PARTITION_opt_if_exists_ident_opt_force_FR~2d553cb4!drop-1	ALTER TABLE a PARTITION a FROM INDEX a
 reject	reject	engine	alter_table_clause/DROP_opt_tmp_PARTITION_opt_if_exists_ident_opt_force_FR~2d553cb4!drop-2	ALTER TABLE a DROP a FROM INDEX a
@@ -9214,6 +9384,11 @@ reject	reject	engine	alter_table_clause/DROP_opt_tmp_PARTITION_opt_if_exists_ide
 reject	reject	engine	alter_table_clause/DROP_opt_tmp_PARTITION_opt_if_exists_ident_opt_force_FR~2d553cb4!drop-6	ALTER TABLE a DROP PARTITION a FROM INDEX
 reject	reject	engine	alter_table_clause/DROP_opt_tmp_PARTITION_opt_if_exists_ident_opt_force_FR~2d553cb4!insert	ALTER TABLE a DROP PARTITION a FROM INDEX a zzz
 reject	reject	engine	alter_table_clause/DROP_opt_tmp_PARTITION_opt_if_exists_ident_opt_force_FR~2d553cb4!swap	ALTER TABLE a DROPP PARTITION a FROM INDEX a
+accept	accept	engine	alter_table_clause/DROP_opt_tmp_PARTITION_opt_if_exists_ident_opt_force_FR~2d553cb4+opt_tmp	ALTER TABLE a DROP TEMPORARY PARTITION a FROM INDEX a
+accept	accept	engine	alter_table_clause/DROP_opt_tmp_PARTITION_opt_if_exists_ident_opt_force_FR~2d553cb4+opt_if_exists	ALTER TABLE a DROP PARTITION IF EXISTS a FROM INDEX a
+reject	reject	engine	alter_table_clause/DROP_opt_tmp_PARTITION_opt_if_exists_ident_opt_force_FR~2d553cb4+opt_if_exists!drop-3	ALTER TABLE a DROP PARTITION EXISTS a FROM INDEX a
+reject	reject	engine	alter_table_clause/DROP_opt_tmp_PARTITION_opt_if_exists_ident_opt_force_FR~2d553cb4+opt_if_exists!drop-4	ALTER TABLE a DROP PARTITION IF a FROM INDEX a
+accept	accept	engine	alter_table_clause/DROP_opt_tmp_PARTITION_opt_if_exists_ident_opt_force_FR~2d553cb4+opt_force	ALTER TABLE a DROP PARTITION a FORCE FROM INDEX a
 accept	accept	engine	alter_table_clause/MODIFY_opt_tmp_PARTITION_ident_SET_(_key_value_map_)	ALTER TABLE a MODIFY PARTITION a SET('a' = 'a')
 reject	reject	engine	alter_table_clause/MODIFY_opt_tmp_PARTITION_ident_SET_(_key_value_map_)!drop-1	ALTER TABLE a PARTITION a SET('a' = 'a')
 reject	reject	engine	alter_table_clause/MODIFY_opt_tmp_PARTITION_ident_SET_(_key_value_map_)!drop-2	ALTER TABLE a MODIFY a SET('a' = 'a')
@@ -9226,6 +9401,7 @@ reject	reject	engine	alter_table_clause/MODIFY_opt_tmp_PARTITION_ident_SET_(_key
 reject	reject	engine	alter_table_clause/MODIFY_opt_tmp_PARTITION_ident_SET_(_key_value_map_)!drop-9	ALTER TABLE a MODIFY PARTITION a SET('a' = 'a'
 reject	reject	engine	alter_table_clause/MODIFY_opt_tmp_PARTITION_ident_SET_(_key_value_map_)!insert	ALTER TABLE a MODIFY PARTITION a SET('a' = 'a') zzz
 reject	reject	engine	alter_table_clause/MODIFY_opt_tmp_PARTITION_ident_SET_(_key_value_map_)!swap	ALTER TABLE a MONTH PARTITION a SET('a' = 'a')
+accept	accept	engine	alter_table_clause/MODIFY_opt_tmp_PARTITION_ident_SET_(_key_value_map_)+opt_tmp	ALTER TABLE a MODIFY TEMPORARY PARTITION a SET('a' = 'a')
 accept	accept	engine	alter_table_clause/MODIFY_opt_tmp_PARTITION_(_ident_list_)_SET_(_key_value_map_)	ALTER TABLE a MODIFY PARTITION(a) SET('a' = 'a')
 reject	reject	engine	alter_table_clause/MODIFY_opt_tmp_PARTITION_(_ident_list_)_SET_(_key_value_map_)!drop-1	ALTER TABLE a PARTITION(a) SET('a' = 'a')
 reject	reject	engine	alter_table_clause/MODIFY_opt_tmp_PARTITION_(_ident_list_)_SET_(_key_value_map_)!drop-2	ALTER TABLE a MODIFY(a) SET('a' = 'a')
@@ -9240,6 +9416,7 @@ reject	reject	engine	alter_table_clause/MODIFY_opt_tmp_PARTITION_(_ident_list_)_
 reject	reject	engine	alter_table_clause/MODIFY_opt_tmp_PARTITION_(_ident_list_)_SET_(_key_value_map_)!drop-11	ALTER TABLE a MODIFY PARTITION(a) SET('a' = 'a'
 reject	reject	engine	alter_table_clause/MODIFY_opt_tmp_PARTITION_(_ident_list_)_SET_(_key_value_map_)!insert	ALTER TABLE a MODIFY PARTITION(a) SET('a' = 'a') zzz
 reject	reject	engine	alter_table_clause/MODIFY_opt_tmp_PARTITION_(_ident_list_)_SET_(_key_value_map_)!swap	ALTER TABLE a MONTH PARTITION(a) SET('a' = 'a')
+accept	accept	engine	alter_table_clause/MODIFY_opt_tmp_PARTITION_(_ident_list_)_SET_(_key_value_map_)+opt_tmp	ALTER TABLE a MODIFY TEMPORARY PARTITION(a) SET('a' = 'a')
 accept	accept	engine	alter_table_clause/MODIFY_opt_tmp_PARTITION_(_*_)_SET_(_key_value_map_)	ALTER TABLE a MODIFY PARTITION(*) SET('a' = 'a')
 reject	reject	engine	alter_table_clause/MODIFY_opt_tmp_PARTITION_(_*_)_SET_(_key_value_map_)!drop-1	ALTER TABLE a PARTITION(*) SET('a' = 'a')
 reject	reject	engine	alter_table_clause/MODIFY_opt_tmp_PARTITION_(_*_)_SET_(_key_value_map_)!drop-2	ALTER TABLE a MODIFY(*) SET('a' = 'a')
@@ -9253,7 +9430,9 @@ reject	reject	engine	alter_table_clause/MODIFY_opt_tmp_PARTITION_(_*_)_SET_(_key
 reject	reject	engine	alter_table_clause/MODIFY_opt_tmp_PARTITION_(_*_)_SET_(_key_value_map_)!drop-11	ALTER TABLE a MODIFY PARTITION(*) SET('a' = 'a'
 reject	reject	engine	alter_table_clause/MODIFY_opt_tmp_PARTITION_(_*_)_SET_(_key_value_map_)!insert	ALTER TABLE a MODIFY PARTITION(*) SET('a' = 'a') zzz
 reject	reject	engine	alter_table_clause/MODIFY_opt_tmp_PARTITION_(_*_)_SET_(_key_value_map_)!swap	ALTER TABLE a MONTH PARTITION(*) SET('a' = 'a')
+accept	accept	engine	alter_table_clause/MODIFY_opt_tmp_PARTITION_(_*_)_SET_(_key_value_map_)+opt_tmp	ALTER TABLE a MODIFY TEMPORARY PARTITION(*) SET('a' = 'a')
 reject	reject	engine	alter_table_clause/REPLACE_opt_partition_names_WITH_opt_partition_names_op~a9593cda	ALTER TABLE a REPLACE WITH
+reject	reject	engine	alter_table_clause/REPLACE_opt_partition_names_WITH_opt_partition_names_op~a9593cda+opt_force	ALTER TABLE a REPLACE WITH FORCE
 accept	accept	engine	alter_table_clause/REPLACE_WITH_TABLE_ident_opt_properties	ALTER TABLE a REPLACE WITH TABLE a
 reject	reject	engine	alter_table_clause/REPLACE_WITH_TABLE_ident_opt_properties!drop-1	ALTER TABLE a WITH TABLE a
 reject	reject	engine	alter_table_clause/REPLACE_WITH_TABLE_ident_opt_properties!drop-2	ALTER TABLE a REPLACE TABLE a
@@ -9295,6 +9474,9 @@ reject	reject	engine	alter_table_clause/DROP_INDEX_opt_if_exists_ident!drop-1	AL
 reject	reject	engine	alter_table_clause/DROP_INDEX_opt_if_exists_ident!drop-3	ALTER TABLE a DROP INDEX
 reject	reject	engine	alter_table_clause/DROP_INDEX_opt_if_exists_ident!insert	ALTER TABLE a DROP INDEX a zzz
 reject	reject	engine	alter_table_clause/DROP_INDEX_opt_if_exists_ident!swap	ALTER TABLE a DROPP INDEX a
+accept	accept	engine	alter_table_clause/DROP_INDEX_opt_if_exists_ident+opt_if_exists	ALTER TABLE a DROP INDEX IF EXISTS a
+reject	reject	engine	alter_table_clause/DROP_INDEX_opt_if_exists_ident+opt_if_exists!drop-3	ALTER TABLE a DROP INDEX EXISTS a
+reject	reject	engine	alter_table_clause/DROP_INDEX_opt_if_exists_ident+opt_if_exists!drop-4	ALTER TABLE a DROP INDEX IF a
 accept	accept	engine	alter_table_clause/ENABLE_FEATURE_STRING_LITERAL_opt_enable_feature_properties	ALTER TABLE a ENABLE FEATURE 'a'
 reject	reject	engine	alter_table_clause/ENABLE_FEATURE_STRING_LITERAL_opt_enable_feature_properties!drop-1	ALTER TABLE a FEATURE 'a'
 reject	reject	engine	alter_table_clause/ENABLE_FEATURE_STRING_LITERAL_opt_enable_feature_properties!drop-2	ALTER TABLE a ENABLE 'a'
@@ -9340,6 +9522,7 @@ reject	reject	engine	alter_table_clause/ADD_opt_tmp_PARTITIONS_FROM_(_partition_
 reject	reject	engine	alter_table_clause/ADD_opt_tmp_PARTITIONS_FROM_(_partition_key_list_)_TO_(~53a762be!drop-10	ALTER TABLE a ADD PARTITIONS FROM() TO() INTERVAL a
 reject	reject	engine	alter_table_clause/ADD_opt_tmp_PARTITIONS_FROM_(_partition_key_list_)_TO_(~53a762be!insert	ALTER TABLE a ADD PARTITIONS FROM() TO() INTERVAL 1 a zzz
 reject	reject	engine	alter_table_clause/ADD_opt_tmp_PARTITIONS_FROM_(_partition_key_list_)_TO_(~53a762be!swap	ALTER TABLE a ADMIN PARTITIONS FROM() TO() INTERVAL 1 a
+reject	reject	engine	alter_table_clause/ADD_opt_tmp_PARTITIONS_FROM_(_partition_key_list_)_TO_(~53a762be+opt_tmp	ALTER TABLE a ADD TEMPORARY PARTITIONS FROM() TO() INTERVAL 1 a
 reject	reject	engine	alter_table_clause/ADD_opt_tmp_PARTITIONS_FROM_(_partition_key_list_)_TO_(~5a46a756	ALTER TABLE a ADD PARTITIONS FROM() TO() INTERVAL 1
 reject	reject	engine	alter_table_clause/ADD_opt_tmp_PARTITIONS_FROM_(_partition_key_list_)_TO_(~5a46a756!drop-1	ALTER TABLE a PARTITIONS FROM() TO() INTERVAL 1
 reject	reject	engine	alter_table_clause/ADD_opt_tmp_PARTITIONS_FROM_(_partition_key_list_)_TO_(~5a46a756!drop-2	ALTER TABLE a ADD FROM() TO() INTERVAL 1
@@ -9353,12 +9536,17 @@ reject	reject	engine	alter_table_clause/ADD_opt_tmp_PARTITIONS_FROM_(_partition_
 reject	reject	engine	alter_table_clause/ADD_opt_tmp_PARTITIONS_FROM_(_partition_key_list_)_TO_(~5a46a756!drop-10	ALTER TABLE a ADD PARTITIONS FROM() TO() INTERVAL
 reject	reject	engine	alter_table_clause/ADD_opt_tmp_PARTITIONS_FROM_(_partition_key_list_)_TO_(~5a46a756!insert	ALTER TABLE a ADD PARTITIONS FROM() TO() INTERVAL 1 zzz
 reject	reject	engine	alter_table_clause/ADD_opt_tmp_PARTITIONS_FROM_(_partition_key_list_)_TO_(~5a46a756!swap	ALTER TABLE a ADMIN PARTITIONS FROM() TO() INTERVAL 1
+reject	reject	engine	alter_table_clause/ADD_opt_tmp_PARTITIONS_FROM_(_partition_key_list_)_TO_(~5a46a756+opt_tmp	ALTER TABLE a ADD TEMPORARY PARTITIONS FROM() TO() INTERVAL 1
 accept	accept	engine	alter_table_clause/CREATE_BRANCH_opt_if_not_exists_ident_branch_options	ALTER TABLE a CREATE BRANCH a
 reject	reject	engine	alter_table_clause/CREATE_BRANCH_opt_if_not_exists_ident_branch_options!drop-1	ALTER TABLE a BRANCH a
 reject	reject	engine	alter_table_clause/CREATE_BRANCH_opt_if_not_exists_ident_branch_options!drop-2	ALTER TABLE a CREATE a
 reject	reject	engine	alter_table_clause/CREATE_BRANCH_opt_if_not_exists_ident_branch_options!drop-3	ALTER TABLE a CREATE BRANCH
 reject	reject	engine	alter_table_clause/CREATE_BRANCH_opt_if_not_exists_ident_branch_options!insert	ALTER TABLE a CREATE BRANCH a zzz
 reject	reject	engine	alter_table_clause/CREATE_BRANCH_opt_if_not_exists_ident_branch_options!swap	ALTER TABLE a CREATION BRANCH a
+accept	accept	engine	alter_table_clause/CREATE_BRANCH_opt_if_not_exists_ident_branch_options+opt_if_not_exists	ALTER TABLE a CREATE BRANCH IF NOT EXISTS a
+reject	reject	engine	alter_table_clause/CREATE_BRANCH_opt_if_not_exists_ident_branch_options+opt_if_not_exists!drop-3	ALTER TABLE a CREATE BRANCH NOT EXISTS a
+reject	reject	engine	alter_table_clause/CREATE_BRANCH_opt_if_not_exists_ident_branch_options+opt_if_not_exists!drop-4	ALTER TABLE a CREATE BRANCH IF EXISTS a
+reject	reject	engine	alter_table_clause/CREATE_BRANCH_opt_if_not_exists_ident_branch_options+opt_if_not_exists!drop-5	ALTER TABLE a CREATE BRANCH IF NOT a
 accept	accept	engine	alter_table_clause/REPLACE_BRANCH_ident_branch_options	ALTER TABLE a REPLACE BRANCH a
 reject	reject	engine	alter_table_clause/REPLACE_BRANCH_ident_branch_options!drop-2	ALTER TABLE a REPLACE a
 reject	reject	engine	alter_table_clause/REPLACE_BRANCH_ident_branch_options!drop-3	ALTER TABLE a REPLACE BRANCH
@@ -9377,6 +9565,10 @@ reject	reject	engine	alter_table_clause/CREATE_TAG_opt_if_not_exists_ident_tag_o
 reject	reject	engine	alter_table_clause/CREATE_TAG_opt_if_not_exists_ident_tag_options!drop-3	ALTER TABLE a CREATE TAG
 reject	reject	engine	alter_table_clause/CREATE_TAG_opt_if_not_exists_ident_tag_options!insert	ALTER TABLE a CREATE TAG a zzz
 reject	reject	engine	alter_table_clause/CREATE_TAG_opt_if_not_exists_ident_tag_options!swap	ALTER TABLE a CREATION TAG a
+accept	accept	engine	alter_table_clause/CREATE_TAG_opt_if_not_exists_ident_tag_options+opt_if_not_exists	ALTER TABLE a CREATE TAG IF NOT EXISTS a
+reject	reject	engine	alter_table_clause/CREATE_TAG_opt_if_not_exists_ident_tag_options+opt_if_not_exists!drop-3	ALTER TABLE a CREATE TAG NOT EXISTS a
+reject	reject	engine	alter_table_clause/CREATE_TAG_opt_if_not_exists_ident_tag_options+opt_if_not_exists!drop-4	ALTER TABLE a CREATE TAG IF EXISTS a
+reject	reject	engine	alter_table_clause/CREATE_TAG_opt_if_not_exists_ident_tag_options+opt_if_not_exists!drop-5	ALTER TABLE a CREATE TAG IF NOT a
 accept	accept	engine	alter_table_clause/REPLACE_TAG_ident_tag_options	ALTER TABLE a REPLACE TAG a
 reject	reject	engine	alter_table_clause/REPLACE_TAG_ident_tag_options!drop-3	ALTER TABLE a REPLACE TAG
 reject	reject	engine	alter_table_clause/REPLACE_TAG_ident_tag_options!insert	ALTER TABLE a REPLACE TAG a zzz
@@ -9392,10 +9584,16 @@ accept	accept	engine	alter_table_clause/DROP_BRANCH_opt_if_exists_ident	ALTER TA
 reject	reject	engine	alter_table_clause/DROP_BRANCH_opt_if_exists_ident!drop-3	ALTER TABLE a DROP BRANCH
 reject	reject	engine	alter_table_clause/DROP_BRANCH_opt_if_exists_ident!insert	ALTER TABLE a DROP BRANCH a zzz
 reject	reject	engine	alter_table_clause/DROP_BRANCH_opt_if_exists_ident!swap	ALTER TABLE a DROPP BRANCH a
+accept	accept	engine	alter_table_clause/DROP_BRANCH_opt_if_exists_ident+opt_if_exists	ALTER TABLE a DROP BRANCH IF EXISTS a
+reject	reject	engine	alter_table_clause/DROP_BRANCH_opt_if_exists_ident+opt_if_exists!drop-3	ALTER TABLE a DROP BRANCH EXISTS a
+reject	reject	engine	alter_table_clause/DROP_BRANCH_opt_if_exists_ident+opt_if_exists!drop-4	ALTER TABLE a DROP BRANCH IF a
 accept	accept	engine	alter_table_clause/DROP_TAG_opt_if_exists_ident	ALTER TABLE a DROP TAG a
 reject	reject	engine	alter_table_clause/DROP_TAG_opt_if_exists_ident!drop-3	ALTER TABLE a DROP TAG
 reject	reject	engine	alter_table_clause/DROP_TAG_opt_if_exists_ident!insert	ALTER TABLE a DROP TAG a zzz
 reject	reject	engine	alter_table_clause/DROP_TAG_opt_if_exists_ident!swap	ALTER TABLE a DROPP TAG a
+accept	accept	engine	alter_table_clause/DROP_TAG_opt_if_exists_ident+opt_if_exists	ALTER TABLE a DROP TAG IF EXISTS a
+reject	reject	engine	alter_table_clause/DROP_TAG_opt_if_exists_ident+opt_if_exists!drop-3	ALTER TABLE a DROP TAG EXISTS a
+reject	reject	engine	alter_table_clause/DROP_TAG_opt_if_exists_ident+opt_if_exists!drop-4	ALTER TABLE a DROP TAG IF a
 accept	accept	engine	branch_options/opt_as_of_version_opt_retain_time_opt_retention_snapshots	ALTER TABLE a CREATE BRANCH a
 accept	accept	engine	opt_as_of_version/%empty	ALTER TABLE a CREATE BRANCH a
 accept	accept	engine	opt_as_of_version/AS_OF_VERSION_INTEGER_VALUE	ALTER TABLE a CREATE BRANCH a AS OF VERSION 1
@@ -9561,10 +9759,18 @@ reject	reject	engine	create_stmt/CREATE_SCHEMA_opt_if_not_exists_db_name!drop-1	
 reject	reject	engine	create_stmt/CREATE_SCHEMA_opt_if_not_exists_db_name!drop-3	CREATE SCHEMA
 reject	reject	engine	create_stmt/CREATE_SCHEMA_opt_if_not_exists_db_name!insert	CREATE SCHEMA a zzz
 reject	reject	engine	create_stmt/CREATE_SCHEMA_opt_if_not_exists_db_name!swap	CREATION SCHEMA a
+accept	accept	engine	create_stmt/CREATE_SCHEMA_opt_if_not_exists_db_name+opt_if_not_exists	CREATE SCHEMA IF NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_SCHEMA_opt_if_not_exists_db_name+opt_if_not_exists!drop-3	CREATE SCHEMA NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_SCHEMA_opt_if_not_exists_db_name+opt_if_not_exists!drop-4	CREATE SCHEMA IF EXISTS a
+reject	reject	engine	create_stmt/CREATE_SCHEMA_opt_if_not_exists_db_name+opt_if_not_exists!drop-5	CREATE SCHEMA IF NOT a
 accept	accept	engine	create_stmt/CREATE_CATALOG_opt_if_not_exists_ident_opt_comment_opt_~22213e17	CREATE CATALOG a
 reject	reject	engine	create_stmt/CREATE_CATALOG_opt_if_not_exists_ident_opt_comment_opt_~22213e17!drop-3	CREATE CATALOG
 reject	reject	engine	create_stmt/CREATE_CATALOG_opt_if_not_exists_ident_opt_comment_opt_~22213e17!insert	CREATE CATALOG a zzz
 reject	reject	engine	create_stmt/CREATE_CATALOG_opt_if_not_exists_ident_opt_comment_opt_~22213e17!swap	CREATION CATALOG a
+accept	accept	engine	create_stmt/CREATE_CATALOG_opt_if_not_exists_ident_opt_comment_opt_~22213e17+opt_if_not_exists	CREATE CATALOG IF NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_CATALOG_opt_if_not_exists_ident_opt_comment_opt_~22213e17+opt_if_not_exists!drop-3	CREATE CATALOG NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_CATALOG_opt_if_not_exists_ident_opt_comment_opt_~22213e17+opt_if_not_exists!drop-4	CREATE CATALOG IF EXISTS a
+reject	reject	engine	create_stmt/CREATE_CATALOG_opt_if_not_exists_ident_opt_comment_opt_~22213e17+opt_if_not_exists!drop-5	CREATE CATALOG IF NOT a
 accept	accept	engine	create_stmt/CREATE_CATALOG_opt_if_not_exists_ident_WITH_RESOURCE_id~78149734	CREATE CATALOG a WITH RESOURCE a
 reject	reject	engine	create_stmt/CREATE_CATALOG_opt_if_not_exists_ident_WITH_RESOURCE_id~78149734!drop-1	CATALOG a WITH RESOURCE a
 reject	reject	engine	create_stmt/CREATE_CATALOG_opt_if_not_exists_ident_WITH_RESOURCE_id~78149734!drop-2	CREATE a WITH RESOURCE a
@@ -9574,6 +9780,10 @@ reject	reject	engine	create_stmt/CREATE_CATALOG_opt_if_not_exists_ident_WITH_RES
 reject	reject	engine	create_stmt/CREATE_CATALOG_opt_if_not_exists_ident_WITH_RESOURCE_id~78149734!drop-6	CREATE CATALOG a WITH RESOURCE
 reject	reject	engine	create_stmt/CREATE_CATALOG_opt_if_not_exists_ident_WITH_RESOURCE_id~78149734!insert	CREATE CATALOG a WITH RESOURCE a zzz
 reject	reject	engine	create_stmt/CREATE_CATALOG_opt_if_not_exists_ident_WITH_RESOURCE_id~78149734!swap	CREATION CATALOG a WITH RESOURCE a
+accept	accept	engine	create_stmt/CREATE_CATALOG_opt_if_not_exists_ident_WITH_RESOURCE_id~78149734+opt_if_not_exists	CREATE CATALOG IF NOT EXISTS a WITH RESOURCE a
+reject	reject	engine	create_stmt/CREATE_CATALOG_opt_if_not_exists_ident_WITH_RESOURCE_id~78149734+opt_if_not_exists!drop-3	CREATE CATALOG NOT EXISTS a WITH RESOURCE a
+reject	reject	engine	create_stmt/CREATE_CATALOG_opt_if_not_exists_ident_WITH_RESOURCE_id~78149734+opt_if_not_exists!drop-4	CREATE CATALOG IF EXISTS a WITH RESOURCE a
+reject	reject	engine	create_stmt/CREATE_CATALOG_opt_if_not_exists_ident_WITH_RESOURCE_id~78149734+opt_if_not_exists!drop-5	CREATE CATALOG IF NOT a WITH RESOURCE a
 accept	accept	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_if_not_e~0dad90b5	CREATE FUNCTION a() RETURNS TINYINT
 reject	reject	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_if_not_e~0dad90b5!drop-1	FUNCTION a() RETURNS TINYINT
 reject	reject	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_if_not_e~0dad90b5!drop-2	CREATE a() RETURNS TINYINT
@@ -9583,6 +9793,10 @@ reject	reject	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_
 reject	reject	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_if_not_e~0dad90b5!drop-6	CREATE FUNCTION a() TINYINT
 reject	reject	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_if_not_e~0dad90b5!drop-7	CREATE FUNCTION a() RETURNS
 reject	reject	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_if_not_e~0dad90b5!swap	CREATION FUNCTION a() RETURNS TINYINT
+accept	accept	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_if_not_e~0dad90b5+opt_if_not_exists	CREATE FUNCTION IF NOT EXISTS a() RETURNS TINYINT
+reject	reject	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_if_not_e~0dad90b5+opt_if_not_exists!drop-3	CREATE FUNCTION NOT EXISTS a() RETURNS TINYINT
+reject	reject	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_if_not_e~0dad90b5+opt_if_not_exists!drop-4	CREATE FUNCTION IF EXISTS a() RETURNS TINYINT
+reject	reject	engine	create_stmt/CREATE_opt_var_type_opt_aggregate_FUNCTION_opt_if_not_e~0dad90b5+opt_if_not_exists!drop-5	CREATE FUNCTION IF NOT a() RETURNS TINYINT
 accept	accept	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271	CREATE ALIAS FUNCTION a() WITH PARAMETER() AS 1
 reject	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-1	ALIAS FUNCTION a() WITH PARAMETER() AS 1
 reject	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-2	CREATE FUNCTION a() WITH PARAMETER() AS 1
@@ -9598,6 +9812,10 @@ reject	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_e
 reject	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!drop-12	CREATE ALIAS FUNCTION a() WITH PARAMETER() AS
 reject	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!insert	CREATE ALIAS FUNCTION a() WITH PARAMETER() AS 1 zzz
 reject	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271!swap	CREATION ALIAS FUNCTION a() WITH PARAMETER() AS 1
+accept	accept	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271+opt_if_not_exists	CREATE ALIAS FUNCTION IF NOT EXISTS a() WITH PARAMETER() AS 1
+reject	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271+opt_if_not_exists!drop-4	CREATE ALIAS FUNCTION NOT EXISTS a() WITH PARAMETER() AS 1
+reject	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271+opt_if_not_exists!drop-5	CREATE ALIAS FUNCTION IF EXISTS a() WITH PARAMETER() AS 1
+reject	reject	engine	create_stmt/CREATE_opt_var_type_ALIAS_FUNCTION_opt_if_not_exists_fu~d5a8e271+opt_if_not_exists!drop-6	CREATE ALIAS FUNCTION IF NOT a() WITH PARAMETER() AS 1
 accept	accept	engine	create_stmt/CREATE_opt_var_type_TABLES_FUNCTION_opt_if_not_exists_f~af5e0788	CREATE TABLES FUNCTION a() RETURNS TINYINT
 reject	reject	engine	create_stmt/CREATE_opt_var_type_TABLES_FUNCTION_opt_if_not_exists_f~af5e0788!drop-1	TABLES FUNCTION a() RETURNS TINYINT
 reject	reject	engine	create_stmt/CREATE_opt_var_type_TABLES_FUNCTION_opt_if_not_exists_f~af5e0788!drop-3	CREATE TABLES a() RETURNS TINYINT
@@ -9608,6 +9826,10 @@ reject	reject	engine	create_stmt/CREATE_opt_var_type_TABLES_FUNCTION_opt_if_not_
 reject	reject	engine	create_stmt/CREATE_opt_var_type_TABLES_FUNCTION_opt_if_not_exists_f~af5e0788!drop-8	CREATE TABLES FUNCTION a() RETURNS
 reject	reject	engine	create_stmt/CREATE_opt_var_type_TABLES_FUNCTION_opt_if_not_exists_f~af5e0788!insert	CREATE TABLES FUNCTION a() RETURNS TINYINT zzz
 reject	reject	engine	create_stmt/CREATE_opt_var_type_TABLES_FUNCTION_opt_if_not_exists_f~af5e0788!swap	CREATION TABLES FUNCTION a() RETURNS TINYINT
+accept	accept	engine	create_stmt/CREATE_opt_var_type_TABLES_FUNCTION_opt_if_not_exists_f~af5e0788+opt_if_not_exists	CREATE TABLES FUNCTION IF NOT EXISTS a() RETURNS TINYINT
+reject	reject	engine	create_stmt/CREATE_opt_var_type_TABLES_FUNCTION_opt_if_not_exists_f~af5e0788+opt_if_not_exists!drop-4	CREATE TABLES FUNCTION NOT EXISTS a() RETURNS TINYINT
+reject	reject	engine	create_stmt/CREATE_opt_var_type_TABLES_FUNCTION_opt_if_not_exists_f~af5e0788+opt_if_not_exists!drop-5	CREATE TABLES FUNCTION IF EXISTS a() RETURNS TINYINT
+reject	reject	engine	create_stmt/CREATE_opt_var_type_TABLES_FUNCTION_opt_if_not_exists_f~af5e0788+opt_if_not_exists!drop-6	CREATE TABLES FUNCTION IF NOT a() RETURNS TINYINT
 accept	accept	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~e4766986	CREATE TABLE a LIKE a WITH ROLLUP(a)
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~e4766986!drop-1	TABLE a LIKE a WITH ROLLUP(a)
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~e4766986!drop-2	CREATE a LIKE a WITH ROLLUP(a)
@@ -9621,6 +9843,10 @@ reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_tab
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~e4766986!drop-10	CREATE TABLE a LIKE a WITH ROLLUP(a
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~e4766986!insert	CREATE TABLE a LIKE a WITH ROLLUP(a) zzz
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~e4766986!swap	CREATION TABLE a LIKE a WITH ROLLUP(a)
+accept	accept	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~e4766986+opt_if_not_exists	CREATE TABLE IF NOT EXISTS a LIKE a WITH ROLLUP(a)
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~e4766986+opt_if_not_exists!drop-3	CREATE TABLE NOT EXISTS a LIKE a WITH ROLLUP(a)
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~e4766986+opt_if_not_exists!drop-4	CREATE TABLE IF EXISTS a LIKE a WITH ROLLUP(a)
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~e4766986+opt_if_not_exists!drop-5	CREATE TABLE IF NOT a LIKE a WITH ROLLUP(a)
 accept	accept	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4049971c	CREATE TABLE a LIKE a WITH ROLLUP
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4049971c!drop-1	TABLE a LIKE a WITH ROLLUP
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4049971c!drop-2	CREATE a LIKE a WITH ROLLUP
@@ -9631,6 +9857,10 @@ reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_tab
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4049971c!drop-7	CREATE TABLE a LIKE a WITH
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4049971c!insert	CREATE TABLE a LIKE a WITH ROLLUP zzz
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4049971c!swap	CREATION TABLE a LIKE a WITH ROLLUP
+accept	accept	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4049971c+opt_if_not_exists	CREATE TABLE IF NOT EXISTS a LIKE a WITH ROLLUP
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4049971c+opt_if_not_exists!drop-3	CREATE TABLE NOT EXISTS a LIKE a WITH ROLLUP
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4049971c+opt_if_not_exists!drop-4	CREATE TABLE IF EXISTS a LIKE a WITH ROLLUP
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4049971c+opt_if_not_exists!drop-5	CREATE TABLE IF NOT a LIKE a WITH ROLLUP
 accept	accept	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4ad68957	CREATE TABLE a LIKE a
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4ad68957!drop-1	TABLE a LIKE a
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4ad68957!drop-2	CREATE a LIKE a
@@ -9639,6 +9869,10 @@ reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_tab
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4ad68957!drop-5	CREATE TABLE a LIKE
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4ad68957!insert	CREATE TABLE a LIKE a zzz
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4ad68957!swap	CREATION TABLE a LIKE a
+accept	accept	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4ad68957+opt_if_not_exists	CREATE TABLE IF NOT EXISTS a LIKE a
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4ad68957+opt_if_not_exists!drop-3	CREATE TABLE NOT EXISTS a LIKE a
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4ad68957+opt_if_not_exists!drop-4	CREATE TABLE IF EXISTS a LIKE a
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4ad68957+opt_if_not_exists!drop-5	CREATE TABLE IF NOT a LIKE a
 accept	accept	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~cd7182b0	CREATE TABLE a(a TINYINT)
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~cd7182b0!drop-1	TABLE a(a TINYINT)
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~cd7182b0!drop-2	CREATE a(a TINYINT)
@@ -9649,6 +9883,10 @@ accept	accept	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_tab
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~cd7182b0!drop-7	CREATE TABLE a(a TINYINT
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~cd7182b0!insert	CREATE TABLE a(a TINYINT) zzz
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~cd7182b0!swap	CREATION TABLE a(a TINYINT)
+accept	accept	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~cd7182b0+opt_if_not_exists	CREATE TABLE IF NOT EXISTS a(a TINYINT)
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~cd7182b0+opt_if_not_exists!drop-3	CREATE TABLE NOT EXISTS a(a TINYINT)
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~cd7182b0+opt_if_not_exists!drop-4	CREATE TABLE IF EXISTS a(a TINYINT)
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~cd7182b0+opt_if_not_exists!drop-5	CREATE TABLE IF NOT a(a TINYINT)
 accept	accept	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~58666c1d	CREATE TABLE a(a TINYINT,)
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~58666c1d!drop-1	TABLE a(a TINYINT,)
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~58666c1d!drop-2	CREATE a(a TINYINT,)
@@ -9659,6 +9897,10 @@ reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_tab
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~58666c1d!drop-8	CREATE TABLE a(a TINYINT,
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~58666c1d!insert	CREATE TABLE a(a TINYINT,) zzz
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~58666c1d!swap	CREATION TABLE a(a TINYINT,)
+accept	accept	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~58666c1d+opt_if_not_exists	CREATE TABLE IF NOT EXISTS a(a TINYINT,)
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~58666c1d+opt_if_not_exists!drop-3	CREATE TABLE NOT EXISTS a(a TINYINT,)
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~58666c1d+opt_if_not_exists!drop-4	CREATE TABLE IF EXISTS a(a TINYINT,)
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~58666c1d+opt_if_not_exists!drop-5	CREATE TABLE IF NOT a(a TINYINT,)
 accept	accept	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~dea6f3b1	CREATE TABLE a(a TINYINT, INDEX a(a))
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~dea6f3b1!drop-1	TABLE a(a TINYINT, INDEX a(a))
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~dea6f3b1!drop-2	CREATE a(a TINYINT, INDEX a(a))
@@ -9674,6 +9916,10 @@ reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_tab
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~dea6f3b1!drop-12	CREATE TABLE a(a TINYINT, INDEX a(a)
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~dea6f3b1!insert	CREATE TABLE a(a TINYINT, INDEX a(a)) zzz
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~dea6f3b1!swap	CREATION TABLE a(a TINYINT, INDEX a(a))
+accept	accept	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~dea6f3b1+opt_if_not_exists	CREATE TABLE IF NOT EXISTS a(a TINYINT, INDEX a(a))
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~dea6f3b1+opt_if_not_exists!drop-3	CREATE TABLE NOT EXISTS a(a TINYINT, INDEX a(a))
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~dea6f3b1+opt_if_not_exists!drop-4	CREATE TABLE IF EXISTS a(a TINYINT, INDEX a(a))
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~dea6f3b1+opt_if_not_exists!drop-5	CREATE TABLE IF NOT a(a TINYINT, INDEX a(a))
 accept	accept	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~df7f4d5f	CREATE TABLE a(a TINYINT, INDEX a(a),)
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~df7f4d5f!drop-1	TABLE a(a TINYINT, INDEX a(a),)
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~df7f4d5f!drop-2	CREATE a(a TINYINT, INDEX a(a),)
@@ -9690,6 +9936,10 @@ reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_tab
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~df7f4d5f!drop-14	CREATE TABLE a(a TINYINT, INDEX a(a),
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~df7f4d5f!insert	CREATE TABLE a(a TINYINT, INDEX a(a),) zzz
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~df7f4d5f!swap	CREATION TABLE a(a TINYINT, INDEX a(a),)
+accept	accept	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~df7f4d5f+opt_if_not_exists	CREATE TABLE IF NOT EXISTS a(a TINYINT, INDEX a(a),)
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~df7f4d5f+opt_if_not_exists!drop-3	CREATE TABLE NOT EXISTS a(a TINYINT, INDEX a(a),)
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~df7f4d5f+opt_if_not_exists!drop-4	CREATE TABLE IF EXISTS a(a TINYINT, INDEX a(a),)
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~df7f4d5f+opt_if_not_exists!drop-5	CREATE TABLE IF NOT a(a TINYINT, INDEX a(a),)
 accept	accept	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4e1be5c2	CREATE TABLE a AS SELECT 1
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4e1be5c2!drop-1	TABLE a AS SELECT 1
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4e1be5c2!drop-2	CREATE a AS SELECT 1
@@ -9699,10 +9949,18 @@ reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_tab
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4e1be5c2!drop-6	CREATE TABLE a AS SELECT
 accept	accept	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4e1be5c2!insert	CREATE TABLE a AS SELECT 1 zzz
 reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4e1be5c2!swap	CREATION TABLE a AS SELECT 1
+accept	accept	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4e1be5c2+opt_if_not_exists	CREATE TABLE IF NOT EXISTS a AS SELECT 1
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4e1be5c2+opt_if_not_exists!drop-3	CREATE TABLE NOT EXISTS a AS SELECT 1
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4e1be5c2+opt_if_not_exists!drop-4	CREATE TABLE IF EXISTS a AS SELECT 1
+reject	reject	engine	create_stmt/CREATE_opt_external_TABLE_opt_if_not_exists_table_name_~4e1be5c2+opt_if_not_exists!drop-5	CREATE TABLE IF NOT a AS SELECT 1
 accept	accept	engine	create_stmt/CREATE_USER_opt_if_not_exists_grant_user_opt_user_role_~1ff2bc49	CREATE USER a
 reject	reject	engine	create_stmt/CREATE_USER_opt_if_not_exists_grant_user_opt_user_role_~1ff2bc49!drop-3	CREATE USER
 reject	reject	engine	create_stmt/CREATE_USER_opt_if_not_exists_grant_user_opt_user_role_~1ff2bc49!insert	CREATE USER a zzz
 reject	reject	engine	create_stmt/CREATE_USER_opt_if_not_exists_grant_user_opt_user_role_~1ff2bc49!swap	CREATION USER a
+accept	accept	engine	create_stmt/CREATE_USER_opt_if_not_exists_grant_user_opt_user_role_~1ff2bc49+opt_if_not_exists	CREATE USER IF NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_USER_opt_if_not_exists_grant_user_opt_user_role_~1ff2bc49+opt_if_not_exists!drop-3	CREATE USER NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_USER_opt_if_not_exists_grant_user_opt_user_role_~1ff2bc49+opt_if_not_exists!drop-4	CREATE USER IF EXISTS a
+reject	reject	engine	create_stmt/CREATE_USER_opt_if_not_exists_grant_user_opt_user_role_~1ff2bc49+opt_if_not_exists!drop-5	CREATE USER IF NOT a
 accept	accept	engine	create_stmt/CREATE_opt_or_replace_VIEW_opt_if_not_exists_table_name~c2cd61be	CREATE VIEW a AS SELECT 1
 reject	reject	engine	create_stmt/CREATE_opt_or_replace_VIEW_opt_if_not_exists_table_name~c2cd61be!drop-3	CREATE VIEW AS SELECT 1
 accept	accept	engine	create_stmt/CREATE_opt_or_replace_VIEW_opt_if_not_exists_table_name~c2cd61be!drop-4	CREATE VIEW a SELECT 1
@@ -9710,6 +9968,10 @@ reject	reject	engine	create_stmt/CREATE_opt_or_replace_VIEW_opt_if_not_exists_ta
 reject	reject	engine	create_stmt/CREATE_opt_or_replace_VIEW_opt_if_not_exists_table_name~c2cd61be!drop-6	CREATE VIEW a AS SELECT
 accept	accept	engine	create_stmt/CREATE_opt_or_replace_VIEW_opt_if_not_exists_table_name~c2cd61be!insert	CREATE VIEW a AS SELECT 1 zzz
 reject	reject	engine	create_stmt/CREATE_opt_or_replace_VIEW_opt_if_not_exists_table_name~c2cd61be!swap	CREATION VIEW a AS SELECT 1
+accept	accept	engine	create_stmt/CREATE_opt_or_replace_VIEW_opt_if_not_exists_table_name~c2cd61be+opt_if_not_exists	CREATE VIEW IF NOT EXISTS a AS SELECT 1
+reject	reject	engine	create_stmt/CREATE_opt_or_replace_VIEW_opt_if_not_exists_table_name~c2cd61be+opt_if_not_exists!drop-3	CREATE VIEW NOT EXISTS a AS SELECT 1
+reject	reject	engine	create_stmt/CREATE_opt_or_replace_VIEW_opt_if_not_exists_table_name~c2cd61be+opt_if_not_exists!drop-4	CREATE VIEW IF EXISTS a AS SELECT 1
+reject	reject	engine	create_stmt/CREATE_opt_or_replace_VIEW_opt_if_not_exists_table_name~c2cd61be+opt_if_not_exists!drop-5	CREATE VIEW IF NOT a AS SELECT 1
 reject	reject	engine	create_stmt/CREATE_opt_read_only_REPOSITORY_ident_WITH_storage_backend	CREATE REPOSITORY a WITH
 reject	reject	engine	create_stmt/CREATE_opt_read_only_REPOSITORY_ident_WITH_storage_backend!drop-1	REPOSITORY a WITH
 reject	reject	engine	create_stmt/CREATE_opt_read_only_REPOSITORY_ident_WITH_storage_backend!drop-2	CREATE a WITH
@@ -9722,6 +9984,10 @@ reject	reject	engine	create_stmt/CREATE_ROLE_opt_if_not_exists_ident_opt_comment
 reject	reject	engine	create_stmt/CREATE_ROLE_opt_if_not_exists_ident_opt_comment!drop-3	CREATE ROLE
 reject	reject	engine	create_stmt/CREATE_ROLE_opt_if_not_exists_ident_opt_comment!insert	CREATE ROLE a zzz
 reject	reject	engine	create_stmt/CREATE_ROLE_opt_if_not_exists_ident_opt_comment!swap	CREATION ROLE a
+accept	accept	engine	create_stmt/CREATE_ROLE_opt_if_not_exists_ident_opt_comment+opt_if_not_exists	CREATE ROLE IF NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_ROLE_opt_if_not_exists_ident_opt_comment+opt_if_not_exists!drop-3	CREATE ROLE NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_ROLE_opt_if_not_exists_ident_opt_comment+opt_if_not_exists!drop-4	CREATE ROLE IF EXISTS a
+reject	reject	engine	create_stmt/CREATE_ROLE_opt_if_not_exists_ident_opt_comment+opt_if_not_exists!drop-5	CREATE ROLE IF NOT a
 accept	accept	engine	create_stmt/ALTER_ROLE_ident_COMMENT_STRING_LITERAL	ALTER ROLE a COMMENT 'a'
 reject	reject	engine	create_stmt/ALTER_ROLE_ident_COMMENT_STRING_LITERAL!drop-1	ROLE a COMMENT 'a'
 reject	reject	engine	create_stmt/ALTER_ROLE_ident_COMMENT_STRING_LITERAL!drop-2	ALTER a COMMENT 'a'
@@ -9762,16 +10028,28 @@ reject	reject	engine	create_stmt/CREATE_INDEX_opt_if_not_exists_ident_ON_table_n
 reject	reject	engine	create_stmt/CREATE_INDEX_opt_if_not_exists_ident_ON_table_name_(_id~8dd7b1b1!drop-8	CREATE INDEX a ON a(a
 reject	reject	engine	create_stmt/CREATE_INDEX_opt_if_not_exists_ident_ON_table_name_(_id~8dd7b1b1!insert	CREATE INDEX a ON a(a) zzz
 reject	reject	engine	create_stmt/CREATE_INDEX_opt_if_not_exists_ident_ON_table_name_(_id~8dd7b1b1!swap	CREATION INDEX a ON a(a)
+accept	accept	engine	create_stmt/CREATE_INDEX_opt_if_not_exists_ident_ON_table_name_(_id~8dd7b1b1+opt_if_not_exists	CREATE INDEX IF NOT EXISTS a ON a(a)
+reject	reject	engine	create_stmt/CREATE_INDEX_opt_if_not_exists_ident_ON_table_name_(_id~8dd7b1b1+opt_if_not_exists!drop-3	CREATE INDEX NOT EXISTS a ON a(a)
+reject	reject	engine	create_stmt/CREATE_INDEX_opt_if_not_exists_ident_ON_table_name_(_id~8dd7b1b1+opt_if_not_exists!drop-4	CREATE INDEX IF EXISTS a ON a(a)
+reject	reject	engine	create_stmt/CREATE_INDEX_opt_if_not_exists_ident_ON_table_name_(_id~8dd7b1b1+opt_if_not_exists!drop-5	CREATE INDEX IF NOT a ON a(a)
 accept	accept	engine	create_stmt/CREATE_EXTERNAL_RESOURCE_opt_if_not_exists_ident_or_tex~c94004d9	CREATE EXTERNAL RESOURCE a
 reject	reject	engine	create_stmt/CREATE_EXTERNAL_RESOURCE_opt_if_not_exists_ident_or_tex~c94004d9!drop-1	EXTERNAL RESOURCE a
 reject	reject	engine	create_stmt/CREATE_EXTERNAL_RESOURCE_opt_if_not_exists_ident_or_tex~c94004d9!drop-3	CREATE EXTERNAL a
 reject	reject	engine	create_stmt/CREATE_EXTERNAL_RESOURCE_opt_if_not_exists_ident_or_tex~c94004d9!drop-4	CREATE EXTERNAL RESOURCE
 reject	reject	engine	create_stmt/CREATE_EXTERNAL_RESOURCE_opt_if_not_exists_ident_or_tex~c94004d9!insert	CREATE EXTERNAL RESOURCE a zzz
 reject	reject	engine	create_stmt/CREATE_EXTERNAL_RESOURCE_opt_if_not_exists_ident_or_tex~c94004d9!swap	CREATION EXTERNAL RESOURCE a
+accept	accept	engine	create_stmt/CREATE_EXTERNAL_RESOURCE_opt_if_not_exists_ident_or_tex~c94004d9+opt_if_not_exists	CREATE EXTERNAL RESOURCE IF NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_EXTERNAL_RESOURCE_opt_if_not_exists_ident_or_tex~c94004d9+opt_if_not_exists!drop-4	CREATE EXTERNAL RESOURCE NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_EXTERNAL_RESOURCE_opt_if_not_exists_ident_or_tex~c94004d9+opt_if_not_exists!drop-5	CREATE EXTERNAL RESOURCE IF EXISTS a
+reject	reject	engine	create_stmt/CREATE_EXTERNAL_RESOURCE_opt_if_not_exists_ident_or_tex~c94004d9+opt_if_not_exists!drop-6	CREATE EXTERNAL RESOURCE IF NOT a
 accept	accept	engine	create_stmt/CREATE_RESOURCE_opt_if_not_exists_ident_or_text_opt_properties	CREATE RESOURCE a
 reject	reject	engine	create_stmt/CREATE_RESOURCE_opt_if_not_exists_ident_or_text_opt_properties!drop-3	CREATE RESOURCE
 reject	reject	engine	create_stmt/CREATE_RESOURCE_opt_if_not_exists_ident_or_text_opt_properties!insert	CREATE RESOURCE a zzz
 reject	reject	engine	create_stmt/CREATE_RESOURCE_opt_if_not_exists_ident_or_text_opt_properties!swap	CREATION RESOURCE a
+accept	accept	engine	create_stmt/CREATE_RESOURCE_opt_if_not_exists_ident_or_text_opt_properties+opt_if_not_exists	CREATE RESOURCE IF NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_RESOURCE_opt_if_not_exists_ident_or_text_opt_properties+opt_if_not_exists!drop-3	CREATE RESOURCE NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_RESOURCE_opt_if_not_exists_ident_or_text_opt_properties+opt_if_not_exists!drop-4	CREATE RESOURCE IF EXISTS a
+reject	reject	engine	create_stmt/CREATE_RESOURCE_opt_if_not_exists_ident_or_text_opt_properties+opt_if_not_exists!drop-5	CREATE RESOURCE IF NOT a
 accept	accept	engine	create_stmt/CREATE_STORAGE_VAULT_opt_if_not_exists_ident_or_text_op~d7b37619	CREATE STORAGE VAULT a
 reject	reject	engine	create_stmt/CREATE_STORAGE_VAULT_opt_if_not_exists_ident_or_text_op~d7b37619!drop-1	STORAGE VAULT a
 reject	reject	engine	create_stmt/CREATE_STORAGE_VAULT_opt_if_not_exists_ident_or_text_op~d7b37619!drop-2	CREATE VAULT a
@@ -9779,17 +10057,29 @@ reject	reject	engine	create_stmt/CREATE_STORAGE_VAULT_opt_if_not_exists_ident_or
 reject	reject	engine	create_stmt/CREATE_STORAGE_VAULT_opt_if_not_exists_ident_or_text_op~d7b37619!drop-4	CREATE STORAGE VAULT
 reject	reject	engine	create_stmt/CREATE_STORAGE_VAULT_opt_if_not_exists_ident_or_text_op~d7b37619!insert	CREATE STORAGE VAULT a zzz
 reject	reject	engine	create_stmt/CREATE_STORAGE_VAULT_opt_if_not_exists_ident_or_text_op~d7b37619!swap	CREATION STORAGE VAULT a
+accept	accept	engine	create_stmt/CREATE_STORAGE_VAULT_opt_if_not_exists_ident_or_text_op~d7b37619+opt_if_not_exists	CREATE STORAGE VAULT IF NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_STORAGE_VAULT_opt_if_not_exists_ident_or_text_op~d7b37619+opt_if_not_exists!drop-4	CREATE STORAGE VAULT NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_STORAGE_VAULT_opt_if_not_exists_ident_or_text_op~d7b37619+opt_if_not_exists!drop-5	CREATE STORAGE VAULT IF EXISTS a
+reject	reject	engine	create_stmt/CREATE_STORAGE_VAULT_opt_if_not_exists_ident_or_text_op~d7b37619+opt_if_not_exists!drop-6	CREATE STORAGE VAULT IF NOT a
 accept	accept	engine	create_stmt/CREATE_WORKLOAD_GROUP_opt_if_not_exists_ident_or_text_o~8116fc5c	CREATE WORKLOAD GROUP a
 reject	reject	engine	create_stmt/CREATE_WORKLOAD_GROUP_opt_if_not_exists_ident_or_text_o~8116fc5c!drop-2	CREATE GROUP a
 reject	reject	engine	create_stmt/CREATE_WORKLOAD_GROUP_opt_if_not_exists_ident_or_text_o~8116fc5c!drop-3	CREATE WORKLOAD a
 reject	reject	engine	create_stmt/CREATE_WORKLOAD_GROUP_opt_if_not_exists_ident_or_text_o~8116fc5c!drop-4	CREATE WORKLOAD GROUP
 reject	reject	engine	create_stmt/CREATE_WORKLOAD_GROUP_opt_if_not_exists_ident_or_text_o~8116fc5c!insert	CREATE WORKLOAD GROUP a zzz
 reject	reject	engine	create_stmt/CREATE_WORKLOAD_GROUP_opt_if_not_exists_ident_or_text_o~8116fc5c!swap	CREATION WORKLOAD GROUP a
+accept	accept	engine	create_stmt/CREATE_WORKLOAD_GROUP_opt_if_not_exists_ident_or_text_o~8116fc5c+opt_if_not_exists	CREATE WORKLOAD GROUP IF NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_WORKLOAD_GROUP_opt_if_not_exists_ident_or_text_o~8116fc5c+opt_if_not_exists!drop-4	CREATE WORKLOAD GROUP NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_WORKLOAD_GROUP_opt_if_not_exists_ident_or_text_o~8116fc5c+opt_if_not_exists!drop-5	CREATE WORKLOAD GROUP IF EXISTS a
+reject	reject	engine	create_stmt/CREATE_WORKLOAD_GROUP_opt_if_not_exists_ident_or_text_o~8116fc5c+opt_if_not_exists!drop-6	CREATE WORKLOAD GROUP IF NOT a
 accept	accept	engine	create_stmt/CREATE_WORKLOAD_POLICY_opt_if_not_exists_ident_or_text_~802aeee9	CREATE WORKLOAD POLICY a
 reject	reject	engine	create_stmt/CREATE_WORKLOAD_POLICY_opt_if_not_exists_ident_or_text_~802aeee9!drop-2	CREATE POLICY a
 reject	reject	engine	create_stmt/CREATE_WORKLOAD_POLICY_opt_if_not_exists_ident_or_text_~802aeee9!drop-4	CREATE WORKLOAD POLICY
 reject	reject	engine	create_stmt/CREATE_WORKLOAD_POLICY_opt_if_not_exists_ident_or_text_~802aeee9!insert	CREATE WORKLOAD POLICY a zzz
 reject	reject	engine	create_stmt/CREATE_WORKLOAD_POLICY_opt_if_not_exists_ident_or_text_~802aeee9!swap	CREATION WORKLOAD POLICY a
+accept	accept	engine	create_stmt/CREATE_WORKLOAD_POLICY_opt_if_not_exists_ident_or_text_~802aeee9+opt_if_not_exists	CREATE WORKLOAD POLICY IF NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_WORKLOAD_POLICY_opt_if_not_exists_ident_or_text_~802aeee9+opt_if_not_exists!drop-4	CREATE WORKLOAD POLICY NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_WORKLOAD_POLICY_opt_if_not_exists_ident_or_text_~802aeee9+opt_if_not_exists!drop-5	CREATE WORKLOAD POLICY IF EXISTS a
+reject	reject	engine	create_stmt/CREATE_WORKLOAD_POLICY_opt_if_not_exists_ident_or_text_~802aeee9+opt_if_not_exists!drop-6	CREATE WORKLOAD POLICY IF NOT a
 accept	accept	engine	create_stmt/CREATE_ENCRYPTKEY_opt_if_not_exists_encryptkey_name_AS_~e2f49f86	CREATE ENCRYPTKEY a AS 'a'
 reject	reject	engine	create_stmt/CREATE_ENCRYPTKEY_opt_if_not_exists_encryptkey_name_AS_~e2f49f86!drop-1	ENCRYPTKEY a AS 'a'
 reject	reject	engine	create_stmt/CREATE_ENCRYPTKEY_opt_if_not_exists_encryptkey_name_AS_~e2f49f86!drop-2	CREATE a AS 'a'
@@ -9798,10 +10088,18 @@ reject	reject	engine	create_stmt/CREATE_ENCRYPTKEY_opt_if_not_exists_encryptkey_
 reject	reject	engine	create_stmt/CREATE_ENCRYPTKEY_opt_if_not_exists_encryptkey_name_AS_~e2f49f86!drop-5	CREATE ENCRYPTKEY a AS
 reject	reject	engine	create_stmt/CREATE_ENCRYPTKEY_opt_if_not_exists_encryptkey_name_AS_~e2f49f86!insert	CREATE ENCRYPTKEY a AS 'a' zzz
 reject	reject	engine	create_stmt/CREATE_ENCRYPTKEY_opt_if_not_exists_encryptkey_name_AS_~e2f49f86!swap	CREATION ENCRYPTKEY a AS 'a'
+accept	accept	engine	create_stmt/CREATE_ENCRYPTKEY_opt_if_not_exists_encryptkey_name_AS_~e2f49f86+opt_if_not_exists	CREATE ENCRYPTKEY IF NOT EXISTS a AS 'a'
+reject	reject	engine	create_stmt/CREATE_ENCRYPTKEY_opt_if_not_exists_encryptkey_name_AS_~e2f49f86+opt_if_not_exists!drop-3	CREATE ENCRYPTKEY NOT EXISTS a AS 'a'
+reject	reject	engine	create_stmt/CREATE_ENCRYPTKEY_opt_if_not_exists_encryptkey_name_AS_~e2f49f86+opt_if_not_exists!drop-4	CREATE ENCRYPTKEY IF EXISTS a AS 'a'
+reject	reject	engine	create_stmt/CREATE_ENCRYPTKEY_opt_if_not_exists_encryptkey_name_AS_~e2f49f86+opt_if_not_exists!drop-5	CREATE ENCRYPTKEY IF NOT a AS 'a'
 accept	accept	engine	create_stmt/CREATE_SQL_BLOCK_RULE_opt_if_not_exists_ident_opt_properties	CREATE SQL_BLOCK_RULE a
 reject	reject	engine	create_stmt/CREATE_SQL_BLOCK_RULE_opt_if_not_exists_ident_opt_properties!drop-3	CREATE SQL_BLOCK_RULE
 reject	reject	engine	create_stmt/CREATE_SQL_BLOCK_RULE_opt_if_not_exists_ident_opt_properties!insert	CREATE SQL_BLOCK_RULE a zzz
 reject	reject	engine	create_stmt/CREATE_SQL_BLOCK_RULE_opt_if_not_exists_ident_opt_properties!swap	CREATION SQL_BLOCK_RULE a
+accept	accept	engine	create_stmt/CREATE_SQL_BLOCK_RULE_opt_if_not_exists_ident_opt_properties+opt_if_not_exists	CREATE SQL_BLOCK_RULE IF NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_SQL_BLOCK_RULE_opt_if_not_exists_ident_opt_properties+opt_if_not_exists!drop-3	CREATE SQL_BLOCK_RULE NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_SQL_BLOCK_RULE_opt_if_not_exists_ident_opt_properties+opt_if_not_exists!drop-4	CREATE SQL_BLOCK_RULE IF EXISTS a
+reject	reject	engine	create_stmt/CREATE_SQL_BLOCK_RULE_opt_if_not_exists_ident_opt_properties+opt_if_not_exists!drop-5	CREATE SQL_BLOCK_RULE IF NOT a
 reject	reject	engine	create_stmt/CREATE_ROW_POLICY_opt_if_not_exists_ident_ON_table_name~4369f201	CREATE ROW POLICY a ON a AS a TO a USING(1)
 reject	reject	engine	create_stmt/CREATE_ROW_POLICY_opt_if_not_exists_ident_ON_table_name~4369f201!drop-1	ROW POLICY a ON a AS a TO a USING(1)
 reject	reject	engine	create_stmt/CREATE_ROW_POLICY_opt_if_not_exists_ident_ON_table_name~4369f201!drop-2	CREATE POLICY a ON a AS a TO a USING(1)
@@ -9819,6 +10117,10 @@ reject	reject	engine	create_stmt/CREATE_ROW_POLICY_opt_if_not_exists_ident_ON_ta
 reject	reject	engine	create_stmt/CREATE_ROW_POLICY_opt_if_not_exists_ident_ON_table_name~4369f201!drop-14	CREATE ROW POLICY a ON a AS a TO a USING(1
 reject	reject	engine	create_stmt/CREATE_ROW_POLICY_opt_if_not_exists_ident_ON_table_name~4369f201!insert	CREATE ROW POLICY a ON a AS a TO a USING(1) zzz
 reject	reject	engine	create_stmt/CREATE_ROW_POLICY_opt_if_not_exists_ident_ON_table_name~4369f201!swap	CREATION ROW POLICY a ON a AS a TO a USING(1)
+reject	reject	engine	create_stmt/CREATE_ROW_POLICY_opt_if_not_exists_ident_ON_table_name~4369f201+opt_if_not_exists	CREATE ROW POLICY IF NOT EXISTS a ON a AS a TO a USING(1)
+reject	reject	engine	create_stmt/CREATE_ROW_POLICY_opt_if_not_exists_ident_ON_table_name~4369f201+opt_if_not_exists!drop-4	CREATE ROW POLICY NOT EXISTS a ON a AS a TO a USING(1)
+reject	reject	engine	create_stmt/CREATE_ROW_POLICY_opt_if_not_exists_ident_ON_table_name~4369f201+opt_if_not_exists!drop-5	CREATE ROW POLICY IF EXISTS a ON a AS a TO a USING(1)
+reject	reject	engine	create_stmt/CREATE_ROW_POLICY_opt_if_not_exists_ident_ON_table_name~4369f201+opt_if_not_exists!drop-6	CREATE ROW POLICY IF NOT a ON a AS a TO a USING(1)
 reject	reject	engine	create_stmt/CREATE_ROW_POLICY_opt_if_not_exists_ident_ON_table_name~efb2020d	CREATE ROW POLICY a ON a AS a TO ROLE a USING(1)
 reject	reject	engine	create_stmt/CREATE_ROW_POLICY_opt_if_not_exists_ident_ON_table_name~efb2020d!drop-1	ROW POLICY a ON a AS a TO ROLE a USING(1)
 reject	reject	engine	create_stmt/CREATE_ROW_POLICY_opt_if_not_exists_ident_ON_table_name~efb2020d!drop-2	CREATE POLICY a ON a AS a TO ROLE a USING(1)
@@ -9836,10 +10138,18 @@ reject	reject	engine	create_stmt/CREATE_ROW_POLICY_opt_if_not_exists_ident_ON_ta
 reject	reject	engine	create_stmt/CREATE_ROW_POLICY_opt_if_not_exists_ident_ON_table_name~efb2020d!drop-15	CREATE ROW POLICY a ON a AS a TO ROLE a USING(1
 reject	reject	engine	create_stmt/CREATE_ROW_POLICY_opt_if_not_exists_ident_ON_table_name~efb2020d!insert	CREATE ROW POLICY a ON a AS a TO ROLE a USING(1) zzz
 reject	reject	engine	create_stmt/CREATE_ROW_POLICY_opt_if_not_exists_ident_ON_table_name~efb2020d!swap	CREATION ROW POLICY a ON a AS a TO ROLE a USING(1)
+reject	reject	engine	create_stmt/CREATE_ROW_POLICY_opt_if_not_exists_ident_ON_table_name~efb2020d+opt_if_not_exists	CREATE ROW POLICY IF NOT EXISTS a ON a AS a TO ROLE a USING(1)
+reject	reject	engine	create_stmt/CREATE_ROW_POLICY_opt_if_not_exists_ident_ON_table_name~efb2020d+opt_if_not_exists!drop-4	CREATE ROW POLICY NOT EXISTS a ON a AS a TO ROLE a USING(1)
+reject	reject	engine	create_stmt/CREATE_ROW_POLICY_opt_if_not_exists_ident_ON_table_name~efb2020d+opt_if_not_exists!drop-5	CREATE ROW POLICY IF EXISTS a ON a AS a TO ROLE a USING(1)
+reject	reject	engine	create_stmt/CREATE_ROW_POLICY_opt_if_not_exists_ident_ON_table_name~efb2020d+opt_if_not_exists!drop-6	CREATE ROW POLICY IF NOT a ON a AS a TO ROLE a USING(1)
 accept	accept	engine	create_stmt/CREATE_STORAGE_POLICY_opt_if_not_exists_ident_opt_properties	CREATE STORAGE POLICY a
 reject	reject	engine	create_stmt/CREATE_STORAGE_POLICY_opt_if_not_exists_ident_opt_properties!drop-4	CREATE STORAGE POLICY
 reject	reject	engine	create_stmt/CREATE_STORAGE_POLICY_opt_if_not_exists_ident_opt_properties!insert	CREATE STORAGE POLICY a zzz
 reject	reject	engine	create_stmt/CREATE_STORAGE_POLICY_opt_if_not_exists_ident_opt_properties!swap	CREATION STORAGE POLICY a
+accept	accept	engine	create_stmt/CREATE_STORAGE_POLICY_opt_if_not_exists_ident_opt_properties+opt_if_not_exists	CREATE STORAGE POLICY IF NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_STORAGE_POLICY_opt_if_not_exists_ident_opt_properties+opt_if_not_exists!drop-4	CREATE STORAGE POLICY NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_STORAGE_POLICY_opt_if_not_exists_ident_opt_properties+opt_if_not_exists!drop-5	CREATE STORAGE POLICY IF EXISTS a
+reject	reject	engine	create_stmt/CREATE_STORAGE_POLICY_opt_if_not_exists_ident_opt_properties+opt_if_not_exists!drop-6	CREATE STORAGE POLICY IF NOT a
 accept	accept	engine	create_stmt/CREATE_INVERTED_INDEX_ANALYZER_opt_if_not_exists_ident_~c2efd42e	CREATE INVERTED INDEX ANALYZER a
 reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_ANALYZER_opt_if_not_exists_ident_~c2efd42e!drop-1	INVERTED INDEX ANALYZER a
 reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_ANALYZER_opt_if_not_exists_ident_~c2efd42e!drop-2	CREATE INDEX ANALYZER a
@@ -9848,6 +10158,10 @@ reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_ANALYZER_opt_if_not_exist
 reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_ANALYZER_opt_if_not_exists_ident_~c2efd42e!drop-5	CREATE INVERTED INDEX ANALYZER
 reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_ANALYZER_opt_if_not_exists_ident_~c2efd42e!insert	CREATE INVERTED INDEX ANALYZER a zzz
 reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_ANALYZER_opt_if_not_exists_ident_~c2efd42e!swap	CREATION INVERTED INDEX ANALYZER a
+accept	accept	engine	create_stmt/CREATE_INVERTED_INDEX_ANALYZER_opt_if_not_exists_ident_~c2efd42e+opt_if_not_exists	CREATE INVERTED INDEX ANALYZER IF NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_ANALYZER_opt_if_not_exists_ident_~c2efd42e+opt_if_not_exists!drop-5	CREATE INVERTED INDEX ANALYZER NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_ANALYZER_opt_if_not_exists_ident_~c2efd42e+opt_if_not_exists!drop-6	CREATE INVERTED INDEX ANALYZER IF EXISTS a
+reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_ANALYZER_opt_if_not_exists_ident_~c2efd42e+opt_if_not_exists!drop-7	CREATE INVERTED INDEX ANALYZER IF NOT a
 accept	accept	engine	create_stmt/CREATE_INVERTED_INDEX_TOKENIZER_opt_if_not_exists_ident~ef80cd55	CREATE INVERTED INDEX TOKENIZER a
 reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_TOKENIZER_opt_if_not_exists_ident~ef80cd55!drop-1	INVERTED INDEX TOKENIZER a
 reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_TOKENIZER_opt_if_not_exists_ident~ef80cd55!drop-2	CREATE INDEX TOKENIZER a
@@ -9855,6 +10169,10 @@ reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_TOKENIZER_opt_if_not_exis
 reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_TOKENIZER_opt_if_not_exists_ident~ef80cd55!drop-5	CREATE INVERTED INDEX TOKENIZER
 reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_TOKENIZER_opt_if_not_exists_ident~ef80cd55!insert	CREATE INVERTED INDEX TOKENIZER a zzz
 reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_TOKENIZER_opt_if_not_exists_ident~ef80cd55!swap	CREATION INVERTED INDEX TOKENIZER a
+accept	accept	engine	create_stmt/CREATE_INVERTED_INDEX_TOKENIZER_opt_if_not_exists_ident~ef80cd55+opt_if_not_exists	CREATE INVERTED INDEX TOKENIZER IF NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_TOKENIZER_opt_if_not_exists_ident~ef80cd55+opt_if_not_exists!drop-5	CREATE INVERTED INDEX TOKENIZER NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_TOKENIZER_opt_if_not_exists_ident~ef80cd55+opt_if_not_exists!drop-6	CREATE INVERTED INDEX TOKENIZER IF EXISTS a
+reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_TOKENIZER_opt_if_not_exists_ident~ef80cd55+opt_if_not_exists!drop-7	CREATE INVERTED INDEX TOKENIZER IF NOT a
 accept	accept	engine	create_stmt/CREATE_INVERTED_INDEX_TOKEN_FILTER_opt_if_not_exists_id~53daef64	CREATE INVERTED INDEX TOKEN_FILTER a
 reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_TOKEN_FILTER_opt_if_not_exists_id~53daef64!drop-1	INVERTED INDEX TOKEN_FILTER a
 reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_TOKEN_FILTER_opt_if_not_exists_id~53daef64!drop-2	CREATE INDEX TOKEN_FILTER a
@@ -9862,6 +10180,10 @@ reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_TOKEN_FILTER_opt_if_not_e
 reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_TOKEN_FILTER_opt_if_not_exists_id~53daef64!drop-5	CREATE INVERTED INDEX TOKEN_FILTER
 reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_TOKEN_FILTER_opt_if_not_exists_id~53daef64!insert	CREATE INVERTED INDEX TOKEN_FILTER a zzz
 reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_TOKEN_FILTER_opt_if_not_exists_id~53daef64!swap	CREATION INVERTED INDEX TOKEN_FILTER a
+accept	accept	engine	create_stmt/CREATE_INVERTED_INDEX_TOKEN_FILTER_opt_if_not_exists_id~53daef64+opt_if_not_exists	CREATE INVERTED INDEX TOKEN_FILTER IF NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_TOKEN_FILTER_opt_if_not_exists_id~53daef64+opt_if_not_exists!drop-5	CREATE INVERTED INDEX TOKEN_FILTER NOT EXISTS a
+reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_TOKEN_FILTER_opt_if_not_exists_id~53daef64+opt_if_not_exists!drop-6	CREATE INVERTED INDEX TOKEN_FILTER IF EXISTS a
+reject	reject	engine	create_stmt/CREATE_INVERTED_INDEX_TOKEN_FILTER_opt_if_not_exists_id~53daef64+opt_if_not_exists!drop-7	CREATE INVERTED INDEX TOKEN_FILTER IF NOT a
 accept	accept	engine	create_stmt/BUILD_INDEX_ident_ON_table_name_opt_partition_names	BUILD INDEX a ON a
 reject	reject	engine	create_stmt/BUILD_INDEX_ident_ON_table_name_opt_partition_names!drop-1	INDEX a ON a
 reject	reject	engine	create_stmt/BUILD_INDEX_ident_ON_table_name_opt_partition_names!drop-2	BUILD a ON a
@@ -9877,6 +10199,10 @@ reject	reject	engine	create_stmt/CREATE_STAGE_opt_if_not_exists_ident_PROPERTIES
 reject	reject	engine	create_stmt/CREATE_STAGE_opt_if_not_exists_ident_PROPERTIES_opt_key~ce7961a6!drop-4	CREATE STAGE a
 reject	reject	engine	create_stmt/CREATE_STAGE_opt_if_not_exists_ident_PROPERTIES_opt_key~ce7961a6!insert	CREATE STAGE a PROPERTIES zzz
 reject	reject	engine	create_stmt/CREATE_STAGE_opt_if_not_exists_ident_PROPERTIES_opt_key~ce7961a6!swap	CREATION STAGE a PROPERTIES
+reject	reject	engine	create_stmt/CREATE_STAGE_opt_if_not_exists_ident_PROPERTIES_opt_key~ce7961a6+opt_if_not_exists	CREATE STAGE IF NOT EXISTS a PROPERTIES
+reject	reject	engine	create_stmt/CREATE_STAGE_opt_if_not_exists_ident_PROPERTIES_opt_key~ce7961a6+opt_if_not_exists!drop-3	CREATE STAGE NOT EXISTS a PROPERTIES
+reject	reject	engine	create_stmt/CREATE_STAGE_opt_if_not_exists_ident_PROPERTIES_opt_key~ce7961a6+opt_if_not_exists!drop-4	CREATE STAGE IF EXISTS a PROPERTIES
+reject	reject	engine	create_stmt/CREATE_STAGE_opt_if_not_exists_ident_PROPERTIES_opt_key~ce7961a6+opt_if_not_exists!drop-5	CREATE STAGE IF NOT a PROPERTIES
 accept	accept	engine	opt_aggregate/%empty	CREATE FUNCTION a() RETURNS TINYINT
 reject	reject	engine	opt_aggregate/%empty!insert	CREATE zzz FUNCTION a() RETURNS TINYINT
 accept	accept	engine	opt_aggregate/AGGREGATE	CREATE AGGREGATE FUNCTION a() RETURNS TINYINT
@@ -10839,14 +11165,24 @@ reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_WORKLOAD_GROUP_workloa
 reject	reject	engine	revoke_stmt/REVOKE_privilege_list_ON_WORKLOAD_GROUP_workload_group_~9d26b2e1!swap	REWRITTEN a ON WORKLOAD GROUP * FROM ROLE 'a'
 accept	accept	engine	revoke_stmt/REVOKE_string_list_FROM_user_identity	REVOKE 'a' FROM a
 accept	accept	engine	drop_stmt/DROP_DATABASE_opt_if_exists_db_name_opt_force	DROP DATABASE a
+accept	accept	engine	drop_stmt/DROP_DATABASE_opt_if_exists_db_name_opt_force+opt_if_exists	DROP DATABASE IF EXISTS a
+reject	reject	engine	drop_stmt/DROP_DATABASE_opt_if_exists_db_name_opt_force+opt_if_exists!drop-3	DROP DATABASE EXISTS a
+reject	reject	engine	drop_stmt/DROP_DATABASE_opt_if_exists_db_name_opt_force+opt_if_exists!drop-4	DROP DATABASE IF a
 accept	accept	engine	drop_stmt/DROP_SCHEMA_opt_if_exists_db_name_opt_force	DROP SCHEMA a
 reject	reject	engine	drop_stmt/DROP_SCHEMA_opt_if_exists_db_name_opt_force!drop-3	DROP SCHEMA
 reject	reject	engine	drop_stmt/DROP_SCHEMA_opt_if_exists_db_name_opt_force!insert	DROP SCHEMA a zzz
 reject	reject	engine	drop_stmt/DROP_SCHEMA_opt_if_exists_db_name_opt_force!swap	DROPP SCHEMA a
+accept	accept	engine	drop_stmt/DROP_SCHEMA_opt_if_exists_db_name_opt_force+opt_if_exists	DROP SCHEMA IF EXISTS a
+reject	reject	engine	drop_stmt/DROP_SCHEMA_opt_if_exists_db_name_opt_force+opt_if_exists!drop-3	DROP SCHEMA EXISTS a
+reject	reject	engine	drop_stmt/DROP_SCHEMA_opt_if_exists_db_name_opt_force+opt_if_exists!drop-4	DROP SCHEMA IF a
+accept	accept	engine	drop_stmt/DROP_SCHEMA_opt_if_exists_db_name_opt_force+opt_force	DROP SCHEMA a FORCE
 accept	accept	engine	drop_stmt/DROP_CATALOG_opt_if_exists_ident	DROP CATALOG a
 reject	reject	engine	drop_stmt/DROP_CATALOG_opt_if_exists_ident!drop-3	DROP CATALOG
 reject	reject	engine	drop_stmt/DROP_CATALOG_opt_if_exists_ident!insert	DROP CATALOG a zzz
 reject	reject	engine	drop_stmt/DROP_CATALOG_opt_if_exists_ident!swap	DROPP CATALOG a
+accept	accept	engine	drop_stmt/DROP_CATALOG_opt_if_exists_ident+opt_if_exists	DROP CATALOG IF EXISTS a
+reject	reject	engine	drop_stmt/DROP_CATALOG_opt_if_exists_ident+opt_if_exists!drop-3	DROP CATALOG EXISTS a
+reject	reject	engine	drop_stmt/DROP_CATALOG_opt_if_exists_ident+opt_if_exists!drop-4	DROP CATALOG IF a
 accept	accept	engine	drop_stmt/DROP_opt_var_type_FUNCTION_opt_if_exists_function_name_~3920143c	DROP FUNCTION a()
 reject	reject	engine	drop_stmt/DROP_opt_var_type_FUNCTION_opt_if_exists_function_name_~3920143c!drop-1	FUNCTION a()
 reject	reject	engine	drop_stmt/DROP_opt_var_type_FUNCTION_opt_if_exists_function_name_~3920143c!drop-2	DROP a()
@@ -10855,19 +11191,32 @@ reject	reject	engine	drop_stmt/DROP_opt_var_type_FUNCTION_opt_if_exists_function
 reject	reject	engine	drop_stmt/DROP_opt_var_type_FUNCTION_opt_if_exists_function_name_~3920143c!drop-5	DROP FUNCTION a(
 reject	reject	engine	drop_stmt/DROP_opt_var_type_FUNCTION_opt_if_exists_function_name_~3920143c!insert	DROP FUNCTION a() zzz
 reject	reject	engine	drop_stmt/DROP_opt_var_type_FUNCTION_opt_if_exists_function_name_~3920143c!swap	DROPP FUNCTION a()
+accept	accept	engine	drop_stmt/DROP_opt_var_type_FUNCTION_opt_if_exists_function_name_~3920143c+opt_if_exists	DROP FUNCTION IF EXISTS a()
+reject	reject	engine	drop_stmt/DROP_opt_var_type_FUNCTION_opt_if_exists_function_name_~3920143c+opt_if_exists!drop-3	DROP FUNCTION EXISTS a()
+reject	reject	engine	drop_stmt/DROP_opt_var_type_FUNCTION_opt_if_exists_function_name_~3920143c+opt_if_exists!drop-4	DROP FUNCTION IF a()
 accept	accept	engine	drop_stmt/DROP_opt_tmp_TABLE_opt_if_exists_table_name_opt_force	DROP TABLE a
 reject	reject	engine	drop_stmt/DROP_opt_tmp_TABLE_opt_if_exists_table_name_opt_force!drop-3	DROP TABLE
 reject	reject	engine	drop_stmt/DROP_opt_tmp_TABLE_opt_if_exists_table_name_opt_force!insert	DROP TABLE a zzz
 reject	reject	engine	drop_stmt/DROP_opt_tmp_TABLE_opt_if_exists_table_name_opt_force!swap	DROPP TABLE a
+accept	accept	engine	drop_stmt/DROP_opt_tmp_TABLE_opt_if_exists_table_name_opt_force+opt_if_exists	DROP TABLE IF EXISTS a
+reject	reject	engine	drop_stmt/DROP_opt_tmp_TABLE_opt_if_exists_table_name_opt_force+opt_if_exists!drop-3	DROP TABLE EXISTS a
+reject	reject	engine	drop_stmt/DROP_opt_tmp_TABLE_opt_if_exists_table_name_opt_force+opt_if_exists!drop-4	DROP TABLE IF a
+accept	accept	engine	drop_stmt/DROP_opt_tmp_TABLE_opt_if_exists_table_name_opt_force+opt_force	DROP TABLE a FORCE
 accept	accept	engine	drop_stmt/DROP_USER_opt_if_exists_user_identity	DROP USER a
 reject	reject	engine	drop_stmt/DROP_USER_opt_if_exists_user_identity!drop-3	DROP USER
 reject	reject	engine	drop_stmt/DROP_USER_opt_if_exists_user_identity!insert	DROP USER a zzz
 reject	reject	engine	drop_stmt/DROP_USER_opt_if_exists_user_identity!swap	DROPP USER a
+accept	accept	engine	drop_stmt/DROP_USER_opt_if_exists_user_identity+opt_if_exists	DROP USER IF EXISTS a
+reject	reject	engine	drop_stmt/DROP_USER_opt_if_exists_user_identity+opt_if_exists!drop-3	DROP USER EXISTS a
+reject	reject	engine	drop_stmt/DROP_USER_opt_if_exists_user_identity+opt_if_exists!drop-4	DROP USER IF a
 accept	accept	engine	drop_stmt/DROP_VIEW_opt_if_exists_table_name	DROP VIEW a
 reject	reject	engine	drop_stmt/DROP_VIEW_opt_if_exists_table_name!drop-1	VIEW a
 reject	reject	engine	drop_stmt/DROP_VIEW_opt_if_exists_table_name!drop-3	DROP VIEW
 reject	reject	engine	drop_stmt/DROP_VIEW_opt_if_exists_table_name!insert	DROP VIEW a zzz
 reject	reject	engine	drop_stmt/DROP_VIEW_opt_if_exists_table_name!swap	DROPP VIEW a
+accept	accept	engine	drop_stmt/DROP_VIEW_opt_if_exists_table_name+opt_if_exists	DROP VIEW IF EXISTS a
+reject	reject	engine	drop_stmt/DROP_VIEW_opt_if_exists_table_name+opt_if_exists!drop-3	DROP VIEW EXISTS a
+reject	reject	engine	drop_stmt/DROP_VIEW_opt_if_exists_table_name+opt_if_exists!drop-4	DROP VIEW IF a
 accept	accept	engine	drop_stmt/DROP_REPOSITORY_ident	DROP REPOSITORY a
 reject	reject	engine	drop_stmt/DROP_REPOSITORY_ident!drop-3	DROP REPOSITORY
 reject	reject	engine	drop_stmt/DROP_REPOSITORY_ident!insert	DROP REPOSITORY a zzz
@@ -10876,6 +11225,9 @@ accept	accept	engine	drop_stmt/DROP_ROLE_opt_if_exists_ident	DROP ROLE a
 reject	reject	engine	drop_stmt/DROP_ROLE_opt_if_exists_ident!drop-3	DROP ROLE
 reject	reject	engine	drop_stmt/DROP_ROLE_opt_if_exists_ident!insert	DROP ROLE a zzz
 reject	reject	engine	drop_stmt/DROP_ROLE_opt_if_exists_ident!swap	DROPP ROLE a
+accept	accept	engine	drop_stmt/DROP_ROLE_opt_if_exists_ident+opt_if_exists	DROP ROLE IF EXISTS a
+reject	reject	engine	drop_stmt/DROP_ROLE_opt_if_exists_ident+opt_if_exists!drop-3	DROP ROLE EXISTS a
+reject	reject	engine	drop_stmt/DROP_ROLE_opt_if_exists_ident+opt_if_exists!drop-4	DROP ROLE IF a
 accept	accept	engine	drop_stmt/DROP_FILE_STRING_LITERAL_opt_db_PROPERTIES_(_key_value_map_)	DROP FILE 'a' PROPERTIES('a' = 'a')
 reject	reject	engine	drop_stmt/DROP_FILE_STRING_LITERAL_opt_db_PROPERTIES_(_key_value_map_)!drop-2	DROP 'a' PROPERTIES('a' = 'a')
 reject	reject	engine	drop_stmt/DROP_FILE_STRING_LITERAL_opt_db_PROPERTIES_(_key_value_map_)!drop-3	DROP FILE PROPERTIES('a' = 'a')
@@ -10894,6 +11246,9 @@ reject	reject	engine	drop_stmt/DROP_INDEX_opt_if_exists_ident_ON_table_name!drop
 reject	reject	engine	drop_stmt/DROP_INDEX_opt_if_exists_ident_ON_table_name!drop-5	DROP INDEX a ON
 reject	reject	engine	drop_stmt/DROP_INDEX_opt_if_exists_ident_ON_table_name!insert	DROP INDEX a ON a zzz
 reject	reject	engine	drop_stmt/DROP_INDEX_opt_if_exists_ident_ON_table_name!swap	DROPP INDEX a ON a
+accept	accept	engine	drop_stmt/DROP_INDEX_opt_if_exists_ident_ON_table_name+opt_if_exists	DROP INDEX IF EXISTS a ON a
+reject	reject	engine	drop_stmt/DROP_INDEX_opt_if_exists_ident_ON_table_name+opt_if_exists!drop-3	DROP INDEX EXISTS a ON a
+reject	reject	engine	drop_stmt/DROP_INDEX_opt_if_exists_ident_ON_table_name+opt_if_exists!drop-4	DROP INDEX IF a ON a
 accept	accept	engine	drop_stmt/DROP_MATERIALIZED_VIEW_opt_if_exists_ident_ON_table_name	DROP MATERIALIZED VIEW a ON a
 reject	reject	engine	drop_stmt/DROP_MATERIALIZED_VIEW_opt_if_exists_ident_ON_table_name!drop-1	MATERIALIZED VIEW a ON a
 reject	reject	engine	drop_stmt/DROP_MATERIALIZED_VIEW_opt_if_exists_ident_ON_table_name!drop-2	DROP VIEW a ON a
@@ -10903,30 +11258,48 @@ reject	reject	engine	drop_stmt/DROP_MATERIALIZED_VIEW_opt_if_exists_ident_ON_tab
 reject	reject	engine	drop_stmt/DROP_MATERIALIZED_VIEW_opt_if_exists_ident_ON_table_name!drop-6	DROP MATERIALIZED VIEW a ON
 reject	reject	engine	drop_stmt/DROP_MATERIALIZED_VIEW_opt_if_exists_ident_ON_table_name!insert	DROP MATERIALIZED VIEW a ON a zzz
 reject	reject	engine	drop_stmt/DROP_MATERIALIZED_VIEW_opt_if_exists_ident_ON_table_name!swap	DROPP MATERIALIZED VIEW a ON a
+accept	accept	engine	drop_stmt/DROP_MATERIALIZED_VIEW_opt_if_exists_ident_ON_table_name+opt_if_exists	DROP MATERIALIZED VIEW IF EXISTS a ON a
+reject	reject	engine	drop_stmt/DROP_MATERIALIZED_VIEW_opt_if_exists_ident_ON_table_name+opt_if_exists!drop-4	DROP MATERIALIZED VIEW EXISTS a ON a
+reject	reject	engine	drop_stmt/DROP_MATERIALIZED_VIEW_opt_if_exists_ident_ON_table_name+opt_if_exists!drop-5	DROP MATERIALIZED VIEW IF a ON a
 accept	accept	engine	drop_stmt/DROP_RESOURCE_opt_if_exists_ident_or_text	DROP RESOURCE a
 reject	reject	engine	drop_stmt/DROP_RESOURCE_opt_if_exists_ident_or_text!drop-3	DROP RESOURCE
 reject	reject	engine	drop_stmt/DROP_RESOURCE_opt_if_exists_ident_or_text!insert	DROP RESOURCE a zzz
 reject	reject	engine	drop_stmt/DROP_RESOURCE_opt_if_exists_ident_or_text!swap	DROPP RESOURCE a
+accept	accept	engine	drop_stmt/DROP_RESOURCE_opt_if_exists_ident_or_text+opt_if_exists	DROP RESOURCE IF EXISTS a
+reject	reject	engine	drop_stmt/DROP_RESOURCE_opt_if_exists_ident_or_text+opt_if_exists!drop-3	DROP RESOURCE EXISTS a
+reject	reject	engine	drop_stmt/DROP_RESOURCE_opt_if_exists_ident_or_text+opt_if_exists!drop-4	DROP RESOURCE IF a
 accept	accept	engine	drop_stmt/DROP_WORKLOAD_GROUP_opt_if_exists_ident_or_text	DROP WORKLOAD GROUP a
 reject	reject	engine	drop_stmt/DROP_WORKLOAD_GROUP_opt_if_exists_ident_or_text!drop-2	DROP GROUP a
 reject	reject	engine	drop_stmt/DROP_WORKLOAD_GROUP_opt_if_exists_ident_or_text!drop-3	DROP WORKLOAD a
 reject	reject	engine	drop_stmt/DROP_WORKLOAD_GROUP_opt_if_exists_ident_or_text!drop-4	DROP WORKLOAD GROUP
 reject	reject	engine	drop_stmt/DROP_WORKLOAD_GROUP_opt_if_exists_ident_or_text!insert	DROP WORKLOAD GROUP a zzz
 reject	reject	engine	drop_stmt/DROP_WORKLOAD_GROUP_opt_if_exists_ident_or_text!swap	DROPP WORKLOAD GROUP a
+accept	accept	engine	drop_stmt/DROP_WORKLOAD_GROUP_opt_if_exists_ident_or_text+opt_if_exists	DROP WORKLOAD GROUP IF EXISTS a
+reject	reject	engine	drop_stmt/DROP_WORKLOAD_GROUP_opt_if_exists_ident_or_text+opt_if_exists!drop-4	DROP WORKLOAD GROUP EXISTS a
+reject	reject	engine	drop_stmt/DROP_WORKLOAD_GROUP_opt_if_exists_ident_or_text+opt_if_exists!drop-5	DROP WORKLOAD GROUP IF a
 accept	accept	engine	drop_stmt/DROP_WORKLOAD_POLICY_opt_if_exists_ident_or_text	DROP WORKLOAD POLICY a
 reject	reject	engine	drop_stmt/DROP_WORKLOAD_POLICY_opt_if_exists_ident_or_text!drop-2	DROP POLICY a
 reject	reject	engine	drop_stmt/DROP_WORKLOAD_POLICY_opt_if_exists_ident_or_text!drop-4	DROP WORKLOAD POLICY
 reject	reject	engine	drop_stmt/DROP_WORKLOAD_POLICY_opt_if_exists_ident_or_text!insert	DROP WORKLOAD POLICY a zzz
 reject	reject	engine	drop_stmt/DROP_WORKLOAD_POLICY_opt_if_exists_ident_or_text!swap	DROPP WORKLOAD POLICY a
+accept	accept	engine	drop_stmt/DROP_WORKLOAD_POLICY_opt_if_exists_ident_or_text+opt_if_exists	DROP WORKLOAD POLICY IF EXISTS a
+reject	reject	engine	drop_stmt/DROP_WORKLOAD_POLICY_opt_if_exists_ident_or_text+opt_if_exists!drop-4	DROP WORKLOAD POLICY EXISTS a
+reject	reject	engine	drop_stmt/DROP_WORKLOAD_POLICY_opt_if_exists_ident_or_text+opt_if_exists!drop-5	DROP WORKLOAD POLICY IF a
 accept	accept	engine	drop_stmt/DROP_ENCRYPTKEY_opt_if_exists_encryptkey_name	DROP ENCRYPTKEY a
 reject	reject	engine	drop_stmt/DROP_ENCRYPTKEY_opt_if_exists_encryptkey_name!drop-1	ENCRYPTKEY a
 reject	reject	engine	drop_stmt/DROP_ENCRYPTKEY_opt_if_exists_encryptkey_name!drop-3	DROP ENCRYPTKEY
 reject	reject	engine	drop_stmt/DROP_ENCRYPTKEY_opt_if_exists_encryptkey_name!insert	DROP ENCRYPTKEY a zzz
 reject	reject	engine	drop_stmt/DROP_ENCRYPTKEY_opt_if_exists_encryptkey_name!swap	DROPP ENCRYPTKEY a
+accept	accept	engine	drop_stmt/DROP_ENCRYPTKEY_opt_if_exists_encryptkey_name+opt_if_exists	DROP ENCRYPTKEY IF EXISTS a
+reject	reject	engine	drop_stmt/DROP_ENCRYPTKEY_opt_if_exists_encryptkey_name+opt_if_exists!drop-3	DROP ENCRYPTKEY EXISTS a
+reject	reject	engine	drop_stmt/DROP_ENCRYPTKEY_opt_if_exists_encryptkey_name+opt_if_exists!drop-4	DROP ENCRYPTKEY IF a
 accept	accept	engine	drop_stmt/DROP_SQL_BLOCK_RULE_opt_if_exists_ident_list	DROP SQL_BLOCK_RULE a
 reject	reject	engine	drop_stmt/DROP_SQL_BLOCK_RULE_opt_if_exists_ident_list!drop-3	DROP SQL_BLOCK_RULE
 reject	reject	engine	drop_stmt/DROP_SQL_BLOCK_RULE_opt_if_exists_ident_list!insert	DROP SQL_BLOCK_RULE a zzz
 reject	reject	engine	drop_stmt/DROP_SQL_BLOCK_RULE_opt_if_exists_ident_list!swap	DROPP SQL_BLOCK_RULE a
+accept	accept	engine	drop_stmt/DROP_SQL_BLOCK_RULE_opt_if_exists_ident_list+opt_if_exists	DROP SQL_BLOCK_RULE IF EXISTS a
+reject	reject	engine	drop_stmt/DROP_SQL_BLOCK_RULE_opt_if_exists_ident_list+opt_if_exists!drop-3	DROP SQL_BLOCK_RULE EXISTS a
+reject	reject	engine	drop_stmt/DROP_SQL_BLOCK_RULE_opt_if_exists_ident_list+opt_if_exists!drop-4	DROP SQL_BLOCK_RULE IF a
 accept	accept	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name	DROP ROW POLICY a ON a
 reject	reject	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name!drop-1	ROW POLICY a ON a
 reject	reject	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name!drop-2	DROP POLICY a ON a
@@ -10936,6 +11309,9 @@ reject	reject	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name
 reject	reject	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name!drop-6	DROP ROW POLICY a ON
 reject	reject	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name!insert	DROP ROW POLICY a ON a zzz
 reject	reject	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name!swap	DROPP ROW POLICY a ON a
+accept	accept	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name+opt_if_exists	DROP ROW POLICY IF EXISTS a ON a
+reject	reject	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name+opt_if_exists!drop-4	DROP ROW POLICY EXISTS a ON a
+reject	reject	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name+opt_if_exists!drop-5	DROP ROW POLICY IF a ON a
 accept	accept	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name_FOR_u~0dd765a7	DROP ROW POLICY a ON a FOR a
 reject	reject	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name_FOR_u~0dd765a7!drop-1	ROW POLICY a ON a FOR a
 reject	reject	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name_FOR_u~0dd765a7!drop-2	DROP POLICY a ON a FOR a
@@ -10947,6 +11323,9 @@ reject	reject	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name
 reject	reject	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name_FOR_u~0dd765a7!drop-8	DROP ROW POLICY a ON a FOR
 reject	reject	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name_FOR_u~0dd765a7!insert	DROP ROW POLICY a ON a FOR a zzz
 reject	reject	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name_FOR_u~0dd765a7!swap	DROPP ROW POLICY a ON a FOR a
+accept	accept	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name_FOR_u~0dd765a7+opt_if_exists	DROP ROW POLICY IF EXISTS a ON a FOR a
+reject	reject	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name_FOR_u~0dd765a7+opt_if_exists!drop-4	DROP ROW POLICY EXISTS a ON a FOR a
+reject	reject	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name_FOR_u~0dd765a7+opt_if_exists!drop-5	DROP ROW POLICY IF a ON a FOR a
 accept	accept	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name_FOR_ROLE_ident	DROP ROW POLICY a ON a FOR ROLE a
 reject	reject	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name_FOR_ROLE_ident!drop-1	ROW POLICY a ON a FOR ROLE a
 reject	reject	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name_FOR_ROLE_ident!drop-2	DROP POLICY a ON a FOR ROLE a
@@ -10958,11 +11337,17 @@ reject	reject	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name
 reject	reject	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name_FOR_ROLE_ident!drop-9	DROP ROW POLICY a ON a FOR ROLE
 reject	reject	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name_FOR_ROLE_ident!insert	DROP ROW POLICY a ON a FOR ROLE a zzz
 reject	reject	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name_FOR_ROLE_ident!swap	DROPP ROW POLICY a ON a FOR ROLE a
+accept	accept	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name_FOR_ROLE_ident+opt_if_exists	DROP ROW POLICY IF EXISTS a ON a FOR ROLE a
+reject	reject	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name_FOR_ROLE_ident+opt_if_exists!drop-4	DROP ROW POLICY EXISTS a ON a FOR ROLE a
+reject	reject	engine	drop_stmt/DROP_ROW_POLICY_opt_if_exists_ident_ON_table_name_FOR_ROLE_ident+opt_if_exists!drop-5	DROP ROW POLICY IF a ON a FOR ROLE a
 accept	accept	engine	drop_stmt/DROP_STORAGE_POLICY_opt_if_exists_ident	DROP STORAGE POLICY a
 reject	reject	engine	drop_stmt/DROP_STORAGE_POLICY_opt_if_exists_ident!drop-3	DROP STORAGE a
 reject	reject	engine	drop_stmt/DROP_STORAGE_POLICY_opt_if_exists_ident!drop-4	DROP STORAGE POLICY
 reject	reject	engine	drop_stmt/DROP_STORAGE_POLICY_opt_if_exists_ident!insert	DROP STORAGE POLICY a zzz
 reject	reject	engine	drop_stmt/DROP_STORAGE_POLICY_opt_if_exists_ident!swap	DROPP STORAGE POLICY a
+accept	accept	engine	drop_stmt/DROP_STORAGE_POLICY_opt_if_exists_ident+opt_if_exists	DROP STORAGE POLICY IF EXISTS a
+reject	reject	engine	drop_stmt/DROP_STORAGE_POLICY_opt_if_exists_ident+opt_if_exists!drop-4	DROP STORAGE POLICY EXISTS a
+reject	reject	engine	drop_stmt/DROP_STORAGE_POLICY_opt_if_exists_ident+opt_if_exists!drop-5	DROP STORAGE POLICY IF a
 accept	accept	engine	drop_stmt/DROP_INVERTED_INDEX_ANALYZER_opt_if_exists_ident	DROP INVERTED INDEX ANALYZER a
 reject	reject	engine	drop_stmt/DROP_INVERTED_INDEX_ANALYZER_opt_if_exists_ident!drop-2	DROP INDEX ANALYZER a
 reject	reject	engine	drop_stmt/DROP_INVERTED_INDEX_ANALYZER_opt_if_exists_ident!drop-3	DROP INVERTED ANALYZER a
@@ -10970,18 +11355,27 @@ reject	reject	engine	drop_stmt/DROP_INVERTED_INDEX_ANALYZER_opt_if_exists_ident!
 reject	reject	engine	drop_stmt/DROP_INVERTED_INDEX_ANALYZER_opt_if_exists_ident!drop-5	DROP INVERTED INDEX ANALYZER
 reject	reject	engine	drop_stmt/DROP_INVERTED_INDEX_ANALYZER_opt_if_exists_ident!insert	DROP INVERTED INDEX ANALYZER a zzz
 reject	reject	engine	drop_stmt/DROP_INVERTED_INDEX_ANALYZER_opt_if_exists_ident!swap	DROPP INVERTED INDEX ANALYZER a
+accept	accept	engine	drop_stmt/DROP_INVERTED_INDEX_ANALYZER_opt_if_exists_ident+opt_if_exists	DROP INVERTED INDEX ANALYZER IF EXISTS a
+reject	reject	engine	drop_stmt/DROP_INVERTED_INDEX_ANALYZER_opt_if_exists_ident+opt_if_exists!drop-5	DROP INVERTED INDEX ANALYZER EXISTS a
+reject	reject	engine	drop_stmt/DROP_INVERTED_INDEX_ANALYZER_opt_if_exists_ident+opt_if_exists!drop-6	DROP INVERTED INDEX ANALYZER IF a
 accept	accept	engine	drop_stmt/DROP_INVERTED_INDEX_TOKENIZER_opt_if_exists_ident	DROP INVERTED INDEX TOKENIZER a
 reject	reject	engine	drop_stmt/DROP_INVERTED_INDEX_TOKENIZER_opt_if_exists_ident!drop-2	DROP INDEX TOKENIZER a
 reject	reject	engine	drop_stmt/DROP_INVERTED_INDEX_TOKENIZER_opt_if_exists_ident!drop-3	DROP INVERTED TOKENIZER a
 reject	reject	engine	drop_stmt/DROP_INVERTED_INDEX_TOKENIZER_opt_if_exists_ident!drop-5	DROP INVERTED INDEX TOKENIZER
 reject	reject	engine	drop_stmt/DROP_INVERTED_INDEX_TOKENIZER_opt_if_exists_ident!insert	DROP INVERTED INDEX TOKENIZER a zzz
 reject	reject	engine	drop_stmt/DROP_INVERTED_INDEX_TOKENIZER_opt_if_exists_ident!swap	DROPP INVERTED INDEX TOKENIZER a
+accept	accept	engine	drop_stmt/DROP_INVERTED_INDEX_TOKENIZER_opt_if_exists_ident+opt_if_exists	DROP INVERTED INDEX TOKENIZER IF EXISTS a
+reject	reject	engine	drop_stmt/DROP_INVERTED_INDEX_TOKENIZER_opt_if_exists_ident+opt_if_exists!drop-5	DROP INVERTED INDEX TOKENIZER EXISTS a
+reject	reject	engine	drop_stmt/DROP_INVERTED_INDEX_TOKENIZER_opt_if_exists_ident+opt_if_exists!drop-6	DROP INVERTED INDEX TOKENIZER IF a
 accept	accept	engine	drop_stmt/DROP_INVERTED_INDEX_TOKEN_FILTER_opt_if_exists_ident	DROP INVERTED INDEX TOKEN_FILTER a
 reject	reject	engine	drop_stmt/DROP_INVERTED_INDEX_TOKEN_FILTER_opt_if_exists_ident!drop-2	DROP INDEX TOKEN_FILTER a
 reject	reject	engine	drop_stmt/DROP_INVERTED_INDEX_TOKEN_FILTER_opt_if_exists_ident!drop-3	DROP INVERTED TOKEN_FILTER a
 reject	reject	engine	drop_stmt/DROP_INVERTED_INDEX_TOKEN_FILTER_opt_if_exists_ident!drop-5	DROP INVERTED INDEX TOKEN_FILTER
 reject	reject	engine	drop_stmt/DROP_INVERTED_INDEX_TOKEN_FILTER_opt_if_exists_ident!insert	DROP INVERTED INDEX TOKEN_FILTER a zzz
 reject	reject	engine	drop_stmt/DROP_INVERTED_INDEX_TOKEN_FILTER_opt_if_exists_ident!swap	DROPP INVERTED INDEX TOKEN_FILTER a
+accept	accept	engine	drop_stmt/DROP_INVERTED_INDEX_TOKEN_FILTER_opt_if_exists_ident+opt_if_exists	DROP INVERTED INDEX TOKEN_FILTER IF EXISTS a
+reject	reject	engine	drop_stmt/DROP_INVERTED_INDEX_TOKEN_FILTER_opt_if_exists_ident+opt_if_exists!drop-5	DROP INVERTED INDEX TOKEN_FILTER EXISTS a
+reject	reject	engine	drop_stmt/DROP_INVERTED_INDEX_TOKEN_FILTER_opt_if_exists_ident+opt_if_exists!drop-6	DROP INVERTED INDEX TOKEN_FILTER IF a
 accept	accept	engine	drop_stmt/DROP_STATS_table_name_opt_col_list_opt_partition_names	DROP STATS a
 reject	reject	engine	drop_stmt/DROP_STATS_table_name_opt_col_list_opt_partition_names!drop-1	STATS a
 reject	reject	engine	drop_stmt/DROP_STATS_table_name_opt_col_list_opt_partition_names!drop-3	DROP STATS
@@ -11009,6 +11403,9 @@ reject	reject	engine	drop_stmt/DROP_STAGE_opt_if_exists_ident!drop-1	STAGE a
 reject	reject	engine	drop_stmt/DROP_STAGE_opt_if_exists_ident!drop-3	DROP STAGE
 reject	reject	engine	drop_stmt/DROP_STAGE_opt_if_exists_ident!insert	DROP STAGE a zzz
 reject	reject	engine	drop_stmt/DROP_STAGE_opt_if_exists_ident!swap	DROPP STAGE a
+accept	accept	engine	drop_stmt/DROP_STAGE_opt_if_exists_ident+opt_if_exists	DROP STAGE IF EXISTS a
+reject	reject	engine	drop_stmt/DROP_STAGE_opt_if_exists_ident+opt_if_exists!drop-3	DROP STAGE EXISTS a
+reject	reject	engine	drop_stmt/DROP_STAGE_opt_if_exists_ident+opt_if_exists!drop-4	DROP STAGE IF a
 accept	accept	engine	recover_stmt/RECOVER_DATABASE_ident_opt_id_opt_alias	RECOVER DATABASE a
 accept	accept	engine	recover_stmt/RECOVER_TABLE_table_name_opt_id_opt_alias	RECOVER TABLE a
 reject	reject	engine	recover_stmt/RECOVER_TABLE_table_name_opt_id_opt_alias!drop-3	RECOVER TABLE
@@ -11258,6 +11655,10 @@ reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VAL
 reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_LESS_THAN_part~fb5d8bf9!drop-6	ALTER TABLE a ADD PARTITION a VALUES LESS THAN
 reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_LESS_THAN_part~fb5d8bf9!insert	ALTER TABLE a ADD PARTITION a VALUES LESS THAN MAXVALUE zzz
 reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_LESS_THAN_part~fb5d8bf9!swap	ALTER TABLE a ADD PARTITIONS a VALUES LESS THAN MAXVALUE
+accept	accept	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_LESS_THAN_part~fb5d8bf9+opt_if_not_exists	ALTER TABLE a ADD PARTITION IF NOT EXISTS a VALUES LESS THAN MAXVALUE
+reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_LESS_THAN_part~fb5d8bf9+opt_if_not_exists!drop-2	ALTER TABLE a ADD PARTITION NOT EXISTS a VALUES LESS THAN MAXVALUE
+reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_LESS_THAN_part~fb5d8bf9+opt_if_not_exists!drop-3	ALTER TABLE a ADD PARTITION IF EXISTS a VALUES LESS THAN MAXVALUE
+reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_LESS_THAN_part~fb5d8bf9+opt_if_not_exists!drop-4	ALTER TABLE a ADD PARTITION IF NOT a VALUES LESS THAN MAXVALUE
 reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_fixed_partitio~1d30e68d	ALTER TABLE a ADD PARTITION a VALUES [(),())
 reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_fixed_partitio~1d30e68d!drop-1	ALTER TABLE a ADD a VALUES [(),())
 reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_fixed_partitio~1d30e68d!drop-2	ALTER TABLE a ADD PARTITION VALUES [(),())
@@ -11270,8 +11671,16 @@ reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VAL
 reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_fixed_partitio~1d30e68d!drop-9	ALTER TABLE a ADD PARTITION a VALUES [(),()
 reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_fixed_partitio~1d30e68d!insert	ALTER TABLE a ADD PARTITION a VALUES [(),()) zzz
 reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_fixed_partitio~1d30e68d!swap	ALTER TABLE a ADD PARTITIONS a VALUES [(),())
+reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_fixed_partitio~1d30e68d+opt_if_not_exists	ALTER TABLE a ADD PARTITION IF NOT EXISTS a VALUES [(),())
+reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_fixed_partitio~1d30e68d+opt_if_not_exists!drop-2	ALTER TABLE a ADD PARTITION NOT EXISTS a VALUES [(),())
+reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_fixed_partitio~1d30e68d+opt_if_not_exists!drop-3	ALTER TABLE a ADD PARTITION IF EXISTS a VALUES [(),())
+reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_fixed_partitio~1d30e68d+opt_if_not_exists!drop-4	ALTER TABLE a ADD PARTITION IF NOT a VALUES [(),())
 accept	accept	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_list_partition_key_de~131d5da1	ALTER TABLE a ADD PARTITION a
 reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_list_partition_key_de~131d5da1!swap	ALTER TABLE a ADD PARTITIONS a
+accept	accept	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_list_partition_key_de~131d5da1+opt_if_not_exists	ALTER TABLE a ADD PARTITION IF NOT EXISTS a
+reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_list_partition_key_de~131d5da1+opt_if_not_exists!drop-2	ALTER TABLE a ADD PARTITION NOT EXISTS a
+reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_list_partition_key_de~131d5da1+opt_if_not_exists!drop-3	ALTER TABLE a ADD PARTITION IF EXISTS a
+reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_list_partition_key_de~131d5da1+opt_if_not_exists!drop-4	ALTER TABLE a ADD PARTITION IF NOT a
 reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_IN_list_partit~f351fe23	ALTER TABLE a ADD PARTITION a VALUES IN
 reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_IN_list_partit~f351fe23!drop-1	ALTER TABLE a ADD a VALUES IN
 reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_IN_list_partit~f351fe23!drop-2	ALTER TABLE a ADD PARTITION VALUES IN
@@ -11279,6 +11688,10 @@ reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VAL
 reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_IN_list_partit~f351fe23!drop-4	ALTER TABLE a ADD PARTITION a VALUES
 reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_IN_list_partit~f351fe23!insert	ALTER TABLE a ADD PARTITION a VALUES IN zzz
 reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_IN_list_partit~f351fe23!swap	ALTER TABLE a ADD PARTITIONS a VALUES IN
+reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_IN_list_partit~f351fe23+opt_if_not_exists	ALTER TABLE a ADD PARTITION IF NOT EXISTS a VALUES IN
+reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_IN_list_partit~f351fe23+opt_if_not_exists!drop-2	ALTER TABLE a ADD PARTITION NOT EXISTS a VALUES IN
+reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_IN_list_partit~f351fe23+opt_if_not_exists!drop-3	ALTER TABLE a ADD PARTITION IF EXISTS a VALUES IN
+reject	reject	engine	single_partition_desc/PARTITION_opt_if_not_exists_ident_VALUES_IN_list_partit~f351fe23+opt_if_not_exists!drop-4	ALTER TABLE a ADD PARTITION IF NOT a VALUES IN
 reject	reject	engine	multi_partition_desc/fixed_multi_partition_key_desc_opt_key_value_map	CREATE TABLE a PARTITION BY RANGE(a)(FROM() TO() INTERVAL 1) AS SELECT 1
 reject	reject	engine	fixed_multi_partition_key_desc/FROM_(_partition_key_list_)_TO_(_partition_key_list_)_I~e922dbab	CREATE TABLE a PARTITION BY RANGE(a)(FROM() TO() INTERVAL 1 a) AS SELECT 1
 reject	reject	engine	fixed_multi_partition_key_desc/FROM_(_partition_key_list_)_TO_(_partition_key_list_)_I~e922dbab!drop-1	CREATE TABLE a PARTITION BY RANGE(a)(() TO() INTERVAL 1 a) AS SELECT 1
@@ -11622,6 +12035,10 @@ reject	reject	engine	column_definition/ident_type_def_opt_is_key_opt_generated_a
 reject	reject	engine	column_definition/ident_type_def_opt_is_key_opt_generated_always_AS_(_exp~3cd820d5!swap	ALTER TABLE a ADD COLUMN a TO AS(1)
 accept	accept	engine	index_definition/INDEX_opt_if_not_exists_ident_(_ident_list_)_opt_index_~707d6d01	ALTER TABLE a ADD INDEX a(a)
 reject	reject	engine	index_definition/INDEX_opt_if_not_exists_ident_(_ident_list_)_opt_index_~707d6d01!swap	ALTER TABLE a ADD INDEXES a(a)
+accept	accept	engine	index_definition/INDEX_opt_if_not_exists_ident_(_ident_list_)_opt_index_~707d6d01+opt_if_not_exists	ALTER TABLE a ADD INDEX IF NOT EXISTS a(a)
+reject	reject	engine	index_definition/INDEX_opt_if_not_exists_ident_(_ident_list_)_opt_index_~707d6d01+opt_if_not_exists!drop-2	ALTER TABLE a ADD INDEX NOT EXISTS a(a)
+reject	reject	engine	index_definition/INDEX_opt_if_not_exists_ident_(_ident_list_)_opt_index_~707d6d01+opt_if_not_exists!drop-3	ALTER TABLE a ADD INDEX IF EXISTS a(a)
+reject	reject	engine	index_definition/INDEX_opt_if_not_exists_ident_(_ident_list_)_opt_index_~707d6d01+opt_if_not_exists!drop-4	ALTER TABLE a ADD INDEX IF NOT a(a)
 accept	accept	engine	opt_nullable_type/%empty	ALTER TABLE a ADD COLUMN a TINYINT
 accept	accept	engine	opt_nullable_type/NULL	ALTER TABLE a ADD COLUMN a TINYINT NULL
 reject	reject	engine	opt_nullable_type/NULL!insert	ALTER TABLE a ADD COLUMN a TINYINT NULL zzz
@@ -11835,9 +12252,11 @@ reject	reject	engine	show_param/opt_full_TABLES_from_or_in_ident_._ident_opt_wil
 reject	reject	engine	show_param/opt_full_TABLES_from_or_in_ident_._ident_opt_wild_where!drop-5	SHOW TABLES FROM a.
 reject	reject	engine	show_param/opt_full_TABLES_from_or_in_ident_._ident_opt_wild_where!insert	SHOW TABLES FROM a.a zzz
 reject	reject	engine	show_param/opt_full_TABLES_from_or_in_ident_._ident_opt_wild_where!swap	SHOW TABLESAMPLE FROM a.a
+accept	accept	engine	show_param/opt_full_TABLES_from_or_in_ident_._ident_opt_wild_where+opt_full	SHOW FULL TABLES FROM a.a
 accept	accept	engine	show_param/opt_full_VIEWS_opt_db_opt_wild_where	SHOW VIEWS
 reject	reject	engine	show_param/opt_full_VIEWS_opt_db_opt_wild_where!insert	SHOW VIEWS zzz
 reject	reject	engine	show_param/opt_full_VIEWS_opt_db_opt_wild_where!swap	SHOW WARM
+accept	accept	engine	show_param/opt_full_VIEWS_opt_db_opt_wild_where+opt_full	SHOW FULL VIEWS
 accept	accept	engine	show_param/opt_full_VIEWS_from_or_in_ident_._ident_opt_wild_where	SHOW VIEWS FROM a.a
 reject	reject	engine	show_param/opt_full_VIEWS_from_or_in_ident_._ident_opt_wild_where!drop-2	SHOW VIEWS a.a
 reject	reject	engine	show_param/opt_full_VIEWS_from_or_in_ident_._ident_opt_wild_where!drop-3	SHOW VIEWS FROM.a
@@ -11845,6 +12264,7 @@ reject	reject	engine	show_param/opt_full_VIEWS_from_or_in_ident_._ident_opt_wild
 reject	reject	engine	show_param/opt_full_VIEWS_from_or_in_ident_._ident_opt_wild_where!drop-5	SHOW VIEWS FROM a.
 reject	reject	engine	show_param/opt_full_VIEWS_from_or_in_ident_._ident_opt_wild_where!insert	SHOW VIEWS FROM a.a zzz
 reject	reject	engine	show_param/opt_full_VIEWS_from_or_in_ident_._ident_opt_wild_where!swap	SHOW WARM FROM a.a
+accept	accept	engine	show_param/opt_full_VIEWS_from_or_in_ident_._ident_opt_wild_where+opt_full	SHOW FULL VIEWS FROM a.a
 accept	accept	engine	show_param/TABLE_INTEGER_VALUE	SHOW TABLE 1
 reject	reject	engine	show_param/TABLE_INTEGER_VALUE!drop-1	SHOW 1
 reject	reject	engine	show_param/TABLE_INTEGER_VALUE!insert	SHOW TABLE 1 zzz
@@ -11852,6 +12272,7 @@ reject	reject	engine	show_param/TABLE_INTEGER_VALUE!swap	SHOW TABLES 1
 accept	accept	engine	show_param/opt_full_PROCESSLIST	SHOW PROCESSLIST
 reject	reject	engine	show_param/opt_full_PROCESSLIST!insert	SHOW PROCESSLIST zzz
 reject	reject	engine	show_param/opt_full_PROCESSLIST!swap	SHOW PROFILE
+accept	accept	engine	show_param/opt_full_PROCESSLIST+opt_full	SHOW FULL PROCESSLIST
 accept	accept	engine	show_param/procedure_or_function_STATUS_opt_wild_where	SHOW PROCEDURE STATUS
 reject	reject	engine	show_param/procedure_or_function_STATUS_opt_wild_where!drop-2	SHOW PROCEDURE
 reject	reject	engine	show_param/procedure_or_function_STATUS_opt_wild_where!insert	SHOW PROCEDURE STATUS zzz
@@ -11862,6 +12283,7 @@ reject	reject	engine	show_param/opt_var_type_STATUS_opt_wild_where!swap	SHOW STO
 accept	accept	engine	show_param/opt_full_TRIGGERS_opt_db_opt_wild_where	SHOW TRIGGERS
 reject	reject	engine	show_param/opt_full_TRIGGERS_opt_db_opt_wild_where!insert	SHOW TRIGGERS zzz
 reject	reject	engine	show_param/opt_full_TRIGGERS_opt_db_opt_wild_where!swap	SHOW TRIM
+accept	accept	engine	show_param/opt_full_TRIGGERS_opt_db_opt_wild_where+opt_full	SHOW FULL TRIGGERS
 accept	accept	engine	show_param/EVENTS_opt_db_opt_wild_where	SHOW EVENTS
 reject	reject	engine	show_param/EVENTS_opt_db_opt_wild_where!insert	SHOW EVENTS zzz
 reject	reject	engine	show_param/EVENTS_opt_db_opt_wild_where!swap	SHOW EVERY
@@ -11962,11 +12384,13 @@ reject	reject	engine	show_param/opt_full_COLUMNS_from_or_in_table_name_opt_db_op
 reject	reject	engine	show_param/opt_full_COLUMNS_from_or_in_table_name_opt_db_opt_wild_where!drop-3	SHOW COLUMNS FROM
 reject	reject	engine	show_param/opt_full_COLUMNS_from_or_in_table_name_opt_db_opt_wild_where!insert	SHOW COLUMNS FROM a zzz
 reject	reject	engine	show_param/opt_full_COLUMNS_from_or_in_table_name_opt_db_opt_wild_where!swap	SHOW COMMENT FROM a
+accept	accept	engine	show_param/opt_full_COLUMNS_from_or_in_table_name_opt_db_opt_wild_where+opt_full	SHOW FULL COLUMNS FROM a
 accept	accept	engine	show_param/opt_full_FIELDS_from_or_in_table_name_opt_db_opt_wild_where	SHOW FIELDS FROM a
 reject	reject	engine	show_param/opt_full_FIELDS_from_or_in_table_name_opt_db_opt_wild_where!drop-2	SHOW FIELDS a
 reject	reject	engine	show_param/opt_full_FIELDS_from_or_in_table_name_opt_db_opt_wild_where!drop-3	SHOW FIELDS FROM
 reject	reject	engine	show_param/opt_full_FIELDS_from_or_in_table_name_opt_db_opt_wild_where!insert	SHOW FIELDS FROM a zzz
 accept	accept	engine	show_param/opt_full_FIELDS_from_or_in_table_name_opt_db_opt_wild_where!swap	SHOW FILE FROM a
+accept	accept	engine	show_param/opt_full_FIELDS_from_or_in_table_name_opt_db_opt_wild_where+opt_full	SHOW FULL FIELDS FROM a
 accept	accept	engine	show_param/COLLATION_opt_wild_where	SHOW COLLATION
 reject	reject	engine	show_param/COLLATION_opt_wild_where!insert	SHOW COLLATION zzz
 reject	reject	engine	show_param/COLLATION_opt_wild_where!swap	SHOW COLLECT
@@ -12052,6 +12476,7 @@ reject	reject	engine	show_param/opt_tmp_PARTITIONS_FROM_table_name_opt_wild_wher
 reject	reject	engine	show_param/opt_tmp_PARTITIONS_FROM_table_name_opt_wild_where_order~edb1b26b!drop-3	SHOW PARTITIONS FROM
 reject	reject	engine	show_param/opt_tmp_PARTITIONS_FROM_table_name_opt_wild_where_order~edb1b26b!insert	SHOW PARTITIONS FROM a zzz
 reject	reject	engine	show_param/opt_tmp_PARTITIONS_FROM_table_name_opt_wild_where_order~edb1b26b!swap	SHOW PASSWORD FROM a
+accept	accept	engine	show_param/opt_tmp_PARTITIONS_FROM_table_name_opt_wild_where_order~edb1b26b+opt_tmp	SHOW TEMPORARY PARTITIONS FROM a
 accept	accept	engine	show_param/PARTITION_INTEGER_VALUE	SHOW PARTITION 1
 reject	reject	engine	show_param/PARTITION_INTEGER_VALUE!drop-2	SHOW PARTITION
 reject	reject	engine	show_param/PARTITION_INTEGER_VALUE!insert	SHOW PARTITION 1 zzz
@@ -12142,10 +12567,12 @@ reject	reject	engine	show_param/PRIVILEGES!insert	SHOW PRIVILEGES zzz
 accept	accept	engine	show_param/opt_full_opt_builtin_FUNCTIONS_opt_db_opt_wild_where	SHOW FUNCTIONS
 reject	reject	engine	show_param/opt_full_opt_builtin_FUNCTIONS_opt_db_opt_wild_where!insert	SHOW FUNCTIONS zzz
 reject	reject	engine	show_param/opt_full_opt_builtin_FUNCTIONS_opt_db_opt_wild_where!swap	SHOW GENERATED
+accept	accept	engine	show_param/opt_full_opt_builtin_FUNCTIONS_opt_db_opt_wild_where+opt_full	SHOW FULL FUNCTIONS
 accept	accept	engine	show_param/GLOBAL_opt_full_FUNCTIONS_opt_wild_where	SHOW GLOBAL FUNCTIONS
 reject	reject	engine	show_param/GLOBAL_opt_full_FUNCTIONS_opt_wild_where!drop-2	SHOW GLOBAL
 reject	reject	engine	show_param/GLOBAL_opt_full_FUNCTIONS_opt_wild_where!insert	SHOW GLOBAL FUNCTIONS zzz
 reject	reject	engine	show_param/GLOBAL_opt_full_FUNCTIONS_opt_wild_where!swap	SHOW GRANT FUNCTIONS
+accept	accept	engine	show_param/GLOBAL_opt_full_FUNCTIONS_opt_wild_where+opt_full	SHOW GLOBAL FULL FUNCTIONS
 accept	accept	engine	show_param/TYPE_CAST_opt_db	SHOW TYPE_CAST
 reject	reject	engine	show_param/TYPE_CAST_opt_db!insert	SHOW TYPE_CAST zzz
 reject	reject	engine	show_param/TYPE_CAST_opt_db!swap	SHOW UNBOUNDED
