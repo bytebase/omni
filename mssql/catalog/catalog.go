@@ -44,6 +44,7 @@ type Catalog struct {
 	omitUnnamedDefaultConstraintNames bool
 	lenientMetadataLoad               bool
 	systemTimeTables                  map[tableKey]bool
+	systemVersionedTables             map[tableKey]bool
 }
 
 type tableKey struct {
@@ -58,8 +59,9 @@ func New() *Catalog {
 		schemaByName:     make(map[string]*metadata.SchemaMetadata),
 		schemasByFold:    make(map[string][]*metadata.SchemaMetadata),
 		tableByName:      make(map[tableKey]*metadata.TableMetadata),
-		databaseByName:   make(map[string]*Catalog),
-		systemTimeTables: make(map[tableKey]bool),
+		databaseByName:        make(map[string]*Catalog),
+		systemTimeTables:      make(map[tableKey]bool),
+		systemVersionedTables: make(map[tableKey]bool),
 	}
 }
 

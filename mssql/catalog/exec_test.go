@@ -418,4 +418,50 @@ CREATE SELECTIVE XML INDEX [sxi_docs] ON [dbo].[docs]([body]) FOR (p = '/b');
 	mig := plan.SQL()
 	require.Contains(t, mig, "CREATE SELECTIVE XML INDEX [sxi_docs]")
 	require.Contains(t, mig, "FOR (p = '/b')")
+
+	// 24. ALTER SEQUENCE preserves the effective creation-time START WITH when bounds change.
+	c, err = LoadSQL(`CREATE SEQUENCE [dbo].[s] AS INT MINVALUE 10 MAXVALUE 100;`)
+	require.NoError(t, err)
+	execExpectOK(t, c, `ALTER SEQUENCE [dbo].[s] MINVALUE 5`)
+	require.Equal(t, "10", c.GetSchema("dbo").Sequences[0].Start)
+	require.Equal(t, "5", c.GetSchema("dbo").Sequences[0].MinValue)
+
+	// 25. SYSTEM_VERSIONING = OFF succeeds when versioning was enabled at CREATE TABLE or via SET ON.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[t] (
+    [id] INT NOT NULL PRIMARY KEY,
+    [sys_start] DATETIME2 GENERATED ALWAYS AS ROW START NOT NULL,
+    [sys_end] DATETIME2 GENERATED ALWAYS AS ROW END NOT NULL,
+    PERIOD FOR SYSTEM_TIME ([sys_start], [sys_end])
+) WITH (SYSTEM_VERSIONING = ON);
+`)
+	require.NoError(t, err)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] SET (SYSTEM_VERSIONING = OFF)`)
+	execExpectCode(t, c, `ALTER TABLE [dbo].[t] SET (SYSTEM_VERSIONING = OFF)`, ErrSystemVersioningNotEnabled)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] SET (SYSTEM_VERSIONING = ON)`)
+	execExpectOK(t, c, `ALTER TABLE [dbo].[t] SET (SYSTEM_VERSIONING = OFF)`)
+
+	// 26. Inbound FK check resolves exact case-distinct target table identities.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[Foo] ([id] INT NOT NULL PRIMARY KEY);
+CREATE TABLE [dbo].[foo] ([id] INT NOT NULL PRIMARY KEY);
+CREATE TABLE [dbo].[child] ([fid] INT NULL REFERENCES [dbo].[Foo]([id]));
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `TRUNCATE TABLE [dbo].[Foo]`, ErrTruncateReferencedByFK)
+	execExpectCode(t, c, `DROP TABLE [dbo].[Foo]`, ErrDropTableReferencedByFK)
+	execExpectOK(t, c, `TRUNCATE TABLE [dbo].[foo]`)
+	execExpectOK(t, c, `DROP TABLE [dbo].[foo]`)
+
+	// 27. DROP TABLE rejects tables referenced by WITH SCHEMABINDING views or functions.
+	c, err = LoadSQL(`
+CREATE TABLE [dbo].[t] ([a] INT NOT NULL);
+GO
+CREATE VIEW [dbo].[v_sb] WITH SCHEMABINDING AS SELECT [a] FROM [dbo].[t];
+`)
+	require.NoError(t, err)
+	execExpectCode(t, c, `DROP TABLE [dbo].[t]`, ErrDropSchemaNotEmpty)
+	require.NotNil(t, c.GetTable("dbo", "t"))
+	execExpectOK(t, c, `DROP VIEW [dbo].[v_sb]`)
+	execExpectOK(t, c, `DROP TABLE [dbo].[t]`)
 }

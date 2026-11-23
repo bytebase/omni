@@ -186,7 +186,7 @@ func hasInboundFKExcludingTables(c *Catalog, targetSchema string, targetTable *m
 				if refSchema == "" {
 					refSchema = c.defaultSchema
 				}
-				if strings.EqualFold(refSchema, targetSchema) && strings.EqualFold(fk.ReferencedTable, targetTable.Name) {
+				if c.GetTable(refSchema, fk.ReferencedTable) == targetTable {
 					return fk.Name, true
 				}
 			}
@@ -209,7 +209,7 @@ func indexReferencedByFK(c *Catalog, targetSchema string, targetTable *metadata.
 				if refSchema == "" {
 					refSchema = c.defaultSchema
 				}
-				if !strings.EqualFold(refSchema, targetSchema) || !strings.EqualFold(fk.ReferencedTable, targetTable.Name) {
+				if c.GetTable(refSchema, fk.ReferencedTable) != targetTable {
 					continue
 				}
 				if !fkMatchesIndex(fk, idx) {
@@ -223,6 +223,22 @@ func indexReferencedByFK(c *Catalog, targetSchema string, targetTable *metadata.
 		}
 	}
 	return "", "", false
+}
+
+func schemaBoundTableConsumer(c *Catalog, targetSchema, targetTable string) (string, bool) {
+	for _, s := range c.schemas {
+		for _, v := range s.Views {
+			if isSchemaBound(v.Definition) && definitionReferencesTable(v.Definition, s.Name, targetSchema, targetTable) {
+				return v.Name, true
+			}
+		}
+		for _, fn := range s.Functions {
+			if isSchemaBound(fn.Definition) && definitionReferencesTable(fn.Definition, s.Name, targetSchema, targetTable) {
+				return fn.Name, true
+			}
+		}
+	}
+	return "", false
 }
 
 func fkMatchesIndex(fk *metadata.ForeignKeyMetadata, idx *metadata.IndexMetadata) bool {
@@ -377,6 +393,7 @@ func (c *Catalog) removeSchema(name string) {
 			for _, t := range s.Tables {
 				delete(c.tableByName, tableKey{schema: s.Name, table: t.Name})
 				delete(c.systemTimeTables, tableKey{schema: fold, table: t.Name})
+				delete(c.systemVersionedTables, tableKey{schema: fold, table: t.Name})
 			}
 			delete(c.schemaByName, s.Name)
 			var kept []*metadata.SchemaMetadata
@@ -442,12 +459,20 @@ func (c *Catalog) execAlterSchema(n *ast.AlterSchemaStmt) error {
 				srcSchema.Tables = append(srcSchema.Tables[:i], srcSchema.Tables[i+1:]...)
 				delete(c.tableByName, tableKey{schema: srcSchema.Name, table: t.Name})
 				oldPeriodKey := tableKey{schema: normalizeOrDefault(srcSchema.Name, c.defaultSchema), table: t.Name}
+				newPeriodKey := tableKey{schema: normalizeOrDefault(targetSchema.Name, c.defaultSchema), table: t.Name}
 				if c.systemTimeTables[oldPeriodKey] {
 					delete(c.systemTimeTables, oldPeriodKey)
 					if c.systemTimeTables == nil {
 						c.systemTimeTables = make(map[tableKey]bool)
 					}
-					c.systemTimeTables[tableKey{schema: normalizeOrDefault(targetSchema.Name, c.defaultSchema), table: t.Name}] = true
+					c.systemTimeTables[newPeriodKey] = true
+				}
+				if c.systemVersionedTables[oldPeriodKey] {
+					delete(c.systemVersionedTables, oldPeriodKey)
+					if c.systemVersionedTables == nil {
+						c.systemVersionedTables = make(map[tableKey]bool)
+					}
+					c.systemVersionedTables[newPeriodKey] = true
 				}
 				targetSchema.Tables = append(targetSchema.Tables, t)
 				c.indexTable(targetSchema.Name, t)
@@ -554,7 +579,19 @@ func (c *Catalog) execCreateTable(n *ast.CreateTableStmt, source string) error {
 		if c.systemTimeTables == nil {
 			c.systemTimeTables = make(map[tableKey]bool)
 		}
-		c.systemTimeTables[tableKey{schema: normalizeOrDefault(schemaName, c.defaultSchema), table: table.Name}] = true
+		periodKey := tableKey{schema: normalizeOrDefault(schemaName, c.defaultSchema), table: table.Name}
+		c.systemTimeTables[periodKey] = true
+		if n.TableOptions != nil {
+			for _, item := range n.TableOptions.Items {
+				if opt, ok := item.(*ast.TableOption); ok && strings.EqualFold(opt.Name, "SYSTEM_VERSIONING") && strings.EqualFold(opt.Value, "ON") {
+					if c.systemVersionedTables == nil {
+						c.systemVersionedTables = make(map[tableKey]bool)
+					}
+					c.systemVersionedTables[periodKey] = true
+					break
+				}
+			}
+		}
 	}
 
 	if n.Columns != nil {
@@ -1279,6 +1316,9 @@ func (c *Catalog) execAlterSequence(n *ast.AlterSequenceStmt, source string) err
 	if seq == nil {
 		return mssqlErr(ErrSecurableNotFound, "Cannot find the object '%s', because it does not exist or you do not have permission.", sequenceName)
 	}
+	if strings.TrimSpace(seq.Start) == "" && (n.Increment != nil || n.NoMinVal || n.MinValue != nil || n.NoMaxVal || n.MaxValue != nil) {
+		seq.Start = normalizeSequenceMetadata(seq).start
+	}
 	if n.Increment != nil {
 		seq.Increment = strings.TrimSpace(nodeText(n.Increment, source))
 	}
@@ -1367,6 +1407,8 @@ func (c *Catalog) execAlterTable(n *ast.AlterTableStmt, source string) error {
 	staged := cloneTable(table)
 	savedIndexCounter := c.indexCounter
 	key := tableKey{schema: schema.Name, table: table.Name}
+	periodKey := tableKey{schema: normalizeOrDefault(schema.Name, c.defaultSchema), table: table.Name}
+	savedSystemVersioned := c.systemVersionedTables[periodKey]
 	if tableIdx >= 0 {
 		schema.Tables[tableIdx] = staged
 		c.tableByName[key] = staged
@@ -1383,6 +1425,14 @@ func (c *Catalog) execAlterTable(n *ast.AlterTableStmt, source string) error {
 				c.tableByName[key] = table
 			}
 			c.indexCounter = savedIndexCounter
+			if savedSystemVersioned {
+				if c.systemVersionedTables == nil {
+					c.systemVersionedTables = make(map[tableKey]bool)
+				}
+				c.systemVersionedTables[periodKey] = true
+			} else {
+				delete(c.systemVersionedTables, periodKey)
+			}
 			return err
 		}
 	}
@@ -1856,7 +1906,7 @@ func columnDependency(c *Catalog, schemaName string, table *metadata.TableMetada
 				if refSchema == "" {
 					refSchema = c.defaultSchema
 				}
-				if strings.EqualFold(refSchema, schemaName) && strings.EqualFold(fk.ReferencedTable, table.Name) {
+				if c.GetTable(refSchema, fk.ReferencedTable) == table {
 					for _, rc := range fk.ReferencedColumns {
 						if strings.EqualFold(rc, col.Name) {
 							return fk.Name, true
@@ -1987,14 +2037,23 @@ func (c *Catalog) execAlterTableSet(schemaName string, table *metadata.TableMeta
 		}
 		switch name {
 		case "SYSTEM_VERSIONING":
+			periodKey := tableKey{schema: normalizeOrDefault(schemaName, c.defaultSchema), table: table.Name}
 			if val == "ON" {
-				if !c.systemTimeTables[tableKey{schema: normalizeOrDefault(schemaName, c.defaultSchema), table: table.Name}] {
+				if !c.systemTimeTables[periodKey] {
 					return mssqlErr(ErrSystemVersioningNoPeriod, "Cannot set SYSTEM_VERSIONING to ON when SYSTEM_TIME period is not defined.")
 				}
+				if c.systemVersionedTables == nil {
+					c.systemVersionedTables = make(map[tableKey]bool)
+				}
+				c.systemVersionedTables[periodKey] = true
 				return nil
 			}
 			if val == "OFF" {
-				return mssqlErr(ErrSystemVersioningNotEnabled, "SYSTEM_VERSIONING is not turned ON for table '%s'.", table.Name)
+				if !c.systemVersionedTables[periodKey] {
+					return mssqlErr(ErrSystemVersioningNotEnabled, "SYSTEM_VERSIONING is not turned ON for table '%s'.", table.Name)
+				}
+				delete(c.systemVersionedTables, periodKey)
+				return nil
 			}
 		case "FILESTREAM_ON":
 			if !c.lenientMetadataLoad && !isValidFilegroup(val) {
@@ -2244,6 +2303,9 @@ func (c *Catalog) execDropObjects(n *ast.DropStmt, wantKind objectKind, sqlKind 
 			if fkName, referenced := hasInboundFKExcludingTables(c, schema.Name, resolvedTable, seenTables); referenced {
 				return mssqlErr(ErrDropTableReferencedByFK, "Could not drop object '%s' because it is referenced by a FOREIGN KEY constraint '%s'.", objName, fkName)
 			}
+			if consumer, bound := schemaBoundTableConsumer(c, schema.Name, resolvedTable.Name); bound {
+				return mssqlErr(ErrDropSchemaNotEmpty, "Cannot DROP TABLE '%s' because it is being referenced by object '%s'.", objName, consumer)
+			}
 			seenTables[resolvedTable] = true
 			targets = append(targets, dropTarget{schema: schema, name: resolvedTable.Name, table: resolvedTable})
 		} else {
@@ -2266,6 +2328,7 @@ func (c *Catalog) removeTable(schema *metadata.SchemaMetadata, target *metadata.
 		if t == target {
 			delete(c.tableByName, tableKey{schema: schema.Name, table: t.Name})
 			delete(c.systemTimeTables, tableKey{schema: normalize(schema.Name), table: t.Name})
+			delete(c.systemVersionedTables, tableKey{schema: normalize(schema.Name), table: t.Name})
 			schema.Tables = append(schema.Tables[:i], schema.Tables[i+1:]...)
 			return
 		}
