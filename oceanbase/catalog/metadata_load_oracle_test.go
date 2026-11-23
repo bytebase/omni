@@ -130,6 +130,9 @@ func setUpMetadataMigrationDB(t *testing.T, conn *sql.Conn, database, schema str
 		"SET foreign_key_checks = 0",
 	}
 	for _, seg := range obparser.Split(schema) {
+		if seg.Empty() {
+			continue
+		}
 		if s := strings.TrimSpace(seg.Text); s != "" {
 			stmts = append(stmts, s)
 		}

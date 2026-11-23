@@ -37,11 +37,14 @@ func (*session) Close() error { return nil }
 func (s *session) Query(ctx context.Context, script string, opts driver.QueryOptions) ([]*driver.Result, error) {
 	var results []*driver.Result
 	for _, segment := range cassandra.Split(script) {
+		// An empty segment, only whitespace and comments, is no statement:
+		// sending a trailing "-- done" would fail a script whose earlier
+		// statements already ran.
 		if segment.Empty {
 			continue
 		}
 		statement := trimStatement(segment.Text)
-		if statement == "" || holdsNoStatement(statement) {
+		if statement == "" {
 			continue
 		}
 		startTime := time.Now()
@@ -208,16 +211,6 @@ func convertTuple(values []any) driver.Value {
 		return driver.Value{Kind: driver.String, String: fmt.Sprintf("%v", values)}
 	}
 	return driver.Value{Kind: driver.String, String: string(encoded)}
-}
-
-// holdsNoStatement reports whether a segment is only whitespace and comments.
-// cassandra.Split marks a segment empty for whitespace alone, so a trailing
-// "-- done" would otherwise be sent as a query and fail a script whose earlier
-// statements already ran. A segment the parser rejects is kept: the server's
-// verdict on it is what the caller should read.
-func holdsNoStatement(text string) bool {
-	statements, err := cassandra.Parse(text)
-	return err == nil && len(statements) == 0
 }
 
 // pageSizeForACappedRead is the page size a read with only a byte cap is

@@ -32,6 +32,8 @@ type statement struct {
 func parseReview(sql string) ([]review.Range, []statement, *review.Finding, error) {
 	var ranges []review.Range
 	for _, seg := range parser.Split(sql) {
+		// A segment holding no statement (a lone ';', a comment) has no
+		// token, so contentLoc skips it and it gets no range.
 		if loc, ok := contentLoc(seg); ok {
 			ranges = append(ranges, review.Range{Start: loc.Start, End: loc.End})
 		}
