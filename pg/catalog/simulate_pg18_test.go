@@ -615,6 +615,31 @@ CREATE TABLE t_ty OF ty_nn (x WITH OPTIONS CONSTRAINT nn NOT NULL);
 	} else if len(res) > 0 && res[0].Error != nil {
 		t.Fatalf("PG18 DROP CONSTRAINT nn on typed table: %v", res[0].Error)
 	}
+
+	// ADD COLUMN inline CHECK constraint name is reserved before implicit NOT NULL picks a name.
+	if got, c := execCodeVersion(t, PG18, `CREATE TABLE t_add_chk (a int);`,
+		"ALTER TABLE t_add_chk ADD COLUMN x int NOT NULL CONSTRAINT t_add_chk_x_not_null CHECK (x > 0)"); got != "" {
+		t.Fatalf("PG18 ADD COLUMN NOT NULL + colliding CHECK: got %q, want ok", got)
+	} else {
+		rel := c.GetRelation("public", "t_add_chk")
+		var nnName string
+		for _, con := range c.ConstraintsOf(rel.OID) {
+			if con.Type == ConstraintNotNull {
+				nnName = con.Name
+			}
+		}
+		if nnName != "t_add_chk_x_not_null1" {
+			t.Fatalf("implicit ADD COLUMN NOT NULL name = %q, want %q", nnName, "t_add_chk_x_not_null1")
+		}
+		if res, err := c.Exec("ALTER TABLE t_add_chk DROP CONSTRAINT t_add_chk_x_not_null", nil); err != nil {
+			t.Fatal(err)
+		} else if len(res) > 0 && res[0].Error != nil {
+			t.Fatalf("PG18 DROP CONSTRAINT t_add_chk_x_not_null (CHECK): %v", res[0].Error)
+		}
+		if !rel.Columns[1].NotNull {
+			t.Fatalf("expected x to remain NOT NULL after dropping CHECK t_add_chk_x_not_null")
+		}
+	}
 }
 
 func TestPG18PartitionDetachPKNameAndJsonExpr(t *testing.T) {

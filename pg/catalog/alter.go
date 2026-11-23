@@ -892,12 +892,23 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		}
 		var addedCons []*Constraint
 		beforeCons := len(c.consByRel[rel.OID])
+		c.deferImplicitNotNull = true
 		for _, con := range inlineCons {
 			if err := c.addConstraint(schema, rel, con); err != nil {
+				c.deferImplicitNotNull = false
 				addedCons = append(addedCons, c.consByRel[rel.OID][beforeCons:]...)
 				rollbackAddedCol(addedCons)
 				return err
 			}
+		}
+		c.deferImplicitNotNull = false
+		if addedCol.NotNull {
+			isLocal := !recursing
+			var inhCount int16
+			if recursing {
+				inhCount = 1
+			}
+			_ = c.ensureNotNullConstraintWithInh(schema, rel, addedCol, "", isLocal, inhCount)
 		}
 		return nil
 
@@ -2341,16 +2352,11 @@ func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, col
 		identitySeq.OwnerAttNum = col.AttNum
 		c.recordDependency('s', identitySeq.OID, 0, 'r', rel.OID, int32(col.AttNum), DepAuto)
 	}
-	if col.NotNull {
-		nnName := colDef.NotNullConName
-		isLocal := true
-		var inhCount int16
-		if recursing {
-			nnName = ""
-			isLocal = false
-			inhCount = 1
-		}
-		if err := c.ensureNotNullConstraintWithInh(schema, rel, col, nnName, isLocal, inhCount); err != nil {
+	// Register explicitly named NOT NULL constraints immediately so inline
+	// constraints see the reserved name; unnamed/implicit NOT NULL constraints
+	// are registered in execAlterTableCmd after inlineCons have reserved theirs.
+	if col.NotNull && !recursing && colDef.NotNullConName != "" {
+		if err := c.ensureNotNullConstraintWithInh(schema, rel, col, colDef.NotNullConName, true, 0); err != nil {
 			return err
 		}
 	}
