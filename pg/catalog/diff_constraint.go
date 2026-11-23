@@ -12,12 +12,18 @@ func diffConstraints(from, to *Catalog, fromRelOID, toRelOID uint32) []Constrain
 	// that come with its parent's, which PostgreSQL adds and drops along.
 	fromMap := make(map[string]*Constraint, len(fromCons))
 	for _, c := range fromCons {
+		if c.Type == ConstraintNotNull {
+			continue
+		}
 		if !from.inheritedFromPartitionedTable(c) {
 			fromMap[c.Name] = c
 		}
 	}
 	toMap := make(map[string]*Constraint, len(toCons))
 	for _, c := range toCons {
+		if c.Type == ConstraintNotNull {
+			continue
+		}
 		if !to.inheritedFromPartitionedTable(c) {
 			toMap[c.Name] = c
 		}

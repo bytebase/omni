@@ -958,6 +958,20 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			seq.OwnerAttNum = rel.Columns[si.colIdx].AttNum
 			c.recordDependency('s', seq.OID, 0, 'r', rel.OID, int32(rel.Columns[si.colIdx].AttNum), DepAuto)
 		}
+
+		// PG 18 catalogs table NOT NULL constraints in pg_constraint (contype = 'n').
+		for i, col := range columns {
+			if col.NotNull {
+				var nnName string
+				if i < len(colDefs) {
+					nnName = colDefs[i].NotNullConName
+				}
+				if err := c.ensureNotNullConstraint(schema, rel, col, nnName); err != nil {
+					rollbackRelation()
+					return err
+				}
+			}
+		}
 	}
 
 	// Analyze column defaults and generated expressions using Tier 2 pipeline.
@@ -1318,6 +1332,9 @@ func (c *Catalog) convertColumnDef(cd *nodes.ColumnDef, relName string, schema *
 			switch con.Contype {
 			case nodes.CONSTR_NOTNULL:
 				result.NotNull = true
+				if con.Conname != "" {
+					result.NotNullConName = con.Conname
+				}
 			case nodes.CONSTR_DEFAULT:
 				if con.RawExpr != nil {
 					result.RawDefault = con.RawExpr
@@ -1935,6 +1952,9 @@ func (c *Catalog) cloneIndexToPartition(schema *Schema, parent, partition *Relat
 			}
 
 			partConName := fmt.Sprintf("%s_%s", partition.Name, parentCon.Name)
+			if parentCon.Type == ConstraintPK {
+				partConName = partIdxName
+			}
 
 			partCon := &Constraint{
 				OID:            conOID,

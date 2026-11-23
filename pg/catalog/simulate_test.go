@@ -90,8 +90,12 @@ func simulationEngine(t testing.TB) func(simulate.Fixture, string) (simulate.Ans
 }
 
 func simulationEngineWithQuery(formsQuery string) func(testing.TB) func(simulate.Fixture, string) (simulate.Answer, error) {
+	return simulationEngineWithRole(testcontainer.Default, formsQuery)
+}
+
+func simulationEngineWithRole(role, formsQuery string) func(testing.TB) func(simulate.Fixture, string) (simulate.Answer, error) {
 	return func(t testing.TB) func(simulate.Fixture, string) (simulate.Answer, error) {
-		db := testcontainer.Open(t)
+		db := testcontainer.OpenRole(t, role)
 		ctx := context.Background()
 		return func(fx simulate.Fixture, statement string) (simulate.Answer, error) {
 			if _, err := db.ExecContext(ctx, "DROP SCHEMA IF EXISTS public CASCADE;\nCREATE SCHEMA public;\n"+fx.SQL); err != nil {
@@ -421,44 +425,50 @@ func simulationFormsWithQuery(ctx context.Context, db *sql.DB, formsQuery string
 // from PostgreSQL's forms: what the forms do not write, such as storage or
 // ownership, does not count.
 func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answer) simulate.Omni {
-	c, err := LoadSQL(fx.SQL)
-	if err != nil {
-		panic(fmt.Sprintf("the catalog does not load fixture %s: %v", fx.Name, err))
-	}
-	results, err := c.Exec(statement, nil)
-	var syntax *pgparser.ParseError
-	switch {
-	case errors.As(err, &syntax):
-		code := syntax.Code
-		if code == "" {
-			code = "42601"
+	return simulationOmniWithVersion(PG17)(fx, statement, engine)
+}
+
+func simulationOmniWithVersion(v Version) func(simulate.Fixture, string, simulate.Answer) simulate.Omni {
+	return func(fx simulate.Fixture, statement string, engine simulate.Answer) simulate.Omni {
+		c, err := LoadSQLWithVersion(fx.SQL, v)
+		if err != nil {
+			panic(fmt.Sprintf("the catalog does not load fixture %s: %v", fx.Name, err))
 		}
-		return simulate.Omni{Code: code, Why: err.Error()}
-	case err != nil:
-		return simulate.Omni{Code: simulate.NoCode, Why: err.Error()}
-	}
-	for _, r := range results {
-		var refusal *Error
+		results, err := c.Exec(statement, nil)
+		var syntax *pgparser.ParseError
 		switch {
-		case r.Error == nil:
-		case errors.As(r.Error, &refusal) && refusal.Code != "":
-			return simulate.Omni{Code: refusal.Code, Why: r.Error.Error()}
-		default:
-			return simulate.Omni{Code: simulate.NoCode, Why: r.Error.Error()}
+		case errors.As(err, &syntax):
+			code := syntax.Code
+			if code == "" {
+				code = "42601"
+			}
+			return simulate.Omni{Code: code, Why: err.Error()}
+		case err != nil:
+			return simulate.Omni{Code: simulate.NoCode, Why: err.Error()}
 		}
+		for _, r := range results {
+			var refusal *Error
+			switch {
+			case r.Error == nil:
+			case errors.As(r.Error, &refusal) && refusal.Code != "":
+				return simulate.Omni{Code: refusal.Code, Why: r.Error.Error()}
+			default:
+				return simulate.Omni{Code: simulate.NoCode, Why: r.Error.Error()}
+			}
+		}
+		if engine.Refused() {
+			return simulate.Omni{}
+		}
+		want, err := loadFormsWithVersion(engine.Forms, v)
+		if err != nil {
+			return simulate.Omni{Why: fmt.Sprintf("the catalog does not load what PostgreSQL stores: %v", err)}
+		}
+		diff := Diff(c, want)
+		if diff.IsEmpty() {
+			return simulate.Omni{Same: true}
+		}
+		return simulate.Omni{Why: "to store PostgreSQL's schema the catalog would run\n" + GenerateMigration(c, want, diff).SQL()}
 	}
-	if engine.Refused() {
-		return simulate.Omni{}
-	}
-	want, err := loadForms(engine.Forms)
-	if err != nil {
-		return simulate.Omni{Why: fmt.Sprintf("the catalog does not load what PostgreSQL stores: %v", err)}
-	}
-	diff := Diff(c, want)
-	if diff.IsEmpty() {
-		return simulate.Omni{Same: true}
-	}
-	return simulate.Omni{Why: "to store PostgreSQL's schema the catalog would run\n" + GenerateMigration(c, want, diff).SQL()}
 }
 
 // loadForms builds a catalog from PostgreSQL's forms. The forms are in name
@@ -466,7 +476,11 @@ func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answe
 // parsed statement in turn, again and again while one that failed for want of
 // another object now runs, as a partition does before its parent.
 func loadForms(forms []simulate.Form) (*Catalog, error) {
-	c := New()
+	return loadFormsWithVersion(forms, PG17)
+}
+
+func loadFormsWithVersion(forms []simulate.Form, v Version) (*Catalog, error) {
+	c := NewWithVersion(v)
 	type parsedStmt struct {
 		node nodes.Node
 		desc string

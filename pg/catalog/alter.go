@@ -267,7 +267,7 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 		if !ok {
 			continue
 		}
-		if err := checkAlterTableCmdRelKind(rel, relName, nodes.AlterTableType(atc.Subtype)); err != nil {
+		if err := c.checkAlterTableCmdRelKind(rel, relName, nodes.AlterTableType(atc.Subtype)); err != nil {
 			return err
 		}
 		transformed, identityOptions, err := c.transformAlterTableCmd(atc)
@@ -391,10 +391,22 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 }
 
 // checkAlterTableCmdRelKind enforces PostgreSQL's ATSimplePermissions relkind
-// checks for views and materialized views.
+// checks for views, materialized views, and PG 18+ partitioned-table rules.
 //
 // pg: src/backend/commands/tablecmds.c — ATSimplePermissions
-func checkAlterTableCmdRelKind(rel *Relation, relName string, subtype nodes.AlterTableType) error {
+func (c *Catalog) checkAlterTableCmdRelKind(rel *Relation, relName string, subtype nodes.AlterTableType) error {
+	if c.Version() >= PG18 {
+		switch subtype {
+		case nodes.AT_AttachPartition, nodes.AT_DetachPartition, nodes.AT_DetachPartitionFinalize:
+			if rel.RelKind != 'p' {
+				return errWrongObjectType(relName, "a partitioned table")
+			}
+		case nodes.AT_SetLogged, nodes.AT_SetUnLogged:
+			if rel.RelKind == 'p' {
+				return errWrongObjectType(relName, "a table")
+			}
+		}
+	}
 	switch rel.RelKind {
 	case 'v':
 		switch subtype {
@@ -2299,6 +2311,11 @@ func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, col
 		identitySeq.OwnerAttNum = col.AttNum
 		c.recordDependency('s', identitySeq.OID, 0, 'r', rel.OID, int32(col.AttNum), DepAuto)
 	}
+	if col.NotNull {
+		if err := c.ensureNotNullConstraint(schema, rel, col, colDef.NotNullConName); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -2470,6 +2487,11 @@ func (c *Catalog) stripDroppedColumnGrants(relOID uint32, colName string) {
 func (c *Catalog) atDropConstraint(schema *Schema, rel *Relation, conName string, cascade, ifExists bool) error {
 	for _, con := range c.consByRel[rel.OID] {
 		if con.Name == conName {
+			if con.Type == ConstraintNotNull && len(con.Columns) == 1 {
+				if ci := indexOfAttNum(rel, con.Columns[0]); ci >= 0 {
+					return c.atDropNotNull(rel, rel.Columns[ci].Name)
+				}
+			}
 			// Collect this constraint and all descendant partition constraints
 			// linked via ConParentID so dependent checks and cascade drops cover
 			// the whole partition constraint hierarchy before removing anything.
@@ -2595,6 +2617,7 @@ func (c *Catalog) atSetNotNull(rel *Relation, colName string) error {
 		return errUndefinedColumn(colName)
 	}
 	rel.Columns[idx].NotNull = true
+	c.ensureNotNullConstraint(rel.Schema, rel, rel.Columns[idx], "")
 	return nil
 }
 
@@ -2629,6 +2652,7 @@ func (c *Catalog) atDropNotNull(rel *Relation, colName string) error {
 	}
 
 	col.NotNull = false
+	c.removeNotNullConstraint(rel.Schema, rel, col.AttNum)
 	return nil
 }
 

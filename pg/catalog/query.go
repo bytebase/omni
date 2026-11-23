@@ -1206,15 +1206,24 @@ const (
 //
 // pg: src/include/nodes/primnodes.h — JsonExpr (PG16+)
 type JsonExprQ struct {
-	Op         JsonExprOpQ
-	Expr       AnalyzedExpr // context item expression
-	Path       string       // JSON path string
-	ResultType uint32
-	Collation  uint32
+	Op           JsonExprOpQ
+	Expr         AnalyzedExpr // context item expression
+	Path         string       // JSON path string
+	ResultType   uint32
+	ResultTypMod int32
+	HasReturning bool
+	Wrapper      int // matches nodes.JsonWrapper (JSW_*)
+	Quotes       int // matches nodes.JsonQuotes (JS_QUOTES_*)
+	Collation    uint32
 }
 
-func (j *JsonExprQ) exprType() uint32      { return j.ResultType }
-func (j *JsonExprQ) exprTypMod() int32     { return -1 }
+func (j *JsonExprQ) exprType() uint32 { return j.ResultType }
+func (j *JsonExprQ) exprTypMod() int32 {
+	if j.HasReturning {
+		return j.ResultTypMod
+	}
+	return -1
+}
 func (j *JsonExprQ) exprCollation() uint32 { return j.Collation }
 
 // JsonIsPredicateExpr represents expr IS [NOT] JSON [OBJECT|ARRAY|SCALAR].

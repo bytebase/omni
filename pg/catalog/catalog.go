@@ -38,9 +38,20 @@ type preparedStmt struct {
 	resultCols    []preparedResultCol
 }
 
+// Version identifies the PostgreSQL major release whose DDL and catalog
+// semantics a Catalog simulates. Zero defaults to PG17 (matching the parser's
+// default pin).
+type Version int
+
+const (
+	PG17 Version = 17
+	PG18 Version = 18
+)
+
 // Catalog is the in-memory PostgreSQL catalog.
 type Catalog struct {
-	oidGen *OIDGenerator
+	version Version
+	oidGen  *OIDGenerator
 
 	// Schema indexes.
 	schemas      map[uint32]*Schema
@@ -201,6 +212,7 @@ type Catalog struct {
 // New creates a fully initialized Catalog with all built-in data indexed.
 func New() *Catalog {
 	c := &Catalog{
+		version:            PG17,
 		oidGen:             NewOIDGenerator(),
 		schemas:            make(map[uint32]*Schema),
 		schemaByName:       make(map[string]*Schema),
@@ -698,11 +710,42 @@ func (c *Catalog) TypeIsVisible(typOID uint32) bool {
 	return false
 }
 
+// NewWithVersion creates a Catalog configured for the given PostgreSQL major
+// version. Zero defaults to PG17.
+func NewWithVersion(v Version) *Catalog {
+	c := New()
+	c.SetVersion(v)
+	return c
+}
+
+// Version returns the PostgreSQL major version this catalog simulates.
+func (c *Catalog) Version() Version {
+	if c.version == 0 {
+		return PG17
+	}
+	return c.version
+}
+
+// SetVersion sets the PostgreSQL major version this catalog simulates.
+// Zero resets to PG17.
+func (c *Catalog) SetVersion(v Version) {
+	if v == 0 {
+		v = PG17
+	}
+	c.version = v
+}
+
 // LoadSQL parses SQL and executes all statements into a new Catalog.
 // Returns the catalog and the first error encountered (if any).
 // On error, the catalog reflects all statements that succeeded before the failure.
 func LoadSQL(sql string) (*Catalog, error) {
-	c := New()
+	return LoadSQLWithVersion(sql, PG17)
+}
+
+// LoadSQLWithVersion parses SQL and executes all statements into a new Catalog
+// configured for the given PostgreSQL major version.
+func LoadSQLWithVersion(sql string, v Version) (*Catalog, error) {
+	c := NewWithVersion(v)
 	results, err := c.Exec(sql, nil)
 	if err != nil {
 		return nil, err

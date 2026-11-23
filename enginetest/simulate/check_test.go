@@ -583,3 +583,27 @@ func TestVerifyRejectsUpdateCompatMissingPinRowsAndUnjudged(t *testing.T) {
 		t.Errorf("File.Write in verify mode created %s", directPath)
 	}
 }
+
+func TestCheckUsesPinRole(t *testing.T) {
+	s := suite(t, "", map[string]Answer{"A": stored1}, map[string]Omni{"A": {Same: true}}, nil)
+	s.Rows = []Generated{{"fx", "r/A", "A"}}
+	s.PinRole = "pg18"
+	write(t, s.Pins, "default\timg:1\tsha256:abc\tv1\npg18\timg:18\tsha256:def\tv18\n")
+	write(t, s.Path, "# pin: pg18 img:18 sha256:def v18\n"+columnsHeader+"\n"+ok1+"\t"+ok1+"\tengine\tfx\tr/A\tA\n")
+
+	if rec := run(t, s); !rec.passed() {
+		t.Fatalf("replay with PinRole=pg18: %q %q", rec.errors, rec.fatal)
+	}
+
+	// Changing the default row does not affect a PinRole=pg18 suite.
+	write(t, s.Pins, "default\timg:2\tsha256:999\tv2\npg18\timg:18\tsha256:def\tv18\n")
+	if rec := run(t, s); !rec.passed() {
+		t.Fatalf("changing default pin broke PinRole=pg18: %q %q", rec.errors, rec.fatal)
+	}
+
+	// Changing the pg18 row fails replay with a pin mismatch.
+	write(t, s.Pins, "default\timg:1\tsha256:abc\tv1\npg18\timg:18.1\tsha256:999\tv18.1\n")
+	if rec := run(t, s); !rec.failed("was recorded at pin") {
+		t.Errorf("changed PinRole row passed: %q %q", rec.errors, rec.fatal)
+	}
+}

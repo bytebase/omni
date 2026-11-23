@@ -93,9 +93,12 @@ type Omni struct {
 type Suite struct {
 	// Path is the simulate.tsv.
 	Path string
-	// Pins is the engine's pins.tsv; the default row is the pin Expected
-	// was recorded at.
+	// Pins is the engine's pins.tsv; the PinRole row (defaulting to
+	// "default") is the pin Expected was recorded at.
 	Pins string
+	// PinRole selects which row of Pins this suite checks against. When
+	// empty, it defaults to "default".
+	PinRole string
 	// Fixtures is the directory of starting schemas.
 	Fixtures string
 	// Rows are the generated rows the file must hold, in order. Rows a
@@ -136,7 +139,11 @@ func check(t testing.TB, s Suite) {
 	if mode == enginetest.ModeVerify && compat.Updating() {
 		t.Fatalf("-update-compat cannot be combined with %s=verify: verification writes nothing", enginetest.RecordEnv)
 	}
-	pin, err := enginetest.LoadPin(s.Pins, "default")
+	role := s.PinRole
+	if role == "" {
+		role = "default"
+	}
+	pin, err := enginetest.LoadPin(s.Pins, role)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

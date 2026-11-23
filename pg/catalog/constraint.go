@@ -184,6 +184,7 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 	if isPrimary {
 		for _, attnum := range attnums {
 			rel.Columns[attnum-1].NotNull = true
+			c.ensureNotNullConstraint(schema, rel, rel.Columns[attnum-1], "")
 		}
 	}
 
@@ -1034,6 +1035,68 @@ func (c *Catalog) validateExclusionOpFamilyMember(am *AccessMethod, opcOID, opOI
 
 // chooseConstraintAndIndexName picks a free name in both the relation/index
 // namespace and the relation's constraint list, matching ChooseRelationName.
+// ensureNotNullConstraint records a PG 18 cataloged NOT NULL constraint
+// (pg_constraint.contype = 'n') for col when c.Version() >= PG18.
+//
+// pg: src/backend/commands/tablecmds.c — StoreRelNotNull
+func (c *Catalog) ensureNotNullConstraint(schema *Schema, rel *Relation, col *Column, conName string) error {
+	if c.Version() < PG18 || schema == nil || rel == nil || rel.RelKind == 'c' || col == nil || !col.NotNull {
+		return nil
+	}
+	for _, existing := range c.consByRel[rel.OID] {
+		if existing.Type == ConstraintNotNull && len(existing.Columns) == 1 && existing.Columns[0] == col.AttNum {
+			return nil
+		}
+	}
+	if conName == "" {
+		conName = c.chooseNotNullConstraintName(rel, col.Name)
+	} else if err := c.checkConstraintNameFree(rel.OID, conName); err != nil {
+		return err
+	}
+	con := &Constraint{
+		OID:        c.oidGen.Next(),
+		Name:       conName,
+		Type:       ConstraintNotNull,
+		RelOID:     rel.OID,
+		Namespace:  schema.OID,
+		Columns:    []int16{col.AttNum},
+		Validated:  true,
+		ConIsLocal: col.IsLocal,
+	}
+	c.registerConstraint(rel.OID, con)
+	c.recordDependency('c', con.OID, 0, 'r', rel.OID, int32(col.AttNum), DepAuto)
+	return nil
+}
+
+// removeNotNullConstraint removes the PG 18 cataloged NOT NULL constraint for
+// attnum on rel, if one exists.
+func (c *Catalog) removeNotNullConstraint(schema *Schema, rel *Relation, attnum int16) {
+	if rel == nil {
+		return
+	}
+	for _, con := range c.consByRel[rel.OID] {
+		if con.Type == ConstraintNotNull && len(con.Columns) == 1 && con.Columns[0] == attnum {
+			c.removeConstraint(schema, con)
+			return
+		}
+	}
+}
+
+// chooseNotNullConstraintName picks PostgreSQL 18's default NOT NULL
+// constraint name (<rel>_<col>_not_null, suffixed with 1, 2, ... on collision).
+//
+// pg: src/backend/commands/tablecmds.c — ChooseConstraintName(..., "not_null", ...)
+func (c *Catalog) chooseNotNullConstraintName(rel *Relation, colName string) string {
+	base := rel.Name + "_" + colName + "_not_null"
+	name := base
+	for i := 1; ; i++ {
+		if c.checkConstraintNameFree(rel.OID, name) == nil {
+			return name
+		}
+		name = fmt.Sprintf("%s%d", base, i)
+	}
+}
+
 func (c *Catalog) chooseConstraintAndIndexName(schema *Schema, rel *Relation, columns []string, ctype ConstraintType) string {
 	var name2, label string
 	switch ctype {

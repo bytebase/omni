@@ -619,6 +619,18 @@ func (c *Catalog) DefineDomain(stmt *nodes.CreateDomainStmt) error {
 //
 // pg: src/backend/commands/typecmds.c — AlterDomainStmt
 func (c *Catalog) AlterDomainStmt(stmt *nodes.AlterDomainStmt) error {
+	// PG 18 rejects NO INHERIT on domain NOT NULL constraints before domain
+	// lookup (0A000: NOT NULL constraints cannot be marked NO INHERIT).
+	// pg: src/backend/parser/gram.y — processCASbits
+	if c.Version() >= PG18 && stmt.Subtype == 'C' {
+		if con, ok := stmt.Def.(*nodes.Constraint); ok && con.Contype == nodes.CONSTR_NOTNULL && con.IsNoInherit {
+			return &Error{
+				Code:    CodeFeatureNotSupported,
+				Message: "NOT NULL constraints cannot be marked NO INHERIT",
+			}
+		}
+	}
+
 	schemaName, name := qualifiedName(stmt.Typname)
 
 	schema, err := c.resolveTargetSchema(schemaName)
