@@ -375,6 +375,24 @@ IfNotExists:
 	if _, err := ReadBison(src, tokens(map[string]string{"identifier": "a", "IF": EverySite})); err == nil {
 		t.Errorf("a token given %s: no error", EverySite)
 	}
+
+	// A rule that only names a nullable rule writes the clause that rule
+	// derives.
+	const nested = `
+%%
+Stmt:
+	"CREATE" "VIEW" Opt identifier
+|	"CREATE" "TABLE" Opt identifier
+Opt:
+	Inner
+Inner:
+	/* empty */
+|	"IF" "NOT" "EXISTS"
+`
+	stmts := statements(t, nested, map[string]string{"identifier": "a", "Opt": EverySite})
+	if got, want := stmts["Stmt/CREATE_TABLE_Opt_identifier+Opt"], "CREATE TABLE IF NOT EXISTS a"; got != want {
+		t.Errorf("nested clause: got %q, want %q", got, want)
+	}
 }
 
 // TestConditional pins the %ifdef lines of MariaDB's sql_yacc.yy: one file

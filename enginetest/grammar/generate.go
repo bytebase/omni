@@ -108,6 +108,10 @@ func (g *Grammar) Rows() (rows []Row, uncovered []string) {
 func (g *Grammar) buildAlts() (alts []builtAlt, uncovered []string) {
 	sd := g.shortestDerivations()
 	cx := g.shortestContexts(sd)
+	var ne map[string][]string
+	if len(g.everySite) > 0 {
+		ne = g.shortestNonEmpty(sd)
+	}
 
 	used := map[string]int{}
 	for _, r := range g.rules {
@@ -125,7 +129,7 @@ func (g *Grammar) buildAlts() (alts []builtAlt, uncovered []string) {
 				continue
 			}
 			alts = append(alts, builtAlt{label: label, prefix: cxN.prefix, body: body, suffix: cxN.suffix})
-			alts = append(alts, g.siteAlts(label, alt, sd, cxN)...)
+			alts = append(alts, g.siteAlts(label, alt, sd, ne, cxN)...)
 		}
 	}
 	return alts, uncovered
@@ -135,15 +139,15 @@ func (g *Grammar) buildAlts() (alts []builtAlt, uncovered []string) {
 // EverySite rule, labelled <label>+<rule> (and #2, #3 for a rule the
 // alternative names again): the alternative's shortest statement with that
 // rule written as its shortest form that is not nothing.
-func (g *Grammar) siteAlts(label string, alt []symbol, sd map[string]deriv, cx ctxt) []builtAlt {
+func (g *Grammar) siteAlts(label string, alt []symbol, sd map[string]deriv, ne map[string][]string, cx ctxt) []builtAlt {
 	var out []builtAlt
 	named := map[string]int{}
 	for k, sym := range alt {
 		if !sym.nonterm || !g.everySite[sym.text] {
 			continue
 		}
-		clause, ok := g.shortestNonEmpty(sym.text, sd)
-		if !ok {
+		clause := ne[sym.text]
+		if len(clause) == 0 {
 			continue
 		}
 		siteLabel := label + "+" + sym.text
@@ -169,19 +173,57 @@ func (g *Grammar) siteAlts(label string, alt []symbol, sd map[string]deriv, cx c
 	return out
 }
 
-// shortestNonEmpty returns the fewest tokens, other than none, that rule
-// derives through one alternative with the shortest derivation of each of
-// its symbols; among equally short ones, the alternative the grammar lists
-// first.
-func (g *Grammar) shortestNonEmpty(rule string, sd map[string]deriv) ([]string, bool) {
-	var best []string
-	for _, alt := range g.byName[rule].alts {
-		toks, ok := g.altTokens(alt, sd)
-		if ok && len(toks) > 0 && (best == nil || len(toks) < len(best)) {
-			best = toks
+// shortestNonEmpty returns, for each rule, the fewest tokens other than
+// none it derives, through a nullable rule it names as well: the shortest
+// derivation of every symbol but one, which derives its own shortest form
+// that is not nothing. Among equally short forms it keeps the first found,
+// walking the rules and their alternatives in source order.
+func (g *Grammar) shortestNonEmpty(sd map[string]deriv) map[string][]string {
+	ne := map[string][]string{}
+	for name, text := range g.ruleText {
+		if text != "" {
+			ne[name] = []string{text}
 		}
 	}
-	return best, best != nil
+	for changed := true; changed; {
+		changed = false
+		for _, r := range g.rules {
+			if _, sampled := g.ruleText[r.name]; sampled {
+				continue
+			}
+			for _, alt := range r.alts {
+				ds := make([]deriv, len(alt))
+				ok := true
+				for k, sym := range alt {
+					if ds[k] = g.symDeriv(sym, sd); !ds[k].ok {
+						ok = false
+						break
+					}
+				}
+				if !ok {
+					continue
+				}
+				var pre []string
+				for k, sym := range alt {
+					var mid []string
+					if sym.nonterm {
+						mid = ne[sym.text]
+					} else {
+						mid = ds[k].toks
+					}
+					if len(mid) > 0 {
+						toks := join(pre, mid, sibSuffix(ds, k))
+						if cur, known := ne[r.name]; !known || len(toks) < len(cur) {
+							ne[r.name] = toks
+							changed = true
+						}
+					}
+					pre = concat(pre, ds[k].toks)
+				}
+			}
+		}
+	}
+	return ne
 }
 
 // altLabel names an alternative by its rule and its symbols as the grammar
