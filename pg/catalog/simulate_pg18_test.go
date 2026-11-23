@@ -835,6 +835,61 @@ CREATE TABLE t_lc (LIKE src_lc INCLUDING ALL);
 			}
 		}
 	}
+
+	// ADD PRIMARY KEY rejects a column backed by a NO INHERIT NOT NULL constraint with 55000
+	// without mutating the catalog.
+	pkNoInhSetup := `
+CREATE TABLE p_pkni (x int);
+CREATE TABLE c_pkni () INHERITS (p_pkni);
+ALTER TABLE ONLY p_pkni ALTER COLUMN x SET NOT NULL;
+`
+	if got, c := execCodeVersion(t, PG18, pkNoInhSetup, "ALTER TABLE ONLY p_pkni ADD PRIMARY KEY (x)"); got != CodeObjectNotInPrerequisiteState {
+		t.Fatalf("PG18 ADD PRIMARY KEY on NO INHERIT NOT NULL: got %q, want %q", got, CodeObjectNotInPrerequisiteState)
+	} else {
+		p := c.GetRelation("public", "p_pkni")
+		if c.findPKConstraint(p.OID) != nil {
+			t.Fatalf("expected failed ADD PRIMARY KEY not to register a PK constraint")
+		}
+		if len(c.IndexesOf(p.OID)) != 0 {
+			t.Fatalf("expected failed ADD PRIMARY KEY not to register a PK index")
+		}
+	}
+
+	// Migrating a PG 18 NOT NULL column with a constraint comment to nullable
+	// suppresses COMMENT ON CONSTRAINT ... IS NULL (constraint removed by DROP NOT NULL),
+	// while removing only the comment on a kept NOT NULL constraint still emits IS NULL.
+	fromDropNN, err := LoadSQLWithVersion(`
+CREATE TABLE t_nn_cmt (x int NOT NULL);
+COMMENT ON CONSTRAINT t_nn_cmt_x_not_null ON t_nn_cmt IS 'required';
+`, PG18)
+	if err != nil {
+		t.Fatalf("LoadSQLWithVersion fromDropNN: %v", err)
+	}
+	toNullable, err := LoadSQLWithVersion(`CREATE TABLE t_nn_cmt (x int);`, PG18)
+	if err != nil {
+		t.Fatalf("LoadSQLWithVersion toNullable: %v", err)
+	}
+	planDropNN := GenerateMigration(fromDropNN, toNullable, Diff(fromDropNN, toNullable))
+	for _, op := range planDropNN.Ops {
+		if strings.Contains(op.SQL, "COMMENT ON CONSTRAINT") {
+			t.Fatalf("unexpected COMMENT ON CONSTRAINT for dropped NOT NULL constraint: %s", op.SQL)
+		}
+	}
+
+	toKeptNN, err := LoadSQLWithVersion(`CREATE TABLE t_nn_cmt (x int NOT NULL);`, PG18)
+	if err != nil {
+		t.Fatalf("LoadSQLWithVersion toKeptNN: %v", err)
+	}
+	planKeptNN := GenerateMigration(fromDropNN, toKeptNN, Diff(fromDropNN, toKeptNN))
+	var sawCommentDrop bool
+	for _, op := range planKeptNN.Ops {
+		if strings.Contains(op.SQL, "COMMENT ON CONSTRAINT") && strings.Contains(op.SQL, "IS NULL") {
+			sawCommentDrop = true
+		}
+	}
+	if !sawCommentDrop {
+		t.Fatalf("expected COMMENT ON CONSTRAINT ... IS NULL when NOT NULL constraint is kept")
+	}
 }
 
 func TestPG18PartitionDetachPKNameAndJsonExpr(t *testing.T) {

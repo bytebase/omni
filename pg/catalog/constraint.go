@@ -183,9 +183,21 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 		}
 	}
 
+	isPrimary := typ == ConstraintPK
+	if isPrimary && c.Version() >= PG18 {
+		// pg: src/backend/commands/tablecmds.c — verifyNotNullPKCompatible (PG 18)
+		for _, attnum := range attnums {
+			if c.isNotNullNoInherit(rel, attnum) {
+				return &Error{
+					Code:    CodeObjectNotInPrerequisiteState,
+					Message: fmt.Sprintf("cannot create primary key because column %q has a NO INHERIT NOT NULL constraint", rel.Columns[attnum-1].Name),
+				}
+			}
+		}
+	}
+
 	conOID := c.oidGen.Next()
 
-	isPrimary := typ == ConstraintPK
 	if isPrimary {
 		for _, attnum := range attnums {
 			rel.Columns[attnum-1].NotNull = true

@@ -26,7 +26,7 @@ func generateCommentDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				})
 			}
 		case DiffDrop:
-			if commentDroppedWithForeignTable(from, diff, entry) {
+			if commentDroppedWithForeignTable(from, diff, entry) || commentDroppedWithNotNullConstraint(from, to, entry) {
 				continue
 			}
 			sql := formatCommentEntrySQL(from, entry, "")
@@ -136,6 +136,44 @@ func commentDroppedWithForeignTable(from *Catalog, diff *SchemaDiff, entry Comme
 		return rebuiltOrDroppedFT[relKey]
 	}
 	return false
+}
+
+// commentDroppedWithNotNullConstraint reports whether entry removes a comment
+// on a PG 18 cataloged NOT NULL constraint that no longer exists in to (e.g.
+// because the table/column was dropped or ALTER COLUMN ... DROP NOT NULL
+// implicitly removed the constraint).
+func commentDroppedWithNotNullConstraint(from, to *Catalog, entry CommentDiffEntry) bool {
+	if from == nil || entry.ObjType != 'c' || len(entry.objParts) < 3 {
+		return false
+	}
+	schemaName, relName, conName := entry.objParts[0], entry.objParts[1], entry.objParts[2]
+	fromRel := from.GetRelation(schemaName, relName)
+	if fromRel == nil {
+		return false
+	}
+	var isNN bool
+	for _, con := range from.consByRel[fromRel.OID] {
+		if con.Name == conName && con.Type == ConstraintNotNull {
+			isNN = true
+			break
+		}
+	}
+	if !isNN {
+		return false
+	}
+	if to == nil {
+		return true
+	}
+	toRel := to.GetRelation(schemaName, relName)
+	if toRel == nil {
+		return true
+	}
+	for _, con := range to.consByRel[toRel.OID] {
+		if con.Name == conName && con.Type == ConstraintNotNull {
+			return false
+		}
+	}
+	return true
 }
 
 // formatCommentSQL generates a COMMENT ON ... IS '...' or COMMENT ON ... IS NULL statement.
