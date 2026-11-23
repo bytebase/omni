@@ -311,10 +311,15 @@ func (Codec) DecodeError(text string) error {
 //     or DF__t__a__5AEE82B9: its kind, its table and column cut short (a
 //     space and all), and hex digits of its object's id. Its stand-in keeps all but the digits,
 //     which become standin and a number.
-var madeUp = regexp.MustCompile(`\boid:-?[0-9]+\b|\b(?:PK|UQ|DF|CK|FK)__[^'"\[\]\n]{1,40}?__(?:[0-9A-F]{8}(?:[0-9A-F]{8})?|standin[0-9]+)\b|LastUpdate="[^"]*"|MaxCompileMemory="[0-9]+"`)
+//
+// A showplan also states figures that differ on every run or host: when a
+// statistic was last read (LastUpdate), the time and memory compiling took,
+// and the memory, buffer pool and processors the host offered. Each stands
+// in as a fixed value.
+var madeUp = regexp.MustCompile(`\boid:-?[0-9]+\b|\b(?:PK|UQ|DF|CK|FK)__[^'"\[\]\n]{1,40}?__(?:[0-9A-F]{8}(?:[0-9A-F]{8})?|standin[0-9]+)\b|LastUpdate="[^"]*"|\b(?:MaxCompileMemory|CompileTime|CompileCPU|CompileMemory|EstimatedAvailableMemoryGrant|EstimatedPagesCached|EstimatedAvailableDegreeOfParallelism)="[0-9]+"`)
 
-// MadeUp matches an object id read as text, and a constraint name SQL
-// Server made up.
+// MadeUp matches an object id read as text, a constraint name SQL Server
+// made up, and a showplan's figures of the run.
 func (Codec) MadeUp() *regexp.Regexp { return madeUp }
 
 // StandIn is the nth made-up name's stand-in.
@@ -322,13 +327,14 @@ func (Codec) StandIn(name string, n int) string {
 	if strings.HasPrefix(name, "oid:") {
 		return fmt.Sprintf("oid:0%d", n)
 	}
-	// A showplan states when the optimizer last read a statistic and how much
-	// memory it had, which differ on every recording.
+	// A showplan states when the optimizer last read a statistic, how long
+	// and how much memory compiling took, and the memory, buffer pool and
+	// processors the host offered, which differ on every recording.
 	if strings.HasPrefix(name, "LastUpdate=") {
 		return `LastUpdate="2026-01-01T00:00:00"`
 	}
-	if strings.HasPrefix(name, "MaxCompileMemory=") {
-		return `MaxCompileMemory="0"`
+	if attr, _, ok := strings.Cut(name, `="`); ok {
+		return attr + `="0"`
 	}
 	i := strings.LastIndex(name, "__")
 	return fmt.Sprintf("%s__standin%d", name[:i], n)

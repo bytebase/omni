@@ -259,7 +259,7 @@
   querySpan:
     type: 1
     results:
-        - name: SELECTMAX(d)FROMMyTable2
+        - name: ""
           sourcecolumns:
             - server: ""
               database: db

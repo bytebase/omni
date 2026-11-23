@@ -17,7 +17,10 @@ import (
 // The corpora under testdata/query-span are Bytebase's SQL Server query-span
 // fixtures, recorded from the resolver masking ran on before this package
 // existed. They are the masking-parity bar for this package and must be
-// reproduced, never re-recorded against this implementation.
+// reproduced, never re-recorded against this implementation. Two answers
+// were corrected by hand where SQL Server itself answers otherwise
+// (testdata/span.tsv): an unaliased expression has no name, and a table the
+// statement reads is named as the catalog names it.
 
 type spanCorpusCase struct {
 	Description         string          `yaml:"description"`

@@ -42,6 +42,6 @@
         - server: ""
           database: db
           schema: dbo
-          table: mytable1
+          table: MyTable1
           column: ""
     predicatecolumns: []
