@@ -770,6 +770,19 @@
                 }
               ]
             }
+          ],
+          "columns":  [
+            {
+              "name":  "ID",
+              "position":  1,
+              "type":  "NUMBER"
+            },
+            {
+              "name":  "NAME",
+              "position":  2,
+              "type":  "VARCHAR2(40 BYTE)",
+              "collation":  "USING_NLS_COMP"
+            }
           ]
         }
       ],
