@@ -47412,3 +47412,21 @@ accept	accept	engine	suite:manifest	COMMENT ON EDITION a IS 'comment category ed
 accept	accept	engine	suite:manifest	COMMENT ON AUDIT POLICY a IS 'comment category audit policy'
 accept	accept	engine	suite:manifest	COMMENT ON MINING MODEL a IS 'comment category mining model'
 accept	accept	engine	suite:manifest	COMMENT ON PROPERTY GRAPH a IS 'comment category property graph'
+accept	accept	engine	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a)
+accept	accept	engine	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a, a)
+accept	accept	engine	cited:add_table_partition	ALTER TABLE a ADD PARTITION a STORE IN (a)
+accept	accept	engine	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a) UPDATE INDEXES
+reject	reject	engine	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN a
+reject	reject	engine	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN ()
+reject	reject	engine	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a) TABLESPACE a
+accept	accept	engine	cited:add_table_partition	ALTER TABLE a ADD PARTITION a VALUES LESS THAN (1) STORE IN (a)
+accept	accept	engine	cited:add_table_partition	ALTER TABLE a ADD PARTITION a VALUES (1) STORE IN (a)
+reject	reject	engine	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a) PARALLEL
+reject	reject	engine	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a) COMPRESS
+accept	accept	engine	cited:add_table_partition	ALTER TABLE a ADD PARTITION TABLESPACE a STORE IN (a)
+reject	reject	engine	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a) READ ONLY
+reject	reject	engine	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a) INDEXING OFF
+accept	accept	engine	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a), PARTITION a
+reject	reject	engine	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a) SUBPARTITIONS 2
+reject	reject	engine	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a) (SUBPARTITION a)
+reject	reject	engine	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a) UPDATE INDEXES PARALLEL
