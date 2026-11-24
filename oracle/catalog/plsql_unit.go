@@ -95,7 +95,9 @@ func typeText(t *ast.TypeName) string {
 func (c *plChecker) trigger(n *ast.CreateTriggerStmt) {
 	table := c.e.resolveSynonymTarget(n.Table.Name, n.Table.Schema)
 	var cols map[string]bool
-	if v := c.e.views[table]; v != nil {
+	// A view whose columns the catalog could not derive leaves the row's
+	// fields unknown, and the body unchecked.
+	if v := c.e.views[table]; v != nil && len(v.Columns) > 0 {
 		cols = columnSet(v.Columns)
 	} else if t := c.e.tables[table]; t != nil {
 		cols = columnSet(t.Columns)

@@ -3675,3 +3675,18 @@ func TestForeignSupertypesAndJSONTypes(t *testing.T) {
 		}
 	}
 }
+
+// TestTriggerOnUnderivedView holds a trigger on a view whose columns the
+// catalog could not derive to compiling.
+func TestTriggerOnUnderivedView(t *testing.T) {
+	c, err := LoadSQL("CREATE TABLE app.t (id NUMBER);\nCREATE VIEW app.v AS SELECT id FROM other.t;\n" +
+		"CREATE TRIGGER app.tr INSTEAD OF INSERT ON v FOR EACH ROW BEGIN DBMS_OUTPUT.PUT_LINE(:NEW.id); END;\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range c.unitStates() {
+		if u.status != "VALID" {
+			t.Errorf("%s %s: %s %s, want VALID", u.kind, u.name, u.status, u.err)
+		}
+	}
+}
