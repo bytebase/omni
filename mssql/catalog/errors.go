@@ -81,6 +81,7 @@ const (
 	ErrXmlIndexNotTable               = 6334
 	ErrAssemblyNotFound               = 6528
 	ErrRebuildPartitionInvalid        = 7729
+	ErrDropExistingIndexNotFound      = 7999
 	ErrAlterTableAddIndexSyntax       = 8135
 	ErrDupTargetInAlter               = 8168
 	ErrTriggerTargetInvalid           = 8197

@@ -1321,12 +1321,20 @@ func (c *Catalog) createViewIndex(n *ast.CreateIndexStmt, schemaName, viewName, 
 		return mssqlErr(ErrObjectNotFound, "Cannot find the object \"%s\" because it does not exist or you do not have permissions.", viewName)
 	}
 	clustered := n.Clustered != nil && *n.Clustered
+	dropExisting := hasOptionOn(n.Options, "DROP_EXISTING")
+	var replaced *metadata.IndexMetadata
+	if dropExisting && n.Name != "" {
+		replaced = viewIndexByName(view, n.Name)
+	}
 	if !c.lenientMetadataLoad {
 		if !isSchemaBound(view.Definition) {
 			return mssqlErr(ErrViewNotSchemaBound, "Cannot create index on view '%s' because the view is not schema bound.", viewName)
 		}
 		qualified := schemaName + "." + view.Name
-		if n.Name != "" && viewIndexByName(view, n.Name) != nil {
+		if dropExisting && replaced == nil {
+			return mssqlErr(ErrDropExistingIndexNotFound, "Could not find any index named '%s' for table '%s'.", n.Name, qualified)
+		}
+		if !dropExisting && n.Name != "" && viewIndexByName(view, n.Name) != nil {
 			return mssqlErr(ErrDupIndex, "The operation failed because an index or statistics with name '%s' already exists on view '%s'.", n.Name, qualified)
 		}
 		if names, known := c.viewColumnNames(view); known {
@@ -1349,6 +1357,9 @@ func (c *Catalog) createViewIndex(n *ast.CreateIndexStmt, schemaName, viewName, 
 			}
 		}
 		existing := viewClusteredIndex(view)
+		if existing == replaced {
+			existing = nil
+		}
 		switch {
 		case clustered && existing != nil:
 			return mssqlErr(ErrMultipleClusteredIndex, "Cannot create more than one clustered index on view '%s'. Drop the existing clustered index '%s' before creating another.", qualified, existing.Name)
@@ -1370,11 +1381,9 @@ func (c *Catalog) createViewIndex(n *ast.CreateIndexStmt, schemaName, viewName, 
 	}
 	appendIndexColumns(index, n.Columns)
 	index.Definition = indexDefinition(n.IncludeCols, nil, source)
-	if hasOptionOn(n.Options, "DROP_EXISTING") {
-		if pos := slices.IndexFunc(view.Indexes, func(idx *metadata.IndexMetadata) bool { return strings.EqualFold(idx.Name, n.Name) }); pos >= 0 {
-			view.Indexes[pos] = index
-			return nil
-		}
+	if pos := slices.Index(view.Indexes, replaced); replaced != nil && pos >= 0 {
+		view.Indexes[pos] = index
+		return nil
 	}
 	view.Indexes = append(view.Indexes, index)
 	return nil

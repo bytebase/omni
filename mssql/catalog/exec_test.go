@@ -1284,6 +1284,9 @@ func TestExecIndexedView(t *testing.T) {
 	execExpectCode(t, c, "CREATE INDEX [ux] ON [dbo].[iv] ([v])", ErrDupIndex)
 	execExpectOK(t, c, "CREATE INDEX [ix] ON [dbo].[iv] ([v] DESC)")
 	execExpectOK(t, c, "ALTER INDEX [ix] ON [dbo].[iv] REBUILD")
+	execExpectOK(t, c, "CREATE UNIQUE CLUSTERED INDEX [ux] ON [dbo].[iv] ([id]) WITH (DROP_EXISTING = ON)")
+	execExpectOK(t, c, "CREATE INDEX [ix] ON [dbo].[iv] ([v] DESC) WITH (DROP_EXISTING = ON)")
+	execExpectCode(t, c, "CREATE INDEX [nope] ON [dbo].[iv] ([v]) WITH (DROP_EXISTING = ON)", ErrDropExistingIndexNotFound)
 
 	view := c.GetView("dbo", "iv")
 	require.Len(t, view.Indexes, 2)
