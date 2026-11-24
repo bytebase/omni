@@ -161,15 +161,21 @@ var charTypes = map[string]bool{
 // know it: the snapshot is not trusted, or the change may have altered
 // the table. The caller knows the path means the table (knownTable).
 func (b *builder) pathColType(path, col string) string {
+	if st := b.pathTable(path); st != nil {
+		return st.colTypes[col]
+	}
+	return ""
+}
+
+// pathTable returns the synced table at path, nil when the snapshot is
+// not trusted or the change may have altered the table. The caller knows
+// the path means the table (knownTable).
+func (b *builder) pathTable(path string) *snapTable {
 	s := b.w.snap
 	if s == nil || b.w.target.OtherSpecs || b.w.allTablesDirty || b.w.dirtyTables[path] || s.ambiguous[path] {
-		return ""
+		return nil
 	}
-	st := s.tables[path]
-	if st == nil {
-		return ""
-	}
-	return st.colTypes[col]
+	return s.tables[path]
 }
 
 // defColumnType returns the type of a column of a table definition, as a

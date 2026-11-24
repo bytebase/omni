@@ -47,9 +47,9 @@ type qscope struct {
 // binder binds the queries of one module or statement on the ledger.
 type binder struct {
 	b *builder
-	// ctes are the names of every CTE the statement defines, which a
-	// table reference may mean.
-	ctes []string
+	// ctes are every CTE the statement defines, which a table reference
+	// after it may mean.
+	ctes []*ast.CommonTableExpr
 	// visible are the CTEs of the WITH clauses around the query being
 	// bound.
 	visible []*ast.CommonTableExpr
@@ -57,8 +57,10 @@ type binder struct {
 	// view, an inline function, or a body's SELECT (verified).
 	noFrom bool
 	// pseudo is the table path a DML trigger's inserted and deleted
-	// stand for, and pseudoTable the trigger's table as written.
+	// stand for, and pseudoTable the trigger's table as written;
+	// pseudoCols are the columns of a view's INSTEAD OF trigger's.
 	pseudo, pseudoTable string
+	pseudoCols          []string
 	// tableVars are the table variables the body declares.
 	tableVars []*ast.VariableDecl
 	// bound is set while a statement SQL Server certainly binds is bound:
@@ -79,7 +81,7 @@ func newBinder(b *builder, root ast.Node, noFrom bool) *binder {
 		if w, ok := n.(*ast.WithClause); ok && w.CTEs != nil {
 			for _, item := range w.CTEs.Items {
 				if cte, ok := item.(*ast.CommonTableExpr); ok {
-					q.ctes = append(q.ctes, cte.Name)
+					q.ctes = append(q.ctes, cte)
 				}
 			}
 		}
@@ -88,13 +90,15 @@ func newBinder(b *builder, root ast.Node, noFrom bool) *binder {
 	return q
 }
 
-// isCTE reports whether an unqualified table name may mean a CTE.
+// isCTE reports whether an unqualified table name may mean a CTE: one
+// defined before it, or itself, as a recursive CTE's query names it. A
+// CTE defined after the name is not one it can mean (208, verified).
 func (q *binder) isCTE(tr *ast.TableRef) bool {
 	if tr.Schema != "" || tr.Database != "" || tr.Server != "" {
 		return false
 	}
 	for _, c := range q.ctes {
-		if !differ(c, tr.Object) {
+		if !differ(c.Name, tr.Object) && (c.Loc.Start < 0 || tr.Loc.Start < 0 || c.Loc.Start < tr.Loc.Start) {
 			return true
 		}
 	}
@@ -212,6 +216,14 @@ func (q *binder) source(n ast.Node, sc *qscope, conds *[]ast.ExprNode, apply boo
 			if v.Columns == nil {
 				// A column list fails first on the call (317).
 				q.b.tableFunction(t)
+				if fn := q.b.syncedFunction(t.Name); fn != nil && fn.kind != funcScalar && fn.cols != nil {
+					src := qsource{exposed: v.Alias, written: v.Alias, local: true, cols: fn.cols}
+					if v.Alias == "" {
+						src.exposed, src.written = t.Name.Object, object(t.Name)
+					}
+					sc.sources = append(sc.sources, src)
+					return
+				}
 			}
 			sc.opaque = true
 			sc.sources = append(sc.sources, qsource{exposed: v.Alias})
@@ -270,8 +282,8 @@ func (q *binder) table(tr *ast.TableRef, alias string, sc *qscope) {
 		exposed = tr.Object
 	}
 	src := qsource{exposed: exposed, written: object(tr)}
-	if p := q.pseudoPath(tr); p != "" {
-		src.path = p
+	if q.isPseudo(tr) {
+		src.path, src.local, src.cols = q.pseudo, q.pseudoCols != nil, q.pseudoCols
 		sc.sources = append(sc.sources, src)
 		return
 	}
@@ -285,6 +297,14 @@ func (q *binder) table(tr *ast.TableRef, alias string, sc *qscope) {
 			}
 		}
 	}
+	if tr.Temporal != nil && !q.isCTE(tr) && !strings.HasPrefix(tr.Object, "#") {
+		// FOR SYSTEM_TIME reads a system-versioned table (13544).
+		if r, ok := q.b.ref(tr, false); ok && q.b.periodless(r, rangeOf(tr.Loc)) {
+			sc.opaque = true
+			sc.sources = append(sc.sources, src)
+			return
+		}
+	}
 	if q.isCTE(tr) || strings.HasPrefix(tr.Object, "#") || tr.Temporal != nil || tr.ForPath {
 		sc.opaque = true
 		sc.sources = append(sc.sources, src)
@@ -295,6 +315,13 @@ func (q *binder) table(tr *ast.TableRef, alias string, sc *qscope) {
 		// NOEXPAND reads an indexed view (8171).
 		present := notKind(r.written, "view", kindView, kindSynonym)
 		q.b.ofKind(spaceRelation, r.parent, r.n, []string{kindView, kindSynonym}, note(r.rng, "", present))
+	}
+	if ok {
+		if cols := q.b.viewColumns(r); cols != nil {
+			src.local, src.cols, src.written = true, cols, r.written
+			sc.sources = append(sc.sources, src)
+			return
+		}
 	}
 	if !ok || !q.b.knownTable(r) {
 		sc.opaque = true
@@ -330,12 +357,16 @@ func (q *binder) expr(n ast.Node, sc *qscope) {
 			if q.bound && q.types {
 				q.callTypes(v, sc)
 			}
+			if q.call(v) {
+				return false
+			}
 			if v.Name != nil && v.Name.Schema == "" && strings.EqualFold(v.Name.Object, "UPDATE") && v.Args != nil && len(v.Args.Items) == 1 {
 				// A DML trigger's UPDATE(column) names a column of its
 				// table, whatever the query around it reads.
 				if c, ok := v.Args.Items[0].(*ast.ColumnRef); ok {
-					if q.pseudo != "" {
-						q.column(c, &qscope{sources: []qsource{{exposed: q.pseudoTable, written: q.pseudoTable, path: q.pseudo}}})
+					if q.pseudo != "" || q.pseudoCols != nil {
+						src := qsource{exposed: q.pseudoTable, written: q.pseudoTable, path: q.pseudo, local: q.pseudoCols != nil, cols: q.pseudoCols}
+						q.column(c, &qscope{sources: []qsource{src}})
 					}
 					return false
 				}
@@ -362,6 +393,9 @@ func (q *binder) column(c *ast.ColumnRef, sc *qscope) {
 				return
 			}
 		}
+	}
+	if strings.EqualFold(c.Column, "$IDENTITY") && !q.b.isDelimitedAt(c.Loc) && q.identity(c, sc) {
+		return
 	}
 	cn, ok := keyed(c.Column)
 	if !ok {
@@ -843,17 +877,28 @@ func (b *builder) columnNames(query ast.Node, cols *ast.List, kind string) bool 
 	}
 	var names []string
 	star := false
+	// A * stands for the columns of the sources it names, when the walk
+	// knows them.
+	sources, known := b.starSources(query)
+	expand := func(st *ast.StarExpr) {
+		star = true
+		for _, src := range sources {
+			if known && (st.Qualifier == "" || st.Qualifier == src.exposed) {
+				names = append(names, src.cols...)
+			}
+		}
+	}
 	for _, item := range s.TargetList.Items {
 		rt, ok := item.(*ast.ResTarget)
 		if !ok {
-			if _, ok := item.(*ast.StarExpr); ok {
-				star = true
+			if st, ok := item.(*ast.StarExpr); ok {
+				expand(st)
 			}
 			continue
 		}
 		switch v := rt.Val.(type) {
 		case *ast.StarExpr:
-			star = true
+			expand(v)
 			continue
 		case *ast.SelectAssign:
 			return false
@@ -899,6 +944,78 @@ func (b *builder) columnNames(query ast.Node, cols *ast.List, kind string) bool 
 	return false
 }
 
+// starSources returns the sources of a view's query, a single block, with
+// the columns a * gives of each: false unless each is a synced table not
+// changed since. A column that may be hidden from * (a period column, a
+// ledger table's, a graph table's) is left out, so two names a * gives
+// are the columns of two tables.
+func (b *builder) starSources(query ast.Node) ([]qsource, bool) {
+	s, ok := query.(*ast.SelectStmt)
+	if !ok || s == nil || s.Larg != nil || s.Rarg != nil || s.WithClause != nil || s.FromClause == nil {
+		return nil, false
+	}
+	var out []qsource
+	known := true
+	var add func(n ast.Node)
+	add = func(n ast.Node) {
+		var tr *ast.TableRef
+		alias := ""
+		switch v := n.(type) {
+		case *ast.TableRef:
+			tr, alias = v, v.Alias
+		case *ast.AliasedTableRef:
+			t, ok := v.Table.(*ast.TableRef)
+			if !ok || v.Columns != nil {
+				known = false
+				return
+			}
+			tr, alias = t, v.Alias
+			if alias == "" {
+				alias = t.Alias
+			}
+		case *ast.JoinClause:
+			if v.Using != nil {
+				known = false
+				return
+			}
+			add(v.Left)
+			add(v.Right)
+			return
+		default:
+			known = false
+			return
+		}
+		if strings.HasPrefix(tr.Object, "#") || tr.Temporal != nil || tr.ForPath {
+			known = false
+			return
+		}
+		r, ok := b.ref(tr, false)
+		if !ok {
+			known = false
+			return
+		}
+		st := b.syncedTable(r)
+		if st == nil || st.ledger || st.edge {
+			known = false
+			return
+		}
+		src := qsource{exposed: alias}
+		if alias == "" {
+			src.exposed = tr.Object
+		}
+		for _, c := range st.names {
+			if t := st.colTypes[c]; t != "" && t != "datetime2" && !strings.HasPrefix(c, "$") {
+				src.cols = append(src.cols, c)
+			}
+		}
+		out = append(out, src)
+	}
+	for _, item := range s.FromClause.Items {
+		add(item)
+	}
+	return out, known
+}
+
 // unnamedExpr reports whether a select-list expression without an alias
 // certainly has no name: anything but a column, or a column in
 // parentheses or under COLLATE, which the walk leaves alone.
@@ -936,8 +1053,9 @@ func twice(names []string) string {
 // table may bind against what it changed, and binds nothing here.
 // pseudo is the path of the table whose rows a DML trigger's inserted
 // and deleted hold, "" when the walk does not know them, and table that
-// table as written. vars are the module's typed parameters.
-func (b *builder) moduleBody(body ast.Node, params []string, vars []typedVar, tableVars []*ast.VariableDecl, pseudo, table string) {
+// table as written; pseudoCols are a view's columns instead. vars are the
+// module's typed parameters.
+func (b *builder) moduleBody(body ast.Node, params []string, vars []typedVar, tableVars []*ast.VariableDecl, pseudo, table string, pseudoCols []string) {
 	if body == nil || b.undeclared(body, params) {
 		return
 	}
@@ -952,7 +1070,7 @@ func (b *builder) moduleBody(body ast.Node, params []string, vars []typedVar, ta
 		return
 	}
 	q := newBinder(b, body, false)
-	q.pseudo, q.pseudoTable = pseudo, table
+	q.pseudo, q.pseudoTable, q.pseudoCols = pseudo, table, pseudoCols
 	q.tableVars = tableVars
 	ast.Inspect(body, func(n ast.Node) bool {
 		if v, ok := n.(*ast.VariableDecl); ok && v.IsTable {
@@ -1035,6 +1153,10 @@ func (q *binder) resolvable(n ast.Node) bool {
 			case *ast.TableRef:
 				ok = ok && q.exists(t)
 			case *ast.SubqueryExpr:
+			case *ast.FuncCallExpr:
+				// A table-valued function the walk knows is bound too.
+				fn := q.b.syncedFunction(t.Name)
+				ok = ok && fn != nil && fn.kind != funcScalar
 			default:
 				ok = false
 			}
@@ -1088,7 +1210,7 @@ func (q *binder) resolvable(n ast.Node) bool {
 // exists reports whether a named table certainly exists: a CTE, a DML
 // trigger's inserted or deleted, or a placed relation of the ledger.
 func (q *binder) exists(tr *ast.TableRef) bool {
-	if q.isCTE(tr) || q.pseudoPath(tr) != "" {
+	if q.isCTE(tr) || q.isPseudo(tr) {
 		return true
 	}
 	if strings.HasPrefix(tr.Object, "#") {
@@ -1101,16 +1223,13 @@ func (q *binder) exists(tr *ast.TableRef) bool {
 	return q.b.see(spaceRelation, r.parent, r.n).fact == walk.Present
 }
 
-// pseudoPath returns the table path inserted or deleted stands for in a
-// DML trigger's body, "" for another name.
-func (q *binder) pseudoPath(tr *ast.TableRef) string {
-	if q.pseudo == "" || tr.Schema != "" || tr.Database != "" || tr.Server != "" || q.isCTE(tr) {
-		return ""
+// isPseudo reports whether a name means inserted or deleted in a DML
+// trigger's body whose table the walk knows.
+func (q *binder) isPseudo(tr *ast.TableRef) bool {
+	if q.pseudo == "" && q.pseudoCols == nil || tr.Schema != "" || tr.Database != "" || tr.Server != "" || q.isCTE(tr) {
+		return false
 	}
-	if strings.EqualFold(tr.Object, "inserted") || strings.EqualFold(tr.Object, "deleted") {
-		return q.pseudo
-	}
-	return ""
+	return strings.EqualFold(tr.Object, "inserted") || strings.EqualFold(tr.Object, "deleted")
 }
 
 // tableVar returns the declaration of the table variable a name means,
@@ -1363,10 +1482,14 @@ func orderWithoutTop(n ast.Node) (review.Range, bool) {
 }
 
 // schemaBound fails a schema-bound view's or function's query that names
-// a table by one part (4512) or, with star, selects * (1054).
+// a table by one part (4512), a synced view or function that isn't
+// schema-bound (4513), or, with star, selects * (1054).
 func (b *builder) schemaBound(q *binder, n ast.Node, kind string, star bool) bool {
 	var rng review.Range
 	msg := ""
+	unbound := func(loc ast.Loc, written string) {
+		rng, msg = rangeOf(loc), "SQL Server doesn't accept "+review.Code(written)+", which isn't schema-bound, in a schema-bound "+kind+"."
+	}
 	forEachFromTable(n, func(tr *ast.TableRef) {
 		if msg == "" && tr.Schema == "" && tr.Database == "" && tr.Server == "" && !q.isCTE(tr) {
 			rng, msg = rangeOf(tr.Loc), "SQL Server doesn't accept the one-part name "+review.Code(object(tr))+" in a schema-bound "+kind+"."
@@ -1374,7 +1497,22 @@ func (b *builder) schemaBound(q *binder, n ast.Node, kind string, star bool) boo
 		if msg == "" && tr.Database == "" && tr.Server == "" && (strings.EqualFold(tr.Schema, "sys") || strings.EqualFold(tr.Schema, "INFORMATION_SCHEMA")) {
 			rng, msg = rangeOf(tr.Loc), "SQL Server doesn't accept the system object "+review.Code(object(tr))+" in a schema-bound "+kind+"."
 		}
+		if msg == "" && tr.Schema != "" {
+			if r, ok := b.ref(tr, false); ok && b.unboundView(r) {
+				unbound(tr.Loc, object(tr))
+			}
+		}
 	})
+	if msg == "" {
+		ast.Inspect(n, func(m ast.Node) bool {
+			if f, ok := m.(*ast.FuncCallExpr); ok && msg == "" && f.Name != nil && f.Name.Schema != "" {
+				if fn := b.syncedFunction(f.Name); fn != nil && !fn.bound {
+					unbound(f.Loc, object(f.Name))
+				}
+			}
+			return msg == ""
+		})
+	}
 	if msg == "" && star {
 		ast.Inspect(n, func(m ast.Node) bool {
 			if msg != "" {
@@ -1559,5 +1697,53 @@ func (q *binder) ungrouped(s *ast.SelectStmt) bool {
 		return false
 	}
 	q.b.fail(rangeOf(bad.Loc), review.UnsupportedForm, "SQL Server doesn't accept column "+review.Code(ident(bad.Column))+" in `"+clause+"`, which is neither grouped nor aggregated.")
+	return true
+}
+
+// call checks a function call of a bound statement, and reports whether
+// it failed: a synced scalar function takes no more arguments than it
+// declares (8144).
+func (q *binder) call(f *ast.FuncCallExpr) bool {
+	if !q.bound || f.Star || f.Name == nil || f.Name.Schema == "" {
+		return false
+	}
+	fn := q.b.syncedFunction(f.Name)
+	if fn == nil || fn.kind != funcScalar || len(listNodes(f.Args)) <= fn.params {
+		return false
+	}
+	q.b.fail(rangeOf(f.Loc), review.UnsupportedForm, msgArgs(object(f.Name), fn.params))
+	return true
+}
+
+// msgArgs says how many arguments a function takes.
+func msgArgs(fn string, n int) string {
+	return "Function " + review.Code(fn) + " takes " + count(n, "argument") + "."
+}
+
+// identity checks $IDENTITY in a block with a source, and reports whether
+// it did: it fails when every source, and every source of the blocks
+// around it, is a synced table with no identity column (207).
+func (q *binder) identity(c *ast.ColumnRef, sc *qscope) bool {
+	written := ""
+	for s := sc; s != nil; s = s.outer {
+		if s.opaque {
+			return true
+		}
+		for _, src := range s.sources {
+			if src.local || src.path == "" {
+				return true
+			}
+			if st := q.b.pathTable(src.path); st == nil || len(st.identity) > 0 {
+				return true
+			}
+			if written == "" {
+				written = src.written
+			}
+		}
+	}
+	if written == "" {
+		return false
+	}
+	q.b.fail(rangeOf(c.Loc), review.ObjectNotFound, msgMissingIn("column", "$IDENTITY", written))
 	return true
 }

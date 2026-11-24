@@ -6,6 +6,7 @@ import (
 
 	"github.com/bytebase/omni/mssql/ast"
 	"github.com/bytebase/omni/review"
+	"github.com/bytebase/omni/review/walk"
 )
 
 // The checks here fail a view's or an inline function's query on a form
@@ -722,16 +723,29 @@ var rowsetFunctions = map[string]bool{
 	"SEMANTICSIMILARITYDETAILSTABLE": true, "PREDICT": true,
 }
 
+// tableHints are the table hints' names.
+var tableHints = map[string]bool{
+	"NOEXPAND": true, "INDEX": true, "FORCESEEK": true, "FORCESCAN": true, "HOLDLOCK": true,
+	"NOLOCK": true, "NOWAIT": true, "PAGLOCK": true, "READCOMMITTED": true, "READCOMMITTEDLOCK": true,
+	"READPAST": true, "READUNCOMMITTED": true, "REPEATABLEREAD": true, "ROWLOCK": true,
+	"SERIALIZABLE": true, "SNAPSHOT": true, "SPATIAL_WINDOW_MAX_CELLS": true, "TABLOCK": true,
+	"TABLOCKX": true, "UPDLOCK": true, "XLOCK": true, "KEEPIDENTITY": true, "KEEPDEFAULTS": true,
+	"IGNORE_CONSTRAINTS": true, "IGNORE_TRIGGERS": true, "FASTFIRSTROW": true,
+}
+
 // tableFunction checks a table-valued function call of FROM: an object
-// of another kind takes no parameters (215). A table with names in
-// parentheses is one with old-style table hints instead, such as
-// a(NOLOCK), which a name that is no hint fails otherwise (207).
+// of another kind takes no parameters (215), a synced scalar function is
+// no table (208), and a synced table-valued one takes no more arguments
+// than it declares (8144). A table with names in parentheses is one with
+// old-style table hints instead, such as a(NOLOCK), where a name that is
+// no hint is a column the table lacks (207).
 func (b *builder) tableFunction(f *ast.FuncCallExpr) {
 	if f.Name == nil || f.Name.Server != "" || f.Name.Database != "" {
 		return
 	}
 	for _, a := range listNodes(f.Args) {
 		if _, ok := a.(*ast.ColumnRef); ok {
+			b.oldHints(f)
 			return
 		}
 	}
@@ -748,6 +762,39 @@ func (b *builder) tableFunction(f *ast.FuncCallExpr) {
 	present := notKind(r.written, "function", kindFunction, kindSynonym)
 	b.ofKind(spaceObject, r.parent, r.n, []string{kindFunction, kindSynonym}, note(r.rng, "", present))
 	b.ofKind(spaceRelation, r.parent, r.n, []string{kindFunction, kindSynonym}, note(r.rng, "", present))
+	switch fn := b.syncedFunction(f.Name); {
+	case fn == nil:
+	case fn.kind == funcScalar:
+		b.fail(r.rng, review.ObjectNotFound, "Function "+review.Code(r.written)+" is scalar, not table-valued.")
+	case len(listNodes(f.Args)) > fn.params:
+		b.fail(rangeOf(f.Loc), review.UnsupportedForm, msgArgs(r.written, fn.params))
+	}
+}
+
+// oldHints checks a known table with names in parentheses: each that is
+// no table hint is a column the table must hold (207).
+func (b *builder) oldHints(f *ast.FuncCallExpr) {
+	r, ok := b.ref(f.Name, false)
+	if !ok || !b.knownTable(r) {
+		return
+	}
+	for _, a := range listNodes(f.Args) {
+		c, ok := a.(*ast.ColumnRef)
+		if !ok || c.Table != "" {
+			return
+		}
+	}
+	for _, a := range listNodes(f.Args) {
+		c := a.(*ast.ColumnRef)
+		cn, ok := keyed(c.Column)
+		if !ok || tableHints[strings.ToUpper(c.Column)] {
+			continue
+		}
+		if got := b.see(spaceColumn, r.tablePath(), cn); got.fact == walk.Absent {
+			b.Need(got.key, walk.Present, nil, note(rangeOf(c.Loc), msgMissingIn("column", ident(c.Column), r.written), nil))
+			return
+		}
+	}
 }
 
 // unparen returns an expression without the parentheses around it.

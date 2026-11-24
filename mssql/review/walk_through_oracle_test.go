@@ -504,7 +504,7 @@ var walkCodes = []struct {
 	{regexp.MustCompile("^SQL Server doesn't accept `CREATE TABLE AS SELECT`\\.$"), []string{"102", "173"}},
 	{regexp.MustCompile("^SQL Server doesn't accept an index on view `.*`, which isn't schema-bound\\.$"), []string{"1939", "1940", "35305", "10610", "1716"}},
 	{regexp.MustCompile("^Table `.*` already has clustered index `.*`\\.$"), []string{"1902", "35372"}},
-	{regexp.MustCompile("^Table `.*` has no `SYSTEM_TIME` period\\.$"), []string{"13510", "13591", "13593"}},
+	{regexp.MustCompile("^Table `.*` has no `SYSTEM_TIME` period\\.$"), []string{"13510", "13591", "13593", "13544"}},
 	{regexp.MustCompile("^Table `.*` isn't a FileTable\\.$"), []string{"33411"}},
 	{regexp.MustCompile("^Table `.*` is referenced by a foreign key of `.*`\\.$"), []string{"3726", "4712"}},
 	{regexp.MustCompile("^Foreign key `.*` depends on column `.*`\\.$"), []string{"5074"}},
@@ -512,6 +512,10 @@ var walkCodes = []struct {
 	{regexp.MustCompile("^Trigger `.*` is on `.*`, not `.*`\\.$"), []string{"2110"}},
 	{regexp.MustCompile("^SQL Server doesn't accept `RETURN` of a value in a table-valued function\\.$"), []string{"178"}},
 	{regexp.MustCompile("^Index `.*` isn't clustered, so it can't be dropped with `.*`\\.$"), []string{"3745", "3748"}},
+	{regexp.MustCompile("^Function `.*` takes \\d+ arguments?\\.$"), []string{"8144"}},
+	{regexp.MustCompile("^Function `.*` is scalar, not table-valued\\.$"), []string{"208"}},
+	{regexp.MustCompile("^Function `.*` is .*, and `ALTER FUNCTION` can't make it .*\\.$"), []string{"2010"}},
+	{regexp.MustCompile("^SQL Server doesn't accept `.*`, which isn't schema-bound, in a schema-bound (view|function)\\.$"), []string{"4513"}},
 }
 
 func (e *walkEngine) Codes(message string) []string {

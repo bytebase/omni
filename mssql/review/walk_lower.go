@@ -54,7 +54,7 @@ func (b *builder) statement(n ast.Node) bool {
 		}
 		if v.ExternalName == "" {
 			defer b.enterModule(b.moduleSchema(v.Name, v.Loc, v.OrAlter))()
-			b.moduleBody(v.Body, paramNames(v.Params), typedParams(v.Params), nil, "", "")
+			b.moduleBody(v.Body, paramNames(v.Params), typedParams(v.Params), nil, "", "", nil)
 		}
 		return true
 	case *ast.CreateFunctionStmt:
@@ -621,6 +621,13 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 // multi-statement functions whose body executes a result-returning SELECT
 // (444).
 func (b *builder) createFunction(v *ast.CreateFunctionStmt) bool {
+	// ALTER FUNCTION keeps a function's kind (2010).
+	if old := b.syncedFunction(v.Name); old != nil && v.ExternalName == "" && b.w.batch[b.s.index].first && b.moduleVerb(v.Loc, v.OrAlter) == "ALTER" {
+		if kind := funcKind(v); kind != old.kind {
+			b.fail(rangeOf(v.Name.Loc), review.UnsupportedForm, "Function "+review.Code(object(v.Name))+" is "+old.kind+", and `ALTER FUNCTION` can't make it "+kind+".")
+			return true
+		}
+	}
 	if !b.createModule(v.Loc, v.Name, v.OrAlter, kindFunction, false) {
 		return false
 	}
@@ -670,7 +677,7 @@ func (b *builder) createFunction(v *ast.CreateFunctionStmt) bool {
 		params = append(params, rt.Variable)
 		tableVars = append(tableVars, &ast.VariableDecl{Name: rt.Variable, IsTable: true, TableDef: rt.Columns})
 	}
-	b.moduleBody(v.Body, params, typedParams(v.Params), tableVars, "", "")
+	b.moduleBody(v.Body, params, typedParams(v.Params), tableVars, "", "", nil)
 	return true
 }
 

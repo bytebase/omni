@@ -679,25 +679,66 @@ func (b *builder) syncedTable(r objRef) *snapTable {
 	return s.tables[path]
 }
 
-// unboundView reports whether r certainly refers to a synced view, not
-// changed since, whose definition is not schema-bound: it has no index,
-// and SQL Server creates none on it (1939, 1940, 35305).
-func (b *builder) unboundView(r objRef) bool {
+// syncedView returns the path of the synced view r certainly refers to,
+// when it has not changed since; "" otherwise.
+func (b *builder) syncedView(r objRef) string {
 	s := b.w.snap
 	if r.temp || r.where != placed || b.w.target.OtherSpecs || b.w.allTablesDirty || s == nil {
-		return false
+		return ""
 	}
 	space, parent := r.relSpace()
 	f, kind := b.classFact(r.n.classKey(space, parent))
 	if f != walk.Present {
-		return false
+		return ""
 	}
 	k, sp, ok := single(kind)
 	if !ok || k != kindView || (sp != r.n.spelling && !b.unmarked(space, parent)) {
-		return false
+		return ""
 	}
 	path := r.tablePath()
-	return !b.w.dirtyTables[path] && !s.ambiguous[path] && s.unbound[path]
+	if b.w.dirtyTables[path] || s.ambiguous[path] {
+		return ""
+	}
+	return path
+}
+
+// unboundView reports whether r certainly refers to a synced view, not
+// changed since, whose definition is not schema-bound: it has no index,
+// and SQL Server creates none on it (1939, 1940, 35305).
+func (b *builder) unboundView(r objRef) bool {
+	p := b.syncedView(r)
+	return p != "" && b.w.snap.unbound[p]
+}
+
+// viewColumns returns the columns of the synced view r certainly refers
+// to, when it has not changed since; nil when the walk does not know them.
+func (b *builder) viewColumns(r objRef) []string {
+	if p := b.syncedView(r); p != "" {
+		return b.w.snap.viewCols[p]
+	}
+	return nil
+}
+
+// syncedFunction returns what the synced definition of the function a
+// name certainly refers to shows, when the function has not changed
+// since; nil otherwise.
+func (b *builder) syncedFunction(tr *ast.TableRef) *snapFunc {
+	s := b.w.snap
+	if tr == nil || tr.Server != "" || tr.Database != "" || s == nil || b.w.target.OtherSpecs || b.w.allTablesDirty {
+		return nil
+	}
+	r, ok := b.ref(tr, false)
+	if !ok || r.temp || r.where != placed {
+		return nil
+	}
+	if sg := b.see(spaceObject, r.parent, r.n); sg.fact != walk.Present || sg.kind != kindFunction {
+		return nil
+	}
+	path := r.tablePath()
+	if b.w.dirtyTables[path] || s.ambiguous[path] {
+		return nil
+	}
+	return s.functions[path]
 }
 
 // referencer returns another synced table, unchanged since, whose foreign
