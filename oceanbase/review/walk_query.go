@@ -112,24 +112,34 @@ func (b *builder) viewFunctionsFail(sel *ast.SelectStmt) bool {
 	if !plain || b.w.noDatabase || b.w.lost {
 		return false
 	}
-	failed, definite := false, false
+	// The scan goes on past a stored function the database has, and stops
+	// at any other call that may fail, so that a later finding is never one
+	// OceanBase would not reach.
+	stop, definite := false, false
 	ast.Inspect(sel, func(n ast.Node) bool {
 		f, ok := n.(*ast.FuncCallExpr)
-		if failed || !ok || f.Schema != "" || f.Name == "" {
-			return !failed
+		if stop || !ok || f.Schema != "" || f.Name == "" {
+			return !stop
 		}
 		name := strings.ToLower(f.Name)
 		if obcatalog.IsBuiltinFunction(name) {
 			if len(f.Args) == 0 && obcatalog.BuiltinRequiresArgs(name) {
 				b.fail(rangeOf(f.Loc), nil, review.UnsupportedForm, review.Code(strings.ToUpper(name)+"()")+" needs at least one argument.")
-				failed, definite = true, true
+				stop, definite = true, true
 			}
-			return !failed
+			return !stop
 		}
-		if k, ok := b.key(spaceFunction, f.Name); ok {
-			b.need(objKey(spaceFunction, b.w.current, k), walk.Present, nil, rangeOf(f.Loc), notFound("function", ident(f.Name), ""), "") // 1305
+		k, ok := b.key(spaceFunction, f.Name)
+		if !ok {
+			stop = true
+			return false
 		}
-		failed = true
+		fk := objKey(spaceFunction, b.w.current, k)
+		if fact, _ := b.l.Lookup(fk); fact == walk.Present {
+			return true
+		}
+		b.need(fk, walk.Present, nil, rangeOf(f.Loc), notFound("function", ident(name), ""), "") // 1305
+		stop = true
 		return false
 	})
 	return definite

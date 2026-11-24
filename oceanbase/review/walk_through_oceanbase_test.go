@@ -250,6 +250,12 @@ func TestWalkThroughRejectedAlterActions(t *testing.T) {
 	oneFindingOB(t, "ALTER TABLE t ADD (c JSON) JSON(c) STORE AS (CHUNK 1);", 0, "OceanBase refuses LOB storage parameters on ALTER TABLE ADD.", shop)
 	oneFindingOB(t, "ALTER TABLE t ADD COLUMN c 'int';", 0, "OceanBase refuses a quoted string literal as a column data type.", shop)
 	oneFindingOB(t, "CREATE VIEW v2 TABLE_ID = 1 AS SELECT 1;", 0, "OceanBase refuses TABLE_ID on a view.", shop)
+	// A view's functions: a stored one the database has lets the scan go on.
+	oneFindingOB(t, "CREATE VIEW v2 AS SELECT nosuch() AS a;", 0, "Function `nosuch` doesn't exist.", shop)
+	oneFindingOB(t, "CREATE VIEW v2 AS SELECT REVERSE() AS a;", 0, "`REVERSE()` needs at least one argument.", shop)
+	oneFindingOB(t, "CREATE FUNCTION fv() RETURNS INT DETERMINISTIC RETURN 1;\nCREATE VIEW v2 AS SELECT fv() AS a, nosuch() AS b;", 1, "Function `nosuch` doesn't exist.", shop)
+	oneFindingOB(t, "CREATE FUNCTION fv(x INT) RETURNS INT DETERMINISTIC RETURN 1;\nCREATE VIEW v2 AS SELECT fv(REVERSE()) AS a;", 1, "`REVERSE()` needs at least one argument.", shop)
+	noFindingOB(t, "CREATE FUNCTION fv() RETURNS INT DETERMINISTIC RETURN 1;\nCREATE VIEW v2 AS SELECT fv() AS a, REVERSE('x') AS b;", shop)
 }
 
 func TestWalkThroughOceanBaseRecallFamilies(t *testing.T) {
