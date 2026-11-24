@@ -723,7 +723,9 @@ UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = :1 ORDER BY 
 		s.Tables = append(s.Tables, tables[v[0].String])
 	})
 	query(`SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = :1 AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name`, func(v []sql.NullString) {
-		if tb, ok := tables[v[0].String]; ok {
+		tb, isTable := tables[v[0].String]
+		mv, isMView := mviews[v[0].String]
+		if isTable || isMView {
 			col := &metadata.ColumnMetadata{
 				Name:        v[1].String,
 				Type:        v[2].String,
@@ -738,6 +740,12 @@ UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = :1 ORDER BY 
 				}
 			} else if v[7].Valid && strings.TrimSpace(v[7].String) != "" {
 				col.Default = strings.TrimSpace(v[7].String)
+			}
+			// A materialized view's columns are its container table's,
+			// as oracle/driver/sync.go's getMaterializedViews gives them.
+			if isMView {
+				mv.Columns = append(mv.Columns, col)
+				return
 			}
 			tb.Columns = append(tb.Columns, col)
 		}

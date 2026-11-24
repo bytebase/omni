@@ -87,7 +87,7 @@ var walkSimMinFixtureRecallPct = map[string]float64{
 	"objects@partitioned":   87.0,
 	"objects@index_trigger": 91.5,
 	"objects@view":          91.5,
-	"objects@matview":       54.0,
+	"objects@matview":       61.5,
 	"objects@sequence":      93.0,
 	"objects@synonym":       87.0,
 	"objects@function":      93.0,

@@ -330,19 +330,20 @@ func (b *builder) refTooLong(o *ast.ObjectName, r objRef) bool {
 // look reads a key as the statements before this one left it.
 func (b *builder) look(k walk.Key) (walk.Fact, string) { return b.l.Lookup(k) }
 
-// syncedTable returns the synced non-mview table metadata for r if r still
-// names that synced table in the snapshot's schema and no prior spec could
-// have altered it.
+// syncedTable returns the synced table metadata for r if r still names that
+// synced table in the snapshot's schema and no prior spec could have altered
+// it. A materialized view counts when the sync listed its container's
+// columns, which are the ones its DDL and DML act on.
 func (b *builder) syncedTable(r objRef) *syncedTable {
 	if b.w.otherSpecs || b.w.mutatedAllTables || r.schema != b.w.snap.schema {
 		return nil
 	}
 	f, kind := b.look(r.key(spaceTable))
-	if f != walk.Present || kind != kindTable {
+	if f != walk.Present || kind != kindTable && kind != kindMView {
 		return nil
 	}
 	st := b.w.snap.tables[r.name]
-	if st == nil || st.mview {
+	if st == nil || st.mview && (kind != kindMView || len(st.columns) == 0) {
 		return nil
 	}
 	return st
