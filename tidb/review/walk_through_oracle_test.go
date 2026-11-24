@@ -414,6 +414,13 @@ var walkCodes = []struct {
 }{
 	// The shape and foreign key checks (walk_table_shape.go, walk_fk.go,
 	// walk_columns.go), first: their texts begin as others' do.
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.HasSuffix(m, " so a foreign key can't set it to `NULL`.")
+	}, []string{"1830"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Referenced column ") }, []string{"3734"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "No index of ") && strings.HasSuffix(m, " starts with the columns a foreign key references there.")
+	}, []string{"1822"}},
 	{func(m, stmt string) bool {
 		return strings.HasPrefix(m, "Table ") && strings.Contains(m, " is referenced by foreign key ") && leads(stmt, "TRUNCATE")
 	}, []string{"1701"}},
@@ -496,6 +503,9 @@ var walkCodes = []struct {
 	{func(m, _ string) bool { return strings.HasPrefix(m, "Database ") }, []string{"1049", "1008", "1025"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "No database is selected for ") }, []string{"1046"}},
 	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.Contains(m, " is read by the partitioning of ")
+	}, []string{"3855"}},
+	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Column ") && strings.Contains(m, " already exists in ") || saysTwice(m, "column", "declares", "adds", "drops")
 	}, []string{"1060", "1091", "8200"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "Column ") }, []string{"1054", "1091", "1072", "1488"}},
@@ -540,6 +550,27 @@ var walkCodes = []struct {
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Partition ") && strings.Contains(m, " already exists in ")
 	}, []string{"1517"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Partition ") && strings.Contains(m, " can't use `VALUES` with ")
+	}, []string{"1480"}},
+	{func(m, stmt string) bool {
+		return strings.HasPrefix(m, "Partition ") && strings.Contains(m, " doesn't exist in ") && strings.Contains(strings.ToUpper(stmt), "DROP PARTITION")
+	}, []string{"1507"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Partition ") && strings.Contains(m, " doesn't exist in ")
+	}, []string{"1735"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Partition column ") }, []string{"1659"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "This statement removes every partition of ") }, []string{"1508"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "`DROP PARTITION` works only on ") }, []string{"1512"}},
+	{func(m, _ string) bool { return m == "`COALESCE PARTITION` must remove at least one partition." }, []string{"1515"}},
+	{func(m, _ string) bool { return m == "`MAXVALUE` can only bound the last partition." }, []string{"1481"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Each partition's `VALUES LESS THAN` bound must be greater ")
+	}, []string{"1493"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "The partitions' `VALUES IN` name ") }, []string{"1495"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "TiDB doesn't support a foreign key on partitioned table ")
+	}, []string{"1506"}},
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, " column to rebase.")
 	}, []string{"8216"}},
@@ -630,8 +661,17 @@ var walkCodes = []struct {
 		return m == "`CREATE VIEW` expands `*` with no table to read from."
 	}, []string{"1051"}},
 	{func(m, _ string) bool {
-		return m == "`FOREIGN KEY` must name the referenced columns."
+		return m == "`FOREIGN KEY` must name the referenced columns." || m == "`FOREIGN KEY` must reference as many columns as it holds."
 	}, []string{"1239"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "An expression index can't be a lone column") }, []string{"3762"}},
+	{func(m, _ string) bool { return m == "A primary key can't hold an expression." }, []string{"3756"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Generated column ") && strings.Contains(m, " can't read `AUTO_INCREMENT` column ")
+	}, []string{"3109"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Generated column ") && strings.HasSuffix(m, ", which is defined after it.")
+	}, []string{"3107"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "TiDB doesn't recognize collation ") }, []string{"1273"}},
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Partition bound expression can't reference column ")
 	}, []string{"1054", "1480", "1505"}},

@@ -115,6 +115,8 @@ type tidbSnapshot struct {
 	fkRefs    []syncedFKRef
 	// checkSets holds each table's CHECK constraints (walk_checks.go).
 	checkSets map[string]string
+	// partLists holds each partitioned table's partitions (walk_partition.go).
+	partLists map[string]string
 }
 
 func newTiDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *tidbSnapshot {
@@ -135,6 +137,7 @@ func newTiDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *tidb
 		idCaches:         make(map[string]string),
 		clustered:        make(map[string]bool),
 		checkSets:        make(map[string]string),
+		partLists:        make(map[string]string),
 	}
 	s.db, _ = nameKey(spaceDatabase, db.GetName(), foldTables)
 	// set lists a name of a table's space, or of the database's relations
@@ -197,6 +200,9 @@ func newTiDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *tidb
 					set(parts, spacePartition, tk, p.GetName())
 				}
 				s.partitions[tk] = parts
+				if l, ok := syncedPartList(t.GetPartitions()); ok {
+					s.partLists[tk] = l
+				}
 			}
 		}
 		for _, v := range schema.GetViews() {
@@ -282,7 +288,7 @@ func (s *tidbSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 			}
 		}
 		return walk.Unknown, ""
-	case spaceColumnType, spaceIndexSet, spaceFKDef, spaceOrigin, spaceIDCache, spaceCheckSet, spaceClustered:
+	case spaceColumnType, spaceIndexSet, spaceFKDef, spaceOrigin, spaceIDCache, spaceCheckSet, spaceClustered, spacePartList:
 		if len(path) != 2 {
 			return walk.Unknown, ""
 		}
