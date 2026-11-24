@@ -988,6 +988,10 @@ message ViewMetadata {
 
   // View check option clause ("LOCAL", "CASCADED", or empty).
   string check_option = 11;
+
+  // The indexes on the view (SQL Server indexed views). A clustered unique
+  // index materializes the view; nonclustered indexes may follow it.
+  repeated IndexMetadata indexes = 12;
 }
 
 // DependencyColumn is the metadata for dependency columns.
@@ -1016,13 +1020,17 @@ message MaterializedViewMetadata {
   // The list of dependency columns of the view.
   repeated DependencyColumn dependency_columns = 4;
 
-  // The ordered list of columns in the materialized view.
+  // The list of triggers in the materialized view.
   repeated TriggerMetadata triggers = 5;
 
   // The list of indexes in the materialized view.
   repeated IndexMetadata indexes = 6;
 
   bool skip_dump = 7;
+
+  // The ordered list of columns in the materialized view (Oracle and
+  // PostgreSQL), with their types as the engine derived them.
+  repeated ColumnMetadata columns = 8;
 }
 
 message DependencyTable {

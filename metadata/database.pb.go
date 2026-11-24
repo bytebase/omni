@@ -3559,7 +3559,10 @@ type ViewMetadata struct {
 	Algorithm   string `protobuf:"bytes,9,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
 	SqlSecurity string `protobuf:"bytes,10,opt,name=sql_security,json=sqlSecurity,proto3" json:"sql_security,omitempty"`
 	// View check option clause ("LOCAL", "CASCADED", or empty).
-	CheckOption   string `protobuf:"bytes,11,opt,name=check_option,json=checkOption,proto3" json:"check_option,omitempty"`
+	CheckOption string `protobuf:"bytes,11,opt,name=check_option,json=checkOption,proto3" json:"check_option,omitempty"`
+	// The indexes on the view (SQL Server indexed views). A clustered unique
+	// index materializes the view; nonclustered indexes may follow it.
+	Indexes       []*IndexMetadata `protobuf:"bytes,12,rep,name=indexes,proto3" json:"indexes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3671,6 +3674,13 @@ func (x *ViewMetadata) GetCheckOption() string {
 	return ""
 }
 
+func (x *ViewMetadata) GetIndexes() []*IndexMetadata {
+	if x != nil {
+		return x.Indexes
+	}
+	return nil
+}
+
 // DependencyColumn is the metadata for dependency columns.
 type DependencyColumn struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -3746,11 +3756,14 @@ type MaterializedViewMetadata struct {
 	Comment string `protobuf:"bytes,3,opt,name=comment,proto3" json:"comment,omitempty"`
 	// The list of dependency columns of the view.
 	DependencyColumns []*DependencyColumn `protobuf:"bytes,4,rep,name=dependency_columns,json=dependencyColumns,proto3" json:"dependency_columns,omitempty"`
-	// The ordered list of columns in the materialized view.
+	// The list of triggers in the materialized view.
 	Triggers []*TriggerMetadata `protobuf:"bytes,5,rep,name=triggers,proto3" json:"triggers,omitempty"`
 	// The list of indexes in the materialized view.
-	Indexes       []*IndexMetadata `protobuf:"bytes,6,rep,name=indexes,proto3" json:"indexes,omitempty"`
-	SkipDump      bool             `protobuf:"varint,7,opt,name=skip_dump,json=skipDump,proto3" json:"skip_dump,omitempty"`
+	Indexes  []*IndexMetadata `protobuf:"bytes,6,rep,name=indexes,proto3" json:"indexes,omitempty"`
+	SkipDump bool             `protobuf:"varint,7,opt,name=skip_dump,json=skipDump,proto3" json:"skip_dump,omitempty"`
+	// The ordered list of columns in the materialized view (Oracle and
+	// PostgreSQL), with their types as the engine derived them.
+	Columns       []*ColumnMetadata `protobuf:"bytes,8,rep,name=columns,proto3" json:"columns,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3832,6 +3845,13 @@ func (x *MaterializedViewMetadata) GetSkipDump() bool {
 		return x.SkipDump
 	}
 	return false
+}
+
+func (x *MaterializedViewMetadata) GetColumns() []*ColumnMetadata {
+	if x != nil {
+		return x.Columns
+	}
+	return nil
 }
 
 type DependencyTable struct {
@@ -5746,7 +5766,7 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x04Type\x12\x14\n" +
 	"\x10TYPE_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fTYPE_VIRTUAL\x10\x01\x12\x0f\n" +
-	"\vTYPE_STORED\x10\x02\"\xd5\x03\n" +
+	"\vTYPE_STORED\x10\x02\"\x8d\x04\n" +
 	"\fViewMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1e\n" +
 	"\n" +
@@ -5761,11 +5781,12 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\talgorithm\x18\t \x01(\tR\talgorithm\x12!\n" +
 	"\fsql_security\x18\n" +
 	" \x01(\tR\vsqlSecurity\x12!\n" +
-	"\fcheck_option\x18\v \x01(\tR\vcheckOption\"X\n" +
+	"\fcheck_option\x18\v \x01(\tR\vcheckOption\x126\n" +
+	"\aindexes\x18\f \x03(\v2\x1c.omni.metadata.IndexMetadataR\aindexes\"X\n" +
 	"\x10DependencyColumn\x12\x16\n" +
 	"\x06schema\x18\x01 \x01(\tR\x06schema\x12\x14\n" +
 	"\x05table\x18\x02 \x01(\tR\x05table\x12\x16\n" +
-	"\x06column\x18\x03 \x01(\tR\x06column\"\xc9\x02\n" +
+	"\x06column\x18\x03 \x01(\tR\x06column\"\x82\x03\n" +
 	"\x18MaterializedViewMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1e\n" +
 	"\n" +
@@ -5775,7 +5796,8 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x12dependency_columns\x18\x04 \x03(\v2\x1f.omni.metadata.DependencyColumnR\x11dependencyColumns\x12:\n" +
 	"\btriggers\x18\x05 \x03(\v2\x1e.omni.metadata.TriggerMetadataR\btriggers\x126\n" +
 	"\aindexes\x18\x06 \x03(\v2\x1c.omni.metadata.IndexMetadataR\aindexes\x12\x1b\n" +
-	"\tskip_dump\x18\a \x01(\bR\bskipDump\"?\n" +
+	"\tskip_dump\x18\a \x01(\bR\bskipDump\x127\n" +
+	"\acolumns\x18\b \x03(\v2\x1d.omni.metadata.ColumnMetadataR\acolumns\"?\n" +
 	"\x0fDependencyTable\x12\x16\n" +
 	"\x06schema\x18\x01 \x01(\tR\x06schema\x12\x14\n" +
 	"\x05table\x18\x02 \x01(\tR\x05table\"\x97\x03\n" +
@@ -6049,24 +6071,26 @@ var file_omni_metadata_database_proto_depIdxs = []int32{
 	28, // 48: omni.metadata.ViewMetadata.columns:type_name -> omni.metadata.ColumnMetadata
 	19, // 49: omni.metadata.ViewMetadata.triggers:type_name -> omni.metadata.TriggerMetadata
 	20, // 50: omni.metadata.ViewMetadata.rules:type_name -> omni.metadata.RuleMetadata
-	31, // 51: omni.metadata.MaterializedViewMetadata.dependency_columns:type_name -> omni.metadata.DependencyColumn
-	19, // 52: omni.metadata.MaterializedViewMetadata.triggers:type_name -> omni.metadata.TriggerMetadata
-	37, // 53: omni.metadata.MaterializedViewMetadata.indexes:type_name -> omni.metadata.IndexMetadata
-	33, // 54: omni.metadata.FunctionMetadata.dependency_tables:type_name -> omni.metadata.DependencyTable
-	38, // 55: omni.metadata.IndexMetadata.constraints:type_name -> omni.metadata.IndexConstraintMetadata
-	39, // 56: omni.metadata.IndexMetadata.spatial_config:type_name -> omni.metadata.SpatialIndexConfig
-	48, // 57: omni.metadata.IndexMetadata.parser_properties:type_name -> omni.metadata.IndexMetadata.ParserPropertiesEntry
-	40, // 58: omni.metadata.SpatialIndexConfig.tessellation:type_name -> omni.metadata.TessellationConfig
-	43, // 59: omni.metadata.SpatialIndexConfig.storage:type_name -> omni.metadata.StorageConfig
-	44, // 60: omni.metadata.SpatialIndexConfig.dimensional:type_name -> omni.metadata.DimensionalConfig
-	49, // 61: omni.metadata.SpatialIndexConfig.engine_specific:type_name -> omni.metadata.SpatialIndexConfig.EngineSpecificEntry
-	41, // 62: omni.metadata.TessellationConfig.bounding_box:type_name -> omni.metadata.BoundingBox
-	42, // 63: omni.metadata.TessellationConfig.grid_levels:type_name -> omni.metadata.GridLevel
-	64, // [64:64] is the sub-list for method output_type
-	64, // [64:64] is the sub-list for method input_type
-	64, // [64:64] is the sub-list for extension type_name
-	64, // [64:64] is the sub-list for extension extendee
-	0,  // [0:64] is the sub-list for field type_name
+	37, // 51: omni.metadata.ViewMetadata.indexes:type_name -> omni.metadata.IndexMetadata
+	31, // 52: omni.metadata.MaterializedViewMetadata.dependency_columns:type_name -> omni.metadata.DependencyColumn
+	19, // 53: omni.metadata.MaterializedViewMetadata.triggers:type_name -> omni.metadata.TriggerMetadata
+	37, // 54: omni.metadata.MaterializedViewMetadata.indexes:type_name -> omni.metadata.IndexMetadata
+	28, // 55: omni.metadata.MaterializedViewMetadata.columns:type_name -> omni.metadata.ColumnMetadata
+	33, // 56: omni.metadata.FunctionMetadata.dependency_tables:type_name -> omni.metadata.DependencyTable
+	38, // 57: omni.metadata.IndexMetadata.constraints:type_name -> omni.metadata.IndexConstraintMetadata
+	39, // 58: omni.metadata.IndexMetadata.spatial_config:type_name -> omni.metadata.SpatialIndexConfig
+	48, // 59: omni.metadata.IndexMetadata.parser_properties:type_name -> omni.metadata.IndexMetadata.ParserPropertiesEntry
+	40, // 60: omni.metadata.SpatialIndexConfig.tessellation:type_name -> omni.metadata.TessellationConfig
+	43, // 61: omni.metadata.SpatialIndexConfig.storage:type_name -> omni.metadata.StorageConfig
+	44, // 62: omni.metadata.SpatialIndexConfig.dimensional:type_name -> omni.metadata.DimensionalConfig
+	49, // 63: omni.metadata.SpatialIndexConfig.engine_specific:type_name -> omni.metadata.SpatialIndexConfig.EngineSpecificEntry
+	41, // 64: omni.metadata.TessellationConfig.bounding_box:type_name -> omni.metadata.BoundingBox
+	42, // 65: omni.metadata.TessellationConfig.grid_levels:type_name -> omni.metadata.GridLevel
+	66, // [66:66] is the sub-list for method output_type
+	66, // [66:66] is the sub-list for method input_type
+	66, // [66:66] is the sub-list for extension type_name
+	66, // [66:66] is the sub-list for extension extendee
+	0,  // [0:66] is the sub-list for field type_name
 }
 
 func init() { file_omni_metadata_database_proto_init() }
