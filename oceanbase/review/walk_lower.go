@@ -191,7 +191,7 @@ func (b *builder) dropDatabase(v *ast.DropDatabaseStmt) bool {
 // aside: a session's temporary tables outlive DROP DATABASE of theirs
 // (verified on 8.0 and 8.4).
 func (b *builder) clearDatabase(d string) {
-	for _, space := range []string{spaceRelation, spaceColumn, spaceIndex, spaceForeignKey, spaceTableForeignKey, spaceTableCheck, spaceTrigger, spaceProcedure, spaceFunction, spaceEvent} {
+	for _, space := range []string{spaceRelation, spaceColumn, spaceIndex, spaceForeignKey, spaceTableForeignKey, spaceTableCheck, spaceTrigger, spaceProcedure, spaceFunction, spaceEvent, spacePartitioned} {
 		b.Clear(walk.Scope{Space: space, Parent: walk.Path(d), Deep: true})
 	}
 	for k := range b.w.materialized {
@@ -627,6 +627,12 @@ func (b *builder) created(v *ast.CreateTableStmt, r tableRef) {
 	b.Clear(walk.Scope{Parent: path, Deep: true})
 	if v.Like != nil || v.Select != nil {
 		b.Forget(walk.Scope{Parent: path, Deep: true})
+	} else if b.w.oceanBase {
+		p := partitionedNo
+		if v.Partitions != nil {
+			p = partitionedYes
+		}
+		b.Set(partitionedKey(r.db, r.name), walk.Present, p)
 	}
 	primary := false
 	for _, c := range v.Columns {

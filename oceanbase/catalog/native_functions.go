@@ -141,6 +141,10 @@ word_segment ws zipf
 
 // isBuiltinOceanBaseFunction reports whether lowerName is an OceanBase 4.3.5.6
 // MySQL-mode built-in function.
+// IsBuiltinFunction reports whether OceanBase has a builtin function of the
+// lower-cased name, so that a call of it needs no stored function.
+func IsBuiltinFunction(lowerName string) bool { return isBuiltinOceanBaseFunction(lowerName) }
+
 func isBuiltinOceanBaseFunction(lowerName string) bool {
 	return nativeFunctions[lowerName] ||
 		grammarBuiltinFunctions[lowerName] ||

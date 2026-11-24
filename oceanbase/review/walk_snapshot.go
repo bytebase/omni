@@ -148,6 +148,9 @@ type mysqlSnapshot struct {
 	// it could not read the materialized views.
 	partial   map[[2]string]bool
 	oceanBase bool
+	// partitioned holds, on OceanBase, whether each table is partitioned
+	// (walk_through_oceanbase.go).
+	partitioned map[string]string
 }
 
 func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables, oceanBase bool) *mysqlSnapshot {
@@ -175,6 +178,7 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables, oceanBase
 		indexLeadsKnown:  make(map[string]bool),
 		fkCols:           make(map[string]map[string]bool),
 		partial:          make(map[[2]string]bool),
+		partitioned:      make(map[string]string),
 	}
 	s.db, _ = nameKey(spaceDatabase, db.GetName(), foldTables)
 	// mark notes a key outside ASCII in a space of the database (table
@@ -199,6 +203,11 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables, oceanBase
 			}
 			s.relations[tk] = relTable
 			mark(spaceRelation, "", tk)
+			// oceanbase/driver's sync lists no partitions, so a table it
+			// lists none of may be partitioned all the same.
+			if oceanBase && len(t.GetPartitions()) > 0 {
+				s.partitioned[tk] = syncedPartitioned(t.GetPartitions())
+			}
 			if strings.HasPrefix(strings.ToLower(t.GetName()), mvContainer) {
 				containers++
 			}
@@ -446,6 +455,11 @@ func (s *mysqlSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 			return walk.Unknown, ""
 		}
 		return in(m)
+	case spacePartitioned:
+		if p, ok := s.partitioned[table]; ok && len(path) == 2 && k.Name == partitionedName {
+			return walk.Present, p
+		}
+		return walk.Unknown, ""
 	case spaceForeignKey:
 		return in(s.foreignKeys)
 	case spaceTrigger:

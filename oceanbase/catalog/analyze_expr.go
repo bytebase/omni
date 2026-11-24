@@ -457,6 +457,10 @@ func exprContainsColumnRef(expr nodes.ExprNode) bool {
 	return found
 }
 
+// BuiltinRequiresArgs reports whether a builtin function of the lower-cased
+// name fails a call with no argument (1582).
+func BuiltinRequiresArgs(lower string) bool { return builtinRequiresArgs(lower) }
+
 func builtinRequiresArgs(lower string) bool {
 	switch lower {
 	case "coalesce", "charset", "collation", "dump",
