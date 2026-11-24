@@ -857,6 +857,8 @@ func TestWalkThroughSyncedFacts(t *testing.T) {
 				Views: []*metadata.ViewMetadata{
 					{Name: "uv", Definition: "CREATE VIEW dbo.uv AS SELECT id FROM dbo.k"},
 					{Name: "bv", Definition: "CREATE VIEW dbo.bv WITH SCHEMABINDING AS SELECT id FROM dbo.k"},
+					// sp_rename renamed the column the definition calls n.
+					{Name: "rv", Definition: "CREATE VIEW dbo.rv AS SELECT n FROM dbo.k", Columns: []*metadata.ColumnMetadata{col("label", "nvarchar(10)")}},
 				},
 				Functions: []*metadata.FunctionMetadata{
 					{Name: "fs", Definition: "CREATE FUNCTION dbo.fs(@x int) RETURNS int AS BEGIN RETURN @x END"},
@@ -918,6 +920,8 @@ func TestWalkThroughSyncedFacts(t *testing.T) {
 		{"schema-bound view on bound objects", "CREATE VIEW dbo.w WITH SCHEMABINDING AS SELECT dbo.fb(id) AS x FROM dbo.bv;", -1, ""},
 		{"a column a view lacks", "CREATE PROCEDURE dbo.pr AS SELECT n FROM dbo.uv;", 0, "Column `n` doesn't exist in `dbo.uv`."},
 		{"a column of a view", "CREATE PROCEDURE dbo.pr AS SELECT id FROM dbo.uv;", -1, ""},
+		{"a renamed column of a view", "CREATE PROCEDURE dbo.pr AS SELECT label FROM dbo.rv;", -1, ""},
+		{"a column a view's rename left behind", "CREATE PROCEDURE dbo.pr AS SELECT n FROM dbo.rv;", 0, "Column `n` doesn't exist in `dbo.rv`."},
 		{"a column a view's INSTEAD OF trigger's inserted lacks", "CREATE TRIGGER dbo.t ON dbo.uv INSTEAD OF INSERT AS SELECT n FROM inserted;", 0, "Column `n` doesn't exist in `inserted`."},
 		{"a column a database trigger's table lacks", "CREATE TRIGGER t ON DATABASE FOR CREATE_TABLE AS SELECT nope FROM dbo.k;", 0, "Column `nope` doesn't exist in `dbo.k`."},
 		{"a column of * twice", "CREATE VIEW dbo.w AS SELECT * FROM dbo.k JOIN dbo.p ON p.id = k.id;", 0, "This statement names column `id` twice."},

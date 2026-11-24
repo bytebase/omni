@@ -328,22 +328,31 @@ func funcKind(v *ast.CreateFunctionStmt) string {
 	return funcInline
 }
 
-// syncedViewCols returns the names of a synced view's columns: its column
-// list, or the names its query gives; nil when the walk cannot tell.
-func syncedViewCols(definition string) []string {
-	stmts, err := mssql.Parse(definition)
+// syncedViewCols returns the names of a synced view's columns: those the
+// sync read from sys.columns, which sp_rename keeps current. Metadata
+// without them, as the in-memory catalog's, gives the definition's column
+// list or the names its query gives; nil when the walk cannot tell.
+func syncedViewCols(v *metadata.ViewMetadata) []string {
+	if cols := v.GetColumns(); len(cols) > 0 {
+		names := make([]string, 0, len(cols))
+		for _, c := range cols {
+			names = append(names, c.GetName())
+		}
+		return names
+	}
+	stmts, err := mssql.Parse(v.GetDefinition())
 	if err != nil || len(stmts) != 1 {
 		return nil
 	}
-	v, ok := stmts[0].AST.(*ast.CreateViewStmt)
+	cv, ok := stmts[0].AST.(*ast.CreateViewStmt)
 	if !ok {
 		return nil
 	}
-	if v.Columns != nil {
-		names, _ := listNames(v.Columns)
+	if cv.Columns != nil {
+		names, _ := listNames(cv.Columns)
 		return names
 	}
-	sel, ok := v.Query.(*ast.SelectStmt)
+	sel, ok := cv.Query.(*ast.SelectStmt)
 	if !ok {
 		return nil
 	}
@@ -517,7 +526,7 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 				if viewUnbound(v.GetDefinition()) {
 					s.unbound[path] = true
 				}
-				s.viewCols[path] = syncedViewCols(v.GetDefinition())
+				s.viewCols[path] = syncedViewCols(v)
 			}
 			for _, tr := range v.GetTriggers() {
 				objs.add(tr.GetName(), kindTrigger)
