@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/oceanbase/ast"
+	obcatalog "github.com/bytebase/omni/oceanbase/catalog"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
 )
@@ -87,7 +88,51 @@ type queryCheck struct {
 func (b *builder) queryFails(sel *ast.SelectStmt, view bool) bool {
 	q := &queryCheck{b: b, view: view}
 	q.query(sel, &queryScope{})
+	if !q.done && view {
+		return b.viewFunctionsFail(sel)
+	}
 	return q.done
+}
+
+// viewFunctionsFail fails a view whose query calls, unqualified, a builtin
+// function with no argument that takes some (1582), or a function that is
+// neither a builtin nor a stored function of the current database (1305),
+// as OceanBase 4.3.5 does once the query resolves (oceanbase/catalog's
+// validateViewFuncExists). The walk does not resolve every column, so it
+// reads only a query that names no table and no column.
+func (b *builder) viewFunctionsFail(sel *ast.SelectStmt) bool {
+	plain := true
+	ast.Inspect(sel, func(n ast.Node) bool {
+		switch n.(type) {
+		case *ast.ColumnRef, *ast.TableRef, *ast.StarExpr, *ast.DefaultExpr:
+			plain = false
+		}
+		return plain
+	})
+	if !plain || b.w.noDatabase || b.w.lost {
+		return false
+	}
+	failed, definite := false, false
+	ast.Inspect(sel, func(n ast.Node) bool {
+		f, ok := n.(*ast.FuncCallExpr)
+		if failed || !ok || f.Schema != "" || f.Name == "" {
+			return !failed
+		}
+		name := strings.ToLower(f.Name)
+		if obcatalog.IsBuiltinFunction(name) {
+			if len(f.Args) == 0 && obcatalog.BuiltinRequiresArgs(name) {
+				b.fail(rangeOf(f.Loc), nil, review.UnsupportedForm, review.Code(strings.ToUpper(name)+"()")+" needs at least one argument.")
+				failed, definite = true, true
+			}
+			return !failed
+		}
+		if k, ok := b.key(spaceFunction, f.Name); ok {
+			b.need(objKey(spaceFunction, b.w.current, k), walk.Present, nil, rangeOf(f.Loc), notFound("function", ident(f.Name), ""), "") // 1305
+		}
+		failed = true
+		return false
+	})
+	return definite
 }
 
 func (q *queryCheck) fail(loc ast.Loc, code review.FindingCode, message string) {

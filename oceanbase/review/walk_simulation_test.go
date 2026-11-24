@@ -25,9 +25,18 @@ func TestWalkSimulation(t *testing.T) {
 		path     string
 		minFound int
 	}{
-		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 3265},
-		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 275},
-		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 3845},
+		// What the walk misses a synced schema can't show: a primary key
+		// beside a secondary index the sync may take for it (1068),
+		// tablespaces and tablegroups (3510, 5151), column groups (4185),
+		// other databases (1049, 1146, 1360, 1305), events, which
+		// OceanBase lists for dropped databases too (1537), and rows omni's
+		// parser refuses first. Nor do the rows settle when OceanBase takes
+		// STORAGE_FORMAT_VERSION (4179), DYNAMIC_PARTITION_POLICY,
+		// repartitioning or REORGANIZE PARTITION of a partitioned table, or
+		// a vector ORDER BY ... APPROX (1235).
+		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 3599},
+		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 280},
+		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 4069},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
 			res := walktest.CheckSimulation(t, walktest.Simulation{

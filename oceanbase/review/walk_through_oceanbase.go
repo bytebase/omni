@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"math/big"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/oceanbase/ast"
 	"github.com/bytebase/omni/oceanbase/parser"
 	"github.com/bytebase/omni/review"
@@ -1691,4 +1693,175 @@ var obCollations = map[string]string{
 	"utf8mb4_unicode_ci": "utf8mb4", "utf8mb4_vi_0900_ai_ci": "utf8mb4",
 	"utf8mb4_vi_0900_as_cs": "utf8mb4", "utf8mb4_vietnamese_ci": "utf8mb4",
 	"utf8mb4_zh_0900_as_cs": "utf8mb4",
+}
+
+// Whether a table is partitioned is one key of its path on OceanBase,
+// read only when Present: partitionedNo, or partitionedYes, as the sync
+// lists the table's partitions or a CREATE TABLE writes a PARTITION BY. A
+// table the sync lists partitions of, which no statement of the change
+// has repartitioned, has a kind that says more (partitionFacts): its
+// partitions' names, whether it has subpartitions, and the columns its
+// partitioning reads.
+const (
+	spacePartitioned = "partitioned"
+	spacePartition   = "partition"
+	partitionedName  = "is"
+	partitionedYes   = "yes"
+	partitionedNo    = "no"
+)
+
+func partitionedKey(db, table string) walk.Key {
+	return walk.Key{Space: spacePartitioned, Parent: tablePath(db, table), Name: partitionedName}
+}
+
+// partitionFacts is what the sync says of a partitioned table.
+type partitionFacts struct {
+	names []string // keys of the partitions' names
+	sub   bool     // some partition has subpartitions
+	cols  []string // keys of the columns the partitioning reads, nil when not known
+}
+
+// syncedPartitioned is the kind of a synced table's partitioned key.
+func syncedPartitioned(parts []*metadata.TablePartitionMetadata) string {
+	if len(parts) == 0 {
+		return partitionedNo
+	}
+	var f partitionFacts
+	for _, p := range parts {
+		k, ok := nameKey(spacePartition, p.GetName(), true)
+		if !ok || strings.ContainsAny(k, "\x1e\x1f") {
+			return partitionedYes
+		}
+		f.names = append(f.names, k)
+		f.sub = f.sub || len(p.GetSubpartitions()) > 0
+	}
+	// The expression of a COLUMNS or KEY partitioning, or of a lone
+	// column, is the quoted columns, comma-separated.
+	for _, c := range strings.Split(parts[0].GetExpression(), ",") {
+		c = strings.TrimSpace(c)
+		if len(c) < 3 || c[0] != '`' || c[len(c)-1] != '`' || strings.ContainsAny(c[1:len(c)-1], "`\x1e\x1f") {
+			f.cols = nil
+			break
+		}
+		k, _ := nameKey(spaceColumn, c[1:len(c)-1], true)
+		f.cols = append(f.cols, k)
+	}
+	sub := "0"
+	if f.sub {
+		sub = "1"
+	}
+	return strings.Join([]string{partitionedYes, sub, strings.Join(f.cols, "\x1e"), strings.Join(f.names, "\x1e")}, "\x1f")
+}
+
+// partitionFactsOf decodes a partitioned key's kind, false when it says no
+// more than whether the table is partitioned.
+func partitionFactsOf(kind string) (partitionFacts, bool) {
+	fields := strings.Split(kind, "\x1f")
+	if len(fields) != 4 {
+		return partitionFacts{}, false
+	}
+	f := partitionFacts{sub: fields[1] == "1", names: strings.Split(fields[3], "\x1e")}
+	if fields[2] != "" {
+		f.cols = strings.Split(fields[2], "\x1e")
+	}
+	return f, true
+}
+
+// isPartitioned reports whether a partitioned key's kind says the table is
+// partitioned.
+func isPartitioned(kind string) bool {
+	return kind == partitionedYes || strings.HasPrefix(kind, partitionedYes+"\x1f")
+}
+
+// partitionedFails fails an ALTER TABLE of one subcommand by what the
+// table's partitioning refutes, each verified on 4.3.5 (the
+// objects@partitioned and one_table@ fixtures of oceanbase/catalog's
+// simulate.tsv), and before anything else the subcommand says:
+//
+//   - managing the partitions of a table that has none (1505): ADD, DROP,
+//     TRUNCATE, REORGANIZE and EXCHANGE PARTITION, DROP, TRUNCATE and ADD
+//     SUBPARTITION, and a partition's storage cache policy;
+//   - managing the subpartitions of a table that has none (5875);
+//   - DROP PARTITION of a partition the table doesn't have (1507), and ADD
+//     PARTITION of one it has (1517);
+//   - dropping or renaming a column the partitioning reads (3855).
+//
+// It records what the statement leaves: PARTITION BY a partitioned table,
+// REMOVE PARTITIONING one that is not, and any other partition command
+// partitions the walk no longer knows.
+func (b *builder) partitionedFails(r tableRef, v *ast.AlterTableStmt) bool {
+	k := partitionedKey(r.db, r.name)
+	f, kind := b.l.Lookup(k)
+	for _, c := range v.Commands {
+		switch {
+		case c == nil:
+		case c.Type == ast.ATPartitionBy:
+			b.Set(k, walk.Present, partitionedYes)
+		case c.Type == ast.ATRemovePartitioning:
+			b.Set(k, walk.Present, partitionedNo)
+		case f == walk.Present && isPartitioned(kind) && !alterNoPartitionFacts(c):
+			b.Set(k, walk.Present, partitionedYes)
+		}
+	}
+	if len(v.Commands) != 1 || v.Commands[0] == nil || f != walk.Present {
+		return false
+	}
+	c := v.Commands[0]
+	rng := rangeOf(c.Loc)
+	switch c.Type {
+	case ast.ATAddPartition, ast.ATDropPartition, ast.ATTruncatePartition, ast.ATReorganizePartition,
+		ast.ATExchangePartition, ast.ATDropSubpartition, ast.ATTruncateSubpartition, ast.ATAddSubpartition,
+		ast.ATAlterPartitionStorageCachePolicy:
+		if kind == partitionedNo {
+			b.fail(rng, nil, review.UnsupportedForm, "Table "+review.Code(r.written)+" is not partitioned.")
+			return true
+		}
+	}
+	facts, ok := partitionFactsOf(kind)
+	if !ok {
+		return false
+	}
+	has := func(name string) bool {
+		pk, ok := nameKey(spacePartition, name, true)
+		return ok && slices.Contains(facts.names, pk)
+	}
+	switch c.Type {
+	case ast.ATDropSubpartition, ast.ATTruncateSubpartition, ast.ATAddSubpartition:
+		if !facts.sub {
+			b.fail(rng, nil, review.UnsupportedForm, "Table "+review.Code(r.written)+" has no subpartitions.")
+			return true
+		}
+	case ast.ATDropPartition:
+		for _, n := range c.PartitionNames {
+			if !has(n) {
+				b.fail(rng, nil, review.ObjectNotFound, notFound("partition", ident(n), r.written))
+				return true
+			}
+		}
+	case ast.ATAddPartition:
+		for _, pd := range c.PartitionDefs {
+			if pd != nil && has(pd.Name) {
+				b.fail(rng, nil, review.NameTaken, alreadyExists("partition", ident(pd.Name), r.written))
+				return true
+			}
+		}
+	case ast.ATDropColumn, ast.ATRenameColumn:
+		if ck, ok := b.key(spaceColumn, c.Name); ok && slices.Contains(facts.cols, ck) {
+			b.fail(rng, nil, review.UnsupportedForm, "Column "+review.Code(ident(c.Name))+" is read by the partitioning of "+review.Code(r.written)+", and can't be dropped or renamed.")
+			return true
+		}
+	}
+	return false
+}
+
+// alterNoPartitionFacts reports whether a subcommand leaves a table's
+// partitions and partitioning columns as they were.
+func alterNoPartitionFacts(c *ast.AlterTableCmd) bool {
+	switch c.Type {
+	case ast.ATAddPartition, ast.ATDropPartition, ast.ATReorganizePartition, ast.ATCoalescePartition,
+		ast.ATExchangePartition, ast.ATDropSubpartition, ast.ATAddSubpartition, ast.ATChangeColumn,
+		ast.ATRenameColumn, ast.ATDropColumn, ast.ATModifyColumn:
+		return false
+	}
+	return true
 }

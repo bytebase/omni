@@ -390,8 +390,11 @@ func TestWalkThroughOceanBaseRecallFamilies(t *testing.T) {
 		noFindingOB(t, "ALTER TABLE t PARTITION BY HASH(id);", target)
 		oneFindingOB(t, "ALTER TABLE t PARTITION BY KEY()(PARTITION p1 (SUBPARTITION s1));", 0, "OceanBase refuses subpartitions without SUBPARTITION BY.", target)
 		oneFindingOB(t, "ALTER TABLE t PARTITION BY KEY()(PARTITION p1, PARTITION p1);", 0, "This statement declares partition `p1` twice.", target)
-		oneFindingOB(t, "ALTER TABLE t ALTER PARTITION p0 STORAGE_CACHE_POLICY = 's';", 0, "OceanBase has no storage cache policy for a partition.", target)
-		oneFindingOB(t, "ALTER TABLE t EXCHANGE PARTITION p0 WITH TABLE t WITHOUT VALIDATION;", 0, "OceanBase refuses exchanging a partition of `t` with itself.", target)
+		oneFindingOB(t, "ALTER TABLE t ALTER PARTITION p0 STORAGE_CACHE_POLICY = 's';", 0, "Table `t` is not partitioned.", target)
+		oneFindingOB(t, "ALTER TABLE t DROP PARTITION p0;", 0, "Table `t` is not partitioned.", target)
+		oneFindingOB(t, "ALTER TABLE t PARTITION BY HASH(id);\nALTER TABLE t ALTER PARTITION p0 STORAGE_CACHE_POLICY = 's';", 1, "OceanBase has no storage cache policy for a partition.", target)
+		oneFindingOB(t, "ALTER TABLE t PARTITION BY HASH(id);\nALTER TABLE t EXCHANGE PARTITION p0 WITH TABLE t WITHOUT VALIDATION;", 1, "OceanBase refuses exchanging a partition of `t` with itself.", target)
+		noFindingOB(t, "ALTER TABLE t PARTITION BY HASH(id);\nALTER TABLE t TRUNCATE PARTITION p0;", target)
 	})
 
 	t.Run("triggers and events", func(t *testing.T) {

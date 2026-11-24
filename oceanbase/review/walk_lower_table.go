@@ -70,6 +70,9 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 			}
 		})
 	}
+	if b.w.oceanBase && b.partitionedFails(r, v) {
+		return true
+	}
 	if b.alterTextFails(v, r) {
 		return true
 	}
