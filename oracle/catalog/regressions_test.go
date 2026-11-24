@@ -3618,3 +3618,26 @@ func TestRemoteSynonymsAndFloatConstants(t *testing.T) {
 		}
 	}
 }
+
+// TestUnseenAnchorsAndSnapshotConstructors holds a row type anchored to a
+// relation the catalog cannot see, and a snapshot type's constructor, to
+// compiling.
+func TestUnseenAnchorsAndSnapshotConstructors(t *testing.T) {
+	c, err := LoadSQL("CREATE TABLE app.t (id NUMBER);\nCREATE SYNONYM app.s FOR other.t;\n" +
+		"CREATE PROCEDURE app.p IS r user_tables%ROWTYPE; q s%ROWTYPE; n user_tables.table_name%TYPE; BEGIN NULL; END;\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := New()
+	m.SetMetadata(&metadatapb.DatabaseSchemaMetadata{Name: "APP", Schemas: []*metadatapb.SchemaMetadata{{Name: "APP"}}})
+	if _, err := m.Exec("CREATE PROCEDURE q IS v point_t := point_t(1, 2); w point_t; BEGIN SELECT point_t(1, 2) INTO w FROM dual; END;", nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, cat := range []*Catalog{c, m} {
+		for _, u := range cat.unitStates() {
+			if u.status != "VALID" {
+				t.Errorf("%s %s: %s %s, want VALID", u.kind, u.name, u.status, u.err)
+			}
+		}
+	}
+}

@@ -318,6 +318,13 @@ func typeParts(t *ast.TypeName) []string {
 	return parts
 }
 
+// unseen reports a relation name the catalog cannot see into: a
+// dictionary view, or a synonym for another schema's table.
+func (c *plChecker) unseen(name string) bool {
+	n := &ast.ObjectName{Name: name}
+	return c.dictionary(n) || c.outside(n)
+}
+
 // relation finds the table, view or materialized view a name reads,
 // through a synonym. found reports one that exists; cols is empty when the
 // catalog does not know its columns (a materialized view's, a view it could
@@ -365,7 +372,7 @@ func (c *plChecker) typeName(t *ast.TypeName) {
 		if sym := c.lookup(parts[0]); sym != nil {
 			return
 		}
-		if _, found := c.relation(parts[0]); !found {
+		if _, found := c.relation(parts[0]); !found && !c.unseen(parts[0]) {
 			c.fail("PLS-00201", "identifier '%s' must be declared", parts[0])
 		}
 		c.read(c.e.resolveSynonymTarget(parts[0], "") + ".*")
@@ -381,7 +388,7 @@ func (c *plChecker) typeName(t *ast.TypeName) {
 		}
 		cols, found := c.relation(parts[0])
 		if !found {
-			if c.knownObject(parts[0]) {
+			if c.knownObject(parts[0]) || c.unseen(parts[0]) {
 				return
 			}
 			c.fail("PLS-00201", "identifier '%s.%s' must be declared", parts[0], parts[1])

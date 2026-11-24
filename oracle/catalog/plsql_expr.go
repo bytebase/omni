@@ -189,6 +189,11 @@ func (c *plChecker) resolveCall(parts []string) (sigs []plSignature, known bool)
 			c.read(name)
 			return nil, false
 		}
+		if c.e.units.typesUnknown {
+			// A schema loaded from metadata may hold the name as a type,
+			// called as its constructor.
+			return nil, false
+		}
 		c.fail("PLS-00201", "identifier '%s' must be declared", name)
 		return nil, false
 	}

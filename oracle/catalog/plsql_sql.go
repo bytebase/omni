@@ -118,6 +118,20 @@ func (c *plChecker) readColumns(n ast.Node) {
 	}
 }
 
+// dictionary reports a name of Oracle's dictionary views the schema does
+// not shadow.
+func (c *plChecker) dictionary(name *ast.ObjectName) bool {
+	if name.Schema != "" || c.e.objectExistsInNamespace(name.Name) {
+		return false
+	}
+	for _, p := range dictionaryPrefixes {
+		if strings.HasPrefix(name.Name, p) {
+			return true
+		}
+	}
+	return false
+}
+
 // outside reports a relation the catalog does not hold: another schema's,
 // a database link's, or one a synonym names there.
 func (c *plChecker) outside(name *ast.ObjectName) bool {
@@ -237,7 +251,8 @@ func (c *plChecker) sqlCall(n *ast.FuncCallExpr) error {
 		c.readVia(name, target)
 		return nil
 	}
-	if c.lookup(name) != nil || c.knownObject(name) {
+	if c.lookup(name) != nil || c.knownObject(name) || c.e.units.typesUnknown {
+		// A schema loaded from metadata may hold the name as a type.
 		return nil
 	}
 	return oraError("00904", "%q: invalid identifier", name)
@@ -264,20 +279,13 @@ func (c *plChecker) readsUnknown(n ast.Node) bool {
 		if !ok || ref.Name == nil {
 			return !unknown
 		}
-		if ref.Dblink != "" || c.outside(ref.Name) {
+		if ref.Dblink != "" || c.outside(ref.Name) || c.dictionary(ref.Name) {
 			unknown = true
 		}
 		if target := c.e.resolveSynonymTarget(ref.Name.Name, ""); c.e.materializedViews[target] != nil && c.e.tables[target] == nil {
 			// A materialized view whose columns the catalog does not keep.
 			c.readVia(ref.Name.Name, target)
 			unknown = true
-		}
-		if ref.Name.Schema == "" && !c.e.objectExistsInNamespace(ref.Name.Name) {
-			for _, p := range dictionaryPrefixes {
-				if strings.HasPrefix(ref.Name.Name, p) {
-					unknown = true
-				}
-			}
 		}
 		return !unknown
 	})
