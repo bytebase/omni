@@ -168,6 +168,32 @@ type syncedTable struct {
 	indexedCols      [][]string
 }
 
+// columnsOf records a synced column list.
+func (st *syncedTable) columnsOf(cols []*metadata.ColumnMetadata) {
+	allTyped := len(cols) > 0
+	for _, c := range cols {
+		st.columns[c.GetName()] = true
+		typ := baseOracleType(c.GetType())
+		if typ == "" {
+			allTyped = false
+		}
+		isVirt := c.GetGeneration() != nil && c.GetGeneration().GetType() != metadata.GenerationMetadata_TYPE_UNSPECIFIED
+		sc := syncedCol{
+			typ:        typ,
+			nullable:   c.GetNullable(),
+			invisible:  c.GetIsInvisible(),
+			identity:   c.GetIsIdentity(),
+			virtual:    isVirt,
+			hasDefault: c.GetDefault() != "" || c.GetDefaultOnNull(),
+		}
+		st.colMeta[c.GetName()] = sc
+		if !sc.invisible && !sc.virtual {
+			st.visibleInsCols++
+		}
+	}
+	st.hasRichSync = allTyped
+}
+
 func newOracleSnapshot(db *metadata.DatabaseSchemaMetadata) *oracleSnapshot {
 	s := &oracleSnapshot{
 		schema:               db.GetName(),
@@ -204,28 +230,7 @@ func newOracleSnapshot(db *metadata.DatabaseSchemaMetadata) *oracleSnapshot {
 				colMeta:       make(map[string]syncedCol),
 				hasForeignKey: len(t.GetForeignKeys()) > 0,
 			}
-			allTyped := len(t.GetColumns()) > 0
-			for _, c := range t.GetColumns() {
-				st.columns[c.GetName()] = true
-				typ := baseOracleType(c.GetType())
-				if typ == "" {
-					allTyped = false
-				}
-				isVirt := c.GetGeneration() != nil && c.GetGeneration().GetType() != metadata.GenerationMetadata_TYPE_UNSPECIFIED
-				sc := syncedCol{
-					typ:        typ,
-					nullable:   c.GetNullable(),
-					invisible:  c.GetIsInvisible(),
-					identity:   c.GetIsIdentity(),
-					virtual:    isVirt,
-					hasDefault: c.GetDefault() != "" || c.GetDefaultOnNull(),
-				}
-				st.colMeta[c.GetName()] = sc
-				if !sc.invisible && !sc.virtual {
-					st.visibleInsCols++
-				}
-			}
-			st.hasRichSync = allTyped
+			st.columnsOf(t.GetColumns())
 			st.complete = columnsComplete(t, st.columns)
 			if len(st.columns) == 0 {
 				s.storage = append(s.storage, t.GetName())
@@ -252,7 +257,17 @@ func newOracleSnapshot(db *metadata.DatabaseSchemaMetadata) *oracleSnapshot {
 		}
 		for _, mv := range schema.GetMaterializedViews() {
 			s.objects[mv.GetName()] = kindMView
-			st := &syncedTable{mview: true, constraints: make(map[string]bool)}
+			st := &syncedTable{
+				mview:       true,
+				skipDump:    mv.GetSkipDump(),
+				columns:     make(map[string]bool),
+				constraints: make(map[string]bool),
+				colMeta:     make(map[string]syncedCol),
+			}
+			// A sync lists the container table's columns, which are the
+			// materialized view's whatever its query names.
+			st.columnsOf(mv.GetColumns())
+			st.complete = !st.skipDump && len(st.columns) > 0
 			s.indexesOf(mv.GetName(), st, mv.GetIndexes())
 			s.triggersOf(mv.GetName(), mv.GetTriggers())
 			s.tables[mv.GetName()] = st
@@ -540,12 +555,12 @@ func (s *oracleSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 			return walk.Unknown, ""
 		}
 		t, ok := s.tables[path[1]]
-		if !ok || t.mview && k.Space == spaceColumn {
-			// The sync lists no column of a materialized view, and its
-			// query does not settle them: an alias list, DDL on its
-			// container, and a prebuilt table each give it columns the
-			// query does not name (verified). Its constraints the sync
-			// lists, on its container.
+		if !ok || t.mview && k.Space == spaceColumn && len(t.columns) == 0 {
+			// A materialized view's query does not settle its columns: an
+			// alias list, DDL on its container, and a prebuilt table each
+			// give it columns the query does not name (verified). Only a
+			// sync that lists its container's columns does. Its
+			// constraints the sync lists, on its container.
 			return walk.Unknown, ""
 		}
 		switch k.Space {
