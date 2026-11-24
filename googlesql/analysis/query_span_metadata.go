@@ -414,7 +414,9 @@ func (q *querySpanResolver) buildSetOpMergeResults(m *SetOpMergeInfo, fullSource
 			}
 		}
 		if i < len(right) {
-			if name == "" {
+			// Spanner names the column after the left arm even when it is
+			// anonymous ("").
+			if i >= len(left) || (name == "" && q.opts.Dialect != DialectSpanner) {
 				name = right[i].Name
 			}
 			for sc := range right[i].SourceColumns {

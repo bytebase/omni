@@ -335,6 +335,10 @@ func (o *oracle) querySpan(ctx context.Context, sql string) spanAnswer {
 	}
 	columns, err := runQuery(ctx, f.full, sql)
 	if err != nil {
+		if !refusal(err) {
+			// A timeout or a lost emulator is no answer about the query.
+			return spanAnswer{Error: "infra", Message: oneLine(err.Error())}
+		}
 		return spanAnswer{Error: status.Code(err).String(), Message: oneLine(status.Convert(err).Message())}
 	}
 	a := spanAnswer{Columns: columns}
@@ -350,6 +354,22 @@ func (o *oracle) querySpan(ctx context.Context, sql string) spanAnswer {
 		}
 	}
 	return a
+}
+
+// refusal reports whether err is the emulator refusing the query itself,
+// not an infrastructure failure.
+func refusal(err error) bool {
+	st, ok := status.FromError(err)
+	if !ok {
+		return false
+	}
+	switch st.Code() {
+	case codes.InvalidArgument, codes.Unimplemented, codes.OutOfRange, codes.FailedPrecondition:
+		return true
+	case codes.NotFound:
+		return !isResourceLevel(st.Message())
+	}
+	return false
 }
 
 // runQuery runs sql and returns its output column names. The fixture holds
