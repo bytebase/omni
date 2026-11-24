@@ -593,3 +593,30 @@ func TestWalkThroughMariaDBViewQueries(t *testing.T) {
 		{sql: "CREATE VIEW v2 AS SELECT ADDDATE(dt, 1), SUBDATE(dt, INTERVAL 1 MONTH), DATE_ADD(dt, INTERVAL a SECOND), TIME_FORMAT(ts, '%H'), MAKEDATE(2020, 1), FROM_UNIXTIME(a), UNIX_TIMESTAMP(ts), WEEK(dt, 1), YEARWEEK(dt), TO_DAYS(dt), CONVERT_TZ(ts, '+00:00', '+01:00') FROM t;"},
 	})
 }
+
+// TestWalkThroughMariaDBPrograms pins the walk's findings on event
+// schedules and triggers, and on what a view's query calls. Each case was
+// run on mariadb:11.8.8.
+func TestWalkThroughMariaDBPrograms(t *testing.T) {
+	runRecallCases(t, []recallCase{
+		{sql: "CREATE EVENT e2 ON SCHEDULE AT 'zzz' DO COMMIT;", want: "An event's `AT` names no time.", code: "1525"},
+		{sql: "CREATE EVENT e2 ON SCHEDULE EVERY 1 DAY STARTS 'zzz' DO COMMIT;", want: "An event's `STARTS` names no time.", code: "1525"},
+		{sql: "CREATE EVENT e2 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01' ENDS 'zzz' DO COMMIT;", want: "An event's `ENDS` names no time.", code: "1543"},
+		{sql: "CREATE EVENT e2 ON SCHEDULE EVERY 1 MICROSECOND DO COMMIT;", want: "An event can't repeat in microseconds.", code: "1235"},
+		{sql: "CREATE EVENT e2 ON SCHEDULE EVERY '1.5' SECOND_MICROSECOND DO COMMIT;", want: "An event can't repeat in microseconds.", code: "1235"},
+		{sql: "CREATE EVENT e2 ON SCHEDULE AT '20300101' DO COMMIT;"},
+		{sql: "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.nope = 1;", want: "Column `nope` doesn't exist in `NEW`.", code: "1054"},
+		{sql: "CREATE TRIGGER tr BEFORE UPDATE ON t FOR EACH ROW SET @x = OLD.nope;", want: "Column `nope` doesn't exist in `OLD`.", code: "1054"},
+		{sql: "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW FOLLOWS nope SET NEW.a = 1;", want: "`FOLLOWS` names trigger `nope`, which doesn't exist.", code: "4031"},
+		{sql: "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1;\nCREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW PRECEDES tr SET NEW.a = 2;"},
+		{sql: "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1;\nCREATE TRIGGER IF NOT EXISTS tr BEFORE INSERT ON t FOR EACH ROW SET NEW.nope = 1;", statement: 1, want: "Column `nope` doesn't exist in `NEW`.", code: "1054"},
+		{sql: "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1;\nCREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW FOLLOWS nope SET NEW.a = 1;", statement: 1, want: "`FOLLOWS` names trigger `nope`, which doesn't exist.", code: "4031"},
+		{sql: "CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW FOLLOWS nope SET NEW.nope = 1;", want: "Column `nope` doesn't exist in `NEW`.", code: "1054"},
+		{sql: "CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1;\nCREATE OR REPLACE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW FOLLOWS tr SET NEW.a = 1;"},
+		{sql: "CREATE TRIGGER tr2 BEFORE INSERT ON t FOR EACH ROW BEGIN IF NEW.a > 0 THEN SET NEW.s = 'x'; END IF; INSERT INTO parent VALUES (NEW.id, NEW.s); END;"},
+		{sql: "CREATE VIEW v2 AS SELECT CURRENT_TIME(7);", want: "`CURRENT_TIME` takes a precision of at most 6.", code: "1426"},
+		{sql: "CREATE VIEW v2 AS SELECT NOW(6), CURTIME(0x6);"},
+		{sql: "CREATE VIEW v2 AS SELECT x.TRIM(LEADING FROM s) FROM t;", want: "Function `x.TRIM` isn't defined.", code: "1128"},
+		{sql: "CREATE VIEW v2 AS SELECT mariadb_schema.TRIM(LEADING FROM s), oracle_schema.SUBSTRING(s FROM 1) FROM t;"},
+	})
+}

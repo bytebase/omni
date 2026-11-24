@@ -235,13 +235,18 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 	if triggerDB != r.db {
 		return true
 	}
+	// MariaDB reads the body's NEW and OLD columns and the ordering clause
+	// before it looks for a trigger of the name, IF NOT EXISTS or not
+	// (verified on mariadb:11.8.8).
+	b.triggerChecks(v, r)
 	tk := objKey(spaceTrigger, r.db, k)
 	f, spelling := b.l.Lookup(tk)
+	if f == walk.Present && spelling == v.Name && !v.IfNotExists && !v.OrReplace {
+		b.need(tk, walk.Absent, nil, rng, "", alreadyExists("trigger", ident(v.Name), "")) // 1359
+	}
 	switch {
 	case f == walk.Present && spelling == v.Name:
-		if !v.IfNotExists && !v.OrReplace {
-			b.need(tk, walk.Absent, nil, rng, "", alreadyExists("trigger", ident(v.Name), "")) // 1359
-		}
+		// OR REPLACE replaces it.
 	case f == walk.Present:
 		// A case variant, or a spelling the walk does not have: MariaDB
 		// keeps both under the one key (verified).
@@ -254,6 +259,56 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 	rel := relKey(r.db, r.name)
 	b.Session(func() { b.w.triggered[rel] = true })
 	return true
+}
+
+// triggerChecks checks what CREATE TRIGGER reads first: its body's NEW
+// and OLD columns, then the trigger FOLLOWS or PRECEDES names.
+func (b *builder) triggerChecks(v *ast.CreateTriggerStmt, r tableRef) {
+	b.triggerRowColumns(v.Body, r)
+	o := v.Order
+	if o == nil {
+		return
+	}
+	// FOLLOWS and PRECEDES name a trigger of the same table, time and
+	// event (4031, verified on mariadb:11.8.8); the walk claims only one
+	// that doesn't exist.
+	k, ok := b.key(spaceTrigger, o.TriggerName)
+	if !ok {
+		return
+	}
+	clause := "PRECEDES"
+	if o.Follows {
+		clause = "FOLLOWS"
+	}
+	b.need(objKey(spaceTrigger, r.db, k), walk.Present, nil, rangeOf(o.Loc),
+		review.Code(clause)+" names trigger "+review.Code(ident(o.TriggerName))+", which doesn't exist.", "") // 4031
+}
+
+// triggerRowColumns checks that each NEW or OLD column a trigger's body
+// names is a column of its table (1054, verified on mariadb:11.8.8). It
+// leaves the ones in a query alone, where a table may be aliased NEW or
+// OLD. The parser refuses a row the trigger's event has none of, and an
+// update of OLD or of NEW after the event.
+func (b *builder) triggerRowColumns(body ast.Node, r tableRef) {
+	if body == nil {
+		return
+	}
+	ast.Inspect(body, func(n ast.Node) bool {
+		switch x := n.(type) {
+		case *ast.SelectStmt:
+			return false
+		case *ast.ColumnRef:
+			row := strings.ToUpper(x.Table)
+			if x.Schema != "" || x.Star || row != "NEW" && row != "OLD" {
+				return false
+			}
+			if k, ok := b.key(spaceColumn, x.Column); ok {
+				b.need(colKey(r.db, r.name, k), walk.Present, nil, rangeOf(x.Loc), notFound("column", ident(x.Column), row), "") // 1054
+			}
+			return false
+		}
+		return true
+	})
 }
 
 // dropTrigger follows DROP TRIGGER, which drops the trigger of the

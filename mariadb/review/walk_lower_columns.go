@@ -574,12 +574,27 @@ func (b *builder) alterChecksFail(v *ast.AlterTableStmt, r tableRef) bool {
 }
 
 // eventScheduleFails fails an event's schedule MariaDB refuses as it
-// reads it, before it looks the event up (verified on mariadb:11.8.8): an
-// EVERY interval that isn't positive (1542), and ENDS at or before STARTS
-// (1543), as literals show them.
+// reads it, before it looks the event up, in the order
+// Event_parse_data::check_parse_data reads it (verified on mariadb:11.8.8
+// by mariadb/catalog/testdata/programs/simulate.tsv): an AT or STARTS
+// string with no digit, which names no time (1525); an EVERY interval in
+// microseconds (1235) or one that isn't positive (1542); and an ENDS
+// string with no digit, or ENDS at or before STARTS (1543), as literals
+// show them.
 func (b *builder) eventScheduleFails(sched *ast.EventSchedule) bool {
 	if sched == nil {
 		return false
+	}
+	if namesNoTime(sched.At) {
+		b.fail(b.anchor(), nil, review.UnsupportedForm, "An event's "+review.Code("AT")+" names no time.")
+		return true
+	}
+	if sched.Every == nil {
+		return false
+	}
+	if strings.Contains(sched.Unit, "MICROSECOND") {
+		b.fail(b.anchor(), nil, review.UnsupportedForm, "An event can't repeat in microseconds.")
+		return true
 	}
 	every := sched.Every
 	if iv, ok := every.(*ast.IntervalExpr); ok {
@@ -596,6 +611,14 @@ func (b *builder) eventScheduleFails(sched *ast.EventSchedule) bool {
 			return true
 		}
 	}
+	if namesNoTime(sched.Starts) {
+		b.fail(b.anchor(), nil, review.UnsupportedForm, "An event's "+review.Code("STARTS")+" names no time.")
+		return true
+	}
+	if namesNoTime(sched.Ends) {
+		b.fail(b.anchor(), nil, review.UnsupportedForm, "An event's "+review.Code("ENDS")+" names no time.")
+		return true
+	}
 	start, ok1 := literalDatetime(sched.Starts)
 	end, ok2 := literalDatetime(sched.Ends)
 	if ok1 && ok2 && end <= start {
@@ -603,6 +626,14 @@ func (b *builder) eventScheduleFails(sched *ast.EventSchedule) bool {
 		return true
 	}
 	return false
+}
+
+// namesNoTime reports a schedule time written as a string with no digit
+// in it. A string that holds one is left to the server, whose reading of
+// a datetime is lenient.
+func namesNoTime(e ast.ExprNode) bool {
+	s, ok := e.(*ast.StringLit)
+	return ok && !strings.ContainsAny(s.Value, "0123456789")
 }
 
 // literalDatetime returns a datetime a string literal writes in full,
