@@ -31,8 +31,8 @@ func TestWalkSimulation(t *testing.T) {
 		// every site repeat the walk's misses on the same statements without
 		// it (ALL IN TABLESPACE, DROP TYPE on a missing type), so the floors
 		// fell with them.
-		{"pg17", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 0.908},
-		{"pg18", filepath.Join("..", "catalog", "testdata", "pg18", "simulate.tsv"), 0.906},
+		{"pg17", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 0.911},
+		{"pg18", filepath.Join("..", "catalog", "testdata", "pg18", "simulate.tsv"), 0.909},
 		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 0.978},
 		// Functions, procedures, triggers, event triggers, CALL and DO on
 		// programs@objects. The walk does not read a routine's body, so the

@@ -103,6 +103,9 @@ type Catalog struct {
 	domains              map[string]bool
 	editions             map[string]bool
 	sequenceCurrent      map[string]*big.Int
+	// units is what the catalog knows of its PL/SQL units beyond their
+	// text: which are invalid, what each reads, and the object types.
+	units *unitBook
 }
 
 // New returns an empty catalog.
@@ -118,6 +121,7 @@ func New() *Catalog {
 		domains:              map[string]bool{},
 		editions:             map[string]bool{"ORA$BASE": true},
 		sequenceCurrent:      map[string]*big.Int{},
+		units:                newUnitBook(),
 	}
 }
 
@@ -160,6 +164,8 @@ func (c *Catalog) SetMetadata(meta *metadatapb.DatabaseSchemaMetadata) {
 	c.domains = map[string]bool{}
 	c.editions = map[string]bool{"ORA$BASE": true}
 	c.sequenceCurrent = map[string]*big.Int{}
+	c.units = newUnitBook()
+	c.units.typesUnknown = len(meta.GetSchemas()) > 0
 }
 
 // LoadMetadataReport lists snapshot objects that could not be installed as
@@ -186,6 +192,8 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadatapb.DatabaseSch
 	c.domains = map[string]bool{}
 	c.editions = map[string]bool{"ORA$BASE": true}
 	c.sequenceCurrent = map[string]*big.Int{}
+	c.units = newUnitBook()
+	c.units.typesUnknown = len(meta.GetSchemas()) > 0
 	if meta == nil {
 		c.meta = &metadatapb.DatabaseSchemaMetadata{}
 		return report, nil
@@ -305,6 +313,7 @@ func (c *Catalog) applyStatement(stmt ast.StmtNode, source string) error {
 			extractor.sequenceCurrent[seqName] = new(big.Int).Set(val)
 		}
 	}
+	extractor.units = c.units.clone()
 	extractor.extractStatement(stmt)
 	if extractor.err != nil {
 		return extractor.err
@@ -347,6 +356,7 @@ func (c *Catalog) applyStatement(stmt ast.StmtNode, source string) error {
 	c.domains = extractor.domains
 	c.editions = extractor.editions
 	c.sequenceCurrent = extractor.sequenceCurrent
+	c.units = extractor.units
 	return nil
 }
 

@@ -250,6 +250,12 @@ func TestWalkThroughRejectedAlterActions(t *testing.T) {
 	oneFindingOB(t, "ALTER TABLE t ADD (c JSON) JSON(c) STORE AS (CHUNK 1);", 0, "OceanBase refuses LOB storage parameters on ALTER TABLE ADD.", shop)
 	oneFindingOB(t, "ALTER TABLE t ADD COLUMN c 'int';", 0, "OceanBase refuses a quoted string literal as a column data type.", shop)
 	oneFindingOB(t, "CREATE VIEW v2 TABLE_ID = 1 AS SELECT 1;", 0, "OceanBase refuses TABLE_ID on a view.", shop)
+	// A view's functions: a stored one the database has lets the scan go on.
+	oneFindingOB(t, "CREATE VIEW v2 AS SELECT nosuch() AS a;", 0, "Function `nosuch` doesn't exist.", shop)
+	oneFindingOB(t, "CREATE VIEW v2 AS SELECT REVERSE() AS a;", 0, "`REVERSE()` needs at least one argument.", shop)
+	oneFindingOB(t, "CREATE FUNCTION fv() RETURNS INT DETERMINISTIC RETURN 1;\nCREATE VIEW v2 AS SELECT fv() AS a, nosuch() AS b;", 1, "Function `nosuch` doesn't exist.", shop)
+	oneFindingOB(t, "CREATE FUNCTION fv(x INT) RETURNS INT DETERMINISTIC RETURN 1;\nCREATE VIEW v2 AS SELECT fv(REVERSE()) AS a;", 1, "`REVERSE()` needs at least one argument.", shop)
+	noFindingOB(t, "CREATE FUNCTION fv() RETURNS INT DETERMINISTIC RETURN 1;\nCREATE VIEW v2 AS SELECT fv() AS a, REVERSE('x') AS b;", shop)
 }
 
 func TestWalkThroughOceanBaseRecallFamilies(t *testing.T) {
@@ -391,7 +397,13 @@ func TestWalkThroughOceanBaseRecallFamilies(t *testing.T) {
 		oneFindingOB(t, "ALTER TABLE t PARTITION BY KEY()(PARTITION p1 (SUBPARTITION s1));", 0, "OceanBase refuses subpartitions without SUBPARTITION BY.", target)
 		oneFindingOB(t, "ALTER TABLE t PARTITION BY KEY()(PARTITION p1, PARTITION p1);", 0, "This statement declares partition `p1` twice.", target)
 		oneFindingOB(t, "ALTER TABLE t ALTER PARTITION p0 STORAGE_CACHE_POLICY = 's';", 0, "OceanBase has no storage cache policy for a partition.", target)
-		oneFindingOB(t, "ALTER TABLE t EXCHANGE PARTITION p0 WITH TABLE t WITHOUT VALIDATION;", 0, "OceanBase refuses exchanging a partition of `t` with itself.", target)
+		// The sync lists no partitions, so a synced table may have some.
+		noFindingOB(t, "ALTER TABLE t DROP PARTITION p0;", target)
+		oneFindingOB(t, "CREATE TABLE np (id INT PRIMARY KEY);\nALTER TABLE np DROP PARTITION p0;", 1, "Table `np` is not partitioned.", target)
+		noFindingOB(t, "CREATE TABLE pp (id INT PRIMARY KEY) PARTITION BY HASH(id) PARTITIONS 2;\nALTER TABLE pp TRUNCATE PARTITION p0;", target)
+		oneFindingOB(t, "ALTER TABLE t PARTITION BY HASH(id);\nALTER TABLE t ALTER PARTITION p0 STORAGE_CACHE_POLICY = 's';", 1, "OceanBase has no storage cache policy for a partition.", target)
+		oneFindingOB(t, "ALTER TABLE t PARTITION BY HASH(id);\nALTER TABLE t EXCHANGE PARTITION p0 WITH TABLE t WITHOUT VALIDATION;", 1, "OceanBase refuses exchanging a partition of `t` with itself.", target)
+		noFindingOB(t, "ALTER TABLE t PARTITION BY HASH(id);\nALTER TABLE t TRUNCATE PARTITION p0;", target)
 	})
 
 	t.Run("triggers and events", func(t *testing.T) {

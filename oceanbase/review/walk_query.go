@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/oceanbase/ast"
+	obcatalog "github.com/bytebase/omni/oceanbase/catalog"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
 )
@@ -87,7 +88,61 @@ type queryCheck struct {
 func (b *builder) queryFails(sel *ast.SelectStmt, view bool) bool {
 	q := &queryCheck{b: b, view: view}
 	q.query(sel, &queryScope{})
+	if !q.done && view {
+		return b.viewFunctionsFail(sel)
+	}
 	return q.done
+}
+
+// viewFunctionsFail fails a view whose query calls, unqualified, a builtin
+// function with no argument that takes some (1582), or a function that is
+// neither a builtin nor a stored function of the current database (1305),
+// as OceanBase 4.3.5 does once the query resolves (oceanbase/catalog's
+// validateViewFuncExists). The walk does not resolve every column, so it
+// reads only a query that names no table and no column.
+func (b *builder) viewFunctionsFail(sel *ast.SelectStmt) bool {
+	plain := true
+	ast.Inspect(sel, func(n ast.Node) bool {
+		switch n.(type) {
+		case *ast.ColumnRef, *ast.TableRef, *ast.StarExpr, *ast.DefaultExpr:
+			plain = false
+		}
+		return plain
+	})
+	if !plain || b.w.noDatabase || b.w.lost {
+		return false
+	}
+	// The scan goes on past a stored function the database has, and stops
+	// at any other call that may fail, so that a later finding is never one
+	// OceanBase would not reach.
+	stop, definite := false, false
+	ast.Inspect(sel, func(n ast.Node) bool {
+		f, ok := n.(*ast.FuncCallExpr)
+		if stop || !ok || f.Schema != "" || f.Name == "" {
+			return !stop
+		}
+		name := strings.ToLower(f.Name)
+		if obcatalog.IsBuiltinFunction(name) {
+			if len(f.Args) == 0 && obcatalog.BuiltinRequiresArgs(name) {
+				b.fail(rangeOf(f.Loc), nil, review.UnsupportedForm, review.Code(strings.ToUpper(name)+"()")+" needs at least one argument.")
+				stop, definite = true, true
+			}
+			return !stop
+		}
+		k, ok := b.key(spaceFunction, f.Name)
+		if !ok {
+			stop = true
+			return false
+		}
+		fk := objKey(spaceFunction, b.w.current, k)
+		if fact, _ := b.l.Lookup(fk); fact == walk.Present {
+			return true
+		}
+		b.need(fk, walk.Present, nil, rangeOf(f.Loc), notFound("function", ident(name), ""), "") // 1305
+		stop = true
+		return false
+	})
+	return definite
 }
 
 func (q *queryCheck) fail(loc ast.Loc, code review.FindingCode, message string) {

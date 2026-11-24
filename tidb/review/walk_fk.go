@@ -259,10 +259,13 @@ func (b *builder) typeChangeFKFails(r tableRef, col string, def *ast.ColumnDef, 
 	return false
 }
 
-// addFKTypesFail fails a foreign key a CREATE or ALTER TABLE adds whose
-// columns' types do not match the referenced columns' (3780), with the
-// checks off too (verified). childType gives a column's type in the
-// statement's table, false when the walk does not know it.
+// addFKTypesFail fails a foreign key a CREATE or ALTER TABLE adds that
+// references a column the referenced table doesn't have (3734), whose
+// columns' types do not match the referenced columns' (3780), or whose
+// referenced columns lead no index of the referenced table (1822), each
+// with the checks off too, in that order (verified on v8.5.5). childType
+// gives a column's type in the statement's table, false when the walk
+// does not know it.
 func (b *builder) addFKTypesFail(r tableRef, c *ast.Constraint, childType func(col string) (columnType, bool), rng review.Range) bool {
 	if c == nil || c.Type != ast.ConstrForeignKey || c.RefTable == nil || len(c.Columns) == 0 || len(c.Columns) != len(c.RefColumns) {
 		return false
@@ -281,7 +284,19 @@ func (b *builder) addFKTypesFail(r tableRef, c *ast.Constraint, childType func(c
 	if f, kind := b.l.Lookup(relKey(p.db, p.name)); f != walk.Present || kind != relTable {
 		return false
 	}
+	known := true
 	for n, col := range c.Columns {
+		rk, ok := b.key(spaceColumn, c.RefColumns[n])
+		if !ok {
+			return false
+		}
+		switch f, _ := b.l.Lookup(colKey(p.db, p.name, rk)); f {
+		case walk.Absent:
+			b.fail(rng, nil, review.ObjectNotFound, "Referenced column "+review.Code(ident(c.RefColumns[n]))+" doesn't exist in "+review.Code(table(c.RefTable))+".")
+			return true
+		case walk.Unknown:
+			known = false
+		}
 		ct, ok := childType(col)
 		if !ok {
 			continue
@@ -292,6 +307,61 @@ func (b *builder) addFKTypesFail(r tableRef, c *ast.Constraint, childType func(c
 		}
 		b.fail(rng, nil, review.UnsupportedForm, "A foreign key would pair "+review.Code(ident(col))+" ("+review.Code(ct.String())+") with "+review.Code(table(c.RefTable))+"."+review.Code(ident(c.RefColumns[n]))+" ("+review.Code(pt.String())+"), types that don't match.")
 		return true
+	}
+	if !known {
+		return false
+	}
+	ix, ok := b.indexesOf(p)
+	if !ok {
+		return false
+	}
+	for _, i := range ix {
+		// An index whose key parts the walk can't read may be the one.
+		if contains(i.cols, "") || b.indexLeads(i.cols, c.RefColumns) {
+			return false
+		}
+	}
+	b.fail(rng, nil, review.UnsupportedForm, "No index of "+review.Code(table(c.RefTable))+" starts with the columns a foreign key references there.")
+	return true
+}
+
+// indexLeads reports whether an index's key parts begin with the columns, in
+// their order.
+func (b *builder) indexLeads(parts, cols []string) bool {
+	if len(parts) < len(cols) {
+		return false
+	}
+	for n, col := range cols {
+		k, ok := b.key(spaceColumn, col)
+		if !ok || parts[n] != k {
+			return false
+		}
+	}
+	return true
+}
+
+// setNullFails fails ALTER TABLE ADD FOREIGN KEY ... SET NULL over a
+// column of the table's primary key, which is NOT NULL (1830, verified on
+// v8.5.5); TiDB judges it before the referenced table.
+func (b *builder) setNullFails(r tableRef, v *ast.AlterTableStmt, c *ast.Constraint, rng review.Range) bool {
+	if c == nil || c.Type != ast.ConstrForeignKey || (c.OnDelete != ast.RefActSetNull && c.OnUpdate != ast.RefActSetNull) {
+		return false
+	}
+	ix, ok := b.indexesOf(r)
+	if !ok {
+		return false
+	}
+	for _, col := range c.Columns {
+		k, ok := b.key(spaceColumn, col)
+		if !ok || definesColumn(v, col) {
+			continue
+		}
+		for _, i := range ix {
+			if i.primary && i.has(k) {
+				b.fail(rng, nil, review.UnsupportedForm, "Column "+review.Code(ident(col))+" is `NOT NULL`, so a foreign key can't set it to `NULL`.")
+				return true
+			}
+		}
 	}
 	return false
 }

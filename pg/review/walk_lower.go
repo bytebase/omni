@@ -1948,7 +1948,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	b.drops = make(map[string]bool)
 	b.added = make(map[string]bool)
 	b.colTouch = make(map[string]int)
-	b.conDropped = false
+	b.conDrops = 0
 	b.pkChanged = false
 	for _, cmd := range cmds {
 		sub := ast.AlterTableType(cmd.Subtype)
@@ -1970,7 +1970,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 				b.colTouch[k]++
 			}
 		case ast.AT_DropConstraint:
-			b.conDropped = true
+			b.conDrops++
 			b.pkChanged = true
 		case ast.AT_AddConstraint:
 			if con, ok := cmd.Def.(*ast.Constraint); ok && con.Contype == ast.CONSTR_PRIMARY {
@@ -2417,7 +2417,7 @@ func (b *builder) alterColumn(rv *ast.RangeVar, t walk.Key, cmd *ast.AlterTableC
 				}
 			}
 		case ast.AT_DropNotNull:
-			if !b.conDropped && b.colTouch[name] <= 1 && b.w.pg != nil && slices.Contains(b.w.pg.pkCols[[2]string{schemaOfKey(t), t.Name}], name) {
+			if b.conDrops == 0 && b.colTouch[name] <= 1 && b.w.pg != nil && slices.Contains(b.w.pg.pkCols[[2]string{schemaOfKey(t), t.Name}], name) {
 				b.failAt(rng, []walk.Key{columnKey(t, name)}, review.UnsupportedForm, unsupported("`DROP NOT NULL` on primary key column "+review.Code(ident(cmd.Name)))) // 42P16
 				return
 			}
@@ -2455,6 +2455,10 @@ func (b *builder) dropConstraint(rv *ast.RangeVar, t walk.Key, cmd *ast.AlterTab
 		ck := constraintKey(t, name)
 		if !cmd.Missing_ok {
 			b.constraintExists(rv, t, cmd.Name, rangeOf(cmd.Loc))
+			if b.unlistedConstraint(t, name) {
+				b.failAt(rangeOf(cmd.Loc), []walk.Key{ck}, review.ObjectNotFound, "Constraint "+review.Code(ident(cmd.Name))+" doesn't exist in "+review.Code(relation(rv))+", or is a primary key column's `NOT NULL`, which can't be dropped.") // 42704, 42P16
+				return
+			}
 		}
 		f, kind := b.l.Lookup(ck)
 		b.set(ck, walk.Absent, "")
@@ -2484,6 +2488,40 @@ func (b *builder) dropConstraint(rv *ast.RangeVar, t walk.Key, cmd *ast.AlterTab
 	if ast.DropBehavior(cmd.Behavior) == ast.DROP_CASCADE {
 		b.mayRemove(walk.Scope{Deep: true})
 	}
+}
+
+// unlistedConstraint reports whether DROP CONSTRAINT name, the statement's
+// only drop, fails on t: the sync lists every constraint of t but a NOT
+// NULL one, and name is none it lists. PostgreSQL 17 records no NOT NULL
+// constraint (42704); 18 records one per NOT NULL column, under a name the
+// sync does not show, and refuses to drop one on a primary key column
+// (42P16), so every NOT NULL column of t must be in its primary key.
+//
+// pg: src/backend/commands/tablecmds.c — ATExecDropConstraint,
+// dropconstraint_internal (PostgreSQL 18)
+func (b *builder) unlistedConstraint(t walk.Key, name string) bool {
+	if b.conDrops != 1 || len(b.drops) != 0 || b.w.isTableDirty(t) || b.w.pg == nil {
+		return false
+	}
+	if f, _ := b.l.Lookup(constraintKey(t, name)); f != walk.Unknown {
+		return false
+	}
+	// A constraint trigger is a constraint of its own name.
+	if f, _ := b.l.Lookup(trigKey(t, name)); f != walk.Absent {
+		return false
+	}
+	key := [2]string{schemaOfKey(t), t.Name}
+	cols := b.w.pg.colMeta[key]
+	if len(cols) == 0 || len(cols) != len(b.w.pg.columns[key]) {
+		return false
+	}
+	pk := b.w.pg.pkCols[key]
+	for col, c := range cols {
+		if !c.nullable && !slices.Contains(pk, col) {
+			return false
+		}
+	}
+	return true
 }
 
 // rename follows the RENAME forms of ALTER.

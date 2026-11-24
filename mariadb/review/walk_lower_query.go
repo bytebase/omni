@@ -1,6 +1,7 @@
 package review
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/bytebase/omni/mariadb/ast"
@@ -20,13 +21,15 @@ import (
 //   - a row as an output column (1241);
 //   - a window a function names that its query block does not define
 //     (4009), and a frame on a function that takes none (4017);
+//   - a temporal function's precision over 6 (1426);
 //   - a non-constant `ESCAPE` or `AGAINST` (1210);
 //   - a missing relation it reads (1146), and NEXTVAL, LASTVAL, SETVAL,
 //     NEXT VALUE FOR, or PREVIOUS VALUE FOR of a missing relation (1146) or
 //     one that is no sequence (4089);
 //   - what it holds as MariaDB parses it (viewTextFault): a variable
-//     (1351), an INTO or PROCEDURE clause or a parameter marker (1064), and
-//     VALUES rows of different lengths (4099) or of none (4141);
+//     (1351), an INTO or PROCEDURE clause or a parameter marker (1064),
+//     VALUES rows of different lengths (4099) or of none (4141), and a
+//     qualified TRIM or SUBSTRING in its special form (1128);
 //   - a column of its top query block qualified by a table the block
 //     doesn't read (qualifiersFail, 1054), and a column of the block's one
 //     base table the table lacks in a function's arguments too (1054);
@@ -82,8 +85,9 @@ func (b *builder) viewQueryFails(sel *ast.SelectStmt, named bool) bool {
 // viewTextFault returns the fault MariaDB meets in a view's query as it
 // parses it, "" for none (each verified on mariadb:11.8.8): a variable,
 // user or system (1351); an INTO or PROCEDURE clause, or a parameter
-// marker (1064); and a VALUES query whose rows differ in length (4099) or
-// one with no column (4141).
+// marker (1064); a VALUES query whose rows differ in length (4099) or one
+// with no column (4141); and TRIM or SUBSTRING in its special form
+// qualified by a database (1128).
 func viewTextFault(sel *ast.SelectStmt) string {
 	msg := ""
 	ast.Inspect(sel, func(n ast.Node) bool {
@@ -102,6 +106,17 @@ func viewTextFault(sel *ast.SelectStmt) string {
 			msg = "A view's query can't read a variable."
 		case *ast.ParamMarkerExpr:
 			msg = "A view's query can't hold a parameter marker " + review.Code("?") + "."
+		case *ast.FuncCallExpr:
+			// TRIM and SUBSTRING written with FROM, LEADING and the like
+			// take only mariadb_schema or oracle_schema as a qualifier.
+			if x.Schema != "" && x.SpecialSyntax &&
+				!strings.EqualFold(x.Schema, "mariadb_schema") && !strings.EqualFold(x.Schema, "oracle_schema") {
+				name := x.RawName
+				if name == "" {
+					name = x.Name
+				}
+				msg = "Function " + review.Code(x.Schema+"."+name) + " isn't defined."
+			}
 		case *ast.ValuesStmt:
 			for i, row := range x.Rows {
 				switch {
@@ -623,8 +638,8 @@ func (b *builder) blocksFail(root *ast.SelectStmt, ctes map[string]bool) bool {
 	return false
 }
 
-// callFails checks a function call: its window (4009, 4017), and the
-// sequence a sequence function names.
+// callFails checks a function call: its window (4009, 4017), a temporal
+// function's precision (1426), and the sequence a sequence function names.
 func (b *builder) callFails(x *ast.FuncCallExpr, windows, ctes map[string]bool) bool {
 	if x.Over != nil {
 		if name := x.Over.RefName; name != "" && !windows[strings.ToLower(name)] {
@@ -640,6 +655,12 @@ func (b *builder) callFails(x *ast.FuncCallExpr, windows, ctes map[string]bool) 
 		return false
 	}
 	switch strings.ToUpper(x.Name) {
+	case "NOW", "CURRENT_TIMESTAMP", "LOCALTIME", "LOCALTIMESTAMP", "SYSDATE",
+		"UTC_TIMESTAMP", "CURTIME", "CURRENT_TIME", "UTC_TIME":
+		if p, ok := literalPrecision(x.Args[0]); ok && p > 6 && !x.SpacedParen {
+			b.fail(rangeOf(x.Loc), nil, review.UnsupportedForm, review.Code(strings.ToUpper(x.Name))+" takes a precision of at most 6.") // 1426
+			return true
+		}
 	case "NEXTVAL", "LASTVAL", "SETVAL":
 		ref, ok := x.Args[0].(*ast.ColumnRef)
 		if !ok || ref.Star || ref.Schema != "" || ref.Column == "" {
@@ -648,6 +669,27 @@ func (b *builder) callFails(x *ast.FuncCallExpr, windows, ctes map[string]bool) 
 		b.sequenceNeeds(&ast.TableRef{Loc: ref.Loc, Schema: ref.Table, Name: ref.Column}, ctes)
 	}
 	return false
+}
+
+// literalPrecision reads a temporal function's precision written as a
+// literal up to 65535, which MariaDB takes as written; it wraps a larger
+// one to 16 bits, which the walk leaves alone.
+func literalPrecision(e ast.ExprNode) (int64, bool) {
+	var v uint64
+	var err error
+	switch x := e.(type) {
+	case *ast.IntLit:
+		if x.Text == "" {
+			return x.Value, x.Value >= 0 && x.Value <= 0xFFFF
+		}
+		v, err = strconv.ParseUint(x.Text, 10, 64)
+	case *ast.HexLit:
+		h := strings.TrimPrefix(strings.TrimPrefix(x.Value, "0x"), "0X")
+		v, err = strconv.ParseUint(h, 16, 64)
+	default:
+		return 0, false
+	}
+	return int64(v), err == nil && v <= 0xFFFF
 }
 
 // sequenceNeeds checks that a sequence function's relation exists (1146)

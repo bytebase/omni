@@ -280,6 +280,9 @@ func (b *builder) moduleChecks(r objRef, verb, kind string) {
 // trigger: its table must be a table or view (8197), and the trigger in
 // the table's schema (2103). A trigger may fire on later DML.
 func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
+	if v.OnDatabase && !v.OnAllServer && v.ExternalName == "" {
+		return b.databaseTrigger(v)
+	}
 	if v.OnDatabase || v.OnAllServer || v.Table == nil || v.Name == nil {
 		return false
 	}
@@ -326,8 +329,11 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 		}
 	}
 	pseudo := ""
+	var pseudoCols []string
 	if b.knownTable(t) {
 		pseudo = t.tablePath()
+	} else {
+		pseudoCols = b.viewColumns(t)
 	}
 	if v.ExternalName == "" {
 		// A trigger is in its table's schema.
@@ -336,11 +342,23 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 			schema = t.schema.spelling
 		}
 		done := b.enterModule(schema)
-		b.moduleBody(v.Body, nil, nil, nil, pseudo, t.written)
+		b.moduleBody(v.Body, nil, nil, nil, pseudo, t.written, pseudoCols)
 		done()
 	}
 	b.arriveObject(r, kindTrigger)
 	b.Session(func() { b.w.triggers = true })
+	return true
+}
+
+// databaseTrigger follows CREATE, CREATE OR ALTER, and ALTER of a DDL
+// trigger on the database: its body binds as a procedure's does (207).
+// The trigger may fire on any later DDL, which ends the walk.
+func (b *builder) databaseTrigger(v *ast.CreateTriggerStmt) bool {
+	if !b.first(v.Loc, b.moduleVerb(v.Loc, v.OrAlter)+" TRIGGER") {
+		return true
+	}
+	b.moduleBody(v.Body, nil, nil, nil, "", "", nil)
+	b.Last = true
 	return true
 }
 

@@ -3702,6 +3702,9 @@ func writeCreateTriggerStmt(sb *strings.Builder, n *CreateTriggerStmt) {
 		sb.WriteString(" :events ")
 		writeNode(sb, n.Events)
 	}
+	if len(n.UpdateColumns) > 0 {
+		sb.WriteString(fmt.Sprintf(" :updateColumns %q", n.UpdateColumns))
+	}
 	if n.Table != nil {
 		sb.WriteString(" :table ")
 		writeNode(sb, n.Table)
@@ -5533,6 +5536,10 @@ func writePLSQLCursorDecl(sb *strings.Builder, n *PLSQLCursorDecl) {
 	if n.Parameters != nil {
 		sb.WriteString(" :parameters ")
 		writeNode(sb, n.Parameters)
+	}
+	if n.ReturnType != nil {
+		sb.WriteString(" :returnType ")
+		writeNode(sb, n.ReturnType)
 	}
 	if n.Query != nil {
 		sb.WriteString(" :query ")

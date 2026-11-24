@@ -110,14 +110,20 @@ func TestWalkSimulation(t *testing.T) {
 // trigger's table) and CTAS raised ddl from 91.1% to 95.2% and programs
 // from 80.8% to 83.5%; what is left needs user types, database and server
 // triggers, principals, filegroups, partitions, and function signatures.
+// What synced view and function definitions show (columns, kinds,
+// arguments, schema binding), * over synced tables, FOR SYSTEM_TIME on a
+// table without a period, and the bodies of database triggers raised
+// queries to 85.8% and programs to 91.8%; what is left needs types,
+// full-text and change tracking, other databases, and objects the sync
+// skips, or is omni's syntax error.
 var walkSimSuites = []struct {
 	name, path, database string
 	minPct               float64
 	minFound             int
 }{
 	{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), "omni_TestSimulation", 95.2, 2925},
-	{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), "omni_TestQuerySimulation", 80.5, 368},
-	{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), "omni_TestProgramSimulation", 83.5, 61},
+	{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), "omni_TestQuerySimulation", 85.7, 392},
+	{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), "omni_TestProgramSimulation", 91.7, 67},
 }
 
 // walkCompatSimulation holds MSSQL's WALK_THROUGH to every unique

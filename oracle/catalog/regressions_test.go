@@ -2,9 +2,12 @@ package catalog
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	metadatapb "github.com/bytebase/omni/metadata"
 )
@@ -1109,13 +1112,24 @@ func TestTemporaryTableIsRejected(t *testing.T) {
 	}
 }
 
-func TestCreateOrReplaceTriggerMovesTarget(t *testing.T) {
-	c, err := LoadSQL(`CREATE TABLE A (ID NUMBER); CREATE TABLE Z (ID NUMBER); CREATE TRIGGER TR BEFORE INSERT ON Z FOR EACH ROW BEGIN NULL; END; CREATE OR REPLACE TRIGGER TR BEFORE INSERT ON A FOR EACH ROW BEGIN NULL; END;`)
+// TestCreateOrReplaceTriggerOnAnotherTable holds CREATE OR REPLACE TRIGGER
+// to Oracle, which does not move a trigger to another table (ORA-04095;
+// testdata/programs/simulate.tsv records it).
+func TestCreateOrReplaceTriggerOnAnotherTable(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE A (ID NUMBER); CREATE TABLE Z (ID NUMBER); CREATE TRIGGER TR BEFORE INSERT ON Z FOR EACH ROW BEGIN NULL; END;`)
 	if err != nil {
 		t.Fatal(err)
 	}
+	results, err := c.Exec(`CREATE OR REPLACE TRIGGER TR BEFORE INSERT ON A FOR EACH ROW BEGIN NULL; END;`, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var refusal *Error
+	if len(results) != 1 || !errors.As(results[0].Error, &refusal) || refusal.Code != "04095" {
+		t.Fatalf("results = %+v, want ORA-04095", results)
+	}
 	schema := c.Metadata().Schemas[0]
-	if len(tableByName(schema)["Z"].Triggers) != 0 || len(tableByName(schema)["A"].Triggers) != 1 {
+	if len(tableByName(schema)["Z"].Triggers) != 1 || len(tableByName(schema)["A"].Triggers) != 0 {
 		t.Fatalf("triggers A=%d Z=%d", len(tableByName(schema)["A"].Triggers), len(tableByName(schema)["Z"].Triggers))
 	}
 }
@@ -3065,6 +3079,614 @@ CREATE VIEW W AS WITH A ANALYTIC VIEW AS (USING AV) SELECT C FROM A`)
 		}
 		if !found {
 			t.Fatalf("view %s: dependency on AV missing: %+v", name, view.DependencyColumns)
+		}
+	}
+}
+
+// TestPackageSpecNamingItselfCompiles holds a package spec that qualifies its
+// own items, or two specs that name each other's, to compiling once: the
+// checker reads a spec it is already reading as declared.
+func TestPackageSpecNamingItselfCompiles(t *testing.T) {
+	c, err := LoadSQL("CREATE PACKAGE p AS a NUMBER := 1; b NUMBER := p.a; END p;\n/\n" +
+		"CREATE PACKAGE q AS x NUMBER := p.b; END q;\n/\n" +
+		"CREATE OR REPLACE PACKAGE p AS a NUMBER := q.x; b NUMBER := p.a; END p;\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range c.unitStates() {
+		if u.status != "VALID" {
+			t.Errorf("%s %s is %s %s", u.kind, u.name, u.status, u.err)
+		}
+	}
+}
+
+// TestTriggerOnMaterializedView holds a DML trigger on a materialized view,
+// which Oracle creates, to being created.
+func TestTriggerOnMaterializedView(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE t (id NUMBER PRIMARY KEY); CREATE MATERIALIZED VIEW mv AS SELECT id FROM t; CREATE TRIGGER trg BEFORE INSERT ON mv FOR EACH ROW BEGIN NULL; END;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.unitStates()) != 1 {
+		t.Fatalf("units = %+v, want the trigger", c.unitStates())
+	}
+}
+
+// TestPackageSpecChainCompilesOnce holds a chain of specs, each reading the
+// one before twice, to reading each spec once rather than twice per level.
+func TestPackageSpecChainCompilesOnce(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("CREATE PACKAGE p0 AS a NUMBER := 1; END p0;\n/\n")
+	for i := 1; i <= 40; i++ {
+		fmt.Fprintf(&b, "CREATE PACKAGE p%d AS a NUMBER := p%d.a; b NUMBER := p%d.a; END p%d;\n/\n", i, i-1, i-1, i)
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, err := LoadSQL(b.String())
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(30 * time.Second):
+		t.Fatal("40 chained package specs took over 30s")
+	}
+}
+
+// TestTypeNameBlocksReplacedSynonym holds CREATE OR REPLACE SYNONYM to
+// Oracle's namespace, which a type shares (ORA-00955).
+func TestTypeNameBlocksReplacedSynonym(t *testing.T) {
+	c, err := LoadSQL("CREATE TABLE x (id NUMBER);\nCREATE TYPE t AS OBJECT (a NUMBER);\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	results, err := c.Exec("CREATE OR REPLACE SYNONYM t FOR x", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var refusal *Error
+	if len(results) != 1 || !errors.As(results[0].Error, &refusal) || refusal.Code != "00955" {
+		t.Fatalf("results = %+v, want ORA-00955", results)
+	}
+}
+
+// TestTriggerDroppedAndCreatedAgain holds a trigger dropped and created
+// again in one GetDatabaseMetadata script, which reads every statement on
+// one extractor, to being created.
+func TestTriggerDroppedAndCreatedAgain(t *testing.T) {
+	_, err := GetDatabaseMetadata("CREATE TABLE x (id NUMBER);\nCREATE TRIGGER trg BEFORE INSERT ON x FOR EACH ROW BEGIN NULL; END;\n/\nDROP TRIGGER trg;\nCREATE TRIGGER trg BEFORE INSERT ON x FOR EACH ROW BEGIN NULL; END;\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestUnitChangesReachTheirReaders holds the units book to what Oracle does
+// around a unit's readers: a call through a synonym reads its target,
+// dropping a table drops its triggers, an editioning view takes a BEFORE
+// trigger, and ALTER ... COMPILE compiles a unit again.
+func TestUnitChangesReachTheirReaders(t *testing.T) {
+	status := func(c *Catalog, kind, name string) string {
+		for _, u := range c.unitStates() {
+			if u.kind == kind && u.name == name {
+				return strings.TrimSpace(u.status + " " + u.err)
+			}
+		}
+		return "missing"
+	}
+	c, err := LoadSQL("CREATE PROCEDURE p IS BEGIN NULL; END;\n/\nCREATE SYNONYM s FOR p;\nCREATE PROCEDURE caller IS BEGIN s; END;\n/\nDROP PROCEDURE p;\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := status(c, unitProcedure, "CALLER"); got != "INVALID" {
+		t.Errorf("caller of a dropped procedure through a synonym: %s, want INVALID", got)
+	}
+
+	if _, err := GetDatabaseMetadata("CREATE TABLE t (id NUMBER);\nCREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW BEGIN NULL; END;\n/\nDROP TABLE t;\nCREATE TABLE t (id NUMBER);\nCREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW BEGIN NULL; END;\n/\n"); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := LoadSQL("CREATE TABLE t (id NUMBER);\nCREATE EDITIONING VIEW ev AS SELECT id FROM t;\nCREATE TRIGGER trg BEFORE INSERT ON ev FOR EACH ROW BEGIN NULL; END;\n/\n"); err != nil {
+		t.Fatal(err)
+	}
+
+	c, err = LoadSQL("CREATE PROCEDURE p IS v NUMBER; BEGIN SELECT id INTO v FROM later; END;\n/\nCREATE TABLE later (id NUMBER);\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := status(c, unitProcedure, "P"); got != "INVALID ORA-00942" {
+		t.Fatalf("before COMPILE: %s, want INVALID ORA-00942", got)
+	}
+	if _, err := c.Exec("ALTER PROCEDURE p COMPILE", nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := status(c, unitProcedure, "P"); got != "VALID" {
+		t.Errorf("after COMPILE: %s, want VALID", got)
+	}
+
+	c, err = LoadSQL("CREATE TABLE t (id NUMBER);\nCREATE PROCEDURE p IS v NUMBER; BEGIN SELECT id INTO v FROM t; END;\n/\nALTER TABLE t RENAME TO u;\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := status(c, unitProcedure, "P"); got != "INVALID" {
+		t.Errorf("reader of a table ALTER TABLE renamed: %s, want INVALID", got)
+	}
+
+	c, err = LoadSQL("CREATE TABLE t (id NUMBER);\nCREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW BEGIN nope; END;\n/\nALTER TRIGGER trg RENAME TO trg2;\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := status(c, unitTrigger, "TRG2"); got != "INVALID PLS-00201" {
+		t.Errorf("renamed invalid trigger: %s, want INVALID PLS-00201", got)
+	}
+
+	if _, err := GetDatabaseMetadata("CREATE TABLE t (id NUMBER PRIMARY KEY);\nCREATE MATERIALIZED VIEW mv AS SELECT id FROM t;\nCREATE TRIGGER trg BEFORE INSERT ON mv FOR EACH ROW BEGIN NULL; END;\n/\nDROP MATERIALIZED VIEW mv;\nCREATE MATERIALIZED VIEW mv AS SELECT id FROM t;\nCREATE TRIGGER trg BEFORE INSERT ON mv FOR EACH ROW BEGIN NULL; END;\n/\n"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestUnitReadsBindsTrimAndRowInserts holds three forms of a unit's body to
+// Oracle: TRIM's mode word is no name, a trigger's :NEW field in static
+// SQL is the table's column (PLS-00049 otherwise), and an INSERT of a whole
+// row through a synonym reads the target table's every column.
+func TestUnitReadsBindsTrimAndRowInserts(t *testing.T) {
+	status := func(c *Catalog, kind, name string) string {
+		for _, u := range c.unitStates() {
+			if u.kind == kind && u.name == name {
+				return strings.TrimSpace(u.status + " " + u.err)
+			}
+		}
+		return "missing"
+	}
+	c, err := LoadSQL("CREATE FUNCTION f RETURN VARCHAR2 IS BEGIN RETURN TRIM(BOTH 'x' FROM 'xxabcxx'); END;\n/\n" +
+		"CREATE TABLE t (a NUMBER, b NUMBER);\nCREATE TABLE log (id NUMBER);\n" +
+		"CREATE TRIGGER ok_trg BEFORE INSERT ON t FOR EACH ROW BEGIN INSERT INTO log (id) VALUES (:NEW.a); END;\n/\n" +
+		"CREATE TRIGGER bad_trg BEFORE INSERT ON t FOR EACH ROW BEGIN INSERT INTO log (id) VALUES (:NEW.nope); END;\n/\n" +
+		"CREATE SYNONYM s FOR t;\nCREATE PROCEDURE p IS BEGIN INSERT INTO s VALUES (1, 2); END;\n/\n" +
+		"ALTER TABLE t DROP COLUMN b;\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []struct{ kind, name, status string }{
+		{unitFunction, "F", "VALID"},
+		{unitTrigger, "OK_TRG", "VALID"},
+		{unitTrigger, "BAD_TRG", "INVALID PLS-00049"},
+		{unitProcedure, "P", "INVALID"},
+	} {
+		if got := status(c, want.kind, want.name); got != want.status {
+			t.Errorf("%s %s: %s, want %s", want.kind, want.name, got, want.status)
+		}
+	}
+}
+
+// TestUnitNamesOwnSchemaLabelsAndMembers holds four more of Oracle's
+// readings: a call naming the unit's own schema reads the callee, a
+// materialized view anchors %ROWTYPE, a GOTO reaches a label in a loop,
+// and replacing a spec invalidates only the callers of a member it drops.
+func TestUnitNamesOwnSchemaLabelsAndMembers(t *testing.T) {
+	status := func(c *Catalog, kind, name string) string {
+		for _, u := range c.unitStates() {
+			if u.kind == kind && u.name == name {
+				return strings.TrimSpace(u.status + " " + u.err)
+			}
+		}
+		return "missing"
+	}
+	c, err := LoadSQL("CREATE TABLE app.t (id NUMBER PRIMARY KEY);\n" +
+		"CREATE PROCEDURE app.p IS BEGIN NULL; END;\n/\n" +
+		"CREATE PROCEDURE app.caller IS BEGIN app.p; END;\n/\n" +
+		"CREATE MATERIALIZED VIEW app.mv AS SELECT id FROM app.t;\n" +
+		"CREATE PROCEDURE app.rowtyped IS r mv%ROWTYPE; BEGIN NULL; END;\n/\n" +
+		"CREATE PROCEDURE app.jumps IS BEGIN LOOP GOTO done; <<done>> EXIT; END LOOP; END;\n/\n" +
+		"CREATE PACKAGE app.pk AS PROCEDURE run; PROCEDURE keep; END;\n/\n" +
+		"CREATE PROCEDURE app.runs IS BEGIN pk.run; END;\n/\n" +
+		"CREATE PROCEDURE app.keeps IS BEGIN pk.keep; END;\n/\n" +
+		"CREATE OR REPLACE PACKAGE app.pk AS PROCEDURE other; PROCEDURE keep; END;\n/\n" +
+		"DROP PROCEDURE app.p;\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []struct{ kind, name, status string }{
+		{unitProcedure, "CALLER", "INVALID"},
+		{unitProcedure, "ROWTYPED", "VALID"},
+		{unitProcedure, "JUMPS", "VALID"},
+		{unitProcedure, "RUNS", "INVALID"},
+		{unitProcedure, "KEEPS", "VALID"},
+	} {
+		if got := status(c, want.kind, want.name); got != want.status {
+			t.Errorf("%s %s: %s, want %s", want.kind, want.name, got, want.status)
+		}
+	}
+}
+
+// TestUnitReadsPackageCursorsAndQuantifiers holds a cursor FOR loop over a
+// package's cursor and a quantified comparison's list to compiling.
+func TestUnitReadsPackageCursorsAndQuantifiers(t *testing.T) {
+	c, err := LoadSQL("CREATE TABLE t (id NUMBER);\n" +
+		"CREATE PACKAGE pk AS CURSOR c IS SELECT id FROM t; END;\n/\n" +
+		"CREATE PROCEDURE p IS n NUMBER; BEGIN FOR r IN pk.c LOOP NULL; END LOOP; SELECT COUNT(*) INTO n FROM dual WHERE 1 = ANY (1, 2) AND 2 = SOME (1, 2) AND 3 <> ALL (1, 2); END;\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range c.unitStates() {
+		if u.status != "VALID" {
+			t.Errorf("%s %s: %s %s, want VALID", u.kind, u.name, u.status, u.err)
+		}
+	}
+}
+
+// TestTypeMethodsCallEachOther holds a type body whose methods call each
+// other, and themselves, without SELF to compiling.
+func TestTypeMethodsCallEachOther(t *testing.T) {
+	c, err := LoadSQL("CREATE TYPE pt AS OBJECT (x NUMBER, MEMBER FUNCTION f RETURN NUMBER, MEMBER FUNCTION g RETURN NUMBER);\n/\n" +
+		"CREATE TYPE BODY pt AS MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN g() + SELF.g + x; END; MEMBER FUNCTION g RETURN NUMBER IS BEGIN IF x > 0 THEN RETURN 1; END IF; RETURN f; END; END;\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range c.unitStates() {
+		if u.status != "VALID" {
+			t.Errorf("%s %s: %s %s, want VALID", u.kind, u.name, u.status, u.err)
+		}
+	}
+}
+
+// TestCallsParseCalleeOnce holds many calls to one stored procedure to one
+// parse of its text per statement.
+func TestCallsParseCalleeOnce(t *testing.T) {
+	var body strings.Builder
+	for range 2000 {
+		body.WriteString("callee(1); ")
+	}
+	c, err := LoadSQL("CREATE PROCEDURE callee (n NUMBER) IS BEGIN NULL; END;\n/\nCREATE PROCEDURE caller IS BEGIN " + body.String() + "END;\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := newMetadataExtractorFromMetadata(c.meta, "")
+	e.savedSignature(c.meta.Schemas[0].Procedures[0].Definition, false)
+	if len(e.signatures) != 1 {
+		t.Fatalf("signatures cached = %d, want 1", len(e.signatures))
+	}
+}
+
+// TestTriggersRowsAndReturning holds three more of Oracle's readings: an
+// INSTEAD OF trigger reads :NEW without FOR EACH ROW, adding a column
+// invalidates a whole-row INSERT but not one with a column list, and a
+// RETURNING clause reads the table's columns into the unit's variables.
+func TestTriggersRowsAndReturning(t *testing.T) {
+	status := func(c *Catalog, kind, name string) string {
+		for _, u := range c.unitStates() {
+			if u.kind == kind && u.name == name {
+				return strings.TrimSpace(u.status + " " + u.err)
+			}
+		}
+		return "missing"
+	}
+	c, err := LoadSQL("CREATE TABLE t (id NUMBER);\nCREATE VIEW v AS SELECT id FROM t;\n" +
+		"CREATE TRIGGER trg INSTEAD OF INSERT ON v BEGIN INSERT INTO t (id) VALUES (:NEW.id); END;\n/\n" +
+		"CREATE PROCEDURE whole IS BEGIN INSERT INTO t VALUES (1); END;\n/\n" +
+		"CREATE PROCEDURE listed IS BEGIN INSERT INTO t (id) VALUES (1); END;\n/\n" +
+		"CREATE PROCEDURE ret_ok IS v NUMBER; BEGIN INSERT INTO t (id) VALUES (1) RETURNING id INTO v; END;\n/\n" +
+		"CREATE PROCEDURE ret_col IS v NUMBER; BEGIN UPDATE t SET id = 2 RETURNING nope INTO v; END;\n/\n" +
+		"CREATE PROCEDURE ret_var IS BEGIN DELETE FROM t RETURNING id INTO missing_var; END;\n/\n" +
+		"ALTER TABLE t ADD (b NUMBER);\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []struct{ kind, name, status string }{
+		{unitTrigger, "TRG", "VALID"},
+		{unitProcedure, "WHOLE", "INVALID"},
+		{unitProcedure, "LISTED", "VALID"},
+		{unitProcedure, "RET_OK", "VALID"},
+		{unitProcedure, "RET_COL", "INVALID ORA-00904"},
+		{unitProcedure, "RET_VAR", "INVALID PLS-00201"},
+	} {
+		if got := status(c, want.kind, want.name); got != want.status {
+			t.Errorf("%s %s: %s, want %s", want.kind, want.name, got, want.status)
+		}
+	}
+}
+
+// TestTypesConstructorsPipesAndWhen holds four more readings: a variable
+// typed through a synonym reads the type, a constructor returns SELF AS
+// RESULT with a bare RETURN, PIPE ROW's value is checked, and a trigger's
+// WHEN condition reads its column.
+func TestTypesConstructorsPipesAndWhen(t *testing.T) {
+	status := func(c *Catalog, kind, name string) string {
+		for _, u := range c.unitStates() {
+			if u.kind == kind && u.name == name {
+				return strings.TrimSpace(u.status + " " + u.err)
+			}
+		}
+		return "missing"
+	}
+	c, err := LoadSQL("CREATE TYPE ty AS OBJECT (a NUMBER, CONSTRUCTOR FUNCTION ty (x NUMBER) RETURN SELF AS RESULT);\n/\n" +
+		"CREATE TYPE BODY ty AS CONSTRUCTOR FUNCTION ty (x NUMBER) RETURN SELF AS RESULT IS BEGIN a := x; RETURN; END; END;\n/\n" +
+		"CREATE SYNONYM tys FOR ty;\nCREATE PROCEDURE typed IS v tys; BEGIN NULL; END;\n/\n" +
+		"CREATE TYPE nums AS TABLE OF NUMBER;\n/\n" +
+		"CREATE FUNCTION piped RETURN nums PIPELINED IS BEGIN PIPE ROW (missing_var); RETURN; END;\n/\n" +
+		"CREATE TABLE t (a NUMBER, b NUMBER);\n" +
+		"CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW WHEN (NEW.b > 0) BEGIN NULL; END;\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, kind := range []string{unitType, unitTypeBody} {
+		if got := status(c, kind, "TY"); got != "VALID" {
+			t.Errorf("%s TY with a constructor: %s, want VALID", kind, got)
+		}
+	}
+	if _, err := c.Exec("DROP TYPE ty FORCE", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Exec("ALTER TABLE t DROP COLUMN b", nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []struct{ kind, name, status string }{
+		{unitProcedure, "TYPED", "INVALID"},
+		{unitFunction, "PIPED", "INVALID PLS-00201"},
+		{unitTrigger, "TRG", "INVALID"},
+	} {
+		if got := status(c, want.kind, want.name); got != want.status {
+			t.Errorf("%s %s: %s, want %s", want.kind, want.name, got, want.status)
+		}
+	}
+}
+
+// TestSubtypesIteratorsAndPackageBodies holds four more readings: static
+// SQL reads a materialized view, a subtype's body reads inherited
+// attributes, a generalized FOR loop declares every iterand, and a body
+// that leaves out a parameterless spec procedure is PLS-00323.
+func TestSubtypesIteratorsAndPackageBodies(t *testing.T) {
+	status := func(c *Catalog, kind, name string) string {
+		for _, u := range c.unitStates() {
+			if u.kind == kind && u.name == name {
+				return strings.TrimSpace(u.status + " " + u.err)
+			}
+		}
+		return "missing"
+	}
+	c, err := LoadSQL("CREATE TABLE t (id NUMBER PRIMARY KEY);\nCREATE MATERIALIZED VIEW mv AS SELECT id FROM t;\n" +
+		"CREATE PROCEDURE reads_mv IS n NUMBER; BEGIN SELECT COUNT(*) INTO n FROM mv; END;\n/\n" +
+		"CREATE TYPE base_t AS OBJECT (a NUMBER) NOT FINAL;\n/\n" +
+		"CREATE TYPE sub_t UNDER base_t (MEMBER FUNCTION f RETURN NUMBER);\n/\n" +
+		"CREATE TYPE BODY sub_t AS MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN SELF.a + a; END; END;\n/\n" +
+		"CREATE PROCEDURE pairs IS TYPE nt IS TABLE OF NUMBER; xs nt := nt(10, 20); BEGIN FOR i, v IN PAIRS OF xs LOOP DBMS_OUTPUT.PUT_LINE(i + v); END LOOP; END;\n/\n" +
+		"CREATE PACKAGE pk AS PROCEDURE run; END;\n/\n" +
+		"CREATE PACKAGE BODY pk AS PROCEDURE other IS BEGIN NULL; END; END;\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []struct{ kind, name, status string }{
+		{unitProcedure, "READS_MV", "VALID"},
+		{unitTypeBody, "SUB_T", "VALID"},
+		{unitProcedure, "PAIRS", "VALID"},
+		{unitPackageBody, "PK", "INVALID PLS-00323"},
+	} {
+		if got := status(c, want.kind, want.name); got != want.status {
+			t.Errorf("%s %s: %s, want %s", want.kind, want.name, got, want.status)
+		}
+	}
+}
+
+// TestDefaultsRowSetsAndDependencies holds four more readings: DEFAULT in
+// VALUES and SET, a row-valued SET, a trigger's UPDATE OF column, and a
+// type created after a metadata load.
+func TestDefaultsRowSetsAndDependencies(t *testing.T) {
+	status := func(c *Catalog, kind, name string) string {
+		for _, u := range c.unitStates() {
+			if u.kind == kind && u.name == name {
+				return strings.TrimSpace(u.status + " " + u.err)
+			}
+		}
+		return "missing"
+	}
+	c, err := LoadSQL("CREATE TABLE t (a NUMBER, b NUMBER);\n" +
+		"CREATE PROCEDURE defaults IS BEGIN UPDATE t SET a = DEFAULT; INSERT INTO t (a) VALUES (DEFAULT); END;\n/\n" +
+		"CREATE PROCEDURE row_set IS BEGIN UPDATE t SET (a, b) = (SELECT 1, 2 FROM dual); END;\n/\n" +
+		"CREATE PROCEDURE row_set_wide IS BEGIN UPDATE t SET (a, b) = (SELECT 1, 2, 3 FROM dual); END;\n/\n" +
+		"CREATE TRIGGER trg AFTER UPDATE OF b ON t FOR EACH ROW BEGIN NULL; END;\n/\n" +
+		"ALTER TABLE t DROP COLUMN b;\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []struct{ kind, name, status string }{
+		{unitProcedure, "DEFAULTS", "VALID"},
+		{unitProcedure, "ROW_SET", "INVALID"},
+		{unitProcedure, "ROW_SET_WIDE", "INVALID ORA-00913"},
+		{unitTrigger, "TRG", "INVALID"},
+	} {
+		if got := status(c, want.kind, want.name); got != want.status {
+			t.Errorf("%s %s: %s, want %s", want.kind, want.name, got, want.status)
+		}
+	}
+
+	m := New()
+	m.SetMetadata(&metadatapb.DatabaseSchemaMetadata{Name: "APP", Schemas: []*metadatapb.SchemaMetadata{{Name: "APP"}}})
+	for _, stmt := range []string{"CREATE TYPE ty AS OBJECT (a NUMBER)", "CREATE PROCEDURE p IS v ty; BEGIN NULL; END;", "DROP TYPE ty FORCE"} {
+		if _, err := m.Exec(stmt, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := status(m, unitProcedure, "P"); got != "INVALID" {
+		t.Errorf("reader of a dropped type after a metadata load: %s, want INVALID", got)
+	}
+}
+
+// TestPatternsRecordsAndSnapshotTypeBodies holds four more readings: a
+// compound MATCH_RECOGNIZE measure, a statement mixing a known table with a
+// dictionary view, VALUES rec, and a type body after a metadata load.
+func TestPatternsRecordsAndSnapshotTypeBodies(t *testing.T) {
+	status := func(c *Catalog, kind, name string) string {
+		for _, u := range c.unitStates() {
+			if u.kind == kind && u.name == name {
+				return strings.TrimSpace(u.status + " " + u.err)
+			}
+		}
+		return "missing"
+	}
+	c, err := LoadSQL("CREATE TABLE t (id NUMBER, v NUMBER);\n" +
+		"CREATE PROCEDURE pattern IS n NUMBER; BEGIN SELECT MAX(m) INTO n FROM t MATCH_RECOGNIZE (ORDER BY id MEASURES MATCH_NUMBER() + 1 AS m PATTERN (a b*) DEFINE b AS v > PREV(v)); END;\n/\n" +
+		"CREATE PROCEDURE mixed IS n NUMBER; BEGIN SELECT COUNT(*) INTO n FROM t WHERE EXISTS (SELECT 1 FROM user_tables); END;\n/\n" +
+		"CREATE PROCEDURE rec IS BEGIN INSERT INTO t VALUES missing_rec; END;\n/\n" +
+		"DROP TABLE t;\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []struct{ kind, name, status string }{
+		{unitProcedure, "PATTERN", "INVALID"},
+		{unitProcedure, "MIXED", "INVALID"},
+		{unitProcedure, "REC", "INVALID PLS-00201"},
+	} {
+		if got := status(c, want.kind, want.name); got != want.status {
+			t.Errorf("%s %s: %s, want %s", want.kind, want.name, got, want.status)
+		}
+	}
+
+	m := New()
+	m.SetMetadata(&metadatapb.DatabaseSchemaMetadata{Name: "APP", Schemas: []*metadatapb.SchemaMetadata{{Name: "APP"}}})
+	if _, err := m.Exec("CREATE OR REPLACE TYPE BODY synced_t AS MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; END;", nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := status(m, unitTypeBody, "SYNCED_T"); got != "VALID" {
+		t.Errorf("type body after a metadata load: %s, want VALID", got)
+	}
+}
+
+// TestXMLTypeSynonymsAndUsingKeys holds three more readings: a built-in
+// type's constructor in static SQL, dropping a public synonym a unit reads
+// through, and a JOIN USING key's column.
+func TestXMLTypeSynonymsAndUsingKeys(t *testing.T) {
+	status := func(c *Catalog, kind, name string) string {
+		for _, u := range c.unitStates() {
+			if u.kind == kind && u.name == name {
+				return strings.TrimSpace(u.status + " " + u.err)
+			}
+		}
+		return "missing"
+	}
+	c, err := LoadSQL("CREATE TABLE t (id NUMBER, x NUMBER);\nCREATE TABLE u (id NUMBER, y NUMBER);\nCREATE TABLE w (id NUMBER);\nCREATE PUBLIC SYNONYM ws FOR w;\n" +
+		"CREATE PROCEDURE xml IS x XMLTYPE; BEGIN SELECT XMLTYPE('<r/>') INTO x FROM dual; x := XMLTYPE('<s/>'); END;\n/\n" +
+		"CREATE PROCEDURE pub IS n NUMBER; BEGIN SELECT COUNT(*) INTO n FROM ws; END;\n/\n" +
+		"CREATE PROCEDURE joined IS n NUMBER; BEGIN SELECT COUNT(*) INTO n FROM t JOIN u USING (id); END;\n/\n" +
+		"DROP PUBLIC SYNONYM ws;\nALTER TABLE t DROP COLUMN id;\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []struct{ kind, name, status string }{
+		{unitProcedure, "XML", "VALID"},
+		{unitProcedure, "PUB", "INVALID"},
+		{unitProcedure, "JOINED", "INVALID"},
+	} {
+		if got := status(c, want.kind, want.name); got != want.status {
+			t.Errorf("%s %s: %s, want %s", want.kind, want.name, got, want.status)
+		}
+	}
+}
+
+// TestForeignTargetsAndSnapshotSupertypes holds a DML statement writing
+// another schema's table, and a subtype after a metadata load, to compiling.
+func TestForeignTargetsAndSnapshotSupertypes(t *testing.T) {
+	m := New()
+	m.SetMetadata(&metadatapb.DatabaseSchemaMetadata{Name: "APP", Schemas: []*metadatapb.SchemaMetadata{{Name: "APP"}}})
+	for _, stmt := range []string{
+		"CREATE PROCEDURE p IS BEGIN INSERT INTO other.t (id) VALUES (1); UPDATE other.t SET id = 2; DELETE FROM other.t; END;",
+		"CREATE TYPE child_t UNDER base_t (b NUMBER)",
+	} {
+		if _, err := m.Exec(stmt, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, u := range m.unitStates() {
+		if u.status != "VALID" {
+			t.Errorf("%s %s: %s %s, want VALID", u.kind, u.name, u.status, u.err)
+		}
+	}
+}
+
+// TestRemoteSynonymsAndFloatConstants holds a unit reading another
+// schema's table through a synonym, and STANDARD's floating-point
+// constants, to compiling.
+func TestRemoteSynonymsAndFloatConstants(t *testing.T) {
+	c, err := LoadSQL("CREATE TABLE app.t (id NUMBER);\nCREATE SYNONYM app.s FOR other.t;\n" +
+		"CREATE PROCEDURE app.p IS n NUMBER; x BINARY_DOUBLE := BINARY_DOUBLE_INFINITY; BEGIN SELECT COUNT(*) INTO n FROM s; INSERT INTO s (id) VALUES (1); IF x = BINARY_DOUBLE_NAN THEN NULL; END IF; END;\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range c.unitStates() {
+		if u.status != "VALID" {
+			t.Errorf("%s %s: %s %s, want VALID", u.kind, u.name, u.status, u.err)
+		}
+	}
+}
+
+// TestUnseenAnchorsAndSnapshotConstructors holds a row type anchored to a
+// relation the catalog cannot see, and a snapshot type's constructor, to
+// compiling.
+func TestUnseenAnchorsAndSnapshotConstructors(t *testing.T) {
+	c, err := LoadSQL("CREATE TABLE app.t (id NUMBER);\nCREATE SYNONYM app.s FOR other.t;\n" +
+		"CREATE PROCEDURE app.p IS r user_tables%ROWTYPE; q s%ROWTYPE; n user_tables.table_name%TYPE; BEGIN NULL; END;\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := New()
+	m.SetMetadata(&metadatapb.DatabaseSchemaMetadata{Name: "APP", Schemas: []*metadatapb.SchemaMetadata{{Name: "APP"}}})
+	if _, err := m.Exec("CREATE PROCEDURE q IS v point_t := point_t(1, 2); w point_t; BEGIN SELECT point_t(1, 2) INTO w FROM dual; END;", nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, cat := range []*Catalog{c, m} {
+		for _, u := range cat.unitStates() {
+			if u.status != "VALID" {
+				t.Errorf("%s %s: %s %s, want VALID", u.kind, u.name, u.status, u.err)
+			}
+		}
+	}
+}
+
+// TestSynonymTypesUnderivedViewsAndTableFunctions holds a type named
+// through a synonym for another schema's, a view without derived columns
+// as a row type, and a table function in FROM, to compiling.
+func TestSynonymTypesUnderivedViewsAndTableFunctions(t *testing.T) {
+	c, err := LoadSQL("CREATE TABLE app.t (id NUMBER);\nCREATE SYNONYM app.point_alias FOR other.point_t;\nCREATE VIEW app.v AS SELECT id FROM other.t;\n" +
+		"CREATE TYPE app.nt AS TABLE OF NUMBER;\n/\n" +
+		"CREATE FUNCTION app.nums RETURN nt PIPELINED IS BEGIN PIPE ROW (1); RETURN; END;\n/\n" +
+		"CREATE PROCEDURE app.p IS v point_alias; r v%ROWTYPE; n NUMBER; BEGIN r.id := 1; SELECT COUNT(*) INTO n FROM nums(); SELECT COUNT(*) INTO n FROM TABLE(nums()); END;\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range c.unitStates() {
+		if u.status != "VALID" {
+			t.Errorf("%s %s: %s %s, want VALID", u.kind, u.name, u.status, u.err)
+		}
+	}
+}
+
+// TestForeignSupertypesAndJSONTypes holds a subtype of another schema's
+// type, and PL/SQL's JSON object types, to compiling.
+func TestForeignSupertypesAndJSONTypes(t *testing.T) {
+	c, err := LoadSQL("CREATE TABLE app.t (id NUMBER);\nCREATE TYPE app.base_t AS OBJECT (a NUMBER);\n/\n" +
+		"CREATE TYPE app.child_t UNDER other.base_t (b NUMBER);\n/\n" +
+		"CREATE PROCEDURE app.p IS j JSON_OBJECT_T; a JSON_ARRAY_T; BEGIN j := JSON_OBJECT_T.parse('{}'); END;\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range c.unitStates() {
+		if u.status != "VALID" {
+			t.Errorf("%s %s: %s %s, want VALID", u.kind, u.name, u.status, u.err)
+		}
+	}
+}
+
+// TestTriggerOnUnderivedView holds a trigger on a view whose columns the
+// catalog could not derive to compiling.
+func TestTriggerOnUnderivedView(t *testing.T) {
+	c, err := LoadSQL("CREATE TABLE app.t (id NUMBER);\nCREATE VIEW app.v AS SELECT id FROM other.t;\n" +
+		"CREATE TRIGGER app.tr INSTEAD OF INSERT ON v FOR EACH ROW BEGIN DBMS_OUTPUT.PUT_LINE(:NEW.id); END;\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range c.unitStates() {
+		if u.status != "VALID" {
+			t.Errorf("%s %s: %s %s, want VALID", u.kind, u.name, u.status, u.err)
 		}
 	}
 }

@@ -285,25 +285,25 @@ type walker struct {
 func newWalker(stmts []statement, plan *run, target review.Target) *walker {
 	db := target.Schema
 	w := &walker{
-		stmts:         stmts,
-		run:           plan,
-		pg:            newPgSnapshot(db),
-		database:      db.GetName(),
-		triggers:      enabledTriggers(db),
-		user:          target.SessionUser,
-		session:       target.SessionUser,
-		owner:         db.GetOwner(),
-		inBlock:       !plan.autocommit,
-		routines:      make(map[string]bool),
-		partitioned:   make(map[walk.Key]bool),
-		partitions:    make(map[walk.Key][]walk.Key),
+		stmts:           stmts,
+		run:             plan,
+		pg:              newPgSnapshot(db),
+		database:        db.GetName(),
+		triggers:        enabledTriggers(db),
+		user:            target.SessionUser,
+		session:         target.SessionUser,
+		owner:           db.GetOwner(),
+		inBlock:         !plan.autocommit,
+		routines:        make(map[string]bool),
+		partitioned:     make(map[walk.Key]bool),
+		partitions:      make(map[walk.Key][]walk.Key),
 		shellTypes:      make(map[walk.Key]bool),
 		typmodTypes:     make(map[walk.Key]bool),
 		rangeMultirange: make(map[walk.Key]walk.Key),
 		modifiedViews:   make(map[walk.Key]bool),
-		dirtyTables:   make(map[walk.Key]bool),
-		dirtyRoutines: make(map[walk.Key]bool),
-		dirtyTypes:    make(map[walk.Key]bool),
+		dirtyTables:     make(map[walk.Key]bool),
+		dirtyRoutines:   make(map[walk.Key]bool),
+		dirtyTypes:      make(map[walk.Key]bool),
 	}
 	if w.user != "" && w.user == w.owner {
 		w.tenant = true
@@ -544,14 +544,14 @@ type builder struct {
 	// drops lists, by storedKey, the columns an ALTER TABLE drops, which
 	// are gone before any column is added (passOrder); added lists the
 	// columns its ADD COLUMN subcommands so far add, in the order written.
-	// colAltered and conDropped mark columns/constraints modified elsewhere
-	// in the same ALTER TABLE so synced-column checks never race with sibling
-	// subcommands.
-	drops      map[string]bool
-	added      map[string]bool
-	colTouch   map[string]int
-	conDropped bool
-	pkChanged  bool
+	// colTouch and conDrops count the columns and constraints modified
+	// in the same ALTER TABLE so synced-column checks never race with
+	// sibling subcommands.
+	drops     map[string]bool
+	added     map[string]bool
+	colTouch  map[string]int
+	conDrops  int
+	pkChanged bool
 }
 
 // next starts the statement's next part.

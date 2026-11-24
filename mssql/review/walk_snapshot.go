@@ -135,6 +135,8 @@ func (s *snapSpace) lookup(key string, trusted bool) (walk.Fact, string) {
 // snapTable is a synced table's children.
 type snapTable struct {
 	columns, indexes, constraints snapSpace
+	// names are the exact spellings of the columns, in order.
+	names []string
 	// colTypes maps exact synced column spelling to its lowercased base type
 	// name (empty for computed or untyped columns).
 	colTypes map[string]string
@@ -255,6 +257,107 @@ type mssqlSnapshot struct {
 	// triggerOn maps a DML trigger's path, Path(schema class, trigger
 	// class), to its table or view; "" for a path two triggers share.
 	triggerOn map[string]fkSource
+	// viewCols maps a view's path to the names of its columns, as its
+	// synced definition gives them; nil when it does not.
+	viewCols map[string][]string
+	// functions maps a function's path to what its synced definition
+	// shows; nil for a path two functions share or a definition the walk
+	// cannot read.
+	functions map[string]*snapFunc
+}
+
+// Function kinds, as a synced definition shows them.
+const (
+	funcScalar = "scalar"
+	funcInline = "inline table-valued"
+	funcMulti  = "multi-statement table-valued"
+)
+
+// snapFunc is what a synced function's definition shows.
+type snapFunc struct {
+	kind   string
+	params int
+	bound  bool
+	// cols are the names of a table-valued function's columns; nil when
+	// the definition does not give them.
+	cols []string
+}
+
+// syncedFunc reads a synced function's definition. It reads a definition
+// the server accepted, so one that does not parse is only left unread.
+func syncedFunc(definition string) *snapFunc {
+	stmts, err := mssql.Parse(definition)
+	if err != nil || len(stmts) != 1 {
+		return nil
+	}
+	v, ok := stmts[0].AST.(*ast.CreateFunctionStmt)
+	if !ok || v.ExternalName != "" {
+		return nil
+	}
+	f := &snapFunc{kind: funcKind(v), params: len(listNodes(v.Params)), bound: hasOption(v.Options, "SCHEMABINDING")}
+	switch rt := v.ReturnsTable; f.kind {
+	case funcMulti:
+		for _, item := range listNodes(rt.Columns) {
+			cd, ok := item.(*ast.ColumnDef)
+			if !ok {
+				f.cols = nil
+				break
+			}
+			f.cols = append(f.cols, cd.Name)
+		}
+	case funcInline:
+		if ret, ok := v.Body.(*ast.ReturnStmt); ok {
+			if sub, ok := ret.Value.(*ast.SubqueryExpr); ok {
+				if sel, ok := sub.Query.(*ast.SelectStmt); ok {
+					f.cols, _ = outputNames(sel)
+				}
+			}
+		}
+	}
+	return f
+}
+
+// funcKind returns the kind of function a definition makes.
+func funcKind(v *ast.CreateFunctionStmt) string {
+	switch rt := v.ReturnsTable; {
+	case rt == nil:
+		return funcScalar
+	case rt.Variable != "":
+		return funcMulti
+	}
+	return funcInline
+}
+
+// syncedViewCols returns the names of a synced view's columns: those the
+// sync read from sys.columns, which sp_rename keeps current. Metadata
+// without them, as the in-memory catalog's, gives the definition's column
+// list or the names its query gives; nil when the walk cannot tell.
+func syncedViewCols(v *metadata.ViewMetadata) []string {
+	if cols := v.GetColumns(); len(cols) > 0 {
+		names := make([]string, 0, len(cols))
+		for _, c := range cols {
+			names = append(names, c.GetName())
+		}
+		return names
+	}
+	stmts, err := mssql.Parse(v.GetDefinition())
+	if err != nil || len(stmts) != 1 {
+		return nil
+	}
+	cv, ok := stmts[0].AST.(*ast.CreateViewStmt)
+	if !ok {
+		return nil
+	}
+	if cv.Columns != nil {
+		names, _ := listNames(cv.Columns)
+		return names
+	}
+	sel, ok := cv.Query.(*ast.SelectStmt)
+	if !ok {
+		return nil
+	}
+	names, _ := outputNames(sel)
+	return names
 }
 
 // viewUnbound reports whether a synced view's definition is a CREATE VIEW
@@ -279,6 +382,8 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 		ambiguous: make(map[string]bool),
 		unbound:   make(map[string]bool),
 		triggerOn: make(map[string]fkSource),
+		viewCols:  make(map[string][]string),
+		functions: make(map[string]*snapFunc),
 	}
 	for _, e := range excludedSchemas {
 		if n, ok := keyed(e); ok {
@@ -332,6 +437,7 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 			}
 			for _, c := range t.GetColumns() {
 				st.columns.add(c.GetName(), "")
+				st.names = append(st.names, c.GetName())
 				if typ := strings.ToLower(strings.TrimSpace(c.GetType())); typ != "" && !strings.HasPrefix(typ, "as ") {
 					base, _, _ := strings.Cut(typ, "(")
 					if base = strings.TrimSpace(base); base != "" {
@@ -420,6 +526,7 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 				if viewUnbound(v.GetDefinition()) {
 					s.unbound[path] = true
 				}
+				s.viewCols[path] = syncedViewCols(v)
 			}
 			for _, tr := range v.GetTriggers() {
 				objs.add(tr.GetName(), kindTrigger)
@@ -436,6 +543,14 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 		}
 		for _, f := range schema.GetFunctions() {
 			objs.add(f.GetName(), kindFunction)
+			if fn, ok := keyed(f.GetName()); ok {
+				path := walk.Path(sc, fn.class)
+				if _, seen := s.functions[path]; seen {
+					s.functions[path] = nil
+				} else {
+					s.functions[path] = syncedFunc(f.GetDefinition())
+				}
+			}
 		}
 		for _, p := range schema.GetProcedures() {
 			objs.add(p.GetName(), kindProcedure)

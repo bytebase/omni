@@ -60,7 +60,7 @@ const clusteredYes = "yes"
 
 // shapeSpaces are the spaces of a table's shape, which DROP DATABASE
 // clears.
-var shapeSpaces = []string{spaceColumnType, spaceIndexSet, spaceFKDef, spaceOrigin, spaceIDCache, spaceCheckSet, spaceClustered}
+var shapeSpaces = []string{spaceColumnType, spaceIndexSet, spaceFKDef, spaceOrigin, spaceIDCache, spaceCheckSet, spaceClustered, spacePartList}
 
 // AUTO_ID_CACHE kinds: 1, or anything else (TiDB keeps the two apart).
 const (
@@ -424,6 +424,10 @@ func (s *tidbSnapshot) lookupShape(k walk.Key, table string) (walk.Fact, string)
 		if cs, ok := s.checkSets[table]; ok && k.Name == shapeName {
 			return walk.Present, cs
 		}
+	case spacePartList:
+		if l, ok := s.partLists[table]; ok && k.Name == shapeName {
+			return walk.Present, l
+		}
 	case spaceClustered:
 		if s.clustered[table] && k.Name == shapeName {
 			return walk.Present, clusteredYes
@@ -515,6 +519,7 @@ func (b *builder) shapeEffects(v *ast.AlterTableStmt, r tableRef) {
 	// What the table's CHECK constraints read is followed no further than
 	// the sync.
 	b.Set(checkSetKey(r.db, r.name), walk.Unknown, "")
+	b.Set(partListKey(r.db, r.name), walk.Unknown, "")
 	unknownIndexes := func() { b.Set(indexSetKey(r.db, r.name), walk.Unknown, "") }
 	setType := func(name string, dt *ast.DataType) {
 		if k, ok := b.key(spaceColumn, name); ok {

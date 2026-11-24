@@ -544,25 +544,7 @@ func simulationEngine(t testing.TB) func(simulate.Fixture, string) (simulate.Ans
 // and, when Oracle takes the statement, reads what is stored with dump.
 func simulationEngineWith(t testing.TB, dump func(context.Context, *sql.DB) (simulate.Answer, error)) func(simulate.Fixture, string) (simulate.Answer, error) {
 	ctx := context.Background()
-	sysDB := testcontainer.Open(t, "system")
-	t.Cleanup(func() { _ = sysDB.Close() })
-
-	setupStmts := []string{
-		fmt.Sprintf(`CREATE USER "%s" IDENTIFIED BY "%s" QUOTA UNLIMITED ON USERS`, simUser, testcontainer.Password),
-		fmt.Sprintf(`GRANT CREATE SESSION, CREATE TABLE, CREATE VIEW, CREATE SEQUENCE, CREATE SYNONYM, CREATE PUBLIC SYNONYM, DROP PUBLIC SYNONYM TO "%s"`, simUser),
-		simHelperPkgSpec,
-		simHelperPkgBody,
-		fmt.Sprintf(`GRANT EXECUTE ON system.omni_sim TO "%s"`, simUser),
-	}
-	for _, stmt := range setupStmts {
-		if _, err := sysDB.ExecContext(ctx, stmt); err != nil {
-			t.Fatalf("Oracle simulation setup (%s): %v", stmt[:min(60, len(stmt))], err)
-		}
-	}
-
-	userDB := testcontainer.Open(t, simUser)
-	t.Cleanup(func() { _ = userDB.Close() })
-
+	userDB := simulationAccount(t, simGrants)
 	return func(fx simulate.Fixture, statement string) (simulate.Answer, error) {
 		reset := fmt.Sprintf("BEGIN system.omni_sim.reset_schema(q'[%s]'); END;", fx.SQL)
 		if _, err := userDB.ExecContext(ctx, reset); err != nil {
@@ -577,6 +559,35 @@ func simulationEngineWith(t testing.TB, dump func(context.Context, *sql.DB) (sim
 		}
 		return dump(ctx, userDB)
 	}
+}
+
+// simGrants are the privileges the scratch account holds for the DDL and
+// query suites.
+const simGrants = "CREATE SESSION, CREATE TABLE, CREATE VIEW, CREATE SEQUENCE, CREATE SYNONYM, CREATE PUBLIC SYNONYM, DROP PUBLIC SYNONYM"
+
+// simulationAccount makes the scratch account with grants and installs the
+// helper package, and returns a connection as the account.
+func simulationAccount(t testing.TB, grants string) *sql.DB {
+	ctx := context.Background()
+	sysDB := testcontainer.Open(t, "system")
+	t.Cleanup(func() { _ = sysDB.Close() })
+
+	setupStmts := []string{
+		fmt.Sprintf(`CREATE USER "%s" IDENTIFIED BY "%s" QUOTA UNLIMITED ON USERS`, simUser, testcontainer.Password),
+		fmt.Sprintf(`GRANT %s TO "%s"`, grants, simUser),
+		simHelperPkgSpec,
+		simHelperPkgBody,
+		fmt.Sprintf(`GRANT EXECUTE ON system.omni_sim TO "%s"`, simUser),
+	}
+	for _, stmt := range setupStmts {
+		if _, err := sysDB.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("Oracle simulation setup (%s): %v", stmt[:min(60, len(stmt))], err)
+		}
+	}
+
+	userDB := testcontainer.Open(t, simUser)
+	t.Cleanup(func() { _ = userDB.Close() })
+	return userDB
 }
 
 func parseSimulationForms(raw string) []simulate.Form {
@@ -646,12 +657,17 @@ func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answe
 	if engine.Refused() {
 		return simulate.Omni{}
 	}
+	return compareStoredSchema(c.Metadata(), engine.Forms)
+}
 
-	want, err := loadSimulationForms(engine.Forms)
+// compareStoredSchema compares got, the catalog's schema, with the forms
+// Oracle's dump_forms read back.
+func compareStoredSchema(got *metadatapb.DatabaseSchemaMetadata, forms []simulate.Form) simulate.Omni {
+	want, err := loadSimulationForms(forms)
 	if err != nil {
 		return simulate.Omni{Why: fmt.Sprintf("the catalog does not load what Oracle stores: %v", err)}
 	}
-	gotNorm := normalizeForSimulation(c.Metadata())
+	gotNorm := normalizeForSimulation(got)
 	wantNorm := normalizeForSimulation(want.Metadata())
 	alignGeneratedConstraintNames(gotNorm, wantNorm)
 
