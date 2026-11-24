@@ -1591,7 +1591,7 @@ func modifyRelation(result *metadatapb.DatabaseSchemaMetadata, sm *metadatapb.Sc
 	case 'm':
 		for i, existing := range sm.MaterializedViews {
 			if existing.Name == rel.Name {
-				sm.MaterializedViews[i] = mergeMatViewProto(cat, existing, rel.To, rel.Name)
+				sm.MaterializedViews[i] = mergeMatViewProto(cat, existing, rel.From, rel.To, rel.Name)
 				return
 			}
 		}
@@ -1619,10 +1619,11 @@ func mergeViewProto(cat *Catalog, existing *metadatapb.ViewMetadata, relDiff Rel
 	return updated
 }
 
-func mergeMatViewProto(cat *Catalog, existing *metadatapb.MaterializedViewMetadata, rel *Relation, name string) *metadatapb.MaterializedViewMetadata {
+func mergeMatViewProto(cat *Catalog, existing *metadatapb.MaterializedViewMetadata, from, rel *Relation, name string) *metadatapb.MaterializedViewMetadata {
 	updated := relationToMatViewProto(cat, rel)
 	updated.Name = name
 	updated.Comment = existing.Comment
+	preserveColumnMetadata(updated.Columns, existing.Columns, from, rel)
 	updated.SkipDump = existing.SkipDump
 	preserveTriggerComments(updated.Triggers, existing.Triggers)
 	preserveIndexMetadata(updated.Indexes, existing.Indexes)
@@ -1937,7 +1938,7 @@ func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catBefore, catA
 		if rel.From.RelKind == 'm' {
 			for i, existing := range sm.MaterializedViews {
 				if existing.Name == rel.Name {
-					updated := mergeMatViewProto(catAfter, existing, add.To, add.Name)
+					updated := mergeMatViewProto(catAfter, existing, rel.From, add.To, add.Name)
 					if add.SchemaName != srcSchema {
 						sm.MaterializedViews = removeMatViewByName(sm.MaterializedViews, rel.Name)
 						findOrCreateSchema(result, add.SchemaName).MaterializedViews = append(findOrCreateSchema(result, add.SchemaName).MaterializedViews, updated)
@@ -3164,6 +3165,9 @@ func relationToMatViewProto(c *Catalog, rel *Relation) *metadatapb.MaterializedV
 	mv := &metadatapb.MaterializedViewMetadata{
 		Name:              rel.Name,
 		DependencyColumns: relationDependencyColumns(c, rel),
+	}
+	for _, col := range rel.Columns {
+		mv.Columns = append(mv.Columns, columnToProto(c, col))
 	}
 	if rel.Schema != nil {
 		if def, err := c.GetMatViewDefinition(rel.Schema.Name, rel.Name); err == nil {

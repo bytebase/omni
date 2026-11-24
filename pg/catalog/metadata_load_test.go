@@ -421,6 +421,30 @@ func TestLoadMetadataStandsInForFailedObjects(t *testing.T) {
 	}
 }
 
+// TestLoadMetadataMatViewStandInKeepsSyncedColumns pins that a materialized
+// view whose body does not install keeps the columns the sync reported, which
+// its body's own names would not give (a column list renames them).
+func TestLoadMetadataMatViewStandInKeepsSyncedColumns(t *testing.T) {
+	c, report := loadSnapshot(t, false, &metadata.SchemaMetadata{
+		Name: "public",
+		MaterializedViews: []*metadata.MaterializedViewMetadata{{
+			Name:       "mv",
+			Definition: " SELECT no_such_fn(1) AS a, 2 AS b;",
+			Columns: []*metadata.ColumnMetadata{
+				{Name: "x", Position: 1, Type: "integer", Nullable: true},
+				{Name: "y", Position: 2, Type: "integer", Nullable: true},
+			},
+		}},
+	})
+	if report.Degraded["rel:public.mv"] == nil {
+		t.Fatalf("want mv degraded, report %v", report.Degraded)
+	}
+	rel := requireRelation(t, c, "public", "mv")
+	if got := columnTypes(c, rel); len(got) != 2 || got["x"] != "text" || got["y"] != "text" {
+		t.Errorf("materialized view stand-in columns = %v, want the synced x and y", got)
+	}
+}
+
 func TestLoadMetadataCompositeStandInKeepsAttributeNames(t *testing.T) {
 	c, report := loadSnapshot(t, false, &metadata.SchemaMetadata{
 		Name: "public",
