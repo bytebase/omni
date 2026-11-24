@@ -1179,3 +1179,44 @@ CREATE VIEW v AS SELECT NVL(n, 12345) x FROM t;
 		}
 	}
 }
+
+// TestMaterializedViewColumns pins the columns a materialized view gives a
+// query: those its query derives, or those a sync loaded, and none when the
+// query does not resolve.
+func TestMaterializedViewColumns(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TABLE dept (deptno NUMBER(2) PRIMARY KEY, dname VARCHAR2(14) NOT NULL);
+CREATE MATERIALIZED VIEW mv (no, name) AS SELECT deptno, dname FROM dept;
+CREATE MATERIALIZED VIEW lost AS SELECT * FROM nosuch;
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, mv := range c.Metadata().GetSchemas()[0].GetMaterializedViews() {
+		for _, col := range mv.GetColumns() {
+			got = append(got, fmt.Sprintf("%s.%s %s", mv.GetName(), col.GetName(), col.GetType()))
+		}
+	}
+	if want := "MV.NO NUMBER(2),MV.NAME VARCHAR2(14 BYTE)"; strings.Join(got, ",") != want {
+		t.Errorf("columns = %s, want %s", strings.Join(got, ","), want)
+	}
+
+	// A synced snapshot's columns resolve a query through the view.
+	synced := New()
+	if _, err := synced.LoadMetadata(t.Context(), c.Metadata()); err != nil {
+		t.Fatal(err)
+	}
+	synced.SetServerConfig(ServerConfig{ValidateViewQueries: true})
+	results, err := synced.Exec(`CREATE VIEW ok AS SELECT name FROM mv`, nil)
+	if err != nil || results[0].Error != nil {
+		t.Fatalf("a column the view has: %v %v", err, results[0].Error)
+	}
+	results, err = synced.Exec(`CREATE VIEW bad AS SELECT dname FROM mv`, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if results[0].Error == nil || !strings.Contains(results[0].Error.Error(), "ORA-00904") {
+		t.Errorf("a column the view does not have: %v, want ORA-00904", results[0].Error)
+	}
+}

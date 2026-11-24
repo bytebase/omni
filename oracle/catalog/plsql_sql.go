@@ -268,7 +268,7 @@ var sqlSyntaxCalls = map[string]bool{
 
 // readsUnknown reports a statement that reads a relation the catalog
 // cannot know: a dictionary view, a database link's table, a materialized
-// view whose columns it does not keep, or a table function's rows.
+// view whose columns it does not know, or a table function's rows.
 func (c *plChecker) readsUnknown(n ast.Node) bool {
 	if name := dmlTarget(n); name != nil && c.outside(name) {
 		return true
@@ -287,8 +287,8 @@ func (c *plChecker) readsUnknown(n ast.Node) bool {
 		if ref.Dblink != "" || c.outside(ref.Name) || c.dictionary(ref.Name) {
 			unknown = true
 		}
-		if target := c.e.resolveSynonymTarget(ref.Name.Name, ""); c.e.materializedViews[target] != nil && c.e.tables[target] == nil {
-			// A materialized view whose columns the catalog does not keep.
+		if target := c.e.resolveSynonymTarget(ref.Name.Name, ""); c.e.materializedViews[target] != nil && c.e.tables[target] == nil && len(c.e.materializedViews[target].Columns) == 0 {
+			// A materialized view whose columns the catalog does not know.
 			c.readVia(ref.Name.Name, target)
 			unknown = true
 		}
