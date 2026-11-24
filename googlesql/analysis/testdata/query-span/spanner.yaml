@@ -199,22 +199,12 @@
       - server: ""
         database: ds1
         schema: ""
-        table: CTE_1
+        table: ADDRESS
         column: ""
       - server: ""
         database: ds1
         schema: ""
-        table: CTE_2
-        column: ""
-      - server: ""
-        database: ds1
-        schema: ""
-        table: address
-        column: ""
-      - server: ""
-        database: ds1
-        schema: ""
-        table: people
+        table: PEOPLE
         column: ""
     predicatecolumns: []
 - description: Parenthesized join (ON+USING legacy over-accept; ADDRESS deliberately has NO ID column so the USING(ID) coalesce is one-sided — with an ADDRESS.ID the legacy resolver under-reports the explicit ID lineage to PEOPLE.ID only while omni correctly merges both sides; reshaped so both agree, mirroring the bigquery sibling)
@@ -290,12 +280,12 @@
       - server: ""
         database: ds1
         schema: ""
-        table: address
+        table: ADDRESS
         column: ""
       - server: ""
         database: ds1
         schema: ""
-        table: people
+        table: PEOPLE
         column: ""
     predicatecolumns: []
 - description: Join using (ON+USING legacy over-accept; ADDRESS deliberately has NO ID column — see the Parenthesized-join sibling note)
@@ -371,12 +361,12 @@
       - server: ""
         database: ds1
         schema: ""
-        table: address
+        table: ADDRESS
         column: ""
       - server: ""
         database: ds1
         schema: ""
-        table: people
+        table: PEOPLE
         column: ""
     predicatecolumns: []
 - description: Simple join
@@ -452,12 +442,12 @@
       - server: ""
         database: maskingdb
         schema: ""
-        table: address
+        table: Address
         column: ""
       - server: ""
         database: maskingdb
         schema: ""
-        table: people
+        table: People
         column: ""
     predicatecolumns: []
 - description: Recursive cte
@@ -497,7 +487,7 @@
   querySpan:
     type: 1
     results:
-      - name: C1
+      - name: c1
         sourcecolumns:
           - server: ""
             database: maskingdb
@@ -512,7 +502,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: C2
+      - name: c2
         sourcecolumns:
           - server: ""
             database: maskingdb
@@ -527,7 +517,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: C3
+      - name: c3
         sourcecolumns:
           - server: ""
             database: maskingdb
@@ -547,17 +537,12 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: "N"
+      - name: n
         sourcecolumns: []
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
     sourcecolumns:
-      - server: ""
-        database: maskingdb
-        schema: ""
-        table: CTE_01
-        column: ""
       - server: ""
         database: maskingdb
         schema: ""
@@ -592,7 +577,7 @@
   querySpan:
     type: 1
     results:
-      - name: ID
+      - name: Id
         sourcecolumns:
           - server: ""
             database: maskingdb
@@ -602,7 +587,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: NAME
+      - name: Name
         sourcecolumns:
           - server: ""
             database: maskingdb
@@ -613,11 +598,6 @@
         sourcefieldpaths: []
         selectasterisk: false
     sourcecolumns:
-      - server: ""
-        database: maskingdb
-        schema: ""
-        table: CTE_1
-        column: ""
       - server: ""
         database: maskingdb
         schema: ""
@@ -669,7 +649,7 @@
   querySpan:
     type: 1
     results:
-      - name: CITY
+      - name: city
         sourcecolumns:
           - server: ""
             database: ds1
@@ -679,7 +659,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: TOTAL_PAINTINGS
+      - name: total_paintings
         sourcecolumns: []
         isplainfield: false
         sourcefieldpaths: []
@@ -688,12 +668,12 @@
       - server: ""
         database: ds1
         schema: ""
-        table: galleries
+        table: GALLERIES
         column: ""
       - server: ""
         database: ds1
         schema: ""
-        table: paintings
+        table: PAINTINGS
         column: ""
     predicatecolumns: []
 - description: FIXME(zp)Expression subquery
@@ -808,11 +788,6 @@
       - server: ""
         database: maskingdb
         schema: ""
-        table: A
-        column: ""
-      - server: ""
-        database: maskingdb
-        schema: ""
         table: Customers
         column: ""
     predicatecolumns: []
@@ -899,7 +874,7 @@
   querySpan:
     type: 1
     results:
-      - name: ID
+      - name: Id
         sourcecolumns:
           - server: ""
             database: maskingdb
@@ -909,7 +884,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: NAME
+      - name: Name
         sourcecolumns:
           - server: ""
             database: maskingdb
@@ -954,7 +929,7 @@
   querySpan:
     type: 1
     results:
-      - name: ID
+      - name: ""
         sourcecolumns:
           - server: ""
             database: maskingdb
@@ -964,7 +939,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: ID
+      - name: ""
         sourcecolumns:
           - server: ""
             database: maskingdb
@@ -979,7 +954,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: ID
+      - name: ""
         sourcecolumns:
           - server: ""
             database: maskingdb
@@ -1075,7 +1050,7 @@
   querySpan:
     type: 1
     results:
-      - name: ID
+      - name: id
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -1090,7 +1065,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: NAME
+      - name: name
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -1137,7 +1112,7 @@
   querySpan:
     type: 1
     results:
-      - name: ID
+      - name: id
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -1284,7 +1259,7 @@
   querySpan:
     type: 1
     results:
-      - name: NAME
+      - name: name
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -1330,7 +1305,7 @@
   querySpan:
     type: 1
     results:
-      - name: EMAIL
+      - name: email
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -1376,7 +1351,7 @@
   querySpan:
     type: 1
     results:
-      - name: PHONE
+      - name: phone
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -1422,7 +1397,7 @@
   querySpan:
     type: 1
     results:
-      - name: USER_KEY
+      - name: user_key
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -1468,7 +1443,7 @@
   querySpan:
     type: 1
     results:
-      - name: ID
+      - name: id
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -1483,7 +1458,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: NAME
+      - name: name
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -1503,16 +1478,6 @@
         database: spannerdb
         schema: ""
         table: orders
-        column: ""
-      - server: ""
-        database: spannerdb
-        schema: ""
-        table: safe_orders
-        column: ""
-      - server: ""
-        database: spannerdb
-        schema: ""
-        table: safe_users
         column: ""
       - server: ""
         database: spannerdb
@@ -1539,7 +1504,7 @@
   querySpan:
     type: 1
     results:
-      - name: NAME
+      - name: name
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -1549,7 +1514,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: AMOUNT
+      - name: amount
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -1685,7 +1650,7 @@
   querySpan:
     type: 1
     results:
-      - name: FULL_NAME
+      - name: full_name
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -1695,7 +1660,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: SALARY
+      - name: salary
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -1732,7 +1697,7 @@
   querySpan:
     type: 1
     results:
-      - name: NAME
+      - name: name
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -1742,7 +1707,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: AMOUNT
+      - name: amount
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -1752,7 +1717,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: IBAN
+      - name: iban
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -1909,7 +1874,7 @@
   querySpan:
     type: 1
     results:
-      - name: NAME
+      - name: name
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -1919,7 +1884,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: CARD_NUMBER
+      - name: card_number
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -1960,7 +1925,7 @@
   querySpan:
     type: 1
     results:
-      - name: NAME
+      - name: name
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -1970,7 +1935,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: DEVICE
+      - name: device
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -2010,7 +1975,7 @@
   querySpan:
     type: 1
     results:
-      - name: ID
+      - name: id
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -2020,7 +1985,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: NAME
+      - name: name
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -2031,11 +1996,6 @@
         sourcefieldpaths: []
         selectasterisk: false
     sourcecolumns:
-      - server: ""
-        database: spannerdb
-        schema: ""
-        table: safe
-        column: ""
       - server: ""
         database: spannerdb
         schema: ""
@@ -2066,7 +2026,7 @@
   querySpan:
     type: 1
     results:
-      - name: FULL_NAME
+      - name: full_name
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -2081,11 +2041,6 @@
         database: spannerdb
         schema: ""
         table: employees
-        column: ""
-      - server: ""
-        database: spannerdb
-        schema: ""
-        table: ladder
         column: ""
     predicatecolumns: []
 - description: Nested cte inside cte body
@@ -2106,7 +2061,7 @@
   querySpan:
     type: 1
     results:
-      - name: ID
+      - name: id
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -2117,16 +2072,6 @@
         sourcefieldpaths: []
         selectasterisk: false
     sourcecolumns:
-      - server: ""
-        database: spannerdb
-        schema: ""
-        table: inner_cte
-        column: ""
-      - server: ""
-        database: spannerdb
-        schema: ""
-        table: outer_cte
-        column: ""
       - server: ""
         database: spannerdb
         schema: ""
@@ -2151,7 +2096,7 @@
   querySpan:
     type: 1
     results:
-      - name: ID
+      - name: id
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -2161,7 +2106,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: NAME
+      - name: name
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -2172,11 +2117,6 @@
         sourcefieldpaths: []
         selectasterisk: false
     sourcecolumns:
-      - server: ""
-        database: spannerdb
-        schema: ""
-        table: c
-        column: ""
       - server: ""
         database: spannerdb
         schema: ""
@@ -2202,7 +2142,7 @@
   querySpan:
     type: 1
     results:
-      - name: ID
+      - name: id
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -2212,7 +2152,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: NAME
+      - name: name
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -2271,11 +2211,6 @@
       - server: ""
         database: spannerdb
         schema: ""
-        table: safe
-        column: ""
-      - server: ""
-        database: spannerdb
-        schema: ""
         table: users
         column: ""
     predicatecolumns: []
@@ -2297,7 +2232,7 @@
   querySpan:
     type: 1
     results:
-      - name: ID
+      - name: id
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -2307,7 +2242,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: NAME
+      - name: name
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -2342,7 +2277,7 @@
   querySpan:
     type: 1
     results:
-      - name: ALIAS_COL
+      - name: alias_col
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -2377,7 +2312,7 @@
   querySpan:
     type: 1
     results:
-      - name: TOTAL
+      - name: total
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -2412,7 +2347,7 @@
   querySpan:
     type: 1
     results:
-      - name: ID
+      - name: id
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -2422,7 +2357,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: SSN
+      - name: ssn
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -2462,7 +2397,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: ID
+      - name: id
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -2498,7 +2433,7 @@
   querySpan:
     type: 1
     results:
-      - name: ORDER_ID
+      - name: order_id
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -2508,7 +2443,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: OWNER_SSN
+      - name: owner_ssn
         sourcecolumns: []
         isplainfield: false
         sourcefieldpaths: []
@@ -2543,7 +2478,7 @@
   querySpan:
     type: 1
     results:
-      - name: ADDRESS
+      - name: city
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -2578,7 +2513,7 @@
   querySpan:
     type: 1
     results:
-      - name: ADDRESS
+      - name: city
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -2690,7 +2625,7 @@
   querySpan:
     type: 1
     results:
-      - name: REGION
+      - name: region
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -2700,7 +2635,7 @@
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
-      - name: EMAIL
+      - name: email
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -2807,7 +2742,7 @@
   querySpan:
     type: 1
     results:
-      - name: EVENT_ID
+      - name: event_id
         sourcecolumns:
           - server: ""
             database: spannerdb
@@ -2848,7 +2783,7 @@
   querySpan:
     type: 1
     results:
-      - name: PAYLOAD
+      - name: payload
         sourcecolumns:
           - server: ""
             database: spannerdb
