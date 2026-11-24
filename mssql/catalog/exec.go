@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"fmt"
 	"math/big"
 	"slices"
 	"strconv"
@@ -1184,7 +1183,7 @@ func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt, source string) error {
 	// Filtered indexes check object kind differently in SQL Server.
 	if n.WhereClause != nil && kind != kindTable {
 		if kind == kindView {
-			if c.skipViewIndexes {
+			if c.lenientMetadataLoad {
 				return nil
 			}
 			return mssqlErr(ErrFilteredIndexOnView, "Filtered index '%s' cannot be created on object '%s' because it is not a user table.", n.Name, tableName)
@@ -1205,20 +1204,7 @@ func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt, source string) error {
 	case kindNone:
 		return mssqlErr(ErrObjectNotFound, "Cannot find the object \"%s\" because it does not exist or you do not have permissions.", tableName)
 	case kindView:
-		if c.skipViewIndexes {
-			return nil
-		}
-		if n.Columnstore {
-			if n.Clustered != nil && *n.Clustered {
-				return mssqlErr(ErrClusteredCSOnView, "The statement failed because a clustered columnstore index cannot be created on a view.")
-			}
-			return mssqlErr(ErrIndexOnViewNotAllowed, "Cannot create index on view '%s'. It does not have a unique clustered index.", tableName)
-		}
-		view := c.GetView(schemaName, tableName)
-		if view != nil && !isSchemaBound(view.Definition) {
-			return mssqlErr(ErrViewNotSchemaBound, "Cannot create index on view '%s' because the view is not schema bound.", tableName)
-		}
-		return fmt.Errorf("indexes on views are not supported: %s.%s", schemaName, tableName)
+		return c.createViewIndex(n, schemaName, tableName, source)
 	case kindTable:
 		// proceed
 	default:
@@ -1314,6 +1300,116 @@ func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt, source string) error {
 		table.Indexes[existingPos] = index
 	} else {
 		table.Indexes = append(table.Indexes, index)
+	}
+	return nil
+}
+
+// createViewIndex indexes a view. The first index on a view materializes it
+// and must be unique and clustered; nonclustered indexes may follow.
+func (c *Catalog) createViewIndex(n *ast.CreateIndexStmt, schemaName, viewName, source string) error {
+	if n.Columnstore {
+		if c.lenientMetadataLoad {
+			return nil
+		}
+		if n.Clustered != nil && *n.Clustered {
+			return mssqlErr(ErrClusteredCSOnView, "The statement failed because a clustered columnstore index cannot be created on a view.")
+		}
+		return mssqlErr(ErrIndexOnViewNotAllowed, "Cannot create index on view '%s'. It does not have a unique clustered index.", viewName)
+	}
+	view := c.GetView(schemaName, viewName)
+	if view == nil {
+		return mssqlErr(ErrObjectNotFound, "Cannot find the object \"%s\" because it does not exist or you do not have permissions.", viewName)
+	}
+	clustered := n.Clustered != nil && *n.Clustered
+	if !c.lenientMetadataLoad {
+		if !isSchemaBound(view.Definition) {
+			return mssqlErr(ErrViewNotSchemaBound, "Cannot create index on view '%s' because the view is not schema bound.", viewName)
+		}
+		qualified := schemaName + "." + view.Name
+		if n.Name != "" && viewIndexByName(view, n.Name) != nil {
+			return mssqlErr(ErrDupIndex, "The operation failed because an index or statistics with name '%s' already exists on view '%s'.", n.Name, qualified)
+		}
+		if names, known := c.viewColumnNames(view); known {
+			for _, list := range []*ast.List{n.Columns, n.IncludeCols} {
+				if list == nil {
+					continue
+				}
+				for _, item := range list.Items {
+					var colName string
+					switch v := item.(type) {
+					case *ast.IndexColumn:
+						colName = v.Name
+					case *ast.String:
+						colName = v.Str
+					}
+					if colName != "" && !names[strings.ToLower(colName)] {
+						return mssqlErr(ErrIndexColumnNotFound, "Column name '%s' does not exist in the target table or view.", colName)
+					}
+				}
+			}
+		}
+		existing := viewClusteredIndex(view)
+		switch {
+		case clustered && existing != nil:
+			return mssqlErr(ErrMultipleClusteredIndex, "Cannot create more than one clustered index on view '%s'. Drop the existing clustered index '%s' before creating another.", qualified, existing.Name)
+		case clustered && !n.Unique:
+			return mssqlErr(ErrNonUniqueClusteredOnView, "Cannot create nonunique clustered index on view '%s' because only unique clustered indexes are allowed. Consider creating unique clustered index instead.", qualified)
+		case !clustered && existing == nil:
+			return mssqlErr(ErrIndexOnViewNotAllowed, "Cannot create index on view '%s'. It does not have a unique clustered index.", qualified)
+		}
+	}
+	index := &metadata.IndexMetadata{
+		Name:        n.Name,
+		Unique:      n.Unique,
+		Type:        indexType(false, n.Clustered),
+		Expressions: []string{},
+		Descending:  []bool{},
+	}
+	if index.Type == "" {
+		index.Type = "NONCLUSTERED"
+	}
+	appendIndexColumns(index, n.Columns)
+	index.Definition = indexDefinition(n.IncludeCols, nil, source)
+	if hasOptionOn(n.Options, "DROP_EXISTING") {
+		if pos := slices.IndexFunc(view.Indexes, func(idx *metadata.IndexMetadata) bool { return strings.EqualFold(idx.Name, n.Name) }); pos >= 0 {
+			view.Indexes[pos] = index
+			return nil
+		}
+	}
+	view.Indexes = append(view.Indexes, index)
+	return nil
+}
+
+// viewColumnNames returns the lowercased column names of a view, and whether
+// they are known: a view loaded from a script without binding has none.
+func (c *Catalog) viewColumnNames(view *metadata.ViewMetadata) (map[string]bool, bool) {
+	names := map[string]bool{}
+	if cols := c.viewColumns[view]; cols != nil {
+		for _, col := range cols {
+			names[strings.ToLower(col.name)] = true
+		}
+		return names, true
+	}
+	for _, col := range view.Columns {
+		names[strings.ToLower(col.Name)] = true
+	}
+	return names, len(view.Columns) > 0
+}
+
+func viewIndexByName(view *metadata.ViewMetadata, name string) *metadata.IndexMetadata {
+	for _, idx := range view.Indexes {
+		if strings.EqualFold(idx.Name, name) {
+			return idx
+		}
+	}
+	return nil
+}
+
+func viewClusteredIndex(view *metadata.ViewMetadata) *metadata.IndexMetadata {
+	for _, idx := range view.Indexes {
+		if strings.EqualFold(idx.Type, "CLUSTERED") {
+			return idx
+		}
 	}
 	return nil
 }
@@ -1569,6 +1665,8 @@ func (c *Catalog) execAlterIndex(n *ast.AlterIndexStmt) error {
 	var idx *metadata.IndexMetadata
 	if table != nil {
 		idx, _ = resolveTableIndex(table, n.IndexName, false)
+	} else if view := targetCat.GetView(schemaName, tableName); view != nil {
+		idx = viewIndexByName(view, n.IndexName)
 	}
 	if idx == nil {
 		return mssqlErr(ErrIndexNotFound, "Cannot find index '%s'.", n.IndexName)
@@ -1647,6 +1745,8 @@ func (c *Catalog) execCreateOrAlterView(n *ast.CreateViewStmt, source string) er
 				return mssqlErr(ErrDropSchemaNotEmpty, "Cannot ALTER VIEW '%s' because it is being referenced by object '%s'.", v.Name, consumer)
 			}
 			v.Definition = creationDefinition(definition)
+			// ALTER VIEW drops every index on an indexed view.
+			v.Indexes = nil
 			if bind {
 				keep(v)
 			}
@@ -3741,6 +3841,7 @@ func (c *Catalog) execDropIndex(n *ast.DropStmt) error {
 		schemaName string
 		tableName  string
 		table      *metadata.TableMetadata
+		view       *metadata.ViewMetadata
 		idx        *metadata.IndexMetadata
 	}
 	seen := make(map[*metadata.IndexMetadata]bool)
@@ -3776,9 +3877,15 @@ func (c *Catalog) execDropIndex(n *ast.DropStmt) error {
 		if targetCat != nil {
 			table = targetCat.GetTable(schemaName, tableName)
 		}
+		var view *metadata.ViewMetadata
+		if table == nil && targetCat != nil {
+			view = targetCat.GetView(schemaName, tableName)
+		}
 		var foundIdx *metadata.IndexMetadata
 		if table != nil {
 			foundIdx, _ = resolveTableIndex(table, indexName, true)
+		} else if view != nil {
+			foundIdx = viewIndexByName(view, indexName)
 		}
 		if foundIdx == nil || seen[foundIdx] {
 			if n.IfExists {
@@ -3793,6 +3900,19 @@ func (c *Catalog) execDropIndex(n *ast.DropStmt) error {
 		}
 
 		seen[foundIdx] = true
+		if view != nil {
+			targets = append(targets, dropIndexTarget{view: view, idx: foundIdx})
+			// Dropping an indexed view's clustered index drops the rest.
+			if isClustered {
+				for _, other := range view.Indexes {
+					if !seen[other] {
+						seen[other] = true
+						targets = append(targets, dropIndexTarget{view: view, idx: other})
+					}
+				}
+			}
+			continue
+		}
 		targets = append(targets, dropIndexTarget{cat: targetCat, schemaName: schemaName, tableName: tableName, table: table, idx: foundIdx})
 		if isPrimaryXMLIndex(foundIdx) {
 			for _, sec := range table.Indexes {
@@ -3804,11 +3924,20 @@ func (c *Catalog) execDropIndex(n *ast.DropStmt) error {
 		}
 	}
 	for _, target := range targets {
+		if target.table == nil {
+			continue
+		}
 		if _, fkName, referenced := indexReferencedByFKExcluding(target.cat, target.schemaName, target.table, target.idx, seen); referenced {
 			return mssqlErr(ErrDropIndexReferencedByFK, "An explicit DROP INDEX is not allowed on index '%s.%s'. It is being used for FOREIGN KEY constraint enforcement (%s).", target.tableName, target.idx.Name, fkName)
 		}
 	}
 	for _, target := range targets {
+		if target.view != nil {
+			target.view.Indexes = slices.DeleteFunc(target.view.Indexes, func(idx *metadata.IndexMetadata) bool {
+				return idx == target.idx
+			})
+			continue
+		}
 		target.table.Indexes = slices.DeleteFunc(target.table.Indexes, func(idx *metadata.IndexMetadata) bool {
 			return idx == target.idx
 		})

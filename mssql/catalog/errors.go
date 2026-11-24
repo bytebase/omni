@@ -41,6 +41,7 @@ const (
 	ErrInvalidFilegroup               = 1921
 	ErrViewNotSchemaBound             = 1939
 	ErrIndexOnViewNotAllowed          = 1940
+	ErrNonUniqueClusteredOnView       = 1941
 	ErrFileTableNotSupported          = 1969
 	ErrIncompatibleAlterType          = 2010
 	ErrDupColumn                      = 2705

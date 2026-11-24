@@ -1263,3 +1263,41 @@ CREATE TABLE [dbo].[t] (
 	execExpectOK(t, c, `DROP SEQUENCE [dbo].[s]`)
 	require.Empty(t, c.GetSchema("dbo").Sequences)
 }
+
+// TestExecIndexedView follows an indexed view: the first index must be unique
+// and clustered, nonclustered indexes follow it, dropping the clustered index
+// drops the rest, and ALTER VIEW drops them all. The codes are SQL Server's
+// (measured on the pinned server).
+func TestExecIndexedView(t *testing.T) {
+	c := New()
+	execExpectOK(t, c, "CREATE TABLE [dbo].[t] ([id] INT NOT NULL, [v] INT NOT NULL)")
+	execExpectOK(t, c, "CREATE VIEW [dbo].[plain] AS SELECT [id] FROM [dbo].[t]")
+	execExpectOK(t, c, "CREATE VIEW [dbo].[iv] WITH SCHEMABINDING AS SELECT [id], [v] FROM [dbo].[t]")
+
+	execExpectCode(t, c, "CREATE UNIQUE CLUSTERED INDEX [ux] ON [dbo].[plain] ([id])", ErrViewNotSchemaBound)
+	execExpectCode(t, c, "CREATE INDEX [ix] ON [dbo].[iv] ([v])", ErrIndexOnViewNotAllowed)
+	execExpectCode(t, c, "CREATE CLUSTERED INDEX [cx] ON [dbo].[iv] ([id])", ErrNonUniqueClusteredOnView)
+	execExpectCode(t, c, "CREATE UNIQUE CLUSTERED INDEX [ux] ON [dbo].[iv] ([missing])", ErrIndexColumnNotFound)
+
+	execExpectOK(t, c, "CREATE UNIQUE CLUSTERED INDEX [ux] ON [dbo].[iv] ([id])")
+	execExpectCode(t, c, "CREATE UNIQUE CLUSTERED INDEX [ux2] ON [dbo].[iv] ([v])", ErrMultipleClusteredIndex)
+	execExpectCode(t, c, "CREATE INDEX [ux] ON [dbo].[iv] ([v])", ErrDupIndex)
+	execExpectOK(t, c, "CREATE INDEX [ix] ON [dbo].[iv] ([v] DESC)")
+	execExpectOK(t, c, "ALTER INDEX [ix] ON [dbo].[iv] REBUILD")
+
+	view := c.GetView("dbo", "iv")
+	require.Len(t, view.Indexes, 2)
+	require.Equal(t, &metadata.IndexMetadata{Name: "ux", Unique: true, Type: "CLUSTERED", Expressions: []string{"id"}, Descending: []bool{false}}, view.Indexes[0])
+	require.Equal(t, &metadata.IndexMetadata{Name: "ix", Type: "NONCLUSTERED", Expressions: []string{"v"}, Descending: []bool{true}}, view.Indexes[1])
+
+	execExpectOK(t, c, "DROP INDEX [ix] ON [dbo].[iv]")
+	require.Len(t, view.Indexes, 1)
+	execExpectOK(t, c, "CREATE INDEX [ix] ON [dbo].[iv] ([v])")
+	execExpectOK(t, c, "DROP INDEX [ux] ON [dbo].[iv]")
+	require.Empty(t, view.Indexes)
+	execExpectCode(t, c, "DROP INDEX [ix] ON [dbo].[iv]", ErrCannotDropNotFound)
+
+	execExpectOK(t, c, "CREATE UNIQUE CLUSTERED INDEX [ux] ON [dbo].[iv] ([id])")
+	execExpectOK(t, c, "ALTER VIEW [dbo].[iv] WITH SCHEMABINDING AS SELECT [id], [v] FROM [dbo].[t]")
+	require.Empty(t, c.GetView("dbo", "iv").Indexes)
+}

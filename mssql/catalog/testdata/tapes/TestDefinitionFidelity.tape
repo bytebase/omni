@@ -14782,3 +14782,4165 @@
 | SQL_Latin1_General_CP1_CI_AS
 > commit
 < ok
+> exec
+| CREATE SCHEMA [fid_iv];
+< ok 0 -
+> exec
+| CREATE TABLE [fid_iv].[orders] (
+|     [id] INT NOT NULL,
+|     [customer_id] INT NOT NULL,
+|     [total] MONEY NOT NULL,
+|     CONSTRAINT [PK_orders] PRIMARY KEY ([id])
+| );
+< ok 0 -
+> exec
+| CREATE VIEW [fid_iv].[customer_totals] WITH SCHEMABINDING AS
+| SELECT [customer_id], COUNT_BIG(*) AS [order_count], SUM([total]) AS [total]
+| FROM [fid_iv].[orders]
+| GROUP BY [customer_id];
+< ok 0 -
+> exec
+| CREATE UNIQUE CLUSTERED INDEX [UX_customer_totals] ON [fid_iv].[customer_totals] ([customer_id] ASC);
+< ok 0 -
+> exec
+| CREATE NONCLUSTERED INDEX [IX_customer_totals_count] ON [fid_iv].[customer_totals] ([order_count] DESC) INCLUDE ([total]);
+< ok 0 -
+> begin
+< ok
+> query
+|
+| 		SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA
+| 		WHERE schema_name NOT IN ('db_owner', 'db_accessadmin', 'db_backupoperator', 'db_datareader', 'db_datawriter', 'db_ddladmin', 'db_denydatareader', 'db_denydatawriter', 'db_securityadmin', 'guest', 'INFORMATION_SCHEMA', 'sys');
+< result
+< column "schema_name" "NVARCHAR"
+< row
+: string
+| dbo
+< row
+: string
+| fid_a
+< row
+: string
+| fid_b
+< row
+: string
+| fid_cols
+< row
+: string
+| fid_iv
+< row
+: string
+| fid_routines
+< row
+: string
+| fid_sb_fn
+< row
+: string
+| fid_trans_fn
+> query
+|
+| 	SELECT
+| 		p.major_id AS object_id,
+| 		p.minor_id AS column_id,
+| 		CAST(p.[value] AS nvarchar(4000)) AS comment
+| 	FROM sys.extended_properties p
+| 	WHERE p.class = 1 AND p.name = 'MS_Description' AND p.minor_id > 0
+< result
+< column "object_id" "INT"
+< column "column_id" "INT"
+< column "comment" "NVARCHAR"
+> query
+|
+| 	SELECT 
+| 		so.object_id,
+| 		dc.definition,
+| 		so.name AS default_name
+| 	FROM sys.objects so
+| 	INNER JOIN sys.default_constraints dc ON dc.object_id = so.object_id
+| 	WHERE so.type = 'D'
+< result
+< column "object_id" "INT"
+< column "definition" "NVARCHAR"
+< column "default_name" "NVARCHAR"
+< row
+: int64 594101157
+: string
+| (sysutcdatetime())
+: string
+| DF_customers_created_at
+< row
+: int64 610101214
+: string
+| ((0))
+: string
+| DF_customers_balance
+< row
+: int64 802101898
+: string
+| ((0))
+: string
+| DF_orders_total
+< row
+: int64 898102240
+: string
+| ([fid_trans_fn].[outer_value]())
+: string
+| DF_items_v
+< row
+: int64 946102411
+: string
+| ([fid_sb_fn].[lookup_value]())
+: string
+| DF_items_v
+> query
+|
+| 	SELECT
+| 		s.name AS schema_name,
+| 		OBJECT_NAME(c.object_id) AS table_name,
+| 		c.object_id,
+| 		c.column_id,
+| 		c.name AS column_name,
+| 		t.name AS type_name,
+| 		c.is_computed,
+| 		cc.definition,
+| 		cc.is_persisted,
+| 		c.max_length,
+| 		c.precision AS precision,
+| 		c.scale,
+| 		c.collation_name,
+| 		c.is_nullable,
+| 		c.is_identity,
+| 		c.default_object_id,
+| 		id.seed_value AS seed_value,
+| 		id.increment_value AS increment_value
+| 	FROM sys.columns c
+| 		LEFT JOIN sys.computed_columns cc ON cc.object_id = c.object_id AND cc.column_id = c.column_id
+| 		LEFT JOIN sys.types t ON c.user_type_id = t.user_type_id
+| 		LEFT JOIN sys.objects o ON o.object_id = c.object_id
+| 		LEFT JOIN sys.schemas s ON s.schema_id = o.schema_id
+| 		LEFT JOIN sys.identity_columns id ON c.object_id = id.object_id AND c.column_id = id.column_id
+| 	WHERE s.name in (N'dbo',N'fid_a',N'fid_b',N'fid_cols',N'fid_iv',N'fid_routines',N'fid_sb_fn',N'fid_trans_fn')
+| 	ORDER BY s.name ASC, c.object_id ASC, c.column_id ASC
+| 	
+< result
+< column "schema_name" "NVARCHAR"
+< column "table_name" "NVARCHAR"
+< column "object_id" "INT"
+< column "column_id" "INT"
+< column "column_name" "NVARCHAR"
+< column "type_name" "NVARCHAR"
+< column "is_computed" "BIT"
+< column "definition" "NVARCHAR"
+< column "is_persisted" "BIT"
+< column "max_length" "SMALLINT"
+< column "precision" "TINYINT"
+< column "scale" "TINYINT"
+< column "collation_name" "NVARCHAR"
+< column "is_nullable" "BIT"
+< column "is_identity" "BIT"
+< column "default_object_id" "INT"
+< column "seed_value" "SQL_VARIANT"
+< column "increment_value" "SQL_VARIANT"
+< row
+: string
+| fid_a
+: string
+| parents
+: int64 530100929
+: int64 1
+: string
+| id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_b
+: string
+| children
+: int64 706101556
+: int64 1
+: string
+| id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_b
+: string
+| children
+: int64 706101556
+: int64 2
+: string
+| parent_id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_cols
+: string
+| customers
+: int64 562101043
+: int64 1
+: string
+| id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_cols
+: string
+| customers
+: int64 562101043
+: int64 2
+: string
+| name
+: string
+| nvarchar
+: bool false
+: null
+: null
+: int64 200
+: int64 0
+: int64 0
+: string
+| SQL_Latin1_General_CP1_CI_AS
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_cols
+: string
+| customers
+: int64 562101043
+: int64 3
+: string
+| email
+: string
+| nvarchar
+: bool false
+: null
+: null
+: int64 510
+: int64 0
+: int64 0
+: string
+| SQL_Latin1_General_CP1_CI_AS
+: bool true
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_cols
+: string
+| customers
+: int64 562101043
+: int64 4
+: string
+| created_at
+: string
+| datetime2
+: bool false
+: null
+: null
+: int64 7
+: int64 23
+: int64 3
+: null
+: bool false
+: bool false
+: int64 594101157
+: null
+: null
+< row
+: string
+| fid_cols
+: string
+| customers
+: int64 562101043
+: int64 5
+: string
+| balance
+: string
+| decimal
+: bool false
+: null
+: null
+: int64 9
+: int64 12
+: int64 2
+: null
+: bool false
+: bool false
+: int64 610101214
+: null
+: null
+< row
+: string
+| fid_cols
+: string
+| orders
+: int64 754101727
+: int64 1
+: string
+| id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool true
+: int64 0
+: int64 1
+: int64 1
+< row
+: string
+| fid_cols
+: string
+| orders
+: int64 754101727
+: int64 2
+: string
+| customer_id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_cols
+: string
+| orders
+: int64 754101727
+: int64 3
+: string
+| status
+: string
+| varchar
+: bool false
+: null
+: null
+: int64 20
+: int64 0
+: int64 0
+: string
+| Latin1_General_CS_AS
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_cols
+: string
+| orders
+: int64 754101727
+: int64 4
+: string
+| note
+: string
+| nvarchar
+: bool false
+: null
+: null
+: int64 100
+: int64 0
+: int64 0
+: string
+| SQL_Latin1_General_CP1_CI_AS
+: bool true
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_cols
+: string
+| orders
+: int64 754101727
+: int64 5
+: string
+| total
+: string
+| money
+: bool false
+: null
+: null
+: int64 8
+: int64 19
+: int64 4
+: null
+: bool false
+: bool false
+: int64 802101898
+: null
+: null
+< row
+: string
+| fid_iv
+: string
+| orders
+: int64 1026102696
+: int64 1
+: string
+| id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_iv
+: string
+| orders
+: int64 1026102696
+: int64 2
+: string
+| customer_id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_iv
+: string
+| orders
+: int64 1026102696
+: int64 3
+: string
+| total
+: string
+| money
+: bool false
+: null
+: null
+: int64 8
+: int64 19
+: int64 4
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_iv
+: string
+| customer_totals
+: int64 1058102810
+: int64 1
+: string
+| customer_id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_iv
+: string
+| customer_totals
+: int64 1058102810
+: int64 2
+: string
+| order_count
+: string
+| bigint
+: bool false
+: null
+: null
+: int64 8
+: int64 19
+: int64 0
+: null
+: bool true
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_iv
+: string
+| customer_totals
+: int64 1058102810
+: int64 3
+: string
+| total
+: string
+| money
+: bool false
+: null
+: null
+: int64 8
+: int64 19
+: int64 4
+: null
+: bool true
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_routines
+: string
+| items
+: int64 626101271
+: int64 1
+: string
+| id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_routines
+: string
+| items
+: int64 626101271
+: int64 2
+: string
+| name
+: string
+| nvarchar
+: bool false
+: null
+: null
+: int64 200
+: int64 0
+: int64 0
+: string
+| SQL_Latin1_General_CP1_CI_AS
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_routines
+: string
+| v_items
+: int64 962102468
+: int64 1
+: string
+| id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_routines
+: string
+| v_items
+: int64 962102468
+: int64 2
+: string
+| name
+: string
+| nvarchar
+: bool false
+: null
+: null
+: int64 200
+: int64 0
+: int64 0
+: string
+| SQL_Latin1_General_CP1_CI_AS
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_routines
+: string
+| v_item_names
+: int64 978102525
+: int64 1
+: string
+| name
+: string
+| nvarchar
+: bool false
+: null
+: null
+: int64 200
+: int64 0
+: int64 0
+: string
+| SQL_Latin1_General_CP1_CI_AS
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_sb_fn
+: string
+| lookup
+: int64 658101385
+: int64 1
+: string
+| id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_sb_fn
+: string
+| items
+: int64 914102297
+: int64 1
+: string
+| id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_sb_fn
+: string
+| items
+: int64 914102297
+: int64 2
+: string
+| v
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 946102411
+: null
+: null
+< row
+: string
+| fid_trans_fn
+: string
+| items
+: int64 866102126
+: int64 1
+: string
+| id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_trans_fn
+: string
+| items
+: int64 866102126
+: int64 2
+: string
+| v
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 898102240
+: null
+: null
+> query
+|
+| 	SELECT
+| 		s.name AS schema_name,
+| 	    o.name AS table_name,
+| 	    i.name,
+| 	    c.name AS column_name,
+| 	    ic.is_descending_key,
+| 	    i.is_primary_key,
+| 	    i.is_unique_constraint,
+| 	    i.type_desc,
+| 	    CAST(p.[value] AS nvarchar(4000)) AS comment
+| 	FROM
+| 	    sys.indexes i
+| 	        LEFT JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+| 	        LEFT JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id
+| 	        LEFT JOIN sys.objects co ON co.parent_object_id = i.object_id AND co.name = i.name LEFT JOIN sys.objects o ON o.object_id = i.object_id
+| 	        LEFT JOIN sys.schemas s ON s.schema_id = o.schema_id
+| 	        LEFT JOIN sys.extended_properties p ON p.major_id = co.object_id AND p.class = 1 AND p.name = 'MS_Description'
+| 	WHERE i.index_id > 0 AND (i.is_primary_key = 1 OR i.is_unique_constraint = 1) AND o.type IN ('U', 'V') AND s.name in (N'dbo',N'fid_a',N'fid_b',N'fid_cols',N'fid_iv',N'fid_routines',N'fid_sb_fn',N'fid_trans_fn')
+| 	ORDER BY s.name ASC, o.name ASC, i.name ASC, ic.key_ordinal ASC
+| 	
+< result
+< column "schema_name" "NVARCHAR"
+< column "table_name" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "column_name" "NVARCHAR"
+< column "is_descending_key" "BIT"
+< column "is_primary_key" "BIT"
+< column "is_unique_constraint" "BIT"
+< column "type_desc" "NVARCHAR"
+< column "comment" "NVARCHAR"
+< row
+: string
+| fid_a
+: string
+| parents
+: string
+| PK_parents
+: string
+| id
+: bool false
+: bool true
+: bool false
+: string
+| CLUSTERED
+: null
+< row
+: string
+| fid_b
+: string
+| children
+: string
+| PK_children
+: string
+| id
+: bool false
+: bool true
+: bool false
+: string
+| CLUSTERED
+: null
+< row
+: string
+| fid_cols
+: string
+| customers
+: string
+| PK_customers
+: string
+| id
+: bool false
+: bool true
+: bool false
+: string
+| CLUSTERED
+: null
+< row
+: string
+| fid_cols
+: string
+| orders
+: string
+| PK_orders
+: string
+| id
+: bool false
+: bool true
+: bool false
+: string
+| NONCLUSTERED
+: null
+< row
+: string
+| fid_cols
+: string
+| orders
+: string
+| UQ_orders_customer_status
+: string
+| customer_id
+: bool false
+: bool false
+: bool true
+: string
+| CLUSTERED
+: null
+< row
+: string
+| fid_cols
+: string
+| orders
+: string
+| UQ_orders_customer_status
+: string
+| status
+: bool false
+: bool false
+: bool true
+: string
+| CLUSTERED
+: null
+< row
+: string
+| fid_iv
+: string
+| orders
+: string
+| PK_orders
+: string
+| id
+: bool false
+: bool true
+: bool false
+: string
+| CLUSTERED
+: null
+< row
+: string
+| fid_routines
+: string
+| items
+: string
+| PK_items
+: string
+| id
+: bool false
+: bool true
+: bool false
+: string
+| CLUSTERED
+: null
+< row
+: string
+| fid_sb_fn
+: string
+| items
+: string
+| PK_items
+: string
+| id
+: bool false
+: bool true
+: bool false
+: string
+| CLUSTERED
+: null
+< row
+: string
+| fid_sb_fn
+: string
+| lookup
+: string
+| PK_lookup
+: string
+| id
+: bool false
+: bool true
+: bool false
+: string
+| CLUSTERED
+: null
+< row
+: string
+| fid_trans_fn
+: string
+| items
+: string
+| PK_items
+: string
+| id
+: bool false
+: bool true
+: bool false
+: string
+| CLUSTERED
+: null
+> query
+|
+| 	SELECT 
+| 		ep.major_id AS object_id,
+| 		ep.minor_id AS index_id,
+| 		CAST(ep.value AS NVARCHAR(MAX)) AS comment
+| 	FROM sys.extended_properties ep
+| 	WHERE ep.class = 7 AND ep.name = 'MS_Description' AND ep.minor_id > 0
+< result
+< column "object_id" "INT"
+< column "index_id" "INT"
+< column "comment" "NVARCHAR"
+> query
+|
+| 	SELECT
+| 		s.name AS schema_name,
+| 		o.name AS table_name,
+| 		i.object_id,
+| 		i.index_id,
+| 		i.name,
+| 		i.type_desc,
+| 		i.is_unique,
+| 		i.filter_definition,
+| 		xi.secondary_type_desc,
+| 		pi.name AS using_index_name,
+| 		col.name AS column_name,
+| 		ic.key_ordinal,
+| 		ic.is_included_column,
+| 		ic.is_descending_key
+| 	FROM sys.indexes i
+| 	INNER JOIN sys.all_objects o ON o.object_id = i.object_id
+| 	INNER JOIN sys.schemas s ON s.schema_id = o.schema_id
+| 	LEFT JOIN sys.xml_indexes xi ON xi.object_id = i.object_id AND xi.index_id = i.index_id
+| 	LEFT JOIN sys.indexes pi ON pi.object_id = xi.object_id AND pi.index_id = xi.using_xml_index_id
+| 	INNER JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+| 	INNER JOIN sys.all_columns col ON ic.column_id = col.column_id AND ic.object_id = col.object_id
+| 	WHERE i.index_id > 0 AND i.is_primary_key = 0 AND i.is_unique_constraint = 0
+| 		AND s.name in (N'dbo',N'fid_a',N'fid_b',N'fid_cols',N'fid_iv',N'fid_routines',N'fid_sb_fn',N'fid_trans_fn') AND o.type IN ('U', 'S', 'V')
+| 	ORDER BY s.name, o.name, i.index_id, ic.key_ordinal, ic.index_column_id
+| 	
+< result
+< column "schema_name" "NVARCHAR"
+< column "table_name" "NVARCHAR"
+< column "object_id" "INT"
+< column "index_id" "INT"
+< column "name" "NVARCHAR"
+< column "type_desc" "NVARCHAR"
+< column "is_unique" "BIT"
+< column "filter_definition" "NVARCHAR"
+< column "secondary_type_desc" "NVARCHAR"
+< column "using_index_name" "NVARCHAR"
+< column "column_name" "NVARCHAR"
+< column "key_ordinal" "TINYINT"
+< column "is_included_column" "BIT"
+< column "is_descending_key" "BIT"
+< row
+: string
+| fid_cols
+: string
+| orders
+: int64 754101727
+: int64 3
+: string
+| IX_orders_note
+: string
+| NONCLUSTERED
+: bool false
+: null
+: null
+: null
+: string
+| note
+: int64 1
+: bool false
+: bool true
+< row
+: string
+| fid_cols
+: string
+| orders
+: int64 754101727
+: int64 3
+: string
+| IX_orders_note
+: string
+| NONCLUSTERED
+: bool false
+: null
+: null
+: null
+: string
+| status
+: int64 2
+: bool false
+: bool false
+< row
+: string
+| fid_cols
+: string
+| orders
+: int64 754101727
+: int64 4
+: string
+| UX_orders_status_id
+: string
+| NONCLUSTERED
+: bool true
+: null
+: null
+: null
+: string
+| status
+: int64 1
+: bool false
+: bool false
+< row
+: string
+| fid_cols
+: string
+| orders
+: int64 754101727
+: int64 4
+: string
+| UX_orders_status_id
+: string
+| NONCLUSTERED
+: bool true
+: null
+: null
+: null
+: string
+| id
+: int64 2
+: bool false
+: bool true
+< row
+: string
+| fid_iv
+: string
+| customer_totals
+: int64 1058102810
+: int64 1
+: string
+| UX_customer_totals
+: string
+| CLUSTERED
+: bool true
+: null
+: null
+: null
+: string
+| customer_id
+: int64 1
+: bool false
+: bool false
+< row
+: string
+| fid_iv
+: string
+| customer_totals
+: int64 1058102810
+: int64 2
+: string
+| IX_customer_totals_count
+: string
+| NONCLUSTERED
+: bool false
+: null
+: null
+: null
+: string
+| total
+: int64 0
+: bool true
+: bool false
+< row
+: string
+| fid_iv
+: string
+| customer_totals
+: int64 1058102810
+: int64 2
+: string
+| IX_customer_totals_count
+: string
+| NONCLUSTERED
+: bool false
+: null
+: null
+: null
+: string
+| order_count
+: int64 1
+: bool false
+: bool true
+> query
+|
+| 	SELECT 
+| 		ep.major_id AS object_id,
+| 		ep.minor_id AS index_id,
+| 		CAST(ep.value AS NVARCHAR(MAX)) AS comment
+| 	FROM sys.extended_properties ep
+| 	WHERE ep.class = 7 AND ep.name = 'MS_Description' AND ep.minor_id > 0
+| 		AND ep.major_id IN (SELECT object_id FROM sys.spatial_indexes)
+< result
+< column "object_id" "INT"
+< column "index_id" "INT"
+< column "comment" "NVARCHAR"
+> query
+|
+| 	SELECT
+| 		object_id,
+| 		index_id,
+| 		COALESCE(bounding_box_xmin, 0),
+| 		COALESCE(bounding_box_ymin, 0),
+| 		COALESCE(bounding_box_xmax, 0),
+| 		COALESCE(bounding_box_ymax, 0),
+| 		COALESCE(level_1_grid_desc, ''),
+| 		COALESCE(level_2_grid_desc, ''),
+| 		COALESCE(level_3_grid_desc, ''),
+| 		COALESCE(level_4_grid_desc, ''),
+| 		COALESCE(cells_per_object, 0)
+| 	FROM sys.spatial_index_tessellations
+< result
+< column "object_id" "INT"
+< column "index_id" "INT"
+< column "" "FLOAT"
+< column "" "FLOAT"
+< column "" "FLOAT"
+< column "" "FLOAT"
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< column "" "INT"
+> query
+|
+| 	SELECT
+| 		s.name AS schema_name,
+| 		o.name AS table_name,
+| 		si.object_id,
+| 		si.index_id,
+| 		i.name AS index_name,
+| 		ic.key_ordinal,
+| 		col.name AS column_name,
+| 		si.spatial_index_type,
+| 		si.spatial_index_type_desc,
+| 		si.tessellation_scheme,
+| 		col.system_type_id,
+| 		i.filter_definition,
+| 		i.fill_factor,
+| 		CASE WHEN i.is_padded = 1 THEN 1 ELSE 0 END AS is_padded,
+| 		CASE WHEN i.allow_row_locks = 1 THEN 1 ELSE 0 END AS allow_row_locks,
+| 		CASE WHEN i.allow_page_locks = 1 THEN 1 ELSE 0 END AS allow_page_locks
+| 	FROM sys.spatial_indexes si
+| 	INNER JOIN sys.indexes i ON si.object_id = i.object_id AND si.index_id = i.index_id
+| 	INNER JOIN sys.objects o ON i.object_id = o.object_id
+| 	INNER JOIN sys.schemas s ON o.schema_id = s.schema_id
+| 	INNER JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+| 	INNER JOIN sys.columns col ON ic.object_id = col.object_id AND ic.column_id = col.column_id
+| 	WHERE s.name IN (N'dbo',N'fid_a',N'fid_b',N'fid_cols',N'fid_iv',N'fid_routines',N'fid_sb_fn',N'fid_trans_fn') AND o.type IN ('U', 'S', 'V')
+| 	ORDER BY s.name, o.name, i.name, ic.key_ordinal
+| 	
+< result
+< column "schema_name" "NVARCHAR"
+< column "table_name" "NVARCHAR"
+< column "object_id" "INT"
+< column "index_id" "INT"
+< column "index_name" "NVARCHAR"
+< column "key_ordinal" "TINYINT"
+< column "column_name" "NVARCHAR"
+< column "spatial_index_type" "INT"
+< column "spatial_index_type_desc" "NVARCHAR"
+< column "tessellation_scheme" "NVARCHAR"
+< column "system_type_id" "TINYINT"
+< column "filter_definition" "NVARCHAR"
+< column "fill_factor" "TINYINT"
+< column "is_padded" "INT"
+< column "allow_row_locks" "INT"
+< column "allow_page_locks" "INT"
+> query
+|
+| 	SELECT 
+| 		p.major_id AS object_id,
+| 		CAST(p.[value] AS nvarchar(4000)) AS comment
+| 	FROM sys.extended_properties p
+| 	WHERE p.minor_id = 0 AND p.name = 'MS_Description'
+| 		AND p.major_id IN (SELECT object_id FROM sys.foreign_keys)
+< result
+< column "object_id" "INT"
+< column "comment" "NVARCHAR"
+> query
+|
+| 	SELECT
+| 		s.name AS schema_name,
+| 		o.name AS table_name,
+| 		fk.object_id,
+| 		fk.name,
+| 		OBJECT_SCHEMA_NAME(fk.referenced_object_id) AS referenced_schema,
+| 		OBJECT_NAME(fk.referenced_object_id) AS referenced_table,
+| 		fk.delete_referential_action,
+| 		fk.update_referential_action,
+| 		pc.name AS parent_column,
+| 		rc.name AS referenced_column
+| 	FROM sys.foreign_keys fk
+| 	INNER JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id = fk.object_id
+| 	INNER JOIN sys.objects o ON o.object_id = fk.parent_object_id
+| 	INNER JOIN sys.schemas s ON s.schema_id = o.schema_id
+| 	INNER JOIN sys.all_columns pc ON pc.object_id = fkc.parent_object_id AND pc.column_id = fkc.parent_column_id
+| 	INNER JOIN sys.all_columns rc ON rc.object_id = fkc.referenced_object_id AND rc.column_id = fkc.referenced_column_id
+| 	WHERE s.name in (N'dbo',N'fid_a',N'fid_b',N'fid_cols',N'fid_iv',N'fid_routines',N'fid_sb_fn',N'fid_trans_fn')
+| 	ORDER BY s.name ASC, o.object_id ASC, fk.object_id ASC, fkc.constraint_column_id ASC
+| 	
+< result
+< column "schema_name" "NVARCHAR"
+< column "table_name" "NVARCHAR"
+< column "object_id" "INT"
+< column "name" "NVARCHAR"
+< column "referenced_schema" "NVARCHAR"
+< column "referenced_table" "NVARCHAR"
+< column "delete_referential_action" "TINYINT"
+< column "update_referential_action" "TINYINT"
+< column "parent_column" "NVARCHAR"
+< column "referenced_column" "NVARCHAR"
+< row
+: string
+| fid_b
+: string
+| children
+: int64 738101670
+: string
+| FK_children_parents
+: string
+| fid_a
+: string
+| parents
+: int64 0
+: int64 0
+: string
+| parent_id
+: string
+| id
+< row
+: string
+| fid_cols
+: string
+| orders
+: int64 818101955
+: string
+| FK_orders_customers
+: string
+| fid_cols
+: string
+| customers
+: int64 1
+: int64 0
+: string
+| customer_id
+: string
+| id
+> query
+|
+| 	SELECT 
+| 		p.major_id AS object_id,
+| 		CAST(p.[value] AS nvarchar(4000)) AS comment
+| 	FROM sys.extended_properties p
+| 	WHERE p.minor_id = 0 AND p.name = 'MS_Description'
+| 		AND p.major_id IN (SELECT object_id FROM sys.check_constraints)
+< result
+< column "object_id" "INT"
+< column "comment" "NVARCHAR"
+> query
+|
+| 	SELECT o.object_id, s.name AS schema_name, o.name AS table_name
+| 	FROM sys.objects o
+| 	INNER JOIN sys.schemas s ON s.schema_id = o.schema_id
+| 	WHERE s.name in (N'dbo',N'fid_a',N'fid_b',N'fid_cols',N'fid_iv',N'fid_routines',N'fid_sb_fn',N'fid_trans_fn') AND o.type IN ('U')
+| 	
+< result
+< column "object_id" "INT"
+< column "schema_name" "NVARCHAR"
+< column "table_name" "NVARCHAR"
+< row
+: int64 530100929
+: string
+| fid_a
+: string
+| parents
+< row
+: int64 562101043
+: string
+| fid_cols
+: string
+| customers
+< row
+: int64 626101271
+: string
+| fid_routines
+: string
+| items
+< row
+: int64 658101385
+: string
+| fid_sb_fn
+: string
+| lookup
+< row
+: int64 706101556
+: string
+| fid_b
+: string
+| children
+< row
+: int64 754101727
+: string
+| fid_cols
+: string
+| orders
+< row
+: int64 866102126
+: string
+| fid_trans_fn
+: string
+| items
+< row
+: int64 914102297
+: string
+| fid_sb_fn
+: string
+| items
+< row
+: int64 1026102696
+: string
+| fid_iv
+: string
+| orders
+> query
+|
+| 	SELECT
+| 		ch.parent_object_id,
+| 		ch.name,
+| 		ch.object_id,
+| 		ch.definition
+| 	FROM sys.check_constraints ch
+| 	ORDER BY ch.parent_object_id, ch.object_id
+< result
+< column "parent_object_id" "INT"
+< column "name" "NVARCHAR"
+< column "object_id" "INT"
+< column "definition" "NVARCHAR"
+< row
+: int64 754101727
+: string
+| CK_orders_total
+: int64 834102012
+: string
+| ([total]>=(0))
+> query
+|
+| 		SELECT o.object_id, s.name AS schema_name, o.name AS table_name
+| 		FROM sys.all_objects o
+| 		INNER JOIN sys.schemas s ON s.schema_id = o.schema_id
+| 		WHERE o.type = 'U'
+< result
+< column "object_id" "INT"
+< column "schema_name" "NVARCHAR"
+< column "table_name" "NVARCHAR"
+< row
+: int64 -463397375
+: string
+| sys
+: string
+| trace_xe_action_map
+< row
+: int64 -319884821
+: string
+| sys
+: string
+| trace_xe_event_map
+< row
+: int64 530100929
+: string
+| fid_a
+: string
+| parents
+< row
+: int64 562101043
+: string
+| fid_cols
+: string
+| customers
+< row
+: int64 626101271
+: string
+| fid_routines
+: string
+| items
+< row
+: int64 658101385
+: string
+| fid_sb_fn
+: string
+| lookup
+< row
+: int64 706101556
+: string
+| fid_b
+: string
+| children
+< row
+: int64 754101727
+: string
+| fid_cols
+: string
+| orders
+< row
+: int64 866102126
+: string
+| fid_trans_fn
+: string
+| items
+< row
+: int64 914102297
+: string
+| fid_sb_fn
+: string
+| items
+< row
+: int64 1026102696
+: string
+| fid_iv
+: string
+| orders
+> query
+|
+| 		SELECT major_id, value
+| 		FROM sys.extended_properties
+| 		WHERE name = 'MS_Description' AND minor_id = 0 AND class = 1
+< result
+< column "major_id" "INT"
+< column "value" "SQL_VARIANT"
+> query
+|
+| 		SELECT ps.object_id, SUM(ps.row_count) AS total_rows
+| 		FROM sys.dm_db_partition_stats ps
+| 		INNER JOIN sys.tables t ON t.object_id = ps.object_id
+| 		INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
+| 		WHERE ps.index_id < 2 AND s.name IN (N'dbo',N'fid_a',N'fid_b',N'fid_cols',N'fid_iv',N'fid_routines',N'fid_sb_fn',N'fid_trans_fn')
+| 		GROUP BY ps.object_id
+< result
+< column "object_id" "INT"
+< column "total_rows" "BIGINT"
+< row
+: int64 530100929
+: int64 0
+< row
+: int64 562101043
+: int64 0
+< row
+: int64 626101271
+: int64 0
+< row
+: int64 658101385
+: int64 0
+< row
+: int64 706101556
+: int64 0
+< row
+: int64 754101727
+: int64 0
+< row
+: int64 866102126
+: int64 0
+< row
+: int64 914102297
+: int64 0
+< row
+: int64 1026102696
+: int64 0
+> query
+|
+| 		SELECT
+| 			t.object_id,
+| 			SCHEMA_NAME(t.schema_id),
+| 			t.name
+| 		FROM sys.tables t
+| 		ORDER BY SCHEMA_NAME(t.schema_id), t.name ASC
+< result
+< column "object_id" "INT"
+< column "" "NVARCHAR"
+< column "name" "NVARCHAR"
+< row
+: int64 530100929
+: string
+| fid_a
+: string
+| parents
+< row
+: int64 706101556
+: string
+| fid_b
+: string
+| children
+< row
+: int64 562101043
+: string
+| fid_cols
+: string
+| customers
+< row
+: int64 754101727
+: string
+| fid_cols
+: string
+| orders
+< row
+: int64 1026102696
+: string
+| fid_iv
+: string
+| orders
+< row
+: int64 626101271
+: string
+| fid_routines
+: string
+| items
+< row
+: int64 914102297
+: string
+| fid_sb_fn
+: string
+| items
+< row
+: int64 658101385
+: string
+| fid_sb_fn
+: string
+| lookup
+< row
+: int64 866102126
+: string
+| fid_trans_fn
+: string
+| items
+> query
+|
+| 	SELECT 
+| 		ep.major_id AS object_id,
+| 		CAST(ep.value AS NVARCHAR(MAX)) AS comment
+| 	FROM sys.extended_properties ep
+| 	WHERE ep.minor_id = 0 AND ep.class = 1 AND ep.name = 'MS_Description'
+| 		AND ep.major_id IN (SELECT object_id FROM sys.views)
+< result
+< column "object_id" "INT"
+< column "comment" "NVARCHAR"
+> query
+|
+| 		SELECT
+| 			SCHEMA_NAME(v.schema_id) AS schema_name,
+| 			v.name AS view_name,
+| 			v.object_id,
+| 			m.definition
+| 		FROM sys.views v
+| 		INNER JOIN sys.sql_modules m ON v.object_id = m.object_id
+| 		ORDER BY schema_name, view_name;
+< result
+< column "schema_name" "NVARCHAR"
+< column "view_name" "NVARCHAR"
+< column "object_id" "INT"
+< column "definition" "NVARCHAR"
+< row
+: string
+| fid_iv
+: string
+| customer_totals
+: int64 1058102810
+: string
+| CREATE VIEW [fid_iv].[customer_totals] WITH SCHEMABINDING AS
+| SELECT [customer_id], COUNT_BIG(*) AS [order_count], SUM([total]) AS [total]
+| FROM [fid_iv].[orders]
+| GROUP BY [customer_id];
+< row
+: string
+| fid_routines
+: string
+| v_item_names
+: int64 978102525
+: string
+| CREATE VIEW [fid_routines].[v_item_names] AS
+| SELECT [name] FROM [fid_routines].[v_items];
+< row
+: string
+| fid_routines
+: string
+| v_items
+: int64 962102468
+: string
+| CREATE VIEW [fid_routines].[v_items] AS
+| SELECT [id], [name] FROM [fid_routines].[items];
+> query
+|
+| 	SELECT
+| 		s.name,
+| 		seq.name,
+| 		tp.name,
+| 		seq.precision,
+| 		seq.scale,
+| 		CAST(seq.start_value AS NVARCHAR(MAX)) AS start_value,
+| 		CAST(seq.increment AS NVARCHAR(MAX)) AS increment,
+| 		CAST(seq.minimum_value AS NVARCHAR(MAX)) AS minimum_value,
+| 		CAST(seq.maximum_value AS NVARCHAR(MAX)) AS maximum_value,
+| 		seq.is_cycling,
+| 		CASE WHEN seq.is_cached = 0 THEN N'NO CACHE' ELSE CAST(seq.cache_size AS NVARCHAR(MAX)) END AS cache_size,
+| 		CAST(ep.value AS NVARCHAR(MAX)) AS comment
+| 	FROM
+| 		sys.sequences seq
+| 	INNER JOIN
+| 		sys.schemas s ON s.schema_id = seq.schema_id
+| 	INNER JOIN
+| 		sys.types tp ON tp.user_type_id = seq.user_type_id
+| 	LEFT JOIN sys.extended_properties ep ON ep.major_id = seq.object_id 
+| 		AND ep.minor_id = 0 
+| 		AND ep.class = 1 
+| 		AND ep.name = 'MS_Description'
+| 	ORDER BY s.name, seq.name;
+< result
+< column "name" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "precision" "TINYINT"
+< column "scale" "TINYINT"
+< column "start_value" "NVARCHAR"
+< column "increment" "NVARCHAR"
+< column "minimum_value" "NVARCHAR"
+< column "maximum_value" "NVARCHAR"
+< column "is_cycling" "BIT"
+< column "cache_size" "NVARCHAR"
+< column "comment" "NVARCHAR"
+< row
+: string
+| fid_routines
+: string
+| item_seq
+: string
+| bigint
+: int64 19
+: int64 0
+: string
+| -9223372036854775808
+: string
+| 1
+: string
+| -9223372036854775808
+: string
+| 9223372036854775807
+: bool false
+: null
+: null
+> query
+|
+| 	SELECT
+| 		SCHEMA_NAME(ao.schema_id) AS schema_name,
+| 		ao.name AS func_name,
+| 		asm.definition,
+| 		CAST(ep.value AS NVARCHAR(MAX)) AS comment
+| 	FROM sys.all_objects ao
+|         INNER JOIN sys.all_sql_modules asm ON asm.object_id = ao.object_id
+| 		LEFT JOIN sys.extended_properties ep ON ep.major_id = ao.object_id 
+| 			AND ep.minor_id = 0 
+| 			AND ep.class = 1 
+| 			AND ep.name = 'MS_Description'
+| 	WHERE ao.type IN ('FN', 'IF', 'TF')
+| 		AND ao.is_ms_shipped = 0 AND
+| 		(
+| 			SELECT major_id
+| 			FROM sys.extended_properties
+| 			WHERE major_id = ao.object_id
+| 				AND minor_id = 0
+| 				AND class = 1
+| 				AND name = 'microsoft_database_tools_support'
+| 		) IS NULL
+| 	ORDER BY schema_name, func_name;
+< result
+< column "schema_name" "NVARCHAR"
+< column "func_name" "NVARCHAR"
+< column "definition" "NVARCHAR"
+< column "comment" "NVARCHAR"
+< row
+: string
+| fid_routines
+: string
+| item_name
+: string
+| CREATE FUNCTION [fid_routines].[item_name] (@id INT)
+| RETURNS NVARCHAR(100)
+| AS
+| BEGIN
+|     RETURN (SELECT [name] FROM [fid_routines].[items] WHERE [id] = @id)
+| END
+: null
+< row
+: string
+| fid_sb_fn
+: string
+| lookup_value
+: string
+| CREATE FUNCTION [fid_sb_fn].[lookup_value]()
+| RETURNS INT
+| WITH SCHEMABINDING
+| AS
+| BEGIN
+|     RETURN (SELECT ISNULL(MAX([id]), 0) FROM [fid_sb_fn].[lookup])
+| END
+: null
+< row
+: string
+| fid_trans_fn
+: string
+| inner_value
+: string
+| CREATE FUNCTION [fid_trans_fn].[inner_value]()
+| RETURNS INT
+| AS
+| BEGIN
+|     RETURN 1
+| END
+: null
+< row
+: string
+| fid_trans_fn
+: string
+| outer_value
+: string
+| CREATE FUNCTION [fid_trans_fn].[outer_value]()
+| RETURNS INT
+| AS
+| BEGIN
+|     RETURN [fid_trans_fn].[inner_value]()
+| END
+: null
+> query
+|
+| 	SELECT
+| 		SCHEMA_NAME(ao.schema_id) AS schema_name,
+| 		ao.name AS procedure_name,
+| 		asm.definition,
+| 		CAST(ep.value AS NVARCHAR(MAX)) AS comment
+| 	FROM sys.all_objects ao
+|         INNER JOIN sys.all_sql_modules asm ON asm.object_id = ao.object_id
+| 		LEFT JOIN sys.extended_properties ep ON ep.major_id = ao.object_id
+| 			AND ep.minor_id = 0
+| 			AND ep.class = 1
+| 			AND ep.name = 'MS_Description'
+| 	WHERE ao.type IN ('P', 'RF')
+| 		AND ao.is_ms_shipped = 0 AND
+| 		(
+| 			SELECT major_id
+| 			FROM sys.extended_properties
+| 			WHERE major_id = ao.object_id
+| 				AND minor_id = 0
+| 				AND class = 1
+| 				AND name = 'microsoft_database_tools_support'
+| 		) IS NULL
+| 	ORDER BY schema_name, procedure_name;
+< result
+< column "schema_name" "NVARCHAR"
+< column "procedure_name" "NVARCHAR"
+< column "definition" "NVARCHAR"
+< column "comment" "NVARCHAR"
+< row
+: string
+| fid_routines
+: string
+| get_items
+: string
+| CREATE PROCEDURE [fid_routines].[get_items]
+| AS
+| BEGIN
+|     SELECT [id], [name] FROM [fid_routines].[items];
+| END
+: null
+> query
+|
+| 	SELECT 
+| 		ep.major_id AS object_id,
+| 		CAST(ep.value AS NVARCHAR(MAX)) AS comment
+| 	FROM sys.extended_properties ep
+| 	WHERE ep.minor_id = 0 AND ep.class = 1 AND ep.name = 'MS_Description'
+| 		AND ep.major_id IN (SELECT object_id FROM sys.triggers WHERE is_disabled = 0 AND is_ms_shipped = 0)
+< result
+< column "object_id" "INT"
+< column "comment" "NVARCHAR"
+> query
+|
+| SELECT
+|     st.object_id,
+|     st.name,
+|     STUFF((
+|         SELECT ',' + te.type_desc
+|         FROM sys.trigger_events AS te
+|         WHERE te.object_id = st.object_id
+|         FOR XML PATH('')
+|     ), 1, 1, '') AS events,
+| CASE
+|         WHEN st.is_instead_of_trigger = 1 THEN 'INSTEAD OF'
+|         WHEN st.type IN ('TR', 'TA') THEN 'AFTER' -- DML triggers created with FOR or AFTER, and DDL triggers
+|         ELSE 'UNKNOWN'
+| END AS timing,
+| ssm.definition AS body,
+| so.name AS parentName,
+| ss.name AS schemaName,
+| so.type AS objectType
+| FROM sys.triggers AS st
+| JOIN sys.sql_modules AS ssm ON st.object_id = ssm.object_id
+| JOIN sys.objects AS so ON st.parent_id = so.object_id
+| JOIN sys.schemas AS ss ON so.schema_id = ss.schema_id
+| WHERE st.is_disabled = 0 AND st.is_ms_shipped = 0 AND st.parent_id <> 0 AND so.type IN ('U', 'V')
+| ORDER BY st.name;
+|
+< result
+< column "object_id" "INT"
+< column "name" "NVARCHAR"
+< column "events" "NVARCHAR"
+< column "timing" "VARCHAR"
+< column "body" "NVARCHAR"
+< column "parentName" "NVARCHAR"
+< column "schemaName" "NVARCHAR"
+< column "objectType" "CHAR"
+> query
+|
+| 		SELECT
+| 			SCHEMA_NAME(schema_id),
+| 			name,
+| 			PARSENAME(base_object_name, 4),
+| 			PARSENAME(base_object_name, 3),
+| 			PARSENAME(base_object_name, 2),
+| 			PARSENAME(base_object_name, 1)
+| 		FROM sys.synonyms
+| 		ORDER BY SCHEMA_NAME(schema_id), name
+< result
+< column "" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+> query
+| SELECT SCHEMA_NAME(), CONVERT(nvarchar(128), DATABASEPROPERTYEX(DB_NAME(), 'Collation'))
+< result
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< row
+: string
+| dbo
+: string
+| SQL_Latin1_General_CP1_CI_AS
+> commit
+< ok
+> exec
+| ALTER TABLE [fid_cols].[customers] DROP CONSTRAINT IF EXISTS [DF_customers_created_at];
+| ALTER TABLE [fid_cols].[customers] DROP CONSTRAINT IF EXISTS [DF_customers_balance];
+| ALTER TABLE [fid_cols].[orders] DROP CONSTRAINT IF EXISTS [DF_orders_total];
+| ALTER TABLE [fid_cols].[orders] DROP CONSTRAINT IF EXISTS [CK_orders_total];
+| ALTER TABLE [fid_sb_fn].[items] DROP CONSTRAINT IF EXISTS [DF_items_v];
+| ALTER TABLE [fid_trans_fn].[items] DROP CONSTRAINT IF EXISTS [DF_items_v];
+| DROP VIEW IF EXISTS [fid_iv].[customer_totals];
+| DROP VIEW IF EXISTS [fid_routines].[v_items];
+| DROP VIEW IF EXISTS [fid_routines].[v_item_names];
+| DROP PROCEDURE IF EXISTS [fid_routines].[get_items];
+| DROP FUNCTION IF EXISTS [fid_routines].[item_name];
+| DROP SEQUENCE IF EXISTS [fid_routines].[item_seq];
+| DROP FUNCTION IF EXISTS [fid_sb_fn].[lookup_value];
+| DROP FUNCTION IF EXISTS [fid_trans_fn].[inner_value];
+| DROP FUNCTION IF EXISTS [fid_trans_fn].[outer_value];
+| ALTER TABLE [fid_b].[children] DROP CONSTRAINT IF EXISTS [FK_children_parents];
+| ALTER TABLE [fid_cols].[orders] DROP CONSTRAINT IF EXISTS [FK_orders_customers];
+| DROP TABLE IF EXISTS [fid_a].[parents];
+| DROP TABLE IF EXISTS [fid_b].[children];
+| DROP TABLE IF EXISTS [fid_cols].[customers];
+| DROP TABLE IF EXISTS [fid_cols].[orders];
+| DROP TABLE IF EXISTS [fid_iv].[orders];
+| DROP TABLE IF EXISTS [fid_routines].[items];
+| DROP TABLE IF EXISTS [fid_sb_fn].[items];
+| DROP TABLE IF EXISTS [fid_sb_fn].[lookup];
+| DROP TABLE IF EXISTS [fid_trans_fn].[items];
+| DROP SCHEMA IF EXISTS [fid_a];
+| DROP SCHEMA IF EXISTS [fid_b];
+| DROP SCHEMA IF EXISTS [fid_cols];
+| DROP SCHEMA IF EXISTS [fid_iv];
+| DROP SCHEMA IF EXISTS [fid_routines];
+| DROP SCHEMA IF EXISTS [fid_sb_fn];
+| DROP SCHEMA IF EXISTS [fid_trans_fn];
+< ok 0 -
+> exec
+| CREATE SCHEMA [fid_a];
+< ok 0 -
+> exec
+| CREATE SCHEMA [fid_b];
+< ok 0 -
+> exec
+| CREATE SCHEMA [fid_cols];
+< ok 0 -
+> exec
+| CREATE SCHEMA [fid_iv];
+< ok 0 -
+> exec
+| CREATE SCHEMA [fid_routines];
+< ok 0 -
+> exec
+| CREATE SCHEMA [fid_sb_fn];
+< ok 0 -
+> exec
+| CREATE SCHEMA [fid_trans_fn];
+< ok 0 -
+> exec
+| CREATE SEQUENCE [fid_routines].[item_seq]
+|     AS bigint
+|     START WITH -9223372036854775808
+|     INCREMENT BY 1
+|     MINVALUE -9223372036854775808
+|     MAXVALUE 9223372036854775807;
+< ok 0 -
+> exec
+| CREATE FUNCTION [fid_trans_fn].[inner_value]()
+| RETURNS INT
+| AS
+| BEGIN
+|     RETURN 1
+| END
+< ok 0 -
+> exec
+| CREATE TABLE [fid_a].[parents] (
+|     [id] int NOT NULL,
+|     CONSTRAINT [PK_parents] PRIMARY KEY CLUSTERED ([id] ASC)
+| );
+|
+| CREATE TABLE [fid_cols].[customers] (
+|     [id] int NOT NULL,
+|     [name] nvarchar(100) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+|     [email] nvarchar(255) COLLATE SQL_Latin1_General_CP1_CI_AS,
+|     [created_at] datetime2(3) CONSTRAINT [DF_customers_created_at] DEFAULT (sysutcdatetime()) NOT NULL,
+|     [balance] decimal(12, 2) CONSTRAINT [DF_customers_balance] DEFAULT ((0)) NOT NULL,
+|     CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id] ASC)
+| );
+|
+| CREATE TABLE [fid_iv].[orders] (
+|     [id] int NOT NULL,
+|     [customer_id] int NOT NULL,
+|     [total] money NOT NULL,
+|     CONSTRAINT [PK_orders] PRIMARY KEY CLUSTERED ([id] ASC)
+| );
+|
+| CREATE TABLE [fid_routines].[items] (
+|     [id] int NOT NULL,
+|     [name] nvarchar(100) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+|     CONSTRAINT [PK_items] PRIMARY KEY CLUSTERED ([id] ASC)
+| );
+|
+| CREATE TABLE [fid_sb_fn].[lookup] (
+|     [id] int NOT NULL,
+|     CONSTRAINT [PK_lookup] PRIMARY KEY CLUSTERED ([id] ASC)
+| );
+< ok 0 -
+> exec
+| CREATE FUNCTION [fid_trans_fn].[outer_value]()
+| RETURNS INT
+| AS
+| BEGIN
+|     RETURN [fid_trans_fn].[inner_value]()
+| END
+< ok 0 -
+> exec
+| CREATE TABLE [fid_b].[children] (
+|     [id] int NOT NULL,
+|     [parent_id] int NOT NULL,
+|     CONSTRAINT [PK_children] PRIMARY KEY CLUSTERED ([id] ASC),
+|     CONSTRAINT [FK_children_parents] FOREIGN KEY ([parent_id]) REFERENCES [fid_a].[parents] ([id]) ON DELETE NO ACTION ON UPDATE NO ACTION
+| );
+|
+| CREATE TABLE [fid_cols].[orders] (
+|     [id] int IDENTITY(1,1) NOT NULL,
+|     [customer_id] int NOT NULL,
+|     [status] varchar(20) COLLATE Latin1_General_CS_AS NOT NULL,
+|     [note] nvarchar(50) COLLATE SQL_Latin1_General_CP1_CI_AS,
+|     [total] money CONSTRAINT [DF_orders_total] DEFAULT ((0)) NOT NULL,
+|     CONSTRAINT [PK_orders] PRIMARY KEY NONCLUSTERED ([id] ASC),
+|     CONSTRAINT [UQ_orders_customer_status] UNIQUE CLUSTERED ([customer_id] ASC, [status] ASC),
+|     CONSTRAINT [FK_orders_customers] FOREIGN KEY ([customer_id]) REFERENCES [fid_cols].[customers] ([id]) ON DELETE CASCADE ON UPDATE NO ACTION,
+|     CONSTRAINT [CK_orders_total] CHECK ([total]>=(0))
+| );
+|
+| CREATE NONCLUSTERED INDEX [IX_orders_note] ON
+| [fid_cols].[orders] (
+|     [note] DESC,
+|     [status] ASC
+| );
+|
+| CREATE UNIQUE NONCLUSTERED INDEX [UX_orders_status_id] ON
+| [fid_cols].[orders] (
+|     [status] ASC,
+|     [id] DESC
+| );
+< ok 0 -
+> exec
+| CREATE FUNCTION [fid_sb_fn].[lookup_value]()
+| RETURNS INT
+| WITH SCHEMABINDING
+| AS
+| BEGIN
+|     RETURN (SELECT ISNULL(MAX([id]), 0) FROM [fid_sb_fn].[lookup])
+| END
+< ok 0 -
+> exec
+| CREATE TABLE [fid_trans_fn].[items] (
+|     [id] int NOT NULL,
+|     [v] int CONSTRAINT [DF_items_v] DEFAULT ([fid_trans_fn].[outer_value]()) NOT NULL,
+|     CONSTRAINT [PK_items] PRIMARY KEY CLUSTERED ([id] ASC)
+| );
+|
+| CREATE TABLE [fid_sb_fn].[items] (
+|     [id] int NOT NULL,
+|     [v] int CONSTRAINT [DF_items_v] DEFAULT ([fid_sb_fn].[lookup_value]()) NOT NULL,
+|     CONSTRAINT [PK_items] PRIMARY KEY CLUSTERED ([id] ASC)
+| );
+< ok 0 -
+> exec
+| CREATE VIEW [fid_iv].[customer_totals] WITH SCHEMABINDING AS
+| SELECT [customer_id], COUNT_BIG(*) AS [order_count], SUM([total]) AS [total]
+| FROM [fid_iv].[orders]
+| GROUP BY [customer_id];
+< ok 0 -
+> exec
+| CREATE UNIQUE CLUSTERED INDEX [UX_customer_totals] ON
+| [fid_iv].[customer_totals] (
+|     [customer_id] ASC
+| );
+|
+| CREATE NONCLUSTERED INDEX [IX_customer_totals_count] ON
+| [fid_iv].[customer_totals] (
+|     [order_count] DESC
+| ) INCLUDE ([total]);
+< ok 0 -
+> exec
+| CREATE VIEW [fid_routines].[v_items] AS
+| SELECT [id], [name] FROM [fid_routines].[items];
+< ok 0 -
+> exec
+| CREATE VIEW [fid_routines].[v_item_names] AS
+| SELECT [name] FROM [fid_routines].[v_items];
+< ok 0 -
+> exec
+| CREATE FUNCTION [fid_routines].[item_name] (@id INT)
+| RETURNS NVARCHAR(100)
+| AS
+| BEGIN
+|     RETURN (SELECT [name] FROM [fid_routines].[items] WHERE [id] = @id)
+| END
+< ok 0 -
+> exec
+| CREATE PROCEDURE [fid_routines].[get_items]
+| AS
+| BEGIN
+|     SELECT [id], [name] FROM [fid_routines].[items];
+| END
+< ok 0 -
+> begin
+< ok
+> query
+|
+| 		SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA
+| 		WHERE schema_name NOT IN ('db_owner', 'db_accessadmin', 'db_backupoperator', 'db_datareader', 'db_datawriter', 'db_ddladmin', 'db_denydatareader', 'db_denydatawriter', 'db_securityadmin', 'guest', 'INFORMATION_SCHEMA', 'sys');
+< result
+< column "schema_name" "NVARCHAR"
+< row
+: string
+| dbo
+< row
+: string
+| fid_a
+< row
+: string
+| fid_b
+< row
+: string
+| fid_cols
+< row
+: string
+| fid_iv
+< row
+: string
+| fid_routines
+< row
+: string
+| fid_sb_fn
+< row
+: string
+| fid_trans_fn
+> query
+|
+| 	SELECT
+| 		p.major_id AS object_id,
+| 		p.minor_id AS column_id,
+| 		CAST(p.[value] AS nvarchar(4000)) AS comment
+| 	FROM sys.extended_properties p
+| 	WHERE p.class = 1 AND p.name = 'MS_Description' AND p.minor_id > 0
+< result
+< column "object_id" "INT"
+< column "column_id" "INT"
+< column "comment" "NVARCHAR"
+> query
+|
+| 	SELECT 
+| 		so.object_id,
+| 		dc.definition,
+| 		so.name AS default_name
+| 	FROM sys.objects so
+| 	INNER JOIN sys.default_constraints dc ON dc.object_id = so.object_id
+| 	WHERE so.type = 'D'
+< result
+< column "object_id" "INT"
+< column "definition" "NVARCHAR"
+< column "default_name" "NVARCHAR"
+< row
+: int64 1170103209
+: string
+| (sysutcdatetime())
+: string
+| DF_customers_created_at
+< row
+: int64 1186103266
+: string
+| ((0))
+: string
+| DF_customers_balance
+< row
+: int64 1410104064
+: string
+| ((0))
+: string
+| DF_orders_total
+< row
+: int64 1506104406
+: string
+| ([fid_trans_fn].[outer_value]())
+: string
+| DF_items_v
+< row
+: int64 1554104577
+: string
+| ([fid_sb_fn].[lookup_value]())
+: string
+| DF_items_v
+> query
+|
+| 	SELECT
+| 		s.name AS schema_name,
+| 		OBJECT_NAME(c.object_id) AS table_name,
+| 		c.object_id,
+| 		c.column_id,
+| 		c.name AS column_name,
+| 		t.name AS type_name,
+| 		c.is_computed,
+| 		cc.definition,
+| 		cc.is_persisted,
+| 		c.max_length,
+| 		c.precision AS precision,
+| 		c.scale,
+| 		c.collation_name,
+| 		c.is_nullable,
+| 		c.is_identity,
+| 		c.default_object_id,
+| 		id.seed_value AS seed_value,
+| 		id.increment_value AS increment_value
+| 	FROM sys.columns c
+| 		LEFT JOIN sys.computed_columns cc ON cc.object_id = c.object_id AND cc.column_id = c.column_id
+| 		LEFT JOIN sys.types t ON c.user_type_id = t.user_type_id
+| 		LEFT JOIN sys.objects o ON o.object_id = c.object_id
+| 		LEFT JOIN sys.schemas s ON s.schema_id = o.schema_id
+| 		LEFT JOIN sys.identity_columns id ON c.object_id = id.object_id AND c.column_id = id.column_id
+| 	WHERE s.name in (N'dbo',N'fid_a',N'fid_b',N'fid_cols',N'fid_iv',N'fid_routines',N'fid_sb_fn',N'fid_trans_fn')
+| 	ORDER BY s.name ASC, c.object_id ASC, c.column_id ASC
+| 	
+< result
+< column "schema_name" "NVARCHAR"
+< column "table_name" "NVARCHAR"
+< column "object_id" "INT"
+< column "column_id" "INT"
+< column "column_name" "NVARCHAR"
+< column "type_name" "NVARCHAR"
+< column "is_computed" "BIT"
+< column "definition" "NVARCHAR"
+< column "is_persisted" "BIT"
+< column "max_length" "SMALLINT"
+< column "precision" "TINYINT"
+< column "scale" "TINYINT"
+< column "collation_name" "NVARCHAR"
+< column "is_nullable" "BIT"
+< column "is_identity" "BIT"
+< column "default_object_id" "INT"
+< column "seed_value" "SQL_VARIANT"
+< column "increment_value" "SQL_VARIANT"
+< row
+: string
+| fid_a
+: string
+| parents
+: int64 1106102981
+: int64 1
+: string
+| id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_b
+: string
+| children
+: int64 1314103722
+: int64 1
+: string
+| id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_b
+: string
+| children
+: int64 1314103722
+: int64 2
+: string
+| parent_id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_cols
+: string
+| customers
+: int64 1138103095
+: int64 1
+: string
+| id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_cols
+: string
+| customers
+: int64 1138103095
+: int64 2
+: string
+| name
+: string
+| nvarchar
+: bool false
+: null
+: null
+: int64 200
+: int64 0
+: int64 0
+: string
+| SQL_Latin1_General_CP1_CI_AS
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_cols
+: string
+| customers
+: int64 1138103095
+: int64 3
+: string
+| email
+: string
+| nvarchar
+: bool false
+: null
+: null
+: int64 510
+: int64 0
+: int64 0
+: string
+| SQL_Latin1_General_CP1_CI_AS
+: bool true
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_cols
+: string
+| customers
+: int64 1138103095
+: int64 4
+: string
+| created_at
+: string
+| datetime2
+: bool false
+: null
+: null
+: int64 7
+: int64 23
+: int64 3
+: null
+: bool false
+: bool false
+: int64 1170103209
+: null
+: null
+< row
+: string
+| fid_cols
+: string
+| customers
+: int64 1138103095
+: int64 5
+: string
+| balance
+: string
+| decimal
+: bool false
+: null
+: null
+: int64 9
+: int64 12
+: int64 2
+: null
+: bool false
+: bool false
+: int64 1186103266
+: null
+: null
+< row
+: string
+| fid_cols
+: string
+| orders
+: int64 1362103893
+: int64 1
+: string
+| id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool true
+: int64 0
+: int64 1
+: int64 1
+< row
+: string
+| fid_cols
+: string
+| orders
+: int64 1362103893
+: int64 2
+: string
+| customer_id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_cols
+: string
+| orders
+: int64 1362103893
+: int64 3
+: string
+| status
+: string
+| varchar
+: bool false
+: null
+: null
+: int64 20
+: int64 0
+: int64 0
+: string
+| Latin1_General_CS_AS
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_cols
+: string
+| orders
+: int64 1362103893
+: int64 4
+: string
+| note
+: string
+| nvarchar
+: bool false
+: null
+: null
+: int64 100
+: int64 0
+: int64 0
+: string
+| SQL_Latin1_General_CP1_CI_AS
+: bool true
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_cols
+: string
+| orders
+: int64 1362103893
+: int64 5
+: string
+| total
+: string
+| money
+: bool false
+: null
+: null
+: int64 8
+: int64 19
+: int64 4
+: null
+: bool false
+: bool false
+: int64 1410104064
+: null
+: null
+< row
+: string
+| fid_iv
+: string
+| orders
+: int64 1202103323
+: int64 1
+: string
+| id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_iv
+: string
+| orders
+: int64 1202103323
+: int64 2
+: string
+| customer_id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_iv
+: string
+| orders
+: int64 1202103323
+: int64 3
+: string
+| total
+: string
+| money
+: bool false
+: null
+: null
+: int64 8
+: int64 19
+: int64 4
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_iv
+: string
+| customer_totals
+: int64 1570104634
+: int64 1
+: string
+| customer_id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_iv
+: string
+| customer_totals
+: int64 1570104634
+: int64 2
+: string
+| order_count
+: string
+| bigint
+: bool false
+: null
+: null
+: int64 8
+: int64 19
+: int64 0
+: null
+: bool true
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_iv
+: string
+| customer_totals
+: int64 1570104634
+: int64 3
+: string
+| total
+: string
+| money
+: bool false
+: null
+: null
+: int64 8
+: int64 19
+: int64 4
+: null
+: bool true
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_routines
+: string
+| items
+: int64 1234103437
+: int64 1
+: string
+| id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_routines
+: string
+| items
+: int64 1234103437
+: int64 2
+: string
+| name
+: string
+| nvarchar
+: bool false
+: null
+: null
+: int64 200
+: int64 0
+: int64 0
+: string
+| SQL_Latin1_General_CP1_CI_AS
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_routines
+: string
+| v_items
+: int64 1586104691
+: int64 1
+: string
+| id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_routines
+: string
+| v_items
+: int64 1586104691
+: int64 2
+: string
+| name
+: string
+| nvarchar
+: bool false
+: null
+: null
+: int64 200
+: int64 0
+: int64 0
+: string
+| SQL_Latin1_General_CP1_CI_AS
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_routines
+: string
+| v_item_names
+: int64 1602104748
+: int64 1
+: string
+| name
+: string
+| nvarchar
+: bool false
+: null
+: null
+: int64 200
+: int64 0
+: int64 0
+: string
+| SQL_Latin1_General_CP1_CI_AS
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_sb_fn
+: string
+| lookup
+: int64 1266103551
+: int64 1
+: string
+| id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_sb_fn
+: string
+| items
+: int64 1522104463
+: int64 1
+: string
+| id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_sb_fn
+: string
+| items
+: int64 1522104463
+: int64 2
+: string
+| v
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 1554104577
+: null
+: null
+< row
+: string
+| fid_trans_fn
+: string
+| items
+: int64 1474104292
+: int64 1
+: string
+| id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| fid_trans_fn
+: string
+| items
+: int64 1474104292
+: int64 2
+: string
+| v
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 1506104406
+: null
+: null
+> query
+|
+| 	SELECT
+| 		s.name AS schema_name,
+| 	    o.name AS table_name,
+| 	    i.name,
+| 	    c.name AS column_name,
+| 	    ic.is_descending_key,
+| 	    i.is_primary_key,
+| 	    i.is_unique_constraint,
+| 	    i.type_desc,
+| 	    CAST(p.[value] AS nvarchar(4000)) AS comment
+| 	FROM
+| 	    sys.indexes i
+| 	        LEFT JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+| 	        LEFT JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id
+| 	        LEFT JOIN sys.objects co ON co.parent_object_id = i.object_id AND co.name = i.name LEFT JOIN sys.objects o ON o.object_id = i.object_id
+| 	        LEFT JOIN sys.schemas s ON s.schema_id = o.schema_id
+| 	        LEFT JOIN sys.extended_properties p ON p.major_id = co.object_id AND p.class = 1 AND p.name = 'MS_Description'
+| 	WHERE i.index_id > 0 AND (i.is_primary_key = 1 OR i.is_unique_constraint = 1) AND o.type IN ('U', 'V') AND s.name in (N'dbo',N'fid_a',N'fid_b',N'fid_cols',N'fid_iv',N'fid_routines',N'fid_sb_fn',N'fid_trans_fn')
+| 	ORDER BY s.name ASC, o.name ASC, i.name ASC, ic.key_ordinal ASC
+| 	
+< result
+< column "schema_name" "NVARCHAR"
+< column "table_name" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "column_name" "NVARCHAR"
+< column "is_descending_key" "BIT"
+< column "is_primary_key" "BIT"
+< column "is_unique_constraint" "BIT"
+< column "type_desc" "NVARCHAR"
+< column "comment" "NVARCHAR"
+< row
+: string
+| fid_a
+: string
+| parents
+: string
+| PK_parents
+: string
+| id
+: bool false
+: bool true
+: bool false
+: string
+| CLUSTERED
+: null
+< row
+: string
+| fid_b
+: string
+| children
+: string
+| PK_children
+: string
+| id
+: bool false
+: bool true
+: bool false
+: string
+| CLUSTERED
+: null
+< row
+: string
+| fid_cols
+: string
+| customers
+: string
+| PK_customers
+: string
+| id
+: bool false
+: bool true
+: bool false
+: string
+| CLUSTERED
+: null
+< row
+: string
+| fid_cols
+: string
+| orders
+: string
+| PK_orders
+: string
+| id
+: bool false
+: bool true
+: bool false
+: string
+| NONCLUSTERED
+: null
+< row
+: string
+| fid_cols
+: string
+| orders
+: string
+| UQ_orders_customer_status
+: string
+| customer_id
+: bool false
+: bool false
+: bool true
+: string
+| CLUSTERED
+: null
+< row
+: string
+| fid_cols
+: string
+| orders
+: string
+| UQ_orders_customer_status
+: string
+| status
+: bool false
+: bool false
+: bool true
+: string
+| CLUSTERED
+: null
+< row
+: string
+| fid_iv
+: string
+| orders
+: string
+| PK_orders
+: string
+| id
+: bool false
+: bool true
+: bool false
+: string
+| CLUSTERED
+: null
+< row
+: string
+| fid_routines
+: string
+| items
+: string
+| PK_items
+: string
+| id
+: bool false
+: bool true
+: bool false
+: string
+| CLUSTERED
+: null
+< row
+: string
+| fid_sb_fn
+: string
+| items
+: string
+| PK_items
+: string
+| id
+: bool false
+: bool true
+: bool false
+: string
+| CLUSTERED
+: null
+< row
+: string
+| fid_sb_fn
+: string
+| lookup
+: string
+| PK_lookup
+: string
+| id
+: bool false
+: bool true
+: bool false
+: string
+| CLUSTERED
+: null
+< row
+: string
+| fid_trans_fn
+: string
+| items
+: string
+| PK_items
+: string
+| id
+: bool false
+: bool true
+: bool false
+: string
+| CLUSTERED
+: null
+> query
+|
+| 	SELECT 
+| 		ep.major_id AS object_id,
+| 		ep.minor_id AS index_id,
+| 		CAST(ep.value AS NVARCHAR(MAX)) AS comment
+| 	FROM sys.extended_properties ep
+| 	WHERE ep.class = 7 AND ep.name = 'MS_Description' AND ep.minor_id > 0
+< result
+< column "object_id" "INT"
+< column "index_id" "INT"
+< column "comment" "NVARCHAR"
+> query
+|
+| 	SELECT
+| 		s.name AS schema_name,
+| 		o.name AS table_name,
+| 		i.object_id,
+| 		i.index_id,
+| 		i.name,
+| 		i.type_desc,
+| 		i.is_unique,
+| 		i.filter_definition,
+| 		xi.secondary_type_desc,
+| 		pi.name AS using_index_name,
+| 		col.name AS column_name,
+| 		ic.key_ordinal,
+| 		ic.is_included_column,
+| 		ic.is_descending_key
+| 	FROM sys.indexes i
+| 	INNER JOIN sys.all_objects o ON o.object_id = i.object_id
+| 	INNER JOIN sys.schemas s ON s.schema_id = o.schema_id
+| 	LEFT JOIN sys.xml_indexes xi ON xi.object_id = i.object_id AND xi.index_id = i.index_id
+| 	LEFT JOIN sys.indexes pi ON pi.object_id = xi.object_id AND pi.index_id = xi.using_xml_index_id
+| 	INNER JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+| 	INNER JOIN sys.all_columns col ON ic.column_id = col.column_id AND ic.object_id = col.object_id
+| 	WHERE i.index_id > 0 AND i.is_primary_key = 0 AND i.is_unique_constraint = 0
+| 		AND s.name in (N'dbo',N'fid_a',N'fid_b',N'fid_cols',N'fid_iv',N'fid_routines',N'fid_sb_fn',N'fid_trans_fn') AND o.type IN ('U', 'S', 'V')
+| 	ORDER BY s.name, o.name, i.index_id, ic.key_ordinal, ic.index_column_id
+| 	
+< result
+< column "schema_name" "NVARCHAR"
+< column "table_name" "NVARCHAR"
+< column "object_id" "INT"
+< column "index_id" "INT"
+< column "name" "NVARCHAR"
+< column "type_desc" "NVARCHAR"
+< column "is_unique" "BIT"
+< column "filter_definition" "NVARCHAR"
+< column "secondary_type_desc" "NVARCHAR"
+< column "using_index_name" "NVARCHAR"
+< column "column_name" "NVARCHAR"
+< column "key_ordinal" "TINYINT"
+< column "is_included_column" "BIT"
+< column "is_descending_key" "BIT"
+< row
+: string
+| fid_cols
+: string
+| orders
+: int64 1362103893
+: int64 3
+: string
+| IX_orders_note
+: string
+| NONCLUSTERED
+: bool false
+: null
+: null
+: null
+: string
+| note
+: int64 1
+: bool false
+: bool true
+< row
+: string
+| fid_cols
+: string
+| orders
+: int64 1362103893
+: int64 3
+: string
+| IX_orders_note
+: string
+| NONCLUSTERED
+: bool false
+: null
+: null
+: null
+: string
+| status
+: int64 2
+: bool false
+: bool false
+< row
+: string
+| fid_cols
+: string
+| orders
+: int64 1362103893
+: int64 4
+: string
+| UX_orders_status_id
+: string
+| NONCLUSTERED
+: bool true
+: null
+: null
+: null
+: string
+| status
+: int64 1
+: bool false
+: bool false
+< row
+: string
+| fid_cols
+: string
+| orders
+: int64 1362103893
+: int64 4
+: string
+| UX_orders_status_id
+: string
+| NONCLUSTERED
+: bool true
+: null
+: null
+: null
+: string
+| id
+: int64 2
+: bool false
+: bool true
+< row
+: string
+| fid_iv
+: string
+| customer_totals
+: int64 1570104634
+: int64 1
+: string
+| UX_customer_totals
+: string
+| CLUSTERED
+: bool true
+: null
+: null
+: null
+: string
+| customer_id
+: int64 1
+: bool false
+: bool false
+< row
+: string
+| fid_iv
+: string
+| customer_totals
+: int64 1570104634
+: int64 2
+: string
+| IX_customer_totals_count
+: string
+| NONCLUSTERED
+: bool false
+: null
+: null
+: null
+: string
+| total
+: int64 0
+: bool true
+: bool false
+< row
+: string
+| fid_iv
+: string
+| customer_totals
+: int64 1570104634
+: int64 2
+: string
+| IX_customer_totals_count
+: string
+| NONCLUSTERED
+: bool false
+: null
+: null
+: null
+: string
+| order_count
+: int64 1
+: bool false
+: bool true
+> query
+|
+| 	SELECT 
+| 		ep.major_id AS object_id,
+| 		ep.minor_id AS index_id,
+| 		CAST(ep.value AS NVARCHAR(MAX)) AS comment
+| 	FROM sys.extended_properties ep
+| 	WHERE ep.class = 7 AND ep.name = 'MS_Description' AND ep.minor_id > 0
+| 		AND ep.major_id IN (SELECT object_id FROM sys.spatial_indexes)
+< result
+< column "object_id" "INT"
+< column "index_id" "INT"
+< column "comment" "NVARCHAR"
+> query
+|
+| 	SELECT
+| 		object_id,
+| 		index_id,
+| 		COALESCE(bounding_box_xmin, 0),
+| 		COALESCE(bounding_box_ymin, 0),
+| 		COALESCE(bounding_box_xmax, 0),
+| 		COALESCE(bounding_box_ymax, 0),
+| 		COALESCE(level_1_grid_desc, ''),
+| 		COALESCE(level_2_grid_desc, ''),
+| 		COALESCE(level_3_grid_desc, ''),
+| 		COALESCE(level_4_grid_desc, ''),
+| 		COALESCE(cells_per_object, 0)
+| 	FROM sys.spatial_index_tessellations
+< result
+< column "object_id" "INT"
+< column "index_id" "INT"
+< column "" "FLOAT"
+< column "" "FLOAT"
+< column "" "FLOAT"
+< column "" "FLOAT"
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< column "" "INT"
+> query
+|
+| 	SELECT
+| 		s.name AS schema_name,
+| 		o.name AS table_name,
+| 		si.object_id,
+| 		si.index_id,
+| 		i.name AS index_name,
+| 		ic.key_ordinal,
+| 		col.name AS column_name,
+| 		si.spatial_index_type,
+| 		si.spatial_index_type_desc,
+| 		si.tessellation_scheme,
+| 		col.system_type_id,
+| 		i.filter_definition,
+| 		i.fill_factor,
+| 		CASE WHEN i.is_padded = 1 THEN 1 ELSE 0 END AS is_padded,
+| 		CASE WHEN i.allow_row_locks = 1 THEN 1 ELSE 0 END AS allow_row_locks,
+| 		CASE WHEN i.allow_page_locks = 1 THEN 1 ELSE 0 END AS allow_page_locks
+| 	FROM sys.spatial_indexes si
+| 	INNER JOIN sys.indexes i ON si.object_id = i.object_id AND si.index_id = i.index_id
+| 	INNER JOIN sys.objects o ON i.object_id = o.object_id
+| 	INNER JOIN sys.schemas s ON o.schema_id = s.schema_id
+| 	INNER JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+| 	INNER JOIN sys.columns col ON ic.object_id = col.object_id AND ic.column_id = col.column_id
+| 	WHERE s.name IN (N'dbo',N'fid_a',N'fid_b',N'fid_cols',N'fid_iv',N'fid_routines',N'fid_sb_fn',N'fid_trans_fn') AND o.type IN ('U', 'S', 'V')
+| 	ORDER BY s.name, o.name, i.name, ic.key_ordinal
+| 	
+< result
+< column "schema_name" "NVARCHAR"
+< column "table_name" "NVARCHAR"
+< column "object_id" "INT"
+< column "index_id" "INT"
+< column "index_name" "NVARCHAR"
+< column "key_ordinal" "TINYINT"
+< column "column_name" "NVARCHAR"
+< column "spatial_index_type" "INT"
+< column "spatial_index_type_desc" "NVARCHAR"
+< column "tessellation_scheme" "NVARCHAR"
+< column "system_type_id" "TINYINT"
+< column "filter_definition" "NVARCHAR"
+< column "fill_factor" "TINYINT"
+< column "is_padded" "INT"
+< column "allow_row_locks" "INT"
+< column "allow_page_locks" "INT"
+> query
+|
+| 	SELECT 
+| 		p.major_id AS object_id,
+| 		CAST(p.[value] AS nvarchar(4000)) AS comment
+| 	FROM sys.extended_properties p
+| 	WHERE p.minor_id = 0 AND p.name = 'MS_Description'
+| 		AND p.major_id IN (SELECT object_id FROM sys.foreign_keys)
+< result
+< column "object_id" "INT"
+< column "comment" "NVARCHAR"
+> query
+|
+| 	SELECT
+| 		s.name AS schema_name,
+| 		o.name AS table_name,
+| 		fk.object_id,
+| 		fk.name,
+| 		OBJECT_SCHEMA_NAME(fk.referenced_object_id) AS referenced_schema,
+| 		OBJECT_NAME(fk.referenced_object_id) AS referenced_table,
+| 		fk.delete_referential_action,
+| 		fk.update_referential_action,
+| 		pc.name AS parent_column,
+| 		rc.name AS referenced_column
+| 	FROM sys.foreign_keys fk
+| 	INNER JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id = fk.object_id
+| 	INNER JOIN sys.objects o ON o.object_id = fk.parent_object_id
+| 	INNER JOIN sys.schemas s ON s.schema_id = o.schema_id
+| 	INNER JOIN sys.all_columns pc ON pc.object_id = fkc.parent_object_id AND pc.column_id = fkc.parent_column_id
+| 	INNER JOIN sys.all_columns rc ON rc.object_id = fkc.referenced_object_id AND rc.column_id = fkc.referenced_column_id
+| 	WHERE s.name in (N'dbo',N'fid_a',N'fid_b',N'fid_cols',N'fid_iv',N'fid_routines',N'fid_sb_fn',N'fid_trans_fn')
+| 	ORDER BY s.name ASC, o.object_id ASC, fk.object_id ASC, fkc.constraint_column_id ASC
+| 	
+< result
+< column "schema_name" "NVARCHAR"
+< column "table_name" "NVARCHAR"
+< column "object_id" "INT"
+< column "name" "NVARCHAR"
+< column "referenced_schema" "NVARCHAR"
+< column "referenced_table" "NVARCHAR"
+< column "delete_referential_action" "TINYINT"
+< column "update_referential_action" "TINYINT"
+< column "parent_column" "NVARCHAR"
+< column "referenced_column" "NVARCHAR"
+< row
+: string
+| fid_b
+: string
+| children
+: int64 1346103836
+: string
+| FK_children_parents
+: string
+| fid_a
+: string
+| parents
+: int64 0
+: int64 0
+: string
+| parent_id
+: string
+| id
+< row
+: string
+| fid_cols
+: string
+| orders
+: int64 1426104121
+: string
+| FK_orders_customers
+: string
+| fid_cols
+: string
+| customers
+: int64 1
+: int64 0
+: string
+| customer_id
+: string
+| id
+> query
+|
+| 	SELECT 
+| 		p.major_id AS object_id,
+| 		CAST(p.[value] AS nvarchar(4000)) AS comment
+| 	FROM sys.extended_properties p
+| 	WHERE p.minor_id = 0 AND p.name = 'MS_Description'
+| 		AND p.major_id IN (SELECT object_id FROM sys.check_constraints)
+< result
+< column "object_id" "INT"
+< column "comment" "NVARCHAR"
+> query
+|
+| 	SELECT o.object_id, s.name AS schema_name, o.name AS table_name
+| 	FROM sys.objects o
+| 	INNER JOIN sys.schemas s ON s.schema_id = o.schema_id
+| 	WHERE s.name in (N'dbo',N'fid_a',N'fid_b',N'fid_cols',N'fid_iv',N'fid_routines',N'fid_sb_fn',N'fid_trans_fn') AND o.type IN ('U')
+| 	
+< result
+< column "object_id" "INT"
+< column "schema_name" "NVARCHAR"
+< column "table_name" "NVARCHAR"
+< row
+: int64 1106102981
+: string
+| fid_a
+: string
+| parents
+< row
+: int64 1138103095
+: string
+| fid_cols
+: string
+| customers
+< row
+: int64 1202103323
+: string
+| fid_iv
+: string
+| orders
+< row
+: int64 1234103437
+: string
+| fid_routines
+: string
+| items
+< row
+: int64 1266103551
+: string
+| fid_sb_fn
+: string
+| lookup
+< row
+: int64 1314103722
+: string
+| fid_b
+: string
+| children
+< row
+: int64 1362103893
+: string
+| fid_cols
+: string
+| orders
+< row
+: int64 1474104292
+: string
+| fid_trans_fn
+: string
+| items
+< row
+: int64 1522104463
+: string
+| fid_sb_fn
+: string
+| items
+> query
+|
+| 	SELECT
+| 		ch.parent_object_id,
+| 		ch.name,
+| 		ch.object_id,
+| 		ch.definition
+| 	FROM sys.check_constraints ch
+| 	ORDER BY ch.parent_object_id, ch.object_id
+< result
+< column "parent_object_id" "INT"
+< column "name" "NVARCHAR"
+< column "object_id" "INT"
+< column "definition" "NVARCHAR"
+< row
+: int64 1362103893
+: string
+| CK_orders_total
+: int64 1442104178
+: string
+| ([total]>=(0))
+> query
+|
+| 		SELECT o.object_id, s.name AS schema_name, o.name AS table_name
+| 		FROM sys.all_objects o
+| 		INNER JOIN sys.schemas s ON s.schema_id = o.schema_id
+| 		WHERE o.type = 'U'
+< result
+< column "object_id" "INT"
+< column "schema_name" "NVARCHAR"
+< column "table_name" "NVARCHAR"
+< row
+: int64 -463397375
+: string
+| sys
+: string
+| trace_xe_action_map
+< row
+: int64 -319884821
+: string
+| sys
+: string
+| trace_xe_event_map
+< row
+: int64 1106102981
+: string
+| fid_a
+: string
+| parents
+< row
+: int64 1138103095
+: string
+| fid_cols
+: string
+| customers
+< row
+: int64 1202103323
+: string
+| fid_iv
+: string
+| orders
+< row
+: int64 1234103437
+: string
+| fid_routines
+: string
+| items
+< row
+: int64 1266103551
+: string
+| fid_sb_fn
+: string
+| lookup
+< row
+: int64 1314103722
+: string
+| fid_b
+: string
+| children
+< row
+: int64 1362103893
+: string
+| fid_cols
+: string
+| orders
+< row
+: int64 1474104292
+: string
+| fid_trans_fn
+: string
+| items
+< row
+: int64 1522104463
+: string
+| fid_sb_fn
+: string
+| items
+> query
+|
+| 		SELECT major_id, value
+| 		FROM sys.extended_properties
+| 		WHERE name = 'MS_Description' AND minor_id = 0 AND class = 1
+< result
+< column "major_id" "INT"
+< column "value" "SQL_VARIANT"
+> query
+|
+| 		SELECT ps.object_id, SUM(ps.row_count) AS total_rows
+| 		FROM sys.dm_db_partition_stats ps
+| 		INNER JOIN sys.tables t ON t.object_id = ps.object_id
+| 		INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
+| 		WHERE ps.index_id < 2 AND s.name IN (N'dbo',N'fid_a',N'fid_b',N'fid_cols',N'fid_iv',N'fid_routines',N'fid_sb_fn',N'fid_trans_fn')
+| 		GROUP BY ps.object_id
+< result
+< column "object_id" "INT"
+< column "total_rows" "BIGINT"
+< row
+: int64 1106102981
+: int64 0
+< row
+: int64 1138103095
+: int64 0
+< row
+: int64 1202103323
+: int64 0
+< row
+: int64 1234103437
+: int64 0
+< row
+: int64 1266103551
+: int64 0
+< row
+: int64 1314103722
+: int64 0
+< row
+: int64 1362103893
+: int64 0
+< row
+: int64 1474104292
+: int64 0
+< row
+: int64 1522104463
+: int64 0
+> query
+|
+| 		SELECT
+| 			t.object_id,
+| 			SCHEMA_NAME(t.schema_id),
+| 			t.name
+| 		FROM sys.tables t
+| 		ORDER BY SCHEMA_NAME(t.schema_id), t.name ASC
+< result
+< column "object_id" "INT"
+< column "" "NVARCHAR"
+< column "name" "NVARCHAR"
+< row
+: int64 1106102981
+: string
+| fid_a
+: string
+| parents
+< row
+: int64 1314103722
+: string
+| fid_b
+: string
+| children
+< row
+: int64 1138103095
+: string
+| fid_cols
+: string
+| customers
+< row
+: int64 1362103893
+: string
+| fid_cols
+: string
+| orders
+< row
+: int64 1202103323
+: string
+| fid_iv
+: string
+| orders
+< row
+: int64 1234103437
+: string
+| fid_routines
+: string
+| items
+< row
+: int64 1522104463
+: string
+| fid_sb_fn
+: string
+| items
+< row
+: int64 1266103551
+: string
+| fid_sb_fn
+: string
+| lookup
+< row
+: int64 1474104292
+: string
+| fid_trans_fn
+: string
+| items
+> query
+|
+| 	SELECT 
+| 		ep.major_id AS object_id,
+| 		CAST(ep.value AS NVARCHAR(MAX)) AS comment
+| 	FROM sys.extended_properties ep
+| 	WHERE ep.minor_id = 0 AND ep.class = 1 AND ep.name = 'MS_Description'
+| 		AND ep.major_id IN (SELECT object_id FROM sys.views)
+< result
+< column "object_id" "INT"
+< column "comment" "NVARCHAR"
+> query
+|
+| 		SELECT
+| 			SCHEMA_NAME(v.schema_id) AS schema_name,
+| 			v.name AS view_name,
+| 			v.object_id,
+| 			m.definition
+| 		FROM sys.views v
+| 		INNER JOIN sys.sql_modules m ON v.object_id = m.object_id
+| 		ORDER BY schema_name, view_name;
+< result
+< column "schema_name" "NVARCHAR"
+< column "view_name" "NVARCHAR"
+< column "object_id" "INT"
+< column "definition" "NVARCHAR"
+< row
+: string
+| fid_iv
+: string
+| customer_totals
+: int64 1570104634
+: string
+| CREATE VIEW [fid_iv].[customer_totals] WITH SCHEMABINDING AS
+| SELECT [customer_id], COUNT_BIG(*) AS [order_count], SUM([total]) AS [total]
+| FROM [fid_iv].[orders]
+| GROUP BY [customer_id];
+< row
+: string
+| fid_routines
+: string
+| v_item_names
+: int64 1602104748
+: string
+| CREATE VIEW [fid_routines].[v_item_names] AS
+| SELECT [name] FROM [fid_routines].[v_items];
+< row
+: string
+| fid_routines
+: string
+| v_items
+: int64 1586104691
+: string
+| CREATE VIEW [fid_routines].[v_items] AS
+| SELECT [id], [name] FROM [fid_routines].[items];
+> query
+|
+| 	SELECT
+| 		s.name,
+| 		seq.name,
+| 		tp.name,
+| 		seq.precision,
+| 		seq.scale,
+| 		CAST(seq.start_value AS NVARCHAR(MAX)) AS start_value,
+| 		CAST(seq.increment AS NVARCHAR(MAX)) AS increment,
+| 		CAST(seq.minimum_value AS NVARCHAR(MAX)) AS minimum_value,
+| 		CAST(seq.maximum_value AS NVARCHAR(MAX)) AS maximum_value,
+| 		seq.is_cycling,
+| 		CASE WHEN seq.is_cached = 0 THEN N'NO CACHE' ELSE CAST(seq.cache_size AS NVARCHAR(MAX)) END AS cache_size,
+| 		CAST(ep.value AS NVARCHAR(MAX)) AS comment
+| 	FROM
+| 		sys.sequences seq
+| 	INNER JOIN
+| 		sys.schemas s ON s.schema_id = seq.schema_id
+| 	INNER JOIN
+| 		sys.types tp ON tp.user_type_id = seq.user_type_id
+| 	LEFT JOIN sys.extended_properties ep ON ep.major_id = seq.object_id 
+| 		AND ep.minor_id = 0 
+| 		AND ep.class = 1 
+| 		AND ep.name = 'MS_Description'
+| 	ORDER BY s.name, seq.name;
+< result
+< column "name" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "precision" "TINYINT"
+< column "scale" "TINYINT"
+< column "start_value" "NVARCHAR"
+< column "increment" "NVARCHAR"
+< column "minimum_value" "NVARCHAR"
+< column "maximum_value" "NVARCHAR"
+< column "is_cycling" "BIT"
+< column "cache_size" "NVARCHAR"
+< column "comment" "NVARCHAR"
+< row
+: string
+| fid_routines
+: string
+| item_seq
+: string
+| bigint
+: int64 19
+: int64 0
+: string
+| -9223372036854775808
+: string
+| 1
+: string
+| -9223372036854775808
+: string
+| 9223372036854775807
+: bool false
+: null
+: null
+> query
+|
+| 	SELECT
+| 		SCHEMA_NAME(ao.schema_id) AS schema_name,
+| 		ao.name AS func_name,
+| 		asm.definition,
+| 		CAST(ep.value AS NVARCHAR(MAX)) AS comment
+| 	FROM sys.all_objects ao
+|         INNER JOIN sys.all_sql_modules asm ON asm.object_id = ao.object_id
+| 		LEFT JOIN sys.extended_properties ep ON ep.major_id = ao.object_id 
+| 			AND ep.minor_id = 0 
+| 			AND ep.class = 1 
+| 			AND ep.name = 'MS_Description'
+| 	WHERE ao.type IN ('FN', 'IF', 'TF')
+| 		AND ao.is_ms_shipped = 0 AND
+| 		(
+| 			SELECT major_id
+| 			FROM sys.extended_properties
+| 			WHERE major_id = ao.object_id
+| 				AND minor_id = 0
+| 				AND class = 1
+| 				AND name = 'microsoft_database_tools_support'
+| 		) IS NULL
+| 	ORDER BY schema_name, func_name;
+< result
+< column "schema_name" "NVARCHAR"
+< column "func_name" "NVARCHAR"
+< column "definition" "NVARCHAR"
+< column "comment" "NVARCHAR"
+< row
+: string
+| fid_routines
+: string
+| item_name
+: string
+| CREATE FUNCTION [fid_routines].[item_name] (@id INT)
+| RETURNS NVARCHAR(100)
+| AS
+| BEGIN
+|     RETURN (SELECT [name] FROM [fid_routines].[items] WHERE [id] = @id)
+| END
+: null
+< row
+: string
+| fid_sb_fn
+: string
+| lookup_value
+: string
+| CREATE FUNCTION [fid_sb_fn].[lookup_value]()
+| RETURNS INT
+| WITH SCHEMABINDING
+| AS
+| BEGIN
+|     RETURN (SELECT ISNULL(MAX([id]), 0) FROM [fid_sb_fn].[lookup])
+| END
+: null
+< row
+: string
+| fid_trans_fn
+: string
+| inner_value
+: string
+| CREATE FUNCTION [fid_trans_fn].[inner_value]()
+| RETURNS INT
+| AS
+| BEGIN
+|     RETURN 1
+| END
+: null
+< row
+: string
+| fid_trans_fn
+: string
+| outer_value
+: string
+| CREATE FUNCTION [fid_trans_fn].[outer_value]()
+| RETURNS INT
+| AS
+| BEGIN
+|     RETURN [fid_trans_fn].[inner_value]()
+| END
+: null
+> query
+|
+| 	SELECT
+| 		SCHEMA_NAME(ao.schema_id) AS schema_name,
+| 		ao.name AS procedure_name,
+| 		asm.definition,
+| 		CAST(ep.value AS NVARCHAR(MAX)) AS comment
+| 	FROM sys.all_objects ao
+|         INNER JOIN sys.all_sql_modules asm ON asm.object_id = ao.object_id
+| 		LEFT JOIN sys.extended_properties ep ON ep.major_id = ao.object_id
+| 			AND ep.minor_id = 0
+| 			AND ep.class = 1
+| 			AND ep.name = 'MS_Description'
+| 	WHERE ao.type IN ('P', 'RF')
+| 		AND ao.is_ms_shipped = 0 AND
+| 		(
+| 			SELECT major_id
+| 			FROM sys.extended_properties
+| 			WHERE major_id = ao.object_id
+| 				AND minor_id = 0
+| 				AND class = 1
+| 				AND name = 'microsoft_database_tools_support'
+| 		) IS NULL
+| 	ORDER BY schema_name, procedure_name;
+< result
+< column "schema_name" "NVARCHAR"
+< column "procedure_name" "NVARCHAR"
+< column "definition" "NVARCHAR"
+< column "comment" "NVARCHAR"
+< row
+: string
+| fid_routines
+: string
+| get_items
+: string
+| CREATE PROCEDURE [fid_routines].[get_items]
+| AS
+| BEGIN
+|     SELECT [id], [name] FROM [fid_routines].[items];
+| END
+: null
+> query
+|
+| 	SELECT 
+| 		ep.major_id AS object_id,
+| 		CAST(ep.value AS NVARCHAR(MAX)) AS comment
+| 	FROM sys.extended_properties ep
+| 	WHERE ep.minor_id = 0 AND ep.class = 1 AND ep.name = 'MS_Description'
+| 		AND ep.major_id IN (SELECT object_id FROM sys.triggers WHERE is_disabled = 0 AND is_ms_shipped = 0)
+< result
+< column "object_id" "INT"
+< column "comment" "NVARCHAR"
+> query
+|
+| SELECT
+|     st.object_id,
+|     st.name,
+|     STUFF((
+|         SELECT ',' + te.type_desc
+|         FROM sys.trigger_events AS te
+|         WHERE te.object_id = st.object_id
+|         FOR XML PATH('')
+|     ), 1, 1, '') AS events,
+| CASE
+|         WHEN st.is_instead_of_trigger = 1 THEN 'INSTEAD OF'
+|         WHEN st.type IN ('TR', 'TA') THEN 'AFTER' -- DML triggers created with FOR or AFTER, and DDL triggers
+|         ELSE 'UNKNOWN'
+| END AS timing,
+| ssm.definition AS body,
+| so.name AS parentName,
+| ss.name AS schemaName,
+| so.type AS objectType
+| FROM sys.triggers AS st
+| JOIN sys.sql_modules AS ssm ON st.object_id = ssm.object_id
+| JOIN sys.objects AS so ON st.parent_id = so.object_id
+| JOIN sys.schemas AS ss ON so.schema_id = ss.schema_id
+| WHERE st.is_disabled = 0 AND st.is_ms_shipped = 0 AND st.parent_id <> 0 AND so.type IN ('U', 'V')
+| ORDER BY st.name;
+|
+< result
+< column "object_id" "INT"
+< column "name" "NVARCHAR"
+< column "events" "NVARCHAR"
+< column "timing" "VARCHAR"
+< column "body" "NVARCHAR"
+< column "parentName" "NVARCHAR"
+< column "schemaName" "NVARCHAR"
+< column "objectType" "CHAR"
+> query
+|
+| 		SELECT
+| 			SCHEMA_NAME(schema_id),
+| 			name,
+| 			PARSENAME(base_object_name, 4),
+| 			PARSENAME(base_object_name, 3),
+| 			PARSENAME(base_object_name, 2),
+| 			PARSENAME(base_object_name, 1)
+| 		FROM sys.synonyms
+| 		ORDER BY SCHEMA_NAME(schema_id), name
+< result
+< column "" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+> query
+| SELECT SCHEMA_NAME(), CONVERT(nvarchar(128), DATABASEPROPERTYEX(DB_NAME(), 'Collation'))
+< result
+< column "" "NVARCHAR"
+< column "" "NVARCHAR"
+< row
+: string
+| dbo
+: string
+| SQL_Latin1_General_CP1_CI_AS
+> commit
+< ok
