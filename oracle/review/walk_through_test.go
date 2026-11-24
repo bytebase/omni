@@ -321,7 +321,7 @@ func TestWalkThroughOracle(t *testing.T) {
 	oneFinding(t, "CREATE TABLE x2 AS SELECT 1 + 1 FROM dual;", 0, "Select expression in `X2` must have a column alias.", shop)
 	noFinding(t, "CREATE FORCE VIEW v2 AS SELECT 1 FROM dual;", shop)
 	noFinding(t, "CREATE VIEW v2 (a) AS SELECT 1 FROM dual;", shop)
-	noFinding(t, "CREATE VIEW v2 AS SELECT sysdate, user, (id) FROM p;", shop)
+	noFinding(t, "CREATE VIEW v2 AS SELECT (id) FROM p;", shop)
 	noFinding(t, "CREATE VIEW v2 AS SELECT * FROM p;", shop)
 	// 9) CREATE/ALTER TABLE missing datatypes, constraint/LOB/VARRAY/nested/partition
 	//    column checks, and MODIFY PARTITION BY on materialized views.
@@ -1001,6 +1001,18 @@ func TestWalkThroughOracleRichChecks(t *testing.T) {
 	oneFinding(t, "CREATE VECTOR INDEX vix ON plain (val) ORGANIZATION INMEMORY NEIGHBOR GRAPH;", 0, "Vector index column `VAL` in `PLAIN` must have VECTOR datatype.", rich)
 	noFinding(t, "CREATE VECTOR INDEX vix ON plain (vec) ORGANIZATION INMEMORY NEIGHBOR GRAPH;", rich)
 	oneFinding(t, "CREATE INDEX ix_dup ON plain (val);", 0, "Column list is already indexed on `PLAIN`.", rich)
+
+	// View queries oracle/catalog refuses, over tables whose columns the
+	// sync lists in full. SYSDATE needs an alias (00998, verified on 23.26.3).
+	oneFinding(t, "CREATE VIEW v AS SELECT a FROM nokey_rich, part_range;", 0, "Oracle refuses the view's query: ORA-00918: A: column ambiguously specified - appears in NOKEY_RICH and PART_RANGE.", rich)
+	oneFinding(t, "CREATE VIEW v AS SELECT * FROM nokey_rich, part_range;", 0, "Oracle refuses the view's query: ORA-00957: duplicate column name.", rich)
+	oneFinding(t, "CREATE VIEW v AS SELECT sysdate FROM plain;", 0, "Oracle refuses the view's query: ORA-00998: must name this expression with a column alias.", rich)
+	oneFinding(t, "CREATE OR REPLACE VIEW v AS SELECT *;", 0, "Oracle refuses the view's query: ORA-54058: '*' not allowed in SELECT expressions without FROM clause.", rich)
+	noFinding(t, "CREATE VIEW v AS SELECT n.a FROM nokey_rich n, part_range p;", rich)
+	noFinding(t, "CREATE VIEW v AS SELECT a FROM nokey_rich, dual;", rich)
+	noFinding(t, "CREATE FORCE VIEW v AS SELECT a FROM nokey_rich, part_range;", rich)
+	// The change drops the column first: the catalog is not asked.
+	noFinding(t, "ALTER TABLE nokey_rich DROP COLUMN a;\nCREATE VIEW v AS SELECT a FROM nokey_rich, part_range;", rich)
 	noFinding(t, "CREATE INDEX IF NOT EXISTS ix_plain_val ON plain (val);", rich)
 	noFinding(t, "CREATE BITMAP INDEX ix_bm_inv ON plain (val) INVISIBLE;", rich)
 	noFinding(t, "CREATE BITMAP INDEX ix_name_vis ON plain (name);", rich)

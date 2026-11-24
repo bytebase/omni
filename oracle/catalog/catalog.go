@@ -247,6 +247,16 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 	return results, nil
 }
 
+// Apply applies one statement a caller has already parsed, as Exec applies
+// each of its own: node is the statement's tree and sql the text its
+// positions index. A DML or transaction statement changes nothing.
+func (c *Catalog) Apply(node ast.StmtNode, sql string) error {
+	if node == nil || isDML(node) {
+		return nil
+	}
+	return c.applyStatement(node, sql)
+}
+
 // LoadSQL returns a catalog built from sql.
 func LoadSQL(sql string) (*Catalog, error) {
 	c := New()

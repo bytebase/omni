@@ -1318,10 +1318,13 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 			if b.checkObjectViewSelfRef(v, r) {
 				return true
 			}
-		} else if v.Columns == nil {
-			b.checkSelectAliases(v.Query, r)
+		} else if v.Columns == nil && b.checkSelectAliases(v.Query, r) {
+			return true
 		}
 		b.checkSelectFromTables(v.Query, nil)
+		if b.viewQueryFails(v, r) {
+			return true
+		}
 	}
 	for i, n := range d.names {
 		k := r.schemaKey(spaceConstraint, n)
