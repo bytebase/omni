@@ -3641,3 +3641,21 @@ func TestUnseenAnchorsAndSnapshotConstructors(t *testing.T) {
 		}
 	}
 }
+
+// TestSynonymTypesUnderivedViewsAndTableFunctions holds a type named
+// through a synonym for another schema's, a view without derived columns
+// as a row type, and a table function in FROM, to compiling.
+func TestSynonymTypesUnderivedViewsAndTableFunctions(t *testing.T) {
+	c, err := LoadSQL("CREATE TABLE app.t (id NUMBER);\nCREATE SYNONYM app.point_alias FOR other.point_t;\nCREATE VIEW app.v AS SELECT id FROM other.t;\n" +
+		"CREATE TYPE app.nt AS TABLE OF NUMBER;\n/\n" +
+		"CREATE FUNCTION app.nums RETURN nt PIPELINED IS BEGIN PIPE ROW (1); RETURN; END;\n/\n" +
+		"CREATE PROCEDURE app.p IS v point_alias; r v%ROWTYPE; n NUMBER; BEGIN r.id := 1; SELECT COUNT(*) INTO n FROM nums(); SELECT COUNT(*) INTO n FROM TABLE(nums()); END;\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range c.unitStates() {
+		if u.status != "VALID" {
+			t.Errorf("%s %s: %s %s, want VALID", u.kind, u.name, u.status, u.err)
+		}
+	}
+}

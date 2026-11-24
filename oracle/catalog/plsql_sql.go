@@ -267,14 +267,19 @@ var sqlSyntaxCalls = map[string]bool{
 }
 
 // readsUnknown reports a statement that reads a relation the catalog
-// cannot know: a dictionary view, a database link's table, or a
-// materialized view whose columns it does not keep.
+// cannot know: a dictionary view, a database link's table, a materialized
+// view whose columns it does not keep, or a table function's rows.
 func (c *plChecker) readsUnknown(n ast.Node) bool {
 	if name := dmlTarget(n); name != nil && c.outside(name) {
 		return true
 	}
 	unknown := false
 	ast.Inspect(n, func(x ast.Node) bool {
+		if _, ok := x.(*ast.TableCollectionExpr); ok {
+			// A table function's rows, whose shape the catalog does not
+			// derive.
+			unknown = true
+		}
 		ref, ok := x.(*ast.TableRef)
 		if !ok || ref.Name == nil {
 			return !unknown

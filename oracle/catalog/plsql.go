@@ -407,8 +407,9 @@ func (c *plChecker) typeName(t *ast.TypeName) {
 			c.readVia(name, target)
 			return
 		}
-		if c.e.units.typesUnknown {
-			// A schema loaded from metadata may hold the type.
+		if c.e.units.typesUnknown || c.knownObject(name) {
+			// A schema loaded from metadata may hold the type, and a
+			// synonym may name another schema's.
 			return
 		}
 		c.fail("PLS-00201", "identifier '%s' must be declared", name)
@@ -437,7 +438,9 @@ func (c *plChecker) typeFields(t *ast.TypeName) map[string]bool {
 			return sym.fields
 		}
 		target := c.e.resolveSynonymTarget(parts[0], "")
-		if v := c.e.views[target]; v != nil {
+		if v := c.e.views[target]; v != nil && len(v.Columns) > 0 {
+			// A view whose columns the catalog could not derive has
+			// fields it does not know.
 			return columnSet(v.Columns)
 		}
 		if tb := c.e.tables[target]; tb != nil {
