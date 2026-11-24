@@ -510,8 +510,23 @@ var walkCodes = []struct {
 	}, []string{"1074"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "An event's `EVERY` interval ") }, []string{"1542"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "An event's `ENDS` ") }, []string{"1543"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "An event's `AT` ") || strings.HasPrefix(m, "An event's `STARTS` ")
+	}, []string{"1525"}},
+	{func(m, _ string) bool { return m == "An event can't repeat in microseconds." }, []string{"1235"}},
+	// Triggers (walk_lower_objects.go).
+	{func(m, _ string) bool {
+		return (strings.HasPrefix(m, "`FOLLOWS` ") || strings.HasPrefix(m, "`PRECEDES` ")) && strings.HasSuffix(m, ", which doesn't exist.")
+	}, []string{"4031"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && (strings.HasSuffix(m, " doesn't exist in `NEW`.") || strings.HasSuffix(m, " doesn't exist in `OLD`."))
+	}, []string{"1054"}},
 	// A view's query (walk_lower_query.go).
 	{func(m, _ string) bool { return m == "A view's query can't read a variable." }, []string{"1351"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Function ") && strings.HasSuffix(m, " isn't defined.")
+	}, []string{"1128"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, " takes a precision of at most 6.") }, []string{"1426"}},
 	{func(m, _ string) bool { return strings.HasPrefix(m, "A view's query can't hold ") }, []string{"1064"}},
 	{func(m, _ string) bool { return strings.Contains(m, " query in a view needs at least one column.") }, []string{"4141"}},
 	{func(m, _ string) bool { return strings.Contains(m, " query needs the same number of columns.") }, []string{"4099"}},
