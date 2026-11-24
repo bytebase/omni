@@ -54,6 +54,8 @@ var plsqlTypes = map[string]bool{
 	"XMLTYPE": true, "SYS_REFCURSOR": true, "JSON": true, "VECTOR": true, "ANYDATA": true,
 	"ANYTYPE": true, "ANYDATASET": true, "URITYPE": true, "SDO_GEOMETRY": true,
 	"EXCEPTION": true, "RECORD": true,
+	"JSON_OBJECT_T": true, "JSON_ARRAY_T": true, "JSON_ELEMENT_T": true, "JSON_SCALAR_T": true,
+	"JSON_KEY_LIST":            true,
 	"DSINTERVAL_UNCONSTRAINED": true, "YMINTERVAL_UNCONSTRAINED": true,
 	"TIMESTAMP_UNCONSTRAINED": true, "TIMESTAMP_TZ_UNCONSTRAINED": true,
 	"TIMESTAMP_LTZ_UNCONSTRAINED": true, "TIME_UNCONSTRAINED": true, "TIME_TZ_UNCONSTRAINED": true,

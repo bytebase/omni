@@ -3659,3 +3659,19 @@ func TestSynonymTypesUnderivedViewsAndTableFunctions(t *testing.T) {
 		}
 	}
 }
+
+// TestForeignSupertypesAndJSONTypes holds a subtype of another schema's
+// type, and PL/SQL's JSON object types, to compiling.
+func TestForeignSupertypesAndJSONTypes(t *testing.T) {
+	c, err := LoadSQL("CREATE TABLE app.t (id NUMBER);\nCREATE TYPE app.base_t AS OBJECT (a NUMBER);\n/\n" +
+		"CREATE TYPE app.child_t UNDER other.base_t (b NUMBER);\n/\n" +
+		"CREATE PROCEDURE app.p IS j JSON_OBJECT_T; a JSON_ARRAY_T; BEGIN j := JSON_OBJECT_T.parse('{}'); END;\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range c.unitStates() {
+		if u.status != "VALID" {
+			t.Errorf("%s %s: %s %s, want VALID", u.kind, u.name, u.status, u.err)
+		}
+	}
+}

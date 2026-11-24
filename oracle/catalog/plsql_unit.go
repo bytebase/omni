@@ -134,7 +134,8 @@ func (c *plChecker) objectType(n *ast.CreateTypeStmt) {
 		c.typeBody(n)
 		return
 	}
-	if n.Under != nil {
+	if n.Under != nil && !c.e.isForeignSchema(n.Under.Schema) {
+		// Another schema's supertype is one the catalog does not hold.
 		super := c.e.units.types[n.Under.Name]
 		switch {
 		case (super == nil || !super.spec) && c.e.units.typesUnknown:
