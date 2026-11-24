@@ -283,8 +283,10 @@ func (Codec) DecodeError(text string) error {
 // written without a name gets the table's name, _OBFK_ or _OBCHECK_, and the
 // time it was made in microseconds, so a different name on every run. The
 // table that stores a materialized view is __mv_container_ and the view's
-// table id, which counts everything the server has made before it.
-var madeUp = regexp.MustCompile(`_OB(?:FK|CHECK)_\d{16}|__mv_container_\d+`)
+// table id, which counts everything the server has made before it. The hidden
+// columns that hold a FULLTEXT or VECTOR key (__word_segment_19_, __doc_id_,
+// __vid_, __type_17_, __scn_17_, __key_17_) end in the time too.
+var madeUp = regexp.MustCompile(`_OB(?:FK|CHECK)_\d{16}|__mv_container_\d+|__(?:vid|doc_id|(?:type|scn|key|word_segment)_\d+)_\d{16}`)
 
 // MadeUp and StandIn make Codec a tape.Renamer: a tape holds a stand-in for
 // each made-up name, and the test reads the stand-in too.

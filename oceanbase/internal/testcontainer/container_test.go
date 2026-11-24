@@ -88,9 +88,9 @@ func TestCodecRoundTrips(t *testing.T) {
 func TestCodecStandIns(t *testing.T) {
 	var _ tape.Renamer = Codec{}
 	re := Codec{}.MadeUp()
-	const stored = "CONSTRAINT `c_OBFK_1794529609863994` FOREIGN KEY (`a`), CONSTRAINT `t_OBCHECK_1794529978914345` CHECK ((`a` > 0)), CONSTRAINT `fk_1794529609863994` FOREIGN KEY (`b`), __mv_container_502975, mv_container_1"
+	const stored = "CONSTRAINT `c_OBFK_1794529609863994` FOREIGN KEY (`a`), CONSTRAINT `t_OBCHECK_1794529978914345` CHECK ((`a` > 0)), CONSTRAINT `fk_1794529609863994` FOREIGN KEY (`b`), __mv_container_502975, mv_container_1, __type_17_1795258952313910, __doc_id_1795258952995050, __vid_17"
 	got := re.FindAllString(stored, -1)
-	if want := []string{"_OBFK_1794529609863994", "_OBCHECK_1794529978914345", "__mv_container_502975"}; !slices.Equal(got, want) {
+	if want := []string{"_OBFK_1794529609863994", "_OBCHECK_1794529978914345", "__mv_container_502975", "__type_17_1795258952313910", "__doc_id_1795258952995050"}; !slices.Equal(got, want) {
 		t.Fatalf("made-up names in %q: %q, want %q", stored, got, want)
 	}
 	for i, name := range got {

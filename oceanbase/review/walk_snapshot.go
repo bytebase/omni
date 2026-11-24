@@ -203,10 +203,15 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables, oceanBase
 			}
 			s.relations[tk] = relTable
 			mark(spaceRelation, "", tk)
-			// oceanbase/driver's sync lists no partitions, so a table it
-			// lists none of may be partitioned all the same.
-			if oceanBase && len(t.GetPartitions()) > 0 {
-				s.partitioned[tk] = syncedPartitioned(t.GetPartitions())
+			// oceanbase/driver's sync lists every partition
+			// information_schema.PARTITIONS names, so a table it lists none
+			// of is not partitioned, or is partitioned by RANGE () SIZE
+			// and has not split yet, which OceanBase treats the same way.
+			if oceanBase {
+				s.partitioned[tk] = partitionedNo
+				if len(t.GetPartitions()) > 0 {
+					s.partitioned[tk] = syncedPartitioned(t.GetPartitions())
+				}
 			}
 			if strings.HasPrefix(strings.ToLower(t.GetName()), mvContainer) {
 				containers++
