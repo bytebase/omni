@@ -885,3 +885,53 @@ EXECUTE AS USER = 'app_user';
 		t.Fatalf("DefaultSchema as app_user = %q, want app", metadata.DefaultSchema)
 	}
 }
+
+// TestSyncIndexedView pins that an indexed view's indexes are synced onto the
+// view: its unique clustered index and a nonclustered index after it.
+func TestSyncIndexedView(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDriver(t)
+	execCorpus(t, d.db, `
+CREATE TABLE dbo.orders (
+	id INT NOT NULL PRIMARY KEY,
+	customer_id INT NOT NULL,
+	total MONEY NOT NULL
+);
+GO
+CREATE VIEW dbo.v_customer_totals WITH SCHEMABINDING AS
+SELECT customer_id, COUNT_BIG(*) AS order_count, SUM(total) AS total
+FROM dbo.orders
+GROUP BY customer_id;
+GO
+CREATE UNIQUE CLUSTERED INDEX UX_v_customer_totals ON dbo.v_customer_totals(customer_id);
+GO
+CREATE NONCLUSTERED INDEX IX_v_customer_totals_count ON dbo.v_customer_totals(order_count DESC) INCLUDE (total);
+GO
+`)
+
+	metadata, err := d.SyncDatabase(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var view *metadatapb.ViewMetadata
+	for _, schema := range metadata.Schemas {
+		for _, v := range schema.Views {
+			if schema.Name == "dbo" && v.Name == "v_customer_totals" {
+				view = v
+			}
+		}
+	}
+	if view == nil {
+		t.Fatal("view dbo.v_customer_totals not synced")
+	}
+	want := []*metadatapb.IndexMetadata{
+		{Name: "IX_v_customer_totals_count", Type: "NONCLUSTERED", Expressions: []string{"order_count"}, Descending: []bool{true}, Definition: "INCLUDE:total"},
+		{Name: "UX_v_customer_totals", Type: "CLUSTERED", Unique: true, Expressions: []string{"customer_id"}, Descending: []bool{false}},
+	}
+	if diff := cmp.Diff(want, view.Indexes, protocmp.Transform()); diff != "" {
+		t.Errorf("view indexes (-want +got):\n%s", diff)
+	}
+	if table := requireSyncedTable(t, metadata, "dbo", "orders"); len(table.Indexes) != 1 || !table.Indexes[0].Primary {
+		t.Errorf("orders indexes = %v, want only its primary key", table.Indexes)
+	}
+}

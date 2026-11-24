@@ -68,11 +68,17 @@ func SyncDatabase(ctx context.Context, db *sql.DB, databaseName string) (*metada
 	if err != nil {
 		return nil, fmt.Errorf("failed to get table columns from database %q: %w", databaseName, err)
 	}
-	tableMap, err := getTables(txn, schemaNames, columnMap)
+	// Keys and indexes are read once for tables and views alike: an indexed
+	// view's indexes are in sys.indexes beside the tables'.
+	indexMap, err := getKeyAndIndexes(txn, schemaNames)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get indices from database %q: %w", databaseName, err)
+	}
+	tableMap, err := getTables(txn, schemaNames, columnMap, indexMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tables from database %q: %w", databaseName, err)
 	}
-	viewMap, err := getViews(txn, columnMap)
+	viewMap, err := getViews(txn, columnMap, indexMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get views from database %q: %w", databaseName, err)
 	}
@@ -210,12 +216,7 @@ func getSchemas(txn *sql.Tx) ([]string, error) {
 }
 
 // getTables gets all tables of a database.
-func getTables(txn *sql.Tx, schemas []string, columnMap map[tableKey][]*metadatapb.ColumnMetadata) (map[string][]*metadatapb.TableMetadata, error) {
-	indexMap, err := getKeyAndIndexes(txn, schemas)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get indices: %w", err)
-	}
-
+func getTables(txn *sql.Tx, schemas []string, columnMap map[tableKey][]*metadatapb.ColumnMetadata, indexMap map[tableKey][]*metadatapb.IndexMetadata) (map[string][]*metadatapb.TableMetadata, error) {
 	fkMap, err := getForeignKeys(txn, schemas)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get foreign keys: %w", err)
@@ -1539,7 +1540,7 @@ func encryptedDefinition(kind, qualifiedName string) string {
 }
 
 // getViews gets all views of a database.
-func getViews(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata) (map[string][]*metadatapb.ViewMetadata, error) {
+func getViews(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata, indexMap map[tableKey][]*metadatapb.IndexMetadata) (map[string][]*metadatapb.ViewMetadata, error) {
 	viewMap := make(map[string][]*metadatapb.ViewMetadata)
 
 	// Get view comments separately
@@ -1614,6 +1615,7 @@ func getViews(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata) 
 
 		key := tableKey{Schema: schemaName, Table: view.Name}
 		view.Columns = columnMap[key]
+		view.Indexes = indexMap[key]
 
 		viewMap[schemaName] = append(viewMap[schemaName], view)
 	}

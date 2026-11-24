@@ -2138,6 +2138,10 @@ func createViewsAndFunctionsInOrder(viewsToCreate []*ViewDiffEntry, funcCreates 
 			buf.WriteString(";")
 		}
 		buf.WriteString("\nGO\n")
+		for _, index := range viewIndexes(viewDiff.NewView) {
+			buf.WriteString(generateCreateIndex(viewDiff.SchemaName, viewDiff.ViewName, index))
+			buf.WriteString(";\nGO\n")
+		}
 		if viewDiff.NewView.Comment != "" {
 			buf.WriteString(generateViewCommentSQL("ADD", viewDiff.SchemaName, viewDiff.ViewName, viewDiff.NewView.Comment))
 			buf.WriteString(";\nGO\n")
@@ -3539,6 +3543,10 @@ func createViewsInOrder(diff *SchemaDiff, rebuiltViews []viewWithSchema, buf *st
 			buf.WriteString(";")
 		}
 		buf.WriteString("\nGO\n")
+		for _, index := range viewIndexes(viewDiff.NewView) {
+			buf.WriteString(generateCreateIndex(viewDiff.SchemaName, viewDiff.ViewName, index))
+			buf.WriteString(";\nGO\n")
+		}
 		if viewDiff.NewView.Comment != "" {
 			buf.WriteString(generateViewCommentSQL("ADD", viewDiff.SchemaName, viewDiff.ViewName, viewDiff.NewView.Comment))
 			buf.WriteString(";\nGO\n")

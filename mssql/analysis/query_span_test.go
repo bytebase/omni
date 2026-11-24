@@ -88,9 +88,23 @@ func testCatalog() Catalog {
 						{Name: "v", Definition: "CREATE VIEW v (x, y) AS SELECT a, b + c FROM t"},
 						{Name: "v_cycle", Definition: "CREATE VIEW v_cycle AS SELECT a FROM v_cycle"},
 						{Name: "v_filtered", Definition: "CREATE VIEW v_filtered AS SELECT a FROM t WHERE b > 0"},
+						{Name: "v_other", Definition: "CREATE VIEW v_other AS SELECT a FROM other.dbo.t2"},
+						{Name: "v_via", Definition: "CREATE VIEW v_via AS SELECT a FROM v_other"},
+						{Name: "v_back", Definition: "CREATE VIEW v_back AS SELECT a FROM other.dbo.v_back"},
+						{Name: "v_sys", Definition: "CREATE VIEW v_sys AS SELECT name FROM master.dbo.spt_values"},
 					},
 				},
 			},
+		},
+		{
+			Name: "other",
+			Schemas: []*metadata.SchemaMetadata{{
+				Name:   "dbo",
+				Tables: []*metadata.TableMetadata{{Name: "t2", Columns: columns("a")}, {Name: "t3", Columns: columns("a")}},
+				Views: []*metadata.ViewMetadata{
+					{Name: "v_back", Definition: "CREATE VIEW v_back AS SELECT a FROM db.dbo.t UNION ALL SELECT a FROM t3"},
+				},
+			}},
 		},
 		{
 			Name:    "master",
@@ -317,6 +331,13 @@ func TestResolveQuerySpanAccessTables(t *testing.T) {
 		{"WITH x AS (SELECT a FROM t1) DELETE FROM t WHERE a IN (SELECT a FROM x)", set(table("db", "t"), table("db", "t1"))},
 		{"UPDATE t SET a = (SELECT a FROM t1)", set(table("db", "t"), table("db", "t1"))},
 		{"INSERT INTO t (a) VALUES ((SELECT a FROM t1))", set(table("db", "t"), table("db", "t1"))},
+		// A view names what it reads in another database, where SQL Server
+		// checks the reader's permission, and not what it reads in its own.
+		{"SELECT a FROM v_filtered", set(table("db", "v_filtered"))},
+		{"SELECT a FROM v_other", set(table("db", "v_other"), table("other", "t2"))},
+		{"SELECT a FROM v_via", set(table("db", "v_via"), table("other", "t2"))},
+		{"SELECT a FROM v_back", set(table("db", "v_back"), table("other", "v_back"), table("db", "t"))},
+		{"SELECT name FROM v_sys", set(table("db", "v_sys"))},
 	}
 	for _, tc := range tests {
 		span, err := ResolveQuerySpan(tc.statement, ResolveOptions{DefaultDatabase: "db", IgnoreCaseSensitive: true, Catalog: testCatalog()})
