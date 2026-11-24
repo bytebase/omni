@@ -23,15 +23,18 @@ func TestWalkSimulation(t *testing.T) {
 		path      string
 		minRecall float64
 	}{
-		// 30 of the ddl refusals the walk misses are ALTER TABLE ADD/DROP
-		// STATS_EXTENDED, 1105 while tidb_enable_extended_stats is off: a
-		// disabled feature, which the walk does not model (createStatistics).
-		// The partitioned@, features@ and schemas@cross rows and the
-		// alter:algorithm ones hold 141 refusals the walk finds 63 of: it does
-		// not model partition bounds and names, TiDB's foreign key, generated
-		// column and CHECK refusals, column lengths, or ALGORITHM. The rows
-		// before them keep 2,433/2,476 (98.3%).
-		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 95.0},
+		// The ddl refusals the walk misses are what a synced schema can't
+		// show: STATS_EXTENDED and TiFlash replicas (1105, a disabled
+		// feature and a cluster without TiFlash), placement policies (8239),
+		// other databases (schemas@cross), CHECK constraints while
+		// tidb_enable_check_constraint is a session's switch (3814, 3818,
+		// 3822, 3940, 8200), column lengths under sql_mode (1074), and the
+		// rows omni's parser refuses first. Left: modifying generated
+		// columns (3106, 3108), converting columns of other character sets
+		// (8200, 3780), invisible primary keys (1176, 3522), repartitioning
+		// a partitioned table (1503) and DATE to DATETIME on one (8200).
+		// The queries misses are rows omni's parser refuses (1064).
+		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 97.1},
 		{"sequences", filepath.Join("..", "catalog", "testdata", "sequences", "simulate.tsv"), 100.0},
 		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 96.5},
 	} {

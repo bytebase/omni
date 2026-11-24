@@ -43,7 +43,7 @@ func (b *builder) alterShapeFails(v *ast.AlterTableStmt, r tableRef) bool {
 			if c.Constraint == nil {
 				continue
 			}
-			if b.addFKTypesFail(r, c.Constraint, func(col string) (columnType, bool) {
+			if b.setNullFails(r, v, c.Constraint, rng) || b.addFKTypesFail(r, c.Constraint, func(col string) (columnType, bool) {
 				if definesColumn(v, col) {
 					return columnType{}, false
 				}
@@ -447,7 +447,13 @@ func collationMismatch(charset, collation string) string {
 		return ""
 	}
 	of, ok := collationCharsets[strings.ToLower(strings.TrimSpace(collation))]
-	if !ok || of == cs {
+	if !ok {
+		// TiDB has these collations alone, and refuses any other name
+		// (1273, verified on v8.5.5 for latin1_swedish_ci and
+		// utf8mb4_0900_as_cs).
+		return engineName + " doesn't recognize collation " + review.Code(collation) + "."
+	}
+	if of == cs {
 		return ""
 	}
 	return "Collation " + review.Code(collation) + " isn't one of character set " + review.Code(charset) + "."
@@ -610,6 +616,72 @@ func (b *builder) indexFuncFails(parts []*ast.IndexColumn, rng review.Range) boo
 	return false
 }
 
+// primaryExprFails fails a key with an expression key part that is a
+// lone column (3762, verified on v8.5.5 for ((age)) and ((a))), or a
+// primary key with any expression key part (3756). TiDB takes a FULLTEXT
+// key and adds nothing, and a VECTOR INDEX is judged by rules of its own.
+func primaryExprFails(b *builder, c *ast.Constraint) bool {
+	switch c.Type {
+	case ast.ConstrIndex, ast.ConstrUnique, ast.ConstrPrimaryKey:
+	default:
+		return false
+	}
+	for _, ic := range c.IndexColumns {
+		if ic == nil || !ic.Functional {
+			continue
+		}
+		if ref, ok := unwrapParens(ic.Expr).(*ast.ColumnRef); ok && !ref.Star {
+			b.fail(rangeOf(c.Loc), nil, review.UnsupportedForm, "An expression index can't be a lone column; index "+review.Code(ident(ref.Column))+" itself.")
+			return true
+		}
+		if c.Type == ast.ConstrPrimaryKey {
+			b.fail(rangeOf(c.Loc), nil, review.UnsupportedForm, "A primary key can't hold an expression.")
+			return true
+		}
+	}
+	return false
+}
+
+// generatedOrderFails fails a CREATE TABLE's generated column that reads
+// an AUTO_INCREMENT column (3109) or a generated column defined after it
+// (3107), verified on v8.5.5.
+func (b *builder) generatedOrderFails(cols []*ast.ColumnDef) bool {
+	position := make(map[string]int, len(cols))
+	for i, c := range cols {
+		if c != nil {
+			position[strings.ToLower(c.Name)] = i
+		}
+	}
+	for i, c := range cols {
+		if c == nil || c.Generated == nil || c.Generated.Expr == nil {
+			continue
+		}
+		msg := ""
+		ast.Inspect(c.Generated.Expr, func(n ast.Node) bool {
+			ref, ok := n.(*ast.ColumnRef)
+			if !ok || msg != "" || ref.Column == "" || ref.Table != "" {
+				return msg == ""
+			}
+			j, ok := position[strings.ToLower(ref.Column)]
+			if !ok || j == i {
+				return true
+			}
+			switch other := cols[j]; {
+			case other.AutoIncrement:
+				msg = "Generated column " + review.Code(ident(c.Name)) + " can't read " + review.Code("AUTO_INCREMENT") + " column " + review.Code(ident(other.Name)) + "."
+			case other.Generated != nil && j > i:
+				msg = "Generated column " + review.Code(ident(c.Name)) + " can't read generated column " + review.Code(ident(other.Name)) + ", which is defined after it."
+			}
+			return msg == ""
+		})
+		if msg != "" {
+			b.fail(rangeOf(c.Loc), nil, review.UnsupportedForm, msg)
+			return true
+		}
+	}
+	return false
+}
+
 // alterTextShapeFails fails an ALTER TABLE its text refutes by the rules
 // of this file: ALGORITHM = INSTANT beside an added key, a collation of
 // another character set, and a nondeterministic generated column or
@@ -626,7 +698,7 @@ func (b *builder) alterTextShapeFails(v *ast.AlterTableStmt) bool {
 		if b.generatedFuncFails(cols) {
 			return true
 		}
-		if (c.Type == ast.ATAddIndex || c.Type == ast.ATAddConstraint) && c.Constraint != nil && b.indexFuncFails(c.Constraint.IndexColumns, rangeOf(c.Loc)) {
+		if (c.Type == ast.ATAddIndex || c.Type == ast.ATAddConstraint) && c.Constraint != nil && (b.indexFuncFails(c.Constraint.IndexColumns, rangeOf(c.Loc)) || primaryExprFails(b, c.Constraint)) {
 			return true
 		}
 	}
@@ -646,11 +718,11 @@ func (b *builder) createShapeFails(v *ast.CreateTableStmt, r tableRef) bool {
 		return true
 	}
 	for _, c := range v.Constraints {
-		if b.indexFuncFails(c.IndexColumns, rangeOf(c.Loc)) {
+		if b.indexFuncFails(c.IndexColumns, rangeOf(c.Loc)) || primaryExprFails(b, c) {
 			return true
 		}
 	}
-	if b.createPartitionKeysFail(v, r) {
+	if b.generatedOrderFails(v.Columns) {
 		return true
 	}
 	types := make(map[string]columnType)
@@ -660,6 +732,19 @@ func (b *builder) createShapeFails(v *ast.CreateTableStmt, r tableRef) bool {
 				types[k] = t
 			}
 		}
+	}
+	if v.Partitions != nil && b.partitionClauseFails(v.Partitions, func(col string) (columnType, bool) {
+		k, ok := b.key(spaceColumn, col)
+		if !ok {
+			return columnType{}, false
+		}
+		t, ok := types[k]
+		return t, ok
+	}, rangeOf(v.Partitions.Loc)) {
+		return true
+	}
+	if b.createPartitionKeysFail(v, r) {
+		return true
 	}
 	for _, opt := range v.Options {
 		if col := ttlColumn(opt); col != "" {

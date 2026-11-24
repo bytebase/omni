@@ -456,12 +456,17 @@ func (b *builder) checkExprColumnsExist(r tableRef, expr ast.ExprNode, rng revie
 	return missing
 }
 
-// checkIndexColumnsExist checks that every non-functional column key part in
-// cols exists in table r (1072).
+// checkIndexColumnsExist checks that every column key part in cols exists
+// in table r (1072), and every column an expression key part reads (1054,
+// verified on v8.5.5).
 func (b *builder) checkIndexColumnsExist(r tableRef, cols []*ast.IndexColumn, names []string, rng review.Range) {
 	if len(cols) > 0 {
 		for _, ic := range cols {
-			if ic == nil || ic.Functional {
+			if ic == nil {
+				continue
+			}
+			if ic.Functional {
+				b.checkExprColumnsExist(r, ic.Expr, rng)
 				continue
 			}
 			if cr, ok := ic.Expr.(*ast.ColumnRef); ok && cr.Column != "" {
@@ -491,6 +496,11 @@ func (b *builder) checkConstraintForeignKeyShape(c *ast.Constraint, rng review.R
 	}
 	if len(c.RefColumns) == 0 {
 		b.fail(rng, nil, review.UnsupportedForm, review.Code("FOREIGN KEY")+" must name the referenced columns.")
+		return true
+	}
+	// As many columns as it references (1239, verified on v8.5.5).
+	if len(c.Columns) > 0 && len(c.Columns) != len(c.RefColumns) {
+		b.fail(rng, nil, review.UnsupportedForm, review.Code("FOREIGN KEY")+" must reference as many columns as it holds.")
 		return true
 	}
 	return false

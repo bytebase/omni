@@ -60,7 +60,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 			case kind == relView:
 				b.needKind(relKey(r.db, r.name), []string{relTable}, r.rng, notFound("table", r.written, ""), r.written, "table")
 			case kind == relTable:
-				b.partitionFails(r, c, b.partitioning(r), rangeOf(c.Loc))
+				b.partitionFails(r, c, b.partitioning(r), nil, rangeOf(c.Loc))
 			}
 		}
 		return true
@@ -77,6 +77,10 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		return true
 	}
 	parted := b.partitioning(r)
+	var parts *partitionList
+	if len(v.Commands) == 1 {
+		parts = b.partListOf(r)
+	}
 	var rename *ast.AlterTableCmd
 	for _, early := range []bool{true, false} {
 		for _, c := range v.Commands {
@@ -89,7 +93,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 			}
 			b.Next()
 			b.early = early
-			if b.partitionFails(r, c, parted, rangeOf(c.Loc)) {
+			if b.partitionFails(r, c, parted, parts, rangeOf(c.Loc)) {
 				return true
 			}
 			if !b.alterCmd(r, c) {
@@ -328,7 +332,12 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			}
 		}
 	case ast.ATPartitionBy:
-		b.checkPartitionBy(r, c.PartitionBy, rng)
+		if b.checkPartitionBy(r, c.PartitionBy, rng) {
+			return true
+		}
+		if b.partitionClauseFails(c.PartitionBy, func(col string) (columnType, bool) { return b.typeOf(r.db, r.name, col) }, rng) {
+			return true
+		}
 	case ast.ATAddPartition, ast.ATReorganizePartition:
 		b.checkPartitionDefs(c.PartitionDefs, rng)
 	case ast.ATAnalyzePartition:
@@ -351,6 +360,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 				if f, temp, _ := b.resolve(ex); !temp && f != walk.Unknown {
 					b.tableNeeds(ex)
 				}
+				return b.exchangeFails(r, c, ex, rng)
 			}
 		}
 	case ast.ATAddLastPartition, ast.ATDropFirstPartition:

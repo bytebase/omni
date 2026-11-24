@@ -174,6 +174,8 @@ func TestWalkThroughTiDBIndexesTablesViewsFKsAndPartitions(t *testing.T) {
 		{"ALTER TABLE pt EXCHANGE PARTITION p0 WITH TABLE pt;", "TiDB can't exchange a partition of `pt` with itself."},
 		{"ALTER TABLE pt EXCHANGE PARTITION p0 WITH TABLE nosuch;", "Table `nosuch` doesn't exist."},
 		{"ALTER TABLE pt EXCHANGE PARTITION p0 WITH TABLE v;", "`v` is a view, not a table."},
+		{"CREATE TABLE x (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (5));", "Each partition's `VALUES LESS THAN` bound must be greater than the bound of the partition before it."},
+		{"ALTER TABLE pt DROP PARTITION nosuch;", "Partition `nosuch` doesn't exist in `pt`."},
 	} {
 		t.Run(tc.sql, func(t *testing.T) { oneFinding(t, tc.sql, 0, tc.want, shop) })
 	}
@@ -194,6 +196,10 @@ func TestWalkThroughTiDBIndexesTablesViewsFKsAndPartitions(t *testing.T) {
 		"ALTER TABLE pt ADD PARTITION (PARTITION p1 VALUES LESS THAN (100), PARTITION p2 VALUES LESS THAN MAXVALUE);",
 		"ALTER TABLE pt ANALYZE PARTITION p0 INDEX i;",
 		"ALTER TABLE pt EXCHANGE PARTITION p0 WITH TABLE nokey;",
+		// The lexer clamps integers past BIGINT, so these bounds are not
+		// compared.
+		"CREATE TABLE x (a BIGINT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (-9223372036854775808), PARTITION p1 VALUES LESS THAN (-9223372036854775807));",
+		"CREATE TABLE x (a BIGINT UNSIGNED) PARTITION BY LIST (a) (PARTITION p0 VALUES IN (18446744073709551614), PARTITION p1 VALUES IN (18446744073709551615));",
 	} {
 		t.Run("ok/"+sql, func(t *testing.T) { noFinding(t, sql, shop) })
 	}
