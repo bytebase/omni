@@ -916,7 +916,7 @@ func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTab
 
 // periodless fails a statement that needs the table's SYSTEM_TIME period,
 // or system versioning, which needs the period, on a synced table no
-// column of which can be a period column (13510, 13591, 13593).
+// column of which can be a period column (13510, 13591, 13593, 13544).
 func (b *builder) periodless(r objRef, rng review.Range) bool {
 	st := b.syncedTable(r)
 	if st == nil || !st.noPeriod {

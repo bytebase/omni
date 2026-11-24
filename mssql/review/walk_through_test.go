@@ -858,6 +858,11 @@ func TestWalkThroughSyncedFacts(t *testing.T) {
 					{Name: "uv", Definition: "CREATE VIEW dbo.uv AS SELECT id FROM dbo.k"},
 					{Name: "bv", Definition: "CREATE VIEW dbo.bv WITH SCHEMABINDING AS SELECT id FROM dbo.k"},
 				},
+				Functions: []*metadata.FunctionMetadata{
+					{Name: "fs", Definition: "CREATE FUNCTION dbo.fs(@x int) RETURNS int AS BEGIN RETURN @x END"},
+					{Name: "fb", Definition: "CREATE FUNCTION dbo.fb(@x int) RETURNS int WITH SCHEMABINDING AS BEGIN RETURN @x END"},
+					{Name: "ft2", Definition: "CREATE FUNCTION dbo.ft2(@x int) RETURNS TABLE AS RETURN SELECT id, a FROM dbo.k WHERE a = @x"},
+				},
 			}},
 		}
 	}
@@ -900,6 +905,30 @@ func TestWalkThroughSyncedFacts(t *testing.T) {
 		{"alter a trigger on its table", "ALTER TRIGGER dbo.tr_c ON dbo.c AFTER INSERT AS SELECT 1;", -1, ""},
 		{"RETURN of a value in a table-valued function", "CREATE FUNCTION dbo.f() RETURNS @r TABLE (id int) AS BEGIN INSERT INTO @r VALUES (1); RETURN 1; END;", 0, "SQL Server doesn't accept `RETURN` of a value in a table-valued function."},
 		{"RETURN in a table-valued function", "CREATE FUNCTION dbo.f() RETURNS @r TABLE (id int) AS BEGIN INSERT INTO @r VALUES (1); RETURN; END;", -1, ""},
+		{"too many arguments to a scalar function", "CREATE VIEW dbo.w AS SELECT dbo.fs(id, 1) AS x FROM dbo.k;", 0, "Function `dbo.fs` takes 1 argument."},
+		{"too many arguments to a table-valued function", "CREATE PROCEDURE dbo.pr AS SELECT id FROM dbo.ft2(1, 2);", 0, "Function `dbo.ft2` takes 1 argument."},
+		{"arguments to a function the change alters", "ALTER FUNCTION dbo.fs(@x int, @y int) RETURNS int AS BEGIN RETURN @x END;\nGO\nCREATE VIEW dbo.w AS SELECT dbo.fs(id, 1) AS x FROM dbo.k;", -1, ""},
+		{"a scalar function in FROM", "CREATE VIEW dbo.w AS SELECT * FROM dbo.fs(1);", 0, "Function `dbo.fs` is scalar, not table-valued."},
+		{"a column a table-valued function lacks", "CREATE VIEW dbo.w AS SELECT f.n FROM dbo.ft2(1) AS f;", 0, "Column `n` doesn't exist in `f`."},
+		{"a column of a table-valued function", "CREATE VIEW dbo.w AS SELECT f.a FROM dbo.ft2(1) AS f;", -1, ""},
+		{"alter a scalar function into a table-valued one", "ALTER FUNCTION dbo.fs(@x int) RETURNS TABLE AS RETURN SELECT @x AS x;", 0, "Function `dbo.fs` is scalar, and `ALTER FUNCTION` can't make it inline table-valued."},
+		{"alter a scalar function", "ALTER FUNCTION dbo.fs(@x int) RETURNS bigint AS BEGIN RETURN @x END;", -1, ""},
+		{"schema-bound view on an unbound view", "CREATE VIEW dbo.w WITH SCHEMABINDING AS SELECT id FROM dbo.uv;", 0, "SQL Server doesn't accept `dbo.uv`, which isn't schema-bound, in a schema-bound view."},
+		{"schema-bound view on an unbound function", "CREATE VIEW dbo.w WITH SCHEMABINDING AS SELECT dbo.fs(id) AS x FROM dbo.k;", 0, "SQL Server doesn't accept `dbo.fs`, which isn't schema-bound, in a schema-bound view."},
+		{"schema-bound view on bound objects", "CREATE VIEW dbo.w WITH SCHEMABINDING AS SELECT dbo.fb(id) AS x FROM dbo.bv;", -1, ""},
+		{"a column a view lacks", "CREATE PROCEDURE dbo.pr AS SELECT n FROM dbo.uv;", 0, "Column `n` doesn't exist in `dbo.uv`."},
+		{"a column of a view", "CREATE PROCEDURE dbo.pr AS SELECT id FROM dbo.uv;", -1, ""},
+		{"a column a view's INSTEAD OF trigger's inserted lacks", "CREATE TRIGGER dbo.t ON dbo.uv INSTEAD OF INSERT AS SELECT n FROM inserted;", 0, "Column `n` doesn't exist in `inserted`."},
+		{"a column a database trigger's table lacks", "CREATE TRIGGER t ON DATABASE FOR CREATE_TABLE AS SELECT nope FROM dbo.k;", 0, "Column `nope` doesn't exist in `dbo.k`."},
+		{"a column of * twice", "CREATE VIEW dbo.w AS SELECT * FROM dbo.k JOIN dbo.p ON p.id = k.id;", 0, "This statement names column `id` twice."},
+		{"a column of * once", "CREATE VIEW dbo.w AS SELECT k.* FROM dbo.k JOIN dbo.p ON p.id = k.id;", -1, ""},
+		{"$IDENTITY of a table with none", "CREATE VIEW dbo.w AS SELECT $IDENTITY AS i FROM dbo.p;", 0, "Column `$IDENTITY` doesn't exist in `dbo.p`."},
+		{"$IDENTITY of a table with one", "CREATE VIEW dbo.w AS SELECT $IDENTITY AS i FROM dbo.k;", -1, ""},
+		{"FOR SYSTEM_TIME on a table without a period", "CREATE VIEW dbo.w AS SELECT id FROM dbo.k FOR SYSTEM_TIME ALL;", 0, "Table `dbo.k` has no `SYSTEM_TIME` period."},
+		{"FOR SYSTEM_TIME on a table that may have one", "CREATE VIEW dbo.w AS SELECT id FROM dbo.temporal FOR SYSTEM_TIME ALL;", -1, ""},
+		{"old-style hint that is no hint", "CREATE VIEW dbo.w AS SELECT id FROM dbo.k(zzz);", 0, "Column `zzz` doesn't exist in `dbo.k`."},
+		{"old-style hint", "CREATE VIEW dbo.w AS SELECT id FROM dbo.k(NOLOCK);", -1, ""},
+		{"a CTE defined after its use", "CREATE VIEW dbo.w AS WITH y AS (SELECT n FROM z), z AS (SELECT 1 AS n) SELECT n FROM y;", 0, "`z` doesn't exist."},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
