@@ -1257,3 +1257,49 @@ func TestWalkThroughQueriesRulesOptionsAndExtensions(t *testing.T) {
 		}
 	}
 }
+
+// DROP CONSTRAINT of a name the sync does not list fails on a table whose
+// NOT NULL columns are all in its primary key: PostgreSQL 17 has no such
+// constraint (42704), and 18 keeps one per NOT NULL column, which it
+// refuses to drop from a primary key column (42P16).
+func TestWalkThroughDropUnlistedConstraint(t *testing.T) {
+	col := func(name string, pos int32, nullable bool) *metadata.ColumnMetadata {
+		return &metadata.ColumnMetadata{Name: name, Type: "integer", Position: pos, Nullable: nullable}
+	}
+	pkey := func(table string) *metadata.IndexMetadata {
+		return &metadata.IndexMetadata{
+			Name: table + "_pkey", Primary: true, Unique: true, IsConstraint: true,
+			Definition: "CREATE UNIQUE INDEX " + table + "_pkey ON public." + table + " USING btree (id)",
+		}
+	}
+	schema := walkSchema()
+	schema.Schemas[0].Tables = []*metadata.TableMetadata{
+		{Name: "k", Columns: []*metadata.ColumnMetadata{col("id", 1, false), col("n", 2, true)}, Indexes: []*metadata.IndexMetadata{pkey("k")}},
+		{Name: "nn", Columns: []*metadata.ColumnMetadata{col("id", 1, false), col("m", 2, false)}, Indexes: []*metadata.IndexMetadata{pkey("nn")}},
+	}
+	target := review.Target{Schema: schema, SessionUser: "u"}
+	for _, sql := range []string{
+		"ALTER TABLE k DROP CONSTRAINT nope;",
+		"ALTER TABLE k DROP CONSTRAINT k_id_not_null CASCADE;",
+		"ALTER TABLE public.k DROP CONSTRAINT nope;",
+	} {
+		got := walkFindings(t, sql, target)
+		if len(got) != 1 || !slices.Equal(got[0].Codes, []review.FindingCode{review.ObjectNotFound}) {
+			t.Errorf("%q: findings = %+v, want one %s", sql, got, review.ObjectNotFound)
+		}
+	}
+	for _, sql := range []string{
+		"ALTER TABLE k DROP CONSTRAINT IF EXISTS nope;",
+		"ALTER TABLE k DROP CONSTRAINT k_pkey;",
+		// m's NOT NULL constraint on PostgreSQL 18 may have any name.
+		"ALTER TABLE nn DROP CONSTRAINT nope;",
+		"ALTER TABLE k ADD CONSTRAINT c CHECK (n > 0);\nALTER TABLE k DROP CONSTRAINT c;",
+		"ALTER TABLE k ALTER n SET NOT NULL;\nALTER TABLE k DROP CONSTRAINT k_n_not_null;",
+		"ALTER TABLE k DROP CONSTRAINT k_pkey, DROP CONSTRAINT k_id_not_null;",
+		"ALTER TABLE k DROP COLUMN n, DROP CONSTRAINT k_id_not_null;",
+	} {
+		if got := walkFindings(t, sql, target); len(got) != 0 {
+			t.Errorf("%q: findings = %+v, want none", sql, got)
+		}
+	}
+}

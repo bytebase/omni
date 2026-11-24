@@ -982,6 +982,8 @@ func walkStates(msg string) []string {
 		return []string{"3F000"}
 	case strings.HasPrefix(msg, "Index ") && strings.HasSuffix(msg, " doesn't exist."):
 		return []string{"42704", "42P01"}
+	case strings.HasPrefix(msg, "Constraint ") && strings.HasSuffix(msg, ", or is a primary key column's `NOT NULL`, which can't be dropped."):
+		return []string{"42704", "42P16"}
 	case strings.HasPrefix(msg, "Type ") && strings.HasSuffix(msg, " doesn't exist."),
 		strings.HasPrefix(msg, "Domain ") && strings.HasSuffix(msg, " doesn't exist."),
 		strings.HasPrefix(msg, "Constraint ") && strings.Contains(msg, " doesn't exist in "),
