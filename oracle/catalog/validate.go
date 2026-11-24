@@ -102,7 +102,8 @@ func (e *oracleMetadataExtractor) objectExistsInNamespace(name string) bool {
 		e.synonyms[name] != nil ||
 		e.functions[name] != nil ||
 		e.procedures[name] != nil ||
-		e.packages[name] != nil
+		e.packages[name] != nil ||
+		e.hasType(name)
 }
 
 func (e *oracleMetadataExtractor) nonViewObjectExists(name string) bool {
@@ -112,7 +113,8 @@ func (e *oracleMetadataExtractor) nonViewObjectExists(name string) bool {
 		e.synonyms[name] != nil ||
 		e.functions[name] != nil ||
 		e.procedures[name] != nil ||
-		e.packages[name] != nil
+		e.packages[name] != nil ||
+		e.hasType(name)
 }
 
 func (e *oracleMetadataExtractor) nonSynonymObjectExists(name string) bool {
@@ -122,7 +124,8 @@ func (e *oracleMetadataExtractor) nonSynonymObjectExists(name string) bool {
 		e.sequences[name] != nil ||
 		e.functions[name] != nil ||
 		e.procedures[name] != nil ||
-		e.packages[name] != nil
+		e.packages[name] != nil ||
+		e.hasType(name)
 }
 
 func (e *oracleMetadataExtractor) findIndex(name string) *metadatapb.IndexMetadata {

@@ -136,6 +136,10 @@ func (a *queryAnalyzer) analyzeExpr(x ast.ExprNode, sc *qscope, clause exprClaus
 		}
 		return t, false, nil
 	case *ast.BindVariable:
+		if a.plsqlBind != nil {
+			// A PL/SQL unit's SQL binds the unit's own names.
+			return simpleType("UNKNOWN"), false, a.plsqlBind(n)
+		}
 		return qtype{}, false, oraError("01027", "bind variables not allowed for data definition operations")
 	case *ast.ColumnRef:
 		return a.columnRef(n, sc)
@@ -458,6 +462,9 @@ func (a *queryAnalyzer) columnRef(n *ast.ColumnRef, sc *qscope) (qtype, bool, er
 			}
 		}
 		return c.typ, c.notNull, nil
+	}
+	if a.plsqlName != nil && a.plsqlName(n) {
+		return simpleType("UNKNOWN"), false, nil
 	}
 	if n.Table == "" {
 		if t, ok := keywordValues[n.Column]; ok && !strings.Contains(a.e.nodeText(n), `"`) {

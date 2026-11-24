@@ -269,13 +269,12 @@ func (p *Parser) parseTriggerEvent(stmt *nodes.CreateTriggerStmt) error {
 		// Optional: OF col [, col...]
 		if p.cur.Type == kwOF {
 			p.advance() // consume OF
-			// Skip column list — not stored in the AST
 			for {
-				parseDiscard572, parseErr571 := p.parseIdentifier()
-				_ = parseDiscard572
-				if parseErr571 != nil {
-					return parseErr571
+				col, err := p.parseIdentifier()
+				if err != nil {
+					return err
 				}
+				stmt.UpdateColumns = append(stmt.UpdateColumns, col)
 				if p.cur.Type != ',' {
 					break
 				}

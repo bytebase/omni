@@ -261,9 +261,12 @@ func (p *Parser) parsePLSQLVarDecl(charset plsqlCharsetUse) (*nodes.PLSQLVarDecl
 	return decl, nil
 }
 
-// parsePLSQLCursorDecl parses a cursor declaration.
+// parsePLSQLCursorDecl parses a cursor declaration or definition.
 //
-//	CURSOR name [(params)] IS select_stmt ;
+//	CURSOR name [(params)] RETURN rowtype ;
+//	CURSOR name [(params)] [RETURN rowtype] IS select_stmt ;
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/explicit-cursor-declaration-and-definition.html
 func (p *Parser) parsePLSQLCursorDecl() (*nodes.PLSQLCursorDecl, error) {
 	start := p.pos()
 	p.advance() // consume CURSOR
@@ -291,6 +294,15 @@ func (p *Parser) parsePLSQLCursorDecl() (*nodes.PLSQLCursorDecl, error) {
 			return nil, parseErr839
 		}
 		if err := p.checkCharsetSources(decl.Parameters, nil); err != nil {
+			return nil, err
+		}
+	}
+
+	if p.cur.Type == kwRETURN {
+		p.advance()
+		var err error
+		decl.ReturnType, err = p.parseTypeName()
+		if err != nil {
 			return nil, err
 		}
 	}

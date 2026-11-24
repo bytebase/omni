@@ -401,7 +401,12 @@ func TestWalkSimulation(t *testing.T) {
 	if pct < walkSimMinTotalRecallPct {
 		t.Errorf("total WALK_THROUGH refusal recall %.1f%% (%d/%d) dropped below floor %.1f%%", pct, totalFound, totalRefused, walkSimMinTotalRecallPct)
 	}
-	t.Run("queries", func(t *testing.T) { walkSimQueries(t, w, shop, allNames) })
+	t.Run("queries", func(t *testing.T) {
+		walkSimSuite(t, w, shop, allNames, "queries", walkSimQueriesSuite, walkSimQueriesMinRecallPct)
+	})
+	t.Run("programs", func(t *testing.T) {
+		walkSimSuite(t, w, shop, allNames, "programs", walkSimProgramsSuite, walkSimProgramsMinRecallPct)
+	})
 	if *walkSimShowMissed {
 		type kv struct {
 			k string
@@ -435,12 +440,20 @@ const walkSimQueriesSuite = "../catalog/testdata/queries/simulate.tsv"
 // walkSimQueriesMinRecallPct is the queries subtest's recall floor.
 const walkSimQueriesMinRecallPct = 2.0
 
-// walkSimQueries holds WALK_THROUGH to the query suite as TestWalkSimulation
-// holds it to compat.tsv: no finding on a statement Oracle accepts, and a
-// finding on a refused one maps to Oracle's code or claims only what the
-// fixture holds.
-func walkSimQueries(t *testing.T, w *walkSchemas, shop, allNames string) {
-	suite, err := simulate.ReadFile(walkSimQueriesSuite)
+// walkSimProgramsSuite is oracle/catalog's stored-program suite: procedures,
+// functions, packages, triggers and types with bodies, and changes to the
+// objects they read, on programs@objects.
+const walkSimProgramsSuite = "../catalog/testdata/programs/simulate.tsv"
+
+// walkSimProgramsMinRecallPct is the programs subtest's recall floor.
+const walkSimProgramsMinRecallPct = 53.0
+
+// walkSimSuite holds WALK_THROUGH to one of oracle/catalog's suites as
+// TestWalkSimulation holds it to compat.tsv: no finding on a statement
+// Oracle accepts, and a finding on a refused one maps to Oracle's code or
+// claims only what the fixture holds.
+func walkSimSuite(t *testing.T, w *walkSchemas, shop, allNames, name, path string, floor float64) {
+	suite, err := simulate.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -504,9 +517,9 @@ func walkSimQueries(t *testing.T, w *walkSchemas, shop, allNames string) {
 	if refused > 0 {
 		pct = 100 * float64(found) / float64(refused)
 	}
-	t.Logf("queries: caught %d/%d refusals (%.1f%%)", found, refused, pct)
-	if pct < walkSimQueriesMinRecallPct {
-		t.Errorf("queries recall %.1f%% (%d/%d) dropped below floor %.1f%%", pct, found, refused, walkSimQueriesMinRecallPct)
+	t.Logf("%s: caught %d/%d refusals (%.1f%%)", name, found, refused, pct)
+	if pct < floor {
+		t.Errorf("%s recall %.1f%% (%d/%d) dropped below floor %.1f%%", name, pct, found, refused, floor)
 	}
 }
 

@@ -12,6 +12,11 @@ func (a *queryAnalyzer) funcCall(n *ast.FuncCallExpr, sc *qscope, clause exprCla
 	if n.FuncName == nil {
 		return simpleType("UNKNOWN"), false, nil
 	}
+	if a.plsqlCall != nil {
+		if err := a.plsqlCall(n); err != nil {
+			return qtype{}, false, err
+		}
+	}
 	name := n.FuncName.Name
 	if n.FuncName.Schema == "" {
 		switch name {
