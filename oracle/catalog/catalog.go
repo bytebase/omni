@@ -247,16 +247,6 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 	return results, nil
 }
 
-// Apply applies one statement a caller has already parsed, as Exec applies
-// each of its own: node is the statement's tree and sql the text its
-// positions index. A DML or transaction statement changes nothing.
-func (c *Catalog) Apply(node ast.StmtNode, sql string) error {
-	if node == nil || isDML(node) {
-		return nil
-	}
-	return c.applyStatement(node, sql)
-}
-
 // LoadSQL returns a catalog built from sql.
 func LoadSQL(sql string) (*Catalog, error) {
 	c := New()
@@ -288,7 +278,21 @@ func isDML(stmt ast.StmtNode) bool {
 	}
 }
 
-func (c *Catalog) applyStatement(stmt ast.StmtNode, source string) error {
+// CheckView reports what Exec would refuse a CREATE VIEW with, without
+// changing the catalog: v is a statement the caller has parsed, and sql the
+// text its positions index.
+func (c *Catalog) CheckView(v *ast.CreateViewStmt, sql string) error {
+	if v == nil {
+		return nil
+	}
+	e := c.extractor(sql)
+	e.extractStatement(v)
+	return e.err
+}
+
+// extractor seeds a metadata extractor with the catalog's state, for a
+// statement of source.
+func (c *Catalog) extractor(source string) *oracleMetadataExtractor {
 	extractor := newMetadataExtractorFromMetadata(c.meta, source)
 	extractor.serverConfig = c.serverConfig
 	for key := range c.namedNotNull {
@@ -324,6 +328,11 @@ func (c *Catalog) applyStatement(stmt ast.StmtNode, source string) error {
 		}
 	}
 	extractor.units = c.units.clone()
+	return extractor
+}
+
+func (c *Catalog) applyStatement(stmt ast.StmtNode, source string) error {
+	extractor := c.extractor(source)
 	extractor.extractStatement(stmt)
 	if extractor.err != nil {
 		return extractor.err

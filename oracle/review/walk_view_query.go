@@ -112,7 +112,7 @@ func (b *builder) viewQueryFails(v *ast.CreateViewStmt, r objRef) bool {
 	return true
 }
 
-// viewCatalogRefusal applies the CREATE VIEW to a catalog that holds meta.
+// viewCatalogRefusal checks the CREATE VIEW in a catalog that holds meta.
 // A panic in the catalog is no refusal: the walk then accepts the view.
 func viewCatalogRefusal(meta *metadata.DatabaseSchemaMetadata, v *ast.CreateViewStmt, sql string) (err error) {
 	defer func() {
@@ -125,5 +125,5 @@ func viewCatalogRefusal(meta *metadata.DatabaseSchemaMetadata, v *ast.CreateView
 	if _, err := c.LoadMetadata(context.Background(), meta); err != nil {
 		return nil
 	}
-	return c.Apply(v, sql)
+	return c.CheckView(v, sql)
 }
