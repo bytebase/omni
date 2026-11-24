@@ -1011,6 +1011,9 @@ func TestWalkThroughOracleRichChecks(t *testing.T) {
 	noFinding(t, "CREATE VIEW v AS SELECT n.a FROM nokey_rich n, part_range p;", rich)
 	noFinding(t, "CREATE VIEW v AS SELECT a FROM nokey_rich, dual;", rich)
 	noFinding(t, "CREATE FORCE VIEW v AS SELECT a FROM nokey_rich, part_range;", rich)
+	noFinding(t, "CREATE VIEW v OF pair_t WITH OBJECT IDENTIFIER (x) AS SELECT 1, 2 FROM dual;", rich)
+	noFinding(t, "CREATE VIEW v AS SELECT d.*, q.a FROM nokey_rich d, (WITH nokey_rich AS (SELECT 1 a FROM dual) SELECT a FROM nokey_rich) q;", rich)
+	noFinding(t, "CREATE VIEW v AS SELECT deptno FROM (SELECT 1 deptno FROM dual) GROUP BY 1;", rich)
 	// The change drops the column first: the catalog is not asked.
 	noFinding(t, "ALTER TABLE nokey_rich DROP COLUMN a;\nCREATE VIEW v AS SELECT a FROM nokey_rich, part_range;", rich)
 	noFinding(t, "CREATE INDEX IF NOT EXISTS ix_plain_val ON plain (val);", rich)

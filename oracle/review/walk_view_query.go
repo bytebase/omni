@@ -29,7 +29,6 @@ var viewQueryCodes = map[string]bool{
 	"01468": true, // a predicate may reference only one outer-joined table
 	"01785": true, // ORDER BY item must be the number of a SELECT-list expression
 	"01789": true, // query block has incorrect number of result columns
-	"03162": true, // GROUP BY position
 	"22848": true, // cannot use a LOB type as a comparison key
 	"22849": true, // a LOB in an aggregate
 	"22902": true, // CURSOR expression not allowed
@@ -49,21 +48,27 @@ var viewQueryCodes = map[string]bool{
 // in full and the change has left alone, and it holds those tables alone.
 func (b *builder) viewQueryFails(v *ast.CreateViewStmt, r objRef) bool {
 	w := b.w
-	if v.Force || v.IfNotExists || w.otherSpecs || w.current != w.snap.schema {
+	if v.Force || v.IfNotExists || w.otherSpecs || w.current != w.snap.schema || b.isObjectView(v) {
 		return false
 	}
 	if f, kind := b.look(r.key(spaceObject)); f == walk.Present && !(v.OrReplace && kind == kindView) {
 		return false
 	}
+	// A name a WITH clause gives is a CTE wherever it is read. It may name
+	// a table outside the clause's query too, so a CTE named as DUAL or a
+	// table is not followed.
 	ctes := map[string]bool{}
+	known := true
 	ast.Inspect(v.Query, func(n ast.Node) bool {
 		if cte, ok := n.(*ast.CTE); ok {
 			ctes[cte.Name] = true
+			if cte.Name == "DUAL" || w.snap.tables[cte.Name] != nil {
+				known = false
+			}
 		}
 		return true
 	})
 	names := map[string]bool{}
-	known := true
 	ast.Inspect(v.Query, func(n ast.Node) bool {
 		t, ok := n.(*ast.TableRef)
 		if !ok || !known {
