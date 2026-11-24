@@ -110,7 +110,7 @@
 : bytes
 | fk
 : bytes
-| __word_segment_19_1795258952995475
+| __word_segment_19_0000000000000001
 : bytes
 | A
 : int64 -1
@@ -128,7 +128,7 @@
 : bytes
 | fk
 : bytes
-| __doc_id_1795258952995050
+| __doc_id_0000000000000002
 : bytes
 | A
 : int64 -1
@@ -164,7 +164,7 @@
 : bytes
 | fk2
 : bytes
-| __word_segment_19_1795258953213026
+| __word_segment_19_0000000000000003
 : bytes
 | A
 : int64 -1
@@ -182,7 +182,7 @@
 : bytes
 | fk2
 : bytes
-| __doc_id_1795258953212693
+| __doc_id_0000000000000004
 : bytes
 | A
 : int64 -1
@@ -308,7 +308,7 @@
 : bytes
 | vi
 : bytes
-| __vid_1795258952313358
+| __vid_0000000000000005
 : bytes
 | A
 : int64 -1
@@ -326,7 +326,7 @@
 : bytes
 | vi
 : bytes
-| __type_17_1795258952313910
+| __type_17_0000000000000006
 : bytes
 | A
 : int64 -1
@@ -344,7 +344,7 @@
 : bytes
 | vid_rowkey_table
 : bytes
-| __vid_1795258952313358
+| __vid_0000000000000005
 : bytes
 | A
 : int64 -1
@@ -362,7 +362,7 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __scn_17_1795258952315678
+| __scn_17_0000000000000007
 : bytes
 | A
 : int64 -1
@@ -380,7 +380,7 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __vid_1795258952313358
+| __vid_0000000000000005
 : bytes
 | A
 : int64 -1
@@ -398,7 +398,7 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __type_17_1795258952313910
+| __type_17_0000000000000006
 : bytes
 | A
 : int64 -1
@@ -416,7 +416,7 @@
 : bytes
 | vi_index_snapshot_data_table
 : bytes
-| __key_17_1795258952316649
+| __key_17_0000000000000008
 : bytes
 | A
 : int64 -1
@@ -1015,6 +1015,99 @@
 < column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
+> query
+|
+| 		SELECT
+| 			TABLE_NAME,
+| 			PARTITION_NAME,
+| 			SUBPARTITION_NAME,
+| 			PARTITION_METHOD,
+| 			SUBPARTITION_METHOD,
+| 			PARTITION_EXPRESSION,
+| 			SUBPARTITION_EXPRESSION,
+| 			PARTITION_DESCRIPTION,
+| 			SUBPARTITION_DESCRIPTION,
+| 			PARTITION_COMMENT
+| 		FROM information_schema.PARTITIONS
+| 		WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION, SUBPARTITION_ORDINAL_POSITION
+: string
+| omni_ob_show_create_roundtrip
+< result
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "PARTITION_NAME" "VARCHAR"
+< column "SUBPARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "SUBPARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "SUBPARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+< column "SUBPARTITION_DESCRIPTION" "TEXT"
+< column "PARTITION_COMMENT" "TEXT"
+< row
+: bytes
+| p_quoted
+: bytes
+| p0
+: null
+: bytes
+| KEY
+: null
+: bytes
+| `a,b`, `c`
+: null
+: null
+: null
+: bytes
+|
+< row
+: bytes
+| p_quoted
+: bytes
+| p1
+: null
+: bytes
+| KEY
+: null
+: bytes
+| `a,b`, `c`
+: null
+: null
+: null
+: bytes
+|
+< row
+: bytes
+| t_global
+: bytes
+| p0
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `a`
+: null
+: null
+: null
+: bytes
+|
+< row
+: bytes
+| t_global
+: bytes
+| p1
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `a`
+: null
+: null
+: null
+: bytes
+|
 > query
 |
 | 		SELECT
@@ -1483,6 +1576,9 @@
 |   `a,b` int DEFAULT NULL,
 |   `c` int DEFAULT NULL
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+| /*!50100 PARTITION BY KEY (`a,b`, `c`)
+| (PARTITION `p0` ENGINE=InnoDB,
+|  PARTITION `p1` ENGINE=InnoDB) */
 < ok 0 0
 > exec
 | CREATE TABLE `t_cg` (
@@ -1526,6 +1622,9 @@
 |   UNIQUE KEY `k_global` (`b`) GLOBAL,
 |   KEY `k_plain` (`c`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+| /*!50100 PARTITION BY HASH (`a`)
+| (PARTITION `p0` ENGINE=InnoDB,
+|  PARTITION `p1` ENGINE=InnoDB) */
 < ok 0 0
 > exec
 | CREATE TABLE `t_storing` (
@@ -1631,7 +1730,7 @@
 : bytes
 | fk
 : bytes
-| __word_segment_19_1795258956489596
+| __word_segment_19_0000000000000009
 : bytes
 | A
 : int64 -1
@@ -1649,7 +1748,7 @@
 : bytes
 | fk
 : bytes
-| __doc_id_1795258956489391
+| __doc_id_0000000000000010
 : bytes
 | A
 : int64 -1
@@ -1685,7 +1784,7 @@
 : bytes
 | fk2
 : bytes
-| __word_segment_19_1795258956694470
+| __word_segment_19_0000000000000011
 : bytes
 | A
 : int64 -1
@@ -1703,7 +1802,7 @@
 : bytes
 | fk2
 : bytes
-| __doc_id_1795258956694186
+| __doc_id_0000000000000012
 : bytes
 | A
 : int64 -1
@@ -1829,7 +1928,7 @@
 : bytes
 | vi
 : bytes
-| __vid_1795258957230158
+| __vid_0000000000000013
 : bytes
 | A
 : int64 -1
@@ -1847,7 +1946,7 @@
 : bytes
 | vi
 : bytes
-| __type_17_1795258957230441
+| __type_17_0000000000000014
 : bytes
 | A
 : int64 -1
@@ -1865,7 +1964,7 @@
 : bytes
 | vid_rowkey_table
 : bytes
-| __vid_1795258957230158
+| __vid_0000000000000013
 : bytes
 | A
 : int64 -1
@@ -1883,7 +1982,7 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __scn_17_1795258957231955
+| __scn_17_0000000000000015
 : bytes
 | A
 : int64 -1
@@ -1901,7 +2000,7 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __vid_1795258957230158
+| __vid_0000000000000013
 : bytes
 | A
 : int64 -1
@@ -1919,7 +2018,7 @@
 : bytes
 | vi_index_id_table
 : bytes
-| __type_17_1795258957230441
+| __type_17_0000000000000014
 : bytes
 | A
 : int64 -1
@@ -1937,7 +2036,7 @@
 : bytes
 | vi_index_snapshot_data_table
 : bytes
-| __key_17_1795258957232708
+| __key_17_0000000000000016
 : bytes
 | A
 : int64 -1
@@ -2539,6 +2638,99 @@
 > query
 |
 | 		SELECT
+| 			TABLE_NAME,
+| 			PARTITION_NAME,
+| 			SUBPARTITION_NAME,
+| 			PARTITION_METHOD,
+| 			SUBPARTITION_METHOD,
+| 			PARTITION_EXPRESSION,
+| 			SUBPARTITION_EXPRESSION,
+| 			PARTITION_DESCRIPTION,
+| 			SUBPARTITION_DESCRIPTION,
+| 			PARTITION_COMMENT
+| 		FROM information_schema.PARTITIONS
+| 		WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION, SUBPARTITION_ORDINAL_POSITION
+: string
+| omni_ob_show_create_roundtrip_restored
+< result
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "PARTITION_NAME" "VARCHAR"
+< column "SUBPARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "SUBPARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "SUBPARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+< column "SUBPARTITION_DESCRIPTION" "TEXT"
+< column "PARTITION_COMMENT" "TEXT"
+< row
+: bytes
+| p_quoted
+: bytes
+| p0
+: null
+: bytes
+| KEY
+: null
+: bytes
+| `a,b`, `c`
+: null
+: null
+: null
+: bytes
+|
+< row
+: bytes
+| p_quoted
+: bytes
+| p1
+: null
+: bytes
+| KEY
+: null
+: bytes
+| `a,b`, `c`
+: null
+: null
+: null
+: bytes
+|
+< row
+: bytes
+| t_global
+: bytes
+| p0
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `a`
+: null
+: null
+: null
+: bytes
+|
+< row
+: bytes
+| t_global
+: bytes
+| p1
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `a`
+: null
+: null
+: null
+: bytes
+|
+> query
+|
+| 		SELECT
 | 			ROUTINE_NAME,
 | 			ROUTINE_TYPE,
 | 			SQL_MODE,
@@ -2837,6 +3029,9 @@
 |   `a,b` int(11) DEFAULT NULL,
 |   `c` int(11) DEFAULT NULL
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by key(`a,b`, `c`)
+| (partition `p0`,
+| partition `p1`)
 > query
 | SHOW CREATE TABLE `omni_ob_show_create_roundtrip_restored`.`t_cg`
 < result
@@ -2919,9 +3114,13 @@
 |   `a` int(11) DEFAULT NULL,
 |   `b` int(11) DEFAULT NULL,
 |   `c` int(11) DEFAULT NULL,
-|   UNIQUE KEY `k_global` (`b`) BLOCK_SIZE 16384 GLOBAL,
+|   UNIQUE KEY `k_global` (`b`) BLOCK_SIZE 16384 GLOBAL
+|  ,
 |   KEY `k_plain` (`c`) BLOCK_SIZE 16384 LOCAL
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by hash(`a`)
+| (partition `p0`,
+| partition `p1`)
 > query
 | SHOW CREATE TABLE `omni_ob_show_create_roundtrip_restored`.`t_storing`
 < result

@@ -227,7 +227,7 @@ shop.dbo.products.id | shop.dbo.products.name | shop.dbo.products.category	shop.
 shop.dbo.v_products	shop.dbo.products, shop.dbo.v_products	engine	shop	shop.dbo	tables	SELECT * FROM v_products
 id, amount	id, amount	engine	shop	shop.dbo	results	SELECT * FROM archived
 archive.dbo.old_orders.id | archive.dbo.old_orders.amount	archive.dbo.old_orders.id | archive.dbo.old_orders.amount	engine	shop	shop.dbo	lineage	SELECT * FROM archived
-shop.dbo.archived	archive.dbo.old_orders, shop.dbo.archived	engine	shop	shop.dbo	tables	SELECT * FROM archived
+archive.dbo.old_orders, shop.dbo.archived	archive.dbo.old_orders, shop.dbo.archived	engine	shop	shop.dbo	tables	SELECT * FROM archived
 customer_name	customer_name	engine	shop	shop.dbo	results	SELECT customer_name FROM order_totals WHERE id IN (SELECT id FROM big_orders)
 shop.dbo.customers.name	shop.dbo.customers.name	engine	shop	shop.dbo	lineage	SELECT customer_name FROM order_totals WHERE id IN (SELECT id FROM big_orders)
 shop.dbo.big_orders, shop.dbo.order_totals	shop.dbo.big_orders, shop.dbo.customers, shop.dbo.order_totals, shop.dbo.orders	engine	shop	shop.dbo	tables	SELECT customer_name FROM order_totals WHERE id IN (SELECT id FROM big_orders)

@@ -59,6 +59,111 @@ CREATE TABLE `orders` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
+-- Table structure for `p_auto`
+--
+CREATE TABLE `p_auto` (
+  `a` int NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Table structure for `p_hash`
+--
+CREATE TABLE `p_hash` (
+  `a` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+/*!50100 PARTITION BY HASH (`a`)
+(PARTITION `p0` ENGINE=InnoDB,
+ PARTITION `p1` ENGINE=InnoDB,
+ PARTITION `p2` ENGINE=InnoDB) */;
+
+--
+-- Table structure for `p_key`
+--
+CREATE TABLE `p_key` (
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+/*!50100 PARTITION BY KEY ()
+(PARTITION `p0` ENGINE=InnoDB,
+ PARTITION `p1` ENGINE=InnoDB) */;
+
+--
+-- Table structure for `p_list`
+--
+CREATE TABLE `p_list` (
+  `a` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+/*!50100 PARTITION BY LIST (`a`)
+(PARTITION `p_low` VALUES IN (1,2) ENGINE=InnoDB,
+ PARTITION `p_rest` VALUES IN (DEFAULT) ENGINE=InnoDB) */;
+
+--
+-- Table structure for `p_list_cols`
+--
+CREATE TABLE `p_list_cols` (
+  `a` int DEFAULT NULL,
+  `b` char(2) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+/*!50500 PARTITION BY LIST COLUMNS (`a`, `b`)
+(PARTITION `p0` VALUES IN ((1,'a'),(2,'b')) ENGINE=InnoDB,
+ PARTITION `p1` VALUES IN ((3,'c')) ENGINE=InnoDB) */;
+
+--
+-- Table structure for `p_range`
+--
+CREATE TABLE `p_range` (
+  `id` int DEFAULT NULL,
+  `sold` date DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+/*!50100 PARTITION BY RANGE (year(`sold`))
+(PARTITION `p2020` VALUES LESS THAN (2021) ENGINE=InnoDB,
+ PARTITION `p_max` VALUES LESS THAN MAXVALUE ENGINE=InnoDB) */;
+
+--
+-- Table structure for `p_range_cols`
+--
+CREATE TABLE `p_range_cols` (
+  `a` int DEFAULT NULL,
+  `b` varchar(10) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+/*!50500 PARTITION BY RANGE COLUMNS (`a`, `b`)
+(PARTITION `p0` VALUES LESS THAN (10,'m') ENGINE=InnoDB,
+ PARTITION `p1` VALUES LESS THAN (MAXVALUE,MAXVALUE) ENGINE=InnoDB) */;
+
+--
+-- Table structure for `p_sub`
+--
+CREATE TABLE `p_sub` (
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`b`)
+(PARTITION `p0` VALUES LESS THAN (10) ENGINE=InnoDB
+ (SUBPARTITION `p0sp0` ENGINE=InnoDB,
+  SUBPARTITION `p0sp1` ENGINE=InnoDB),
+ PARTITION `p1` VALUES LESS THAN (20) ENGINE=InnoDB
+ (SUBPARTITION `p1sp0` ENGINE=InnoDB,
+  SUBPARTITION `p1sp1` ENGINE=InnoDB)) */;
+
+--
+-- Table structure for `p_sub_named`
+--
+CREATE TABLE `p_sub_named` (
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+/*!50100 PARTITION BY LIST (`a`)
+SUBPARTITION BY RANGE (`b`)
+(PARTITION `p0` VALUES IN (1) ENGINE=InnoDB
+ (SUBPARTITION `s0` VALUES LESS THAN (5) ENGINE=InnoDB,
+  SUBPARTITION `s1` VALUES LESS THAN MAXVALUE ENGINE=InnoDB),
+ PARTITION `p1` VALUES IN (2) ENGINE=InnoDB
+ (SUBPARTITION `s2` VALUES LESS THAN MAXVALUE ENGINE=InnoDB)) */;
+
+--
 -- Table structure for `ext_feed`
 --
 CREATE EXTERNAL TABLE `ext_feed` (

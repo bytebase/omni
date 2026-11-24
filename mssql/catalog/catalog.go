@@ -44,7 +44,6 @@ type Catalog struct {
 	indexCounter                      int
 	databaseOrder                     []string
 	databaseByName                    map[string]*Catalog
-	skipViewIndexes                   bool
 	omitUnnamedDefaultConstraintNames bool
 	lenientMetadataLoad               bool
 	// loadingScript is set while LoadSQL runs a desired-state script, whose
@@ -408,11 +407,10 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 	return results, nil
 }
 
-func loadSQLWithOptions(sql string, skipViewIndexes, omitUnnamedDefaultConstraintNames bool) (*Catalog, error) {
+func loadSQLWithOptions(sql string, lenient, omitUnnamedDefaultConstraintNames bool) (*Catalog, error) {
 	c := New()
-	c.skipViewIndexes = skipViewIndexes
 	c.omitUnnamedDefaultConstraintNames = omitUnnamedDefaultConstraintNames
-	c.lenientMetadataLoad = skipViewIndexes
+	c.lenientMetadataLoad = lenient
 	c.loadingScript = true
 	results, err := c.Exec(sql, nil)
 	c.loadingScript = false
@@ -438,10 +436,10 @@ func LoadSQL(sql string) (*Catalog, error) {
 
 // GetDatabaseMetadata parses SQL Server DDL and returns the schema it defines.
 func GetDatabaseMetadata(schemaText string) (*metadata.DatabaseSchemaMetadata, error) {
-	// Skip indexed views and omit synthetic DF_<table>_<col> default names
-	// (only needed by forward LoadSQL/migration synthesis) so round-tripping
-	// extracted schemas neither fails on view indexes nor collides across
-	// underscore-split table/column names.
+	// Load leniently and omit synthetic DF_<table>_<col> default names (only
+	// needed by forward LoadSQL/migration synthesis) so round-tripping
+	// extracted schemas does not collide across underscore-split table/column
+	// names.
 	c, err := loadSQLWithOptions(schemaText, true, true)
 	if err != nil {
 		return nil, err

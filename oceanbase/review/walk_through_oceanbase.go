@@ -1697,12 +1697,11 @@ var obCollations = map[string]string{
 
 // Whether a table is partitioned is one key of its path on OceanBase,
 // read only when Present: partitionedNo or partitionedYes, as a CREATE
-// TABLE of the change writes a PARTITION BY or not, and partitionedYes for
-// a table the sync lists partitions of. A table the sync lists no
-// partitions of is Unknown: oceanbase/driver's sync lists none. A synced
-// table no statement of the change has repartitioned has a kind that says
-// more (partitionFacts): its partitions' names, whether it has
-// subpartitions, and the columns its partitioning reads.
+// TABLE of the change writes a PARTITION BY or not, or as the sync lists
+// partitions of a synced table or none. A synced table no statement of the
+// change has repartitioned has a kind that says more (partitionFacts): its
+// partitions' names, whether it has subpartitions, and the columns its
+// partitioning reads.
 const (
 	spacePartitioned = "partitioned"
 	spacePartition   = "partition"

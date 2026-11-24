@@ -489,6 +489,11 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 		return nil, err
 	}
 
+	partitionMap, err := d.listPartitionTables(ctx, d.databaseName)
+	if err != nil {
+		return nil, err
+	}
+
 	functions, procedures, err := d.syncRoutines(ctx, d.databaseName)
 	if err != nil {
 		return nil, err
@@ -556,6 +561,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 				CheckConstraints: checkMap[tableName],
 				Charset:          charset,
 				Triggers:         triggerMap[tableName],
+				Partitions:       partitionMap[tableName],
 			}
 			if indexes, ok := indexMap[tableName]; ok {
 				indexNames := make([]string, 0, len(indexes))
@@ -642,6 +648,101 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 		return nil, err
 	}
 	return databaseMetadata, nil
+}
+
+// listPartitionTables reads each partitioned table's partitions and
+// subpartitions from information_schema.PARTITIONS, in their order. A table
+// with no row naming a partition is not partitioned: oceanbase-ce 4.3.5.6
+// lists one row with a NULL PARTITION_NAME for it, and for a table
+// partitioned by RANGE () SIZE (...) that has not split yet, which refuses
+// partition management with 1505 as an unpartitioned table does.
+// PARTITION_EXPRESSION lists KEY and COLUMNS partitioning's columns quoted and
+// separated by ", ", and PARTITION_DESCRIPTION a partition's bound or values as
+// SHOW CREATE TABLE prints them, without the parentheses of a single list.
+// OceanBase subpartitions by RANGE and LIST too, which MySQL does not, and
+// SUBPARTITION_DESCRIPTION, a column MySQL lacks, holds a subpartition's.
+func (d *Driver) listPartitionTables(ctx context.Context, databaseName string) (map[string][]*metadatapb.TablePartitionMetadata, error) {
+	const query = `
+		SELECT
+			TABLE_NAME,
+			PARTITION_NAME,
+			SUBPARTITION_NAME,
+			PARTITION_METHOD,
+			SUBPARTITION_METHOD,
+			PARTITION_EXPRESSION,
+			SUBPARTITION_EXPRESSION,
+			PARTITION_DESCRIPTION,
+			SUBPARTITION_DESCRIPTION,
+			PARTITION_COMMENT
+		FROM information_schema.PARTITIONS
+		WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+		ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION, SUBPARTITION_ORDINAL_POSITION`
+	rows, err := d.db.QueryContext(ctx, query, databaseName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute query %q: %w", query, err)
+	}
+	defer rows.Close()
+
+	type partitionKey struct{ table, partition string }
+	index := make(map[partitionKey]int)
+	result := make(map[string][]*metadatapb.TablePartitionMetadata)
+	for rows.Next() {
+		var tableName, partitionName, method string
+		var subName, subMethod, expression, subExpression, description, subDescription, comment sql.NullString
+		if err := rows.Scan(&tableName, &partitionName, &subName, &method, &subMethod, &expression, &subExpression, &description, &subDescription, &comment); err != nil {
+			return nil, err
+		}
+		pk := partitionKey{tableName, partitionName}
+		i, ok := index[pk]
+		if !ok {
+			i = len(result[tableName])
+			index[pk] = i
+			result[tableName] = append(result[tableName], &metadatapb.TablePartitionMetadata{
+				Name:       partitionName,
+				Type:       convertPartitionType(method),
+				Expression: expression.String,
+				Value:      description.String,
+				Comment:    comment.String,
+			})
+		}
+		if subName.Valid {
+			p := result[tableName][i]
+			p.Subpartitions = append(p.Subpartitions, &metadatapb.TablePartitionMetadata{
+				Name:       subName.String,
+				Type:       convertPartitionType(subMethod.String),
+				Expression: subExpression.String,
+				Value:      subDescription.String,
+				Comment:    comment.String,
+			})
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to execute query %q: %w", query, err)
+	}
+	return result, nil
+}
+
+// convertPartitionType maps information_schema.PARTITIONS's PARTITION_METHOD.
+// oceanbase-ce 4.3.5.6 has no LINEAR HASH or LINEAR KEY. A method it does not
+// know is TYPE_UNSPECIFIED, and the partition is still listed: leaving it out
+// would make a partitioned table read as unpartitioned.
+func convertPartitionType(method string) metadatapb.TablePartitionMetadata_Type {
+	switch strings.ToUpper(method) {
+	case "RANGE":
+		return metadatapb.TablePartitionMetadata_RANGE
+	case "RANGE COLUMNS":
+		return metadatapb.TablePartitionMetadata_RANGE_COLUMNS
+	case "LIST":
+		return metadatapb.TablePartitionMetadata_LIST
+	case "LIST COLUMNS":
+		return metadatapb.TablePartitionMetadata_LIST_COLUMNS
+	case "HASH":
+		return metadatapb.TablePartitionMetadata_HASH
+	case "KEY":
+		return metadatapb.TablePartitionMetadata_KEY
+	default:
+		return metadatapb.TablePartitionMetadata_TYPE_UNSPECIFIED
+	}
 }
 
 // listMaterializedViews reads materialized views from oceanbase.DBA_MVIEWS,

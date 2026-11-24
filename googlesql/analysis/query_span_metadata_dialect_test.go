@@ -68,3 +68,31 @@ func TestAliasedColumnLineage(t *testing.T) {
 	require.Equal(t, "Y", span.Results[0].Name)
 	require.Equal(t, []string{"galleries.x"}, sourcesOf(span.Results[0]))
 }
+
+// TestSpannerAnonymousColumns: Spanner names an expression "", and two such
+// columns stay two through a star, with or without EXCEPT/REPLACE.
+func TestSpannerAnonymousColumns(t *testing.T) {
+	tables := pinTables(&metadata.TableMetadata{Name: "Customers", Columns: []*metadata.ColumnMetadata{{Name: "CustomerId"}, {Name: "Name"}}})
+	for _, statement := range []string{
+		"SELECT * FROM (SELECT CustomerId + 1, LENGTH(Name), 0 AS keep FROM Customers)",
+		"SELECT * EXCEPT (keep) FROM (SELECT CustomerId + 1, LENGTH(Name), 0 AS keep FROM Customers)",
+		"SELECT * REPLACE (1 AS keep) FROM (SELECT CustomerId + 1, LENGTH(Name), 0 AS keep FROM Customers)",
+	} {
+		span := resolvePin(t, spannerResolveOptions(), statement, "db", tables)
+		require.GreaterOrEqual(t, len(span.Results), 2, statement)
+		require.Equal(t, []string{"", ""}, []string{span.Results[0].Name, span.Results[1].Name}, statement)
+		require.Equal(t, []string{"Customers.CustomerId"}, sourcesOf(span.Results[0]), statement)
+		require.Equal(t, []string{"Customers.Name"}, sourcesOf(span.Results[1]), statement)
+	}
+}
+
+// TestSpannerAnonymousSetOpName: a set operation takes its names from the
+// first arm, anonymous ones included, when it is merged after expansion.
+func TestSpannerAnonymousSetOpName(t *testing.T) {
+	tables := pinTables(&metadata.TableMetadata{Name: "Customers", Columns: []*metadata.ColumnMetadata{{Name: "CustomerId"}, {Name: "Name"}}})
+	statement := "SELECT * EXCEPT (keep) FROM (SELECT CustomerId + 1, 0 AS keep FROM Customers) UNION ALL SELECT Name FROM Customers"
+	span := resolvePin(t, spannerResolveOptions(), statement, "db", tables)
+	require.Len(t, span.Results, 1)
+	require.Equal(t, "", span.Results[0].Name)
+	require.Equal(t, []string{"Customers.CustomerId", "Customers.Name"}, sourcesOf(span.Results[0]))
+}

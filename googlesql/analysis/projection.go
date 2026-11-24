@@ -238,12 +238,38 @@ func (w *spanWalker) resolveStarModifiers(mods *ast.StarModifiers) ([]string, []
 // resolveExprColumn resolves a non-star select item to a single output column,
 // mirroring the legacy extractSourceColumnSetFromExpr + alias rule. The item is
 // never a plain field (an explicit select-list item is IsPlainField=false).
+//
+// Spanner names the column as GoogleSQL does (testdata/span.tsv): by its
+// alias, or by the last name of a path or field access, as written; any other
+// expression is anonymous.
 func (w *spanWalker) resolveExprColumn(item *ast.SelectItem) projColumn {
 	name, sources := w.resolveExprSources(item.Expr)
+	if w.dialect == DialectSpanner {
+		name = implicitAlias(item.Expr)
+	}
 	if item.Alias != "" {
 		name = item.Alias
 	}
 	return projColumn{name: name, sources: sources, plain: false}
+}
+
+// implicitAlias is the name GoogleSQL gives a select item without an alias:
+// the last name of a path or field access, parenthesized or not, and none for
+// any other expression.
+func implicitAlias(expr ast.Node) string {
+	switch e := expr.(type) {
+	case *ast.ParenExpr:
+		return implicitAlias(e.Expr)
+	case *ast.Identifier:
+		return e.Name
+	case *ast.PathExpr:
+		if len(e.Parts) > 0 {
+			return e.Parts[len(e.Parts)-1]
+		}
+	case *ast.FieldAccess:
+		return e.Field
+	}
+	return ""
 }
 
 // resolveExprSources resolves an expression's directly-referenced columns to

@@ -240,6 +240,385 @@
             }
           ],
           "hasMaterializedViewLog":  false
+        },
+        {
+          "name":  "p_auto",
+          "columns":  [
+            {
+              "name":  "a",
+              "position":  1,
+              "type":  "int"
+            }
+          ],
+          "indexes":  [
+            {
+              "name":  "PRIMARY",
+              "expressions":  [
+                "a"
+              ],
+              "keyLength":  [
+                "-1"
+              ],
+              "descending":  [
+                false
+              ],
+              "type":  "BTREE",
+              "unique":  true,
+              "primary":  true,
+              "visible":  true
+            }
+          ],
+          "engine":  "InnoDB",
+          "collation":  "utf8mb4_general_ci",
+          "charset":  "utf8mb4",
+          "hasMaterializedViewLog":  false
+        },
+        {
+          "name":  "p_hash",
+          "columns":  [
+            {
+              "name":  "a",
+              "position":  1,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "int"
+            }
+          ],
+          "engine":  "InnoDB",
+          "collation":  "utf8mb4_general_ci",
+          "charset":  "utf8mb4",
+          "partitions":  [
+            {
+              "name":  "p0",
+              "type":  "HASH",
+              "expression":  "`a`"
+            },
+            {
+              "name":  "p1",
+              "type":  "HASH",
+              "expression":  "`a`"
+            },
+            {
+              "name":  "p2",
+              "type":  "HASH",
+              "expression":  "`a`"
+            }
+          ],
+          "hasMaterializedViewLog":  false
+        },
+        {
+          "name":  "p_key",
+          "columns":  [
+            {
+              "name":  "a",
+              "position":  1,
+              "type":  "int"
+            },
+            {
+              "name":  "b",
+              "position":  2,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "int"
+            }
+          ],
+          "indexes":  [
+            {
+              "name":  "PRIMARY",
+              "expressions":  [
+                "a"
+              ],
+              "keyLength":  [
+                "-1"
+              ],
+              "descending":  [
+                false
+              ],
+              "type":  "BTREE",
+              "unique":  true,
+              "primary":  true,
+              "visible":  true
+            }
+          ],
+          "engine":  "InnoDB",
+          "collation":  "utf8mb4_general_ci",
+          "charset":  "utf8mb4",
+          "partitions":  [
+            {
+              "name":  "p0",
+              "type":  "KEY"
+            },
+            {
+              "name":  "p1",
+              "type":  "KEY"
+            }
+          ],
+          "hasMaterializedViewLog":  false
+        },
+        {
+          "name":  "p_list",
+          "columns":  [
+            {
+              "name":  "a",
+              "position":  1,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "int"
+            }
+          ],
+          "engine":  "InnoDB",
+          "collation":  "utf8mb4_general_ci",
+          "charset":  "utf8mb4",
+          "partitions":  [
+            {
+              "name":  "p_low",
+              "type":  "LIST",
+              "expression":  "`a`",
+              "value":  "1,2"
+            },
+            {
+              "name":  "p_rest",
+              "type":  "LIST",
+              "expression":  "`a`",
+              "value":  "DEFAULT"
+            }
+          ],
+          "hasMaterializedViewLog":  false
+        },
+        {
+          "name":  "p_list_cols",
+          "columns":  [
+            {
+              "name":  "a",
+              "position":  1,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "int"
+            },
+            {
+              "name":  "b",
+              "position":  2,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "char(2)",
+              "characterSet":  "utf8mb4",
+              "collation":  "utf8mb4_general_ci"
+            }
+          ],
+          "engine":  "InnoDB",
+          "collation":  "utf8mb4_general_ci",
+          "charset":  "utf8mb4",
+          "partitions":  [
+            {
+              "name":  "p0",
+              "type":  "LIST_COLUMNS",
+              "expression":  "`a`, `b`",
+              "value":  "(1,'a'),(2,'b')"
+            },
+            {
+              "name":  "p1",
+              "type":  "LIST_COLUMNS",
+              "expression":  "`a`, `b`",
+              "value":  "(3,'c')"
+            }
+          ],
+          "hasMaterializedViewLog":  false
+        },
+        {
+          "name":  "p_range",
+          "columns":  [
+            {
+              "name":  "id",
+              "position":  1,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "int"
+            },
+            {
+              "name":  "sold",
+              "position":  2,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "date"
+            }
+          ],
+          "engine":  "InnoDB",
+          "collation":  "utf8mb4_general_ci",
+          "charset":  "utf8mb4",
+          "partitions":  [
+            {
+              "name":  "p2020",
+              "type":  "RANGE",
+              "expression":  "year(`sold`)",
+              "value":  "2021"
+            },
+            {
+              "name":  "p_max",
+              "type":  "RANGE",
+              "expression":  "year(`sold`)",
+              "value":  "MAXVALUE"
+            }
+          ],
+          "hasMaterializedViewLog":  false
+        },
+        {
+          "name":  "p_range_cols",
+          "columns":  [
+            {
+              "name":  "a",
+              "position":  1,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "int"
+            },
+            {
+              "name":  "b",
+              "position":  2,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "varchar(10)",
+              "characterSet":  "utf8mb4",
+              "collation":  "utf8mb4_general_ci"
+            }
+          ],
+          "engine":  "InnoDB",
+          "collation":  "utf8mb4_general_ci",
+          "charset":  "utf8mb4",
+          "partitions":  [
+            {
+              "name":  "p0",
+              "type":  "RANGE_COLUMNS",
+              "expression":  "`a`, `b`",
+              "value":  "10,'m'"
+            },
+            {
+              "name":  "p1",
+              "type":  "RANGE_COLUMNS",
+              "expression":  "`a`, `b`",
+              "value":  "MAXVALUE,MAXVALUE"
+            }
+          ],
+          "hasMaterializedViewLog":  false
+        },
+        {
+          "name":  "p_sub",
+          "columns":  [
+            {
+              "name":  "a",
+              "position":  1,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "int"
+            },
+            {
+              "name":  "b",
+              "position":  2,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "int"
+            }
+          ],
+          "engine":  "InnoDB",
+          "collation":  "utf8mb4_general_ci",
+          "charset":  "utf8mb4",
+          "partitions":  [
+            {
+              "name":  "p0",
+              "type":  "RANGE",
+              "expression":  "`a`",
+              "value":  "10",
+              "subpartitions":  [
+                {
+                  "name":  "p0sp0",
+                  "type":  "HASH",
+                  "expression":  "`b`"
+                },
+                {
+                  "name":  "p0sp1",
+                  "type":  "HASH",
+                  "expression":  "`b`"
+                }
+              ]
+            },
+            {
+              "name":  "p1",
+              "type":  "RANGE",
+              "expression":  "`a`",
+              "value":  "20",
+              "subpartitions":  [
+                {
+                  "name":  "p1sp0",
+                  "type":  "HASH",
+                  "expression":  "`b`"
+                },
+                {
+                  "name":  "p1sp1",
+                  "type":  "HASH",
+                  "expression":  "`b`"
+                }
+              ]
+            }
+          ],
+          "hasMaterializedViewLog":  false
+        },
+        {
+          "name":  "p_sub_named",
+          "columns":  [
+            {
+              "name":  "a",
+              "position":  1,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "int"
+            },
+            {
+              "name":  "b",
+              "position":  2,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "int"
+            }
+          ],
+          "engine":  "InnoDB",
+          "collation":  "utf8mb4_general_ci",
+          "charset":  "utf8mb4",
+          "partitions":  [
+            {
+              "name":  "p0",
+              "type":  "LIST",
+              "expression":  "`a`",
+              "value":  "1",
+              "subpartitions":  [
+                {
+                  "name":  "s0",
+                  "type":  "RANGE",
+                  "expression":  "`b`",
+                  "value":  "5"
+                },
+                {
+                  "name":  "s1",
+                  "type":  "RANGE",
+                  "expression":  "`b`",
+                  "value":  "MAXVALUE"
+                }
+              ]
+            },
+            {
+              "name":  "p1",
+              "type":  "LIST",
+              "expression":  "`a`",
+              "value":  "2",
+              "subpartitions":  [
+                {
+                  "name":  "s2",
+                  "type":  "RANGE",
+                  "expression":  "`b`",
+                  "value":  "MAXVALUE"
+                }
+              ]
+            }
+          ],
+          "hasMaterializedViewLog":  false
         }
       ],
       "externalTables":  [
