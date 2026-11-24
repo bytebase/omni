@@ -1160,3 +1160,21 @@ func TestWalkThroughOracleRichChecks(t *testing.T) {
 	noFinding(t, `DELETE FROM (SELECT id FROM "dual");`, review.Target{Schema: localDualSchema})
 	noFinding(t, "ALTER TABLE plain ADD PARTITION;", review.Target{Schema: walkRichSchema(), OtherSpecs: true})
 }
+
+// TestWalkThroughOracleMaterializedViewColumns pins the checks a synced
+// materialized view's columns enable, and that its partitions, which the
+// sync does not list, stay unknown.
+func TestWalkThroughOracleMaterializedViewColumns(t *testing.T) {
+	db := walkRichSchema()
+	for _, mv := range db.Schemas[0].MaterializedViews {
+		if mv.Name == "MV" {
+			mv.Columns = []*metadata.ColumnMetadata{
+				{Name: "ID", Type: "NUMBER", Nullable: false},
+				{Name: "VAL", Type: "NUMBER", Nullable: true},
+			}
+		}
+	}
+	rich := review.Target{Schema: db}
+	oneFinding(t, "ALTER TABLE mv MODIFY (val GENERATED ALWAYS AS IDENTITY);", 0, "Column `VAL` in `MV` is not an identity column.", rich)
+	noFinding(t, "MERGE INTO plain p USING mv PARTITION FOR (1) m ON (p.id = m.id) WHEN MATCHED THEN UPDATE SET p.val = m.val;", rich)
+}
