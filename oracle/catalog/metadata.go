@@ -2795,6 +2795,9 @@ func (e *oracleMetadataExtractor) resolveForeignKeyReferencedColumns() {
 				continue
 			}
 			referencedTable := e.tables[foreignKey.ReferencedTable]
+			if referencedTable == nil {
+				continue
+			}
 			foreignKey.ReferencedColumns = primaryKeyColumns(referencedTable)
 		}
 	}

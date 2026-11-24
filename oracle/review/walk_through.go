@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/oracle/ast"
 	"github.com/bytebase/omni/oracle/parser"
 	"github.com/bytebase/omni/review"
@@ -109,6 +110,8 @@ type walker struct {
 	mutatedSynonyms   map[string]bool
 	mutatedAllTables  bool
 	mutatedAllIndexes bool
+	// meta is the synced schema.
+	meta *metadata.DatabaseSchemaMetadata
 }
 
 func newWalker(sql string, stmts []statement, t review.Target) *walker {
@@ -123,6 +126,7 @@ func newWalker(sql string, stmts []statement, t review.Target) *walker {
 		mutatedColMeta:    make(map[[2]string]bool),
 		mutatedIndexes:    make(map[[2]string]bool),
 		mutatedSynonyms:   make(map[string]bool),
+		meta:              t.Schema,
 	}
 }
 

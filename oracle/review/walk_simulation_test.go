@@ -438,7 +438,7 @@ func TestWalkSimulation(t *testing.T) {
 const walkSimQueriesSuite = "../catalog/testdata/queries/simulate.tsv"
 
 // walkSimQueriesMinRecallPct is the queries subtest's recall floor.
-const walkSimQueriesMinRecallPct = 2.0
+const walkSimQueriesMinRecallPct = 60.0
 
 // walkSimProgramsSuite is oracle/catalog's stored-program suite: procedures,
 // functions, packages, triggers and types with bodies, and changes to the
