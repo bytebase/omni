@@ -25,7 +25,9 @@ func TestWalkSimulation(t *testing.T) {
 		path     string
 		minFound int
 	}{
-		// What the walk misses a synced schema can't show: a primary key
+		// What the walk misses a synced schema can't show: partition
+		// commands on a table with no partitions (1505), since
+		// oceanbase/driver's sync lists none, a primary key
 		// beside a secondary index the sync may take for it (1068),
 		// tablespaces and tablegroups (3510, 5151), column groups (4185),
 		// other databases (1049, 1146, 1360, 1305), events, which
@@ -34,7 +36,7 @@ func TestWalkSimulation(t *testing.T) {
 		// STORAGE_FORMAT_VERSION (4179), DYNAMIC_PARTITION_POLICY,
 		// repartitioning or REORGANIZE PARTITION of a partitioned table, or
 		// a vector ORDER BY ... APPROX (1235).
-		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 3599},
+		{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), 3535},
 		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 280},
 		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 4069},
 	} {

@@ -1696,12 +1696,13 @@ var obCollations = map[string]string{
 }
 
 // Whether a table is partitioned is one key of its path on OceanBase,
-// read only when Present: partitionedNo, or partitionedYes, as the sync
-// lists the table's partitions or a CREATE TABLE writes a PARTITION BY. A
-// table the sync lists partitions of, which no statement of the change
-// has repartitioned, has a kind that says more (partitionFacts): its
-// partitions' names, whether it has subpartitions, and the columns its
-// partitioning reads.
+// read only when Present: partitionedNo or partitionedYes, as a CREATE
+// TABLE of the change writes a PARTITION BY or not, and partitionedYes for
+// a table the sync lists partitions of. A table the sync lists no
+// partitions of is Unknown: oceanbase/driver's sync lists none. A synced
+// table no statement of the change has repartitioned has a kind that says
+// more (partitionFacts): its partitions' names, whether it has
+// subpartitions, and the columns its partitioning reads.
 const (
 	spacePartitioned = "partitioned"
 	spacePartition   = "partition"
@@ -1721,11 +1722,9 @@ type partitionFacts struct {
 	cols  []string // keys of the columns the partitioning reads, nil when not known
 }
 
-// syncedPartitioned is the kind of a synced table's partitioned key.
+// syncedPartitioned is the kind of the partitioned key of a table the sync
+// lists partitions of.
 func syncedPartitioned(parts []*metadata.TablePartitionMetadata) string {
-	if len(parts) == 0 {
-		return partitionedNo
-	}
 	var f partitionFacts
 	for _, p := range parts {
 		k, ok := nameKey(spacePartition, p.GetName(), true)

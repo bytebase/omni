@@ -203,7 +203,9 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables, oceanBase
 			}
 			s.relations[tk] = relTable
 			mark(spaceRelation, "", tk)
-			if oceanBase {
+			// oceanbase/driver's sync lists no partitions, so a table it
+			// lists none of may be partitioned all the same.
+			if oceanBase && len(t.GetPartitions()) > 0 {
 				s.partitioned[tk] = syncedPartitioned(t.GetPartitions())
 			}
 			if strings.HasPrefix(strings.ToLower(t.GetName()), mvContainer) {
