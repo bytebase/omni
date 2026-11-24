@@ -590,11 +590,16 @@ func applyStarModifiers(expanded []ResolvedQuerySpanResult, r ColumnInfo, fullSo
 	// Key by output name; a name collision keeps the LAST occurrence (legacy
 	// fieldItemMap overwrite), but the surviving entry keeps its FIRST ordinal
 	// so the output order is stable.
+	// An anonymous column (Spanner names an expression "") has no name to
+	// collide on or to name in EXCEPT/REPLACE, so each keeps a key of its own.
 	order := map[string]int{}
 	byName := map[string]item{}
 	next := 0
-	for _, f := range expanded {
+	for i, f := range expanded {
 		key := strings.ToLower(f.Name)
+		if f.Name == "" {
+			key = fmt.Sprintf("\x00%d", i)
+		}
 		if _, ok := order[key]; !ok {
 			order[key] = next
 			next++
