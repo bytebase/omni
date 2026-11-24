@@ -20444,6 +20444,46 @@
 | 42421 ORA-42421: property graph does not exist
 |
 > exec
+| ALTER TABLE a ADD PARTITION STORE IN (a)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a, a)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION a STORE IN (a)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a) UPDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION a VALUES LESS THAN (1) STORE IN (a)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION a VALUES (1) STORE IN (a)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION TABLESPACE a STORE IN (a)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a), PARTITION a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 1); END;
 < ok 1 0
 > exec
@@ -40812,6 +40852,46 @@
 | 42421 ORA-42421: property graph does not exist
 |
 > exec
+| ALTER TABLE a ADD PARTITION STORE IN (a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a, a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION a STORE IN (a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a) UPDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION a VALUES LESS THAN (1) STORE IN (a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION a VALUES (1) STORE IN (a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION TABLESPACE a STORE IN (a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a), PARTITION a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 1); END;
 < ok 1 0
 > exec
@@ -60330,6 +60410,46 @@
 | COMMENT ON PROPERTY GRAPH a IS 'comment category property graph'
 < error
 | 42421 ORA-42421: property graph does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a, a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION a STORE IN (a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a) UPDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION a VALUES LESS THAN (1) STORE IN (a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION a VALUES (1) STORE IN (a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION TABLESPACE a STORE IN (a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a), PARTITION a
+< error
+| 14501 ORA-14501: object is not partitioned
 |
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 1); END;
@@ -80406,6 +80526,46 @@
 | COMMENT ON PROPERTY GRAPH a IS 'comment category property graph'
 < error
 | 42421 ORA-42421: property graph does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a)
+< error
+| 14258 ORA-14258: invalid partition description
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a, a)
+< error
+| 14258 ORA-14258: invalid partition description
+|
+> exec
+| ALTER TABLE a ADD PARTITION a STORE IN (a)
+< error
+| 14258 ORA-14258: invalid partition description
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a) UPDATE INDEXES
+< error
+| 14258 ORA-14258: invalid partition description
+|
+> exec
+| ALTER TABLE a ADD PARTITION a VALUES LESS THAN (1) STORE IN (a)
+< error
+| 14258 ORA-14258: invalid partition description
+|
+> exec
+| ALTER TABLE a ADD PARTITION a VALUES (1) STORE IN (a)
+< error
+| 14258 ORA-14258: invalid partition description
+|
+> exec
+| ALTER TABLE a ADD PARTITION TABLESPACE a STORE IN (a)
+< error
+| 14258 ORA-14258: invalid partition description
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a), PARTITION a
+< error
+| 14258 ORA-14258: invalid partition description
 |
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 1); END;
@@ -100760,6 +100920,46 @@
 | 42421 ORA-42421: property graph does not exist
 |
 > exec
+| ALTER TABLE a ADD PARTITION STORE IN (a)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a, a)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION a STORE IN (a)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a) UPDATE INDEXES
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION a VALUES LESS THAN (1) STORE IN (a)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION a VALUES (1) STORE IN (a)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION TABLESPACE a STORE IN (a)
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a), PARTITION a
+< error
+| 942 ORA-00942: table or view "SIMSHOP"."A" does not exist
+|
+> exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 1); END;
 < ok 1 0
 > exec
@@ -118822,6 +119022,46 @@
 | COMMENT ON PROPERTY GRAPH a IS 'comment category property graph'
 < error
 | 42421 ORA-42421: property graph does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a)
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a, a)
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a ADD PARTITION a STORE IN (a)
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a) UPDATE INDEXES
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a ADD PARTITION a VALUES LESS THAN (1) STORE IN (a)
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a ADD PARTITION a VALUES (1) STORE IN (a)
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a ADD PARTITION TABLESPACE a STORE IN (a)
+< error
+| 1702 ORA-01702: a view is not appropriate here
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a), PARTITION a
+< error
+| 1702 ORA-01702: a view is not appropriate here
 |
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 1); END;
@@ -139989,6 +140229,46 @@
 | 42421 ORA-42421: property graph does not exist
 |
 > exec
+| ALTER TABLE a ADD PARTITION STORE IN (a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a, a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION a STORE IN (a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a) UPDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION a VALUES LESS THAN (1) STORE IN (a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION a VALUES (1) STORE IN (a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION TABLESPACE a STORE IN (a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a), PARTITION a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 1); END;
 < ok 1 0
 > exec
@@ -157913,6 +158193,46 @@
 | COMMENT ON PROPERTY GRAPH a IS 'comment category property graph'
 < error
 | 42421 ORA-42421: property graph does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a)
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a, a)
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION a STORE IN (a)
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a) UPDATE INDEXES
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION a VALUES LESS THAN (1) STORE IN (a)
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION a VALUES (1) STORE IN (a)
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION TABLESPACE a STORE IN (a)
+< error
+| 2201 ORA-02201: sequence not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a), PARTITION a
+< error
+| 2201 ORA-02201: sequence not allowed here
 |
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 1); END;
@@ -176388,6 +176708,46 @@
 | 42421 ORA-42421: property graph does not exist
 |
 > exec
+| ALTER TABLE a ADD PARTITION STORE IN (a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a, a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION a STORE IN (a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a) UPDATE INDEXES
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION a VALUES LESS THAN (1) STORE IN (a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION a VALUES (1) STORE IN (a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION TABLESPACE a STORE IN (a)
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a), PARTITION a
+< error
+| 14501 ORA-14501: object is not partitioned
+|
+> exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 1); END;
 < ok 1 0
 > exec
@@ -194251,6 +194611,46 @@
 | COMMENT ON PROPERTY GRAPH a IS 'comment category property graph'
 < error
 | 42421 ORA-42421: property graph does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a)
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a, a)
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION a STORE IN (a)
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a) UPDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION a VALUES LESS THAN (1) STORE IN (a)
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION a VALUES (1) STORE IN (a)
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION TABLESPACE a STORE IN (a)
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a), PARTITION a
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 1); END;
@@ -212196,6 +212596,46 @@
 | COMMENT ON PROPERTY GRAPH a IS 'comment category property graph'
 < error
 | 42421 ORA-42421: property graph does not exist
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a)
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a, a)
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION a STORE IN (a)
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a) UPDATE INDEXES
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION a VALUES LESS THAN (1) STORE IN (a)
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION a VALUES (1) STORE IN (a)
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION TABLESPACE a STORE IN (a)
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
+|
+> exec
+| ALTER TABLE a ADD PARTITION STORE IN (a), PARTITION a
+< error
+| 4044 ORA-04044: procedure, function, package, or type is not allowed here
 |
 > exec
 | BEGIN system.omni_sim_reset('SIMSHOP', 0); END;

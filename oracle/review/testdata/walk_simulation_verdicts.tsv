@@ -3258,6 +3258,14 @@ ok	one_table@missing	suite:manifest	COMMENT ON TABLE t IS 'comment category tabl
 46357	one_table@missing	suite:manifest	COMMENT ON AUDIT POLICY a IS 'comment category audit policy'
 40284	one_table@missing	suite:manifest	COMMENT ON MINING MODEL a IS 'comment category mining model'
 42421	one_table@missing	suite:manifest	COMMENT ON PROPERTY GRAPH a IS 'comment category property graph'
+00942	one_table@missing	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a)
+00942	one_table@missing	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a, a)
+00942	one_table@missing	cited:add_table_partition	ALTER TABLE a ADD PARTITION a STORE IN (a)
+00942	one_table@missing	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a) UPDATE INDEXES
+00942	one_table@missing	cited:add_table_partition	ALTER TABLE a ADD PARTITION a VALUES LESS THAN (1) STORE IN (a)
+00942	one_table@missing	cited:add_table_partition	ALTER TABLE a ADD PARTITION a VALUES (1) STORE IN (a)
+00942	one_table@missing	cited:add_table_partition	ALTER TABLE a ADD PARTITION TABLESPACE a STORE IN (a)
+00942	one_table@missing	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a), PARTITION a
 04043	one_table@table	statement/alterFunction	ALTER FUNCTION a COMPILE
 00942	one_table@table	statement/alterSynonym	ALTER SYNONYM a EDITIONABLE
 04080	one_table@table	statement/alterTrigger	ALTER TRIGGER a COMPILE
@@ -6516,6 +6524,14 @@ ok	one_table@table	suite:manifest	COMMENT ON TABLE t IS 'comment category table'
 46357	one_table@table	suite:manifest	COMMENT ON AUDIT POLICY a IS 'comment category audit policy'
 40284	one_table@table	suite:manifest	COMMENT ON MINING MODEL a IS 'comment category mining model'
 42421	one_table@table	suite:manifest	COMMENT ON PROPERTY GRAPH a IS 'comment category property graph'
+14501	one_table@table	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a)
+14501	one_table@table	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a, a)
+14501	one_table@table	cited:add_table_partition	ALTER TABLE a ADD PARTITION a STORE IN (a)
+14501	one_table@table	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a) UPDATE INDEXES
+14501	one_table@table	cited:add_table_partition	ALTER TABLE a ADD PARTITION a VALUES LESS THAN (1) STORE IN (a)
+14501	one_table@table	cited:add_table_partition	ALTER TABLE a ADD PARTITION a VALUES (1) STORE IN (a)
+14501	one_table@table	cited:add_table_partition	ALTER TABLE a ADD PARTITION TABLESPACE a STORE IN (a)
+14501	one_table@table	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a), PARTITION a
 04043	one_table@column	statement/alterFunction	ALTER FUNCTION a COMPILE
 00942	one_table@column	statement/alterSynonym	ALTER SYNONYM a EDITIONABLE
 04080	one_table@column	statement/alterTrigger	ALTER TRIGGER a COMPILE
@@ -9774,6 +9790,14 @@ ok	one_table@column	suite:manifest	COMMENT ON TABLE t IS 'comment category table
 46357	one_table@column	suite:manifest	COMMENT ON AUDIT POLICY a IS 'comment category audit policy'
 40284	one_table@column	suite:manifest	COMMENT ON MINING MODEL a IS 'comment category mining model'
 42421	one_table@column	suite:manifest	COMMENT ON PROPERTY GRAPH a IS 'comment category property graph'
+14501	one_table@column	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a)
+14501	one_table@column	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a, a)
+14501	one_table@column	cited:add_table_partition	ALTER TABLE a ADD PARTITION a STORE IN (a)
+14501	one_table@column	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a) UPDATE INDEXES
+14501	one_table@column	cited:add_table_partition	ALTER TABLE a ADD PARTITION a VALUES LESS THAN (1) STORE IN (a)
+14501	one_table@column	cited:add_table_partition	ALTER TABLE a ADD PARTITION a VALUES (1) STORE IN (a)
+14501	one_table@column	cited:add_table_partition	ALTER TABLE a ADD PARTITION TABLESPACE a STORE IN (a)
+14501	one_table@column	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a), PARTITION a
 04043	objects@partitioned	statement/alterFunction	ALTER FUNCTION a COMPILE
 00942	objects@partitioned	statement/alterSynonym	ALTER SYNONYM a EDITIONABLE
 04080	objects@partitioned	statement/alterTrigger	ALTER TRIGGER a COMPILE
@@ -13032,6 +13056,14 @@ ok	objects@partitioned	suite:manifest	COMMENT ON TABLE t IS 'comment category ta
 46357	objects@partitioned	suite:manifest	COMMENT ON AUDIT POLICY a IS 'comment category audit policy'
 40284	objects@partitioned	suite:manifest	COMMENT ON MINING MODEL a IS 'comment category mining model'
 42421	objects@partitioned	suite:manifest	COMMENT ON PROPERTY GRAPH a IS 'comment category property graph'
+14258	objects@partitioned	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a)
+14258	objects@partitioned	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a, a)
+14258	objects@partitioned	cited:add_table_partition	ALTER TABLE a ADD PARTITION a STORE IN (a)
+14258	objects@partitioned	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a) UPDATE INDEXES
+14258	objects@partitioned	cited:add_table_partition	ALTER TABLE a ADD PARTITION a VALUES LESS THAN (1) STORE IN (a)
+14258	objects@partitioned	cited:add_table_partition	ALTER TABLE a ADD PARTITION a VALUES (1) STORE IN (a)
+14258	objects@partitioned	cited:add_table_partition	ALTER TABLE a ADD PARTITION TABLESPACE a STORE IN (a)
+14258	objects@partitioned	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a), PARTITION a
 04043	objects@index_trigger	statement/alterFunction	ALTER FUNCTION a COMPILE
 00942	objects@index_trigger	statement/alterSynonym	ALTER SYNONYM a EDITIONABLE
 ok	objects@index_trigger	statement/alterTrigger	ALTER TRIGGER a COMPILE
@@ -16290,6 +16322,14 @@ ok	objects@index_trigger	suite:manifest	COMMENT ON COLUMN t.a IS 'comment catego
 46357	objects@index_trigger	suite:manifest	COMMENT ON AUDIT POLICY a IS 'comment category audit policy'
 40284	objects@index_trigger	suite:manifest	COMMENT ON MINING MODEL a IS 'comment category mining model'
 42421	objects@index_trigger	suite:manifest	COMMENT ON PROPERTY GRAPH a IS 'comment category property graph'
+00942	objects@index_trigger	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a)
+00942	objects@index_trigger	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a, a)
+00942	objects@index_trigger	cited:add_table_partition	ALTER TABLE a ADD PARTITION a STORE IN (a)
+00942	objects@index_trigger	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a) UPDATE INDEXES
+00942	objects@index_trigger	cited:add_table_partition	ALTER TABLE a ADD PARTITION a VALUES LESS THAN (1) STORE IN (a)
+00942	objects@index_trigger	cited:add_table_partition	ALTER TABLE a ADD PARTITION a VALUES (1) STORE IN (a)
+00942	objects@index_trigger	cited:add_table_partition	ALTER TABLE a ADD PARTITION TABLESPACE a STORE IN (a)
+00942	objects@index_trigger	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a), PARTITION a
 04043	objects@view	statement/alterFunction	ALTER FUNCTION a COMPILE
 00942	objects@view	statement/alterSynonym	ALTER SYNONYM a EDITIONABLE
 04080	objects@view	statement/alterTrigger	ALTER TRIGGER a COMPILE
@@ -19548,6 +19588,14 @@ ok	objects@view	suite:manifest	COMMENT ON COLUMN t.a IS 'comment category column
 46357	objects@view	suite:manifest	COMMENT ON AUDIT POLICY a IS 'comment category audit policy'
 40284	objects@view	suite:manifest	COMMENT ON MINING MODEL a IS 'comment category mining model'
 42421	objects@view	suite:manifest	COMMENT ON PROPERTY GRAPH a IS 'comment category property graph'
+01702	objects@view	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a)
+01702	objects@view	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a, a)
+01702	objects@view	cited:add_table_partition	ALTER TABLE a ADD PARTITION a STORE IN (a)
+01702	objects@view	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a) UPDATE INDEXES
+01702	objects@view	cited:add_table_partition	ALTER TABLE a ADD PARTITION a VALUES LESS THAN (1) STORE IN (a)
+01702	objects@view	cited:add_table_partition	ALTER TABLE a ADD PARTITION a VALUES (1) STORE IN (a)
+01702	objects@view	cited:add_table_partition	ALTER TABLE a ADD PARTITION TABLESPACE a STORE IN (a)
+01702	objects@view	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a), PARTITION a
 04043	objects@matview	statement/alterFunction	ALTER FUNCTION a COMPILE
 00942	objects@matview	statement/alterSynonym	ALTER SYNONYM a EDITIONABLE
 04080	objects@matview	statement/alterTrigger	ALTER TRIGGER a COMPILE
@@ -22806,6 +22854,14 @@ ok	objects@matview	suite:manifest	COMMENT ON COLUMN t.a IS 'comment category col
 46357	objects@matview	suite:manifest	COMMENT ON AUDIT POLICY a IS 'comment category audit policy'
 40284	objects@matview	suite:manifest	COMMENT ON MINING MODEL a IS 'comment category mining model'
 42421	objects@matview	suite:manifest	COMMENT ON PROPERTY GRAPH a IS 'comment category property graph'
+14501	objects@matview	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a)
+14501	objects@matview	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a, a)
+14501	objects@matview	cited:add_table_partition	ALTER TABLE a ADD PARTITION a STORE IN (a)
+14501	objects@matview	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a) UPDATE INDEXES
+14501	objects@matview	cited:add_table_partition	ALTER TABLE a ADD PARTITION a VALUES LESS THAN (1) STORE IN (a)
+14501	objects@matview	cited:add_table_partition	ALTER TABLE a ADD PARTITION a VALUES (1) STORE IN (a)
+14501	objects@matview	cited:add_table_partition	ALTER TABLE a ADD PARTITION TABLESPACE a STORE IN (a)
+14501	objects@matview	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a), PARTITION a
 04043	objects@sequence	statement/alterFunction	ALTER FUNCTION a COMPILE
 00942	objects@sequence	statement/alterSynonym	ALTER SYNONYM a EDITIONABLE
 04080	objects@sequence	statement/alterTrigger	ALTER TRIGGER a COMPILE
@@ -26064,6 +26120,14 @@ ok	objects@sequence	suite:manifest	COMMENT ON TABLE t IS 'comment category table
 46357	objects@sequence	suite:manifest	COMMENT ON AUDIT POLICY a IS 'comment category audit policy'
 40284	objects@sequence	suite:manifest	COMMENT ON MINING MODEL a IS 'comment category mining model'
 42421	objects@sequence	suite:manifest	COMMENT ON PROPERTY GRAPH a IS 'comment category property graph'
+02201	objects@sequence	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a)
+02201	objects@sequence	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a, a)
+02201	objects@sequence	cited:add_table_partition	ALTER TABLE a ADD PARTITION a STORE IN (a)
+02201	objects@sequence	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a) UPDATE INDEXES
+02201	objects@sequence	cited:add_table_partition	ALTER TABLE a ADD PARTITION a VALUES LESS THAN (1) STORE IN (a)
+02201	objects@sequence	cited:add_table_partition	ALTER TABLE a ADD PARTITION a VALUES (1) STORE IN (a)
+02201	objects@sequence	cited:add_table_partition	ALTER TABLE a ADD PARTITION TABLESPACE a STORE IN (a)
+02201	objects@sequence	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a), PARTITION a
 04043	objects@synonym	statement/alterFunction	ALTER FUNCTION a COMPILE
 ok	objects@synonym	statement/alterSynonym	ALTER SYNONYM a EDITIONABLE
 04080	objects@synonym	statement/alterTrigger	ALTER TRIGGER a COMPILE
@@ -29322,6 +29386,14 @@ ok	objects@synonym	suite:manifest	COMMENT ON COLUMN t.a IS 'comment category col
 46357	objects@synonym	suite:manifest	COMMENT ON AUDIT POLICY a IS 'comment category audit policy'
 40284	objects@synonym	suite:manifest	COMMENT ON MINING MODEL a IS 'comment category mining model'
 42421	objects@synonym	suite:manifest	COMMENT ON PROPERTY GRAPH a IS 'comment category property graph'
+14501	objects@synonym	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a)
+14501	objects@synonym	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a, a)
+14501	objects@synonym	cited:add_table_partition	ALTER TABLE a ADD PARTITION a STORE IN (a)
+14501	objects@synonym	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a) UPDATE INDEXES
+14501	objects@synonym	cited:add_table_partition	ALTER TABLE a ADD PARTITION a VALUES LESS THAN (1) STORE IN (a)
+14501	objects@synonym	cited:add_table_partition	ALTER TABLE a ADD PARTITION a VALUES (1) STORE IN (a)
+14501	objects@synonym	cited:add_table_partition	ALTER TABLE a ADD PARTITION TABLESPACE a STORE IN (a)
+14501	objects@synonym	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a), PARTITION a
 ok	objects@function	statement/alterFunction	ALTER FUNCTION a COMPILE
 00942	objects@function	statement/alterSynonym	ALTER SYNONYM a EDITIONABLE
 04080	objects@function	statement/alterTrigger	ALTER TRIGGER a COMPILE
@@ -32580,6 +32652,14 @@ ok	objects@function	suite:manifest	COMMENT ON TABLE t IS 'comment category table
 46357	objects@function	suite:manifest	COMMENT ON AUDIT POLICY a IS 'comment category audit policy'
 40284	objects@function	suite:manifest	COMMENT ON MINING MODEL a IS 'comment category mining model'
 42421	objects@function	suite:manifest	COMMENT ON PROPERTY GRAPH a IS 'comment category property graph'
+04044	objects@function	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a)
+04044	objects@function	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a, a)
+04044	objects@function	cited:add_table_partition	ALTER TABLE a ADD PARTITION a STORE IN (a)
+04044	objects@function	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a) UPDATE INDEXES
+04044	objects@function	cited:add_table_partition	ALTER TABLE a ADD PARTITION a VALUES LESS THAN (1) STORE IN (a)
+04044	objects@function	cited:add_table_partition	ALTER TABLE a ADD PARTITION a VALUES (1) STORE IN (a)
+04044	objects@function	cited:add_table_partition	ALTER TABLE a ADD PARTITION TABLESPACE a STORE IN (a)
+04044	objects@function	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a), PARTITION a
 04043	objects@type	statement/alterFunction	ALTER FUNCTION a COMPILE
 00942	objects@type	statement/alterSynonym	ALTER SYNONYM a EDITIONABLE
 04080	objects@type	statement/alterTrigger	ALTER TRIGGER a COMPILE
@@ -35838,3 +35918,11 @@ ok	objects@type	suite:manifest	COMMENT ON TABLE t IS 'comment category table'
 46357	objects@type	suite:manifest	COMMENT ON AUDIT POLICY a IS 'comment category audit policy'
 40284	objects@type	suite:manifest	COMMENT ON MINING MODEL a IS 'comment category mining model'
 42421	objects@type	suite:manifest	COMMENT ON PROPERTY GRAPH a IS 'comment category property graph'
+04044	objects@type	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a)
+04044	objects@type	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a, a)
+04044	objects@type	cited:add_table_partition	ALTER TABLE a ADD PARTITION a STORE IN (a)
+04044	objects@type	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a) UPDATE INDEXES
+04044	objects@type	cited:add_table_partition	ALTER TABLE a ADD PARTITION a VALUES LESS THAN (1) STORE IN (a)
+04044	objects@type	cited:add_table_partition	ALTER TABLE a ADD PARTITION a VALUES (1) STORE IN (a)
+04044	objects@type	cited:add_table_partition	ALTER TABLE a ADD PARTITION TABLESPACE a STORE IN (a)
+04044	objects@type	cited:add_table_partition	ALTER TABLE a ADD PARTITION STORE IN (a), PARTITION a
