@@ -1,6 +1,7 @@
 package review
 
 import (
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -568,13 +569,19 @@ func partitionBound(pd *ast.PartitionDef) (string, bool) {
 	return "", false
 }
 
+// boundConstant returns a bound's constant as information_schema writes
+// it. An integer literal holds MaxInt64 for any number past it (the lexer
+// clamps it), so that one is not read.
 func boundConstant(n ast.Node) (string, bool) {
 	switch x := n.(type) {
 	case *ast.IntLit:
+		if x.Value == math.MaxInt64 {
+			return "", false
+		}
 		return strconv.FormatInt(x.Value, 10), true
 	case *ast.UnaryExpr:
 		if x.Op == ast.UnaryMinus {
-			if lit, ok := x.Operand.(*ast.IntLit); ok && lit.Value > 0 {
+			if lit, ok := x.Operand.(*ast.IntLit); ok && lit.Value > 0 && lit.Value != math.MaxInt64 {
 				return "-" + strconv.FormatInt(lit.Value, 10), true
 			}
 		}
