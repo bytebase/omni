@@ -1569,6 +1569,66 @@
                   "type": "NORMAL",
                   "visible": true
                 }
+              ],
+              "columns": [
+                {
+                  "name": "PRODUCT_ID",
+                  "position": 1,
+                  "type": "NUMBER"
+                },
+                {
+                  "name": "CATEGORY",
+                  "position": 2,
+                  "type": "VARCHAR2(50 BYTE)"
+                },
+                {
+                  "name": "SALES_DAYS",
+                  "position": 3,
+                  "nullable": true,
+                  "type": "NUMBER"
+                },
+                {
+                  "name": "TOTAL_REVENUE",
+                  "position": 4,
+                  "nullable": true,
+                  "type": "NUMBER"
+                },
+                {
+                  "name": "TOTAL_UNITS",
+                  "position": 5,
+                  "nullable": true,
+                  "type": "NUMBER"
+                },
+                {
+                  "name": "TOTAL_COST",
+                  "position": 6,
+                  "nullable": true,
+                  "type": "NUMBER"
+                },
+                {
+                  "name": "TOTAL_PROFIT",
+                  "position": 7,
+                  "nullable": true,
+                  "type": "NUMBER"
+                },
+                {
+                  "name": "AVG_DAILY_REVENUE",
+                  "position": 8,
+                  "nullable": true,
+                  "type": "NUMBER"
+                },
+                {
+                  "name": "FIRST_SALE_DATE",
+                  "position": 9,
+                  "nullable": true,
+                  "type": "DATE"
+                },
+                {
+                  "name": "LAST_SALE_DATE",
+                  "position": 10,
+                  "nullable": true,
+                  "type": "DATE"
+                }
               ]
             }
           ]

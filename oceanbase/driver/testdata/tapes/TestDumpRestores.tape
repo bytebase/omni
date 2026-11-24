@@ -29,6 +29,33 @@
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 < ok 0 0
 > exec
+| CREATE TABLE p_range (id INT, sold DATE) PARTITION BY RANGE (YEAR(sold)) (PARTITION p2020 VALUES LESS THAN (2021), PARTITION p_max VALUES LESS THAN MAXVALUE);
+< ok 0 0
+> exec
+| CREATE TABLE p_range_cols (a INT, b VARCHAR(10)) PARTITION BY RANGE COLUMNS (a, b) (PARTITION p0 VALUES LESS THAN (10, 'm'), PARTITION p1 VALUES LESS THAN (MAXVALUE, MAXVALUE));
+< ok 0 0
+> exec
+| CREATE TABLE p_list (a INT) PARTITION BY LIST (a) (PARTITION p_low VALUES IN (1, 2), PARTITION p_rest VALUES IN (DEFAULT));
+< ok 0 0
+> exec
+| CREATE TABLE p_list_cols (a INT, b CHAR(2)) PARTITION BY LIST COLUMNS (a, b) (PARTITION p0 VALUES IN ((1, 'a'), (2, 'b')), PARTITION p1 VALUES IN ((3, 'c')));
+< ok 0 0
+> exec
+| CREATE TABLE p_hash (a INT) PARTITION BY HASH (a) PARTITIONS 3;
+< ok 0 0
+> exec
+| CREATE TABLE p_key (a INT PRIMARY KEY, b INT) PARTITION BY KEY () PARTITIONS 2;
+< ok 0 0
+> exec
+| CREATE TABLE p_sub (a INT, b INT) PARTITION BY RANGE (a) SUBPARTITION BY HASH (b) SUBPARTITIONS 2 (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20));
+< ok 0 0
+> exec
+| CREATE TABLE p_sub_named (a INT, b INT) PARTITION BY LIST (a) SUBPARTITION BY RANGE (b) (PARTITION p0 VALUES IN (1) (SUBPARTITION s0 VALUES LESS THAN (5), SUBPARTITION s1 VALUES LESS THAN MAXVALUE), PARTITION p1 VALUES IN (2) (SUBPARTITION s2 VALUES LESS THAN MAXVALUE));
+< ok 0 0
+> exec
+| CREATE TABLE p_auto (a INT PRIMARY KEY) PARTITION BY RANGE () SIZE ('128MB');
+< ok 0 0
+> exec
 | CREATE EXTERNAL TABLE ext_feed (c1 INT, c2 VARCHAR(10) COMMENT 'owner''s note') LOCATION = '/tmp' PATTERN = '.*[.]csv' AUTO_REFRESH = IMMEDIATE FORMAT = (TYPE = 'CSV');
 < ok 0 0
 > exec
@@ -200,6 +227,42 @@
 | PRIMARY
 : bytes
 | id
+: bytes
+| A
+: int64 -1
+: null
+: uint64 1
+: bytes
+| BTREE
+: int64 0
+: int64 1
+: bytes
+|
+< row
+: bytes
+| p_auto
+: bytes
+| PRIMARY
+: bytes
+| a
+: bytes
+| A
+: int64 -1
+: null
+: uint64 1
+: bytes
+| BTREE
+: int64 0
+: int64 1
+: bytes
+|
+< row
+: bytes
+| p_key
+: bytes
+| PRIMARY
+: bytes
+| a
 : bytes
 | A
 : int64 -1
@@ -699,6 +762,336 @@
 : null
 : bytes
 | NO
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_auto
+: bytes
+| a
+: uint64 1
+: null
+: bytes
+| NO
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_hash
+: bytes
+| a
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_key
+: bytes
+| a
+: uint64 1
+: null
+: bytes
+| NO
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_key
+: bytes
+| b
+: uint64 2
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_list
+: bytes
+| a
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_list_cols
+: bytes
+| a
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_list_cols
+: bytes
+| b
+: uint64 2
+: null
+: bytes
+| YES
+: bytes
+| char(2)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_range
+: bytes
+| id
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_range
+: bytes
+| sold
+: uint64 2
+: null
+: bytes
+| YES
+: bytes
+| date
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_range_cols
+: bytes
+| a
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_range_cols
+: bytes
+| b
+: uint64 2
+: null
+: bytes
+| YES
+: bytes
+| varchar(10)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_sub
+: bytes
+| a
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_sub
+: bytes
+| b
+: uint64 2
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_sub_named
+: bytes
+| a
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_sub_named
+: bytes
+| b
+: uint64 2
+: null
+: bytes
+| YES
 : bytes
 | int(11)
 : bytes
@@ -1220,6 +1613,394 @@
 > query
 |
 | 		SELECT
+| 			TABLE_NAME,
+| 			PARTITION_NAME,
+| 			SUBPARTITION_NAME,
+| 			PARTITION_METHOD,
+| 			SUBPARTITION_METHOD,
+| 			PARTITION_EXPRESSION,
+| 			SUBPARTITION_EXPRESSION,
+| 			PARTITION_DESCRIPTION,
+| 			SUBPARTITION_DESCRIPTION,
+| 			PARTITION_COMMENT
+| 		FROM information_schema.PARTITIONS
+| 		WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION, SUBPARTITION_ORDINAL_POSITION
+: string
+| omni_dump_roundtrip
+< result
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "PARTITION_NAME" "VARCHAR"
+< column "SUBPARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "SUBPARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "SUBPARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+< column "SUBPARTITION_DESCRIPTION" "TEXT"
+< column "PARTITION_COMMENT" "TEXT"
+< row
+: bytes
+| p_hash
+: bytes
+| p0
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `a`
+: null
+: null
+: null
+: bytes
+|
+< row
+: bytes
+| p_hash
+: bytes
+| p1
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `a`
+: null
+: null
+: null
+: bytes
+|
+< row
+: bytes
+| p_hash
+: bytes
+| p2
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `a`
+: null
+: null
+: null
+: bytes
+|
+< row
+: bytes
+| p_key
+: bytes
+| p0
+: null
+: bytes
+| KEY
+: null
+: bytes
+|
+: null
+: null
+: null
+: bytes
+|
+< row
+: bytes
+| p_key
+: bytes
+| p1
+: null
+: bytes
+| KEY
+: null
+: bytes
+|
+: null
+: null
+: null
+: bytes
+|
+< row
+: bytes
+| p_list
+: bytes
+| p_low
+: null
+: bytes
+| LIST
+: null
+: bytes
+| `a`
+: null
+: bytes
+| 1,2
+: null
+: bytes
+|
+< row
+: bytes
+| p_list
+: bytes
+| p_rest
+: null
+: bytes
+| LIST
+: null
+: bytes
+| `a`
+: null
+: bytes
+| DEFAULT
+: null
+: bytes
+|
+< row
+: bytes
+| p_list_cols
+: bytes
+| p0
+: null
+: bytes
+| LIST COLUMNS
+: null
+: bytes
+| `a`, `b`
+: null
+: bytes
+| (1,'a'),(2,'b')
+: null
+: bytes
+|
+< row
+: bytes
+| p_list_cols
+: bytes
+| p1
+: null
+: bytes
+| LIST COLUMNS
+: null
+: bytes
+| `a`, `b`
+: null
+: bytes
+| (3,'c')
+: null
+: bytes
+|
+< row
+: bytes
+| p_range
+: bytes
+| p2020
+: null
+: bytes
+| RANGE
+: null
+: bytes
+| year(`sold`)
+: null
+: bytes
+| 2021
+: null
+: bytes
+|
+< row
+: bytes
+| p_range
+: bytes
+| p_max
+: null
+: bytes
+| RANGE
+: null
+: bytes
+| year(`sold`)
+: null
+: bytes
+| MAXVALUE
+: null
+: bytes
+|
+< row
+: bytes
+| p_range_cols
+: bytes
+| p0
+: null
+: bytes
+| RANGE COLUMNS
+: null
+: bytes
+| `a`, `b`
+: null
+: bytes
+| 10,'m'
+: null
+: bytes
+|
+< row
+: bytes
+| p_range_cols
+: bytes
+| p1
+: null
+: bytes
+| RANGE COLUMNS
+: null
+: bytes
+| `a`, `b`
+: null
+: bytes
+| MAXVALUE,MAXVALUE
+: null
+: bytes
+|
+< row
+: bytes
+| p_sub
+: bytes
+| p0
+: bytes
+| p0sp0
+: bytes
+| RANGE
+: bytes
+| HASH
+: bytes
+| `a`
+: bytes
+| `b`
+: bytes
+| 10
+: null
+: bytes
+|
+< row
+: bytes
+| p_sub
+: bytes
+| p0
+: bytes
+| p0sp1
+: bytes
+| RANGE
+: bytes
+| HASH
+: bytes
+| `a`
+: bytes
+| `b`
+: bytes
+| 10
+: null
+: bytes
+|
+< row
+: bytes
+| p_sub
+: bytes
+| p1
+: bytes
+| p1sp0
+: bytes
+| RANGE
+: bytes
+| HASH
+: bytes
+| `a`
+: bytes
+| `b`
+: bytes
+| 20
+: null
+: bytes
+|
+< row
+: bytes
+| p_sub
+: bytes
+| p1
+: bytes
+| p1sp1
+: bytes
+| RANGE
+: bytes
+| HASH
+: bytes
+| `a`
+: bytes
+| `b`
+: bytes
+| 20
+: null
+: bytes
+|
+< row
+: bytes
+| p_sub_named
+: bytes
+| p0
+: bytes
+| s0
+: bytes
+| LIST
+: bytes
+| RANGE
+: bytes
+| `a`
+: bytes
+| `b`
+: bytes
+| 1
+: bytes
+| 5
+: bytes
+|
+< row
+: bytes
+| p_sub_named
+: bytes
+| p0
+: bytes
+| s1
+: bytes
+| LIST
+: bytes
+| RANGE
+: bytes
+| `a`
+: bytes
+| `b`
+: bytes
+| 1
+: bytes
+| MAXVALUE
+: bytes
+|
+< row
+: bytes
+| p_sub_named
+: bytes
+| p1
+: bytes
+| s2
+: bytes
+| LIST
+: bytes
+| RANGE
+: bytes
+| `a`
+: bytes
+| `b`
+: bytes
+| 2
+: bytes
+| MAXVALUE
+: bytes
+|
+> query
+|
+| 		SELECT
 | 			ROUTINE_NAME,
 | 			ROUTINE_TYPE,
 | 			SQL_MODE,
@@ -1450,6 +2231,213 @@
 < row
 : bytes
 | orders
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| p_auto
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| p_hash
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| p_key
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| p_list
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| p_list_cols
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| p_range
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| p_range_cols
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| p_sub
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| p_sub_named
 : bytes
 | BASE TABLE
 : bytes
@@ -1709,6 +2697,153 @@
 |   KEY `idx_account` (`account_id`) BLOCK_SIZE 16384 LOCAL
 | ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > query
+| SHOW CREATE TABLE `omni_dump_roundtrip`.`p_auto`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| p_auto
+: bytes
+| CREATE TABLE `p_auto` (
+|   `a` int(11) NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range() size ('128MB')
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip`.`p_hash`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| p_hash
+: bytes
+| CREATE TABLE `p_hash` (
+|   `a` int(11) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by hash(`a`)
+| (partition `p0`,
+| partition `p1`,
+| partition `p2`)
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip`.`p_key`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| p_key
+: bytes
+| CREATE TABLE `p_key` (
+|   `a` int(11) NOT NULL,
+|   `b` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by key()
+| (partition `p0`,
+| partition `p1`)
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip`.`p_list`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| p_list
+: bytes
+| CREATE TABLE `p_list` (
+|   `a` int(11) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by list(`a`)
+| (partition `p_low` values in (1,2),
+| partition `p_rest` values in (DEFAULT))
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip`.`p_list_cols`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| p_list_cols
+: bytes
+| CREATE TABLE `p_list_cols` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` char(2) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by list columns(`a`, `b`)
+| (partition `p0` values in ((1,'a'),(2,'b')),
+| partition `p1` values in ((3,'c')))
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip`.`p_range`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| p_range
+: bytes
+| CREATE TABLE `p_range` (
+|   `id` int(11) DEFAULT NULL,
+|   `sold` date DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(year(`sold`))
+| (partition `p2020` values less than (2021),
+| partition `p_max` values less than (MAXVALUE))
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip`.`p_range_cols`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| p_range_cols
+: bytes
+| CREATE TABLE `p_range_cols` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` varchar(10) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range columns(`a`, `b`)
+| (partition `p0` values less than (10,'m'),
+| partition `p1` values less than (MAXVALUE,MAXVALUE))
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip`.`p_sub`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| p_sub
+: bytes
+| CREATE TABLE `p_sub` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`) subpartition by hash(`b`) subpartition template (
+| subpartition `p0`,
+| subpartition `p1`)
+| (partition `p0` values less than (10),
+| partition `p1` values less than (20))
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip`.`p_sub_named`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| p_sub_named
+: bytes
+| CREATE TABLE `p_sub_named` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by list(`a`) subpartition by range(`b`)
+| (partition `p0` values in (1) (
+| subpartition `s0` values less than (5),
+| subpartition `s1` values less than (MAXVALUE)),
+| partition `p1` values in (2) (
+| subpartition `s2` values less than (MAXVALUE)))
+> query
 |
 | 		SELECT
 | 			DEFAULT_CHARACTER_SET_NAME,
@@ -1814,6 +2949,93 @@
 |   KEY `idx_account` (`account_id`),
 |   CONSTRAINT `fk_orders_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+< ok 0 0
+> exec
+| CREATE TABLE `p_auto` (
+|   `a` int NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+< ok 0 0
+> exec
+| CREATE TABLE `p_hash` (
+|   `a` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+| /*!50100 PARTITION BY HASH (`a`)
+| (PARTITION `p0` ENGINE=InnoDB,
+|  PARTITION `p1` ENGINE=InnoDB,
+|  PARTITION `p2` ENGINE=InnoDB) */
+< ok 0 0
+> exec
+| CREATE TABLE `p_key` (
+|   `a` int NOT NULL,
+|   `b` int DEFAULT NULL,
+|   PRIMARY KEY (`a`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+| /*!50100 PARTITION BY KEY ()
+| (PARTITION `p0` ENGINE=InnoDB,
+|  PARTITION `p1` ENGINE=InnoDB) */
+< ok 0 0
+> exec
+| CREATE TABLE `p_list` (
+|   `a` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+| /*!50100 PARTITION BY LIST (`a`)
+| (PARTITION `p_low` VALUES IN (1,2) ENGINE=InnoDB,
+|  PARTITION `p_rest` VALUES IN (DEFAULT) ENGINE=InnoDB) */
+< ok 0 0
+> exec
+| CREATE TABLE `p_list_cols` (
+|   `a` int DEFAULT NULL,
+|   `b` char(2) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+| /*!50500 PARTITION BY LIST COLUMNS (`a`, `b`)
+| (PARTITION `p0` VALUES IN ((1,'a'),(2,'b')) ENGINE=InnoDB,
+|  PARTITION `p1` VALUES IN ((3,'c')) ENGINE=InnoDB) */
+< ok 0 0
+> exec
+| CREATE TABLE `p_range` (
+|   `id` int DEFAULT NULL,
+|   `sold` date DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+| /*!50100 PARTITION BY RANGE (year(`sold`))
+| (PARTITION `p2020` VALUES LESS THAN (2021) ENGINE=InnoDB,
+|  PARTITION `p_max` VALUES LESS THAN MAXVALUE ENGINE=InnoDB) */
+< ok 0 0
+> exec
+| CREATE TABLE `p_range_cols` (
+|   `a` int DEFAULT NULL,
+|   `b` varchar(10) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+| /*!50500 PARTITION BY RANGE COLUMNS (`a`, `b`)
+| (PARTITION `p0` VALUES LESS THAN (10,'m') ENGINE=InnoDB,
+|  PARTITION `p1` VALUES LESS THAN (MAXVALUE,MAXVALUE) ENGINE=InnoDB) */
+< ok 0 0
+> exec
+| CREATE TABLE `p_sub` (
+|   `a` int DEFAULT NULL,
+|   `b` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+| /*!50100 PARTITION BY RANGE (`a`)
+| SUBPARTITION BY HASH (`b`)
+| (PARTITION `p0` VALUES LESS THAN (10) ENGINE=InnoDB
+|  (SUBPARTITION `p0sp0` ENGINE=InnoDB,
+|   SUBPARTITION `p0sp1` ENGINE=InnoDB),
+|  PARTITION `p1` VALUES LESS THAN (20) ENGINE=InnoDB
+|  (SUBPARTITION `p1sp0` ENGINE=InnoDB,
+|   SUBPARTITION `p1sp1` ENGINE=InnoDB)) */
+< ok 0 0
+> exec
+| CREATE TABLE `p_sub_named` (
+|   `a` int DEFAULT NULL,
+|   `b` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+| /*!50100 PARTITION BY LIST (`a`)
+| SUBPARTITION BY RANGE (`b`)
+| (PARTITION `p0` VALUES IN (1) ENGINE=InnoDB
+|  (SUBPARTITION `s0` VALUES LESS THAN (5) ENGINE=InnoDB,
+|   SUBPARTITION `s1` VALUES LESS THAN MAXVALUE ENGINE=InnoDB),
+|  PARTITION `p1` VALUES IN (2) ENGINE=InnoDB
+|  (SUBPARTITION `s2` VALUES LESS THAN MAXVALUE ENGINE=InnoDB)) */
 < ok 0 0
 > exec
 | CREATE EXTERNAL TABLE `ext_feed` (
@@ -2070,6 +3292,42 @@
 | PRIMARY
 : bytes
 | id
+: bytes
+| A
+: int64 -1
+: null
+: uint64 1
+: bytes
+| BTREE
+: int64 0
+: int64 1
+: bytes
+|
+< row
+: bytes
+| p_auto
+: bytes
+| PRIMARY
+: bytes
+| a
+: bytes
+| A
+: int64 -1
+: null
+: uint64 1
+: bytes
+| BTREE
+: int64 0
+: int64 1
+: bytes
+|
+< row
+: bytes
+| p_key
+: bytes
+| PRIMARY
+: bytes
+| a
 : bytes
 | A
 : int64 -1
@@ -2569,6 +3827,336 @@
 : null
 : bytes
 | NO
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_auto
+: bytes
+| a
+: uint64 1
+: null
+: bytes
+| NO
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_hash
+: bytes
+| a
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_key
+: bytes
+| a
+: uint64 1
+: null
+: bytes
+| NO
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_key
+: bytes
+| b
+: uint64 2
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_list
+: bytes
+| a
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_list_cols
+: bytes
+| a
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_list_cols
+: bytes
+| b
+: uint64 2
+: null
+: bytes
+| YES
+: bytes
+| char(2)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_range
+: bytes
+| id
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_range
+: bytes
+| sold
+: uint64 2
+: null
+: bytes
+| YES
+: bytes
+| date
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_range_cols
+: bytes
+| a
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_range_cols
+: bytes
+| b
+: uint64 2
+: null
+: bytes
+| YES
+: bytes
+| varchar(10)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_sub
+: bytes
+| a
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_sub
+: bytes
+| b
+: uint64 2
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_sub_named
+: bytes
+| a
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| p_sub_named
+: bytes
+| b
+: uint64 2
+: null
+: bytes
+| YES
 : bytes
 | int(11)
 : bytes
@@ -3092,6 +4680,394 @@
 > query
 |
 | 		SELECT
+| 			TABLE_NAME,
+| 			PARTITION_NAME,
+| 			SUBPARTITION_NAME,
+| 			PARTITION_METHOD,
+| 			SUBPARTITION_METHOD,
+| 			PARTITION_EXPRESSION,
+| 			SUBPARTITION_EXPRESSION,
+| 			PARTITION_DESCRIPTION,
+| 			SUBPARTITION_DESCRIPTION,
+| 			PARTITION_COMMENT
+| 		FROM information_schema.PARTITIONS
+| 		WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION, SUBPARTITION_ORDINAL_POSITION
+: string
+| omni_dump_roundtrip_restored
+< result
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "PARTITION_NAME" "VARCHAR"
+< column "SUBPARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "SUBPARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "SUBPARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+< column "SUBPARTITION_DESCRIPTION" "TEXT"
+< column "PARTITION_COMMENT" "TEXT"
+< row
+: bytes
+| p_hash
+: bytes
+| p0
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `a`
+: null
+: null
+: null
+: bytes
+|
+< row
+: bytes
+| p_hash
+: bytes
+| p1
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `a`
+: null
+: null
+: null
+: bytes
+|
+< row
+: bytes
+| p_hash
+: bytes
+| p2
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `a`
+: null
+: null
+: null
+: bytes
+|
+< row
+: bytes
+| p_key
+: bytes
+| p0
+: null
+: bytes
+| KEY
+: null
+: bytes
+|
+: null
+: null
+: null
+: bytes
+|
+< row
+: bytes
+| p_key
+: bytes
+| p1
+: null
+: bytes
+| KEY
+: null
+: bytes
+|
+: null
+: null
+: null
+: bytes
+|
+< row
+: bytes
+| p_list
+: bytes
+| p_low
+: null
+: bytes
+| LIST
+: null
+: bytes
+| `a`
+: null
+: bytes
+| 1,2
+: null
+: bytes
+|
+< row
+: bytes
+| p_list
+: bytes
+| p_rest
+: null
+: bytes
+| LIST
+: null
+: bytes
+| `a`
+: null
+: bytes
+| DEFAULT
+: null
+: bytes
+|
+< row
+: bytes
+| p_list_cols
+: bytes
+| p0
+: null
+: bytes
+| LIST COLUMNS
+: null
+: bytes
+| `a`, `b`
+: null
+: bytes
+| (1,'a'),(2,'b')
+: null
+: bytes
+|
+< row
+: bytes
+| p_list_cols
+: bytes
+| p1
+: null
+: bytes
+| LIST COLUMNS
+: null
+: bytes
+| `a`, `b`
+: null
+: bytes
+| (3,'c')
+: null
+: bytes
+|
+< row
+: bytes
+| p_range
+: bytes
+| p2020
+: null
+: bytes
+| RANGE
+: null
+: bytes
+| year(`sold`)
+: null
+: bytes
+| 2021
+: null
+: bytes
+|
+< row
+: bytes
+| p_range
+: bytes
+| p_max
+: null
+: bytes
+| RANGE
+: null
+: bytes
+| year(`sold`)
+: null
+: bytes
+| MAXVALUE
+: null
+: bytes
+|
+< row
+: bytes
+| p_range_cols
+: bytes
+| p0
+: null
+: bytes
+| RANGE COLUMNS
+: null
+: bytes
+| `a`, `b`
+: null
+: bytes
+| 10,'m'
+: null
+: bytes
+|
+< row
+: bytes
+| p_range_cols
+: bytes
+| p1
+: null
+: bytes
+| RANGE COLUMNS
+: null
+: bytes
+| `a`, `b`
+: null
+: bytes
+| MAXVALUE,MAXVALUE
+: null
+: bytes
+|
+< row
+: bytes
+| p_sub
+: bytes
+| p0
+: bytes
+| p0sp0
+: bytes
+| RANGE
+: bytes
+| HASH
+: bytes
+| `a`
+: bytes
+| `b`
+: bytes
+| 10
+: null
+: bytes
+|
+< row
+: bytes
+| p_sub
+: bytes
+| p0
+: bytes
+| p0sp1
+: bytes
+| RANGE
+: bytes
+| HASH
+: bytes
+| `a`
+: bytes
+| `b`
+: bytes
+| 10
+: null
+: bytes
+|
+< row
+: bytes
+| p_sub
+: bytes
+| p1
+: bytes
+| p1sp0
+: bytes
+| RANGE
+: bytes
+| HASH
+: bytes
+| `a`
+: bytes
+| `b`
+: bytes
+| 20
+: null
+: bytes
+|
+< row
+: bytes
+| p_sub
+: bytes
+| p1
+: bytes
+| p1sp1
+: bytes
+| RANGE
+: bytes
+| HASH
+: bytes
+| `a`
+: bytes
+| `b`
+: bytes
+| 20
+: null
+: bytes
+|
+< row
+: bytes
+| p_sub_named
+: bytes
+| p0
+: bytes
+| s0
+: bytes
+| LIST
+: bytes
+| RANGE
+: bytes
+| `a`
+: bytes
+| `b`
+: bytes
+| 1
+: bytes
+| 5
+: bytes
+|
+< row
+: bytes
+| p_sub_named
+: bytes
+| p0
+: bytes
+| s1
+: bytes
+| LIST
+: bytes
+| RANGE
+: bytes
+| `a`
+: bytes
+| `b`
+: bytes
+| 1
+: bytes
+| MAXVALUE
+: bytes
+|
+< row
+: bytes
+| p_sub_named
+: bytes
+| p1
+: bytes
+| s2
+: bytes
+| LIST
+: bytes
+| RANGE
+: bytes
+| `a`
+: bytes
+| `b`
+: bytes
+| 2
+: bytes
+| MAXVALUE
+: bytes
+|
+> query
+|
+| 		SELECT
 | 			ROUTINE_NAME,
 | 			ROUTINE_TYPE,
 | 			SQL_MODE,
@@ -3322,6 +5298,213 @@
 < row
 : bytes
 | orders
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| p_auto
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| p_hash
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| p_key
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| p_list
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| p_list_cols
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| p_range
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| p_range_cols
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| p_sub
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| p_sub_named
 : bytes
 | BASE TABLE
 : bytes
@@ -3580,6 +5763,154 @@
 |   CONSTRAINT `fk_orders_account` FOREIGN KEY (`account_id`) REFERENCES `omni_dump_roundtrip_restored`.`accounts`(`id`) ON UPDATE RESTRICT ON DELETE CASCADE ,
 |   KEY `idx_account` (`account_id`) BLOCK_SIZE 16384 LOCAL
 | ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip_restored`.`p_auto`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| p_auto
+: bytes
+| CREATE TABLE `p_auto` (
+|   `a` int(11) NOT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip_restored`.`p_hash`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| p_hash
+: bytes
+| CREATE TABLE `p_hash` (
+|   `a` int(11) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by hash(`a`)
+| (partition `p0`,
+| partition `p1`,
+| partition `p2`)
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip_restored`.`p_key`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| p_key
+: bytes
+| CREATE TABLE `p_key` (
+|   `a` int(11) NOT NULL,
+|   `b` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`a`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by key()
+| (partition `p0`,
+| partition `p1`)
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip_restored`.`p_list`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| p_list
+: bytes
+| CREATE TABLE `p_list` (
+|   `a` int(11) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by list(`a`)
+| (partition `p_low` values in (1,2),
+| partition `p_rest` values in (DEFAULT))
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip_restored`.`p_list_cols`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| p_list_cols
+: bytes
+| CREATE TABLE `p_list_cols` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` char(2) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by list columns(`a`, `b`)
+| (partition `p0` values in ((1,'a'),(2,'b')),
+| partition `p1` values in ((3,'c')))
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip_restored`.`p_range`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| p_range
+: bytes
+| CREATE TABLE `p_range` (
+|   `id` int(11) DEFAULT NULL,
+|   `sold` date DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(year(`sold`))
+| (partition `p2020` values less than (2021),
+| partition `p_max` values less than (MAXVALUE))
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip_restored`.`p_range_cols`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| p_range_cols
+: bytes
+| CREATE TABLE `p_range_cols` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` varchar(10) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range columns(`a`, `b`)
+| (partition `p0` values less than (10,'m'),
+| partition `p1` values less than (MAXVALUE,MAXVALUE))
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip_restored`.`p_sub`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| p_sub
+: bytes
+| CREATE TABLE `p_sub` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(`a`) subpartition by hash(`b`)
+| (partition `p0` values less than (10) (
+| subpartition `p0sp0`,
+| subpartition `p0sp1`),
+| partition `p1` values less than (20) (
+| subpartition `p1sp0`,
+| subpartition `p1sp1`))
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip_restored`.`p_sub_named`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| p_sub_named
+: bytes
+| CREATE TABLE `p_sub_named` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by list(`a`) subpartition by range(`b`)
+| (partition `p0` values in (1) (
+| subpartition `s0` values less than (5),
+| subpartition `s1` values less than (MAXVALUE)),
+| partition `p1` values in (2) (
+| subpartition `s2` values less than (MAXVALUE)))
 > query
 |
 | 		SELECT

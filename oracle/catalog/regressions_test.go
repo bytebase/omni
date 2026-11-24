@@ -3205,6 +3205,20 @@ func TestUnitChangesReachTheirReaders(t *testing.T) {
 		t.Errorf("after COMPILE: %s, want VALID", got)
 	}
 
+	c, err = LoadSQL("CREATE TABLE t (id NUMBER);\nCREATE MATERIALIZED VIEW mv AS SELECT id FROM t;\nCREATE PROCEDURE p IS v NUMBER; BEGIN SELECT id INTO v FROM mv; END;\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := status(c, unitProcedure, "P"); got != "VALID" {
+		t.Fatalf("reader of a materialized view with known columns: %s, want VALID", got)
+	}
+	if _, err := c.Exec("DROP MATERIALIZED VIEW mv", nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := status(c, unitProcedure, "P"); got != "INVALID" {
+		t.Errorf("reader of a dropped materialized view: %s, want INVALID", got)
+	}
+
 	c, err = LoadSQL("CREATE TABLE t (id NUMBER);\nCREATE PROCEDURE p IS v NUMBER; BEGIN SELECT id INTO v FROM t; END;\n/\nALTER TABLE t RENAME TO u;\n")
 	if err != nil {
 		t.Fatal(err)

@@ -3073,6 +3073,7 @@ func (e *oracleMetadataExtractor) extractCreateView(n *ast.CreateViewStmt) {
 			materializedView.Triggers = append(materializedView.Triggers, table.Triggers...)
 			materializedView.Indexes = append(materializedView.Indexes, table.Indexes...)
 		}
+		materializedView.Columns = e.materializedViewColumns(n, viewName)
 		if definition != "" && !strings.HasSuffix(definition, "\n") {
 			materializedView.Definition += "\n"
 		}
@@ -4306,4 +4307,28 @@ func (e *oracleMetadataExtractor) checkViewColumns(n *ast.CreateViewStmt, cols [
 		return nil
 	}
 	return checkViewColumnNames(cols)
+}
+
+// materializedViewColumns returns the columns of a materialized view's
+// container table: a prebuilt table's own, or those its query derives. A query
+// the catalog cannot resolve leaves them unknown.
+func (e *oracleMetadataExtractor) materializedViewColumns(n *ast.CreateViewStmt, viewName string) []*metadatapb.ColumnMetadata {
+	if table := e.tables[viewName]; table != nil {
+		columns := make([]*metadatapb.ColumnMetadata, 0, len(table.Columns))
+		for _, column := range table.Columns {
+			columns = append(columns, cloneColumn(column))
+		}
+		return columns
+	}
+	cols, _, err := e.analyzeViewQuery(n.Query, viewName)
+	if err != nil || len(cols) == 0 {
+		return nil
+	}
+	var explicit []string
+	if n.Columns != nil {
+		for _, item := range n.Columns.Items {
+			explicit = append(explicit, viewColumnItemName(e, item))
+		}
+	}
+	return viewColumnsFor(cols, explicit, nil)
 }

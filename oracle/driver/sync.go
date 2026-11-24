@@ -316,7 +316,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	if err != nil {
 		return nil, fmt.Errorf("failed to get routines from database %q: %w", schemaName, err)
 	}
-	materializedViews, err := getMaterializedViews(txn, schemaName, indexMap, tableTriggerMap)
+	materializedViews, err := getMaterializedViews(txn, schemaName, columnMap, indexMap, tableTriggerMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get materialized views from database %q: %w", schemaName, err)
 	}
@@ -1681,7 +1681,7 @@ func getAllMaterializedViewDependencies(txn *sql.Tx, schemaName string) (map[tab
 }
 
 // getMaterializedViews gets all materialized views of a database.
-func getMaterializedViews(txn *sql.Tx, schemaName string, indexMap map[tableKey][]*metadatapb.IndexMetadata, triggerMap map[tableKey][]*metadatapb.TriggerMetadata) ([]*metadatapb.MaterializedViewMetadata, error) {
+func getMaterializedViews(txn *sql.Tx, schemaName string, columnMap map[tableKey][]*metadatapb.ColumnMetadata, indexMap map[tableKey][]*metadatapb.IndexMetadata, triggerMap map[tableKey][]*metadatapb.TriggerMetadata) ([]*metadatapb.MaterializedViewMetadata, error) {
 	var materializedViews []*metadatapb.MaterializedViewMetadata
 
 	// Get materialized view comments
@@ -1731,7 +1731,9 @@ func getMaterializedViews(txn *sql.Tx, schemaName string, indexMap map[tableKey]
 		if comment, ok := materializedViewCommentMap[key]; ok {
 			materializedView.Comment = comment
 		}
-		// Indexes and triggers are on the container table, which has the view's name.
+		// Columns, indexes and triggers are the container table's, which has
+		// the view's name.
+		materializedView.Columns = columnMap[key]
 		materializedView.Indexes = indexMap[key]
 		materializedView.Triggers = triggerMap[key]
 

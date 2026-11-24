@@ -226,6 +226,10 @@ func (a *queryAnalyzer) tableRef(n *ast.TableRef, sc *qscope) (*qfrom, error) {
 		rel.noRowid = !storedViewKeepsRowid(e.views[target].GetDefinition())
 	case e.materializedViews[target] != nil && e.tables[target] != nil:
 		rel.cols = tableColumns(e.tables[target].Columns)
+	case e.materializedViews[target] != nil && len(e.materializedViews[target].Columns) > 0:
+		// The container table's columns, as a sync or the view's query gives
+		// them.
+		rel.cols = tableColumns(e.materializedViews[target].Columns)
 	case e.tables[target] != nil:
 		t := e.tables[target]
 		rel.cols = tableColumns(t.Columns)

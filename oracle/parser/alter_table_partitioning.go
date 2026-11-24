@@ -515,7 +515,8 @@ func (p *Parser) parseATAddPartition(cmd *nodes.AlterTableCmd) error {
 		}
 		var nameTok Token
 		hasName := false
-		if p.isATPartitionNameHere(allowed) {
+		storeIn := p.atWord("STORE") && p.atNextWord("IN")
+		if !storeIn && p.isATPartitionNameHere(allowed) {
 			nameTok = p.cur
 			hasName = true
 			name, err := p.parseATPartitionName()
@@ -542,7 +543,17 @@ func (p *Parser) parseATAddPartition(cmd *nodes.AlterTableCmd) error {
 			return err
 		}
 		start := p.pos()
+		follow := atcIndexMaintenance | atcParallel
 		switch {
+		case p.atWord("STORE") && p.atNextWord("IN"):
+			// Oracle 23.26.3 takes STORE IN ( tablespace [, tablespace ]... )
+			// last in a partition's description, followed only by
+			// update_index_clauses (compat.tsv's cited:add_table_partition
+			// rows). The SQL Language Reference shows no STORE IN here.
+			if err := p.parseATStoreIn(); err != nil {
+				return err
+			}
+			follow = atcIndexMaintenance
 		case p.cur.Type == '(':
 			if !hasName && p.pos() == afterNamePos && p.peekNext().Type != kwSUBPARTITION {
 				return p.syntaxErrorAtCur()
@@ -556,10 +567,13 @@ func (p *Parser) parseATAddPartition(cmd *nodes.AlterTableCmd) error {
 			}
 		}
 		p.atOption(cmd.Options, start)
-		if err := p.parseATClauses(atcIndexMaintenance|atcParallel, cmd.Options); err != nil {
+		if err := p.parseATClauses(follow, cmd.Options); err != nil {
 			return err
 		}
 		if p.cur.Type != ',' && p.cur.Type != ';' && p.cur.Type != tokEOF {
+			if follow == atcIndexMaintenance {
+				return p.syntaxErrorAtCur()
+			}
 			if hasName && p.pos() == afterNamePos {
 				return p.syntaxErrorAtTok(nameTok)
 			}

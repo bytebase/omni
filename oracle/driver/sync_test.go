@@ -816,7 +816,7 @@ func execStatements(t *testing.T, db *sql.DB, statements ...string) {
 
 // TestSyncMaterializedViewIndexesAndTriggers pins that a materialized view is
 // reported under MaterializedViews (not Tables) with both its system-generated
-// ROWID index and user indexes/triggers attached.
+// ROWID index, user indexes/triggers and its columns attached.
 func TestSyncMaterializedViewIndexesAndTriggers(t *testing.T) {
 	d := openTestDriver(t)
 	execStatements(t, d.db,
@@ -855,6 +855,14 @@ func TestSyncMaterializedViewIndexesAndTriggers(t *testing.T) {
 	}
 	if diff := cmp.Diff([]string{"MV_TRG"}, triggerNames); diff != "" {
 		t.Errorf("MV triggers (-want +got):\n%s", diff)
+	}
+	// The columns are the container table's, without its hidden M_ROW$$.
+	var columns []string
+	for _, col := range mv.Columns {
+		columns = append(columns, fmt.Sprintf("%d %s %s", col.Position, col.Name, col.Type))
+	}
+	if diff := cmp.Diff([]string{"1 ID NUMBER", "2 V NUMBER"}, columns); diff != "" {
+		t.Errorf("MV columns (-want +got):\n%s", diff)
 	}
 }
 
