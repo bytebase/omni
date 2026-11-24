@@ -88,7 +88,20 @@ var simulationDatabase = testcontainer.DatabaseName("simulation")
 // the fixture, the statement, and after one MySQL took, the database's tables
 // and views and the SHOW CREATE of each.
 func simulationEngine(t testing.TB) func(simulate.Fixture, string) (simulate.Answer, error) {
-	db := testcontainer.OpenEmptyWith(t, testcontainer.Options{MultiStatements: true})
+	return simulationEngineOn(testcontainer.Default)(t)
+}
+
+// simulationEngineOn is simulationEngine on the server of a pins.tsv role.
+func simulationEngineOn(role string) func(testing.TB) func(simulate.Fixture, string) (simulate.Answer, error) {
+	return func(t testing.TB) func(simulate.Fixture, string) (simulate.Answer, error) {
+		return simulationEngineWith(t, role, simulationForms)
+	}
+}
+
+// simulationEngineWith asks the server of role, reading the database back
+// through forms after a statement it took.
+func simulationEngineWith(t testing.TB, role string, forms func(context.Context, *sql.DB) ([]simulate.Form, error)) func(simulate.Fixture, string) (simulate.Answer, error) {
+	db := testcontainer.OpenEmptyWith(t, testcontainer.Options{Role: role, MultiStatements: true})
 	ctx := context.Background()
 	return func(fx simulate.Fixture, statement string) (simulate.Answer, error) {
 		build := fmt.Sprintf("DROP DATABASE IF EXISTS %[1]s; CREATE DATABASE %[1]s; USE %[1]s; %[2]s", simulationDatabase, fx.SQL)
@@ -102,8 +115,8 @@ func simulationEngine(t testing.TB) func(simulate.Fixture, string) (simulate.Ans
 			}
 			return simulate.Answer{Code: strconv.Itoa(int(refusal.Number))}, nil
 		}
-		forms, err := simulationForms(ctx, db)
-		return simulate.Answer{Forms: forms}, err
+		stored, err := forms(ctx, db)
+		return simulate.Answer{Forms: stored}, err
 	}
 }
 
@@ -193,9 +206,21 @@ func parseCode(pe *mysqlparser.ParseError) string {
 // oracle tests hold to MySQL's stored form, so a text the catalog prints
 // otherwise but means the same is no difference.
 func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answer) simulate.Omni {
+	return simulationOmniAt(MySQL80)(fx, statement, engine)
+}
+
+// simulationOmniAt is simulationOmni with the catalog and the normalizer at
+// version v.
+func simulationOmniAt(v Version) func(simulate.Fixture, string, simulate.Answer) simulate.Omni {
+	return func(fx simulate.Fixture, statement string, engine simulate.Answer) simulate.Omni {
+		return simulationOmniVersion(v, fx, statement, engine)
+	}
+}
+
+func simulationOmniVersion(v Version, fx simulate.Fixture, statement string, engine simulate.Answer) simulate.Omni {
 	// The server's databases are utf8mb4 unless they say otherwise.
 	database := fmt.Sprintf("CREATE DATABASE %[1]s DEFAULT CHARSET=utf8mb4;\nUSE %[1]s;\n", simulationDatabase)
-	c, err := LoadSQL(database + fx.SQL)
+	c, err := LoadSQLWithVersion(database+fx.SQL, v)
 	if err != nil {
 		panic(fmt.Sprintf("the catalog does not load fixture %s: %v", fx.Name, err))
 	}
@@ -233,11 +258,11 @@ func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answe
 		}
 	}
 	stored.WriteString("SET FOREIGN_KEY_CHECKS = 1;\n")
-	want, err := LoadSQL(stored.String())
+	want, err := LoadSQLWithVersion(stored.String(), v)
 	if err != nil {
 		return simulate.Omni{Why: fmt.Sprintf("the catalog does not load what MySQL stores: %v", err)}
 	}
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(v)
 	there := DiffWithNormalizer(c, want, n)
 	back := DiffWithNormalizer(want, c, n)
 	if there.IsEmpty() && back.IsEmpty() {

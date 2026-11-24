@@ -14,8 +14,8 @@ import (
 )
 
 // TestWalkSimulation holds MySQL's WALK_THROUGH to mysql/catalog's
-// simulate.tsv, programs/simulate.tsv, queries/simulate.tsv and
-// mysql84/simulate.tsv offline: each fixture is built once in the in-memory
+// simulate.tsv, programs/simulate.tsv, queries/simulate.tsv and their
+// mysql84/ copies offline: each fixture is built once in the in-memory
 // catalog, and every row is checked with no server started.
 func TestWalkSimulation(t *testing.T) {
 	same := (&mysqlEngine{fold: false}).Same
@@ -38,6 +38,10 @@ func TestWalkSimulation(t *testing.T) {
 		// The ddl rows on mysql:8.4.13, with seven 8.4-only refusals (6125,
 		// 1063) the walk doesn't model: it judges every server alike.
 		{"mysql84", filepath.Join("..", "catalog", "testdata", "mysql84", "simulate.tsv"), 96.5, 2341},
+		// The programs and queries rows on mysql:8.4.13, which refuses the
+		// same rows as 8.0.
+		{"mysql84_programs", filepath.Join("..", "catalog", "testdata", "mysql84", "programs", "simulate.tsv"), 96.5, 287},
+		{"mysql84_queries", filepath.Join("..", "catalog", "testdata", "mysql84", "queries", "simulate.tsv"), 93.5, 221},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
 			res := walktest.CheckSimulation(t, walktest.Simulation{
