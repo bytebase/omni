@@ -21,6 +21,8 @@ SELECT CONCAT(Name, Email) AS contact FROM Customers
 SELECT IF(Amount > 10, Status, NULL) AS s FROM Orders
 SELECT CASE WHEN Amount > 10 THEN 'big' ELSE Status END FROM Orders
 SELECT COALESCE(Email, Name) FROM Customers
+SELECT (Name), ((c.Email)) FROM Customers c
+SELECT * EXCEPT (Name) FROM (SELECT (Name), Email FROM Customers)
 
 -- Stars.
 SELECT * FROM Orders

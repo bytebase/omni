@@ -135,6 +135,22 @@
 | {"columns":[""],"tables":["Customers"]}
 > query
 | -- omni:span-query
+| SELECT (Name), ((c.Email)) FROM Customers c
+< result
+< column "verdict" "JSON"
+< row
+: string
+| {"columns":["Name","Email"],"tables":["Customers"]}
+> query
+| -- omni:span-query
+| SELECT * EXCEPT (Name) FROM (SELECT (Name), Email FROM Customers)
+< result
+< column "verdict" "JSON"
+< row
+: string
+| {"columns":["Email"],"tables":["Customers"]}
+> query
+| -- omni:span-query
 | SELECT * FROM Orders
 < result
 < column "verdict" "JSON"

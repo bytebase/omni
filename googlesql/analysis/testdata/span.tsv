@@ -42,6 +42,12 @@ Orders	Orders	engine	shop	default	tables	SELECT CASE WHEN Amount > 10 THEN 'big'
 ""	""	engine	shop	default	results	SELECT COALESCE(Email, Name) FROM Customers
 Customers.Email Customers.Name	~	engine	shop	default	lineage	SELECT COALESCE(Email, Name) FROM Customers
 Customers	Customers	engine	shop	default	tables	SELECT COALESCE(Email, Name) FROM Customers
+Name, Email	Name, Email	engine	shop	default	results	SELECT (Name), ((c.Email)) FROM Customers c
+Customers.Name | Customers.Email	~ | ~	engine	shop	default	lineage	SELECT (Name), ((c.Email)) FROM Customers c
+Customers	Customers	engine	shop	default	tables	SELECT (Name), ((c.Email)) FROM Customers c
+Email	Email	engine	shop	default	results	SELECT * EXCEPT (Name) FROM (SELECT (Name), Email FROM Customers)
+Customers.Email	~	engine	shop	default	lineage	SELECT * EXCEPT (Name) FROM (SELECT (Name), Email FROM Customers)
+Customers	Customers	engine	shop	default	tables	SELECT * EXCEPT (Name) FROM (SELECT (Name), Email FROM Customers)
 CustomerId, OrderId, Amount, Status, Items	CustomerId, OrderId, Amount, Status, Items	engine	shop	default	results	SELECT * FROM Orders
 Orders.CustomerId | Orders.OrderId | Orders.Amount | Orders.Status | Orders.Items	~ | ~ | ~ | ~ | ~	engine	shop	default	lineage	SELECT * FROM Orders
 Orders	Orders	engine	shop	default	tables	SELECT * FROM Orders

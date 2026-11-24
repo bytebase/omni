@@ -254,10 +254,12 @@ func (w *spanWalker) resolveExprColumn(item *ast.SelectItem) projColumn {
 }
 
 // implicitAlias is the name GoogleSQL gives a select item without an alias:
-// the last name of a path or field access, and none for any other
-// expression.
+// the last name of a path or field access, parenthesized or not, and none for
+// any other expression.
 func implicitAlias(expr ast.Node) string {
 	switch e := expr.(type) {
+	case *ast.ParenExpr:
+		return implicitAlias(e.Expr)
 	case *ast.Identifier:
 		return e.Name
 	case *ast.PathExpr:
