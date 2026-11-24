@@ -1346,7 +1346,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -3937,6 +3937,66 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| customer_id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| total
+: string
+| numeric
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| numeric
 : null
 : null
 : string
@@ -14434,7 +14494,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -17025,6 +17085,66 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| customer_id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| total
+: string
+| numeric
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| numeric
 : null
 : null
 : string
@@ -27059,7 +27179,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -29650,6 +29770,66 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| customer_id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| total
+: string
+| numeric
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| numeric
 : null
 : null
 : string
@@ -40054,7 +40234,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -42645,6 +42825,66 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| customer_id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| total
+: string
+| numeric
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| numeric
 : null
 : null
 : string
@@ -52637,7 +52877,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -55228,6 +55468,66 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| customer_id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| total
+: string
+| numeric
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| numeric
 : null
 : null
 : string
@@ -65650,7 +65950,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -68241,6 +68541,66 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| customer_id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| total
+: string
+| numeric
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| numeric
 : null
 : null
 : string
@@ -78253,7 +78613,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -80844,6 +81204,66 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| customer_id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| total
+: string
+| numeric
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| numeric
 : null
 : null
 : string
@@ -91145,7 +91565,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -93736,6 +94156,66 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| customer_id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| total
+: string
+| numeric
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| numeric
 : null
 : null
 : string
@@ -103646,7 +104126,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -106237,6 +106717,66 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| customer_id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| total
+: string
+| numeric
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| numeric
 : null
 : null
 : string
@@ -116716,7 +117256,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -119307,6 +119847,66 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| customer_id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| total
+: string
+| numeric
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| numeric
 : null
 : null
 : string
@@ -129371,7 +129971,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -131962,6 +132562,66 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| customer_id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| total
+: string
+| numeric
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| numeric
 : null
 : null
 : string
@@ -142441,7 +143101,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -145032,6 +145692,66 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| customer_id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| total
+: string
+| numeric
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| numeric
 : null
 : null
 : string
@@ -155162,7 +155882,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -157753,6 +158473,66 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| customer_id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| total
+: string
+| numeric
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| numeric
 : null
 : null
 : string
@@ -168696,7 +169476,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -171287,6 +172067,66 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| customer_id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: null
+: string
+| []
+< row
+: string
+| app
+: string
+| order_totals
+: string
+| total
+: string
+| numeric
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| numeric
 : null
 : null
 : string

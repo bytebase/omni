@@ -147,7 +147,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	if err != nil {
 		return nil, fmt.Errorf("failed to get rules from database %q: %w", d.databaseName, err)
 	}
-	materializedViewMap, materializedViewOidMap, err := getMaterializedViews(txn, indexMap, triggerMap, extensionDepend)
+	materializedViewMap, materializedViewOidMap, err := getMaterializedViews(txn, columnMap, indexMap, triggerMap, extensionDepend)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get materialized views from database %q: %w", d.databaseName, err)
 	}
@@ -1081,7 +1081,7 @@ FROM pg_catalog.pg_attribute a
 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 WHERE a.attnum > 0
 	AND NOT a.attisdropped
-	AND c.relkind IN ('r', 'v', 'f', 'p')
+	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 	AND nc.nspname NOT IN (%s)
 	AND nc.nspname NOT LIKE 'pg_temp%%'
 	AND nc.nspname NOT LIKE 'pg_toast%%'
@@ -1214,7 +1214,7 @@ WHERE m.schemaname NOT IN (%s)
   AND m.schemaname NOT LIKE 'pg_toast%%'
 ORDER BY m.schemaname, m.matviewname;`, pganalysis.SystemSchemaWhereClause)
 
-func getMaterializedViews(txn *sql.Tx, indexMap map[tableKey][]*metadatapb.IndexMetadata, triggerMap map[tableKey][]*metadatapb.TriggerMetadata, extensionDepend map[int]bool) (map[string][]*metadatapb.MaterializedViewMetadata, map[int]*tableKey, error) {
+func getMaterializedViews(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata, indexMap map[tableKey][]*metadatapb.IndexMetadata, triggerMap map[tableKey][]*metadatapb.TriggerMetadata, extensionDepend map[int]bool) (map[string][]*metadatapb.MaterializedViewMetadata, map[int]*tableKey, error) {
 	matviewMap := make(map[string][]*metadatapb.MaterializedViewMetadata)
 	materializedViewOidMap := make(map[int]*tableKey)
 
@@ -1248,6 +1248,7 @@ func getMaterializedViews(txn *sql.Tx, indexMap map[tableKey][]*metadatapb.Index
 			matview.Comment = comment.String
 		}
 		viewKey := tableKey{Schema: schemaName, Table: matview.Name}
+		matview.Columns = columnMap[viewKey]
 		matview.Indexes = indexMap[viewKey]
 		matview.Triggers = triggerMap[viewKey]
 

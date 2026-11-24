@@ -1501,6 +1501,20 @@
                 true
               ]
             }
+          ],
+          "columns":  [
+            {
+              "name":  "customer_id",
+              "position":  1,
+              "nullable":  true,
+              "type":  "bigint"
+            },
+            {
+              "name":  "total",
+              "position":  2,
+              "nullable":  true,
+              "type":  "numeric"
+            }
           ]
         }
       ],

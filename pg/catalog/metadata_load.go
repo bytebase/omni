@@ -1702,7 +1702,11 @@ func tableColumnNames(t *metadata.TableMetadata) []string {
 // ones its body outputs, else, when the body does not parse, the ones it reads.
 func standInColumnNames(o *metadataObject) []string {
 	var names []string
-	for _, col := range o.view.GetColumns() {
+	columns := o.view.GetColumns()
+	if o.kind == metadataMatView {
+		columns = o.matView.GetColumns()
+	}
+	for _, col := range columns {
 		names = appendUniqueName(names, col.GetName())
 	}
 	if len(names) > 0 {

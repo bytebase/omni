@@ -213,7 +213,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -3090,7 +3090,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -5885,7 +5885,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -8761,7 +8761,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -11555,7 +11555,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -14431,7 +14431,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -17225,7 +17225,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -20102,7 +20102,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -22897,7 +22897,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -25774,7 +25774,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -28569,7 +28569,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -31446,7 +31446,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -34241,7 +34241,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
@@ -37118,7 +37118,7 @@
 | 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE a.attnum > 0
 | 	AND NOT a.attisdropped
-| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND c.relkind IN ('r', 'v', 'f', 'p', 'm')
 | 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND nc.nspname NOT LIKE 'pg_temp%'
 | 	AND nc.nspname NOT LIKE 'pg_toast%'
