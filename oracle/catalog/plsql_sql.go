@@ -102,6 +102,10 @@ func (c *plChecker) readColumns(n ast.Node) {
 			for _, col := range v.Columns {
 				cols = append(cols, col.Name)
 			}
+		} else if mv := c.e.materializedViews[target]; mv != nil {
+			for _, col := range mv.Columns {
+				cols = append(cols, col.Name)
+			}
 		} else {
 			continue
 		}
