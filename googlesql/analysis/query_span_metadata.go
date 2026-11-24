@@ -195,26 +195,66 @@ func (q *querySpanResolver) resourceDatabase(written string) string {
 
 // toTableResources converts the walker's AccessTables into table-level
 // ColumnResource keys (Column empty), applying the dialect name model. The
-// table and schema names are kept AS WRITTEN; the project/catalog qualifier is
-// dropped (the legacy listeners never recorded it).
+// project/catalog qualifier is dropped (the legacy listeners never recorded
+// it).
+//
+// BigQuery keeps the table and schema names AS WRITTEN, and lists CTE
+// references too, as the legacy access-table listeners recorded every FROM
+// table path. Spanner lists no CTE, names a table as its metadata does (its
+// names are case-insensitive), and lists the tables and views every view read
+// reads, through nested views, as the emulator resolves them
+// (testdata/span.tsv).
 func (q *querySpanResolver) toTableResources(span *QuerySpan) ColumnSet {
 	out := ColumnSet{}
-	if span == nil {
-		return out
-	}
-	// CTE references are not physical tables, but the legacy access-table
-	// listeners recorded every FROM table path — CTE references included — so
-	// union them into the table-level SourceColumns.
-	for _, group := range [][]TableAccess{span.AccessTables, span.CTEReferences} {
-		for _, t := range group {
-			out[ColumnResource{
-				Database: q.resourceDatabase(t.Database),
-				Schema:   t.Schema,
-				Table:    t.Table,
-			}] = true
-		}
-	}
+	q.addTableResources(out, span, map[ColumnResource]bool{})
 	return out
+}
+
+func (q *querySpanResolver) addTableResources(out ColumnSet, span *QuerySpan, views map[ColumnResource]bool) {
+	if span == nil {
+		return
+	}
+	refs := span.AccessTables
+	if q.opts.Dialect != DialectSpanner {
+		refs = append(slices.Clone(refs), span.CTEReferences...)
+	}
+	for _, t := range refs {
+		r := ColumnResource{Database: q.resourceDatabase(t.Database), Schema: t.Schema, Table: t.Table}
+		if q.opts.Dialect == DialectSpanner && !t.IsSystem {
+			if canonical, view := q.spannerRelation(t.Schema, t.Table); canonical != "" {
+				r.Table = canonical
+				if view != nil && !views[r] {
+					views[r] = true
+					// The view's definition is one Spanner stored, so it
+					// parses; one that does not adds no tables, and the view
+					// itself stays listed.
+					if viewSpan, err := GetQuerySpan(view.GetDefinition(), q.opts.Dialect); err == nil {
+						q.addTableResources(out, viewSpan, views)
+					}
+				}
+			}
+		}
+		out[r] = true
+	}
+}
+
+// spannerRelation returns the metadata name of the table or view a
+// reference in schema names, and the view's metadata when it is a view; ""
+// when the metadata holds neither. Tables shadow views, as in tableColumns.
+func (q *querySpanResolver) spannerRelation(schema, name string) (string, *metadata.ViewMetadata) {
+	canonical, _, err := q.tableColumns("", schema, name)
+	if err != nil || canonical == "" {
+		return "", nil
+	}
+	dbMetadata, err := q.getDatabaseMetadata(q.opts.DefaultDatabase)
+	if err != nil {
+		return canonical, nil
+	}
+	schemaMeta := findSchema(dbMetadata, schema)
+	if schemaMeta == nil || findTable(schemaMeta, canonical) != nil {
+		return canonical, nil
+	}
+	return canonical, findView(schemaMeta, canonical)
 }
 
 // expandTablesToColumns expands each accessed table into one resource per column
@@ -307,7 +347,7 @@ func (q *querySpanResolver) expandColumnInfos(infos []ColumnInfo, fullSourceColu
 			for _, ref := range r.SourceColumns {
 				addMatchingColumns(sourceColumns, fullSourceColumns, ref.Column, ref.Table, aliasMap)
 			}
-			name := resultName(r)
+			name := q.resultName(r)
 			// A base-table FIELD passthrough (the JOIN ... USING coalesced key)
 			// keeps the field's METADATA case under the spanner naming model —
 			// the legacy resolver named it after the left PhysicalTable's field,
@@ -374,7 +414,9 @@ func (q *querySpanResolver) buildSetOpMergeResults(m *SetOpMergeInfo, fullSource
 			}
 		}
 		if i < len(right) {
-			if name == "" {
+			// Spanner names the column after the left arm even when it is
+			// anonymous ("").
+			if i >= len(left) || (name == "" && q.opts.Dialect != DialectSpanner) {
 				name = right[i].Name
 			}
 			for sc := range right[i].SourceColumns {
@@ -550,11 +592,16 @@ func applyStarModifiers(expanded []ResolvedQuerySpanResult, r ColumnInfo, fullSo
 	// Key by output name; a name collision keeps the LAST occurrence (legacy
 	// fieldItemMap overwrite), but the surviving entry keeps its FIRST ordinal
 	// so the output order is stable.
+	// An anonymous column (Spanner names an expression "") has no name to
+	// collide on or to name in EXCEPT/REPLACE, so each keeps a key of its own.
 	order := map[string]int{}
 	byName := map[string]item{}
 	next := 0
-	for _, f := range expanded {
+	for i, f := range expanded {
 		key := strings.ToLower(f.Name)
+		if f.Name == "" {
+			key = fmt.Sprintf("\x00%d", i)
+		}
 		if _, ok := order[key]; !ok {
 			order[key] = next
 			next++
@@ -607,7 +654,10 @@ func (q *querySpanResolver) buildStarMergeResult(r ColumnInfo, fullSourceColumns
 	for _, ref := range r.SourceColumns {
 		addMatchingColumns(sourceColumns, fullSourceColumns, ref.Column, ref.Table, aliasMap)
 	}
-	name := strings.ToUpper(r.Name)
+	name := r.Name
+	if q.opts.Dialect != DialectSpanner {
+		name = strings.ToUpper(name)
+	}
 	// A StarMerge always carries a bare single-base-table star (a
 	// USING-coalesced or otherwise multi-segment star arm defers to SetOpMerge
 	// instead), so there are no except columns to apply here.
@@ -630,14 +680,18 @@ func (q *querySpanResolver) buildStarMergeResult(r ColumnInfo, fullSourceColumns
 	}
 }
 
-// resultName renders an explicit select-item's output column name to match the
-// legacy extractors (extractTableSourceFromSelect): the name is UPPER-CASED,
+// resultName renders an explicit select-item's output column name. Spanner
+// keeps the walker's name, which is GoogleSQL's. BigQuery matches the legacy
+// extractors (extractTableSourceFromSelect): the name is UPPER-CASED,
 // and for an expression that has no written name of its own the walker leaves
 // Name empty — in that case the legacy code used the name of the single bare
 // column the expression's DFS surfaced (e.g. `ID+1` → "ID"), which is the
 // walker's first source column. A name-less expression with no column reference
 // (a literal, or an opaque scalar subquery) stays "".
-func resultName(r ColumnInfo) string {
+func (q *querySpanResolver) resultName(r ColumnInfo) string {
+	if q.opts.Dialect == DialectSpanner {
+		return r.Name
+	}
 	name := r.Name
 	if name == "" && len(r.SourceColumns) > 0 {
 		name = r.SourceColumns[0].Column
