@@ -2267,6 +2267,7 @@ type CreateTriggerStmt struct {
 	Name           *ObjectName   // trigger name
 	Timing         TriggerTiming // BEFORE/AFTER/INSTEAD OF
 	Events         *List         // trigger events (list of TriggerEvent)
+	UpdateColumns  []string      // UPDATE OF columns
 	Table          *ObjectName   // ON table
 	Referencing    *TriggerReferencingClause
 	ForEachRow     bool     // FOR EACH ROW
@@ -2666,10 +2667,11 @@ func (n *PLSQLVarDecl) nodeTag() {}
 
 // PLSQLCursorDecl represents a cursor declaration.
 type PLSQLCursorDecl struct {
-	Name       string   // cursor name
-	Parameters *List    // parameter list
-	Query      StmtNode // SELECT statement
-	Loc        Loc      // start location
+	Name       string    // cursor name
+	Parameters *List     // parameter list
+	ReturnType *TypeName // RETURN rowtype, nil without one
+	Query      StmtNode  // SELECT statement
+	Loc        Loc       // start location
 }
 
 func (n *PLSQLCursorDecl) nodeTag() {}

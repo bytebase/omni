@@ -11,8 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	gomysql "github.com/go-sql-driver/mysql"
-
 	"github.com/bytebase/omni/enginetest/simulate"
 	"github.com/bytebase/omni/mysql/internal/testcontainer"
 	mysqlparser "github.com/bytebase/omni/mysql/parser"
@@ -70,22 +68,14 @@ func programSimulated(statement string) bool {
 }
 
 func programSimulationEngine(t testing.TB) func(simulate.Fixture, string) (simulate.Answer, error) {
-	db := testcontainer.OpenEmptyWith(t, testcontainer.Options{MultiStatements: true})
-	ctx := context.Background()
-	return func(fx simulate.Fixture, statement string) (simulate.Answer, error) {
-		build := fmt.Sprintf("DROP DATABASE IF EXISTS %[1]s; CREATE DATABASE %[1]s; USE %[1]s; %[2]s", simulationDatabase, fx.SQL)
-		if _, err := db.ExecContext(ctx, build); err != nil {
-			return simulate.Answer{}, fmt.Errorf("build fixture %s: %w", fx.Name, err)
-		}
-		if _, err := db.ExecContext(ctx, statement); err != nil {
-			var refusal *gomysql.MySQLError
-			if !errors.As(err, &refusal) {
-				return simulate.Answer{}, err
-			}
-			return simulate.Answer{Code: strconv.Itoa(int(refusal.Number))}, nil
-		}
-		forms, err := programSimulationForms(ctx, db)
-		return simulate.Answer{Forms: forms}, err
+	return programSimulationEngineOn(testcontainer.Default)(t)
+}
+
+// programSimulationEngineOn is programSimulationEngine on the server of a
+// pins.tsv role.
+func programSimulationEngineOn(role string) func(testing.TB) func(simulate.Fixture, string) (simulate.Answer, error) {
+	return func(t testing.TB) func(simulate.Fixture, string) (simulate.Answer, error) {
+		return simulationEngineWith(t, role, programSimulationForms)
 	}
 }
 
@@ -201,8 +191,20 @@ func showCreateText(ctx context.Context, db *sql.DB, kind, name string, textCol 
 }
 
 func programSimulationOmni(fx simulate.Fixture, statement string, engine simulate.Answer) simulate.Omni {
+	return programSimulationOmniAt(MySQL80)(fx, statement, engine)
+}
+
+// programSimulationOmniAt is programSimulationOmni with the catalog and the
+// normalizer at version v.
+func programSimulationOmniAt(v Version) func(simulate.Fixture, string, simulate.Answer) simulate.Omni {
+	return func(fx simulate.Fixture, statement string, engine simulate.Answer) simulate.Omni {
+		return programSimulationOmniVersion(v, fx, statement, engine)
+	}
+}
+
+func programSimulationOmniVersion(v Version, fx simulate.Fixture, statement string, engine simulate.Answer) simulate.Omni {
 	database := fmt.Sprintf("CREATE DATABASE %[1]s DEFAULT CHARSET=utf8mb4;\nUSE %[1]s;\n", simulationDatabase)
-	c, err := LoadSQL(database + fx.SQL)
+	c, err := LoadSQLWithVersion(database+fx.SQL, v)
 	if err != nil {
 		panic(fmt.Sprintf("the catalog does not load fixture %s: %v", fx.Name, err))
 	}
@@ -228,7 +230,7 @@ func programSimulationOmni(fx simulate.Fixture, statement string, engine simulat
 		return simulate.Omni{}
 	}
 
-	want, err := LoadSQL(database + "SET FOREIGN_KEY_CHECKS = 0;\n")
+	want, err := LoadSQLWithVersion(database+"SET FOREIGN_KEY_CHECKS = 0;\n", v)
 	if err != nil {
 		return simulate.Omni{Why: fmt.Sprintf("the catalog does not initialize want: %v", err)}
 	}
@@ -252,7 +254,7 @@ func programSimulationOmni(fx simulate.Fixture, statement string, engine simulat
 		return simulate.Omni{Why: fmt.Sprintf("restore FK checks: %v", err)}
 	}
 
-	n := NormalizerFor(MySQL80)
+	n := NormalizerFor(v)
 	there := DiffWithNormalizer(c, want, n)
 	back := DiffWithNormalizer(want, c, n)
 	if there.IsEmpty() && back.IsEmpty() {

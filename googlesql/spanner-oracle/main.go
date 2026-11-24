@@ -112,7 +112,7 @@ func main() {
 	defer o.close()
 
 	enc := json.NewEncoder(os.Stdout)
-	emit := func(v verdict) {
+	emit := func(v any) {
 		if err := enc.Encode(v); err != nil {
 			// stdout is broken; nothing useful left to do — fail loudly rather
 			// than silently produce a truncated verdict stream.
@@ -150,6 +150,10 @@ func main() {
 			emit(verdict{Verdict: "error", Reason: "bad base64", Message: err.Error()})
 			continue
 		}
+		if a, ok := o.span(ctx, string(raw)); ok {
+			emit(a)
+			continue
+		}
 		emit(o.evaluate(ctx, string(raw)))
 	}
 	if err := sc.Err(); err != nil {
@@ -181,6 +185,11 @@ type oracle struct {
 	ddlDB    string
 	ddlN     int
 	ddlDirty bool
+
+	// spanFx is the fixture span queries run on (span.go), and spanN how
+	// many databases span requests made.
+	spanFx *spanFixture
+	spanN  int
 }
 
 func newOracle(ctx context.Context) (*oracle, error) {
@@ -226,6 +235,7 @@ func newOracle(ctx context.Context) (*oracle, error) {
 
 func (o *oracle) close() {
 	if o.dbAdmin != nil {
+		o.dropSpanFixture()
 		_ = o.dbAdmin.DropDatabase(context.Background(), &databasepb.DropDatabaseRequest{Database: dbPath})
 		if o.ddlDB != "" {
 			_ = o.dbAdmin.DropDatabase(context.Background(), &databasepb.DropDatabaseRequest{Database: o.ddlDB})

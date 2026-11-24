@@ -822,3 +822,17 @@ func TestPLSQLUsingBindModes(t *testing.T) {
 	ParseAndCheck(t, "DECLARE TYPE nt IS TABLE OF NUMBER; y nt; BEGIN "+
 		"EXECUTE IMMEDIATE 'DELETE FROM t WHERE a = :1 RETURNING b INTO :2' USING IN 1 RETURNING BULK COLLECT INTO y; END;")
 }
+
+// TestParsePackageCursorSpec reads a cursor a package spec declares by its
+// row type only, which its body defines (Oracle 23.26 creates the spec
+// VALID).
+func TestParsePackageCursorSpec(t *testing.T) {
+	stmt := parseOne[*ast.CreatePackageStmt](t, "CREATE PACKAGE p2 AS CURSOR c RETURN customers%ROWTYPE; END;")
+	decl, ok := stmt.Body.Items[0].(*ast.PLSQLCursorDecl)
+	if !ok {
+		t.Fatalf("Body[0] = %T, want *ast.PLSQLCursorDecl", stmt.Body.Items[0])
+	}
+	if decl.ReturnType == nil || !decl.ReturnType.IsPercRowtype || decl.Query != nil {
+		t.Errorf("cursor = %s, want RETURN customers%%ROWTYPE and no query", ast.NodeToString(decl))
+	}
+}

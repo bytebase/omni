@@ -1,0 +1,13 @@
+CREATE TABLE Customers (CustomerId INT64 NOT NULL, Name STRING(100), Email STRING(100), Region STRING(20)) PRIMARY KEY (CustomerId);
+CREATE TABLE Orders (CustomerId INT64 NOT NULL, OrderId INT64 NOT NULL, Amount FLOAT64, Status STRING(20), Items ARRAY<STRING(50)>) PRIMARY KEY (CustomerId, OrderId), INTERLEAVE IN PARENT Customers ON DELETE CASCADE;
+CREATE TABLE LineItems (CustomerId INT64 NOT NULL, OrderId INT64 NOT NULL, LineId INT64 NOT NULL, ProductId INT64, Qty INT64) PRIMARY KEY (CustomerId, OrderId, LineId), INTERLEAVE IN PARENT Orders;
+CREATE TABLE Products (ProductId INT64 NOT NULL, Name STRING(100), Price NUMERIC) PRIMARY KEY (ProductId);
+CREATE TABLE Employees (EmpId INT64 NOT NULL, ManagerId INT64, Name STRING(100), Salary INT64) PRIMARY KEY (EmpId);
+CREATE TABLE `MixedCase` (`Id` INT64 NOT NULL, `CamelCol` STRING(10), `lower_col` STRING(10)) PRIMARY KEY (`Id`);
+CREATE INDEX OrdersByStatus ON Orders(Status);
+CREATE SCHEMA sales;
+CREATE TABLE sales.Targets (Region STRING(20) NOT NULL, Goal INT64) PRIMARY KEY (Region);
+CREATE VIEW CustomerOrders SQL SECURITY INVOKER AS SELECT c.CustomerId, c.Name, o.OrderId, o.Amount FROM Customers AS c JOIN Orders AS o ON c.CustomerId = o.CustomerId;
+CREATE VIEW BigOrders SQL SECURITY INVOKER AS SELECT co.CustomerId, co.Name, co.Amount FROM CustomerOrders AS co WHERE co.Amount > 100;
+CREATE VIEW sales.RegionGoals SQL SECURITY INVOKER AS SELECT c.Region, t.Goal FROM Customers AS c JOIN sales.Targets AS t ON c.Region = t.Region;
+CREATE CHANGE STREAM OrderStream FOR Orders;

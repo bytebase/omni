@@ -92,6 +92,15 @@ caller decides authoritativeness using the form's dialect tag (from
 `truth1/` / `antlr_rules.md`) and triangulates BigQuery-only forms against the
 docs corpus + the legacy `.g4`.
 
+## Span requests
+
+A line whose SQL starts `-- omni:span-fixture` followed by a newline builds a
+fixture from the DDL after it; one starting `-- omni:span-query` answers a
+query's output names and the tables and views it reads on that fixture
+(`span.go`). The emulator states no query plan, so a query reads an object
+when it fails in a copy of the fixture without it.
+`googlesql/analysis/testdata/README.md` says how its span suite uses them.
+
 ## How grammar nodes consume it
 
 A future `googlesql/parser` diff test (build-tagged, like

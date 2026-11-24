@@ -1,0 +1,276 @@
+# pin: default gvenzl/oracle-free:23.26.3-slim-faststart sha256:f5ff19033860d662c821cb04eb10483fa94f14f78eae252d054291ea07028093 23.26.3.0.0
+# columns: omni, expected, source, fixture, rule, statement
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN NULL; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p (p_id IN NUMBER) IS v_name VARCHAR2(100); BEGIN SELECT name INTO v_name FROM customers WHERE id = p_id; END;
+ok:cc3542339254	ok:cc3542339254	engine	programs@objects	program:procedure	CREATE PROCEDURE p (p_id IN NUMBER) IS v_name VARCHAR2(100); BEGIN SELECT nope INTO v_name FROM customers WHERE id = p_id; END;
+ok:6babac83dbde	ok:6babac83dbde	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; BEGIN SELECT id INTO v FROM missing_t; END;
+ok:cc3542339254	ok:cc3542339254	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; BEGIN SELECT c.nope INTO v FROM customers c; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; BEGIN SELECT COUNT(*) INTO v FROM customers c JOIN orders o ON o.customer_id = c.id WHERE c.region = 'EU'; END;
+ok:624c7b429b9d	ok:624c7b429b9d	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN SELECT id FROM customers; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN INSERT INTO orders (id, customer_id, amount) VALUES (1, 1, 2.5); END;
+ok:cc3542339254	ok:cc3542339254	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN INSERT INTO orders (nope) VALUES (1); END;
+ok:34fdaf600b17	ok:34fdaf600b17	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN INSERT INTO orders (id) VALUES (1, 2); END;
+ok:1421e76f71b7	ok:1421e76f71b7	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN INSERT INTO orders (id, amount) VALUES (1); END;
+ok:6babac83dbde	ok:6babac83dbde	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN INSERT INTO missing_t VALUES (1); END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN INSERT INTO orders (id, customer_id) SELECT id, id FROM customers; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN INSERT INTO cust (id, name) VALUES (1, 'x'); END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN INSERT INTO v_customers (id, name) VALUES (1, 'x'); END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN UPDATE orders SET status = 'x' WHERE id = 1; END;
+ok:cc3542339254	ok:cc3542339254	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN UPDATE orders SET nope = 1; END;
+ok:cc3542339254	ok:cc3542339254	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN UPDATE orders SET status = 'x' WHERE nope = 1; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p (p_id IN NUMBER) IS BEGIN DELETE FROM orders WHERE customer_id = p_id; END;
+ok:cc3542339254	ok:cc3542339254	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN DELETE FROM orders WHERE nope = 1; END;
+ok:6babac83dbde	ok:6babac83dbde	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN DELETE FROM missing_t; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN MERGE INTO orders o USING customers c ON (o.customer_id = c.id) WHEN MATCHED THEN UPDATE SET o.status = c.region; END;
+ok:cc3542339254	ok:cc3542339254	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN MERGE INTO orders o USING customers c ON (o.customer_id = c.nope) WHEN MATCHED THEN UPDATE SET o.status = c.region; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; BEGIN SELECT order_seq.NEXTVAL INTO v FROM dual; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; BEGIN v := order_seq.NEXTVAL; END;
+ok:b997cf2c8522	ok:b997cf2c8522	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; BEGIN v := nope_seq.NEXTVAL; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; BEGIN SELECT f_double(id) INTO v FROM customers WHERE ROWNUM = 1; END;
+ok:cc3542339254	ok:cc3542339254	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; BEGIN SELECT nope_f(id) INTO v FROM customers WHERE ROWNUM = 1; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; BEGIN SELECT COUNT(*) INTO v FROM v_customers WHERE name = 'x'; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; BEGIN SELECT COUNT(*) INTO v FROM user_tables; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN COMMIT; ROLLBACK; SAVEPOINT s; END;
+error	ok:21aa121b3c09	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN CREATE TABLE x (a NUMBER); END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN EXECUTE IMMEDIATE 'SELECT nope FROM nowhere'; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN EXECUTE IMMEDIATE 'CREATE TABLE x (a NUMBER)'; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN FOR r IN (SELECT id, name FROM customers) LOOP NULL; END LOOP; END;
+ok:8a4b959e80fe	ok:8a4b959e80fe	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v VARCHAR2(100); BEGIN FOR r IN (SELECT id FROM customers) LOOP v := r.name; END LOOP; END;
+ok:cc3542339254	ok:cc3542339254	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN FOR r IN (SELECT nope FROM customers) LOOP NULL; END LOOP; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS CURSOR c IS SELECT id FROM customers; v NUMBER; BEGIN OPEN c; FETCH c INTO v; CLOSE c; END;
+ok:cc3542339254	ok:cc3542339254	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS CURSOR c IS SELECT nope FROM customers; BEGIN NULL; END;
+ok:b997cf2c8522	ok:b997cf2c8522	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN OPEN nope_c; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS rc SYS_REFCURSOR; BEGIN OPEN rc FOR SELECT id FROM orders; CLOSE rc; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER := 0; BEGIN FOR i IN 1 .. 10 LOOP v := v + i; END LOOP; WHILE v > 0 LOOP v := v - 1; END LOOP; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS TYPE t_ids IS TABLE OF NUMBER; ids t_ids; BEGIN SELECT id BULK COLLECT INTO ids FROM customers; FORALL i IN 1 .. ids.COUNT DELETE FROM orders WHERE customer_id = ids(i); END;
+ok:b997cf2c8522	ok:b997cf2c8522	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN nope_proc; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN p_existing(1); END;
+ok:a9463794a37d	ok:a9463794a37d	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN p_existing; END;
+ok:a9463794a37d	ok:a9463794a37d	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN p_existing(1, 2); END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN p_existing(p_id => 1); END;
+ok:a9463794a37d	ok:a9463794a37d	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN p_existing(nope => 1); END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; BEGIN v := f_double(2); END;
+ok:a9463794a37d	ok:a9463794a37d	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; BEGIN v := f_double(2, 3); END;
+ok:381176068dfb	ok:381176068dfb	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN f_double(2); END;
+ok:b997cf2c8522	ok:b997cf2c8522	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; BEGIN v := nope_f(2); END;
+ok:b997cf2c8522	ok:b997cf2c8522	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; BEGIN v := nope; END;
+ok:b997cf2c8522	ok:b997cf2c8522	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN nope := 1; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; BEGIN v := 'x'; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v DATE; BEGIN v := SYSDATE + 1; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; BEGIN v := LENGTH(USER) + SQLCODE; DBMS_OUTPUT.PUT_LINE(SQLERRM); END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN pk.log_it('x'); END;
+ok:8a4b959e80fe	ok:8a4b959e80fe	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN pk.nope; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN pk.g_count := pk.g_count + 1; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; BEGIN v := pk.total(1); END;
+ok:a9463794a37d	ok:a9463794a37d	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN pk.log_it; END;
+ok	ok:b997cf2c8522	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN nope_pkg.p; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN DBMS_OUTPUT.PUT_LINE('x'); END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN RAISE_APPLICATION_ERROR(-20001, 'x'); END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS PROCEDURE inner IS BEGIN NULL; END; BEGIN inner; END;
+ok	ok:21aa121b3c09	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS FUNCTION twice (x NUMBER) RETURN NUMBER IS BEGIN RETURN x * 2; END; v NUMBER; BEGIN v := twice(1, 2); END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN p; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v customers.name%TYPE; BEGIN NULL; END;
+ok:8a4b959e80fe	ok:8a4b959e80fe	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v customers.nope%TYPE; BEGIN NULL; END;
+ok:b997cf2c8522	ok:b997cf2c8522	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v missing_t.c%TYPE; BEGIN NULL; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS r customers%ROWTYPE; BEGIN SELECT * INTO r FROM customers WHERE id = 1; END;
+ok:8a4b959e80fe	ok:8a4b959e80fe	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS r customers%ROWTYPE; BEGIN r.nope := 1; END;
+ok:b997cf2c8522	ok:b997cf2c8522	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS r missing_t%ROWTYPE; BEGIN NULL; END;
+ok:b997cf2c8522	ok:b997cf2c8522	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v nope_type; BEGIN NULL; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v t_point := t_point(1, 2); n NUMBER; BEGIN n := v.norm(); END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; v NUMBER; BEGIN NULL; END;
+ok:a09d45785876	ok:a09d45785876	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; v NUMBER; BEGIN v := 1; END;
+ok:62d104b68d28	ok:62d104b68d28	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS c CONSTANT NUMBER := 1; BEGIN c := 2; END;
+ok:62d104b68d28	ok:62d104b68d28	engine	programs@objects	program:procedure	CREATE PROCEDURE p (p_x IN NUMBER) IS BEGIN p_x := 1; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p (p_x OUT NUMBER) IS BEGIN p_x := 1; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p (p_x IN OUT NOCOPY VARCHAR2, p_y IN NUMBER DEFAULT 0) IS BEGIN p_x := p_x || p_y; END;
+ok:b997cf2c8522	ok:b997cf2c8522	engine	programs@objects	program:procedure	CREATE PROCEDURE p (p_x IN nope_type) IS BEGIN NULL; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p (p_x IN customers.id%TYPE) IS BEGIN NULL; END;
+ok:d2e86795cc73	ok:d2e86795cc73	engine	programs@objects	program:procedure	CREATE PROCEDURE p (p_x IN NUMBER, p_x IN NUMBER) IS BEGIN NULL; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN RETURN; END;
+ok:3bd076c356f5	ok:3bd076c356f5	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN RETURN 1; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN NULL; EXCEPTION WHEN NO_DATA_FOUND THEN NULL; WHEN OTHERS THEN RAISE; END;
+ok:b997cf2c8522	ok:b997cf2c8522	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN NULL; EXCEPTION WHEN nope_exc THEN NULL; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS e EXCEPTION; BEGIN RAISE e; EXCEPTION WHEN e THEN NULL; END;
+ok:b997cf2c8522	ok:b997cf2c8522	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN RAISE nope_exc; END;
+ok:b997cf2c8522	ok:b997cf2c8522	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN GOTO nowhere; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN <<l>> NULL; GOTO l; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER := 1; BEGIN IF v > 0 THEN NULL; ELSIF v < 0 THEN NULL; ELSE NULL; END IF; CASE v WHEN 1 THEN NULL; ELSE NULL; END CASE; END;
+error	ok:21aa121b3c09	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN NULL END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS PRAGMA AUTONOMOUS_TRANSACTION; BEGIN INSERT INTO audit_log (id) VALUES (1); COMMIT; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p AUTHID CURRENT_USER IS BEGIN NULL; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS CURSOR c IS SELECT id FROM customers; n NUMBER; BEGIN UPDATE orders SET status = 'x'; n := SQL%ROWCOUNT; IF SQL%NOTFOUND THEN NULL; END IF; OPEN c; IF c%ISOPEN THEN CLOSE c; END IF; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS TYPE t IS TABLE OF NUMBER INDEX BY PLS_INTEGER; a t; BEGIN a(1) := 2; IF a.COUNT > 0 THEN a.DELETE; END IF; DBMS_OUTPUT.PUT_LINE(TO_CHAR(a.FIRST)); END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v VARCHAR2(10); BEGIN v := q'[x]'; v := CASE WHEN v IS NULL THEN 'a' ELSE v END; EXECUTE IMMEDIATE 'SELECT 1 FROM dual' INTO v; v := SUBSTR(v, 1, 2) || USER; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p (x OUT SYS_REFCURSOR) IS BEGIN OPEN x FOR SELECT * FROM orders o WHERE o.amount > 1; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS e EXCEPTION; PRAGMA EXCEPTION_INIT(e, -20001); BEGIN NULL; EXCEPTION WHEN e THEN DBMS_OUTPUT.PUT_LINE(SQLERRM); END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN FOR i IN REVERSE 1 .. 3 LOOP CONTINUE WHEN i = 2; EXIT WHEN i = 1; END LOOP; <<outer>> FOR r IN (SELECT id FROM orders) LOOP NULL; END LOOP outer; END;
+ok:b997cf2c8522	ok:b997cf2c8522	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; BEGIN SELECT COUNT(*) INTO v FROM orders o WHERE EXISTS (SELECT 1 FROM customers c WHERE c.id = o.customer_id AND c.name = USER); v := v + p_existing_count; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS CURSOR c (p_c NUMBER) IS SELECT id, amount FROM orders WHERE customer_id = p_c; r c%ROWTYPE; TYPE tt IS TABLE OF c%ROWTYPE; rs tt; BEGIN OPEN c(1); FETCH c BULK COLLECT INTO rs LIMIT 10; CLOSE c; FOR x IN c(2) LOOP r := x; END LOOP; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; d DATE := DATE '2024-01-01'; BEGIN SELECT 1 INTO v FROM dual; INSERT INTO orders (id, amount) VALUES (order_seq.NEXTVAL, 1) RETURNING id INTO v; UPDATE orders SET amount = amount + 1 WHERE id = v RETURNING amount INTO v; d := TO_DATE('2024', 'YYYY') + NVL(v, 0); EXCEPTION WHEN OTHERS THEN ROLLBACK; RAISE; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS PROCEDURE b; PROCEDURE a IS BEGIN b; END; PROCEDURE b IS BEGIN NULL; END; BEGIN a; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN DECLARE x NUMBER := 1; BEGIN x := x + 1; END; MERGE INTO orders o USING (SELECT id, name FROM customers) s ON (o.customer_id = s.id) WHEN MATCHED THEN UPDATE SET o.status = s.name WHEN NOT MATCHED THEN INSERT (id, customer_id) VALUES (s.id, s.id); END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v VARCHAR2(100); BEGIN v := SYS_CONTEXT('USERENV', 'SESSION_USER'); v := pk.g_count; pk.g_count := 1; IF pk.total(1) > 0 THEN NULL; END IF; v := f_double(p_x => 2); END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS TYPE ids IS TABLE OF NUMBER; l ids := ids(1, 2, 3); BEGIN FORALL i IN 1 .. l.COUNT SAVE EXCEPTIONS DELETE FROM orders WHERE id = l(i); FOR i IN 1 .. l.COUNT LOOP DBMS_OUTPUT.PUT_LINE(l(i)); END LOOP; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS p2 t_point := t_point(1, 2); n NUMBER; BEGIN n := p2.x + p2.norm; n := p2.norm(); END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v customers.name%TYPE; c SYS_REFCURSOR; BEGIN OPEN c FOR 'SELECT name FROM customers'; LOOP FETCH c INTO v; EXIT WHEN c%NOTFOUND; END LOOP; CLOSE c; EXECUTE IMMEDIATE 'BEGIN NULL; END;'; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; BEGIN SELECT o.amount INTO v FROM orders o JOIN customers c ON c.id = o.customer_id WHERE c.region = 'EU' AND ROWNUM = 1 ORDER BY o.id; SELECT MAX(amount) INTO v FROM orders GROUP BY customer_id HAVING COUNT(*) > 1; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; BEGIN WITH x AS (SELECT id FROM orders) SELECT COUNT(*) INTO v FROM x; SELECT id INTO v FROM (SELECT id FROM orders WHERE amount > v) WHERE ROWNUM = 1; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; BEGIN SELECT COUNT(*) INTO v FROM user_tables WHERE table_name = 'X'; SELECT COUNT(*) INTO v FROM all_objects; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN INSERT INTO audit_log SELECT id, name, SYSDATE FROM customers; DELETE FROM audit_log a WHERE a.id IN (SELECT id FROM customers); END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p (o OUT NUMBER, io IN OUT VARCHAR2) IS BEGIN o := 1; io := io || 'x'; p_existing(o); END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; BEGIN v := f_double(f_double(1)); v := MOD(v, 2) + ABS(-1) + GREATEST(1, 2) + LENGTH('x') + INSTR('a', 'b'); END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS j JSON; x XMLTYPE; b BLOB; c CLOB := EMPTY_CLOB(); BEGIN NULL; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; BEGIN v := 1; GOTO done; v := 2; <<done>> NULL; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v NUMBER; BEGIN v := 1; <<blk>> DECLARE w NUMBER; BEGIN w := blk.w; END blk; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN COMMIT WORK; ROLLBACK TO SAVEPOINT s; LOCK TABLE orders IN EXCLUSIVE MODE; END;
+ok	ok:b997cf2c8522	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS x NUMBER; BEGIN x := g_missing.y; END;
+955	955	engine	programs@objects	program:procedure	CREATE PROCEDURE p_existing IS BEGIN NULL; END;
+ok:172b1968bb0e	ok:172b1968bb0e	engine	programs@objects	program:procedure	CREATE OR REPLACE PROCEDURE p_existing (p_id IN NUMBER) IS BEGIN NULL; END;
+ok:172b1968bb0e	ok:172b1968bb0e	engine	programs@objects	program:procedure	CREATE OR REPLACE PROCEDURE p_existing (p_id IN NUMBER, p_extra IN NUMBER) IS BEGIN NULL; END;
+ok:172b1968bb0e	ok:172b1968bb0e	engine	programs@objects	program:procedure	CREATE OR REPLACE PROCEDURE p_existing IS BEGIN NULL; END;
+955	955	engine	programs@objects	program:procedure	CREATE OR REPLACE PROCEDURE customers IS BEGIN NULL; END;
+955	955	engine	programs@objects	program:procedure	CREATE PROCEDURE cust IS BEGIN NULL; END;
+955	955	engine	programs@objects	program:procedure	CREATE PROCEDURE f_double IS BEGIN NULL; END;
+955	955	engine	programs@objects	program:procedure	CREATE PROCEDURE pk IS BEGIN NULL; END;
+ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE omni_sim.p IS BEGIN NULL; END;
+1031	1031	engine	programs@objects	program:procedure	CREATE PROCEDURE nope.p IS BEGIN NULL; END;
+ok:7cb992ad08e2	ok:7cb992ad08e2	engine	programs@objects	program:procedure	CREATE PROCEDURE IF NOT EXISTS p_existing IS BEGIN NULL; END;
+ok:11c8e2286e32	ok:11c8e2286e32	engine	programs@objects	program:procedure	DROP PROCEDURE p_existing
+4043	4043	engine	programs@objects	program:procedure	DROP PROCEDURE nope
+4043	4043	engine	programs@objects	program:procedure	DROP PROCEDURE f_double
+ok:7cb992ad08e2	ok:7cb992ad08e2	engine	programs@objects	program:procedure	DROP PROCEDURE IF EXISTS nope
+ok:7cb992ad08e2	ok:7cb992ad08e2	engine	programs@objects	program:procedure	ALTER PROCEDURE p_existing COMPILE
+4043	4043	engine	programs@objects	program:procedure	ALTER PROCEDURE nope COMPILE
+ok:7cb992ad08e2	ok:7cb992ad08e2	engine	programs@objects	program:procedure	ALTER PROCEDURE p_calls COMPILE
+ok:1b68002572b3	ok:1b68002572b3	engine	programs@objects	program:function	CREATE FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END;
+ok:1b68002572b3	ok:1b68002572b3	engine	programs@objects	program:function	CREATE FUNCTION f RETURN NUMBER IS BEGIN NULL; END;
+ok:11172c55d49b	ok:11172c55d49b	engine	programs@objects	program:function	CREATE FUNCTION f RETURN NUMBER IS BEGIN RETURN; END;
+ok:1b68002572b3	ok:1b68002572b3	engine	programs@objects	program:function	CREATE FUNCTION f (p_c IN NUMBER) RETURN NUMBER IS v NUMBER; BEGIN SELECT COUNT(*) INTO v FROM orders WHERE customer_id = p_c; RETURN v; END;
+ok:60ab823506e6	ok:60ab823506e6	engine	programs@objects	program:function	CREATE FUNCTION f (p_c IN NUMBER) RETURN NUMBER IS v NUMBER; BEGIN SELECT COUNT(*) INTO v FROM orders WHERE nope = p_c; RETURN v; END;
+ok:1b68002572b3	ok:1b68002572b3	engine	programs@objects	program:function	CREATE FUNCTION f RETURN NUMBER IS BEGIN RETURN f_double(1) + pk.total(1); END;
+ok:19f386d1095a	ok:19f386d1095a	engine	programs@objects	program:function	CREATE FUNCTION f RETURN NUMBER IS BEGIN RETURN nope_f(1); END;
+ok:1b68002572b3	ok:1b68002572b3	engine	programs@objects	program:function	CREATE FUNCTION f RETURN customers%ROWTYPE IS r customers%ROWTYPE; BEGIN SELECT * INTO r FROM customers WHERE ROWNUM = 1; RETURN r; END;
+ok:19f386d1095a	ok:19f386d1095a	engine	programs@objects	program:function	CREATE FUNCTION f RETURN missing_t%ROWTYPE IS BEGIN RETURN NULL; END;
+ok:19f386d1095a	ok:19f386d1095a	engine	programs@objects	program:function	CREATE FUNCTION f RETURN nope_type IS BEGIN RETURN NULL; END;
+ok:1b68002572b3	ok:1b68002572b3	engine	programs@objects	program:function	CREATE FUNCTION f RETURN t_point IS BEGIN RETURN t_point(1, 2); END;
+ok:1b68002572b3	ok:1b68002572b3	engine	programs@objects	program:function	CREATE FUNCTION f RETURN VARCHAR2 DETERMINISTIC IS BEGIN RETURN 'x'; END;
+ok:1b68002572b3	ok:1b68002572b3	engine	programs@objects	program:function	CREATE FUNCTION f (n IN NUMBER) RETURN NUMBER RESULT_CACHE IS BEGIN RETURN n; END;
+ok:1b68002572b3	ok:1b68002572b3	engine	programs@objects	program:function	CREATE FUNCTION f (n IN NUMBER) RETURN NUMBER IS BEGIN IF n <= 1 THEN RETURN 1; END IF; RETURN n * f(n - 1); END;
+ok:1b68002572b3	ok:1b68002572b3	engine	programs@objects	program:function	CREATE FUNCTION f RETURN NUMBER IS BEGIN RETURN 'x'; END;
+ok	ok:0851853edbe0	engine	programs@objects	program:function	CREATE FUNCTION f RETURN DATE IS BEGIN RETURN 1; END;
+ok:1b68002572b3	ok:1b68002572b3	engine	programs@objects	program:function	CREATE FUNCTION f RETURN BOOLEAN IS BEGIN RETURN TRUE; END;
+955	955	engine	programs@objects	program:function	CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS BEGIN RETURN p_x; END;
+ok:7cb992ad08e2	ok:7cb992ad08e2	engine	programs@objects	program:function	CREATE OR REPLACE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS BEGIN RETURN p_x + p_x; END;
+ok:172b1968bb0e	ok:172b1968bb0e	engine	programs@objects	program:function	CREATE OR REPLACE FUNCTION f_double RETURN NUMBER IS BEGIN RETURN 2; END;
+955	955	engine	programs@objects	program:function	CREATE OR REPLACE FUNCTION p_existing RETURN NUMBER IS BEGIN RETURN 1; END;
+955	955	engine	programs@objects	program:function	CREATE FUNCTION orders RETURN NUMBER IS BEGIN RETURN 1; END;
+ok:3310d99d0940	ok:3310d99d0940	engine	programs@objects	program:function	DROP FUNCTION f_double
+4043	4043	engine	programs@objects	program:function	DROP FUNCTION nope
+4043	4043	engine	programs@objects	program:function	DROP FUNCTION p_existing
+ok:75748712f569	ok:75748712f569	engine	programs@objects	program:package	CREATE PACKAGE p2 AS PROCEDURE a; END;
+ok:47c150d9621a	ok:47c150d9621a	engine	programs@objects	program:package	CREATE PACKAGE p2 AS PROCEDURE a (x IN nope_type); END;
+ok:8a2d261f9248	ok:8a2d261f9248	engine	programs@objects	program:package	CREATE PACKAGE p2 AS v customers.nope%TYPE; END;
+ok:75748712f569	ok:75748712f569	engine	programs@objects	program:package	CREATE PACKAGE p2 AS v customers.name%TYPE; c CONSTANT NUMBER := 1; TYPE t_rec IS RECORD (a NUMBER, b VARCHAR2(10)); TYPE t_tab IS TABLE OF t_rec; END;
+ok:75748712f569	ok:75748712f569	engine	programs@objects	program:package	CREATE PACKAGE p2 AS CURSOR c RETURN customers%ROWTYPE; END;
+ok:75748712f569	ok:75748712f569	engine	programs@objects	program:package	CREATE PACKAGE p2 AS FUNCTION f RETURN NUMBER; e EXCEPTION; END p2;
+ok	ok:bb659634a37a	engine	programs@objects	program:package	CREATE PACKAGE p2 AS PROCEDURE a; END nope;
+955	955	engine	programs@objects	program:package	CREATE PACKAGE pk AS PROCEDURE a; END;
+ok:619f5df2e1bc	ok:619f5df2e1bc	engine	programs@objects	program:package	CREATE OR REPLACE PACKAGE pk AS g_count NUMBER := 0; PROCEDURE log_it (p_what IN VARCHAR2); FUNCTION total (p_customer IN NUMBER) RETURN NUMBER; END pk;
+ok:619f5df2e1bc	ok:619f5df2e1bc	engine	programs@objects	program:package	CREATE OR REPLACE PACKAGE pk AS PROCEDURE log_it (p_what IN VARCHAR2); END pk;
+ok:619f5df2e1bc	ok:619f5df2e1bc	engine	programs@objects	program:package	CREATE OR REPLACE PACKAGE pk AS g_count NUMBER := 0; PROCEDURE log_it (p_what IN VARCHAR2); FUNCTION total (p_customer IN NUMBER) RETURN NUMBER; PROCEDURE extra; END pk;
+955	955	engine	programs@objects	program:package	CREATE OR REPLACE PACKAGE orders AS PROCEDURE a; END;
+ok:0db32ad99b39	ok:0db32ad99b39	engine	programs@objects	program:package	DROP PACKAGE pk
+4043	4043	engine	programs@objects	program:package	DROP PACKAGE nope
+ok:7cb992ad08e2	ok:7cb992ad08e2	engine	programs@objects	program:package	ALTER PACKAGE pk COMPILE BODY
+ok:75748712f569	ok:75748712f569	engine	programs@objects	program:package	CREATE PACKAGE p2 AS TYPE rec IS RECORD (id customers.id%TYPE, n customers.name%TYPE); TYPE recs IS TABLE OF rec INDEX BY PLS_INTEGER; c_max CONSTANT PLS_INTEGER := 10; FUNCTION get (p_id customers.id%TYPE) RETURN rec; PROCEDURE put (p IN rec); PROCEDURE put (p IN recs); END;
+ok:0de79aecf87a	ok:0de79aecf87a	engine	programs@objects	program:package-body	CREATE PACKAGE BODY nope AS PROCEDURE a IS BEGIN NULL; END; END;
+955	955	engine	programs@objects	program:package-body	CREATE PACKAGE BODY pk AS PROCEDURE log_it (p_what IN VARCHAR2) IS BEGIN NULL; END; FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS BEGIN RETURN 0; END; END;
+ok:7cb992ad08e2	ok:7cb992ad08e2	engine	programs@objects	program:package-body	CREATE OR REPLACE PACKAGE BODY pk AS PROCEDURE log_it (p_what IN VARCHAR2) IS BEGIN NULL; END; FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS BEGIN RETURN 0; END; END;
+ok:af0a8ef90f9f	ok:af0a8ef90f9f	engine	programs@objects	program:package-body	CREATE OR REPLACE PACKAGE BODY pk AS PROCEDURE log_it (p_what IN VARCHAR2) IS BEGIN NULL; END; END;
+ok:af0a8ef90f9f	ok:af0a8ef90f9f	engine	programs@objects	program:package-body	CREATE OR REPLACE PACKAGE BODY pk AS PROCEDURE log_it (p_what IN NUMBER) IS BEGIN NULL; END; FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS BEGIN RETURN 0; END; END;
+ok:af0a8ef90f9f	ok:af0a8ef90f9f	engine	programs@objects	program:package-body	CREATE OR REPLACE PACKAGE BODY pk AS PROCEDURE log_it (p_other IN VARCHAR2) IS BEGIN NULL; END; FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS BEGIN RETURN 0; END; END;
+ok:af0a8ef90f9f	ok:af0a8ef90f9f	engine	programs@objects	program:package-body	CREATE OR REPLACE PACKAGE BODY pk AS PROCEDURE log_it (p_what IN VARCHAR2) IS BEGIN NULL; END; FUNCTION total (p_customer IN NUMBER) RETURN VARCHAR2 IS BEGIN RETURN 'x'; END; END;
+ok:7cb992ad08e2	ok:7cb992ad08e2	engine	programs@objects	program:package-body	CREATE OR REPLACE PACKAGE BODY pk AS PROCEDURE helper IS BEGIN NULL; END; PROCEDURE log_it (p_what IN VARCHAR2) IS BEGIN helper; g_count := g_count + 1; END; FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS BEGIN RETURN g_count; END; END;
+ok:c2173b548728	ok:c2173b548728	engine	programs@objects	program:package-body	CREATE OR REPLACE PACKAGE BODY pk AS PROCEDURE log_it (p_what IN VARCHAR2) IS BEGIN INSERT INTO audit_log (nope) VALUES (p_what); END; FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS BEGIN RETURN 0; END; END;
+ok:5dae77b3df95	ok:5dae77b3df95	engine	programs@objects	program:package-body	CREATE OR REPLACE PACKAGE BODY pk AS PROCEDURE log_it (p_what IN VARCHAR2) IS BEGIN NULL; END; FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS v NUMBER; BEGIN SELECT SUM(amount) INTO v FROM missing_t; RETURN v; END; END;
+ok:7cb992ad08e2	ok:7cb992ad08e2	engine	programs@objects	program:package-body	CREATE OR REPLACE PACKAGE BODY pk AS PROCEDURE log_it (p_what IN VARCHAR2) IS BEGIN NULL; END; FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS BEGIN RETURN 0; END; BEGIN g_count := 10; END;
+ok:26146f5fa2fe	ok:26146f5fa2fe	engine	programs@objects	program:package-body	CREATE OR REPLACE PACKAGE BODY pk AS PROCEDURE log_it (p_what IN VARCHAR2) IS BEGIN nope; END; FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS BEGIN RETURN 0; END; END;
+ok:7cb992ad08e2	ok:7cb992ad08e2	engine	programs@objects	program:package-body	CREATE OR REPLACE PACKAGE BODY pk AS g_private NUMBER; PROCEDURE log_it (p_what IN VARCHAR2) IS BEGIN g_private := 1; g_count := g_count + g_private; INSERT INTO audit_log (id, what, at) VALUES (g_count, p_what, SYSTIMESTAMP); END; FUNCTION total (p_customer IN NUMBER) RETURN NUMBER IS BEGIN RETURN pk.g_count + g_private; END; END;
+ok:3992b337f52f	ok:3992b337f52f	engine	programs@objects	program:package-body	DROP PACKAGE BODY pk
+4043	4043	engine	programs@objects	program:package-body	DROP PACKAGE BODY nope
+ok:30ff5a832b47	ok:30ff5a832b47	engine	programs@objects	program:trigger	CREATE TRIGGER trg BEFORE INSERT ON orders FOR EACH ROW BEGIN :NEW.amount := NVL(:NEW.amount, 0); END;
+ok:dcc72989892c	ok:dcc72989892c	engine	programs@objects	program:trigger	CREATE TRIGGER trg BEFORE INSERT ON orders FOR EACH ROW BEGIN :NEW.nope := 0; END;
+ok:30ff5a832b47	ok:30ff5a832b47	engine	programs@objects	program:trigger	CREATE TRIGGER trg BEFORE INSERT ON orders FOR EACH ROW BEGIN :NEW.amount := :OLD.amount; END;
+942	942	engine	programs@objects	program:trigger	CREATE TRIGGER trg BEFORE INSERT ON missing_t FOR EACH ROW BEGIN NULL; END;
+ok:30ff5a832b47	ok:30ff5a832b47	engine	programs@objects	program:trigger	CREATE TRIGGER trg AFTER UPDATE OF status ON orders FOR EACH ROW BEGIN INSERT INTO audit_log (id, what, at) VALUES (:NEW.id, :NEW.status, SYSDATE); END;
+904	904	engine	programs@objects	program:trigger	CREATE TRIGGER trg AFTER UPDATE OF nope ON orders FOR EACH ROW BEGIN NULL; END;
+4082	4082	engine	programs@objects	program:trigger	CREATE TRIGGER trg AFTER INSERT ON orders BEGIN INSERT INTO audit_log (id) VALUES (:NEW.id); END;
+ok:30ff5a832b47	ok:30ff5a832b47	engine	programs@objects	program:trigger	CREATE TRIGGER trg AFTER INSERT ON orders BEGIN pk.log_it('insert'); END;
+4084	4084	engine	programs@objects	program:trigger	CREATE TRIGGER trg AFTER INSERT ON orders FOR EACH ROW BEGIN :NEW.amount := 0; END;
+4084	4084	engine	programs@objects	program:trigger	CREATE TRIGGER trg BEFORE DELETE ON orders FOR EACH ROW BEGIN :NEW.amount := 0; END;
+ok:30ff5a832b47	ok:30ff5a832b47	engine	programs@objects	program:trigger	CREATE TRIGGER trg BEFORE INSERT ON orders FOR EACH ROW WHEN (NEW.amount > 100) BEGIN :NEW.status := 'big'; END;
+4077	4077	engine	programs@objects	program:trigger	CREATE TRIGGER trg BEFORE INSERT ON orders WHEN (NEW.amount > 100) BEGIN NULL; END;
+ok:30ff5a832b47	ok:30ff5a832b47	engine	programs@objects	program:trigger	CREATE TRIGGER trg BEFORE INSERT ON orders REFERENCING NEW AS n FOR EACH ROW BEGIN :n.status := 'x'; END;
+ok:dcc72989892c	ok:dcc72989892c	engine	programs@objects	program:trigger	CREATE TRIGGER trg BEFORE INSERT ON orders REFERENCING NEW AS n FOR EACH ROW BEGIN :NEW.status := 'x'; END;
+ok:30ff5a832b47	ok:30ff5a832b47	engine	programs@objects	program:trigger	CREATE TRIGGER trg BEFORE INSERT OR UPDATE OR DELETE ON orders FOR EACH ROW BEGIN IF INSERTING THEN :NEW.status := 'i'; ELSIF UPDATING('status') THEN NULL; END IF; END;
+ok:30ff5a832b47	ok:30ff5a832b47	engine	programs@objects	program:trigger	CREATE TRIGGER trg INSTEAD OF INSERT ON v_customers FOR EACH ROW BEGIN INSERT INTO customers (id, name) VALUES (:NEW.id, :NEW.name); END;
+25002	25002	engine	programs@objects	program:trigger	CREATE TRIGGER trg INSTEAD OF INSERT ON customers FOR EACH ROW BEGIN NULL; END;
+25001	25001	engine	programs@objects	program:trigger	CREATE TRIGGER trg BEFORE INSERT ON v_customers FOR EACH ROW BEGIN NULL; END;
+ok:6a00fee9c147	ok:6a00fee9c147	engine	programs@objects	program:trigger	CREATE TRIGGER trg BEFORE INSERT ON orders FOR EACH ROW BEGIN INSERT INTO audit_log (nope) VALUES (1); END;
+ok:0bae857edc30	ok:0bae857edc30	engine	programs@objects	program:trigger	CREATE TRIGGER trg BEFORE INSERT ON orders FOR EACH ROW BEGIN nope_proc; END;
+ok:30ff5a832b47	ok:30ff5a832b47	engine	programs@objects	program:trigger	CREATE TRIGGER trg BEFORE INSERT ON orders FOR EACH ROW BEGIN :NEW.id := order_seq.NEXTVAL; END;
+ok:30ff5a832b47	ok:30ff5a832b47	engine	programs@objects	program:trigger	CREATE TRIGGER trg BEFORE INSERT ON cust FOR EACH ROW BEGIN NULL; END;
+ok:23f499253d04	ok:23f499253d04	engine	programs@objects	program:trigger	CREATE TRIGGER trg BEFORE INSERT ON orders FOR EACH ROW DISABLE BEGIN NULL; END;
+ok:30ff5a832b47	ok:30ff5a832b47	engine	programs@objects	program:trigger	CREATE TRIGGER trg FOR INSERT ON orders COMPOUND TRIGGER BEFORE EACH ROW IS BEGIN :NEW.status := 'c'; END BEFORE EACH ROW; END trg;
+ok:30ff5a832b47	ok:30ff5a832b47	engine	programs@objects	program:trigger	CREATE TRIGGER trg BEFORE UPDATE ON orders FOR EACH ROW BEGIN IF UPDATING('STATUS') AND :OLD.status <> :NEW.status THEN :NEW.amount := :OLD.amount; END IF; END;
+ok:30ff5a832b47	ok:30ff5a832b47	engine	programs@objects	program:trigger	CREATE TRIGGER trg BEFORE INSERT OR UPDATE ON orders FOR EACH ROW WHEN (NEW.amount IS NULL) DECLARE v NUMBER; BEGIN SELECT COUNT(*) INTO v FROM customers WHERE id = :NEW.customer_id; IF v = 0 THEN RAISE_APPLICATION_ERROR(-20000, 'no customer ' || :NEW.customer_id); END IF; END;
+ok:30ff5a832b47	ok:30ff5a832b47	engine	programs@objects	program:trigger	CREATE TRIGGER trg INSTEAD OF UPDATE ON v_customers FOR EACH ROW BEGIN UPDATE customers SET name = :NEW.name WHERE id = :OLD.id; END;
+ok:30ff5a832b47	ok:30ff5a832b47	engine	programs@objects	program:trigger	CREATE TRIGGER trg AFTER INSERT OR DELETE ON orders BEGIN pk.log_it('stmt'); END;
+4081	4081	engine	programs@objects	program:trigger	CREATE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW BEGIN NULL; END;
+ok:7cb992ad08e2	ok:7cb992ad08e2	engine	programs@objects	program:trigger	CREATE OR REPLACE TRIGGER trg_existing BEFORE INSERT ON orders FOR EACH ROW BEGIN NULL; END;
+4095	4095	engine	programs@objects	program:trigger	CREATE OR REPLACE TRIGGER trg_existing BEFORE INSERT ON customers FOR EACH ROW BEGIN NULL; END;
+ok:a393a2fd3a53	ok:a393a2fd3a53	engine	programs@objects	program:trigger	CREATE TRIGGER p_existing BEFORE INSERT ON orders FOR EACH ROW BEGIN NULL; END;
+ok:ed11916c3ab8	ok:ed11916c3ab8	engine	programs@objects	program:trigger	DROP TRIGGER trg_existing
+4080	4080	engine	programs@objects	program:trigger	DROP TRIGGER nope
+ok:d95f9a8d6b4e	ok:d95f9a8d6b4e	engine	programs@objects	program:trigger	ALTER TRIGGER trg_existing DISABLE
+ok:7cb992ad08e2	ok:7cb992ad08e2	engine	programs@objects	program:trigger	ALTER TRIGGER trg_existing COMPILE
+4080	4080	engine	programs@objects	program:trigger	ALTER TRIGGER nope ENABLE
+ok:ac181fcdd18b	ok:ac181fcdd18b	engine	programs@objects	program:type	CREATE TYPE t AS OBJECT (a NUMBER, b VARCHAR2(10))
+ok:1d24cd823bc4	ok:1d24cd823bc4	engine	programs@objects	program:type	CREATE TYPE t AS OBJECT (a nope_type)
+ok:ac181fcdd18b	ok:ac181fcdd18b	engine	programs@objects	program:type	CREATE TYPE t AS OBJECT (a t_point)
+ok:ac181fcdd18b	ok:ac181fcdd18b	engine	programs@objects	program:type	CREATE TYPE t AS OBJECT (a VARCHAR2)
+ok:ac181fcdd18b	ok:ac181fcdd18b	engine	programs@objects	program:type	CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER)
+ok:ac181fcdd18b	ok:ac181fcdd18b	engine	programs@objects	program:type	CREATE TYPE t AS OBJECT (a NUMBER) NOT FINAL
+ok:ac181fcdd18b	ok:ac181fcdd18b	engine	programs@objects	program:type	CREATE TYPE t AS TABLE OF NUMBER
+ok:ac181fcdd18b	ok:ac181fcdd18b	engine	programs@objects	program:type	CREATE TYPE t AS TABLE OF t_point
+ok:1d24cd823bc4	ok:1d24cd823bc4	engine	programs@objects	program:type	CREATE TYPE t AS TABLE OF nope_type
+ok:ac181fcdd18b	ok:ac181fcdd18b	engine	programs@objects	program:type	CREATE TYPE t AS VARRAY(10) OF VARCHAR2(10)
+ok:f5649e298be7	ok:f5649e298be7	engine	programs@objects	program:type	CREATE TYPE t UNDER t_point (z NUMBER)
+955	955	engine	programs@objects	program:type	CREATE TYPE t_point AS OBJECT (x NUMBER)
+ok:7cb992ad08e2	ok:7cb992ad08e2	engine	programs@objects	program:type	CREATE OR REPLACE TYPE t_point AS OBJECT (x NUMBER, y NUMBER, MEMBER FUNCTION norm RETURN NUMBER)
+ok:4701e11deb9e	ok:4701e11deb9e	engine	programs@objects	program:type	CREATE OR REPLACE TYPE t_point AS OBJECT (x NUMBER)
+955	955	engine	programs@objects	program:type	CREATE TYPE customers AS OBJECT (a NUMBER)
+ok:da0bb2633d47	ok:da0bb2633d47	engine	programs@objects	program:type	DROP TYPE t_point
+ok:da0bb2633d47	ok:da0bb2633d47	engine	programs@objects	program:type	DROP TYPE t_point FORCE
+4043	4043	engine	programs@objects	program:type	DROP TYPE nope
+ok:1751dd6ce41b	ok:1751dd6ce41b	engine	programs@objects	program:type-body	CREATE TYPE BODY nope AS MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; END;
+ok:7cb992ad08e2	ok:7cb992ad08e2	engine	programs@objects	program:type-body	CREATE OR REPLACE TYPE BODY t_point AS MEMBER FUNCTION norm RETURN NUMBER IS BEGIN RETURN x; END; END;
+ok:8887f90d3b90	ok:8887f90d3b90	engine	programs@objects	program:type-body	CREATE OR REPLACE TYPE BODY t_point AS MEMBER FUNCTION norm RETURN NUMBER IS BEGIN RETURN nope; END; END;
+ok:5696e538c2cb	ok:5696e538c2cb	engine	programs@objects	program:type-body	CREATE OR REPLACE TYPE BODY t_point AS MEMBER FUNCTION norm RETURN NUMBER IS BEGIN RETURN SELF.x; END; MEMBER FUNCTION extra RETURN NUMBER IS BEGIN RETURN 1; END; END;
+ok:d612c5ba9742	ok:d612c5ba9742	engine	programs@objects	program:type-body	CREATE OR REPLACE TYPE BODY t_point AS MEMBER FUNCTION norm RETURN NUMBER IS v NUMBER; BEGIN SELECT COUNT(*) INTO v FROM missing_t; RETURN v; END; END;
+955	955	engine	programs@objects	program:type-body	CREATE TYPE BODY t_point AS MEMBER FUNCTION norm RETURN NUMBER IS BEGIN RETURN 0; END; END;
+ok:7cb992ad08e2	ok:7cb992ad08e2	engine	programs@objects	program:type-body	CREATE OR REPLACE TYPE BODY t_point AS MEMBER FUNCTION norm RETURN NUMBER IS BEGIN RETURN SQRT(SELF.x * SELF.x + y * y); END; END;
+ok:c85d18957f97	ok:c85d18957f97	engine	programs@objects	program:type-body	DROP TYPE BODY t_point
+4043	4043	engine	programs@objects	program:type-body	DROP TYPE BODY nope
+ok:aba7c214dcea	ok:aba7c214dcea	engine	programs@objects	program:reference	DROP TABLE audit_log
+ok:68182e71663e	ok:68182e71663e	engine	programs@objects	program:reference	DROP TABLE customers CASCADE CONSTRAINTS
+ok:844a4925bffe	ok:844a4925bffe	engine	programs@objects	program:reference	ALTER TABLE audit_log ADD (extra NUMBER)
+ok:b5d38e0dae02	ok:b5d38e0dae02	engine	programs@objects	program:reference	ALTER TABLE audit_log DROP COLUMN at
+ok:6c2469ccfe09	ok:6c2469ccfe09	engine	programs@objects	program:reference	ALTER TABLE customers DROP COLUMN region
+ok:c7a737ee08a4	ok:c7a737ee08a4	engine	programs@objects	program:reference	ALTER TABLE customers MODIFY (name VARCHAR2(200))
+ok:f6160a5ae5c4	ok:f6160a5ae5c4	engine	programs@objects	program:reference	RENAME audit_log TO audit_log2
+ok:042e15295ecc	ok:042e15295ecc	engine	programs@objects	program:reference	DROP SEQUENCE order_seq
+ok:543abc4c12be	ok:543abc4c12be	engine	programs@objects	program:reference	DROP SYNONYM cust
+ok:4dca7031aab4	ok:4dca7031aab4	engine	programs@objects	program:reference	DROP VIEW v_customers
+ok:4ad1f2049ed8	ok:4ad1f2049ed8	engine	programs@objects	program:reference	CREATE TABLE pts (id NUMBER, p t_point)
+ok	902	engine	programs@objects	program:reference	CREATE TABLE pts (id NUMBER, p nope_type)

@@ -1,0 +1,323 @@
+# pin: default gcr.io/cloud-spanner-emulator/emulator:1.5.54 sha256:caf1bd24c081e005837b5977bae5a250e25cb4da9f25ec1abc91936ad67e4de2 v1.5.54 judge:2
+# columns: omni, expected, source, fixture, session, aspect, statement
+CustomerId, Name	CustomerId, Name	engine	shop	default	results	SELECT CustomerId, Name FROM Customers
+Customers.CustomerId | Customers.Name	~ | ~	engine	shop	default	lineage	SELECT CustomerId, Name FROM Customers
+Customers	Customers	engine	shop	default	tables	SELECT CustomerId, Name FROM Customers
+id, Email	id, Email	engine	shop	default	results	SELECT c.CustomerId AS id, c.Email FROM Customers AS c
+Customers.CustomerId | Customers.Email	~ | ~	engine	shop	default	lineage	SELECT c.CustomerId AS id, c.Email FROM Customers AS c
+Customers	Customers	engine	shop	default	tables	SELECT c.CustomerId AS id, c.Email FROM Customers AS c
+CustomerId	CustomerId	engine	shop	default	results	SELECT c.CustomerId FROM Customers c
+Customers.CustomerId	~	engine	shop	default	lineage	SELECT c.CustomerId FROM Customers c
+Customers	Customers	engine	shop	default	tables	SELECT c.CustomerId FROM Customers c
+"", ""	"", ""	engine	shop	default	results	SELECT Amount * 2, UPPER(Status) FROM Orders
+Orders.Amount | Orders.Status	~ | ~	engine	shop	default	lineage	SELECT Amount * 2, UPPER(Status) FROM Orders
+Orders	Orders	engine	shop	default	tables	SELECT Amount * 2, UPPER(Status) FROM Orders
+a, ""	a, ""	engine	shop	default	results	SELECT CAST(Amount AS STRING) AS a, SAFE_CAST(Status AS INT64) FROM Orders
+Orders.Amount | Orders.Status	~ | ~	engine	shop	default	lineage	SELECT CAST(Amount AS STRING) AS a, SAFE_CAST(Status AS INT64) FROM Orders
+Orders	Orders	engine	shop	default	tables	SELECT CAST(Amount AS STRING) AS a, SAFE_CAST(Status AS INT64) FROM Orders
+"", b	"", b	engine	shop	default	results	SELECT 1, 'a' AS b
+- | -	~ | ~	engine	shop	default	lineage	SELECT 1, 'a' AS b
+-	-	engine	shop	default	tables	SELECT 1, 'a' AS b
+""	""	engine	shop	default	results	SELECT COUNT(*) FROM Orders
+-	~	engine	shop	default	lineage	SELECT COUNT(*) FROM Orders
+Orders	Orders	engine	shop	default	tables	SELECT COUNT(*) FROM Orders
+Region	Region	engine	shop	default	results	SELECT DISTINCT Region FROM Customers
+Customers.Region	~	engine	shop	default	lineage	SELECT DISTINCT Region FROM Customers
+Customers	Customers	engine	shop	default	tables	SELECT DISTINCT Region FROM Customers
+Name	Name	engine	shop	default	results	SELECT Name FROM Customers ORDER BY Region LIMIT 5
+Customers.Name	~	engine	shop	default	lineage	SELECT Name FROM Customers ORDER BY Region LIMIT 5
+Customers	Customers	engine	shop	default	tables	SELECT Name FROM Customers ORDER BY Region LIMIT 5
+OrderId	OrderId	engine	shop	default	results	SELECT OrderId FROM Orders LIMIT 2 OFFSET 1
+Orders.OrderId	~	engine	shop	default	lineage	SELECT OrderId FROM Orders LIMIT 2 OFFSET 1
+Orders	Orders	engine	shop	default	tables	SELECT OrderId FROM Orders LIMIT 2 OFFSET 1
+contact	contact	engine	shop	default	results	SELECT CONCAT(Name, Email) AS contact FROM Customers
+Customers.Email Customers.Name	~	engine	shop	default	lineage	SELECT CONCAT(Name, Email) AS contact FROM Customers
+Customers	Customers	engine	shop	default	tables	SELECT CONCAT(Name, Email) AS contact FROM Customers
+s	s	engine	shop	default	results	SELECT IF(Amount > 10, Status, NULL) AS s FROM Orders
+Orders.Amount Orders.Status	~	engine	shop	default	lineage	SELECT IF(Amount > 10, Status, NULL) AS s FROM Orders
+Orders	Orders	engine	shop	default	tables	SELECT IF(Amount > 10, Status, NULL) AS s FROM Orders
+""	""	engine	shop	default	results	SELECT CASE WHEN Amount > 10 THEN 'big' ELSE Status END FROM Orders
+Orders.Amount Orders.Status	~	engine	shop	default	lineage	SELECT CASE WHEN Amount > 10 THEN 'big' ELSE Status END FROM Orders
+Orders	Orders	engine	shop	default	tables	SELECT CASE WHEN Amount > 10 THEN 'big' ELSE Status END FROM Orders
+""	""	engine	shop	default	results	SELECT COALESCE(Email, Name) FROM Customers
+Customers.Email Customers.Name	~	engine	shop	default	lineage	SELECT COALESCE(Email, Name) FROM Customers
+Customers	Customers	engine	shop	default	tables	SELECT COALESCE(Email, Name) FROM Customers
+Name, Email	Name, Email	engine	shop	default	results	SELECT (Name), ((c.Email)) FROM Customers c
+Customers.Name | Customers.Email	~ | ~	engine	shop	default	lineage	SELECT (Name), ((c.Email)) FROM Customers c
+Customers	Customers	engine	shop	default	tables	SELECT (Name), ((c.Email)) FROM Customers c
+Email	Email	engine	shop	default	results	SELECT * EXCEPT (Name) FROM (SELECT (Name), Email FROM Customers)
+Customers.Email	~	engine	shop	default	lineage	SELECT * EXCEPT (Name) FROM (SELECT (Name), Email FROM Customers)
+Customers	Customers	engine	shop	default	tables	SELECT * EXCEPT (Name) FROM (SELECT (Name), Email FROM Customers)
+CustomerId, OrderId, Amount, Status, Items	CustomerId, OrderId, Amount, Status, Items	engine	shop	default	results	SELECT * FROM Orders
+Orders.CustomerId | Orders.OrderId | Orders.Amount | Orders.Status | Orders.Items	~ | ~ | ~ | ~ | ~	engine	shop	default	lineage	SELECT * FROM Orders
+Orders	Orders	engine	shop	default	tables	SELECT * FROM Orders
+CustomerId, OrderId, Amount, Status, Items	CustomerId, OrderId, Amount, Status, Items	engine	shop	default	results	SELECT o.* FROM Orders o
+Orders.CustomerId | Orders.OrderId | Orders.Amount | Orders.Status | Orders.Items	~ | ~ | ~ | ~ | ~	engine	shop	default	lineage	SELECT o.* FROM Orders o
+Orders	Orders	engine	shop	default	tables	SELECT o.* FROM Orders o
+CustomerId, OrderId, Amount, Status, Items, Amount	CustomerId, OrderId, Amount, Status, Items, Amount	engine	shop	default	results	SELECT *, Amount FROM Orders
+Orders.CustomerId | Orders.OrderId | Orders.Amount | Orders.Status | Orders.Items | Orders.Amount	~ | ~ | ~ | ~ | ~ | ~	engine	shop	default	lineage	SELECT *, Amount FROM Orders
+Orders	Orders	engine	shop	default	tables	SELECT *, Amount FROM Orders
+CustomerId, Name, Email, Region, Amount	CustomerId, Name, Email, Region, Amount	engine	shop	default	results	SELECT c.*, o.Amount FROM Customers c JOIN Orders o ON o.CustomerId = c.CustomerId
+Customers.CustomerId | Customers.Name | Customers.Email | Customers.Region | Orders.Amount	~ | ~ | ~ | ~ | ~	engine	shop	default	lineage	SELECT c.*, o.Amount FROM Customers c JOIN Orders o ON o.CustomerId = c.CustomerId
+Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT c.*, o.Amount FROM Customers c JOIN Orders o ON o.CustomerId = c.CustomerId
+CustomerId, Name, Email, Region	CustomerId, Name, Email, Region	engine	shop	default	results	SELECT * FROM (SELECT * FROM Customers) c
+Customers.CustomerId | Customers.Name | Customers.Email | Customers.Region	~ | ~ | ~ | ~	engine	shop	default	lineage	SELECT * FROM (SELECT * FROM Customers) c
+Customers	Customers	engine	shop	default	tables	SELECT * FROM (SELECT * FROM Customers) c
+CustomerId, Name, Region	CustomerId, Name, Region	engine	shop	default	results	SELECT * EXCEPT (Email) FROM Customers
+Customers.CustomerId | Customers.Name | Customers.Region	~ | ~ | ~	engine	shop	default	lineage	SELECT * EXCEPT (Email) FROM Customers
+Customers	Customers	engine	shop	default	tables	SELECT * EXCEPT (Email) FROM Customers
+CustomerId, Name, Email, Region	CustomerId, Name, Email, Region	engine	shop	default	results	SELECT * REPLACE (UPPER(Name) AS Name) FROM Customers
+Customers.CustomerId | Customers.Name | Customers.Email | Customers.Region	~ | ~ | ~ | ~	engine	shop	default	lineage	SELECT * REPLACE (UPPER(Name) AS Name) FROM Customers
+Customers	Customers	engine	shop	default	tables	SELECT * REPLACE (UPPER(Name) AS Name) FROM Customers
+CustomerId, Name, Email, OrderId	CustomerId, Name, Email, OrderId	engine	shop	default	results	SELECT c.* EXCEPT (Region), o.OrderId FROM Customers c JOIN Orders o USING (CustomerId)
+Customers.CustomerId | Customers.Name | Customers.Email | Orders.OrderId	~ | ~ | ~ | ~	engine	shop	default	lineage	SELECT c.* EXCEPT (Region), o.OrderId FROM Customers c JOIN Orders o USING (CustomerId)
+Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT c.* EXCEPT (Region), o.OrderId FROM Customers c JOIN Orders o USING (CustomerId)
+Name, Amount	Name, Amount	engine	shop	default	results	SELECT c.Name, o.Amount FROM Customers c JOIN Orders o ON c.CustomerId = o.CustomerId
+Customers.Name | Orders.Amount	~ | ~	engine	shop	default	lineage	SELECT c.Name, o.Amount FROM Customers c JOIN Orders o ON c.CustomerId = o.CustomerId
+Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT c.Name, o.Amount FROM Customers c JOIN Orders o ON c.CustomerId = o.CustomerId
+Name, Amount	Name, Amount	engine	shop	default	results	SELECT c.Name, o.Amount FROM Customers c LEFT JOIN Orders o ON c.CustomerId = o.CustomerId
+Customers.Name | Orders.Amount	~ | ~	engine	shop	default	lineage	SELECT c.Name, o.Amount FROM Customers c LEFT JOIN Orders o ON c.CustomerId = o.CustomerId
+Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT c.Name, o.Amount FROM Customers c LEFT JOIN Orders o ON c.CustomerId = o.CustomerId
+Name, Amount	Name, Amount	engine	shop	default	results	SELECT c.Name, o.Amount FROM Customers c RIGHT JOIN Orders o ON c.CustomerId = o.CustomerId
+Customers.Name | Orders.Amount	~ | ~	engine	shop	default	lineage	SELECT c.Name, o.Amount FROM Customers c RIGHT JOIN Orders o ON c.CustomerId = o.CustomerId
+Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT c.Name, o.Amount FROM Customers c RIGHT JOIN Orders o ON c.CustomerId = o.CustomerId
+Name, Amount	Name, Amount	engine	shop	default	results	SELECT c.Name, o.Amount FROM Customers c FULL JOIN Orders o ON c.CustomerId = o.CustomerId
+Customers.Name | Orders.Amount	~ | ~	engine	shop	default	lineage	SELECT c.Name, o.Amount FROM Customers c FULL JOIN Orders o ON c.CustomerId = o.CustomerId
+Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT c.Name, o.Amount FROM Customers c FULL JOIN Orders o ON c.CustomerId = o.CustomerId
+Name, Name	Name, Name	engine	shop	default	results	SELECT c.Name, p.Name FROM Customers c CROSS JOIN Products p
+Customers.Name | Products.Name	~ | ~	engine	shop	default	lineage	SELECT c.Name, p.Name FROM Customers c CROSS JOIN Products p
+Customers, Products	Customers, Products	engine	shop	default	tables	SELECT c.Name, p.Name FROM Customers c CROSS JOIN Products p
+Name, Name	Name, Name	engine	shop	default	results	SELECT c.Name, p.Name FROM Customers c, Products p
+Customers.Name | Products.Name	~ | ~	engine	shop	default	lineage	SELECT c.Name, p.Name FROM Customers c, Products p
+Customers, Products	Customers, Products	engine	shop	default	tables	SELECT c.Name, p.Name FROM Customers c, Products p
+CustomerId, Name, Amount	CustomerId, Name, Amount	engine	shop	default	results	SELECT CustomerId, Name, Amount FROM Customers JOIN Orders USING (CustomerId)
+Customers.CustomerId Orders.CustomerId | Customers.Name | Orders.Amount	~ | ~ | ~	engine	shop	default	lineage	SELECT CustomerId, Name, Amount FROM Customers JOIN Orders USING (CustomerId)
+Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT CustomerId, Name, Amount FROM Customers JOIN Orders USING (CustomerId)
+CustomerId, Name, Email, Region, OrderId, Amount, Status, Items	CustomerId, Name, Email, Region, OrderId, Amount, Status, Items	engine	shop	default	results	SELECT * FROM Customers JOIN Orders USING (CustomerId)
+Customers.CustomerId Orders.CustomerId | Customers.Name | Customers.Email | Customers.Region | Orders.OrderId | Orders.Amount | Orders.Status | Orders.Items	~ | ~ | ~ | ~ | ~ | ~ | ~ | ~	engine	shop	default	lineage	SELECT * FROM Customers JOIN Orders USING (CustomerId)
+Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT * FROM Customers JOIN Orders USING (CustomerId)
+CustomerId, OrderId, Amount, Status, Items, LineId, ProductId, Qty	CustomerId, OrderId, Amount, Status, Items, LineId, ProductId, Qty	engine	shop	default	results	SELECT * FROM Orders JOIN LineItems USING (CustomerId, OrderId)
+LineItems.CustomerId Orders.CustomerId | LineItems.OrderId Orders.OrderId | Orders.Amount | Orders.Status | Orders.Items | LineItems.LineId | LineItems.ProductId | LineItems.Qty	~ | ~ | ~ | ~ | ~ | ~ | ~ | ~	engine	shop	default	lineage	SELECT * FROM Orders JOIN LineItems USING (CustomerId, OrderId)
+LineItems, Orders	LineItems, Orders	engine	shop	default	tables	SELECT * FROM Orders JOIN LineItems USING (CustomerId, OrderId)
+CustomerId	CustomerId	engine	shop	default	results	SELECT CustomerId FROM Customers FULL JOIN Orders USING (CustomerId)
+Customers.CustomerId Orders.CustomerId	~	engine	shop	default	lineage	SELECT CustomerId FROM Customers FULL JOIN Orders USING (CustomerId)
+Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT CustomerId FROM Customers FULL JOIN Orders USING (CustomerId)
+Name, manager	Name, manager	engine	shop	default	results	SELECT e.Name, m.Name AS manager FROM Employees e LEFT JOIN Employees m ON e.ManagerId = m.EmpId
+Employees.Name | Employees.Name	~ | ~	engine	shop	default	lineage	SELECT e.Name, m.Name AS manager FROM Employees e LEFT JOIN Employees m ON e.ManagerId = m.EmpId
+Employees	Employees	engine	shop	default	tables	SELECT e.Name, m.Name AS manager FROM Employees e LEFT JOIN Employees m ON e.ManagerId = m.EmpId
+Qty, Price, Region	Qty, Price, Region	engine	shop	default	results	SELECT l.Qty, p.Price, c.Region FROM LineItems l JOIN Products p ON l.ProductId = p.ProductId JOIN Customers c ON c.CustomerId = l.CustomerId
+LineItems.Qty | Products.Price | Customers.Region	~ | ~ | ~	engine	shop	default	lineage	SELECT l.Qty, p.Price, c.Region FROM LineItems l JOIN Products p ON l.ProductId = p.ProductId JOIN Customers c ON c.CustomerId = l.CustomerId
+Customers, LineItems, Products	Customers, LineItems, Products	engine	shop	default	tables	SELECT l.Qty, p.Price, c.Region FROM LineItems l JOIN Products p ON l.ProductId = p.ProductId JOIN Customers c ON c.CustomerId = l.CustomerId
+OrderId	OrderId	engine	shop	default	results	SELECT o.OrderId FROM Orders o JOIN @{JOIN_METHOD=HASH_JOIN} LineItems l ON o.OrderId = l.OrderId
+Orders.OrderId	~	engine	shop	default	lineage	SELECT o.OrderId FROM Orders o JOIN @{JOIN_METHOD=HASH_JOIN} LineItems l ON o.OrderId = l.OrderId
+LineItems, Orders	LineItems, Orders	engine	shop	default	tables	SELECT o.OrderId FROM Orders o JOIN @{JOIN_METHOD=HASH_JOIN} LineItems l ON o.OrderId = l.OrderId
+LineId, Status	LineId, Status	engine	shop	default	results	SELECT l.LineId, o.Status FROM Orders o JOIN LineItems l ON l.CustomerId = o.CustomerId AND l.OrderId = o.OrderId
+LineItems.LineId | Orders.Status	~ | ~	engine	shop	default	lineage	SELECT l.LineId, o.Status FROM Orders o JOIN LineItems l ON l.CustomerId = o.CustomerId AND l.OrderId = o.OrderId
+LineItems, Orders	LineItems, Orders	engine	shop	default	tables	SELECT l.LineId, o.Status FROM Orders o JOIN LineItems l ON l.CustomerId = o.CustomerId AND l.OrderId = o.OrderId
+LineId	LineId	engine	shop	default	results	SELECT LineId FROM LineItems
+LineItems.LineId	~	engine	shop	default	lineage	SELECT LineId FROM LineItems
+LineItems	LineItems	engine	shop	default	tables	SELECT LineId FROM LineItems
+OrderId, Status	OrderId, Status	engine	shop	default	results	SELECT OrderId, Status FROM Orders@{FORCE_INDEX=OrdersByStatus} WHERE Status = 'open'
+Orders.OrderId | Orders.Status	~ | ~	engine	shop	default	lineage	SELECT OrderId, Status FROM Orders@{FORCE_INDEX=OrdersByStatus} WHERE Status = 'open'
+Orders	Orders	engine	shop	default	tables	SELECT OrderId, Status FROM Orders@{FORCE_INDEX=OrdersByStatus} WHERE Status = 'open'
+Status	Status	engine	shop	default	results	SELECT Status FROM Orders@{FORCE_INDEX=_BASE_TABLE}
+Orders.Status	~	engine	shop	default	lineage	SELECT Status FROM Orders@{FORCE_INDEX=_BASE_TABLE}
+Orders	Orders	engine	shop	default	tables	SELECT Status FROM Orders@{FORCE_INDEX=_BASE_TABLE}
+Name, top	Name, top	engine	shop	default	results	SELECT Name, (SELECT MAX(Amount) FROM Orders) AS top FROM Customers
+Customers.Name | -	~ | ~	engine	shop	default	lineage	SELECT Name, (SELECT MAX(Amount) FROM Orders) AS top FROM Customers
+Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT Name, (SELECT MAX(Amount) FROM Orders) AS top FROM Customers
+Name, top	Name, top	engine	shop	default	results	SELECT Name, (SELECT MAX(o.Amount) FROM Orders o WHERE o.CustomerId = c.CustomerId) AS top FROM Customers c
+Customers.Name | -	~ | ~	engine	shop	default	lineage	SELECT Name, (SELECT MAX(o.Amount) FROM Orders o WHERE o.CustomerId = c.CustomerId) AS top FROM Customers c
+Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT Name, (SELECT MAX(o.Amount) FROM Orders o WHERE o.CustomerId = c.CustomerId) AS top FROM Customers c
+Name	Name	engine	shop	default	results	SELECT Name FROM Customers WHERE CustomerId IN (SELECT CustomerId FROM Orders)
+Customers.Name	~	engine	shop	default	lineage	SELECT Name FROM Customers WHERE CustomerId IN (SELECT CustomerId FROM Orders)
+Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT Name FROM Customers WHERE CustomerId IN (SELECT CustomerId FROM Orders)
+Name	Name	engine	shop	default	results	SELECT Name FROM Customers c WHERE EXISTS (SELECT 1 FROM Orders o WHERE o.CustomerId = c.CustomerId)
+Customers.Name	~	engine	shop	default	lineage	SELECT Name FROM Customers c WHERE EXISTS (SELECT 1 FROM Orders o WHERE o.CustomerId = c.CustomerId)
+Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT Name FROM Customers c WHERE EXISTS (SELECT 1 FROM Orders o WHERE o.CustomerId = c.CustomerId)
+total	total	engine	shop	default	results	SELECT t.total FROM (SELECT CustomerId, SUM(Amount) AS total FROM Orders GROUP BY CustomerId) t
+Orders.Amount	~	engine	shop	default	lineage	SELECT t.total FROM (SELECT CustomerId, SUM(Amount) AS total FROM Orders GROUP BY CustomerId) t
+Orders	Orders	engine	shop	default	tables	SELECT t.total FROM (SELECT CustomerId, SUM(Amount) AS total FROM Orders GROUP BY CustomerId) t
+x	x	engine	shop	default	results	SELECT x FROM (SELECT Name AS x FROM Customers UNION ALL SELECT Status FROM Orders)
+-	~	engine	shop	default	lineage	SELECT x FROM (SELECT Name AS x FROM Customers UNION ALL SELECT Status FROM Orders)
+Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT x FROM (SELECT Name AS x FROM Customers UNION ALL SELECT Status FROM Orders)
+Name	Name	engine	shop	default	results	SELECT Name FROM Customers WHERE Region = (SELECT Region FROM sales.Targets ORDER BY Goal DESC LIMIT 1)
+Customers.Name	~	engine	shop	default	lineage	SELECT Name FROM Customers WHERE Region = (SELECT Region FROM sales.Targets ORDER BY Goal DESC LIMIT 1)
+Customers, sales.Targets	Customers, sales.Targets	engine	shop	default	tables	SELECT Name FROM Customers WHERE Region = (SELECT Region FROM sales.Targets ORDER BY Goal DESC LIMIT 1)
+ids	ids	engine	shop	default	results	SELECT ARRAY(SELECT OrderId FROM Orders o WHERE o.CustomerId = c.CustomerId) AS ids FROM Customers c
+-	~	engine	shop	default	lineage	SELECT ARRAY(SELECT OrderId FROM Orders o WHERE o.CustomerId = c.CustomerId) AS ids FROM Customers c
+Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT ARRAY(SELECT OrderId FROM Orders o WHERE o.CustomerId = c.CustomerId) AS ids FROM Customers c
+Name, orders	Name, orders	engine	shop	default	results	SELECT Name, ARRAY(SELECT AS STRUCT o.OrderId, o.Amount FROM Orders o WHERE o.CustomerId = c.CustomerId) AS orders FROM Customers c
+Customers.Name | -	~ | ~	engine	shop	default	lineage	SELECT Name, ARRAY(SELECT AS STRUCT o.OrderId, o.Amount FROM Orders o WHERE o.CustomerId = c.CustomerId) AS orders FROM Customers c
+Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT Name, ARRAY(SELECT AS STRUCT o.OrderId, o.Amount FROM Orders o WHERE o.CustomerId = c.CustomerId) AS orders FROM Customers c
+CustomerId, Amount	CustomerId, Amount	engine	shop	default	results	WITH big AS (SELECT CustomerId, Amount FROM Orders WHERE Amount > 100) SELECT * FROM big
+Orders.CustomerId | Orders.Amount	~ | ~	engine	shop	default	lineage	WITH big AS (SELECT CustomerId, Amount FROM Orders WHERE Amount > 100) SELECT * FROM big
+Orders	Orders	engine	shop	default	tables	WITH big AS (SELECT CustomerId, Amount FROM Orders WHERE Amount > 100) SELECT * FROM big
+Name, Amount	Name, Amount	engine	shop	default	results	WITH big AS (SELECT CustomerId, Amount FROM Orders) SELECT c.Name, b.Amount FROM Customers c JOIN big b USING (CustomerId)
+Customers.Name | Orders.Amount	~ | ~	engine	shop	default	lineage	WITH big AS (SELECT CustomerId, Amount FROM Orders) SELECT c.Name, b.Amount FROM Customers c JOIN big b USING (CustomerId)
+Customers, Orders	Customers, Orders	engine	shop	default	tables	WITH big AS (SELECT CustomerId, Amount FROM Orders) SELECT c.Name, b.Amount FROM Customers c JOIN big b USING (CustomerId)
+Name	Name	engine	shop	default	results	WITH a AS (SELECT Name FROM Customers), b AS (SELECT Name FROM a) SELECT Name FROM b
+Customers.Name	~	engine	shop	default	lineage	WITH a AS (SELECT Name FROM Customers), b AS (SELECT Name FROM a) SELECT Name FROM b
+Customers	Customers	engine	shop	default	tables	WITH a AS (SELECT Name FROM Customers), b AS (SELECT Name FROM a) SELECT Name FROM b
+Status	Status	engine	shop	default	results	WITH Orders AS (SELECT Name AS Status FROM Customers) SELECT Status FROM Orders
+Customers.Name	~	engine	shop	default	lineage	WITH Orders AS (SELECT Name AS Status FROM Customers) SELECT Status FROM Orders
+Customers	Customers	engine	shop	default	tables	WITH Orders AS (SELECT Name AS Status FROM Customers) SELECT Status FROM Orders
+Region	Region	engine	shop	default	results	WITH x AS (SELECT Region FROM Customers) SELECT Region FROM x UNION ALL SELECT Region FROM sales.Targets
+Customers.Region sales.Targets.Region	~	engine	shop	default	lineage	WITH x AS (SELECT Region FROM Customers) SELECT Region FROM x UNION ALL SELECT Region FROM sales.Targets
+Customers, sales.Targets	Customers, sales.Targets	engine	shop	default	tables	WITH x AS (SELECT Region FROM Customers) SELECT Region FROM x UNION ALL SELECT Region FROM sales.Targets
+EmpId	error:InvalidArgument	engine	shop	default	results	WITH RECURSIVE r AS (SELECT EmpId, ManagerId FROM Employees WHERE ManagerId IS NULL UNION ALL SELECT e.EmpId, e.ManagerId FROM Employees e JOIN r ON e.ManagerId = r.EmpId) SELECT EmpId FROM r
+Employees.EmpId	error:InvalidArgument	engine	shop	default	lineage	WITH RECURSIVE r AS (SELECT EmpId, ManagerId FROM Employees WHERE ManagerId IS NULL UNION ALL SELECT e.EmpId, e.ManagerId FROM Employees e JOIN r ON e.ManagerId = r.EmpId) SELECT EmpId FROM r
+Employees	error:InvalidArgument	engine	shop	default	tables	WITH RECURSIVE r AS (SELECT EmpId, ManagerId FROM Employees WHERE ManagerId IS NULL UNION ALL SELECT e.EmpId, e.ManagerId FROM Employees e JOIN r ON e.ManagerId = r.EmpId) SELECT EmpId FROM r
+i	error:InvalidArgument	engine	shop	default	results	WITH RECURSIVE n AS (SELECT 1 AS i UNION ALL SELECT i + 1 FROM n WHERE i < 3) SELECT i FROM n
+-	error:InvalidArgument	engine	shop	default	lineage	WITH RECURSIVE n AS (SELECT 1 AS i UNION ALL SELECT i + 1 FROM n WHERE i < 3) SELECT i FROM n
+-	error:InvalidArgument	engine	shop	default	tables	WITH RECURSIVE n AS (SELECT 1 AS i UNION ALL SELECT i + 1 FROM n WHERE i < 3) SELECT i FROM n
+Name	Name	engine	shop	default	results	SELECT Name FROM Customers UNION ALL SELECT Name FROM Products
+Customers.Name Products.Name	~	engine	shop	default	lineage	SELECT Name FROM Customers UNION ALL SELECT Name FROM Products
+Customers, Products	Customers, Products	engine	shop	default	tables	SELECT Name FROM Customers UNION ALL SELECT Name FROM Products
+Name	Name	engine	shop	default	results	SELECT Name FROM Customers UNION DISTINCT SELECT Name FROM Employees
+Customers.Name Employees.Name	~	engine	shop	default	lineage	SELECT Name FROM Customers UNION DISTINCT SELECT Name FROM Employees
+Customers, Employees	Customers, Employees	engine	shop	default	tables	SELECT Name FROM Customers UNION DISTINCT SELECT Name FROM Employees
+CustomerId	CustomerId	engine	shop	default	results	SELECT CustomerId FROM Customers INTERSECT DISTINCT SELECT CustomerId FROM Orders
+Customers.CustomerId Orders.CustomerId	~	engine	shop	default	lineage	SELECT CustomerId FROM Customers INTERSECT DISTINCT SELECT CustomerId FROM Orders
+Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT CustomerId FROM Customers INTERSECT DISTINCT SELECT CustomerId FROM Orders
+CustomerId	CustomerId	engine	shop	default	results	SELECT CustomerId FROM Customers EXCEPT DISTINCT SELECT CustomerId FROM Orders
+Customers.CustomerId Orders.CustomerId	~	engine	shop	default	lineage	SELECT CustomerId FROM Customers EXCEPT DISTINCT SELECT CustomerId FROM Orders
+Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT CustomerId FROM Customers EXCEPT DISTINCT SELECT CustomerId FROM Orders
+Name, Email	Name, Email	engine	shop	default	results	SELECT Name, Email FROM Customers UNION ALL SELECT Status, CAST(Amount AS STRING) FROM Orders
+Customers.Name Orders.Status | Customers.Email Orders.Amount	~ | ~	engine	shop	default	lineage	SELECT Name, Email FROM Customers UNION ALL SELECT Status, CAST(Amount AS STRING) FROM Orders
+Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT Name, Email FROM Customers UNION ALL SELECT Status, CAST(Amount AS STRING) FROM Orders
+ProductId, Name, Price	ProductId, Name, Price	engine	shop	default	results	SELECT * FROM Products UNION ALL SELECT ProductId, Name, Price FROM Products
+Products.ProductId | Products.Name | Products.Price	~ | ~ | ~	engine	shop	default	lineage	SELECT * FROM Products UNION ALL SELECT ProductId, Name, Price FROM Products
+Products	Products	engine	shop	default	tables	SELECT * FROM Products UNION ALL SELECT ProductId, Name, Price FROM Products
+Name	Name	engine	shop	default	results	(SELECT Name FROM Customers) UNION ALL (SELECT Name FROM Products ORDER BY Name LIMIT 1)
+Customers.Name Products.Name	~	engine	shop	default	lineage	(SELECT Name FROM Customers) UNION ALL (SELECT Name FROM Products ORDER BY Name LIMIT 1)
+Customers, Products	Customers, Products	engine	shop	default	tables	(SELECT Name FROM Customers) UNION ALL (SELECT Name FROM Products ORDER BY Name LIMIT 1)
+CustomerId, Name, OrderId, Amount	CustomerId, Name, OrderId, Amount	engine	shop	default	results	SELECT * FROM CustomerOrders
+CustomerOrders.CustomerId | CustomerOrders.Name | CustomerOrders.OrderId | CustomerOrders.Amount	~ | ~ | ~ | ~	engine	shop	default	lineage	SELECT * FROM CustomerOrders
+CustomerOrders, Customers, Orders	CustomerOrders, Customers, Orders	engine	shop	default	tables	SELECT * FROM CustomerOrders
+Name, Amount	Name, Amount	engine	shop	default	results	SELECT Name, Amount FROM CustomerOrders WHERE OrderId > 1
+CustomerOrders.Name | CustomerOrders.Amount	~ | ~	engine	shop	default	lineage	SELECT Name, Amount FROM CustomerOrders WHERE OrderId > 1
+CustomerOrders, Customers, Orders	CustomerOrders, Customers, Orders	engine	shop	default	tables	SELECT Name, Amount FROM CustomerOrders WHERE OrderId > 1
+CustomerId, Name, Amount	CustomerId, Name, Amount	engine	shop	default	results	SELECT * FROM BigOrders
+BigOrders.CustomerId | BigOrders.Name | BigOrders.Amount	~ | ~ | ~	engine	shop	default	lineage	SELECT * FROM BigOrders
+BigOrders, CustomerOrders, Customers, Orders	BigOrders, CustomerOrders, Customers, Orders	engine	shop	default	tables	SELECT * FROM BigOrders
+Name	Name	engine	shop	default	results	SELECT b.Name FROM BigOrders b JOIN Customers c ON b.CustomerId = c.CustomerId
+BigOrders.Name	~	engine	shop	default	lineage	SELECT b.Name FROM BigOrders b JOIN Customers c ON b.CustomerId = c.CustomerId
+BigOrders, CustomerOrders, Customers, Orders	BigOrders, CustomerOrders, Customers, Orders	engine	shop	default	tables	SELECT b.Name FROM BigOrders b JOIN Customers c ON b.CustomerId = c.CustomerId
+Region, Goal	Region, Goal	engine	shop	default	results	SELECT * FROM sales.RegionGoals
+sales.RegionGoals.Region | sales.RegionGoals.Goal	~ | ~	engine	shop	default	lineage	SELECT * FROM sales.RegionGoals
+Customers, sales.RegionGoals, sales.Targets	Customers, sales.RegionGoals, sales.Targets	engine	shop	default	tables	SELECT * FROM sales.RegionGoals
+Goal, Name	Goal, Name	engine	shop	default	results	SELECT g.Goal, c.Name FROM sales.RegionGoals g JOIN Customers c ON c.Region = g.Region
+sales.RegionGoals.Goal | Customers.Name	~ | ~	engine	shop	default	lineage	SELECT g.Goal, c.Name FROM sales.RegionGoals g JOIN Customers c ON c.Region = g.Region
+Customers, sales.RegionGoals, sales.Targets	Customers, sales.RegionGoals, sales.Targets	engine	shop	default	tables	SELECT g.Goal, c.Name FROM sales.RegionGoals g JOIN Customers c ON c.Region = g.Region
+""	""	engine	shop	default	results	SELECT COUNT(*) FROM CustomerOrders
+-	~	engine	shop	default	lineage	SELECT COUNT(*) FROM CustomerOrders
+CustomerOrders, Customers, Orders	CustomerOrders, Customers, Orders	engine	shop	default	tables	SELECT COUNT(*) FROM CustomerOrders
+Region	Region	engine	shop	default	results	SELECT Region FROM sales.Targets
+sales.Targets.Region	~	engine	shop	default	lineage	SELECT Region FROM sales.Targets
+sales.Targets	sales.Targets	engine	shop	default	tables	SELECT Region FROM sales.Targets
+Id, CamelCol	Id, CamelCol	engine	shop	default	results	SELECT `Id`, `CamelCol` FROM `MixedCase`
+MixedCase.Id | MixedCase.CamelCol	~ | ~	engine	shop	default	lineage	SELECT `Id`, `CamelCol` FROM `MixedCase`
+MixedCase	MixedCase	engine	shop	default	tables	SELECT `Id`, `CamelCol` FROM `MixedCase`
+id, camelcol, LOWER_COL	id, camelcol, LOWER_COL	engine	shop	default	results	SELECT id, camelcol, LOWER_COL FROM mixedcase
+MixedCase.Id | MixedCase.CamelCol | MixedCase.lower_col	~ | ~ | ~	engine	shop	default	lineage	SELECT id, camelcol, LOWER_COL FROM mixedcase
+MixedCase	MixedCase	engine	shop	default	tables	SELECT id, camelcol, LOWER_COL FROM mixedcase
+camelCol	camelCol	engine	shop	default	results	SELECT m.camelCol FROM MIXEDCASE m
+MixedCase.CamelCol	~	engine	shop	default	lineage	SELECT m.camelCol FROM MIXEDCASE m
+MixedCase	MixedCase	engine	shop	default	tables	SELECT m.camelCol FROM MIXEDCASE m
+Id, CamelCol, lower_col	Id, CamelCol, lower_col	engine	shop	default	results	SELECT * FROM MixedCase
+MixedCase.Id | MixedCase.CamelCol | MixedCase.lower_col	~ | ~ | ~	engine	shop	default	lineage	SELECT * FROM MixedCase
+MixedCase	MixedCase	engine	shop	default	tables	SELECT * FROM MixedCase
+name	name	engine	shop	default	results	SELECT `customers`.`name` FROM `customers`
+Customers.Name	~	engine	shop	default	lineage	SELECT `customers`.`name` FROM `customers`
+Customers	Customers	engine	shop	default	tables	SELECT `customers`.`name` FROM `customers`
+name	name	engine	shop	default	results	SELECT customers.name FROM customers
+Customers.Name	~	engine	shop	default	lineage	SELECT customers.name FROM customers
+Customers	Customers	engine	shop	default	tables	SELECT customers.name FROM customers
+Name	Name	engine	shop	default	results	SELECT Orders.Name FROM Customers AS Orders
+Customers.Name	~	engine	shop	default	lineage	SELECT Orders.Name FROM Customers AS Orders
+Customers	Customers	engine	shop	default	tables	SELECT Orders.Name FROM Customers AS Orders
+Amount	Amount	engine	shop	default	results	SELECT Customers.Amount FROM Orders AS Customers JOIN Customers AS c ON Customers.CustomerId = c.CustomerId
+Orders.Amount	~	engine	shop	default	lineage	SELECT Customers.Amount FROM Orders AS Customers JOIN Customers AS c ON Customers.CustomerId = c.CustomerId
+Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT Customers.Amount FROM Orders AS Customers JOIN Customers AS c ON Customers.CustomerId = c.CustomerId
+Name	Name	engine	shop	default	results	SELECT Products.Name FROM (SELECT Name FROM Employees) AS Products
+Employees.Name	~	engine	shop	default	lineage	SELECT Products.Name FROM (SELECT Name FROM Employees) AS Products
+Employees	Employees	engine	shop	default	tables	SELECT Products.Name FROM (SELECT Name FROM Employees) AS Products
+Name, rn	error:InvalidArgument	engine	shop	default	results	SELECT Name, ROW_NUMBER() OVER (ORDER BY CustomerId) AS rn FROM Customers
+Customers.Name | Customers.CustomerId	error:InvalidArgument	engine	shop	default	lineage	SELECT Name, ROW_NUMBER() OVER (ORDER BY CustomerId) AS rn FROM Customers
+Customers	error:InvalidArgument	engine	shop	default	tables	SELECT Name, ROW_NUMBER() OVER (ORDER BY CustomerId) AS rn FROM Customers
+OrderId, ""	error:InvalidArgument	engine	shop	default	results	SELECT OrderId, SUM(Amount) OVER (PARTITION BY CustomerId) FROM Orders
+Orders.OrderId | Orders.Amount Orders.CustomerId	error:InvalidArgument	engine	shop	default	lineage	SELECT OrderId, SUM(Amount) OVER (PARTITION BY CustomerId) FROM Orders
+Orders	error:InvalidArgument	engine	shop	default	tables	SELECT OrderId, SUM(Amount) OVER (PARTITION BY CustomerId) FROM Orders
+Name, ""	error:InvalidArgument	engine	shop	default	results	SELECT Name, RANK() OVER (PARTITION BY Region ORDER BY Name) FROM Customers
+Customers.Name | Customers.Name Customers.Region	error:InvalidArgument	engine	shop	default	lineage	SELECT Name, RANK() OVER (PARTITION BY Region ORDER BY Name) FROM Customers
+Customers	error:InvalidArgument	engine	shop	default	tables	SELECT Name, RANK() OVER (PARTITION BY Region ORDER BY Name) FROM Customers
+Region, n	Region, n	engine	shop	default	results	SELECT Region, COUNT(*) AS n FROM Customers GROUP BY Region
+Customers.Region | -	~ | ~	engine	shop	default	lineage	SELECT Region, COUNT(*) AS n FROM Customers GROUP BY Region
+Customers	Customers	engine	shop	default	tables	SELECT Region, COUNT(*) AS n FROM Customers GROUP BY Region
+CustomerId, "", ""	CustomerId, "", ""	engine	shop	default	results	SELECT CustomerId, SUM(Amount), MAX(Status) FROM Orders GROUP BY CustomerId HAVING SUM(Amount) > 10
+Orders.CustomerId | Orders.Amount | Orders.Status	~ | ~ | ~	engine	shop	default	lineage	SELECT CustomerId, SUM(Amount), MAX(Status) FROM Orders GROUP BY CustomerId HAVING SUM(Amount) > 10
+Orders	Orders	engine	shop	default	tables	SELECT CustomerId, SUM(Amount), MAX(Status) FROM Orders GROUP BY CustomerId HAVING SUM(Amount) > 10
+""	""	engine	shop	default	results	SELECT ARRAY_AGG(Name) FROM Customers
+Customers.Name	~	engine	shop	default	lineage	SELECT ARRAY_AGG(Name) FROM Customers
+Customers	Customers	engine	shop	default	tables	SELECT ARRAY_AGG(Name) FROM Customers
+statuses	statuses	engine	shop	default	results	SELECT STRING_AGG(Status, ',') AS statuses FROM Orders
+Orders.Status	~	engine	shop	default	lineage	SELECT STRING_AGG(Status, ',') AS statuses FROM Orders
+Orders	Orders	engine	shop	default	tables	SELECT STRING_AGG(Status, ',') AS statuses FROM Orders
+""	""	engine	shop	default	results	SELECT COUNT(DISTINCT Region) FROM Customers
+Customers.Region	~	engine	shop	default	lineage	SELECT COUNT(DISTINCT Region) FROM Customers
+Customers	Customers	engine	shop	default	tables	SELECT COUNT(DISTINCT Region) FROM Customers
+e	e	engine	shop	default	results	SELECT ANY_VALUE(Email) AS e FROM Customers GROUP BY Region
+Customers.Email	~	engine	shop	default	lineage	SELECT ANY_VALUE(Email) AS e FROM Customers GROUP BY Region
+Customers	Customers	engine	shop	default	tables	SELECT ANY_VALUE(Email) AS e FROM Customers GROUP BY Region
+item	item	engine	shop	default	results	SELECT item FROM Orders, UNNEST(Items) AS item
+Orders.Items	~	engine	shop	default	lineage	SELECT item FROM Orders, UNNEST(Items) AS item
+Orders	Orders	engine	shop	default	tables	SELECT item FROM Orders, UNNEST(Items) AS item
+OrderId, item	OrderId, item	engine	shop	default	results	SELECT o.OrderId, item FROM Orders o CROSS JOIN UNNEST(o.Items) AS item
+Orders.OrderId | Orders.Items	~ | ~	engine	shop	default	lineage	SELECT o.OrderId, item FROM Orders o CROSS JOIN UNNEST(o.Items) AS item
+Orders	Orders	engine	shop	default	tables	SELECT o.OrderId, item FROM Orders o CROSS JOIN UNNEST(o.Items) AS item
+item, off	item, off	engine	shop	default	results	SELECT item, off FROM Orders o, UNNEST(o.Items) AS item WITH OFFSET AS off
+Orders.Items | -	~ | ~	engine	shop	default	lineage	SELECT item, off FROM Orders o, UNNEST(o.Items) AS item WITH OFFSET AS off
+Orders	Orders	engine	shop	default	tables	SELECT item, off FROM Orders o, UNNEST(o.Items) AS item WITH OFFSET AS off
+x	x	engine	shop	default	results	SELECT x FROM UNNEST([1, 2, 3]) AS x
+-	~	engine	shop	default	lineage	SELECT x FROM UNNEST([1, 2, 3]) AS x
+-	-	engine	shop	default	tables	SELECT x FROM UNNEST([1, 2, 3]) AS x
+""	""	engine	shop	default	results	SELECT * FROM UNNEST(['a', 'b'])
+-	~	engine	shop	default	lineage	SELECT * FROM UNNEST(['a', 'b'])
+-	-	engine	shop	default	tables	SELECT * FROM UNNEST(['a', 'b'])
+OrderId, n	OrderId, n	engine	shop	default	results	SELECT o.OrderId, (SELECT COUNT(*) FROM UNNEST(o.Items)) AS n FROM Orders o
+Orders.OrderId | -	~ | ~	engine	shop	default	lineage	SELECT o.OrderId, (SELECT COUNT(*) FROM UNNEST(o.Items)) AS n FROM Orders o
+Orders	Orders	engine	shop	default	tables	SELECT o.OrderId, (SELECT COUNT(*) FROM UNNEST(o.Items)) AS n FROM Orders o
+first	first	engine	shop	default	results	SELECT Items[SAFE_OFFSET(0)] AS first FROM Orders
+Orders.Items	~	engine	shop	default	lineage	SELECT Items[SAFE_OFFSET(0)] AS first FROM Orders
+Orders	Orders	engine	shop	default	tables	SELECT Items[SAFE_OFFSET(0)] AS first FROM Orders
+""	""	engine	shop	default	results	SELECT ARRAY_LENGTH(Items) FROM Orders
+Orders.Items	~	engine	shop	default	lineage	SELECT ARRAY_LENGTH(Items) FROM Orders
+Orders	Orders	engine	shop	default	tables	SELECT ARRAY_LENGTH(Items) FROM Orders
+a, b	a, b	engine	shop	default	results	SELECT s.a, s.b FROM (SELECT STRUCT(CustomerId AS a, Name AS b) AS s FROM Customers)
+- | -	~ | ~	engine	shop	default	lineage	SELECT s.a, s.b FROM (SELECT STRUCT(CustomerId AS a, Name AS b) AS s FROM Customers)
+Customers	Customers	engine	shop	default	tables	SELECT s.a, s.b FROM (SELECT STRUCT(CustomerId AS a, Name AS b) AS s FROM Customers)
+n	n	engine	shop	default	results	SELECT STRUCT(CustomerId, Name).Name AS n FROM Customers
+Customers.CustomerId Customers.Name	~	engine	shop	default	lineage	SELECT STRUCT(CustomerId, Name).Name AS n FROM Customers
+Customers	Customers	engine	shop	default	tables	SELECT STRUCT(CustomerId, Name).Name AS n FROM Customers
+x	x	engine	shop	default	results	SELECT t.s.x FROM (SELECT STRUCT(Amount AS x) AS s FROM Orders) AS t
+Orders.Amount	~	engine	shop	default	lineage	SELECT t.s.x FROM (SELECT STRUCT(Amount AS x) AS s FROM Orders) AS t
+Orders	Orders	engine	shop	default	tables	SELECT t.s.x FROM (SELECT STRUCT(Amount AS x) AS s FROM Orders) AS t
+CustomerId	CustomerId	engine	shop	default	results	SELECT v.CustomerId FROM (SELECT AS STRUCT CustomerId, Name FROM Customers) AS v
+Customers.CustomerId	~	engine	shop	default	lineage	SELECT v.CustomerId FROM (SELECT AS STRUCT CustomerId, Name FROM Customers) AS v
+Customers	Customers	engine	shop	default	tables	SELECT v.CustomerId FROM (SELECT AS STRUCT CustomerId, Name FROM Customers) AS v
+CustomerId, Name	error:Unimplemented	engine	shop	default	results	SELECT AS STRUCT CustomerId, Name FROM Customers
+Customers.CustomerId | Customers.Name	error:Unimplemented	engine	shop	default	lineage	SELECT AS STRUCT CustomerId, Name FROM Customers
+Customers	error:Unimplemented	engine	shop	default	tables	SELECT AS STRUCT CustomerId, Name FROM Customers
+""	error:Unimplemented	engine	shop	default	results	SELECT AS VALUE STRUCT(CustomerId AS id) FROM Customers
+Customers.CustomerId	error:Unimplemented	engine	shop	default	lineage	SELECT AS VALUE STRUCT(CustomerId AS id) FROM Customers
+Customers	error:Unimplemented	engine	shop	default	tables	SELECT AS VALUE STRUCT(CustomerId AS id) FROM Customers
+OrderId	OrderId	engine	shop	default	results	SELECT e.OrderId FROM Customers c, UNNEST(ARRAY(SELECT AS STRUCT o.OrderId FROM Orders o WHERE o.CustomerId = c.CustomerId)) AS e
+-	~	engine	shop	default	lineage	SELECT e.OrderId FROM Customers c, UNNEST(ARRAY(SELECT AS STRUCT o.OrderId FROM Orders o WHERE o.CustomerId = c.CustomerId)) AS e
+Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT e.OrderId FROM Customers c, UNNEST(ARRAY(SELECT AS STRUCT o.OrderId FROM Orders o WHERE o.CustomerId = c.CustomerId)) AS e
+Name	Name	engine	shop	default	results	SELECT Name FROM Customers TABLESAMPLE BERNOULLI (10 PERCENT)
+Customers.Name	~	engine	shop	default	lineage	SELECT Name FROM Customers TABLESAMPLE BERNOULLI (10 PERCENT)
+Customers	Customers	engine	shop	default	tables	SELECT Name FROM Customers TABLESAMPLE BERNOULLI (10 PERCENT)
+Amount	Amount	engine	shop	default	results	SELECT o.Amount FROM Orders o TABLESAMPLE RESERVOIR (5 ROWS)
+Orders.Amount	~	engine	shop	default	lineage	SELECT o.Amount FROM Orders o TABLESAMPLE RESERVOIR (5 ROWS)
+Orders	Orders	engine	shop	default	tables	SELECT o.Amount FROM Orders o TABLESAMPLE RESERVOIR (5 ROWS)
