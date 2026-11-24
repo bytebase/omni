@@ -664,6 +664,24 @@ func compareIndexes(oldTable, newTable *metadata.TableMetadata) []*IndexDiffEntr
 	return changes
 }
 
+// viewIndexListsEqual matches two views' indexes by name.
+func viewIndexListsEqual(a, b []*metadata.IndexMetadata) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	byName := make(map[string]*metadata.IndexMetadata, len(a))
+	for _, index := range a {
+		byName[strings.ToLower(index.Name)] = index
+	}
+	for _, index := range b {
+		old, ok := byName[strings.ToLower(index.Name)]
+		if !ok || !indexesEqual(old, index) {
+			return false
+		}
+	}
+	return true
+}
+
 func indexesEqual(a, b *metadata.IndexMetadata) bool {
 	if !indexTypesEqual(a, b) || a.Unique != b.Unique || a.Primary != b.Primary || a.IsConstraint != b.IsConstraint {
 		return false
@@ -984,7 +1002,9 @@ func compareViews(diff *SchemaDiff, schemaName string, oldSchema, newSchema *met
 			diff.Views = append(diff.Views, &ViewDiffEntry{Action: DiffCreate, SchemaName: schemaName, ViewName: name, NewView: newView})
 			continue
 		}
-		if !oldView.GetSkipDump() && (oldView.Definition != newView.Definition || oldView.Comment != newView.Comment || !triggerListsEqual(oldView.Triggers, newView.Triggers)) {
+		// A view's indexes change with it: the migration drops and recreates
+		// the view, then its indexes.
+		if !oldView.GetSkipDump() && (oldView.Definition != newView.Definition || oldView.Comment != newView.Comment || !triggerListsEqual(oldView.Triggers, newView.Triggers) || !viewIndexListsEqual(oldView.Indexes, newView.Indexes)) {
 			diff.Views = append(diff.Views, &ViewDiffEntry{Action: DiffAlter, SchemaName: schemaName, ViewName: name, OldView: oldView, NewView: newView})
 		}
 	}

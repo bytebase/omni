@@ -173,6 +173,28 @@ CREATE TABLE [fid_sb_fn].[items] (
 GO
 `,
 		},
+		{
+			name: "indexed-view",
+			sql: `CREATE SCHEMA [fid_iv];
+GO
+CREATE TABLE [fid_iv].[orders] (
+    [id] INT NOT NULL,
+    [customer_id] INT NOT NULL,
+    [total] MONEY NOT NULL,
+    CONSTRAINT [PK_orders] PRIMARY KEY ([id])
+);
+GO
+CREATE VIEW [fid_iv].[customer_totals] WITH SCHEMABINDING AS
+SELECT [customer_id], COUNT_BIG(*) AS [order_count], SUM([total]) AS [total]
+FROM [fid_iv].[orders]
+GROUP BY [customer_id];
+GO
+CREATE UNIQUE CLUSTERED INDEX [UX_customer_totals] ON [fid_iv].[customer_totals] ([customer_id] ASC);
+GO
+CREATE NONCLUSTERED INDEX [IX_customer_totals_count] ON [fid_iv].[customer_totals] ([order_count] DESC) INCLUDE ([total]);
+GO
+`,
+		},
 	}
 }
 
@@ -679,4 +701,45 @@ GO
 	require.NoError(t, got.LoadMetadata(ctx, filterTo(restored, desired)))
 	diff := catalog.Diff(got, to)
 	require.True(t, diff.IsEmpty(), "after %q the server still differs: %s", sql, catalog.GenerateMigration(got, to, diff).SQL())
+}
+
+// TestIndexedViewMigrationFidelity changes an indexed view's indexes: the
+// migration drops and recreates the view, then builds the target's indexes.
+func TestIndexedViewMigrationFidelity(t *testing.T) {
+	db := testcontainer.Open(t)
+	ctx := context.Background()
+	execScript(t, db, `CREATE SCHEMA [fid_ivm];
+GO
+CREATE TABLE [fid_ivm].[t] ([id] INT NOT NULL, [v] INT NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+GO
+CREATE VIEW [fid_ivm].[v] WITH SCHEMABINDING AS SELECT [id], [v] FROM [fid_ivm].[t];
+GO
+CREATE UNIQUE CLUSTERED INDEX [UX_v] ON [fid_ivm].[v] ([id]);
+GO
+`)
+	stored, err := driver.SyncDatabase(ctx, db, testcontainer.Database(t))
+	require.NoError(t, err)
+	target := cloneMetadata(stored)
+	for _, schema := range target.Schemas {
+		for _, view := range schema.Views {
+			if schema.Name == "fid_ivm" && view.Name == "v" {
+				view.Indexes = append(view.Indexes, &metadata.IndexMetadata{Name: "IX_v_v", Type: "NONCLUSTERED", Expressions: []string{"v"}, Descending: []bool{true}})
+			}
+		}
+	}
+	from := catalog.New()
+	require.NoError(t, from.LoadMetadata(ctx, stored))
+	to := catalog.New()
+	require.NoError(t, to.LoadMetadata(ctx, target))
+	plan := catalog.GenerateMigration(from, to, catalog.Diff(from, to))
+	require.Contains(t, plan.SQL(), "CREATE NONCLUSTERED INDEX [IX_v_v] ON [fid_ivm].[v]")
+
+	execScript(t, db, plan.SQL())
+	restored, err := driver.SyncDatabase(ctx, db, testcontainer.Database(t))
+	require.NoError(t, err)
+	want, err := catalog.DatabaseDefinition(filterTo(target, target), catalog.DefinitionOptions{})
+	require.NoError(t, err)
+	got, err := catalog.DatabaseDefinition(filterTo(restored, target), catalog.DefinitionOptions{})
+	require.NoError(t, err)
+	require.Equal(t, want, got, "migration %q", plan.SQL())
 }

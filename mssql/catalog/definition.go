@@ -1317,9 +1317,36 @@ func writeView(out *strings.Builder, schemaName string, view *metadata.ViewMetad
 	// appending unconditionally would add a semicolon on every restore.
 	def := qualifyModuleDefinition(creationDefinition(view.Definition), schemaName, false)
 	fmt.Fprintf(out, "%s;\n\nGO\n\n", strings.TrimRight(strings.TrimSpace(def), ";"))
-	if schemaName != "" && view.Comment != "" && hasRestorableDefinition(view.Definition) {
+	if schemaName == "" || !hasRestorableDefinition(view.Definition) {
+		return
+	}
+	if len(view.Indexes) > 0 {
+		for _, index := range viewIndexes(view) {
+			writeIndex(out, schemaName, view.Name, index)
+		}
+		// A CREATE VIEW after these must start its own batch.
+		out.WriteString("GO\n\n")
+	}
+	if view.Comment != "" {
 		fmt.Fprintf(out, "%s;\nGO\n\n", generateViewCommentSQL("ADD", schemaName, view.Name, view.Comment))
 	}
+}
+
+// viewIndexes orders an indexed view's indexes for creation: the unique
+// clustered index that materializes the view comes before the rest.
+func viewIndexes(view *metadata.ViewMetadata) []*metadata.IndexMetadata {
+	out := make([]*metadata.IndexMetadata, 0, len(view.Indexes))
+	for _, index := range view.Indexes {
+		if strings.EqualFold(index.Type, "CLUSTERED") {
+			out = append(out, index)
+		}
+	}
+	for _, index := range view.Indexes {
+		if !strings.EqualFold(index.Type, "CLUSTERED") {
+			out = append(out, index)
+		}
+	}
+	return out
 }
 
 func writeFunction(out *strings.Builder, schemaName string, function *metadata.FunctionMetadata) {

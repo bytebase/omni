@@ -1047,7 +1047,7 @@ ALTER TABLE [S].[t] ADD CONSTRAINT [PK_S_t] PRIMARY KEY ([b]);
 		require.True(t, Diff(cat, cat).IsEmpty())
 	})
 
-	t.Run("skips indexes on views instead of failing whole script", func(t *testing.T) {
+	t.Run("keeps indexes on views", func(t *testing.T) {
 		ddl := `
 CREATE VIEW [dbo].[v] WITH SCHEMABINDING AS SELECT 1 AS [id];
 GO
@@ -1059,11 +1059,13 @@ CREATE TABLE [dbo].[t] ([id] INT NOT NULL);
 		require.NoError(t, err)
 		require.Len(t, meta.Schemas, 1)
 		require.Len(t, meta.Schemas[0].Views, 1)
+		require.Len(t, meta.Schemas[0].Views[0].Indexes, 1)
 		require.Len(t, meta.Schemas[0].Tables, 1)
 		require.Equal(t, "t", meta.Schemas[0].Tables[0].Name)
 
-		_, loadErr := LoadSQL(ddl)
-		require.ErrorContains(t, loadErr, "indexes on views are not supported")
+		cat, loadErr := LoadSQL(ddl)
+		require.NoError(t, loadErr)
+		require.Len(t, cat.GetView("dbo", "v").Indexes, 1)
 	})
 
 	t.Run("avoids synthetic DF_ name collisions on unnamed defaults", func(t *testing.T) {
