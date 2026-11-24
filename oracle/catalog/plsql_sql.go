@@ -118,6 +118,19 @@ func (c *plChecker) readColumns(n ast.Node) {
 	}
 }
 
+// outside reports a relation the catalog does not hold: another schema's,
+// a database link's, or one a synonym names there.
+func (c *plChecker) outside(name *ast.ObjectName) bool {
+	if name.DBLink != "" || name.Schema != "" && c.e.isForeignSchema(name.Schema) {
+		return true
+	}
+	if name.Schema != "" || c.e.synonyms[name.Name] == nil && c.e.publicSynonyms[name.Name] == nil {
+		return false
+	}
+	target := c.e.resolveSynonymTarget(name.Name, "")
+	return c.e.tables[target] == nil && c.e.views[target] == nil && c.e.materializedViews[target] == nil
+}
+
 // dmlTarget is the table a DML statement writes, as it names it.
 func dmlTarget(n ast.Node) *ast.ObjectName {
 	switch s := n.(type) {
@@ -242,8 +255,7 @@ var sqlSyntaxCalls = map[string]bool{
 // cannot know: a dictionary view, a database link's table, or a
 // materialized view whose columns it does not keep.
 func (c *plChecker) readsUnknown(n ast.Node) bool {
-	if name := dmlTarget(n); name != nil && c.e.isForeignSchema(name.Schema) {
-		// Another schema's table, which the catalog does not hold.
+	if name := dmlTarget(n); name != nil && c.outside(name) {
 		return true
 	}
 	unknown := false
@@ -252,7 +264,7 @@ func (c *plChecker) readsUnknown(n ast.Node) bool {
 		if !ok || ref.Name == nil {
 			return !unknown
 		}
-		if ref.Dblink != "" || ref.Name.DBLink != "" || ref.Name.Schema != "" && c.e.isForeignSchema(ref.Name.Schema) {
+		if ref.Dblink != "" || c.outside(ref.Name) {
 			unknown = true
 		}
 		if target := c.e.resolveSynonymTarget(ref.Name.Name, ""); c.e.materializedViews[target] != nil && c.e.tables[target] == nil {

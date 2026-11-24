@@ -17,6 +17,13 @@ var plsqlValues = map[string]bool{
 	"LOCALTIMESTAMP": true, "DBTIMEZONE": true, "SESSIONTIMEZONE": true,
 	"USER": true, "UID": true, "SQLCODE": true, "SQLERRM": true,
 	"SYS_GUID": true, "ORA_INVOKING_USER": true, "ORA_INVOKING_USERID": true,
+	// The floating-point constants.
+	"BINARY_FLOAT_NAN": true, "BINARY_FLOAT_INFINITY": true,
+	"BINARY_FLOAT_MAX_NORMAL": true, "BINARY_FLOAT_MIN_NORMAL": true,
+	"BINARY_FLOAT_MAX_SUBNORMAL": true, "BINARY_FLOAT_MIN_SUBNORMAL": true,
+	"BINARY_DOUBLE_NAN": true, "BINARY_DOUBLE_INFINITY": true,
+	"BINARY_DOUBLE_MAX_NORMAL": true, "BINARY_DOUBLE_MIN_NORMAL": true,
+	"BINARY_DOUBLE_MAX_SUBNORMAL": true, "BINARY_DOUBLE_MIN_SUBNORMAL": true,
 }
 
 // plsqlExceptions are STANDARD's predefined exceptions.

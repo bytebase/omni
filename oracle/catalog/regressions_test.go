@@ -3602,3 +3602,19 @@ func TestForeignTargetsAndSnapshotSupertypes(t *testing.T) {
 		}
 	}
 }
+
+// TestRemoteSynonymsAndFloatConstants holds a unit reading another
+// schema's table through a synonym, and STANDARD's floating-point
+// constants, to compiling.
+func TestRemoteSynonymsAndFloatConstants(t *testing.T) {
+	c, err := LoadSQL("CREATE TABLE app.t (id NUMBER);\nCREATE SYNONYM app.s FOR other.t;\n" +
+		"CREATE PROCEDURE app.p IS n NUMBER; x BINARY_DOUBLE := BINARY_DOUBLE_INFINITY; BEGIN SELECT COUNT(*) INTO n FROM s; INSERT INTO s (id) VALUES (1); IF x = BINARY_DOUBLE_NAN THEN NULL; END IF; END;\n/\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range c.unitStates() {
+		if u.status != "VALID" {
+			t.Errorf("%s %s: %s %s, want VALID", u.kind, u.name, u.status, u.err)
+		}
+	}
+}
