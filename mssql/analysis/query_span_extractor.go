@@ -273,20 +273,67 @@ func (q *querySpanExtractor) findRelation(database, schema, name string) (*catal
 // the catalog names it, which is the name a grant or a policy on it holds:
 // SQL Server reads dbo.SALARIES as dbo.salaries. A name the catalog does not
 // have, or that cannot be looked up, stays as written; resolving the
-// statement's columns reports the failure. A view is not expanded into its
-// tables: SQL Server checks a reader's permission on the view alone when
-// its owner owns the tables too.
+// statement's columns reports the failure. A view is not expanded into the
+// tables of its own database: SQL Server checks a reader's permission on the
+// view alone when its owner owns the tables too. It is expanded into what it
+// reads in another database or on another server, since ownership chains do
+// not cross databases by default (the `cross db ownership chaining` server
+// option is off), so SQL Server checks the reader's permission there.
 func (q *querySpanExtractor) resolveAccessTables(tables ColumnSet) ColumnSet {
 	out := make(ColumnSet, len(tables))
+	seen := map[string]bool{}
 	for r := range tables {
-		if r.Server == "" && !strings.HasPrefix(r.Table, "#") {
-			if rel, _ := q.findRelation(r.Database, r.Schema, r.Table); rel != nil {
-				r.Database, r.Schema, r.Table = rel.database, rel.schema, rel.name
-			}
-		}
+		r, rel := q.resolveAccessTable(r)
 		out[r] = true
+		q.addViewCrossDatabaseReads(rel, out, seen)
 	}
 	return out
+}
+
+// resolveAccessTable names r as the catalog does and returns the catalog's
+// table or view, or nil when the catalog does not have it.
+func (q *querySpanExtractor) resolveAccessTable(r ColumnResource) (ColumnResource, *catalogRelation) {
+	if r.Server != "" || strings.HasPrefix(r.Table, "#") {
+		return r, nil
+	}
+	rel, _ := q.findRelation(r.Database, r.Schema, r.Table)
+	if rel != nil {
+		r.Database, r.Schema, r.Table = rel.database, rel.schema, rel.name
+	}
+	return r, rel
+}
+
+// addViewCrossDatabaseReads adds to out what the view rel reads on another
+// server or in a user database other than its own, through any view in
+// between. A view in seen was expanded already, so a cycle ends; resolving
+// the view's columns reports it, and a definition that does not parse.
+func (q *querySpanExtractor) addViewCrossDatabaseReads(rel *catalogRelation, out ColumnSet, seen map[string]bool) {
+	if rel == nil || rel.view == nil {
+		return
+	}
+	key := tsqlViewResolutionKey(rel.database, rel.schema, rel.name)
+	if seen[key] {
+		return
+	}
+	seen[key] = true
+	stmts, err := mssql.Parse(rel.view.Definition)
+	if err != nil {
+		return
+	}
+	for _, s := range stmts {
+		cv, ok := s.AST.(*ast.CreateViewStmt)
+		if !ok {
+			continue
+		}
+		viewQ := newQuerySpanExtractor(rel.database, rel.schema, q.catalog, q.tempTables, q.ignoreCaseSensitive)
+		for t := range viewQ.collectAccessTables(cv.Query) {
+			t, tRel := viewQ.resolveAccessTable(t)
+			if t.Server != "" || (!q.isIdentifierEqual(t.Database, rel.database) && !isSystemResource(t, q.ignoreCaseSensitive)) {
+				out[t] = true
+			}
+			viewQ.addViewCrossDatabaseReads(tRel, out, seen)
+		}
+	}
 }
 
 // getColumnsFromCreateView parses a CREATE VIEW definition with omni, extracts
