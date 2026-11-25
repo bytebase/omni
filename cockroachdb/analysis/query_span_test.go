@@ -98,7 +98,7 @@ func TestResolveQuerySpanLineage(t *testing.T) {
 		{"SELECT x.n FROM generate_series(1, 2) AS x(n)", []string{"n:"}},
 		// A name a function's unknown columns may hold reads the function's
 		// arguments too.
-		{"SELECT (SELECT ssn FROM json_each(t.name::JSONB)) FROM t", []string{"ssn: db.public.t.name db.public.t.ssn"}},
+		{"SELECT (SELECT ssn FROM f(t.name)) FROM t", []string{"ssn: db.public.t.name db.public.t.ssn"}},
 		{"SELECT o.ordinality, o.name FROM t WITH ORDINALITY AS o", []string{"ordinality:", "name: db.public.t.name"}},
 		{"SELECT a FROM other.x", []string{"a: other.public.x.a"}},
 		// CockroachDB's own syntax.
@@ -196,6 +196,31 @@ func TestResolveQuerySpanExplainAnalyze(t *testing.T) {
 	if span.Type != analysis.DML || !span.ExplainAnalyze {
 		t.Errorf("got type %s, ExplainAnalyze %v", span.Type, span.ExplainAnalyze)
 	}
+
+	// The conditions of a mutation decide which rows it changes, which its
+	// plan reports.
+	for statement, predicates := range map[string]string{
+		"EXPLAIN ANALYZE UPDATE t SET name = 'x' WHERE ssn = 'guess'":                                                                         "db.public.t.ssn",
+		"EXPLAIN ANALYZE DELETE FROM t WHERE ssn = 'guess'":                                                                                   "db.public.t.ssn",
+		"EXPLAIN ANALYZE UPDATE t SET name = u.note FROM u WHERE u.t_id = t.id":                                                               "db.public.t.id db.public.u.t_id",
+		"EXPLAIN ANALYZE DELETE FROM t USING u JOIN hr.t AS h ON h.id = u.id WHERE u.t_id = t.id":                                             "db.hr.t.id db.public.t.id db.public.u.id db.public.u.t_id",
+		"EXPLAIN ANALYZE DELETE FROM t WHERE id > 1 LIMIT (SELECT count(*) FROM u WHERE note = 'n')":                                          "db.public.t.id db.public.u.note",
+		"EXPLAIN ANALYZE INSERT INTO t (id) SELECT t_id FROM u WHERE note = 'n'":                                                              "db.public.u.note",
+		"EXPLAIN ANALYZE INSERT INTO t (id) VALUES (1) ON CONFLICT (id) WHERE ssn > '' DO UPDATE SET name = excluded.name WHERE t.name < 'm'": "db.public.t.name db.public.t.ssn",
+	} {
+		span, err := resolveSpan(statement)
+		if err != nil {
+			t.Errorf("%s: %v", statement, err)
+			continue
+		}
+		if got := columnNames(span.PredicateColumns); got != predicates {
+			t.Errorf("%s: predicates %q, want %q", statement, got, predicates)
+		}
+	}
+	// Without ANALYZE a mutation's span holds no conditions.
+	if span, err := resolveSpan("UPDATE t SET name = 'x' WHERE ssn = 'guess'"); err != nil || len(span.PredicateColumns) != 0 {
+		t.Errorf("got predicates %v, error %v", span.PredicateColumns, err)
+	}
 }
 
 func TestResolveQuerySpanErrors(t *testing.T) {
@@ -243,15 +268,25 @@ func TestResolveQuerySpanDerivedColumns(t *testing.T) {
 		// Each column of a function in FROM reads the function's arguments,
 		// those its alias names beyond the known ones too.
 		{"SELECT j.value FROM t, json_each(t.name::JSONB) AS j(key, value)", []string{"value: db.public.t.name"}},
-		{"SELECT * FROM t AS x, LATERAL json_each(x.ssn::JSONB) WITH ORDINALITY AS j(k, v)", []string{"id: db.public.t.id", "ssn: db.public.t.ssn", "name: db.public.t.name", "k: db.public.t.ssn", "v: db.public.t.ssn"}},
+		{"SELECT * FROM t AS x, LATERAL json_each(x.ssn::JSONB) WITH ORDINALITY AS j(k, v)", []string{"id: db.public.t.id", "ssn: db.public.t.ssn", "name: db.public.t.name", "k: db.public.t.ssn", "v: db.public.t.ssn", "ordinality:"}},
 		{"SELECT r.a, r.c FROM t, ROWS FROM (generate_series(1, 2), json_each(t.name::JSONB)) AS r(a, b, c)", []string{"a:", "c: db.public.t.name"}},
+		// A function of known columns places each one.
+		{"SELECT r.b FROM t, ROWS FROM (json_each(t.ssn::JSONB), generate_series(1, 2)) AS r(a, b, c)", []string{"b: db.public.t.ssn"}},
+		{"SELECT r.c FROM t, ROWS FROM (json_each(t.ssn::JSONB), generate_series(1, 2)) AS r(a, b, c)", []string{"c:"}},
+		{"SELECT * FROM t AS x, json_each(x.ssn::JSONB)", []string{"id: db.public.t.id", "ssn: db.public.t.ssn", "name: db.public.t.name", "key: db.public.t.ssn", "value: db.public.t.ssn"}},
+		{"SELECT * FROM t AS x, unnest(ARRAY[x.ssn], ARRAY[x.name]) AS y(p, q)", []string{"id: db.public.t.id", "ssn: db.public.t.ssn", "name: db.public.t.name", "p: db.public.t.ssn", "q: db.public.t.name"}},
+		{"SELECT (SELECT ssn FROM json_each(t.name::JSONB)) FROM t", []string{"ssn: db.public.t.ssn"}},
+		// Past a function of unknown columns, every column reads every
+		// argument of the item.
+		{"SELECT r.b FROM t, ROWS FROM (f(t.ssn), generate_series(1, t.id)) AS r(a, b)", []string{"b: db.public.t.id db.public.t.ssn"}},
+		{"SELECT r.generate_series FROM t, ROWS FROM (generate_series(1, t.id), f(t.ssn)) AS r", []string{"generate_series: db.public.t.id db.public.t.ssn"}},
 		// A name an aggregate, a set operation or a values list makes reads
 		// every input.
 		{"SELECT x FROM (SELECT ssn FROM t UNION ALL SELECT note FROM u) AS q(x)", []string{"x: db.public.t.ssn db.public.u.note"}},
 		{"SELECT column2 FROM (VALUES (1, (SELECT ssn FROM t LIMIT 1)))", []string{"column2: db.public.t.ssn"}},
 		// A correlated name in a subquery of an unknown relation keeps the
 		// outer column and the relation's reads.
-		{"SELECT (SELECT ssn FROM json_each(t.name::JSONB)) FROM t", []string{"ssn: db.public.t.name db.public.t.ssn"}},
+		{"SELECT (SELECT ssn FROM f(t.name)) FROM t", []string{"ssn: db.public.t.name db.public.t.ssn"}},
 	} {
 		t.Run(tc.statement, func(t *testing.T) {
 			span, err := resolveSpan(tc.statement)
@@ -309,6 +344,28 @@ func TestResolveQuerySpanEveryClause(t *testing.T) {
 				t.Errorf("tables %q, want %q", got, tc.tables)
 			}
 		})
+	}
+
+	// A nested statement sees the CTEs around it; a mutation's target is a
+	// table whatever CTE has its name.
+	for statement, tables := range map[string]string{
+		"WITH c AS (SELECT id FROM u), d AS (DELETE FROM t WHERE id IN (SELECT id FROM c) RETURNING id) SELECT * FROM d":  "db.public.t db.public.u",
+		"WITH c AS (SELECT id FROM u) SELECT * FROM [DELETE FROM t WHERE id IN (SELECT id FROM c) RETURNING id]":          "db.public.t db.public.u",
+		"WITH c AS (SELECT id FROM u) SELECT * FROM [EXPLAIN DELETE FROM t WHERE id IN (SELECT id FROM c)]":               "db.public.t db.public.u",
+		"WITH c AS (SELECT id FROM u) SELECT * FROM [UPSERT INTO t (id) SELECT id FROM c RETURNING id]":                   "db.public.t db.public.u",
+		"WITH c AS (SELECT id FROM u), d AS (UPDATE t SET name = 'x' FROM c WHERE c.id = t.id RETURNING t.id) SELECT 1":   "db.public.t db.public.u",
+		"WITH t AS (SELECT t_id AS id FROM u), d AS (DELETE FROM t WHERE id IN (SELECT id FROM t) RETURNING id) SELECT 1": "db.public.t db.public.u",
+		"CREATE TABLE x AS WITH c AS (SELECT ssn FROM t) SELECT * FROM c":                                                 "db.public.t",
+		"EXPLAIN WITH c AS (SELECT id FROM u) DELETE FROM t WHERE id IN (SELECT id FROM c)":                               "db.public.t db.public.u",
+	} {
+		span, err := resolveSpan(statement)
+		if err != nil {
+			t.Errorf("%s: %v", statement, err)
+			continue
+		}
+		if got := columnNames(span.SourceColumns); got != tables {
+			t.Errorf("%s: tables %q, want %q", statement, got, tables)
+		}
 	}
 
 	// A system relation in any clause makes the statement mixed.

@@ -102,7 +102,7 @@ func ResolveQuerySpan(_ context.Context, statement string, opts ResolveOptions) 
 	if sel, ok := stmt.(*tree.Select); ok {
 		results = r.selectQuery(sel, nil)
 	} else {
-		r.statementTables(stmt)
+		r.statementTables(stmt, nil)
 	}
 	if r.metadataErr != nil {
 		return nil, r.metadataErr
@@ -416,7 +416,7 @@ func (r *spanResolver) with(w *tree.With, outer *spanScope) *spanScope {
 		if !ok {
 			// A data-modifying CTE makes the statement DML, which has no
 			// lineage.
-			r.statementTables(cte.Stmt)
+			r.statementTables(cte.Stmt, sc)
 			sc.ctes[name] = nil
 			continue
 		}
@@ -680,7 +680,7 @@ func (r *spanResolver) tableExpr(te tree.TableExpr, sc *spanScope) *fromItem {
 			inner := item.relations[0]
 			rel.name, rel.schema, rel.database = inner.name, inner.schema, inner.database
 		}
-		if fn, ok := n.Expr.(*tree.RowsFromExpr); ok && len(fn.Items) == 1 && n.As.Alias != "" && len(n.As.Cols) == 0 {
+		if fn, ok := n.Expr.(*tree.RowsFromExpr); ok && len(fn.Items) == 1 && len(item.columns) == 1 && n.As.Alias != "" && len(n.As.Cols) == 0 {
 			// A function's one column takes the alias's name.
 			rel.columns[0].name = rel.name
 		}
@@ -726,19 +726,31 @@ func (r *spanResolver) tableExpr(te tree.TableExpr, sc *spanScope) *fromItem {
 		// A data change in a statement source makes the statement DML, which
 		// has no lineage; a SHOW reads system metadata, whose query has none;
 		// an EXPLAIN's plan holds no column's value.
-		r.statementTables(n.Statement)
+		r.statementTables(n.Statement, sc.outside())
 		return &fromItem{relations: []*spanRelation{{opaque: true}}}
 	case *tree.RowsFromExpr:
-		rel := &spanRelation{opaque: true, opaqueReads: analysis.ColumnSet{}}
+		rel := &spanRelation{}
+		reads := analysis.ColumnSet{}
 		for _, fn := range n.Items {
-			sources := r.sources(fn, sc)
-			// A function in FROM returns the rows its arguments ask for.
-			r.addPredicates(sources)
-			rel.opaqueReads = union(rel.opaqueReads, sources)
-			rel.columns = append(rel.columns, spanColumn{name: renderName(tree.SelectExpr{Expr: fn}), sources: sources})
+			cols, known := r.functionColumns(fn, sc)
+			for _, c := range cols {
+				reads = union(reads, c.sources)
+			}
+			rel.columns = append(rel.columns, cols...)
+			rel.opaque = rel.opaque || !known
+		}
+		// A function in FROM returns the rows its arguments ask for.
+		r.addPredicates(reads)
+		if rel.opaque {
+			// Past a function of unknown columns no column is where its
+			// position says, so each reads every argument.
+			rel.opaqueReads = reads
+			for i := range rel.columns {
+				rel.columns[i].sources = reads
+			}
 		}
 		if len(n.Items) == 1 {
-			rel.name = rel.columns[0].name
+			rel.name = renderName(tree.SelectExpr{Expr: n.Items[0]})
 		}
 		return &fromItem{relations: []*spanRelation{rel}, columns: rel.columns}
 	case *tree.TableRef:
@@ -752,6 +764,49 @@ func (r *spanResolver) tableExpr(te tree.TableExpr, sc *spanScope) *fromItem {
 	r.fail(fmt.Errorf("unsupported table expression %T", te))
 	return &fromItem{relations: []*spanRelation{{opaque: true}}}
 }
+
+// functionColumns returns the columns a function in FROM returns, each with
+// the arguments it reads, and whether they are known. A function of unknown
+// columns, such as a user-defined one or json_to_record, is one column here.
+func (r *spanResolver) functionColumns(e tree.Expr, sc *spanScope) ([]spanColumn, bool) {
+	name := renderName(tree.SelectExpr{Expr: e})
+	fn, ok := e.(*tree.FuncExpr)
+	if !ok {
+		// A special form such as COALESCE or a cast returns one value.
+		return []spanColumn{{name: name, sources: r.sources(e, sc)}}, true
+	}
+	args := make([]analysis.ColumnSet, len(fn.Exprs))
+	all := analysis.ColumnSet{}
+	for i, arg := range fn.Exprs {
+		args[i] = r.sources(arg, sc)
+		all = union(all, args[i])
+	}
+	switch {
+	case name == "unnest" && len(args) > 1:
+		// unnest of several arrays returns a column for each.
+		cols := make([]spanColumn, len(args))
+		for i := range args {
+			cols[i] = spanColumn{name: name, sources: args[i]}
+		}
+		return cols, true
+	case keyValueFunctions[name]:
+		return []spanColumn{{name: "key", sources: all}, {name: "value", sources: union(all)}}, true
+	case oneColumnFunctions[name]:
+		return []spanColumn{{name: name, sources: all}}, true
+	}
+	return []spanColumn{{name: name, sources: all}}, false
+}
+
+// keyValueFunctions return a key and a value column; oneColumnFunctions
+// return one column, named after the function.
+var (
+	keyValueFunctions  = setOf("json_each", "jsonb_each", "json_each_text", "jsonb_each_text")
+	oneColumnFunctions = setOf(
+		"generate_series", "generate_subscripts", "unnest", "json_array_elements", "jsonb_array_elements",
+		"json_array_elements_text", "jsonb_array_elements_text", "json_object_keys", "jsonb_object_keys",
+		"regexp_split_to_table", "regexp_matches",
+	)
+)
 
 // renameColumns applies a column alias list to the visible columns in order.
 // An alias beyond them names a column that reads extra.
@@ -1222,9 +1277,11 @@ func relationNamed(items []*fromItem, table, schema, database string) *spanRelat
 
 // statementTables records the relations a statement other than a query reads,
 // for its access check, walking every clause that holds an expression or a
-// relation. Other DDL names relations but reads no rows of them.
-func (r *spanResolver) statementTables(stmt tree.Statement) {
-	sc := &spanScope{}
+// relation, and the columns that decide which rows it changes or returns.
+// outer is the scope around a statement nested in another, whose CTEs it
+// sees. Other DDL names relations but reads no rows of them.
+func (r *spanResolver) statementTables(stmt tree.Statement, outer *spanScope) {
+	sc := &spanScope{parent: outer}
 	// A statement's target is a table whatever CTE shares its name, and it
 	// opens the scope of the statement's other clauses.
 	target := func(te tree.TableExpr) {
@@ -1241,12 +1298,12 @@ func (r *spanResolver) statementTables(stmt tree.Statement) {
 	walk := func(e tree.Expr) { r.sources(e, sc) }
 	with := func(w *tree.With) {
 		if w != nil {
-			sc.parent = r.with(w, nil)
+			sc.parent = r.with(w, outer)
 		}
 	}
 	where := func(w *tree.Where) {
 		if w != nil {
-			walk(w.Expr)
+			r.addPredicates(r.sources(w.Expr, sc))
 		}
 	}
 	updates := func(exprs tree.UpdateExprs) {
@@ -1263,13 +1320,13 @@ func (r *spanResolver) statementTables(stmt tree.Statement) {
 	}
 	switch n := stmt.(type) {
 	case *tree.Select:
-		r.selectQuery(n, nil)
+		r.selectQuery(n, outer)
 	case *tree.ParenSelect:
-		r.selectQuery(n.Select, nil)
+		r.selectQuery(n.Select, outer)
 	case *tree.Explain:
-		r.statementTables(n.Statement)
+		r.statementTables(n.Statement, outer)
 	case *tree.ExplainAnalyze:
-		r.statementTables(n.Statement)
+		r.statementTables(n.Statement, outer)
 	case *tree.Insert:
 		// INSERT and UPSERT.
 		with(n.With)
@@ -1283,7 +1340,9 @@ func (r *spanResolver) statementTables(stmt tree.Statement) {
 				excluded := &spanRelation{name: "excluded", columns: item.columns}
 				sc.items = append(sc.items, &fromItem{relations: []*spanRelation{excluded}})
 			}
-			walk(n.OnConflict.ArbiterPredicate)
+			// The arbiter predicate and DO UPDATE's WHERE decide which rows
+			// conflict and which of them change.
+			r.addPredicates(r.sources(n.OnConflict.ArbiterPredicate, sc))
 			updates(n.OnConflict.Exprs)
 			where(n.OnConflict.Where)
 		}
@@ -1316,7 +1375,7 @@ func (r *spanResolver) statementTables(stmt tree.Statement) {
 		target(&n.Table)
 	case *tree.CopyTo:
 		if n.Statement != nil {
-			r.statementTables(n.Statement)
+			r.statementTables(n.Statement, outer)
 		} else {
 			target(&n.Table)
 		}
@@ -1330,11 +1389,11 @@ func (r *spanResolver) statementTables(stmt tree.Statement) {
 		}
 	case *tree.CreateTable:
 		if n.AsSource != nil {
-			r.selectQuery(n.AsSource, nil)
+			r.selectQuery(n.AsSource, outer)
 		}
 	case *tree.CreateView:
 		if n.AsSource != nil {
-			r.selectQuery(n.AsSource, nil)
+			r.selectQuery(n.AsSource, outer)
 		}
 	}
 }
