@@ -14,7 +14,9 @@ import (
 // subexpression and copied it into its parent, so every level re-copied the
 // paths below it and a chain of n terms took time quadratic in n: 16,000
 // ORs took seconds and 100,000 ran past two minutes. Each expression now
-// appends to one slice. The chains run to near maxTreeHeight and the nested
+// appends to one slice. A value bound by FROM is shared, not flattened, so
+// one that doubles the binding below it at every level stays linear too.
+// The chains run to near maxTreeHeight and the nested
 // shapes to near maxNestingDepth; each Analyze runs against a deadline.
 func TestAnalyzeChainsStayLinear(t *testing.T) {
 	const chain, nested = 90000, 9000
@@ -33,10 +35,12 @@ func TestAnalyzeChainsStayLinear(t *testing.T) {
 		{"IN", where("c.a" + strings.Repeat(" IN (c.z)", chain)), chain + 1, "c.z"},
 		{"projected OR", "SELECT " + strings.Repeat("c.a OR ", chain) + "c.z FROM c", chain + 1, "c.z"},
 		{"property of an OR", where("(" + strings.Repeat("c.a OR ", chain) + "c.z).x"), chain + 1, "c.z.x"},
-		{"properties of an object", where(`{"k": c.z}` + strings.Repeat(".k", chain)), 1, "c.z" + strings.Repeat(".k", chain-1)},
+		{"properties of an object", where(`{"k": c.z}` + strings.Repeat(".k", chain)), 1, "c.z" + strings.Repeat(".k", 127)},
 		{"properties of nested objects", where(strings.Repeat(`{"k": `, nested) + "c.z" + strings.Repeat("}.k", nested)), 1, "c.z"},
-		{"nested scalar subqueries", "SELECT " + strings.Repeat("(SELECT VALUE ", nested/2) + "c" + strings.Repeat(".k", nested/2) + strings.Repeat(")", nested/2) + " AS v FROM c", 1, "c" + strings.Repeat(".k", nested/2)},
+		{"nested scalar subqueries", "SELECT " + strings.Repeat("(SELECT VALUE ", nested/2) + "c" + strings.Repeat(".k", nested/2) + strings.Repeat(")", nested/2) + " AS v FROM c", 1, "c" + strings.Repeat(".k", 128)},
 		{"a binding doubled at every level", "SELECT VALUE s FROM " + strings.Repeat(`(SELECT VALUE {"a": s, "b": s} FROM `, nested/10) + "(SELECT VALUE c.z FROM c) s" + strings.Repeat(") s", nested/10), 1, "c.z"},
+		{"a sum of a binding doubled at every level", "SELECT VALUE s FROM " + strings.Repeat("(SELECT VALUE s + s FROM ", nested/10) + "(SELECT VALUE c.z FROM c) s" + strings.Repeat(") s", nested/10), 1, "c.z"},
+		{"a computed binding doubled at every level", "SELECT VALUE s FROM " + strings.Repeat("(SELECT VALUE (s + s).k FROM ", nested/10) + "(SELECT VALUE c.z FROM c) s" + strings.Repeat(") s", nested/10), 1, "c.z" + strings.Repeat(".k", 127)},
 		{"elements of nested arrays", where(strings.Repeat("[", nested) + "c.z" + strings.Repeat("][0]", nested)), 1, "c.z"},
 		{"ternary", where(strings.Repeat("c.a ? c.b : ", nested) + "c.z"), 2*nested + 1, "c.z"},
 		{"function calls", where(strings.Repeat("CONCAT(", nested) + "c.a" + strings.Repeat(", c.z)", nested)), nested + 1, "c.z"},

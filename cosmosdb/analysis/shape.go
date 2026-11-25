@@ -19,7 +19,18 @@ const (
 	// elementsShape is an array whose every element has one shape: the
 	// result of ARRAY(SELECT ...).
 	elementsShape
+	// unionShape is a value computed from several (c.a ?? c.b, s + t): its
+	// sources are all of theirs.
+	unionShape
 )
+
+// maxPathLen bounds a path: the container's name and the 128 levels Cosmos
+// DB nests a document to
+// (https://learn.microsoft.com/en-us/azure/cosmos-db/concepts-limits#per-item-limits).
+// A longer path names no stored property; its first maxPathLen selectors
+// name the deepest one that can hold it, which covers it for masking, and a
+// chain of selectors applied at each of many levels stays linear.
+const maxPathLen = 129
 
 // A shape is what is known of a value: where it comes from and, for a value
 // the query built, its members. A property of an object literal is then the
@@ -30,7 +41,27 @@ type shape struct {
 	kind    shapeKind
 	leaf    []FieldPath // leafShape: the value's sources
 	keys    []string    // objectShape: member names, in order
-	members []*shape    // objectShape: member shapes; arrayShape: elements; elementsShape: the one element
+	members []*shape    // objectShape: member shapes; arrayShape: elements; elementsShape: the one element; unionShape: operands
+}
+
+// union is the shape of a value computed from members: the one member
+// when they are all the same shape, or a union of the distinct ones.
+func union(members []*shape) *shape {
+	seen := make(map[*shape]bool, len(members))
+	var distinct []*shape
+	for _, m := range members {
+		if !seen[m] {
+			seen[m] = true
+			distinct = append(distinct, m)
+		}
+	}
+	switch len(distinct) {
+	case 0:
+		return leaf(nil)
+	case 1:
+		return distinct[0]
+	}
+	return &shape{kind: unionShape, members: distinct}
 }
 
 func leaf(paths []FieldPath) *shape { return &shape{kind: leafShape, leaf: paths} }
@@ -82,6 +113,12 @@ func (s *shape) element() *shape {
 	switch s.kind {
 	case elementsShape:
 		return s.members[0]
+	case unionShape:
+		out := make([]*shape, len(s.members))
+		for i, m := range s.members {
+			out[i] = m.element()
+		}
+		return union(out)
 	case arrayShape:
 		if len(s.members) == 1 {
 			return s.members[0]
@@ -108,6 +145,13 @@ func (s *shape) selectFrom(sels []Selector) *shape {
 			s = s.members[sel.ArrayIndex]
 		case s.kind == elementsShape && sel.IsArray():
 			s = s.members[0]
+		case s.kind == unionShape:
+			// The rest selects from each operand.
+			out := make([]*shape, len(s.members))
+			for k, m := range s.members {
+				out[k] = m.selectFrom(sels[i:])
+			}
+			return union(out)
 		case s.kind == leafShape:
 			// The rest selects a stored property of each source.
 			rest := sels[i:]
@@ -125,8 +169,14 @@ func (s *shape) selectFrom(sels []Selector) *shape {
 	return s
 }
 
-// extend returns a new path: p followed by sels.
+// extend returns a new path: p followed by sels, at most maxPathLen long.
 func extend(p FieldPath, sels []Selector) FieldPath {
+	if len(p) >= maxPathLen {
+		return p
+	}
+	if room := maxPathLen - len(p); len(sels) > room {
+		sels = sels[:room]
+	}
 	out := make(FieldPath, 0, len(p)+len(sels))
 	out = append(out, p...)
 	return append(out, sels...)
@@ -167,7 +217,7 @@ func (a *analyzer) shapeOf(expr ast.ExprNode, sc *scope) *shape {
 		a.selectStmt(e.Select, sc)
 		return leaf(nil)
 	}
-	return leaf(a.exprPaths(nil, expr, sc))
+	return union(a.exprShapes(nil, expr, sc))
 }
 
 // chainShape resolves a property path: the value it is rooted at, then
