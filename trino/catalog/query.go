@@ -154,6 +154,19 @@ func (c *Catalog) addRelation(scope *queryScope, rel parser.Relation, ctes map[s
 		if err := c.addRelation(scope, n.Inner, ctes); err != nil {
 			return err
 		}
+		if len(scope.rels) > before+1 {
+			// An alias on a parenthesized join names one relation of all
+			// the join's columns.
+			var cols []*Column
+			for _, r := range scope.rels[before:] {
+				for _, col := range r.cols {
+					if !r.using[col.Name] {
+						cols = append(cols, col)
+					}
+				}
+			}
+			scope.rels = append(scope.rels[:before], scopeRel{cols: cols})
+		}
 		if len(scope.rels) == before+1 {
 			r := &scope.rels[before]
 			if n.Alias != nil {

@@ -488,7 +488,10 @@ func (c *Catalog) createView(n *parser.CreateViewStmt, sql string) error {
 		return errorf("NOT_FOUND", "Schema %s not found", name.schema)
 	}
 	nv := s.AddView(name.name, cols...)
-	if q := n.Query.Span(); q.Start >= 0 && q.Start <= q.End && q.End <= len(sql) {
+	// A view's definition is read in the view's catalog and schema, so it
+	// is kept only when those are the session's it was written in.
+	q := n.Query.Span()
+	if name.catalog == c.currentCatalog && name.schema == c.currentSchema && q.Start >= 0 && q.Start <= q.End && q.End <= len(sql) {
 		nv.Definition = sql[q.Start:q.End]
 	}
 	nv.Comment = n.Comment

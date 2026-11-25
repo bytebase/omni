@@ -153,3 +153,31 @@ func TestExecQueryReferences(t *testing.T) {
 		t.Errorf("an ambiguous id: got %+v, want AMBIGUOUS_NAME", results)
 	}
 }
+
+// TestExecParenJoinAndViewContext pins an alias on a parenthesized join,
+// and that a view in another schema than the session's keeps no
+// definition, which would be read in the wrong schema.
+func TestExecParenJoinAndViewContext(t *testing.T) {
+	c := New()
+	db := c.EnsureCatalog("memory")
+	s := db.EnsureSchema("s")
+	other := db.EnsureSchema("other")
+	c.SetCurrentCatalog("memory")
+	c.SetCurrentSchema("s")
+	for _, sql := range []string{
+		"CREATE TABLE l (a integer)",
+		"CREATE TABLE r (b bigint)",
+		"CREATE TABLE joined AS SELECT j.a, j.b FROM (l CROSS JOIN r) AS j",
+		"CREATE VIEW other.v AS SELECT a FROM l",
+	} {
+		if results, err := c.Exec(sql, nil); err != nil || len(results) != 1 || results[0].Error != nil {
+			t.Fatalf("%s: got %+v, %v", sql, results, err)
+		}
+	}
+	if got := strings.Join(s.GetTable("joined").ColumnNames(), ","); got != "a,b" {
+		t.Errorf("joined's columns = %s, want a,b", got)
+	}
+	if v := other.GetView("v"); v == nil || v.Definition != "" || strings.Join(v.ColumnNames(), ",") != "a" {
+		t.Errorf("other.v = %+v, want column a and no definition", v)
+	}
+}
