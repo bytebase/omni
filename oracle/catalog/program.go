@@ -299,6 +299,26 @@ func (e *oracleMetadataExtractor) hasType(name string) bool {
 	return t != nil && t.spec
 }
 
+// checkColumnType refuses a column whose type is no built-in type, no type
+// of the schema and no synonym (ORA-00902, invalid datatype), as the PL/SQL
+// checker refuses such a name in a declaration. A qualified name is another
+// schema's, and a catalog loaded from metadata holds no types, so either is
+// taken as existing.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/Data-Types.html
+// Ref: https://docs.oracle.com/en/error-help/db/ora-00902/
+func (e *oracleMetadataExtractor) checkColumnType(t *ast.TypeName) {
+	parts := typeParts(t)
+	if len(parts) == 0 || plsqlTypes[parts[0]] || len(parts) > 1 || e.units.typesUnknown {
+		return
+	}
+	name := parts[0]
+	if e.hasType(e.resolveSynonymTarget(name, "")) || e.synonyms[name] != nil || e.publicSynonyms[name] != nil {
+		return
+	}
+	e.setError(oraError("00902", "invalid datatype"))
+}
+
 // subprogramName is the name of a *CreateProcedureStmt or
 // *CreateFunctionStmt.
 func subprogramName(n ast.Node) string {

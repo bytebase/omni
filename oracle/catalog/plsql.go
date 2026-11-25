@@ -27,6 +27,8 @@ type plChecker struct {
 	// function reports a function body, whose RETURN takes a value, and
 	// pipelined a pipelined function's.
 	function, pipelined bool
+	// returns is the function's return type.
+	returns *ast.TypeName
 	// row holds the trigger's row names (NEW, OLD) with the table's
 	// columns, and rowTable the table's name as the trigger names it.
 	row      map[string]map[string]bool
@@ -211,10 +213,10 @@ func (c *plChecker) subprogram(params *ast.List, ret *ast.TypeName, body ast.Stm
 		}
 		c.declare(p.Name, &plSym{kind: kind, fields: c.typeFields(p.TypeName)})
 	}
-	savedFunction, savedPipelined := c.function, c.pipelined
-	c.function, c.pipelined = function, pipelined
+	savedFunction, savedPipelined, savedReturns := c.function, c.pipelined, c.returns
+	c.function, c.pipelined, c.returns = function, pipelined, ret
 	c.block(body)
-	c.function, c.pipelined = savedFunction, savedPipelined
+	c.function, c.pipelined, c.returns = savedFunction, savedPipelined, savedReturns
 	c.pop()
 }
 

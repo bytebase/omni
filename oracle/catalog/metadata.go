@@ -645,6 +645,7 @@ func (e *oracleMetadataExtractor) extractColumn(n *ast.ColumnDef, table *metadat
 		Position: int32(len(table.Columns) + 1),
 	}
 	if n.TypeName != nil {
+		e.checkColumnType(n.TypeName)
 		column.Type = normalizeDataTypeText(e.nodeText(n.TypeName))
 	} else if n.Domain != nil {
 		column.Type = objectName(n.Domain)

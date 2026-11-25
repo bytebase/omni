@@ -750,6 +750,9 @@ func loadSimulationForms(forms []simulate.Form) (*Catalog, error) {
 	all = append(all, phase4...)
 	all = append(all, phase5...)
 	c := New()
+	// dump_forms reads no types, so a column's type may be one the schema
+	// holds.
+	c.units.typesUnknown = true
 	if len(emptyTables) > 0 {
 		schema := &metadatapb.SchemaMetadata{}
 		for _, name := range emptyTables {

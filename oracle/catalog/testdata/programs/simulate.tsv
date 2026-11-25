@@ -157,7 +157,7 @@ ok:1b68002572b3	ok:1b68002572b3	engine	programs@objects	program:function	CREATE 
 ok:1b68002572b3	ok:1b68002572b3	engine	programs@objects	program:function	CREATE FUNCTION f (n IN NUMBER) RETURN NUMBER RESULT_CACHE IS BEGIN RETURN n; END;
 ok:1b68002572b3	ok:1b68002572b3	engine	programs@objects	program:function	CREATE FUNCTION f (n IN NUMBER) RETURN NUMBER IS BEGIN IF n <= 1 THEN RETURN 1; END IF; RETURN n * f(n - 1); END;
 ok:1b68002572b3	ok:1b68002572b3	engine	programs@objects	program:function	CREATE FUNCTION f RETURN NUMBER IS BEGIN RETURN 'x'; END;
-ok	ok:0851853edbe0	engine	programs@objects	program:function	CREATE FUNCTION f RETURN DATE IS BEGIN RETURN 1; END;
+ok:0851853edbe0	ok:0851853edbe0	engine	programs@objects	program:function	CREATE FUNCTION f RETURN DATE IS BEGIN RETURN 1; END;
 ok:1b68002572b3	ok:1b68002572b3	engine	programs@objects	program:function	CREATE FUNCTION f RETURN BOOLEAN IS BEGIN RETURN TRUE; END;
 955	955	engine	programs@objects	program:function	CREATE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS BEGIN RETURN p_x; END;
 ok:7cb992ad08e2	ok:7cb992ad08e2	engine	programs@objects	program:function	CREATE OR REPLACE FUNCTION f_double (p_x IN NUMBER) RETURN NUMBER IS BEGIN RETURN p_x + p_x; END;
@@ -273,4 +273,4 @@ ok:042e15295ecc	ok:042e15295ecc	engine	programs@objects	program:reference	DROP S
 ok:543abc4c12be	ok:543abc4c12be	engine	programs@objects	program:reference	DROP SYNONYM cust
 ok:4dca7031aab4	ok:4dca7031aab4	engine	programs@objects	program:reference	DROP VIEW v_customers
 ok:4ad1f2049ed8	ok:4ad1f2049ed8	engine	programs@objects	program:reference	CREATE TABLE pts (id NUMBER, p t_point)
-ok	902	engine	programs@objects	program:reference	CREATE TABLE pts (id NUMBER, p nope_type)
+902	902	engine	programs@objects	program:reference	CREATE TABLE pts (id NUMBER, p nope_type)
