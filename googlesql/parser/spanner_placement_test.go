@@ -7,7 +7,8 @@ import (
 	"github.com/bytebase/omni/googlesql/ast"
 )
 
-// Structural tests for CREATE/DROP PLACEMENT and CREATE MODEL's OPTIONS.
+// Structural tests for CREATE/ALTER/DROP PLACEMENT and CREATE/ALTER MODEL's
+// OPTIONS.
 // Accept/reject parity with the pinned emulator is in the suite:spanner-ddl
 // rows of testdata/compat.tsv.
 
@@ -93,6 +94,56 @@ func TestSpannerOptionsRefused(t *testing.T) {
 		"CREATE PLACEMENT p OPTIONS (default_leader = 'us-east1')",
 		"CREATE PLACEMENT p OPTIONS (instance_partition = NULL)",
 		"CREATE OR REPLACE PLACEMENT p OPTIONS (instance_partition = 'x')",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) accepted, want an error", sql)
+		}
+	}
+}
+
+func TestAlterPlacement(t *testing.T) {
+	sql := "ALTER PLACEMENT IF EXISTS p SET OPTIONS (default_leader = 'us-east1')"
+	n := parseDDL(t, sql)
+	a, ok := n.(*ast.AlterPlacementStmt)
+	if !ok {
+		t.Fatalf("statement is %T, want *ast.AlterPlacementStmt", n)
+	}
+	if !a.IfExists || a.Name.String() != "p" || len(a.SetOptions) != 1 {
+		t.Errorf("got IfExists=%v Name=%q opts=%d, want true/p/1", a.IfExists, a.Name.String(), len(a.SetOptions))
+	}
+	if a.Loc.Start != 0 || a.Loc.End != len(sql) {
+		t.Errorf("Loc = %+v, want {0 %d}", a.Loc, len(sql))
+	}
+	// SET OPTIONS is optional, and instance_partition is not required.
+	if b := parseDDL(t, "ALTER PLACEMENT p").(*ast.AlterPlacementStmt); len(b.SetOptions) != 0 {
+		t.Errorf("bare ALTER PLACEMENT SetOptions = %d, want 0", len(b.SetOptions))
+	}
+}
+
+func TestAlterModel(t *testing.T) {
+	sql := "ALTER MODEL TextEmbedder SET OPTIONS (default_batch_size = 5)"
+	n := parseDDL(t, sql)
+	a, ok := n.(*ast.AlterModelStmt)
+	if !ok {
+		t.Fatalf("statement is %T, want *ast.AlterModelStmt", n)
+	}
+	if a.IfExists || a.Name.String() != "TextEmbedder" || len(a.SetOptions) != 1 {
+		t.Errorf("got IfExists=%v Name=%q opts=%d, want false/TextEmbedder/1", a.IfExists, a.Name.String(), len(a.SetOptions))
+	}
+	if a.Loc.Start != 0 || a.Loc.End != len(sql) {
+		t.Errorf("Loc = %+v, want {0 %d}", a.Loc, len(sql))
+	}
+}
+
+func TestAlterModelAndPlacementRefused(t *testing.T) {
+	for _, sql := range []string{
+		"ALTER MODEL m SET OPTIONS (x = 1)",
+		"ALTER MODEL m SET OPTIONS (endpoint = PROTO)",
+		"ALTER MODEL m SET (endpoint = '//x')",
+		"ALTER MODEL m RENAME TO n",
+		"ALTER PLACEMENT p SET OPTIONS ()",
+		"ALTER PLACEMENT p SET OPTIONS (default_leader = 1)",
+		"ALTER PLACEMENT p OPTIONS (default_leader = 'x')",
 	} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) accepted, want an error", sql)

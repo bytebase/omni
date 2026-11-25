@@ -76,6 +76,9 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 	case kwSEQUENCE:
 		// ALTER SEQUENCE [IF EXISTS] name SET OPTIONS … (spanner_sequence.go).
 		return p.parseAlterSequence(alter)
+	case kwMODEL:
+		// ALTER MODEL [IF EXISTS] name [SET OPTIONS …] (bq_extended_ddl.go).
+		return p.parseAlterModel(alter)
 	case kwPROTO:
 		// ALTER PROTO BUNDLE { INSERT|UPDATE|DELETE ( … ) } … (spanner_sequence.go).
 		if p.tokIsWord(p.peekNext(), "BUNDLE") {
@@ -84,13 +87,16 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 		return p.unsupported("ALTER")
 	default:
 		// Spanner objects whose leading word lexes as a BARE IDENTIFIER (CHANGE
-		// STREAM, LOCALITY GROUP) — matched by spelling before the generic-entity
+		// STREAM, LOCALITY GROUP, PLACEMENT) — matched by spelling before the generic-entity
 		// fallback (parser-ddl-spanner node).
 		if p.tokIsWord(p.cur, "CHANGE") && p.tokIsWord(p.peekNext(), "STREAM") {
 			return p.parseAlterChangeStream(alter) // spanner_change_stream.go
 		}
 		if p.tokIsWord(p.cur, "LOCALITY") && p.tokIsWord(p.peekNext(), "GROUP") {
 			return p.parseAlterLocalityGroup(alter) // spanner_sequence.go
+		}
+		if p.tokIsWord(p.cur, "PLACEMENT") {
+			return p.parseAlterPlacement(alter) // spanner_placement.go
 		}
 		return p.unsupported("ALTER")
 	}

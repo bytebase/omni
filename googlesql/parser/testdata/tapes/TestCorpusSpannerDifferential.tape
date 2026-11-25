@@ -479,6 +479,13 @@
 : string
 | {"verdict":"accept","kind":"ddl","reason":"ok","code":"OK"}
 > query
+| ALTER MODEL TextEmbedder SET OPTIONS (default_batch_size = 5)
+< result
+< column "verdict" "JSON"
+< row
+: string
+| {"verdict":"accept","kind":"ddl","reason":"semantic","code":"NotFound","message":"Model `TextEmbedder` not found."}
+> query
 | DROP MODEL TextEmbedder
 < result
 < column "verdict" "JSON"

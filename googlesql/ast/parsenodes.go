@@ -4375,6 +4375,18 @@ type DropPlacementStmt struct {
 // Tag implements Node.
 func (n *DropPlacementStmt) Tag() NodeTag { return T_DropPlacementStmt }
 
+// AlterPlacementStmt is an ALTER PLACEMENT statement (Spanner):
+// `ALTER PLACEMENT [IF EXISTS] name [SET OPTIONS ( placement_option [, ...] )]`.
+type AlterPlacementStmt struct {
+	IfExists   bool
+	Name       *PathExpr
+	SetOptions []*OptionsEntry
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterPlacementStmt) Tag() NodeTag { return T_AlterPlacementStmt }
+
 // CreateProtoBundleStmt is a CREATE PROTO BUNDLE statement (Spanner; truth1
 // DDL-046):
 //
@@ -4425,6 +4437,8 @@ var (
 	_ Node = (*AlterProtoBundleStmt)(nil)
 	_ Node = (*CreatePlacementStmt)(nil)
 	_ Node = (*DropPlacementStmt)(nil)
+	_ Node = (*AlterPlacementStmt)(nil)
+	_ Node = (*AlterModelStmt)(nil)
 )
 
 // ---------------------------------------------------------------------------
@@ -5541,6 +5555,18 @@ type CreateModelStmt struct {
 }
 
 func (n *CreateModelStmt) Tag() NodeTag { return T_CreateModelStmt }
+
+// AlterModelStmt is an ALTER MODEL statement (Spanner; truth1 DDL-039):
+// `ALTER MODEL [IF EXISTS] name [SET OPTIONS ( model_option [, ...] )]`.
+type AlterModelStmt struct {
+	IfExists   bool
+	Name       *PathExpr
+	SetOptions []*OptionsEntry
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterModelStmt) Tag() NodeTag { return T_AlterModelStmt }
 
 // CreateConnectionStmt is a `CREATE [OR REPLACE] CONNECTION [IF NOT EXISTS] <path> [OPTIONS(...)]` statement.
 type CreateConnectionStmt struct {
