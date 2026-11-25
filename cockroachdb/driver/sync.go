@@ -112,7 +112,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	if err != nil {
 		return nil, fmt.Errorf("failed to get views from database %q: %w", d.databaseName, err)
 	}
-	materializedViewMap, err := getMaterializedViews(txn, indexMap)
+	materializedViewMap, err := getMaterializedViews(txn, indexMap, columnMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get materialized views from database %q: %w", d.databaseName, err)
 	}
@@ -733,7 +733,7 @@ LEFT JOIN pg_class c ON c.relname = m.matviewname AND c.relnamespace = n.oid AND
 WHERE m.schemaname NOT IN (%s)
 ORDER BY m.schemaname, m.matviewname;`, crrawanalysis.SystemSchemaWhereClause)
 
-func getMaterializedViews(txn *sql.Tx, indexMap map[tableKey][]*metadatapb.IndexMetadata) (map[string][]*metadatapb.MaterializedViewMetadata, error) {
+func getMaterializedViews(txn *sql.Tx, indexMap map[tableKey][]*metadatapb.IndexMetadata, columnMap map[tableKey][]*metadatapb.ColumnMetadata) (map[string][]*metadatapb.MaterializedViewMetadata, error) {
 	matviewMap := make(map[string][]*metadatapb.MaterializedViewMetadata)
 
 	rows, err := txn.Query(listMaterializedViewQuery)
@@ -758,6 +758,9 @@ func getMaterializedViews(txn *sql.Tx, indexMap map[tableKey][]*metadatapb.Index
 		}
 
 		matview.Indexes = indexMap[tableKey{Schema: schemaName, Table: matview.Name}]
+		// The output names, which pg_matviews.definition leaves out when
+		// CREATE MATERIALIZED VIEW names them.
+		matview.Columns = columnMap[tableKey{Schema: schemaName, Table: matview.Name}]
 		matviewMap[schemaName] = append(matviewMap[schemaName], matview)
 	}
 	if err := rows.Err(); err != nil {

@@ -564,7 +564,7 @@ func (d *differ) rebuiltViews() map[string]bool {
 		}
 		for _, view := range schema.MaterializedViews {
 			target := findMaterializedView(d.to.byName[schema.Name], view.Name)
-			same := target != nil && relationQuery(target.Definition, d.to.database) == relationQuery(view.Definition, d.from.database)
+			same := target != nil && relationQuery(target.Definition, d.to.database) == relationQuery(view.Definition, d.from.database) && sameColumnNames(view.Columns, target.Columns)
 			relations = append(relations, relation{getObjectID(schema.Name, view.Name), view.DependencyColumns, same, view.Definition})
 			if target == nil {
 				dropped[getObjectID(schema.Name, view.Name)] = true
@@ -828,9 +828,9 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 			d.r.writeColumnDefinition(&buf, bare)
 			alter(phaseAlterTables, OpAddColumn, column.Name, "ADD COLUMN "+buf.String())
 			alter(defaultPhase, OpAlterColumn, column.Name, "ALTER COLUMN "+quoteIdent(column.Name)+" SET DEFAULT "+defaultExpression(column.Default))
+			d.add(defaultPhase, MigrationOp{Type: OpAlterTable, SchemaName: schema, ObjectName: column.Name, ParentObject: new.Name,
+				SQL: fmt.Sprintf("UPDATE %s SET %s = %s WHERE %s IS NULL", name, quoteIdent(column.Name), defaultExpression(column.Default), quoteIdent(column.Name))})
 			if !column.Nullable {
-				d.add(defaultPhase, MigrationOp{Type: OpAlterTable, SchemaName: schema, ObjectName: column.Name, ParentObject: new.Name,
-					SQL: fmt.Sprintf("UPDATE %s SET %s = %s WHERE %s IS NULL", name, quoteIdent(column.Name), defaultExpression(column.Default), quoteIdent(column.Name))})
 				alter(defaultPhase, OpAlterColumn, column.Name, "ALTER COLUMN "+quoteIdent(column.Name)+" SET NOT NULL")
 			}
 			continue
@@ -1267,7 +1267,8 @@ func (d *differ) planRoutines() {
 					continue
 				}
 				for _, call := range routineCalls(function.Definition) {
-					if d.droppedRoutines[call.name] && call.name != function.Name && call.name != schema.Name+"."+function.Name {
+					// Another overload of the routine's own name counts.
+					if d.droppedRoutines[call.name] {
 						d.recreated[id] = true
 						d.droppedRoutines[function.Name], d.droppedRoutines[schema.Name+"."+function.Name] = true, true
 						changed = true
@@ -1326,10 +1327,10 @@ func (d *differ) diffRoutines() {
 				typ = OpAlterFunction
 			}
 			reads := routineRelations(function.Definition)
+			// A call to the routine itself resolves to its own node, which
+			// orderDrops ignores; one to another overload of its name stays.
 			for _, call := range routineCalls(function.Definition) {
-				if call.name != function.Name && call.name != schema.Name+"."+function.Name {
-					reads = append(reads, fmt.Sprintf("%s%d:%s", callPrefix, call.args, call.name))
-				}
+				reads = append(reads, fmt.Sprintf("%s%d:%s", callPrefix, call.args, call.name))
 			}
 			d.addDrop(id, MigrationOp{Type: typ, SchemaName: schema.Name, ObjectName: function.Name,
 				SQL: fmt.Sprintf("DROP %s %s.%s", kind, quoteIdent(schema.Name), routineSignature(function))}, reads)

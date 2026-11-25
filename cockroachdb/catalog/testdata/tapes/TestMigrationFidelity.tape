@@ -6413,6 +6413,9 @@
 | CREATE TABLE fid_v.grow (id INT8 PRIMARY KEY, s INT8 DEFAULT fid_v.seven(), e INT8 NOT NULL DEFAULT fid_v.eight());
 < ok 0 -
 > exec
+| CREATE MATERIALIZED VIEW fid_v.m_named (after_name) AS SELECT id FROM fid_v.items;
+< ok 0 -
+> exec
 | CREATE FUNCTION fid_v.pf() RETURNS INT8 LANGUAGE SQL AS $$ SELECT COALESCE(max(b), 0) FROM fid_v.pab $$;
 < ok 0 -
 > exec
@@ -6902,6 +6905,63 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| m_named
+: string
+| after_name
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| m_named
+: string
+| rowid
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| unique_rowid()
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| YES
 : string
 |
 : string
@@ -7431,6 +7491,18 @@
 : string
 | fid_v
 : string
+| m_named
+: string
+| m_named_pkey
+: string
+| CREATE UNIQUE INDEX m_named_pkey ON omni_testmigrationfidelity.fid_v.m_named USING btree (rowid ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
 | pab
 : string
 | pab_pkey
@@ -7875,6 +7947,14 @@
 : string
 | fid_v
 : string
+| m_named
+: string
+| SELECT id FROM omni_testmigrationfidelity.fid_v.items
+: null
+< row
+: string
+| fid_v
+: string
 | totals
 : string
 | SELECT name, sum(price) AS total FROM omni_testmigrationfidelity.fid_v.items GROUP BY name
@@ -7900,6 +7980,22 @@
 | 	  		AND pg_rewrite.ev_type = '1'
 | 	  	ORDER BY 1,2,3;
 | 	
+: string
+| fid_v
+: string
+| m_named
+< result
+< column "source_schema" "NAME"
+< column "source_table" "NAME"
+< column "column_name" "NAME"
+< row
+: string
+| fid_v
+: string
+| items
+: string
+| id
+> query ^
 : string
 | fid_v
 : string
@@ -8375,11 +8471,20 @@
 | CREATE TABLE fid_v.pab (id INT8 PRIMARY KEY, a INT8, b INT8);
 < ok 0 -
 > exec
+| CREATE MATERIALIZED VIEW fid_v.m_named (before_name) AS SELECT id FROM fid_v.items;
+< ok 0 -
+> exec
 | CREATE TABLE fid_v.grow (id INT8 PRIMARY KEY);
 < ok 0 -
 > exec
 | INSERT INTO fid_v.grow VALUES (1), (2);
 < ok 2 -
+> exec
+| CREATE FUNCTION fid_v.ov() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.ov(n INT8) RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_v.ov() + n $$;
+< ok 0 -
 > exec
 | CREATE FUNCTION fid_v.seven() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 7 $$;
 < ok 0 -
@@ -8947,6 +9052,63 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| m_named
+: string
+| before_name
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| m_named
+: string
+| rowid
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| unique_rowid()
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| YES
 : string
 |
 : string
@@ -9528,6 +9690,18 @@
 : string
 | fid_v
 : string
+| m_named
+: string
+| m_named_pkey
+: string
+| CREATE UNIQUE INDEX m_named_pkey ON omni_testmigrationfidelity.fid_v.m_named USING btree (rowid ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
 | old_items
 : string
 | old_items_pkey
@@ -9986,6 +10160,14 @@
 : string
 | fid_v
 : string
+| m_named
+: string
+| SELECT id FROM omni_testmigrationfidelity.fid_v.items
+: null
+< row
+: string
+| fid_v
+: string
 | totals
 : string
 | SELECT name, sum(price) AS total FROM omni_testmigrationfidelity.fid_v.items GROUP BY name
@@ -10011,6 +10193,22 @@
 | 	  		AND pg_rewrite.ev_type = '1'
 | 	  	ORDER BY 1,2,3;
 | 	
+: string
+| fid_v
+: string
+| m_named
+< result
+< column "source_schema" "NAME"
+< column "source_table" "NAME"
+< column "column_name" "NAME"
+< row
+: string
+| fid_v
+: string
+| items
+: string
+| id
+> query ^
 : string
 | fid_v
 : string
@@ -10239,6 +10437,42 @@
 : string
 | fid_v
 : string
+| ov
+: string
+| ov(int8)
+: string
+| CREATE FUNCTION fid_v.ov(n INT8)
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_v.ov() + n;
+| $$
+< row
+: string
+| fid_v
+: string
+| ov
+: string
+| ov()
+: string
+| CREATE FUNCTION fid_v.ov()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 1;
+| $$
+< row
+: string
+| fid_v
+: string
 | pf
 : string
 | pf()
@@ -10451,10 +10685,19 @@
 | DROP FUNCTION "fid_v"."gone"();
 < ok 0 -
 > exec
+| DROP MATERIALIZED VIEW "fid_v"."m_named";
+< ok 0 -
+> exec
 | DROP VIEW "fid_v"."named";
 < ok 0 -
 > exec
 | DROP TABLE "fid_v"."old_items";
+< ok 0 -
+> exec
+| DROP FUNCTION "fid_v"."ov"(int8);
+< ok 0 -
+> exec
+| DROP FUNCTION "fid_v"."ov"();
 < ok 0 -
 > exec
 | DROP FUNCTION "fid_v"."pf"();
@@ -10498,6 +10741,9 @@
 > exec
 | ALTER TABLE "fid_v"."grow" ALTER COLUMN "s" SET DEFAULT fid_v.seven();
 < ok 0 -
+> exec
+| UPDATE "fid_v"."grow" SET "s" = fid_v.seven() WHERE "s" IS NULL;
+< ok 2 -
 > exec
 | ALTER TABLE "fid_v"."grow" ADD COLUMN "e" bigint;
 < ok 0 -
@@ -10575,6 +10821,10 @@
 | 	AS $$
 | 	SELECT fid_v.count_old();
 | $$;
+< ok 0 -
+> exec
+| CREATE MATERIALIZED VIEW "fid_v"."m_named" ("after_name") AS 
+| SELECT id FROM fid_v.items;
 < ok 0 -
 > exec
 | CREATE VIEW "fid_v"."named" ("other") AS 
@@ -10688,6 +10938,9 @@
 < ok 0 -
 > exec
 | ALTER TABLE "fid_v"."ab" ALTER COLUMN "x" SET DEFAULT fid_v.xa();
+< ok 0 -
+> exec
+| UPDATE "fid_v"."ab" SET "x" = fid_v.xa() WHERE "x" IS NULL;
 < ok 0 -
 > exec
 | ALTER TABLE "fid_v"."grow" ALTER COLUMN "e" SET DEFAULT fid_v.eight();
@@ -11185,6 +11438,63 @@
 : null
 : string
 | NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| m_named
+: string
+| after_name
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| m_named
+: string
+| rowid
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| unique_rowid()
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| YES
 : string
 |
 : string
@@ -11714,6 +12024,18 @@
 : string
 | fid_v
 : string
+| m_named
+: string
+| m_named_pkey
+: string
+| CREATE UNIQUE INDEX m_named_pkey ON omni_testmigrationfidelity.fid_v.m_named USING btree (rowid ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
 | pab
 : string
 | pab_pkey
@@ -12158,6 +12480,14 @@
 : string
 | fid_v
 : string
+| m_named
+: string
+| SELECT id FROM omni_testmigrationfidelity.fid_v.items
+: null
+< row
+: string
+| fid_v
+: string
 | totals
 : string
 | SELECT name, sum(price) AS total FROM omni_testmigrationfidelity.fid_v.items GROUP BY name
@@ -12183,6 +12513,22 @@
 | 	  		AND pg_rewrite.ev_type = '1'
 | 	  	ORDER BY 1,2,3;
 | 	
+: string
+| fid_v
+: string
+| m_named
+< result
+< column "source_schema" "NAME"
+< column "source_table" "NAME"
+< column "column_name" "NAME"
+< row
+: string
+| fid_v
+: string
+| items
+: string
+| id
+> query ^
 : string
 | fid_v
 : string

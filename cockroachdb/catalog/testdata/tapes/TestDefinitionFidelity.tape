@@ -2930,6 +2930,9 @@
 > exec
 | CREATE MATERIALIZED VIEW fid_routines.a_mcount AS SELECT count(*) AS n FROM fid_routines.z_rel;
 < ok 0 -
+> exec
+| CREATE MATERIALIZED VIEW fid_routines.m_renamed (item_count) AS SELECT count(*) FROM fid_routines.z_rel;
+< ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
 < result
@@ -3380,6 +3383,63 @@
 | price * 2
 : string
 | v
+< row
+: string
+| fid_routines
+: string
+| m_renamed
+: string
+| item_count
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| m_renamed
+: string
+| rowid
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| unique_rowid()
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| YES
+: string
+|
+: string
+|
 < row
 : string
 | fid_routines
@@ -3945,6 +4005,18 @@
 : string
 | fid_routines
 : string
+| m_renamed
+: string
+| m_renamed_pkey
+: string
+| CREATE UNIQUE INDEX m_renamed_pkey ON omni_testdefinitionfidelity.fid_routines.m_renamed USING btree (rowid ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_routines
+: string
 | plain
 : string
 | primary
@@ -4412,6 +4484,14 @@
 : string
 | SELECT name, sum(price) AS total FROM omni_testdefinitionfidelity.fid_routines.items GROUP BY name
 : null
+< row
+: string
+| fid_routines
+: string
+| m_renamed
+: string
+| SELECT count(*) FROM omni_testdefinitionfidelity.fid_routines.z_rel
+: null
 > query
 |
 | 		SELECT source_ns.nspname as source_schema,
@@ -4464,6 +4544,15 @@
 | items
 : string
 | price
+> query ^
+: string
+| fid_routines
+: string
+| m_renamed
+< result
+< column "source_schema" "NAME"
+< column "source_table" "NAME"
+< column "column_name" "NAME"
 > query
 |
 | select n.nspname as function_schema,
@@ -4884,7 +4973,7 @@
 | );
 < ok 0 -
 > exec
-| CREATE MATERIALIZED VIEW "fid_routines"."item_totals" AS 
+| CREATE MATERIALIZED VIEW "fid_routines"."item_totals" ("name", "total") AS 
 | SELECT name, sum(price) AS total FROM fid_routines.items GROUP BY name;
 < ok 0 -
 > exec
@@ -5003,8 +5092,12 @@
 | SELECT count(*) AS n FROM fid_routines.z_rel;
 < ok 0 -
 > exec
-| CREATE MATERIALIZED VIEW "fid_routines"."a_mcount" AS 
+| CREATE MATERIALIZED VIEW "fid_routines"."a_mcount" ("n") AS 
 | SELECT count(*) AS n FROM fid_routines.z_rel;
+< ok 0 -
+> exec
+| CREATE MATERIALIZED VIEW "fid_routines"."m_renamed" ("item_count") AS 
+| SELECT count(*) FROM fid_routines.z_rel;
 < ok 0 -
 > exec
 | ALTER SEQUENCE "fid_routines"."ticket_seq" OWNED BY "fid_routines"."tickets"."n";
@@ -5463,6 +5556,63 @@
 : string
 | fid_routines
 : string
+| m_renamed
+: string
+| item_count
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| m_renamed
+: string
+| rowid
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| unique_rowid()
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| YES
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
 | scored
 : string
 | id
@@ -6024,6 +6174,18 @@
 : string
 | fid_routines
 : string
+| m_renamed
+: string
+| m_renamed_pkey
+: string
+| CREATE UNIQUE INDEX m_renamed_pkey ON omni_testdefinitionfidelity.fid_routines.m_renamed USING btree (rowid ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_routines
+: string
 | plain
 : string
 | primary
@@ -6491,6 +6653,14 @@
 : string
 | SELECT name, sum(price) AS total FROM omni_testdefinitionfidelity.fid_routines.items GROUP BY name
 : null
+< row
+: string
+| fid_routines
+: string
+| m_renamed
+: string
+| SELECT count(*) FROM omni_testdefinitionfidelity.fid_routines.z_rel
+: null
 > query
 |
 | 		SELECT source_ns.nspname as source_schema,
@@ -6543,6 +6713,15 @@
 | items
 : string
 | price
+> query ^
+: string
+| fid_routines
+: string
+| m_renamed
+< result
+< column "source_schema" "NAME"
+< column "source_table" "NAME"
+< column "column_name" "NAME"
 > query
 |
 | select n.nspname as function_schema,

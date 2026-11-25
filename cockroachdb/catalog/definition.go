@@ -557,23 +557,29 @@ func quoteList(names []string) string {
 }
 
 func (r renderer) writeView(buf *strings.Builder, schema string, view *metadatapb.ViewMetadata) {
-	// CockroachDB keeps a view's column list out of its stored query, so the
-	// synced output names are written.
-	columns := ""
-	if len(view.Columns) > 0 {
-		names := make([]string, len(view.Columns))
-		for i, column := range view.Columns {
-			names[i] = column.Name
-		}
-		columns = " (" + quoteList(names) + ")"
-	}
-	fmt.Fprintf(buf, "CREATE VIEW %s.%s%s AS \n%s;\n\n", quoteIdent(schema), quoteIdent(view.Name), columns, r.query(view.Definition))
+	fmt.Fprintf(buf, "CREATE VIEW %s.%s%s AS \n%s;\n\n", quoteIdent(schema), quoteIdent(view.Name), columnList(view.Columns), r.query(view.Definition))
 }
 
 func (r renderer) writeMaterializedView(buf *strings.Builder, schema string, view *metadatapb.MaterializedViewMetadata) {
 	// Not WITH NO DATA: CockroachDB indexes only a populated materialized view.
-	fmt.Fprintf(buf, "CREATE MATERIALIZED VIEW %s.%s AS \n%s;\n\n", quoteIdent(schema), quoteIdent(view.Name), r.query(view.Definition))
+	fmt.Fprintf(buf, "CREATE MATERIALIZED VIEW %s.%s%s AS \n%s;\n\n", quoteIdent(schema), quoteIdent(view.Name), columnList(view.Columns), r.query(view.Definition))
 	r.writeIndexes(buf, schema, view.Name, materializedViewIndexes(view))
+}
+
+// columnList is a view's synced output names as CREATE VIEW lists them,
+// leaving out a hidden column (a materialized view's rowid). CockroachDB keeps
+// the list out of the query it stores, so it is written from the columns.
+func columnList(columns []*metadatapb.ColumnMetadata) string {
+	var names []string
+	for _, column := range columns {
+		if !column.IsInvisible {
+			names = append(names, column.Name)
+		}
+	}
+	if len(names) == 0 {
+		return ""
+	}
+	return " (" + quoteList(names) + ")"
 }
 
 // materializedViewIndexes leaves out the hidden rowid key CockroachDB gives

@@ -331,6 +331,27 @@
               "primary": true,
               "definition": "CREATE UNIQUE INDEX order_totals_pkey ON omni_testsyncdatabase.app.order_totals USING btree (rowid ASC)"
             }
+          ],
+          "columns": [
+            {
+              "name": "customer_id",
+              "position": 1,
+              "nullable": true,
+              "type": "bigint"
+            },
+            {
+              "name": "total",
+              "position": 2,
+              "nullable": true,
+              "type": "numeric"
+            },
+            {
+              "name": "rowid",
+              "position": 3,
+              "default": "unique_rowid()",
+              "type": "bigint",
+              "isInvisible": true
+            }
           ]
         }
       ],

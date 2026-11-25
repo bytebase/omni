@@ -124,6 +124,7 @@ CREATE VIEW fid_routines.a_count AS SELECT count(*) AS n FROM fid_routines.z_rel
 CREATE VIEW fid_routines.z_cte AS WITH a_count AS (SELECT 1 AS id) SELECT id FROM a_count;
 CREATE VIEW fid_routines.a_reads_z AS SELECT id FROM fid_routines.z_cte;
 CREATE MATERIALIZED VIEW fid_routines.a_mcount AS SELECT count(*) AS n FROM fid_routines.z_rel;
+CREATE MATERIALIZED VIEW fid_routines.m_renamed (item_count) AS SELECT count(*) FROM fid_routines.z_rel;
 `,
 		},
 		{

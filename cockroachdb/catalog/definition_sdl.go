@@ -143,7 +143,7 @@ func (r renderer) writeTableSDL(buf *strings.Builder, schema string, table *meta
 }
 
 func (r renderer) writeMaterializedViewSDL(buf *strings.Builder, schema string, view *metadatapb.MaterializedViewMetadata) {
-	fmt.Fprintf(buf, "CREATE MATERIALIZED VIEW %s.%s AS %s;\n\n", quoteIdent(schema), quoteIdent(view.Name), r.query(view.Definition))
+	fmt.Fprintf(buf, "CREATE MATERIALIZED VIEW %s.%s%s AS %s;\n\n", quoteIdent(schema), quoteIdent(view.Name), columnList(view.Columns), r.query(view.Definition))
 	r.writeIndexes(buf, schema, view.Name, materializedViewIndexes(view))
 }
 
