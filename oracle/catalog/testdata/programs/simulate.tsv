@@ -67,7 +67,7 @@ ok	ok:b997cf2c8522	engine	programs@objects	program:procedure	CREATE PROCEDURE p 
 ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN DBMS_OUTPUT.PUT_LINE('x'); END;
 ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN RAISE_APPLICATION_ERROR(-20001, 'x'); END;
 ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS PROCEDURE inner IS BEGIN NULL; END; BEGIN inner; END;
-ok	ok:21aa121b3c09	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS FUNCTION twice (x NUMBER) RETURN NUMBER IS BEGIN RETURN x * 2; END; v NUMBER; BEGIN v := twice(1, 2); END;
+ok:21aa121b3c09	ok:21aa121b3c09	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS FUNCTION twice (x NUMBER) RETURN NUMBER IS BEGIN RETURN x * 2; END; v NUMBER; BEGIN v := twice(1, 2); END;
 ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS BEGIN p; END;
 ok:a9e374713f41	ok:a9e374713f41	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v customers.name%TYPE; BEGIN NULL; END;
 ok:8a4b959e80fe	ok:8a4b959e80fe	engine	programs@objects	program:procedure	CREATE PROCEDURE p IS v customers.nope%TYPE; BEGIN NULL; END;
@@ -173,7 +173,7 @@ ok:8a2d261f9248	ok:8a2d261f9248	engine	programs@objects	program:package	CREATE P
 ok:75748712f569	ok:75748712f569	engine	programs@objects	program:package	CREATE PACKAGE p2 AS v customers.name%TYPE; c CONSTANT NUMBER := 1; TYPE t_rec IS RECORD (a NUMBER, b VARCHAR2(10)); TYPE t_tab IS TABLE OF t_rec; END;
 ok:75748712f569	ok:75748712f569	engine	programs@objects	program:package	CREATE PACKAGE p2 AS CURSOR c RETURN customers%ROWTYPE; END;
 ok:75748712f569	ok:75748712f569	engine	programs@objects	program:package	CREATE PACKAGE p2 AS FUNCTION f RETURN NUMBER; e EXCEPTION; END p2;
-ok	ok:bb659634a37a	engine	programs@objects	program:package	CREATE PACKAGE p2 AS PROCEDURE a; END nope;
+ok:bb659634a37a	ok:bb659634a37a	engine	programs@objects	program:package	CREATE PACKAGE p2 AS PROCEDURE a; END nope;
 955	955	engine	programs@objects	program:package	CREATE PACKAGE pk AS PROCEDURE a; END;
 ok:619f5df2e1bc	ok:619f5df2e1bc	engine	programs@objects	program:package	CREATE OR REPLACE PACKAGE pk AS g_count NUMBER := 0; PROCEDURE log_it (p_what IN VARCHAR2); FUNCTION total (p_customer IN NUMBER) RETURN NUMBER; END pk;
 ok:619f5df2e1bc	ok:619f5df2e1bc	engine	programs@objects	program:package	CREATE OR REPLACE PACKAGE pk AS PROCEDURE log_it (p_what IN VARCHAR2); END pk;

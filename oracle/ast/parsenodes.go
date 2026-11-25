@@ -2112,6 +2112,7 @@ type CreatePackageStmt struct {
 	IsBody           bool        // PACKAGE BODY
 	Body             *List       // package body declarations
 	InitBlock        *PLSQLBlock // initialization section of a body: BEGIN statements [EXCEPTION handlers]
+	EndName          string      // the name after END, if any
 	Loc              Loc         // start location
 }
 

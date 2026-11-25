@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/oracle/ast"
+	"github.com/bytebase/omni/oracle/catalog"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
 )
@@ -1837,8 +1838,11 @@ func (b *builder) alterSequence(v *ast.AlterSequenceStmt) bool {
 // createTrigger follows CREATE [OR REPLACE] TRIGGER of a DML or INSTEAD OF
 // trigger: the name must be free among the schema's triggers (04081), and
 // OR REPLACE refuses another table's trigger (04095) (verified). The table
-// follows synonyms, so a missing one claims nothing. A trigger on SCHEMA
-// or DATABASE ends the walk.
+// must be one, a view, or a synonym (00942); an INSTEAD OF trigger takes no
+// table (25002); and oracle/catalog's TriggerFormError holds what the
+// statement says of its row (04077, 04082, 04084). Under IF NOT EXISTS an
+// existing trigger makes it a no-op, so none of these is claimed. A trigger
+// on SCHEMA or DATABASE ends the walk.
 func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 	if !dmlTrigger(v) {
 		return false
@@ -1862,7 +1866,15 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 		}
 	}
 	if !v.IfNotExists {
+		if err := catalog.TriggerFormError(v); err != nil {
+			b.fail(r.rng, review.UnsupportedForm, "Oracle refuses the trigger: ORA-"+err.Code+": "+err.Message+".")
+			return true
+		}
+		b.missingTarget(v.Table, t)
 		if f, kind := b.look(t.key(spaceTable)); f == walk.Present && kind == kindTable {
+			if v.Timing == ast.TRIGGER_INSTEAD_OF {
+				b.Fail([]walk.Key{t.key(spaceTable)}, walk.Present, noteOf(t.rng, review.UnsupportedForm, "Oracle refuses the trigger: ORA-25002: cannot create INSTEAD OF triggers on tables."))
+			}
 			b.checkTriggerUpdateOf(v, t)
 		}
 	}

@@ -446,7 +446,7 @@ const walkSimQueriesMinRecallPct = 60.0
 const walkSimProgramsSuite = "../catalog/testdata/programs/simulate.tsv"
 
 // walkSimProgramsMinRecallPct is the programs subtest's recall floor.
-const walkSimProgramsMinRecallPct = 53.0
+const walkSimProgramsMinRecallPct = 69.0
 
 // walkSimSuite holds WALK_THROUGH to one of oracle/catalog's suites as
 // TestWalkSimulation holds it to compat.tsv: no finding on a statement

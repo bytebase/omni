@@ -754,7 +754,11 @@ func (p *Parser) parseCreatePackageStmt(start int, orReplace, ifNotExists, editi
 	p.advance() // consume END
 	// Optional package name after END
 	if p.atEndName() {
-		p.advance() // consume name
+		name, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.EndName = name
 	}
 	if p.cur.Type != ';' {
 		return nil, p.missingSemicolonError("END")
