@@ -22,25 +22,18 @@
 opt_if_exists	(every site)	IF EXISTS
 opt_if_not_exists	(every site)	IF NOT EXISTS
 opt_or_replace	(every site)	OR REPLACE
-OptTemp	(every site)	TEMPORARY and its spellings
 opt_concurrently	(every site)	CONCURRENTLY
-opt_drop_behavior	(every site)	CASCADE or RESTRICT
 OptNoLog	(every site)	UNLOGGED
 opt_unique	(every site)	UNIQUE
 opt_nowait	(every site)	NOWAIT
 opt_verbose	(every site)	VERBOSE
-opt_with_data	(every site)	WITH DATA or WITH NO DATA
-opt_unique_null_treatment	(every site)	NULLS [NOT] DISTINCT
 opt_column	(every site)	COLUMN
 opt_table	(every site)	TABLE
-opt_transaction	(every site)	WORK or TRANSACTION
 opt_with	(every site)	WITH
-opt_from_in	(every site)	FROM or IN
 opt_no	(every site)	NO
 opt_granted_by	(every site)	GRANTED BY
 opt_as	(every site)	AS
 opt_procedural	(every site)	PROCEDURAL
-opt_transaction_chain	(every site)	AND [NO] CHAIN
 
 # Keyword choices tried at every site that names them, and not only where
 # their own alternatives' rows reach (see grammar.EveryAlternative).
@@ -48,6 +41,36 @@ object_type_any_name	(every alternative)	gram.y:6950 object types taking any_nam
 object_type_name	(every alternative)	gram.y:6972 object types taking name
 drop_type_name	(every alternative)	gram.y:6980 object types DROP takes by name
 object_type_name_on_any_name	(every alternative)	gram.y:6992 object types attached to a table
+OptTemp	(every alternative)	gram.y:3705 TEMPORARY and its spellings, and UNLOGGED
+opt_drop_behavior	(every alternative)	gram.y:1147 CASCADE or RESTRICT
+opt_with_data	(every alternative)	gram.y:4739 WITH DATA or WITH NO DATA
+opt_unique_null_treatment	(every alternative)	gram.y:4019 NULLS DISTINCT or NULLS NOT DISTINCT
+opt_transaction	(every alternative)	gram.y:11124 WORK or TRANSACTION
+opt_from_in	(every alternative)	gram.y:7528 FROM or IN, through from_in
+opt_transaction_chain	(every alternative)	gram.y:11163 AND CHAIN or AND NO CHAIN
+from_in	(every alternative)	gram.y:7524 FROM or IN
+add_drop	(every alternative)	gram.y:1515 ADD or DROP
+OnCommitOption	(every alternative)	gram.y:4560 ON COMMIT DROP, DELETE ROWS or PRESERVE ROWS
+row_or_rows	(every alternative)	gram.y:13262 ROW or ROWS
+first_or_next	(every alternative)	gram.y:13266 FIRST or NEXT
+analyze_keyword	(every alternative)	gram.y:11866 ANALYZE or ANALYSE
+FUNCTION_or_PROCEDURE	(every alternative)	gram.y:6072 FUNCTION or PROCEDURE
+generated_when	(every alternative)	gram.y:4025 ALWAYS or BY DEFAULT
+opt_check_option	(every alternative)	gram.y:11246 WITH [CASCADED | LOCAL] CHECK OPTION
+set_quantifier	(every alternative)	gram.y:13057 ALL or DISTINCT
+opt_asc_desc	(every alternative)	gram.y:8236 ASC or DESC
+opt_nulls_order	(every alternative)	gram.y:8241 NULLS FIRST or NULLS LAST
+opt_timezone	(every alternative)	gram.y:14667 WITH or WITHOUT TIME ZONE
+cast_context	(every alternative)	gram.y:9106 AS IMPLICIT or AS ASSIGNMENT
+arg_class	(every alternative)	gram.y:8459 IN, OUT, INOUT, IN OUT or VARIADIC
+override_kind	(every alternative)	gram.y:12196 USER or SYSTEM
+key_match	(every alternative)	gram.y:4332 MATCH FULL, PARTIAL or SIMPLE
+sub_type	(every alternative)	gram.y:16469 ANY, SOME or ALL
+document_or_content	(every alternative)	gram.y:16153 DOCUMENT or CONTENT
+xml_passing_mech	(every alternative)	gram.y:16187 BY REF or BY VALUE
+defacl_privilege_target	(every alternative)	gram.y:8075 the object kinds of ALTER DEFAULT PRIVILEGES
+json_key_uniqueness_constraint_opt	(every alternative)	gram.y:16991 WITH or WITHOUT UNIQUE [KEYS]
+opt_window_exclusion_clause	(every alternative)	gram.y:16438 EXCLUDE CURRENT ROW, GROUP, TIES or NO OTHERS
 
 # Literals, operators and the tokens the filter forms from other text.
 IDENT	a	scan.l {identifier}: folded to lower case, so a is itself

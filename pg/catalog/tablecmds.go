@@ -123,6 +123,25 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		}
 	}
 
+	// DefineRelation refuses ON COMMIT on a table that is not temporary
+	// before it reads anything else: after transformCreateStmt's IF NOT
+	// EXISTS skip and its OF type lookup, before parents, columns and the
+	// relation name.
+	// pg: src/backend/commands/tablecmds.c — DefineRelation (oncommit validation)
+	if stmt.OnCommit != nodes.ONCOMMIT_NOOP && rv.Relpersistence != 't' {
+		if stmt.OfTypename != nil && stmt.IfNotExists {
+			oid, _, err := c.resolveTypeName(stmt.OfTypename)
+			if err != nil {
+				return err
+			}
+			if _, err := c.checkOfType(oid); err != nil {
+				return err
+			}
+		}
+		return &Error{Code: CodeInvalidTableDefinition,
+			Message: "ON COMMIT can only be used on temporary tables"}
+	}
+
 	// Handle OF TYPE (typed tables).
 	// pg: src/backend/parser/parse_utilcmd.c — transformOfType
 	// pg: src/backend/commands/tablecmds.c — MergeAttributes (is_from_type handling)
@@ -655,14 +674,10 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		}
 	}
 
-	// Check column count limit and ON COMMIT before creating implicit sequences.
+	// Check the column count limit before creating implicit sequences.
 	// pg: src/backend/commands/tablecmds.c — DefineRelation
 	if len(columns) > MaxHeapAttributeNumber {
 		return &Error{Code: CodeTooManyColumns, Message: fmt.Sprintf("tables can have at most %d columns", MaxHeapAttributeNumber)}
-	}
-	if stmt.OnCommit != nodes.ONCOMMIT_NOOP && rv.Relpersistence != 't' {
-		return &Error{Code: CodeInvalidTableDefinition,
-			Message: "ON COMMIT can only be used on temporary tables"}
 	}
 
 	// Validate partition key specification before creating implicit sequences
@@ -784,12 +799,6 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		rel.Persistence = 'p' // default: permanent
 	}
 
-	// ON COMMIT can only be used on temporary tables.
-	// pg: src/backend/commands/tablecmds.c — DefineRelation (oncommit validation)
-	if stmt.OnCommit != nodes.ONCOMMIT_NOOP && rel.Persistence != 't' {
-		return &Error{Code: CodeInvalidTableDefinition,
-			Message: "ON COMMIT can only be used on temporary tables"}
-	}
 	switch stmt.OnCommit {
 	case nodes.ONCOMMIT_PRESERVE_ROWS:
 		rel.OnCommit = 'p'
