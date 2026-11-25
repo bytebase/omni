@@ -289,7 +289,7 @@ id, name	id, name	engine	base	public	results	SELECT id, name FROM customers UNIO
 db.public.customers.id db.public.orders.id | db.public.customers.name db.public.orders.status	~ | ~	engine	base	public	lineage	SELECT id, name FROM customers UNION ALL SELECT id, status FROM orders
 db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT id, name FROM customers UNION ALL SELECT id, status FROM orders
 email	email	engine	base	public	results	SELECT email FROM customers INTERSECT SELECT status FROM orders
-db.public.customers.email	db.public.customers.email	engine	base	public	lineage	SELECT email FROM customers INTERSECT SELECT status FROM orders
+db.public.customers.email db.public.orders.status	db.public.customers.email	engine	base	public	lineage	SELECT email FROM customers INTERSECT SELECT status FROM orders
 db.public.customers, db.public.orders	db.public.customers, db.public.orders	engine	base	public	tables	SELECT email FROM customers INTERSECT SELECT status FROM orders
 region	region	engine	base	public	results	SELECT region FROM customers EXCEPT SELECT status FROM orders
 db.public.customers.region	db.public.customers.region	engine	base	public	lineage	SELECT region FROM customers EXCEPT SELECT status FROM orders

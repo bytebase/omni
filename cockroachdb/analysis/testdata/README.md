@@ -58,9 +58,9 @@ test starts no server.
 | aspect | rows | agree | differ | of which `~` |
 | --- | --- | --- | --- | --- |
 | results | 177 | 171 | 6 | 0 |
-| lineage | 177 | 175 | 2 | 87 |
+| lineage | 177 | 174 | 3 | 87 |
 | tables | 177 | 177 | 0 | 8 |
-| all | 531 | 523 | 8 | 95 |
+| all | 531 | 522 | 9 | 95 |
 
 On the first 157 queries, the span Bytebase resolved through `pg/analysis`
 agreed on 467 of 471 rows; the native resolver agrees on all 471.
@@ -72,6 +72,9 @@ agreed on 467 of 471 rows; the native resolver agrees on all 471.
   only a SELECT of user tables has them. CockroachDB names their columns, so
   the results row differs, and the lineage row too where there are several
   columns.
+- `SELECT email FROM customers INTERSECT SELECT status FROM orders`:
+  CockroachDB names the left column, omni both. A row of the result is in
+  both inputs, so a policy on either applies.
 
 ### Running it
 

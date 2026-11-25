@@ -471,15 +471,23 @@ func (r *spanResolver) selectStatement(stmt tree.SelectStatement, sc *spanScope)
 		if err != nil {
 			return nil, err
 		}
-		if n.Type == tree.UnionOp {
-			return mergeBranches(left, right)
+		if n.Type == tree.ExceptOp {
+			// EXCEPT returns rows of the left branch that the right branch
+			// lacks, so only the left supplies values; both decide which rows
+			// come back.
+			for _, c := range append(left, right...) {
+				r.addPredicates(c.sources)
+			}
+			return stripColumns(left), nil
 		}
-		// INTERSECT and EXCEPT keep a row of the left branch by whether the
-		// right branch has it, so both branches decide which rows come back.
-		for _, c := range append(left, right...) {
-			r.addPredicates(c.sources)
+		// A row INTERSECT returns holds values of both branches, so a masking
+		// policy on either applies, though CockroachDB names the left alone.
+		if n.Type == tree.IntersectOp {
+			for _, c := range append(left, right...) {
+				r.addPredicates(c.sources)
+			}
 		}
-		return stripColumns(left), nil
+		return mergeBranches(left, right)
 	case *tree.ValuesClause:
 		var cols []spanColumn
 		for _, row := range n.Rows {

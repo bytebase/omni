@@ -92,7 +92,7 @@ func TestResolveQuerySpanLineage(t *testing.T) {
 		{"WITH RECURSIVE r AS (SELECT id, name FROM t UNION ALL SELECT u.id, r.name FROM u JOIN r ON r.id = u.t_id) SELECT * FROM r", []string{"id: db.public.t.id db.public.u.id", "name: db.public.t.name"}},
 		{"SELECT id FROM t UNION SELECT t_id FROM u", []string{"id: db.public.t.id db.public.u.t_id"}},
 		{"SELECT name FROM t EXCEPT SELECT note FROM u", []string{"name: db.public.t.name"}},
-		{"SELECT name FROM t INTERSECT SELECT note FROM u", []string{"name: db.public.t.name"}},
+		{"SELECT name FROM t INTERSECT SELECT note FROM u", []string{"name: db.public.t.name db.public.u.note"}},
 		{"SELECT (SELECT max(ssn) FROM t), (t).name FROM t", []string{"max: db.public.t.ssn", "name: db.public.t.name"}},
 		{"SELECT row_to_json(t) FROM t", []string{"row_to_json: db.public.t.id db.public.t.name db.public.t.ssn"}},
 		{"SELECT x.n FROM generate_series(1, 2) AS x(n)", []string{"n:"}},
