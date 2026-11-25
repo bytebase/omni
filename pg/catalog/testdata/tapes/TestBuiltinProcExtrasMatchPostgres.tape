@@ -13906,6 +13906,3923 @@
 < row
 : int64 718
 > query
+| SELECT oid, prosrc FROM pg_proc WHERE oid < 16384 AND prolang = 12 AND prosrc <> proname ORDER BY oid
+< result
+< column "oid" "OID"
+< column "prosrc" "TEXT"
+< row
+: int64 77
+: string
+| chartoi4
+< row
+: int64 78
+: string
+| i4tochar
+< row
+: int64 89
+: string
+| pgsql_version
+< row
+: int64 235
+: string
+| i2tod
+< row
+: int64 236
+: string
+| i2tof
+< row
+: int64 237
+: string
+| dtoi2
+< row
+: int64 238
+: string
+| ftoi2
+< row
+: int64 311
+: string
+| ftod
+< row
+: int64 312
+: string
+| dtof
+< row
+: int64 313
+: string
+| i2toi4
+< row
+: int64 314
+: string
+| i4toi2
+< row
+: int64 316
+: string
+| i4tod
+< row
+: int64 317
+: string
+| dtoi4
+< row
+: int64 318
+: string
+| i4tof
+< row
+: int64 319
+: string
+| ftoi4
+< row
+: int64 320
+: string
+| width_bucket_float8
+< row
+: int64 376
+: string
+| text_to_array_null
+< row
+: int64 384
+: string
+| array_to_text_null
+< row
+: int64 394
+: string
+| text_to_array
+< row
+: int64 395
+: string
+| array_to_text
+< row
+: int64 401
+: string
+| rtrim1
+< row
+: int64 406
+: string
+| name_text
+< row
+: int64 407
+: string
+| text_name
+< row
+: int64 408
+: string
+| name_bpchar
+< row
+: int64 409
+: string
+| bpchar_name
+< row
+: int64 438
+: string
+| pg_num_nulls
+< row
+: int64 440
+: string
+| pg_num_nonnulls
+< row
+: int64 480
+: string
+| int84
+< row
+: int64 481
+: string
+| int48
+< row
+: int64 482
+: string
+| i8tod
+< row
+: int64 483
+: string
+| dtoi8
+< row
+: int64 598
+: string
+| inet_abbrev
+< row
+: int64 599
+: string
+| cidr_abbrev
+< row
+: int64 605
+: string
+| inet_set_masklen
+< row
+: int64 635
+: string
+| cidr_set_masklen
+< row
+: int64 652
+: string
+| i8tof
+< row
+: int64 653
+: string
+| ftoi8
+< row
+: int64 683
+: string
+| network_network
+< row
+: int64 696
+: string
+| network_netmask
+< row
+: int64 697
+: string
+| network_masklen
+< row
+: int64 698
+: string
+| network_broadcast
+< row
+: int64 699
+: string
+| network_host
+< row
+: int64 710
+: string
+| current_user
+< row
+: int64 711
+: string
+| network_family
+< row
+: int64 714
+: string
+| int82
+< row
+: int64 715
+: string
+| be_lo_create
+< row
+: int64 720
+: string
+| byteaoctetlen
+< row
+: int64 721
+: string
+| byteaGetByte
+< row
+: int64 722
+: string
+| byteaSetByte
+< row
+: int64 723
+: string
+| byteaGetBit
+< row
+: int64 724
+: string
+| byteaSetBit
+< row
+: int64 730
+: string
+| network_show
+< row
+: int64 749
+: string
+| byteaoverlay
+< row
+: int64 752
+: string
+| byteaoverlay_no_len
+< row
+: int64 753
+: string
+| macaddr_trunc
+< row
+: int64 754
+: string
+| int28
+< row
+: int64 764
+: string
+| be_lo_import
+< row
+: int64 765
+: string
+| be_lo_export
+< row
+: int64 767
+: string
+| be_lo_import_with_oid
+< row
+: int64 849
+: string
+| textpos
+< row
+: int64 860
+: string
+| char_bpchar
+< row
+: int64 868
+: string
+| textpos
+< row
+: int64 877
+: string
+| text_substr
+< row
+: int64 881
+: string
+| ltrim1
+< row
+: int64 882
+: string
+| rtrim1
+< row
+: int64 883
+: string
+| text_substr_no_len
+< row
+: int64 885
+: string
+| btrim1
+< row
+: int64 936
+: string
+| text_substr
+< row
+: int64 937
+: string
+| text_substr_no_len
+< row
+: int64 938
+: string
+| generate_series_timestamp
+< row
+: int64 939
+: string
+| generate_series_timestamptz
+< row
+: int64 940
+: string
+| int2mod
+< row
+: int64 941
+: string
+| int4mod
+< row
+: int64 944
+: string
+| text_char
+< row
+: int64 946
+: string
+| char_text
+< row
+: int64 947
+: string
+| int8mod
+< row
+: int64 952
+: string
+| be_lo_open
+< row
+: int64 953
+: string
+| be_lo_close
+< row
+: int64 954
+: string
+| be_loread
+< row
+: int64 955
+: string
+| be_lowrite
+< row
+: int64 956
+: string
+| be_lo_lseek
+< row
+: int64 957
+: string
+| be_lo_creat
+< row
+: int64 958
+: string
+| be_lo_tell
+< row
+: int64 964
+: string
+| be_lo_unlink
+< row
+: int64 975
+: string
+| box_area
+< row
+: int64 976
+: string
+| box_width
+< row
+: int64 977
+: string
+| box_height
+< row
+: int64 979
+: string
+| path_area
+< row
+: int64 981
+: string
+| box_diagonal
+< row
+: int64 992
+: string
+| point_slope
+< row
+: int64 993
+: string
+| lseg_construct
+< row
+: int64 1004
+: string
+| be_lo_truncate
+< row
+: int64 1026
+: string
+| timestamptz_izone
+< row
+: int64 1062
+: string
+| aclitem_eq
+< row
+: int64 1066
+: string
+| generate_series_step_int4
+< row
+: int64 1067
+: string
+| generate_series_int4
+< row
+: int64 1068
+: string
+| generate_series_step_int8
+< row
+: int64 1069
+: string
+| generate_series_int8
+< row
+: int64 1079
+: string
+| text_regclass
+< row
+: int64 1152
+: string
+| timestamp_eq
+< row
+: int64 1153
+: string
+| timestamp_ne
+< row
+: int64 1154
+: string
+| timestamp_lt
+< row
+: int64 1155
+: string
+| timestamp_le
+< row
+: int64 1156
+: string
+| timestamp_ge
+< row
+: int64 1157
+: string
+| timestamp_gt
+< row
+: int64 1158
+: string
+| float8_timestamptz
+< row
+: int64 1159
+: string
+| timestamptz_zone
+< row
+: int64 1171
+: string
+| timestamptz_part
+< row
+: int64 1172
+: string
+| interval_part
+< row
+: int64 1174
+: string
+| date_timestamptz
+< row
+: int64 1175
+: string
+| interval_justify_hours
+< row
+: int64 1178
+: string
+| timestamptz_date
+< row
+: int64 1181
+: string
+| xid_age
+< row
+: int64 1188
+: string
+| timestamp_mi
+< row
+: int64 1192
+: string
+| generate_subscripts_nodir
+< row
+: int64 1194
+: string
+| dlog10
+< row
+: int64 1195
+: string
+| timestamp_smaller
+< row
+: int64 1196
+: string
+| timestamp_larger
+< row
+: int64 1199
+: string
+| timestamptz_age
+< row
+: int64 1200
+: string
+| interval_scale
+< row
+: int64 1217
+: string
+| timestamptz_trunc
+< row
+: int64 1218
+: string
+| interval_trunc
+< row
+: int64 1264
+: string
+| PG_char_to_encoding
+< row
+: int64 1271
+: string
+| overlaps_timetz
+< row
+: int64 1272
+: string
+| datetime_timestamp
+< row
+: int64 1273
+: string
+| timetz_part
+< row
+: int64 1284
+: string
+| timestamptz_trunc_zone
+< row
+: int64 1286
+: string
+| array_fill_with_lower_bounds
+< row
+: int64 1287
+: string
+| i8tooid
+< row
+: int64 1288
+: string
+| oidtoi8
+< row
+: int64 1293
+: string
+| multirange_unnest
+< row
+: int64 1294
+: string
+| currtid_byrelname
+< row
+: int64 1295
+: string
+| interval_justify_days
+< row
+: int64 1297
+: string
+| datetimetz_timestamptz
+< row
+: int64 1304
+: string
+| overlaps_timestamp
+< row
+: int64 1308
+: string
+| overlaps_time
+< row
+: int64 1314
+: string
+| timestamp_cmp
+< row
+: int64 1316
+: string
+| timestamp_time
+< row
+: int64 1317
+: string
+| textlen
+< row
+: int64 1318
+: string
+| bpcharlen
+< row
+: int64 1319
+: string
+| xideq
+< row
+: int64 1340
+: string
+| dlog10
+< row
+: int64 1341
+: string
+| dlog1
+< row
+: int64 1342
+: string
+| dround
+< row
+: int64 1343
+: string
+| dtrunc
+< row
+: int64 1344
+: string
+| dsqrt
+< row
+: int64 1345
+: string
+| dcbrt
+< row
+: int64 1346
+: string
+| dpow
+< row
+: int64 1347
+: string
+| dexp
+< row
+: int64 1359
+: string
+| datetimetz_timestamptz
+< row
+: int64 1362
+: string
+| network_hostmask
+< row
+: int64 1367
+: string
+| bpcharlen
+< row
+: int64 1368
+: string
+| dpow
+< row
+: int64 1369
+: string
+| textlen
+< row
+: int64 1370
+: string
+| time_interval
+< row
+: int64 1372
+: string
+| bpcharlen
+< row
+: int64 1373
+: string
+| date_finite
+< row
+: int64 1374
+: string
+| textoctetlen
+< row
+: int64 1375
+: string
+| bpcharoctetlen
+< row
+: int64 1376
+: string
+| numeric_fac
+< row
+: int64 1381
+: string
+| textlen
+< row
+: int64 1385
+: string
+| time_part
+< row
+: int64 1388
+: string
+| timestamptz_timetz
+< row
+: int64 1389
+: string
+| timestamp_finite
+< row
+: int64 1390
+: string
+| interval_finite
+< row
+: int64 1394
+: string
+| float4abs
+< row
+: int64 1395
+: string
+| float8abs
+< row
+: int64 1396
+: string
+| int8abs
+< row
+: int64 1397
+: string
+| int4abs
+< row
+: int64 1398
+: string
+| int2abs
+< row
+: int64 1400
+: string
+| text_name
+< row
+: int64 1401
+: string
+| name_text
+< row
+: int64 1404
+: string
+| textoverlay
+< row
+: int64 1405
+: string
+| textoverlay_no_len
+< row
+: int64 1406
+: string
+| point_vert
+< row
+: int64 1407
+: string
+| point_horiz
+< row
+: int64 1408
+: string
+| lseg_parallel
+< row
+: int64 1409
+: string
+| lseg_perp
+< row
+: int64 1410
+: string
+| lseg_vertical
+< row
+: int64 1411
+: string
+| lseg_horizontal
+< row
+: int64 1412
+: string
+| line_parallel
+< row
+: int64 1413
+: string
+| line_perp
+< row
+: int64 1414
+: string
+| line_vertical
+< row
+: int64 1415
+: string
+| line_horizontal
+< row
+: int64 1416
+: string
+| circle_center
+< row
+: int64 1419
+: string
+| interval_time
+< row
+: int64 1421
+: string
+| points_box
+< row
+: int64 1430
+: string
+| path_isclosed
+< row
+: int64 1431
+: string
+| path_isopen
+< row
+: int64 1433
+: string
+| path_close
+< row
+: int64 1434
+: string
+| path_open
+< row
+: int64 1440
+: string
+| construct_point
+< row
+: int64 1446
+: string
+| poly_box
+< row
+: int64 1447
+: string
+| poly_path
+< row
+: int64 1448
+: string
+| box_poly
+< row
+: int64 1449
+: string
+| path_poly
+< row
+: int64 1468
+: string
+| circle_area
+< row
+: int64 1469
+: string
+| circle_diameter
+< row
+: int64 1470
+: string
+| circle_radius
+< row
+: int64 1473
+: string
+| cr_circle
+< row
+: int64 1474
+: string
+| poly_circle
+< row
+: int64 1475
+: string
+| circle_poly
+< row
+: int64 1479
+: string
+| box_circle
+< row
+: int64 1480
+: string
+| circle_box
+< row
+: int64 1493
+: string
+| line_construct_pp
+< row
+: int64 1530
+: string
+| lseg_length
+< row
+: int64 1531
+: string
+| path_length
+< row
+: int64 1532
+: string
+| lseg_center
+< row
+: int64 1534
+: string
+| box_center
+< row
+: int64 1540
+: string
+| poly_center
+< row
+: int64 1541
+: string
+| box_diagonal
+< row
+: int64 1542
+: string
+| box_center
+< row
+: int64 1543
+: string
+| circle_center
+< row
+: int64 1545
+: string
+| path_npoints
+< row
+: int64 1556
+: string
+| poly_npoints
+< row
+: int64 1569
+: string
+| textlike
+< row
+: int64 1570
+: string
+| textnlike
+< row
+: int64 1571
+: string
+| namelike
+< row
+: int64 1572
+: string
+| namenlike
+< row
+: int64 1574
+: string
+| nextval_oid
+< row
+: int64 1575
+: string
+| currval_oid
+< row
+: int64 1576
+: string
+| setval_oid
+< row
+: int64 1597
+: string
+| PG_encoding_to_char
+< row
+: int64 1598
+: string
+| drandom
+< row
+: int64 1600
+: string
+| dasin
+< row
+: int64 1601
+: string
+| dacos
+< row
+: int64 1602
+: string
+| datan
+< row
+: int64 1603
+: string
+| datan2
+< row
+: int64 1604
+: string
+| dsin
+< row
+: int64 1605
+: string
+| dcos
+< row
+: int64 1606
+: string
+| dtan
+< row
+: int64 1607
+: string
+| dcot
+< row
+: int64 1610
+: string
+| dpi
+< row
+: int64 1631
+: string
+| textlike
+< row
+: int64 1632
+: string
+| textnlike
+< row
+: int64 1640
+: string
+| pg_get_viewdef_name
+< row
+: int64 1656
+: string
+| texticregexeq
+< row
+: int64 1657
+: string
+| texticregexne
+< row
+: int64 1658
+: string
+| textregexeq
+< row
+: int64 1659
+: string
+| textregexne
+< row
+: int64 1660
+: string
+| texticlike
+< row
+: int64 1661
+: string
+| texticnlike
+< row
+: int64 1666
+: string
+| biteq
+< row
+: int64 1667
+: string
+| bitne
+< row
+: int64 1668
+: string
+| bitge
+< row
+: int64 1669
+: string
+| bitgt
+< row
+: int64 1670
+: string
+| bitle
+< row
+: int64 1671
+: string
+| bitlt
+< row
+: int64 1672
+: string
+| bitcmp
+< row
+: int64 1673
+: string
+| bit_and
+< row
+: int64 1674
+: string
+| bit_or
+< row
+: int64 1680
+: string
+| bitsubstr
+< row
+: int64 1681
+: string
+| bitlength
+< row
+: int64 1682
+: string
+| bitoctetlength
+< row
+: int64 1683
+: string
+| bitfromint4
+< row
+: int64 1684
+: string
+| bittoint4
+< row
+: int64 1698
+: string
+| bitposition
+< row
+: int64 1699
+: string
+| bitsubstr_no_len
+< row
+: int64 1705
+: string
+| numeric_abs
+< row
+: int64 1706
+: string
+| numeric_sign
+< row
+: int64 1707
+: string
+| numeric_round
+< row
+: int64 1709
+: string
+| numeric_trunc
+< row
+: int64 1711
+: string
+| numeric_ceil
+< row
+: int64 1712
+: string
+| numeric_floor
+< row
+: int64 1713
+: string
+| length_in_encoding
+< row
+: int64 1714
+: string
+| pg_convert_from
+< row
+: int64 1715
+: string
+| inet_to_cidr
+< row
+: int64 1717
+: string
+| pg_convert_to
+< row
+: int64 1728
+: string
+| numeric_mod
+< row
+: int64 1730
+: string
+| numeric_sqrt
+< row
+: int64 1732
+: string
+| numeric_exp
+< row
+: int64 1734
+: string
+| numeric_ln
+< row
+: int64 1736
+: string
+| numeric_log
+< row
+: int64 1738
+: string
+| numeric_power
+< row
+: int64 1740
+: string
+| int4_numeric
+< row
+: int64 1742
+: string
+| float4_numeric
+< row
+: int64 1743
+: string
+| float8_numeric
+< row
+: int64 1744
+: string
+| numeric_int4
+< row
+: int64 1745
+: string
+| numeric_float4
+< row
+: int64 1746
+: string
+| numeric_float8
+< row
+: int64 1765
+: string
+| setval3_oid
+< row
+: int64 1768
+: string
+| interval_to_char
+< row
+: int64 1770
+: string
+| timestamptz_to_char
+< row
+: int64 1772
+: string
+| numeric_to_char
+< row
+: int64 1773
+: string
+| int4_to_char
+< row
+: int64 1774
+: string
+| int8_to_char
+< row
+: int64 1775
+: string
+| float4_to_char
+< row
+: int64 1776
+: string
+| float8_to_char
+< row
+: int64 1777
+: string
+| numeric_to_number
+< row
+: int64 1779
+: string
+| numeric_int8
+< row
+: int64 1781
+: string
+| int8_numeric
+< row
+: int64 1782
+: string
+| int2_numeric
+< row
+: int64 1783
+: string
+| numeric_int2
+< row
+: int64 1813
+: string
+| pg_convert
+< row
+: int64 1845
+: string
+| to_ascii_default
+< row
+: int64 1846
+: string
+| to_ascii_enc
+< row
+: int64 1847
+: string
+| to_ascii_encname
+< row
+: int64 1922
+: string
+| has_table_privilege_name_name
+< row
+: int64 1923
+: string
+| has_table_privilege_name_id
+< row
+: int64 1924
+: string
+| has_table_privilege_id_name
+< row
+: int64 1925
+: string
+| has_table_privilege_id_id
+< row
+: int64 1926
+: string
+| has_table_privilege_name
+< row
+: int64 1927
+: string
+| has_table_privilege_id
+< row
+: int64 1946
+: string
+| binary_encode
+< row
+: int64 1947
+: string
+| binary_decode
+< row
+: int64 1961
+: string
+| timestamp_scale
+< row
+: int64 1967
+: string
+| timestamptz_scale
+< row
+: int64 1968
+: string
+| time_scale
+< row
+: int64 1969
+: string
+| timetz_scale
+< row
+: int64 1973
+: string
+| numeric_div_trunc
+< row
+: int64 1986
+: string
+| similar_to_escape_2
+< row
+: int64 1987
+: string
+| similar_to_escape_1
+< row
+: int64 2007
+: string
+| bytealike
+< row
+: int64 2008
+: string
+| byteanlike
+< row
+: int64 2009
+: string
+| like_escape_bytea
+< row
+: int64 2010
+: string
+| byteaoctetlen
+< row
+: int64 2012
+: string
+| bytea_substr
+< row
+: int64 2013
+: string
+| bytea_substr_no_len
+< row
+: int64 2014
+: string
+| byteapos
+< row
+: int64 2015
+: string
+| byteatrim
+< row
+: int64 2019
+: string
+| timestamptz_time
+< row
+: int64 2020
+: string
+| timestamp_trunc
+< row
+: int64 2021
+: string
+| timestamp_part
+< row
+: int64 2024
+: string
+| date_timestamp
+< row
+: int64 2025
+: string
+| datetime_timestamp
+< row
+: int64 2027
+: string
+| timestamptz_timestamp
+< row
+: int64 2028
+: string
+| timestamp_timestamptz
+< row
+: int64 2029
+: string
+| timestamp_date
+< row
+: int64 2037
+: string
+| timetz_zone
+< row
+: int64 2038
+: string
+| timetz_izone
+< row
+: int64 2041
+: string
+| overlaps_timestamp
+< row
+: int64 2046
+: string
+| timetz_time
+< row
+: int64 2047
+: string
+| time_timetz
+< row
+: int64 2048
+: string
+| timestamp_finite
+< row
+: int64 2049
+: string
+| timestamp_to_char
+< row
+: int64 2050
+: string
+| aggregate_dummy
+< row
+: int64 2051
+: string
+| aggregate_dummy
+< row
+: int64 2058
+: string
+| timestamp_age
+< row
+: int64 2069
+: string
+| timestamp_zone
+< row
+: int64 2070
+: string
+| timestamp_izone
+< row
+: int64 2073
+: string
+| textregexsubstr
+< row
+: int64 2075
+: string
+| bitfromint8
+< row
+: int64 2076
+: string
+| bittoint8
+< row
+: int64 2077
+: string
+| show_config_by_name
+< row
+: int64 2078
+: string
+| set_config_by_name
+< row
+: int64 2084
+: string
+| show_all_settings
+< row
+: int64 2085
+: string
+| bytea_substr
+< row
+: int64 2086
+: string
+| bytea_substr_no_len
+< row
+: int64 2087
+: string
+| replace_text
+< row
+: int64 2089
+: string
+| to_hex32
+< row
+: int64 2090
+: string
+| to_hex64
+< row
+: int64 2100
+: string
+| aggregate_dummy
+< row
+: int64 2101
+: string
+| aggregate_dummy
+< row
+: int64 2102
+: string
+| aggregate_dummy
+< row
+: int64 2103
+: string
+| aggregate_dummy
+< row
+: int64 2104
+: string
+| aggregate_dummy
+< row
+: int64 2105
+: string
+| aggregate_dummy
+< row
+: int64 2106
+: string
+| aggregate_dummy
+< row
+: int64 2107
+: string
+| aggregate_dummy
+< row
+: int64 2108
+: string
+| aggregate_dummy
+< row
+: int64 2109
+: string
+| aggregate_dummy
+< row
+: int64 2110
+: string
+| aggregate_dummy
+< row
+: int64 2111
+: string
+| aggregate_dummy
+< row
+: int64 2112
+: string
+| aggregate_dummy
+< row
+: int64 2113
+: string
+| aggregate_dummy
+< row
+: int64 2114
+: string
+| aggregate_dummy
+< row
+: int64 2115
+: string
+| aggregate_dummy
+< row
+: int64 2116
+: string
+| aggregate_dummy
+< row
+: int64 2117
+: string
+| aggregate_dummy
+< row
+: int64 2118
+: string
+| aggregate_dummy
+< row
+: int64 2119
+: string
+| aggregate_dummy
+< row
+: int64 2120
+: string
+| aggregate_dummy
+< row
+: int64 2122
+: string
+| aggregate_dummy
+< row
+: int64 2123
+: string
+| aggregate_dummy
+< row
+: int64 2124
+: string
+| aggregate_dummy
+< row
+: int64 2125
+: string
+| aggregate_dummy
+< row
+: int64 2126
+: string
+| aggregate_dummy
+< row
+: int64 2127
+: string
+| aggregate_dummy
+< row
+: int64 2128
+: string
+| aggregate_dummy
+< row
+: int64 2129
+: string
+| aggregate_dummy
+< row
+: int64 2130
+: string
+| aggregate_dummy
+< row
+: int64 2131
+: string
+| aggregate_dummy
+< row
+: int64 2132
+: string
+| aggregate_dummy
+< row
+: int64 2133
+: string
+| aggregate_dummy
+< row
+: int64 2134
+: string
+| aggregate_dummy
+< row
+: int64 2135
+: string
+| aggregate_dummy
+< row
+: int64 2136
+: string
+| aggregate_dummy
+< row
+: int64 2138
+: string
+| aggregate_dummy
+< row
+: int64 2139
+: string
+| aggregate_dummy
+< row
+: int64 2140
+: string
+| aggregate_dummy
+< row
+: int64 2141
+: string
+| aggregate_dummy
+< row
+: int64 2142
+: string
+| aggregate_dummy
+< row
+: int64 2143
+: string
+| aggregate_dummy
+< row
+: int64 2144
+: string
+| aggregate_dummy
+< row
+: int64 2145
+: string
+| aggregate_dummy
+< row
+: int64 2146
+: string
+| aggregate_dummy
+< row
+: int64 2147
+: string
+| aggregate_dummy
+< row
+: int64 2148
+: string
+| aggregate_dummy
+< row
+: int64 2149
+: string
+| aggregate_dummy
+< row
+: int64 2150
+: string
+| aggregate_dummy
+< row
+: int64 2151
+: string
+| aggregate_dummy
+< row
+: int64 2152
+: string
+| aggregate_dummy
+< row
+: int64 2153
+: string
+| aggregate_dummy
+< row
+: int64 2154
+: string
+| aggregate_dummy
+< row
+: int64 2155
+: string
+| aggregate_dummy
+< row
+: int64 2156
+: string
+| aggregate_dummy
+< row
+: int64 2157
+: string
+| aggregate_dummy
+< row
+: int64 2158
+: string
+| aggregate_dummy
+< row
+: int64 2159
+: string
+| aggregate_dummy
+< row
+: int64 2167
+: string
+| numeric_ceil
+< row
+: int64 2168
+: string
+| pg_database_size_name
+< row
+: int64 2169
+: string
+| numeric_power
+< row
+: int64 2170
+: string
+| width_bucket_numeric
+< row
+: int64 2181
+: string
+| has_sequence_privilege_name_name
+< row
+: int64 2182
+: string
+| has_sequence_privilege_name_id
+< row
+: int64 2183
+: string
+| has_sequence_privilege_id_name
+< row
+: int64 2184
+: string
+| has_sequence_privilege_id_id
+< row
+: int64 2185
+: string
+| has_sequence_privilege_name
+< row
+: int64 2186
+: string
+| has_sequence_privilege_id
+< row
+: int64 2236
+: string
+| aggregate_dummy
+< row
+: int64 2237
+: string
+| aggregate_dummy
+< row
+: int64 2238
+: string
+| aggregate_dummy
+< row
+: int64 2239
+: string
+| aggregate_dummy
+< row
+: int64 2240
+: string
+| aggregate_dummy
+< row
+: int64 2241
+: string
+| aggregate_dummy
+< row
+: int64 2242
+: string
+| aggregate_dummy
+< row
+: int64 2243
+: string
+| aggregate_dummy
+< row
+: int64 2244
+: string
+| aggregate_dummy
+< row
+: int64 2245
+: string
+| aggregate_dummy
+< row
+: int64 2250
+: string
+| has_database_privilege_name_name
+< row
+: int64 2251
+: string
+| has_database_privilege_name_id
+< row
+: int64 2252
+: string
+| has_database_privilege_id_name
+< row
+: int64 2253
+: string
+| has_database_privilege_id_id
+< row
+: int64 2254
+: string
+| has_database_privilege_name
+< row
+: int64 2255
+: string
+| has_database_privilege_id
+< row
+: int64 2256
+: string
+| has_function_privilege_name_name
+< row
+: int64 2257
+: string
+| has_function_privilege_name_id
+< row
+: int64 2258
+: string
+| has_function_privilege_id_name
+< row
+: int64 2259
+: string
+| has_function_privilege_id_id
+< row
+: int64 2260
+: string
+| has_function_privilege_name
+< row
+: int64 2261
+: string
+| has_function_privilege_id
+< row
+: int64 2262
+: string
+| has_language_privilege_name_name
+< row
+: int64 2263
+: string
+| has_language_privilege_name_id
+< row
+: int64 2264
+: string
+| has_language_privilege_id_name
+< row
+: int64 2265
+: string
+| has_language_privilege_id_id
+< row
+: int64 2266
+: string
+| has_language_privilege_name
+< row
+: int64 2267
+: string
+| has_language_privilege_id
+< row
+: int64 2268
+: string
+| has_schema_privilege_name_name
+< row
+: int64 2269
+: string
+| has_schema_privilege_name_id
+< row
+: int64 2270
+: string
+| has_schema_privilege_id_name
+< row
+: int64 2271
+: string
+| has_schema_privilege_id_id
+< row
+: int64 2272
+: string
+| has_schema_privilege_name
+< row
+: int64 2273
+: string
+| has_schema_privilege_id
+< row
+: int64 2284
+: string
+| textregexreplace_noopt
+< row
+: int64 2285
+: string
+| textregexreplace
+< row
+: int64 2308
+: string
+| dceil
+< row
+: int64 2309
+: string
+| dfloor
+< row
+: int64 2310
+: string
+| dsign
+< row
+: int64 2311
+: string
+| md5_text
+< row
+: int64 2319
+: string
+| pg_encoding_max_length_sql
+< row
+: int64 2320
+: string
+| dceil
+< row
+: int64 2321
+: string
+| md5_bytea
+< row
+: int64 2322
+: string
+| pg_tablespace_size_oid
+< row
+: int64 2323
+: string
+| pg_tablespace_size_name
+< row
+: int64 2324
+: string
+| pg_database_size_oid
+< row
+: int64 2331
+: string
+| array_unnest
+< row
+: int64 2335
+: string
+| aggregate_dummy
+< row
+: int64 2390
+: string
+| has_tablespace_privilege_name_name
+< row
+: int64 2391
+: string
+| has_tablespace_privilege_name_id
+< row
+: int64 2392
+: string
+| has_tablespace_privilege_id_name
+< row
+: int64 2393
+: string
+| has_tablespace_privilege_id_id
+< row
+: int64 2394
+: string
+| has_tablespace_privilege_name
+< row
+: int64 2395
+: string
+| has_tablespace_privilege_id
+< row
+: int64 2462
+: string
+| dsinh
+< row
+: int64 2463
+: string
+| dcosh
+< row
+: int64 2464
+: string
+| dtanh
+< row
+: int64 2465
+: string
+| dasinh
+< row
+: int64 2466
+: string
+| dacosh
+< row
+: int64 2467
+: string
+| datanh
+< row
+: int64 2504
+: string
+| pg_get_ruledef_ext
+< row
+: int64 2505
+: string
+| pg_get_viewdef_name_ext
+< row
+: int64 2506
+: string
+| pg_get_viewdef_ext
+< row
+: int64 2507
+: string
+| pg_get_indexdef_ext
+< row
+: int64 2508
+: string
+| pg_get_constraintdef_ext
+< row
+: int64 2509
+: string
+| pg_get_expr_ext
+< row
+: int64 2517
+: string
+| aggregate_dummy
+< row
+: int64 2518
+: string
+| aggregate_dummy
+< row
+: int64 2519
+: string
+| aggregate_dummy
+< row
+: int64 2557
+: string
+| int4_bool
+< row
+: int64 2558
+: string
+| bool_int4
+< row
+: int64 2580
+: string
+| jsonb_float8
+< row
+: int64 2623
+: string
+| pg_stat_file_1arg
+< row
+: int64 2624
+: string
+| pg_read_file_off_len
+< row
+: int64 2625
+: string
+| pg_ls_dir_1arg
+< row
+: int64 2641
+: string
+| aggregate_dummy
+< row
+: int64 2642
+: string
+| aggregate_dummy
+< row
+: int64 2643
+: string
+| aggregate_dummy
+< row
+: int64 2644
+: string
+| aggregate_dummy
+< row
+: int64 2645
+: string
+| aggregate_dummy
+< row
+: int64 2646
+: string
+| aggregate_dummy
+< row
+: int64 2647
+: string
+| now
+< row
+: int64 2705
+: string
+| pg_has_role_name_name
+< row
+: int64 2706
+: string
+| pg_has_role_name_id
+< row
+: int64 2707
+: string
+| pg_has_role_id_name
+< row
+: int64 2708
+: string
+| pg_has_role_id_id
+< row
+: int64 2709
+: string
+| pg_has_role_name
+< row
+: int64 2710
+: string
+| pg_has_role_id
+< row
+: int64 2711
+: string
+| interval_justify_interval
+< row
+: int64 2712
+: string
+| aggregate_dummy
+< row
+: int64 2713
+: string
+| aggregate_dummy
+< row
+: int64 2714
+: string
+| aggregate_dummy
+< row
+: int64 2715
+: string
+| aggregate_dummy
+< row
+: int64 2716
+: string
+| aggregate_dummy
+< row
+: int64 2717
+: string
+| aggregate_dummy
+< row
+: int64 2718
+: string
+| aggregate_dummy
+< row
+: int64 2719
+: string
+| aggregate_dummy
+< row
+: int64 2720
+: string
+| aggregate_dummy
+< row
+: int64 2721
+: string
+| aggregate_dummy
+< row
+: int64 2722
+: string
+| aggregate_dummy
+< row
+: int64 2723
+: string
+| aggregate_dummy
+< row
+: int64 2724
+: string
+| aggregate_dummy
+< row
+: int64 2725
+: string
+| aggregate_dummy
+< row
+: int64 2726
+: string
+| aggregate_dummy
+< row
+: int64 2727
+: string
+| aggregate_dummy
+< row
+: int64 2728
+: string
+| aggregate_dummy
+< row
+: int64 2729
+: string
+| aggregate_dummy
+< row
+: int64 2730
+: string
+| pg_get_triggerdef_ext
+< row
+: int64 2731
+: string
+| dasind
+< row
+: int64 2732
+: string
+| dacosd
+< row
+: int64 2733
+: string
+| datand
+< row
+: int64 2734
+: string
+| datan2d
+< row
+: int64 2735
+: string
+| dsind
+< row
+: int64 2736
+: string
+| dcosd
+< row
+: int64 2737
+: string
+| dtand
+< row
+: int64 2738
+: string
+| dcotd
+< row
+: int64 2763
+: string
+| regexp_matches_no_flags
+< row
+: int64 2765
+: string
+| regexp_split_to_table_no_flags
+< row
+: int64 2767
+: string
+| regexp_split_to_array_no_flags
+< row
+: int64 2797
+: string
+| aggregate_dummy
+< row
+: int64 2798
+: string
+| aggregate_dummy
+< row
+: int64 2803
+: string
+| aggregate_dummy
+< row
+: int64 2818
+: string
+| aggregate_dummy
+< row
+: int64 2819
+: string
+| aggregate_dummy
+< row
+: int64 2820
+: string
+| aggregate_dummy
+< row
+: int64 2821
+: string
+| aggregate_dummy
+< row
+: int64 2822
+: string
+| aggregate_dummy
+< row
+: int64 2823
+: string
+| aggregate_dummy
+< row
+: int64 2824
+: string
+| aggregate_dummy
+< row
+: int64 2825
+: string
+| aggregate_dummy
+< row
+: int64 2826
+: string
+| aggregate_dummy
+< row
+: int64 2827
+: string
+| aggregate_dummy
+< row
+: int64 2828
+: string
+| aggregate_dummy
+< row
+: int64 2829
+: string
+| aggregate_dummy
+< row
+: int64 2880
+: string
+| pg_advisory_lock_int8
+< row
+: int64 2881
+: string
+| pg_advisory_lock_shared_int8
+< row
+: int64 2882
+: string
+| pg_try_advisory_lock_int8
+< row
+: int64 2883
+: string
+| pg_try_advisory_lock_shared_int8
+< row
+: int64 2884
+: string
+| pg_advisory_unlock_int8
+< row
+: int64 2885
+: string
+| pg_advisory_unlock_shared_int8
+< row
+: int64 2886
+: string
+| pg_advisory_lock_int4
+< row
+: int64 2887
+: string
+| pg_advisory_lock_shared_int4
+< row
+: int64 2888
+: string
+| pg_try_advisory_lock_int4
+< row
+: int64 2889
+: string
+| pg_try_advisory_lock_shared_int4
+< row
+: int64 2890
+: string
+| pg_advisory_unlock_int4
+< row
+: int64 2891
+: string
+| pg_advisory_unlock_shared_int4
+< row
+: int64 2896
+: string
+| texttoxml
+< row
+: int64 2901
+: string
+| aggregate_dummy
+< row
+: int64 2922
+: string
+| xmltotext
+< row
+: int64 2939
+: string
+| pg_snapshot_in
+< row
+: int64 2940
+: string
+| pg_snapshot_out
+< row
+: int64 2941
+: string
+| pg_snapshot_recv
+< row
+: int64 2942
+: string
+| pg_snapshot_send
+< row
+: int64 2943
+: string
+| pg_current_xact_id
+< row
+: int64 2944
+: string
+| pg_current_snapshot
+< row
+: int64 2945
+: string
+| pg_snapshot_xmin
+< row
+: int64 2946
+: string
+| pg_snapshot_xmax
+< row
+: int64 2947
+: string
+| pg_snapshot_xip
+< row
+: int64 2948
+: string
+| pg_visible_in_snapshot
+< row
+: int64 2971
+: string
+| booltext
+< row
+: int64 3000
+: string
+| has_foreign_data_wrapper_privilege_name_name
+< row
+: int64 3001
+: string
+| has_foreign_data_wrapper_privilege_name_id
+< row
+: int64 3002
+: string
+| has_foreign_data_wrapper_privilege_id_name
+< row
+: int64 3003
+: string
+| has_foreign_data_wrapper_privilege_id_id
+< row
+: int64 3004
+: string
+| has_foreign_data_wrapper_privilege_name
+< row
+: int64 3005
+: string
+| has_foreign_data_wrapper_privilege_id
+< row
+: int64 3006
+: string
+| has_server_privilege_name_name
+< row
+: int64 3007
+: string
+| has_server_privilege_name_id
+< row
+: int64 3008
+: string
+| has_server_privilege_id_name
+< row
+: int64 3009
+: string
+| has_server_privilege_id_id
+< row
+: int64 3010
+: string
+| has_server_privilege_name
+< row
+: int64 3011
+: string
+| has_server_privilege_id
+< row
+: int64 3012
+: string
+| has_column_privilege_name_name_name
+< row
+: int64 3013
+: string
+| has_column_privilege_name_name_attnum
+< row
+: int64 3014
+: string
+| has_column_privilege_name_id_name
+< row
+: int64 3015
+: string
+| has_column_privilege_name_id_attnum
+< row
+: int64 3016
+: string
+| has_column_privilege_id_name_name
+< row
+: int64 3017
+: string
+| has_column_privilege_id_name_attnum
+< row
+: int64 3018
+: string
+| has_column_privilege_id_id_name
+< row
+: int64 3019
+: string
+| has_column_privilege_id_id_attnum
+< row
+: int64 3020
+: string
+| has_column_privilege_name_name
+< row
+: int64 3021
+: string
+| has_column_privilege_name_attnum
+< row
+: int64 3022
+: string
+| has_column_privilege_id_name
+< row
+: int64 3023
+: string
+| has_column_privilege_id_attnum
+< row
+: int64 3024
+: string
+| has_any_column_privilege_name_name
+< row
+: int64 3025
+: string
+| has_any_column_privilege_name_id
+< row
+: int64 3026
+: string
+| has_any_column_privilege_id_name
+< row
+: int64 3027
+: string
+| has_any_column_privilege_id_id
+< row
+: int64 3028
+: string
+| has_any_column_privilege_name
+< row
+: int64 3029
+: string
+| has_any_column_privilege_id
+< row
+: int64 3030
+: string
+| bitoverlay
+< row
+: int64 3031
+: string
+| bitoverlay_no_len
+< row
+: int64 3032
+: string
+| bitgetbit
+< row
+: int64 3033
+: string
+| bitsetbit
+< row
+: int64 3058
+: string
+| text_concat
+< row
+: int64 3059
+: string
+| text_concat_ws
+< row
+: int64 3060
+: string
+| text_left
+< row
+: int64 3061
+: string
+| text_right
+< row
+: int64 3062
+: string
+| text_reverse
+< row
+: int64 3076
+: string
+| ginarrayextract_2args
+< row
+: int64 3077
+: string
+| gin_extract_tsvector_2args
+< row
+: int64 3087
+: string
+| gin_extract_tsquery_5args
+< row
+: int64 3088
+: string
+| gin_tsquery_consistent_6args
+< row
+: int64 3089
+: string
+| pg_advisory_xact_lock_int8
+< row
+: int64 3090
+: string
+| pg_advisory_xact_lock_shared_int8
+< row
+: int64 3091
+: string
+| pg_try_advisory_xact_lock_int8
+< row
+: int64 3092
+: string
+| pg_try_advisory_xact_lock_shared_int8
+< row
+: int64 3093
+: string
+| pg_advisory_xact_lock_int4
+< row
+: int64 3094
+: string
+| pg_advisory_xact_lock_shared_int4
+< row
+: int64 3095
+: string
+| pg_try_advisory_xact_lock_int4
+< row
+: int64 3096
+: string
+| pg_try_advisory_xact_lock_shared_int4
+< row
+: int64 3100
+: string
+| window_row_number
+< row
+: int64 3101
+: string
+| window_rank
+< row
+: int64 3102
+: string
+| window_dense_rank
+< row
+: int64 3103
+: string
+| window_percent_rank
+< row
+: int64 3104
+: string
+| window_cume_dist
+< row
+: int64 3105
+: string
+| window_ntile
+< row
+: int64 3106
+: string
+| window_lag
+< row
+: int64 3107
+: string
+| window_lag_with_offset
+< row
+: int64 3108
+: string
+| window_lag_with_offset_and_default
+< row
+: int64 3109
+: string
+| window_lead
+< row
+: int64 3110
+: string
+| window_lead_with_offset
+< row
+: int64 3111
+: string
+| window_lead_with_offset_and_default
+< row
+: int64 3112
+: string
+| window_first_value
+< row
+: int64 3113
+: string
+| window_last_value
+< row
+: int64 3114
+: string
+| window_nth_value
+< row
+: int64 3138
+: string
+| has_type_privilege_name_name
+< row
+: int64 3139
+: string
+| has_type_privilege_name_id
+< row
+: int64 3140
+: string
+| has_type_privilege_id_name
+< row
+: int64 3141
+: string
+| has_type_privilege_id_id
+< row
+: int64 3142
+: string
+| has_type_privilege_name
+< row
+: int64 3143
+: string
+| has_type_privilege_id
+< row
+: int64 3154
+: string
+| array_to_json_pretty
+< row
+: int64 3156
+: string
+| row_to_json_pretty
+< row
+: int64 3159
+: string
+| pg_get_viewdef_wrap
+< row
+: int64 3166
+: string
+| pg_size_pretty_numeric
+< row
+: int64 3170
+: string
+| be_lo_lseek64
+< row
+: int64 3171
+: string
+| be_lo_tell64
+< row
+: int64 3172
+: string
+| be_lo_truncate64
+< row
+: int64 3175
+: string
+| aggregate_dummy
+< row
+: int64 3179
+: string
+| array_cardinality
+< row
+: int64 3197
+: string
+| aggregate_dummy
+< row
+: int64 3199
+: string
+| json_build_array_noargs
+< row
+: int64 3201
+: string
+| json_build_object_noargs
+< row
+: int64 3203
+: string
+| json_object_two_arg
+< row
+: int64 3218
+: string
+| width_bucket_array
+< row
+: int64 3259
+: string
+| generate_series_step_numeric
+< row
+: int64 3260
+: string
+| generate_series_numeric
+< row
+: int64 3264
+: string
+| jsonb_object_two_arg
+< row
+: int64 3267
+: string
+| aggregate_dummy
+< row
+: int64 3270
+: string
+| aggregate_dummy
+< row
+: int64 3272
+: string
+| jsonb_build_array_noargs
+< row
+: int64 3274
+: string
+| jsonb_build_object_noargs
+< row
+: int64 3278
+: string
+| array_position_start
+< row
+: int64 3281
+: string
+| numeric_scale
+< row
+: int64 3293
+: string
+| pg_read_file_off_len_missing
+< row
+: int64 3294
+: string
+| show_config_by_name_missing_ok
+< row
+: int64 3295
+: string
+| pg_read_binary_file_off_len_missing
+< row
+: int64 3299
+: string
+| row_security_active_name
+< row
+: int64 3303
+: string
+| jsonb_delete_idx
+< row
+: int64 3309
+: string
+| xidneq
+< row
+: int64 3313
+: string
+| tsm_bernoulli_handler
+< row
+: int64 3314
+: string
+| tsm_system_handler
+< row
+: int64 3319
+: string
+| tsvector_filter
+< row
+: int64 3320
+: string
+| tsvector_setweight_by_filter
+< row
+: int64 3321
+: string
+| tsvector_delete_str
+< row
+: int64 3322
+: string
+| tsvector_unnest
+< row
+: int64 3323
+: string
+| tsvector_delete_arr
+< row
+: int64 3329
+: string
+| show_all_file_settings
+< row
+: int64 3343
+: string
+| jsonb_delete_array
+< row
+: int64 3348
+: string
+| pg_current_xact_id_if_assigned
+< row
+: int64 3360
+: string
+| pg_xact_status
+< row
+: int64 3396
+: string
+| regexp_match_no_flags
+< row
+: int64 3419
+: string
+| sha224_bytea
+< row
+: int64 3420
+: string
+| sha256_bytea
+< row
+: int64 3421
+: string
+| sha384_bytea
+< row
+: int64 3422
+: string
+| sha512_bytea
+< row
+: int64 3427
+: string
+| pg_stats_ext_mcvlist_items
+< row
+: int64 3449
+: string
+| jsonb_numeric
+< row
+: int64 3450
+: string
+| jsonb_int2
+< row
+: int64 3451
+: string
+| jsonb_int4
+< row
+: int64 3452
+: string
+| jsonb_int8
+< row
+: int64 3453
+: string
+| jsonb_float4
+< row
+: int64 3457
+: string
+| be_lo_from_bytea
+< row
+: int64 3458
+: string
+| be_lo_get
+< row
+: int64 3459
+: string
+| be_lo_get_fragment
+< row
+: int64 3460
+: string
+| be_lo_put
+< row
+: int64 3463
+: string
+| make_timestamptz_at_timezone
+< row
+: int64 3526
+: string
+| aggregate_dummy
+< row
+: int64 3527
+: string
+| aggregate_dummy
+< row
+: int64 3530
+: string
+| enum_range_bounds
+< row
+: int64 3531
+: string
+| enum_range_all
+< row
+: int64 3538
+: string
+| aggregate_dummy
+< row
+: int64 3539
+: string
+| text_format
+< row
+: int64 3540
+: string
+| text_format_nv
+< row
+: int64 3545
+: string
+| aggregate_dummy
+< row
+: int64 3556
+: string
+| jsonb_bool
+< row
+: int64 3564
+: string
+| aggregate_dummy
+< row
+: int64 3565
+: string
+| aggregate_dummy
+< row
+: int64 3577
+: string
+| pg_logical_emit_message_text
+< row
+: int64 3578
+: string
+| pg_logical_emit_message_bytea
+< row
+: int64 3623
+: string
+| tsvector_strip
+< row
+: int64 3624
+: string
+| tsvector_setweight
+< row
+: int64 3672
+: string
+| tsquery_numnode
+< row
+: int64 3673
+: string
+| tsquerytree
+< row
+: int64 3684
+: string
+| tsquery_rewrite
+< row
+: int64 3685
+: string
+| tsquery_rewrite_query
+< row
+: int64 3689
+: string
+| ts_stat1
+< row
+: int64 3690
+: string
+| ts_stat2
+< row
+: int64 3696
+: string
+| text_starts_with
+< row
+: int64 3703
+: string
+| ts_rank_wttf
+< row
+: int64 3704
+: string
+| ts_rank_wtt
+< row
+: int64 3705
+: string
+| ts_rank_ttf
+< row
+: int64 3706
+: string
+| ts_rank_tt
+< row
+: int64 3707
+: string
+| ts_rankcd_wttf
+< row
+: int64 3708
+: string
+| ts_rankcd_wtt
+< row
+: int64 3709
+: string
+| ts_rankcd_ttf
+< row
+: int64 3710
+: string
+| ts_rankcd_tt
+< row
+: int64 3711
+: string
+| tsvector_length
+< row
+: int64 3713
+: string
+| ts_token_type_byid
+< row
+: int64 3714
+: string
+| ts_token_type_byname
+< row
+: int64 3715
+: string
+| ts_parse_byid
+< row
+: int64 3716
+: string
+| ts_parse_byname
+< row
+: int64 3743
+: string
+| ts_headline_byid_opt
+< row
+: int64 3744
+: string
+| ts_headline_byid
+< row
+: int64 3745
+: string
+| to_tsvector_byid
+< row
+: int64 3746
+: string
+| to_tsquery_byid
+< row
+: int64 3747
+: string
+| plainto_tsquery_byid
+< row
+: int64 3752
+: string
+| tsvector_update_trigger_byid
+< row
+: int64 3753
+: string
+| tsvector_update_trigger_bycolumn
+< row
+: int64 3754
+: string
+| ts_headline_opt
+< row
+: int64 3790
+: string
+| gtsvector_consistent_oldsig
+< row
+: int64 3791
+: string
+| gin_extract_tsquery_oldsig
+< row
+: int64 3792
+: string
+| gin_tsquery_consistent_oldsig
+< row
+: int64 3793
+: string
+| gtsquery_consistent_oldsig
+< row
+: int64 3801
+: string
+| pg_current_logfile_1arg
+< row
+: int64 3811
+: string
+| int4_cash
+< row
+: int64 3812
+: string
+| int8_cash
+< row
+: int64 3823
+: string
+| cash_numeric
+< row
+: int64 3824
+: string
+| numeric_cash
+< row
+: int64 3826
+: string
+| pg_read_file_all
+< row
+: int64 3827
+: string
+| pg_read_binary_file_off_len
+< row
+: int64 3828
+: string
+| pg_read_binary_file_all
+< row
+: int64 3840
+: string
+| range_constructor2
+< row
+: int64 3841
+: string
+| range_constructor3
+< row
+: int64 3844
+: string
+| range_constructor2
+< row
+: int64 3845
+: string
+| range_constructor3
+< row
+: int64 3848
+: string
+| range_lower
+< row
+: int64 3849
+: string
+| range_upper
+< row
+: int64 3850
+: string
+| range_empty
+< row
+: int64 3851
+: string
+| range_lower_inc
+< row
+: int64 3852
+: string
+| range_upper_inc
+< row
+: int64 3853
+: string
+| range_lower_inf
+< row
+: int64 3854
+: string
+| range_upper_inf
+< row
+: int64 3933
+: string
+| range_constructor2
+< row
+: int64 3934
+: string
+| range_constructor3
+< row
+: int64 3937
+: string
+| range_constructor2
+< row
+: int64 3938
+: string
+| range_constructor3
+< row
+: int64 3941
+: string
+| range_constructor2
+< row
+: int64 3942
+: string
+| range_constructor3
+< row
+: int64 3943
+: string
+| acldefault_sql
+< row
+: int64 3945
+: string
+| range_constructor2
+< row
+: int64 3946
+: string
+| range_constructor3
+< row
+: int64 3972
+: string
+| aggregate_dummy
+< row
+: int64 3974
+: string
+| aggregate_dummy
+< row
+: int64 3976
+: string
+| aggregate_dummy
+< row
+: int64 3978
+: string
+| aggregate_dummy
+< row
+: int64 3980
+: string
+| aggregate_dummy
+< row
+: int64 3982
+: string
+| aggregate_dummy
+< row
+: int64 3984
+: string
+| aggregate_dummy
+< row
+: int64 3986
+: string
+| aggregate_dummy
+< row
+: int64 3987
+: string
+| hypothetical_rank_final
+< row
+: int64 3988
+: string
+| aggregate_dummy
+< row
+: int64 3989
+: string
+| hypothetical_percent_rank_final
+< row
+: int64 3990
+: string
+| aggregate_dummy
+< row
+: int64 3991
+: string
+| hypothetical_cume_dist_final
+< row
+: int64 3992
+: string
+| aggregate_dummy
+< row
+: int64 3993
+: string
+| hypothetical_dense_rank_final
+< row
+: int64 4053
+: string
+| aggregate_dummy
+< row
+: int64 4067
+: string
+| boxes_bound_box
+< row
+: int64 4091
+: string
+| point_box
+< row
+: int64 4112
+: string
+| macaddr8_trunc
+< row
+: int64 4123
+: string
+| macaddrtomacaddr8
+< row
+: int64 4124
+: string
+| macaddr8tomacaddr
+< row
+: int64 4126
+: string
+| in_range_int8_int8
+< row
+: int64 4127
+: string
+| in_range_int4_int8
+< row
+: int64 4128
+: string
+| in_range_int4_int4
+< row
+: int64 4129
+: string
+| in_range_int4_int2
+< row
+: int64 4130
+: string
+| in_range_int2_int8
+< row
+: int64 4131
+: string
+| in_range_int2_int4
+< row
+: int64 4132
+: string
+| in_range_int2_int2
+< row
+: int64 4133
+: string
+| in_range_date_interval
+< row
+: int64 4134
+: string
+| in_range_timestamp_interval
+< row
+: int64 4135
+: string
+| in_range_timestamptz_interval
+< row
+: int64 4136
+: string
+| in_range_interval_interval
+< row
+: int64 4137
+: string
+| in_range_time_interval
+< row
+: int64 4138
+: string
+| in_range_timetz_interval
+< row
+: int64 4139
+: string
+| in_range_float8_float8
+< row
+: int64 4140
+: string
+| in_range_float4_float8
+< row
+: int64 4141
+: string
+| in_range_numeric_numeric
+< row
+: int64 4189
+: string
+| aggregate_dummy
+< row
+: int64 4190
+: string
+| aggregate_dummy
+< row
+: int64 4201
+: string
+| ts_headline_jsonb_byid_opt
+< row
+: int64 4202
+: string
+| ts_headline_jsonb_byid
+< row
+: int64 4203
+: string
+| ts_headline_jsonb_opt
+< row
+: int64 4204
+: string
+| ts_headline_jsonb
+< row
+: int64 4205
+: string
+| ts_headline_json_byid_opt
+< row
+: int64 4206
+: string
+| ts_headline_json_byid
+< row
+: int64 4207
+: string
+| ts_headline_json_opt
+< row
+: int64 4208
+: string
+| ts_headline_json
+< row
+: int64 4209
+: string
+| jsonb_string_to_tsvector
+< row
+: int64 4210
+: string
+| json_string_to_tsvector
+< row
+: int64 4211
+: string
+| jsonb_string_to_tsvector_byid
+< row
+: int64 4212
+: string
+| json_string_to_tsvector_byid
+< row
+: int64 4214
+: string
+| jsonb_to_tsvector_byid
+< row
+: int64 4216
+: string
+| json_to_tsvector_byid
+< row
+: int64 4220
+: string
+| pg_copy_physical_replication_slot_a
+< row
+: int64 4221
+: string
+| pg_copy_physical_replication_slot_b
+< row
+: int64 4222
+: string
+| pg_copy_logical_replication_slot_a
+< row
+: int64 4223
+: string
+| pg_copy_logical_replication_slot_b
+< row
+: int64 4224
+: string
+| pg_copy_logical_replication_slot_c
+< row
+: int64 4228
+: string
+| range_merge_from_multirange
+< row
+: int64 4235
+: string
+| multirange_lower
+< row
+: int64 4236
+: string
+| multirange_upper
+< row
+: int64 4237
+: string
+| multirange_empty
+< row
+: int64 4238
+: string
+| multirange_lower_inc
+< row
+: int64 4239
+: string
+| multirange_upper_inc
+< row
+: int64 4240
+: string
+| multirange_lower_inf
+< row
+: int64 4241
+: string
+| multirange_upper_inf
+< row
+: int64 4280
+: string
+| multirange_constructor0
+< row
+: int64 4281
+: string
+| multirange_constructor1
+< row
+: int64 4282
+: string
+| multirange_constructor2
+< row
+: int64 4283
+: string
+| multirange_constructor0
+< row
+: int64 4284
+: string
+| multirange_constructor1
+< row
+: int64 4285
+: string
+| multirange_constructor2
+< row
+: int64 4286
+: string
+| multirange_constructor0
+< row
+: int64 4287
+: string
+| multirange_constructor1
+< row
+: int64 4288
+: string
+| multirange_constructor2
+< row
+: int64 4289
+: string
+| multirange_constructor0
+< row
+: int64 4290
+: string
+| multirange_constructor1
+< row
+: int64 4291
+: string
+| multirange_constructor2
+< row
+: int64 4292
+: string
+| multirange_constructor0
+< row
+: int64 4293
+: string
+| multirange_constructor1
+< row
+: int64 4294
+: string
+| multirange_constructor2
+< row
+: int64 4295
+: string
+| multirange_constructor0
+< row
+: int64 4296
+: string
+| multirange_constructor1
+< row
+: int64 4297
+: string
+| multirange_constructor2
+< row
+: int64 4298
+: string
+| multirange_constructor1
+< row
+: int64 4301
+: string
+| aggregate_dummy
+< row
+: int64 4350
+: string
+| unicode_normalize_func
+< row
+: int64 4351
+: string
+| unicode_is_normalized
+< row
+: int64 4389
+: string
+| aggregate_dummy
+< row
+: int64 4450
+: string
+| aggregate_dummy
+< row
+: int64 5004
+: string
+| tsquery_phrase_distance
+< row
+: int64 5006
+: string
+| phraseto_tsquery_byid
+< row
+: int64 5007
+: string
+| websearch_to_tsquery_byid
+< row
+: int64 5029
+: string
+| pg_ls_tmpdir_noargs
+< row
+: int64 5030
+: string
+| pg_ls_tmpdir_1arg
+< row
+: int64 5042
+: string
+| numeric_min_scale
+< row
+: int64 5043
+: string
+| numeric_trim_scale
+< row
+: int64 5044
+: string
+| int4gcd
+< row
+: int64 5045
+: string
+| int8gcd
+< row
+: int64 5046
+: string
+| int4lcm
+< row
+: int64 5047
+: string
+| int8lcm
+< row
+: int64 5048
+: string
+| numeric_gcd
+< row
+: int64 5049
+: string
+| numeric_lcm
+< row
+: int64 5071
+: string
+| xid8toxid
+< row
+: int64 5099
+: string
+| aggregate_dummy
+< row
+: int64 5100
+: string
+| aggregate_dummy
+< row
+: int64 6103
+: string
+| numeric_pg_lsn
+< row
+: int64 6160
+: string
+| text_to_table
+< row
+: int64 6161
+: string
+| text_to_table_null
+< row
+: int64 6162
+: string
+| bit_bit_count
+< row
+: int64 6163
+: string
+| bytea_bit_count
+< row
+: int64 6164
+: string
+| aggregate_dummy
+< row
+: int64 6165
+: string
+| aggregate_dummy
+< row
+: int64 6166
+: string
+| aggregate_dummy
+< row
+: int64 6167
+: string
+| aggregate_dummy
+< row
+: int64 6177
+: string
+| timestamp_bin
+< row
+: int64 6178
+: string
+| timestamptz_bin
+< row
+: int64 6195
+: string
+| bytealtrim
+< row
+: int64 6196
+: string
+| byteartrim
+< row
+: int64 6199
+: string
+| extract_date
+< row
+: int64 6200
+: string
+| extract_time
+< row
+: int64 6201
+: string
+| extract_timetz
+< row
+: int64 6202
+: string
+| extract_timestamp
+< row
+: int64 6203
+: string
+| extract_timestamptz
+< row
+: int64 6204
+: string
+| extract_interval
+< row
+: int64 6205
+: string
+| has_parameter_privilege_name_name
+< row
+: int64 6206
+: string
+| has_parameter_privilege_id_name
+< row
+: int64 6207
+: string
+| has_parameter_privilege_name
+< row
+: int64 6208
+: string
+| pg_read_file_all_missing
+< row
+: int64 6209
+: string
+| pg_read_binary_file_all_missing
+< row
+: int64 6212
+: string
+| drandom_normal
+< row
+: int64 6219
+: string
+| derf
+< row
+: int64 6220
+: string
+| derfc
+< row
+: int64 6221
+: string
+| timestamptz_pl_interval
+< row
+: int64 6222
+: string
+| timestamptz_pl_interval_at_zone
+< row
+: int64 6223
+: string
+| timestamptz_mi_interval
+< row
+: int64 6226
+: string
+| range_agg_finalfn
+< row
+: int64 6227
+: string
+| aggregate_dummy
+< row
+: int64 6251
+: string
+| textregexreplace_extended
+< row
+: int64 6252
+: string
+| textregexreplace_extended_no_flags
+< row
+: int64 6253
+: string
+| textregexreplace_extended_no_n
+< row
+: int64 6254
+: string
+| regexp_count_no_start
+< row
+: int64 6255
+: string
+| regexp_count_no_flags
+< row
+: int64 6257
+: string
+| regexp_instr_no_start
+< row
+: int64 6258
+: string
+| regexp_instr_no_n
+< row
+: int64 6259
+: string
+| regexp_instr_no_endoption
+< row
+: int64 6260
+: string
+| regexp_instr_no_flags
+< row
+: int64 6261
+: string
+| regexp_instr_no_subexpr
+< row
+: int64 6263
+: string
+| regexp_like_no_flags
+< row
+: int64 6265
+: string
+| regexp_substr_no_start
+< row
+: int64 6266
+: string
+| regexp_substr_no_n
+< row
+: int64 6267
+: string
+| regexp_substr_no_flags
+< row
+: int64 6268
+: string
+| regexp_substr_no_subexpr
+< row
+: int64 6273
+: string
+| timestamptz_mi_interval_at_zone
+< row
+: int64 6274
+: string
+| generate_series_timestamptz_at_zone
+< row
+: int64 6276
+: string
+| aggregate_dummy
+< row
+: int64 6280
+: string
+| aggregate_dummy
+< row
+: int64 6281
+: string
+| aggregate_dummy
+< row
+: int64 6282
+: string
+| aggregate_dummy
+< row
+: int64 6284
+: string
+| aggregate_dummy
+< row
+: int64 6288
+: string
+| aggregate_dummy
+< row
+: int64 6289
+: string
+| aggregate_dummy
+< row
+: int64 6290
+: string
+| aggregate_dummy
+< row
+: int64 6291
+: string
+| aggregate_dummy
+< row
+: int64 6330
+: string
+| to_bin32
+< row
+: int64 6331
+: string
+| to_bin64
+< row
+: int64 6332
+: string
+| to_oct32
+< row
+: int64 6333
+: string
+| to_oct64
+< row
+: int64 6334
+: string
+| timestamptz_at_local
+< row
+: int64 6335
+: string
+| timestamp_at_local
+< row
+: int64 6336
+: string
+| timetz_at_local
+< row
+: int64 6339
+: string
+| int4random
+< row
+: int64 6340
+: string
+| int8random
+< row
+: int64 6341
+: string
+| numeric_random
+< row
+: int64 6348
+: string
+| has_largeobject_privilege_name_id
+< row
+: int64 6349
+: string
+| has_largeobject_privilege_id
+< row
+: int64 6350
+: string
+| has_largeobject_privilege_id_id
+< row
+: int64 6364
+: string
+| crc32_bytea
+< row
+: int64 6365
+: string
+| crc32c_bytea
+< row
+: int64 6367
+: string
+| int2_bytea
+< row
+: int64 6368
+: string
+| int4_bytea
+< row
+: int64 6369
+: string
+| int8_bytea
+< row
+: int64 6370
+: string
+| bytea_int2
+< row
+: int64 6371
+: string
+| bytea_int4
+< row
+: int64 6372
+: string
+| bytea_int8
+< row
+: int64 6373
+: string
+| aggregate_dummy
+< row
+: int64 6374
+: string
+| aggregate_dummy
+< row
+: int64 6382
+: string
+| bytea_reverse
+< row
+: int64 6383
+: string
+| dgamma
+< row
+: int64 6384
+: string
+| dlgamma
+< row
+: int64 6389
+: string
+| array_sort_order
+< row
+: int64 6390
+: string
+| array_sort_order_nulls_first
+< row
+: int64 6395
+: string
+| aggregate_dummy
+< row
+: int64 6396
+: string
+| aggregate_dummy
+< row
+: int64 6428
+: string
+| gen_random_uuid
+< row
+: int64 6430
+: string
+| uuidv7_interval
+> query
 | SELECT aggfnoid::oid, aggkind, aggnumdirectargs FROM pg_aggregate WHERE aggfnoid::oid < 16384 ORDER BY 1
 < result
 < column "aggfnoid" "OID"
