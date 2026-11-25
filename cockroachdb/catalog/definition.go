@@ -23,6 +23,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
+
 	metadatapb "github.com/bytebase/omni/metadata"
 )
 
@@ -216,20 +218,18 @@ func (r renderer) typeName(t string) string {
 		}
 	}
 	// Rendered without its snapshot, as TableDefinition renders, a schema.name
-	// type whose parts are no plain identifiers is quoted part by part.
-	if schema, name, ok := strings.Cut(t, "."); ok && !strings.ContainsAny(t, `"()`) && !strings.Contains(name, ".") &&
-		(!plainIdentifier.MatchString(schema) || !plainIdentifier.MatchString(strings.TrimSuffix(name, "[]"))) {
+	// type is quoted part by part where a part needs it.
+	if schema, name, ok := strings.Cut(t, "."); ok && !strings.ContainsAny(t, `"()`) && !strings.Contains(name, ".") {
 		array := ""
 		if element, ok := strings.CutSuffix(name, "[]"); ok {
 			name, array = element, "[]"
 		}
-		return quoteIdent(schema) + "." + quoteIdent(name) + array
+		// CockroachDB's encoding quotes what needs it: case, spaces and
+		// reserved words such as select.
+		return tree.NameString(schema) + "." + tree.NameString(name) + array
 	}
 	return columnType(t)
 }
-
-// plainIdentifier matches a name CockroachDB reads the same unquoted.
-var plainIdentifier = regexp.MustCompile(`^[a-z_][a-z0-9_$]*$`)
 
 // writeObjects writes the functions, tables, views and materialized views of
 // schemas, each after the objects it depends on.

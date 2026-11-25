@@ -213,11 +213,12 @@ func TestMetadataMigrationRefusesCompositeInUse(t *testing.T) {
 func TestTableDefinitionQuotesUserTypes(t *testing.T) {
 	def, err := catalog.TableDefinition("Fid Mixed", &metadata.TableMetadata{
 		Name:    "Children",
-		Columns: []*metadata.ColumnMetadata{{Name: "kind", Type: "Fid Mixed.Kind", Nullable: true}, {Name: "mood", Type: "app.mood", Nullable: true}},
+		Columns: []*metadata.ColumnMetadata{{Name: "kind", Type: "Fid Mixed.Kind", Nullable: true}, {Name: "mood", Type: "app.mood", Nullable: true}, {Name: "sel", Type: "select.kind", Nullable: true}},
 	}, nil)
 	require.NoError(t, err)
 	require.Contains(t, def, `"kind" "Fid Mixed"."Kind"`)
 	require.Contains(t, def, `"mood" app.mood`)
+	require.Contains(t, def, `"sel" "select".kind`)
 }
 
 func TestMetadataMigrationRefusesCompositeUnderComposite(t *testing.T) {
