@@ -272,6 +272,26 @@ func (v *sequenceCollector) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 
 func (*sequenceCollector) VisitPost(expr tree.Expr) tree.Expr { return expr }
 
+// routineCalls returns the routines a routine's body calls, as metadata keys
+// them: schema.name where the call names a schema, name alone where it does
+// not. Words of the body followed by "(" are calls; one that is no routine
+// matches nothing.
+func routineCalls(definition string) []string {
+	tokens, _ := crparser.Tokens(routineBody(definition))
+	var calls []string
+	for i, token := range tokens {
+		if i+1 >= len(tokens) || tokens[i+1].Str != "(" {
+			continue
+		}
+		if i >= 2 && tokens[i-1].Str == "." {
+			calls = append(calls, tokens[i-2].Str+"."+token.Str)
+			continue
+		}
+		calls = append(calls, token.Str)
+	}
+	return calls
+}
+
 // calledFunctions returns the names of the functions expr calls, unquoted,
 // schema-qualified where expr qualifies them.
 func calledFunctions(expr string) []string {

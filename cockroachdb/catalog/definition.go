@@ -19,7 +19,6 @@ package catalog
 import (
 	"fmt"
 
-	crparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser"
 	"slices"
 	"strings"
 
@@ -331,12 +330,9 @@ func orderObjects(schemas []*metadatapb.SchemaMetadata) []objectRef {
 		for _, relation := range routineRelations(function.Definition) {
 			graph.AddEdge(relation, functionID)
 		}
-		tokens, _ := crparser.Tokens(routineBody(function.Definition))
-		for i, token := range tokens {
-			if i+1 < len(tokens) && tokens[i+1].Str == "(" {
-				for _, calledID := range functionsByName[token.Str] {
-					graph.AddEdge(calledID, functionID)
-				}
+		for _, call := range routineCalls(function.Definition) {
+			for _, calledID := range functionsByName[call] {
+				graph.AddEdge(calledID, functionID)
 			}
 		}
 	}

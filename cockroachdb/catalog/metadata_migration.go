@@ -1100,11 +1100,12 @@ func (d *differ) orderDrops() {
 }
 
 // planRoutines decides which source routines the migration drops: those the
-// target removes, and those it drops and creates again. A routine whose
-// definition changes, or whose body reads a relation the migration drops or
-// rebuilds or a column whose type changes, is recreated, so the relation can go while nothing reads it. A
-// routine a kept table's default or check still calls cannot be dropped, so it
-// is replaced in place instead.
+// target removes, and those it drops and creates again. A routine whose body
+// reads a relation the migration drops or rebuilds, or a column whose type
+// changes, is recreated, so the relation can go while nothing reads it, and so
+// is a kept routine calling a routine that drops. Any other routine whose
+// definition changes is replaced in place, as is one a kept table's default or
+// check still calls, which cannot be dropped.
 func (d *differ) planRoutines() {
 	d.droppedRoutines = make(map[string]bool)
 	d.recreated = make(map[string]bool)
@@ -1162,13 +1163,35 @@ func (d *differ) planRoutines() {
 			if pinned[names[0]] || pinned[names[1]] {
 				continue
 			}
-			recreate := routineDefinition(function.Definition, d.from.database) != routineDefinition(newFunction.Definition, d.to.database)
+			recreate := false
 			for _, relation := range routineRelations(function.Definition) {
 				recreate = recreate || gone[relation] || textReads(routineBody(function.Definition), retyped[relation])
 			}
 			if recreate {
 				d.recreated[getObjectID(schema.Name, metadataFuncIdentity(function))] = true
 				d.droppedRoutines[names[0]], d.droppedRoutines[names[1]] = true, true
+			}
+		}
+	}
+	// A kept routine calling a routine that drops goes and comes back with
+	// it: CockroachDB keeps a called routine while a caller remains.
+	for changed := true; changed; {
+		changed = false
+		for _, schema := range d.from.schemas {
+			for _, function := range schema.Functions {
+				id := getObjectID(schema.Name, metadataFuncIdentity(function))
+				if d.recreated[id] || findFunction(d.to.byName[schema.Name], metadataFuncIdentity(function)) == nil ||
+					pinned[function.Name] || pinned[schema.Name+"."+function.Name] {
+					continue
+				}
+				for _, call := range routineCalls(function.Definition) {
+					if d.droppedRoutines[call] && call != function.Name && call != schema.Name+"."+function.Name {
+						d.recreated[id] = true
+						d.droppedRoutines[function.Name], d.droppedRoutines[schema.Name+"."+function.Name] = true, true
+						changed = true
+						break
+					}
+				}
 			}
 		}
 	}
@@ -1204,10 +1227,9 @@ func (d *differ) diffRoutines() {
 				typ = OpAlterFunction
 			}
 			reads := routineRelations(function.Definition)
-			tokens, _ := crparser.Tokens(routineBody(function.Definition))
-			for i, token := range tokens {
-				if i+1 < len(tokens) && tokens[i+1].Str == "(" && token.Str != function.Name {
-					reads = append(reads, callPrefix+token.Str)
+			for _, call := range routineCalls(function.Definition) {
+				if call != function.Name && call != schema.Name+"."+function.Name {
+					reads = append(reads, callPrefix+call)
 				}
 			}
 			d.addDrop(id, MigrationOp{Type: typ, SchemaName: schema.Name, ObjectName: function.Name,

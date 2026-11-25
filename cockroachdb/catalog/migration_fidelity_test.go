@@ -142,6 +142,9 @@ CREATE FUNCTION fid_v.cz_read() RETURNS INT8 LANGUAGE SQL AS $$ SELECT count(*) 
 CREATE TABLE fid_v.ct2 (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_v.cz_read());
 CREATE FUNCTION fid_v.colfn() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 3 $$;
 CREATE TABLE fid_v.keep (id INT8 PRIMARY KEY, x INT8 DEFAULT fid_v.colfn());
+CREATE FUNCTION fid_v.callee() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$;
+CREATE FUNCTION fid_v.caller() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_v.callee() $$;
+CREATE FUNCTION fid_v.count_old_caller() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_v.count_old() $$;
 `,
 			target: `CREATE SCHEMA fid_v;
 CREATE TABLE fid_v.items (id INT8 PRIMARY KEY, name STRING, price DECIMAL(10, 2), bonus INT8);
@@ -159,6 +162,9 @@ CREATE TABLE fid_v.tagged (id INT8 PRIMARY KEY, v INT8);
 CREATE FUNCTION fid_v.count_old() RETURNS INT8 LANGUAGE SQL STABLE AS $$ SELECT count(*) FROM fid_v.items $$;
 CREATE VIEW fid_v.named (other) AS SELECT id FROM fid_v.items;
 CREATE TABLE fid_v.keep (id INT8 PRIMARY KEY);
+CREATE FUNCTION fid_v.callee() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 2 $$;
+CREATE FUNCTION fid_v.caller() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_v.callee() $$;
+CREATE FUNCTION fid_v.count_old_caller() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_v.count_old() $$;
 ALTER TABLE fid_v.items ADD COLUMN doubled DECIMAL AS (price * 2) VIRTUAL;
 CREATE TABLE fid_v.scored (id INT8 PRIMARY KEY, score INT8 DEFAULT fid_v.add(1, 2));
 CREATE VIEW fid_v.cheap AS SELECT p.id FROM fid_v.priced AS p JOIN fid_v.items AS i ON i.id = p.id;

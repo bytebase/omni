@@ -6652,6 +6652,18 @@
 | );
 < ok 0 -
 > exec
+| CREATE FUNCTION fid_a.f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_a.g() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_a.f() $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION "Fid Mixed".f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_a.g() $$;
+< ok 0 -
+> exec
+| CREATE TABLE fid_a.uses_g (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_a.g());
+< ok 0 -
+> exec
 | CREATE VIEW "Fid Mixed".family AS SELECT p.id, c.id AS child FROM fid_a.parents AS p JOIN "Fid Mixed"."Children" AS c ON c."Parent Id" = p.id;
 < ok 0 -
 > query
@@ -6938,6 +6950,63 @@
 |
 : string
 |
+< row
+: string
+| fid_a
+: string
+| uses_g
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_a
+: string
+| uses_g
+: string
+| v
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| fid_a.g()
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
@@ -6981,6 +7050,18 @@
 | parents_pkey
 : string
 | CREATE UNIQUE INDEX parents_pkey ON omni_testdefinitionfidelity.fid_a.parents USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_a
+: string
+| uses_g
+: string
+| uses_g_pkey
+: string
+| CREATE UNIQUE INDEX uses_g_pkey ON omni_testdefinitionfidelity.fid_a.uses_g USING btree (id ASC)
 : string
 | PRIMARY KEY
 : null
@@ -7091,6 +7172,13 @@
 | fid_a
 : string
 | parents
+: int64 0
+: null
+< row
+: string
+| fid_a
+: string
+| uses_g
 : int64 0
 : null
 > query
@@ -7229,6 +7317,60 @@
 < column "function_name" "NAME"
 < column "function_signature" "TEXT"
 < column "definition" "TEXT"
+< row
+: string
+| Fid Mixed
+: string
+| f
+: string
+| f()
+: string
+| CREATE FUNCTION "Fid Mixed".f()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_a.g();
+| $$
+< row
+: string
+| fid_a
+: string
+| f
+: string
+| f()
+: string
+| CREATE FUNCTION fid_a.f()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 1;
+| $$
+< row
+: string
+| fid_a
+: string
+| g
+: string
+| g()
+: string
+| CREATE FUNCTION fid_a.g()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_a.f();
+| $$
 > query
 |
 | 		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
@@ -7368,6 +7510,42 @@
 | );
 < ok 0 -
 > exec
+| CREATE FUNCTION fid_a.f()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 1;
+| $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_a.g()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_a.f();
+| $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION "Fid Mixed".f()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_a.g();
+| $$;
+< ok 0 -
+> exec
 | CREATE TABLE "fid_a"."parents" (
 |     "id" bigint NOT NULL,
 |     CONSTRAINT "parents_pkey" PRIMARY KEY (id ASC)
@@ -7376,6 +7554,13 @@
 > exec
 | CREATE VIEW "Fid Mixed"."family" ("id", "child") AS 
 | SELECT p.id, c.id AS child FROM fid_a.parents AS p JOIN "Fid Mixed"."Children" AS c ON c."Parent Id" = p.id;
+< ok 0 -
+> exec
+| CREATE TABLE "fid_a"."uses_g" (
+|     "id" bigint NOT NULL,
+|     "v" bigint DEFAULT fid_a.g(),
+|     CONSTRAINT "uses_g_pkey" PRIMARY KEY (id ASC)
+| );
 < ok 0 -
 > exec
 | ALTER TABLE "Fid Mixed"."Children"
@@ -7666,6 +7851,63 @@
 |
 : string
 |
+< row
+: string
+| fid_a
+: string
+| uses_g
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_a
+: string
+| uses_g
+: string
+| v
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| fid_a.g()
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
@@ -7709,6 +7951,18 @@
 | parents_pkey
 : string
 | CREATE UNIQUE INDEX parents_pkey ON omni_testdefinitionfidelity.fid_a.parents USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_a
+: string
+| uses_g
+: string
+| uses_g_pkey
+: string
+| CREATE UNIQUE INDEX uses_g_pkey ON omni_testdefinitionfidelity.fid_a.uses_g USING btree (id ASC)
 : string
 | PRIMARY KEY
 : null
@@ -7819,6 +8073,13 @@
 | fid_a
 : string
 | parents
+: int64 0
+: null
+< row
+: string
+| fid_a
+: string
+| uses_g
 : int64 0
 : null
 > query
@@ -7957,6 +8218,60 @@
 < column "function_name" "NAME"
 < column "function_signature" "TEXT"
 < column "definition" "TEXT"
+< row
+: string
+| Fid Mixed
+: string
+| f
+: string
+| f()
+: string
+| CREATE FUNCTION "Fid Mixed".f()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_a.g();
+| $$
+< row
+: string
+| fid_a
+: string
+| f
+: string
+| f()
+: string
+| CREATE FUNCTION fid_a.f()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 1;
+| $$
+< row
+: string
+| fid_a
+: string
+| g
+: string
+| g()
+: string
+| CREATE FUNCTION fid_a.g()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_a.f();
+| $$
 > query
 |
 | 		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,

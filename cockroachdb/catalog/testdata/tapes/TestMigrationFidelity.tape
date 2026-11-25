@@ -6026,6 +6026,15 @@
 | CREATE TABLE fid_v.keep (id INT8 PRIMARY KEY);
 < ok 0 -
 > exec
+| CREATE FUNCTION fid_v.callee() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 2 $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.caller() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_v.callee() $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.count_old_caller() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_v.count_old() $$;
+< ok 0 -
+> exec
 | ALTER TABLE fid_v.items ADD COLUMN doubled DECIMAL AS (price * 2) VIRTUAL;
 < ok 0 -
 > exec
@@ -7221,6 +7230,42 @@
 : string
 | fid_v
 : string
+| callee
+: string
+| callee()
+: string
+| CREATE FUNCTION fid_v.callee()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 2;
+| $$
+< row
+: string
+| fid_v
+: string
+| caller
+: string
+| caller()
+: string
+| CREATE FUNCTION fid_v.caller()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_v.callee();
+| $$
+< row
+: string
+| fid_v
+: string
 | count_items
 : string
 | count_items()
@@ -7252,6 +7297,24 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT count(*) FROM omni_testmigrationfidelity.fid_v.items;
+| $$
+< row
+: string
+| fid_v
+: string
+| count_old_caller
+: string
+| count_old_caller()
+: string
+| CREATE FUNCTION fid_v.count_old_caller()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_v.count_old();
 | $$
 < row
 : string
@@ -7409,6 +7472,15 @@
 < ok 0 -
 > exec
 | CREATE TABLE fid_v.keep (id INT8 PRIMARY KEY, x INT8 DEFAULT fid_v.colfn());
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.callee() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.caller() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_v.callee() $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.count_old_caller() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_v.count_old() $$;
 < ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
@@ -8777,6 +8849,42 @@
 : string
 | fid_v
 : string
+| callee
+: string
+| callee()
+: string
+| CREATE FUNCTION fid_v.callee()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 1;
+| $$
+< row
+: string
+| fid_v
+: string
+| caller
+: string
+| caller()
+: string
+| CREATE FUNCTION fid_v.caller()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_v.callee();
+| $$
+< row
+: string
+| fid_v
+: string
 | colfn
 : string
 | colfn()
@@ -8826,6 +8934,24 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT count(*) FROM omni_testmigrationfidelity.fid_v.old_items;
+| $$
+< row
+: string
+| fid_v
+: string
+| count_old_caller
+: string
+| count_old_caller()
+: string
+| CREATE FUNCTION fid_v.count_old_caller()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_v.count_old();
 | $$
 < row
 : string
@@ -8974,13 +9100,10 @@
 | DROP INDEX "fid_v"."totals"@"totals_name_idx";
 < ok 0 -
 > exec
-| DROP FUNCTION "fid_v"."add"(int8, int8);
-< ok 0 -
-> exec
 | DROP FUNCTION "fid_v"."colfn"();
 < ok 0 -
 > exec
-| DROP FUNCTION "fid_v"."count_items"();
+| DROP FUNCTION "fid_v"."count_old_caller"();
 < ok 0 -
 > exec
 | DROP FUNCTION "fid_v"."count_old"();
@@ -9031,7 +9154,7 @@
 | ALTER TABLE "fid_v"."items" ADD COLUMN "doubled" numeric AS (price * 2) VIRTUAL;
 < ok 0 -
 > exec
-| CREATE FUNCTION fid_v.add(a INT8, b INT8)
+| CREATE OR REPLACE FUNCTION fid_v.add(a INT8, b INT8)
 | 	RETURNS INT8
 | 	IMMUTABLE
 | 	NOT LEAKPROOF
@@ -9055,6 +9178,18 @@
 | $$;
 < ok 0 -
 > exec
+| CREATE OR REPLACE FUNCTION fid_v.callee()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 2;
+| $$;
+< ok 0 -
+> exec
 | CREATE FUNCTION fid_v.count_old()
 | 	RETURNS INT8
 | 	STABLE
@@ -9064,6 +9199,18 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | SELECT count(*) FROM fid_v.items;
+| $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.count_old_caller()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_v.count_old();
 | $$;
 < ok 0 -
 > exec
@@ -9079,7 +9226,7 @@
 | SELECT p.id FROM fid_v.priced AS p JOIN fid_v.items AS i ON i.id = p.id;
 < ok 0 -
 > exec
-| CREATE FUNCTION fid_v.count_items()
+| CREATE OR REPLACE FUNCTION fid_v.count_items()
 | 	RETURNS INT8
 | 	STABLE
 | 	NOT LEAKPROOF
@@ -10309,6 +10456,42 @@
 : string
 | fid_v
 : string
+| callee
+: string
+| callee()
+: string
+| CREATE FUNCTION fid_v.callee()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 2;
+| $$
+< row
+: string
+| fid_v
+: string
+| caller
+: string
+| caller()
+: string
+| CREATE FUNCTION fid_v.caller()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_v.callee();
+| $$
+< row
+: string
+| fid_v
+: string
 | count_items
 : string
 | count_items()
@@ -10340,6 +10523,24 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT count(*) FROM omni_testmigrationfidelity.fid_v.items;
+| $$
+< row
+: string
+| fid_v
+: string
+| count_old_caller
+: string
+| count_old_caller()
+: string
+| CREATE FUNCTION fid_v.count_old_caller()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_v.count_old();
 | $$
 < row
 : string
