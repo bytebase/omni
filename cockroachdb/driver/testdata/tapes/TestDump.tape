@@ -109,7 +109,8 @@
 | 	cols.collation_name,
 | 	cols.udt_schema,
 | 	cols.udt_name,
-| 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment
+| 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
+| 	cols.is_hidden
 | FROM INFORMATION_SCHEMA.COLUMNS AS cols
 | LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 | LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
@@ -130,6 +131,7 @@
 < column "udt_schema" "TEXT"
 < column "udt_name" "TEXT"
 < column "column_comment" "TEXT"
+< column "is_hidden" "TEXT"
 < row
 : string
 | app
@@ -152,6 +154,8 @@
 : string
 | int8
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -174,6 +178,8 @@
 : string
 | int8
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -197,6 +203,8 @@
 : string
 | text
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -219,6 +227,8 @@
 : string
 | int8
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -241,6 +251,8 @@
 : string
 | text
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -263,6 +275,8 @@
 : string
 | text
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -285,6 +299,8 @@
 : string
 | int8
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -308,6 +324,8 @@
 | text
 : string
 | the label
+: string
+| NO
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
@@ -887,7 +905,8 @@
 | 	cols.collation_name,
 | 	cols.udt_schema,
 | 	cols.udt_name,
-| 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment
+| 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
+| 	cols.is_hidden
 | FROM INFORMATION_SCHEMA.COLUMNS AS cols
 | LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 | LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
@@ -908,6 +927,7 @@
 < column "udt_schema" "TEXT"
 < column "udt_name" "TEXT"
 < column "column_comment" "TEXT"
+< column "is_hidden" "TEXT"
 < row
 : string
 | app
@@ -930,6 +950,8 @@
 : string
 | int8
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -952,6 +974,8 @@
 : string
 | int8
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -975,6 +999,8 @@
 : string
 | text
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -997,6 +1023,8 @@
 : string
 | int8
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -1019,6 +1047,8 @@
 : string
 | text
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -1041,6 +1071,8 @@
 : string
 | text
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -1063,6 +1095,8 @@
 : string
 | int8
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -1086,6 +1120,8 @@
 | text
 : string
 | the label
+: string
+| NO
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type

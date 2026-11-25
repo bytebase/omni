@@ -78,20 +78,20 @@ func isWalkSimStatement(stmt string) bool {
 
 var walkSimShowMissed = flag.Bool("walk-sim-missed", false, "log top missed refusal categories in TestWalkSimulation")
 
-const walkSimMinTotalRecallPct = 85.0
+const walkSimMinTotalRecallPct = 93.5
 
 var walkSimMinFixtureRecallPct = map[string]float64{
-	"one_table@missing":     88.5,
-	"one_table@table":       81.0,
-	"one_table@column":      80.0,
-	"objects@partitioned":   87.0,
+	"one_table@missing":     93.0,
+	"one_table@table":       93.5,
+	"one_table@column":      93.0,
+	"objects@partitioned":   92.0,
 	"objects@index_trigger": 91.5,
-	"objects@view":          91.5,
-	"objects@matview":       60.5,
-	"objects@sequence":      93.0,
-	"objects@synonym":       87.0,
-	"objects@function":      93.0,
-	"objects@type":          85.0,
+	"objects@view":          96.0,
+	"objects@matview":       88.5,
+	"objects@sequence":      97.0,
+	"objects@synonym":       95.5,
+	"objects@function":      97.5,
+	"objects@type":          89.5,
 }
 
 const (
@@ -446,7 +446,7 @@ const walkSimQueriesMinRecallPct = 62.0
 const walkSimProgramsSuite = "../catalog/testdata/programs/simulate.tsv"
 
 // walkSimProgramsMinRecallPct is the programs subtest's recall floor.
-const walkSimProgramsMinRecallPct = 53.0
+const walkSimProgramsMinRecallPct = 69.0
 
 // walkSimSuite holds WALK_THROUGH to one of oracle/catalog's suites as
 // TestWalkSimulation holds it to compat.tsv: no finding on a statement

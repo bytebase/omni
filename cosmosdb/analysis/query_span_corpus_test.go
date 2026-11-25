@@ -82,14 +82,14 @@ func TestAnalyzeQuerySpanCorpus(t *testing.T) {
 			name: "SELECT DISTINCT VALUE",
 			sql:  `SELECT DISTINCT VALUE c.country FROM container c`,
 			projections: []projectionWant{
-				{name: "country", paths: []string{"container.country"}},
+				{name: "", paths: []string{"container.country"}},
 			},
 		},
 		{
 			name: "SELECT VALUE with container alias",
 			sql:  `SELECT VALUE c.name FROM container c`,
 			projections: []projectionWant{
-				{name: "name", paths: []string{"container.name"}},
+				{name: "", paths: []string{"container.name"}},
 			},
 		},
 		{

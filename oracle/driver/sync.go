@@ -288,7 +288,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	if err != nil {
 		return nil, fmt.Errorf("failed to get triggers from database %q: %w", schemaName, err)
 	}
-	indexMap, checkConstraintMap, foreignKeyMap, err := getIndexesAndConstraints(txn, schemaName)
+	indexMap, otherIndexes, checkConstraintMap, foreignKeyMap, err := getIndexesAndConstraints(txn, schemaName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get indices: %w", err)
 	}
@@ -316,7 +316,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	if err != nil {
 		return nil, fmt.Errorf("failed to get routines from database %q: %w", schemaName, err)
 	}
-	materializedViews, err := getMaterializedViews(txn, schemaName, columnMap, indexMap, tableTriggerMap)
+	materializedViews, err := getMaterializedViews(txn, schemaName, columnMap, indexMap, tableTriggerMap, partitionMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get materialized views from database %q: %w", schemaName, err)
 	}
@@ -349,6 +349,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 		Procedures:        procedures,
 		Packages:          packages,
 		Synonyms:          synonyms,
+		OtherIndexes:      otherIndexes,
 	})
 	// Deep-sanitize every string field (names, definitions, defaults, …), not
 	// just comments: the go-ora driver returns wholly-unconverted raw bytes
@@ -573,10 +574,15 @@ func getTables(
 			// NUMBER in Oracle can hold 38 decimal digits, so int64 is not enough with its 19 decimal digits.
 			// float64 is a little bit better - not precise enough, but won't overflow.
 			var count sql.NullFloat64
-			if err := rows.Scan(&schemaName, &table.Name, &count); err != nil {
+			var tablespace sql.NullString
+			if err := rows.Scan(&schemaName, &table.Name, &count, &tablespace); err != nil {
 				return err
 			}
 			table.RowCount = int64(count.Float64)
+			// Oracle gives no tablespace to a partitioned, index-organized,
+			// or external table, so one says the table is a heap table of
+			// no partitions, which WALK_THROUGH reads (TestSyncTablespace).
+			table.Tablespace = tablespace.String
 			key := tableKey{Schema: schemaName, Table: table.Name}
 			table.Columns = columnMap[key]
 			table.Indexes = indexMap[key]
@@ -597,7 +603,7 @@ func getTables(
 	}
 
 	query := fmt.Sprintf(`
-		SELECT OWNER, TABLE_NAME, NUM_ROWS
+		SELECT OWNER, TABLE_NAME, NUM_ROWS, TABLESPACE_NAME
 		FROM all_tables
 		WHERE OWNER = '%s'
 		AND TABLE_NAME NOT IN (
@@ -615,7 +621,7 @@ func getTables(
 	// the plan on the owner index: without it Oracle full-scans OBJ$, which holds
 	// every schema's objects.
 	objectTableQuery := fmt.Sprintf(`
-		SELECT OWNER, TABLE_NAME, NUM_ROWS
+		SELECT OWNER, TABLE_NAME, NUM_ROWS, TABLESPACE_NAME
 		FROM all_object_tables
 		WHERE OWNER = '%s'
 		AND TABLE_NAME NOT IN (
@@ -1350,19 +1356,24 @@ func getConstraints(txn *sql.Tx, schemaName string) (
 	return indexMap, checkConstraintMap, foreignKeyMap, isConstraint, nil
 }
 
-// getIndexesAndConstraints reads the schema's indexes and their constraints.
-// An index carries no comment: Oracle names no index in its COMMENT statement,
-// and TestSyncCommentableObjects pins the refusal.
-func getIndexesAndConstraints(txn *sql.Tx, schemaName string) (map[tableKey][]*metadatapb.IndexMetadata, map[tableKey][]*metadatapb.CheckConstraintMetadata, map[tableKey][]*metadatapb.ForeignKeyMetadata, error) {
+// getIndexesAndConstraints reads the schema's indexes and their constraints:
+// the indexes of its tables by table, and the indexes it owns on another
+// schema's table or on a cluster, which are its too and no table of it holds
+// (TestSyncOtherIndexes). An index carries no comment: Oracle names no index
+// in its COMMENT statement, and TestSyncCommentableObjects pins the refusal.
+func getIndexesAndConstraints(txn *sql.Tx, schemaName string) (map[tableKey][]*metadatapb.IndexMetadata, []*metadatapb.SchemaIndexMetadata, map[tableKey][]*metadatapb.CheckConstraintMetadata, map[tableKey][]*metadatapb.ForeignKeyMetadata, error) {
 	indexMap, checkConstraintMap, foreignKeyMap, constraintIndexMap, err := getConstraints(txn, schemaName)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to get constraints: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("failed to get constraints: %w", err)
 	}
 
+	// The columns are read by the index's owner, which is the schema, so an
+	// index it owns on another schema's table has its columns, and one another
+	// schema owns on its table, which is not the schema's, has none.
 	queryColumn := fmt.Sprintf(`
-		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
+		SELECT INDEX_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
 		FROM sys.all_ind_columns
-		WHERE TABLE_OWNER = '%s'
+		WHERE INDEX_OWNER = '%s'
 		ORDER BY TABLE_NAME, INDEX_NAME, COLUMN_POSITION`, sqlLiteral(schemaName))
 
 	slog.Debug("running get index column query")
@@ -1371,14 +1382,14 @@ func getIndexesAndConstraints(txn *sql.Tx, schemaName string) (map[tableKey][]*m
 	descendingMap := make(map[indexKey][]bool)
 	colRows, err := txn.Query(queryColumn)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to execute query %q: %w", queryColumn, err)
+		return nil, nil, nil, nil, fmt.Errorf("failed to execute query %q: %w", queryColumn, err)
 	}
 	defer func() { _ = colRows.Close() }()
 	for colRows.Next() {
 		var schemaName, tableName, indexName, columnName string
 		var descend sql.NullString
 		if err := colRows.Scan(&schemaName, &tableName, &indexName, &columnName, &descend); err != nil {
-			return nil, nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 		key := indexKey{Schema: schemaName, Table: tableName, Index: indexName}
 
@@ -1392,41 +1403,41 @@ func getIndexesAndConstraints(txn *sql.Tx, schemaName string) (map[tableKey][]*m
 		descendingMap[key] = append(descendingMap[key], descend.String == "DESC")
 	}
 	if err := colRows.Err(); err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to execute query %q: %w", queryColumn, err)
+		return nil, nil, nil, nil, fmt.Errorf("failed to execute query %q: %w", queryColumn, err)
 	}
 	if err := colRows.Close(); err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to close rows: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("failed to close rows: %w", err)
 	}
 
 	queryExpression := fmt.Sprintf(`
-		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_EXPRESSION
+		SELECT INDEX_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_EXPRESSION
 		FROM sys.all_ind_expressions
-		WHERE TABLE_OWNER = '%s'
+		WHERE INDEX_OWNER = '%s'
 		ORDER BY TABLE_NAME, INDEX_NAME, COLUMN_POSITION`, sqlLiteral(schemaName))
 
 	slog.Debug("running get index expression query")
 	expRows, err := txn.Query(queryExpression)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to execute query %q: %w", queryExpression, err)
+		return nil, nil, nil, nil, fmt.Errorf("failed to execute query %q: %w", queryExpression, err)
 	}
 	defer func() { _ = expRows.Close() }()
 	for expRows.Next() {
 		var schemaName, tableName, indexName, columnExpression string
 		if err := expRows.Scan(&schemaName, &tableName, &indexName, &columnExpression); err != nil {
-			return nil, nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 		key := indexKey{Schema: schemaName, Table: tableName, Index: indexName}
 		indexExpressionMap[key] = append(indexExpressionMap[key], columnExpression)
 	}
 	if err := expRows.Err(); err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to execute query %q: %w", queryExpression, err)
+		return nil, nil, nil, nil, fmt.Errorf("failed to execute query %q: %w", queryExpression, err)
 	}
 	if err := expRows.Close(); err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to close rows: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("failed to close rows: %w", err)
 	}
 
 	query := fmt.Sprintf(`
-		SELECT OWNER, TABLE_NAME, INDEX_NAME, UNIQUENESS, INDEX_TYPE, VISIBILITY
+		SELECT OWNER, TABLE_OWNER, TABLE_NAME, TABLE_TYPE, INDEX_NAME, UNIQUENESS, INDEX_TYPE, VISIBILITY
 		FROM sys.all_indexes
 		WHERE OWNER = '%s'
 		ORDER BY TABLE_NAME, INDEX_NAME`, sqlLiteral(schemaName))
@@ -1434,16 +1445,17 @@ func getIndexesAndConstraints(txn *sql.Tx, schemaName string) (map[tableKey][]*m
 	slog.Debug("running get index query")
 	rows, err := txn.Query(query)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to execute query %q: %w", query, err)
+		return nil, nil, nil, nil, fmt.Errorf("failed to execute query %q: %w", query, err)
 	}
 	defer func() { _ = rows.Close() }()
+	var otherIndexes []*metadatapb.SchemaIndexMetadata
 	for rows.Next() {
 		index := &metadatapb.IndexMetadata{}
-		var schemaName, tableName, unique string
+		var schemaName, tableOwner, tableName, tableType, unique string
 		var visibility sql.NullString
 		// INDEX_TYPE is NORMAL, or FUNCTION-BASED NORMAL.
-		if err := rows.Scan(&schemaName, &tableName, &index.Name, &unique, &index.Type, &visibility); err != nil {
-			return nil, nil, nil, err
+		if err := rows.Scan(&schemaName, &tableOwner, &tableName, &tableType, &index.Name, &unique, &index.Type, &visibility); err != nil {
+			return nil, nil, nil, nil, err
 		}
 		key := indexKey{Schema: schemaName, Table: tableName, Index: index.Name}
 		constraint, isConstraintIndex := constraintIndexMap[key]
@@ -1522,17 +1534,72 @@ func getIndexesAndConstraints(txn *sql.Tx, schemaName string) (map[tableKey][]*m
 			index.Visible = false
 		}
 
+		// An index on another schema's table, or on a cluster (TABLE_TYPE
+		// CLUSTER), is the schema's and on none of its tables.
+		if tableOwner != schemaName || tableType != "TABLE" {
+			otherIndexes = append(otherIndexes, &metadatapb.SchemaIndexMetadata{Schema: tableOwner, Table: tableName, Index: index})
+			continue
+		}
 		table := tableKey{Schema: schemaName, Table: tableName}
 		indexMap[table] = append(indexMap[table], index)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to execute query %q: %w", query, err)
+		return nil, nil, nil, nil, fmt.Errorf("failed to execute query %q: %w", query, err)
 	}
 	if err := rows.Close(); err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to close rows: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("failed to close rows: %w", err)
 	}
 
-	return indexMap, checkConstraintMap, foreignKeyMap, nil
+	// ALL_INDEXES lists no cluster's index, even to its owner, where
+	// ALL_OBJECTS and ALL_IND_COLUMNS do (TestSyncOtherIndexes), so the
+	// schema's indexes ALL_INDEXES leaves out are read from those.
+	queryHidden := fmt.Sprintf(`
+		SELECT o.OBJECT_NAME, c.TABLE_OWNER, c.TABLE_NAME, k.CLUSTER_NAME
+		FROM sys.all_objects o
+		LEFT JOIN (
+			SELECT DISTINCT INDEX_NAME, TABLE_OWNER, TABLE_NAME
+			FROM sys.all_ind_columns
+			WHERE INDEX_OWNER = '%[1]s'
+		) c ON c.INDEX_NAME = o.OBJECT_NAME
+		LEFT JOIN sys.all_clusters k ON k.OWNER = c.TABLE_OWNER AND k.CLUSTER_NAME = c.TABLE_NAME
+		WHERE o.OWNER = '%[1]s' AND o.OBJECT_TYPE = 'INDEX'
+		AND o.OBJECT_NAME NOT IN (SELECT INDEX_NAME FROM sys.all_indexes WHERE OWNER = '%[1]s')
+		ORDER BY o.OBJECT_NAME`, sqlLiteral(schemaName))
+	slog.Debug("running get hidden index query")
+	hiddenRows, err := txn.Query(queryHidden)
+	if err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("failed to execute query %q: %w", queryHidden, err)
+	}
+	defer func() { _ = hiddenRows.Close() }()
+	for hiddenRows.Next() {
+		var name string
+		var tableOwner, tableName, cluster sql.NullString
+		if err := hiddenRows.Scan(&name, &tableOwner, &tableName, &cluster); err != nil {
+			return nil, nil, nil, nil, err
+		}
+		if strings.HasPrefix(name, "SYS_") {
+			continue
+		}
+		index := &metadatapb.IndexMetadata{Name: name, Visible: true}
+		if cluster.Valid {
+			index.Type = "CLUSTER"
+		}
+		for _, col := range indexColumnMap[indexKey{Schema: schemaName, Table: tableName.String, Index: name}] {
+			index.Expressions = append(index.Expressions, fmt.Sprintf(`"%s"`, col))
+		}
+		otherIndexes = append(otherIndexes, &metadatapb.SchemaIndexMetadata{Schema: tableOwner.String, Table: tableName.String, Index: index})
+	}
+	if err := hiddenRows.Err(); err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("failed to execute query %q: %w", queryHidden, err)
+	}
+	if err := hiddenRows.Close(); err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("failed to close rows: %w", err)
+	}
+	slices.SortFunc(otherIndexes, func(a, b *metadatapb.SchemaIndexMetadata) int {
+		return strings.Compare(a.Index.Name, b.Index.Name)
+	})
+
+	return indexMap, otherIndexes, checkConstraintMap, foreignKeyMap, nil
 }
 
 // getViews gets all views of a database.
@@ -1681,7 +1748,7 @@ func getAllMaterializedViewDependencies(txn *sql.Tx, schemaName string) (map[tab
 }
 
 // getMaterializedViews gets all materialized views of a database.
-func getMaterializedViews(txn *sql.Tx, schemaName string, columnMap map[tableKey][]*metadatapb.ColumnMetadata, indexMap map[tableKey][]*metadatapb.IndexMetadata, triggerMap map[tableKey][]*metadatapb.TriggerMetadata) ([]*metadatapb.MaterializedViewMetadata, error) {
+func getMaterializedViews(txn *sql.Tx, schemaName string, columnMap map[tableKey][]*metadatapb.ColumnMetadata, indexMap map[tableKey][]*metadatapb.IndexMetadata, triggerMap map[tableKey][]*metadatapb.TriggerMetadata, partitionMap map[tableKey][]*metadatapb.TablePartitionMetadata) ([]*metadatapb.MaterializedViewMetadata, error) {
 	var materializedViews []*metadatapb.MaterializedViewMetadata
 
 	// Get materialized view comments
@@ -1690,11 +1757,14 @@ func getMaterializedViews(txn *sql.Tx, schemaName string, columnMap map[tableKey
 		return nil, fmt.Errorf("failed to get materialized view comments: %w", err)
 	}
 
+	// The container table has the view's name; ALL_TABLES gives its
+	// tablespace as it gives a table's.
 	query := fmt.Sprintf(`
-		SELECT OWNER, MVIEW_NAME, QUERY, BUILD_MODE, REFRESH_METHOD, REFRESH_MODE
-		FROM sys.all_mviews
-		WHERE OWNER = '%s'
-		ORDER BY MVIEW_NAME
+		SELECT m.OWNER, m.MVIEW_NAME, m.QUERY, m.BUILD_MODE, m.REFRESH_METHOD, m.REFRESH_MODE, t.TABLESPACE_NAME
+		FROM sys.all_mviews m
+		LEFT JOIN sys.all_tables t ON t.OWNER = m.OWNER AND t.TABLE_NAME = m.MVIEW_NAME
+		WHERE m.OWNER = '%s'
+		ORDER BY m.MVIEW_NAME
 	`, sqlLiteral(schemaName))
 
 	slog.Debug("running get materialized views query")
@@ -1707,10 +1777,13 @@ func getMaterializedViews(txn *sql.Tx, schemaName string, columnMap map[tableKey
 	for rows.Next() {
 		materializedView := &metadatapb.MaterializedViewMetadata{}
 		var schemaName string
-		var buildMode, refreshMethod, refreshMode sql.NullString
-		if err := rows.Scan(&schemaName, &materializedView.Name, &materializedView.Definition, &buildMode, &refreshMethod, &refreshMode); err != nil {
+		var buildMode, refreshMethod, refreshMode, tablespace sql.NullString
+		if err := rows.Scan(&schemaName, &materializedView.Name, &materializedView.Definition, &buildMode, &refreshMethod, &refreshMode, &tablespace); err != nil {
 			return nil, err
 		}
+		// As a table's: Oracle gives no tablespace to a partitioned or
+		// index-organized container (TestSyncMaterializedViewTablespace).
+		materializedView.Tablespace = tablespace.String
 		materializedView.Definition = sanitizeOracleDefinition(
 			schemaName,
 			"MATERIALIZED VIEW",
@@ -1731,11 +1804,12 @@ func getMaterializedViews(txn *sql.Tx, schemaName string, columnMap map[tableKey
 		if comment, ok := materializedViewCommentMap[key]; ok {
 			materializedView.Comment = comment
 		}
-		// Columns, indexes and triggers are the container table's, which has
-		// the view's name.
+		// Columns, indexes, triggers and partitions are the container
+		// table's, which has the view's name.
 		materializedView.Columns = columnMap[key]
 		materializedView.Indexes = indexMap[key]
 		materializedView.Triggers = triggerMap[key]
+		materializedView.Partitions = partitionMap[key]
 
 		materializedViews = append(materializedViews, materializedView)
 	}

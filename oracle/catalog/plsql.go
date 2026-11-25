@@ -130,7 +130,8 @@ func (c *plChecker) readVia(name, target string) {
 // unit compiles a CREATE statement's unit.
 func (c *plChecker) unit(n ast.Node) {
 	// A GOTO may name a label anywhere in the unit; the checker does not
-	// hold it to the label's scope.
+	// hold it to the label's scope. A declaration out of order is a syntax
+	// error, which Oracle reports before anything it would compile.
 	ast.Inspect(n, func(x ast.Node) bool {
 		switch x := x.(type) {
 		case *ast.PLSQLLabeledStatement:
@@ -139,8 +140,11 @@ func (c *plChecker) unit(n ast.Node) {
 			}
 		case *ast.PLSQLBlock:
 			c.labels[x.Label] = true
+			c.declarationOrder(x.Declarations)
 		case *ast.PLSQLLoop:
 			c.labels[x.Label] = true
+		case *ast.CreatePackageStmt:
+			c.declarationOrder(x.Body)
 		}
 		return true
 	})
@@ -157,6 +161,9 @@ func (c *plChecker) unit(n ast.Node) {
 			c.packageBody(n)
 		} else {
 			c.declarations(n.Body)
+		}
+		if n.EndName != "" && n.EndName != c.name {
+			c.fail("PLS-00113", "END identifier '%s' must match '%s'", n.EndName, c.name)
 		}
 	case *ast.CreateTriggerStmt:
 		c.trigger(n)
@@ -213,6 +220,28 @@ func (c *plChecker) subprogram(params *ast.List, ret *ast.TypeName, body ast.Stm
 
 // declarations compiles a declarative part: a block's, or a package
 // spec's or body's.
+// declarationOrder fails a declaration section that declares an item, a
+// type or an exception after a subprogram's body: past the first body only
+// cursors, subprograms and pragmas follow (PLS-00103; the declare_section
+// diagram's item_list_2).
+func (c *plChecker) declarationOrder(list *ast.List) {
+	defined := false
+	for _, item := range listItems(list) {
+		switch d := item.(type) {
+		case *ast.CreateProcedureStmt:
+			defined = defined || d.Body != nil
+		case *ast.CreateFunctionStmt:
+			defined = defined || d.Body != nil
+		case *ast.PLSQLCursorDecl, *ast.PLSQLPragma:
+		default:
+			if defined {
+				c.fail("PLS-00103", "a declaration follows a subprogram body")
+				return
+			}
+		}
+	}
+}
+
 func (c *plChecker) declarations(list *ast.List) {
 	for _, item := range listItems(list) {
 		c.declaration(item)

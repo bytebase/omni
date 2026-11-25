@@ -969,20 +969,13 @@ func TestMetadataMigration(t *testing.T) {
 	}
 }
 
-// syncedSnapshotGaps lists, by fixture and snapshot, the tables Bytebase's OceanBase sync reports
+// syncedSnapshotGaps lists, by fixture and snapshot, the tables oceanbase/driver's sync reports
 // in a form LoadMetadata cannot install as defined. A listed table that installs fails,
 // so a sync fix removes its entry.
-var syncedSnapshotGaps = map[string][]string{
-	// Index key parts name the hidden columns OceanBase builds the index on.
-	"FULLTEXT and SPATIAL indexes (old)":               {"table:articles", "table:locations"},
-	"Reverse: Drop FULLTEXT and SPATIAL indexes (new)": {"table:articles", "table:locations"},
-	"JSON columns and functional indexes (old)":        {"table:products"},
-	"Reverse: Drop JSON columns and indexes (new)":     {"table:products"},
-}
+var syncedSnapshotGaps = map[string][]string{}
 
-// loadSyncedFixture is loadMetadataFixture for a snapshot synced from OceanBase. Events
-// stand in by name, since the sync never reads their definition, and the tables
-// syncedSnapshotGaps lists under label (the fixture's description and which
+// loadSyncedFixture is loadMetadataFixture for a snapshot synced from OceanBase. The
+// tables syncedSnapshotGaps lists under label (the fixture's description and which
 // snapshot) must degrade.
 func loadSyncedFixture(t *testing.T, label string, m map[string]any) *Catalog {
 	t.Helper()
@@ -1000,7 +993,7 @@ func loadSyncedFixtureInto(t *testing.T, label string, meta *metadata.DatabaseSc
 	}
 	gaps := syncedSnapshotGaps[label]
 	for key := range report.Degraded {
-		if !strings.HasPrefix(key, "event:") && !slices.Contains(gaps, key) {
+		if !slices.Contains(gaps, key) {
 			t.Errorf("%s did not load as defined: %v", key, report.Degraded[key])
 		}
 	}

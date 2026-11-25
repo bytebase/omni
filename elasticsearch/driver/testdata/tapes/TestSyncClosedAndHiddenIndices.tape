@@ -29,3 +29,7 @@
 | {"method":"GET","route":"/_cat/indices?format=json\u0026pretty"}
 < raw
 | {"status":200,"contentType":"application/json","body":"[{\"index\":\"alpha\",\"docs.count\":\"0\",\"store.size\":\"227b\"},{\"index\":\"beta\",\"docs.count\":\"0\",\"store.size\":\"227b\"},{\"index\":\"closed-index\",\"docs.count\":\"\",\"store.size\":\"\"}]"}
+> raw
+| {"method":"GET","route":"/_alias"}
+< raw
+| {"status":200,"contentType":"application/json","body":"{\".security-7\":{\"aliases\":{\".security\":{}}},\"alpha\":{\"aliases\":{}},\"beta\":{\"aliases\":{}},\"closed-index\":{\"aliases\":{}},\"hidden-one\":{\"aliases\":{}}}"}

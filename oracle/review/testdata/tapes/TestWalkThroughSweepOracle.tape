@@ -2192,16 +2192,19 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP1'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP1' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP1'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP1' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | C
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP1' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -2253,7 +2256,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP1' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP1' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -2281,11 +2284,13 @@
 | U
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP1' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP1' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | C
@@ -2293,6 +2298,10 @@
 | CK
 : string
 | NORMAL
+: string
+| SHOP1
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP1' ORDER BY 1
 < result
@@ -11168,11 +11177,12 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP1'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP1' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP1'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP1' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP1' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -11208,7 +11218,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP1' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP1' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -11229,11 +11239,13 @@
 | O
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP1' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP1' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP1' ORDER BY 1
 < result
@@ -54593,11 +54605,12 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP1'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP1' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP1'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP1' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP1' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -54617,7 +54630,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP1' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP1' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -54630,11 +54643,13 @@
 < column "CONSTRAINT_TYPE" "NCHAR" "string"
 < column "SEARCH_CONDITION_VC" "NCHAR" "string"
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP1' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP1' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP1' ORDER BY 1
 < result
@@ -72487,11 +72502,12 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SHOP1'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SHOP1' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SHOP1'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SHOP1' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SHOP1' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -72511,7 +72527,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SHOP1' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SHOP1' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -72524,11 +72540,13 @@
 < column "CONSTRAINT_TYPE" "NCHAR" "string"
 < column "SEARCH_CONDITION_VC" "NCHAR" "string"
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SHOP1' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SHOP1' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SHOP1' ORDER BY 1
 < result

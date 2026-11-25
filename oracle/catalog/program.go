@@ -400,22 +400,31 @@ func (e *oracleMetadataExtractor) checkTrigger(n *ast.CreateTriggerStmt) bool {
 			}
 		}
 	}
-	// An INSTEAD OF trigger is a row trigger whether or not it says so.
-	if !n.ForEachRow && !n.Compound && n.Timing != ast.TRIGGER_INSTEAD_OF {
-		if n.When != nil {
-			e.setError(oraError("04077", "WHEN clause cannot be used with table level triggers"))
-			return false
-		}
-		if triggerReadsRow(n) {
-			e.setError(oraError("04082", "NEW or OLD references not allowed in table level triggers"))
-			return false
-		}
-	}
-	if n.ForEachRow && (n.Timing == ast.TRIGGER_AFTER || onlyDelete(n)) && triggerSetsNew(n) {
-		e.setError(oraError("04084", "cannot change NEW values for this trigger type"))
+	if err := TriggerFormError(n); err != nil {
+		e.setError(err)
 		return false
 	}
 	return true
+}
+
+// TriggerFormError returns the error Oracle refuses a DML trigger with for
+// what the statement itself says, whatever the schema holds: a WHEN clause
+// or a :NEW or :OLD reference in a statement trigger (04077, 04082), and an
+// assignment to :NEW in an AFTER or DELETE row trigger (04084).
+func TriggerFormError(n *ast.CreateTriggerStmt) *Error {
+	// An INSTEAD OF trigger is a row trigger whether or not it says so.
+	if !n.ForEachRow && !n.Compound && n.Timing != ast.TRIGGER_INSTEAD_OF {
+		if n.When != nil {
+			return oraError("04077", "WHEN clause cannot be used with table level triggers")
+		}
+		if triggerReadsRow(n) {
+			return oraError("04082", "NEW or OLD references not allowed in table level triggers")
+		}
+	}
+	if n.ForEachRow && (n.Timing == ast.TRIGGER_AFTER || onlyDelete(n)) && triggerSetsNew(n) {
+		return oraError("04084", "cannot change NEW values for this trigger type")
+	}
+	return nil
 }
 
 // triggerTable is the table or view a trigger is on.

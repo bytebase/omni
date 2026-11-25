@@ -1,7 +1,9 @@
 package analysis
 
 import (
+	"bytes"
 	"encoding/json"
+	"net/url"
 	"slices"
 	"strings"
 )
@@ -17,7 +19,7 @@ func analyzeRequestBody(body string) *RequestAnalysis {
 	}
 
 	result.BlockedFeatures = detectBlockedFeatures(parsed)
-	extractSource(parsed, result)
+	extractSource(body, parsed, result)
 	result.RequestedFields = extractStringArray(parsed, "fields")
 	result.HighlightFields = extractHighlightFields(parsed)
 	result.SortFields = extractSortFields(parsed)
@@ -57,7 +59,7 @@ func detectBlockedFeatures(parsed map[string]any) []BlockedFeature {
 }
 
 // extractSource handles the three forms of _source in the request body.
-func extractSource(parsed map[string]any, result *RequestAnalysis) {
+func extractSource(body string, parsed map[string]any, result *RequestAnalysis) {
 	src, ok := parsed["_source"]
 	if !ok {
 		return
@@ -68,16 +70,107 @@ func extractSource(parsed map[string]any, result *RequestAnalysis) {
 		if !v {
 			result.SourceDisabled = true
 		}
+	case string:
+		result.SourceFields = []string{v}
 	case []any:
 		result.SourceFields = toStringSlice(v)
 	case map[string]any:
-		if includes, ok := v["includes"]; ok {
-			if arr, ok := includes.([]any); ok {
-				result.SourceFields = toStringSlice(arr)
-			}
-		}
+		result.SourceFields, result.SourceExcludes = sourceObject(body)
 	default:
 	}
+}
+
+// sourceObject reads a _source object's include and exclude lists from the
+// body as written. Each spelling (includes or include, excludes or exclude)
+// sets its list, so the last one written wins, as Elasticsearch's
+// FetchSourceContext parses it; a generic decode loses the keys' order.
+func sourceObject(body string) (includes, excludes []string) {
+	var top struct {
+		Source json.RawMessage `json:"_source"`
+	}
+	if json.Unmarshal([]byte(body), &top) != nil {
+		return nil, nil
+	}
+	decoder := json.NewDecoder(bytes.NewReader(top.Source))
+	if tok, err := decoder.Token(); err != nil || tok != json.Delim('{') {
+		return nil, nil
+	}
+	for decoder.More() {
+		tok, err := decoder.Token()
+		if err != nil {
+			return includes, excludes
+		}
+		key, _ := tok.(string)
+		var value any
+		if err := decoder.Decode(&value); err != nil {
+			return includes, excludes
+		}
+		switch key {
+		case "includes", "include":
+			includes = stringOrList(value)
+		case "excludes", "exclude":
+			excludes = stringOrList(value)
+		}
+	}
+	return includes, excludes
+}
+
+// stringOrList reads a _source filter value: one field or a list of them.
+func stringOrList(v any) []string {
+	switch v := v.(type) {
+	case string:
+		return []string{v}
+	case []any:
+		return toStringSlice(v)
+	default:
+		return nil
+	}
+}
+
+// sourceParams reads the URL's _source filtering, which Elasticsearch takes on
+// every API that returns a document: _source (true, false or a
+// comma-separated include list), _source_includes and _source_excludes. When
+// the URL holds any of them, they replace the body's _source.
+func sourceParams(query string, result *RequestAnalysis) {
+	values, err := url.ParseQuery(query)
+	if err != nil {
+		return
+	}
+	// A repeated parameter keeps its last value, as Elasticsearch's
+	// RestUtils.decodeQueryString overwrites the earlier ones.
+	list := func(key string) []string {
+		v := values[key]
+		if len(v) == 0 {
+			return nil
+		}
+		var out []string
+		for field := range strings.SplitSeq(v[len(v)-1], ",") {
+			if field != "" {
+				out = append(out, field)
+			}
+		}
+		return out
+	}
+	_, source := values["_source"]
+	_, includes := values["_source_includes"]
+	_, excludes := values["_source_excludes"]
+	if !source && !includes && !excludes {
+		return
+	}
+	result.SourceDisabled, result.SourceFields, result.SourceExcludes = false, nil, nil
+	if v := values["_source"]; len(v) > 0 {
+		switch v[len(v)-1] {
+		case "false":
+			result.SourceDisabled = true
+		case "true", "":
+		default:
+			result.SourceFields = list("_source")
+		}
+	}
+	if includes {
+		result.SourceFields = list("_source_includes")
+	}
+	result.SourceExcludes = list("_source_excludes")
 }
 
 // extractStringArray extracts a string array value from a top-level key.

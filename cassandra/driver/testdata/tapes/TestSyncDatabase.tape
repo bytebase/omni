@@ -105,3 +105,7 @@
 | {"op":"query","statement":"\n\t\tSELECT\n\t\t\ttable_name,\n\t\t\tcomment\n\t\tFROM system_schema.tables\n\t\tWHERE keyspace_name = 'omni_driver'\n\t\tORDER BY table_name\n\t"}
 < raw
 | {"columns":[{"name":"table_name","type":13},{"name":"comment","type":13}],"rowColumns":["table_name","comment"],"rows":[[{"kind":"string","text":"omni_events"},{"kind":"string"}],[{"kind":"string","text":"omni_nulls"},{"kind":"string"}],[{"kind":"string","text":"omni_rows"},{"kind":"string"}],[{"kind":"string","text":"omni_types"},{"kind":"string"}]]}
+> raw
+| {"op":"query","statement":"\n\t\tSELECT\n\t\t\tview_name,\n\t\t\tbase_table_name\n\t\tFROM system_schema.views\n\t\tWHERE keyspace_name = 'omni_driver'\n\t\tORDER BY view_name\n\t"}
+< raw
+| {"columns":[{"name":"view_name","type":13},{"name":"base_table_name","type":13}]}

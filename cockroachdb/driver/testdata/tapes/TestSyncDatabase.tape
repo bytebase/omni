@@ -49,6 +49,10 @@
 | COMMENT ON TABLE app.orders IS 'an order';
 | CREATE INDEX orders_customer_idx ON app.orders (customer_id);
 |
+| -- No primary key: CockroachDB adds a hidden rowid, which the sync marks
+| -- invisible.
+| CREATE TABLE audit.events (at TIMESTAMPTZ, note STRING);
+|
 | CREATE VIEW app.customer_orders AS
 |     SELECT c.id, c.name, o.id AS order_id, o.amount
 |     FROM app.customer AS c JOIN app.orders AS o ON o.customer_id = c.id;
@@ -148,7 +152,8 @@
 | 	cols.collation_name,
 | 	cols.udt_schema,
 | 	cols.udt_name,
-| 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment
+| 	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
+| 	cols.is_hidden
 | FROM INFORMATION_SCHEMA.COLUMNS AS cols
 | LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 | LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
@@ -169,6 +174,7 @@
 < column "udt_schema" "TEXT"
 < column "udt_name" "TEXT"
 < column "column_comment" "TEXT"
+< column "is_hidden" "TEXT"
 < row
 : string
 | app
@@ -192,6 +198,8 @@
 : string
 | int8
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -214,6 +222,8 @@
 : string
 | int8
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -237,6 +247,8 @@
 | text
 : string
 | login
+: string
+| NO
 < row
 : string
 | app
@@ -261,6 +273,8 @@
 : string
 | varchar
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -284,6 +298,8 @@
 : string
 | mood
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -306,6 +322,8 @@
 : string
 | address
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -329,6 +347,8 @@
 : string
 | _text
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -352,6 +372,8 @@
 : string
 | numeric
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -374,6 +396,8 @@
 : string
 | float8
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -396,6 +420,8 @@
 : string
 | int2
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -419,6 +445,8 @@
 : string
 | timestamptz
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -441,6 +469,8 @@
 : string
 | int8
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -464,6 +494,8 @@
 : string
 | varchar
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -486,6 +518,8 @@
 : string
 | int8
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -508,6 +542,8 @@
 : string
 | numeric
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -530,6 +566,8 @@
 : string
 | int8
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -552,6 +590,8 @@
 : string
 | numeric
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -575,6 +615,8 @@
 : string
 | int8
 : null
+: string
+| YES
 < row
 : string
 | app
@@ -597,6 +639,8 @@
 : string
 | int8
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -619,6 +663,8 @@
 : string
 | int8
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -641,6 +687,8 @@
 : string
 | numeric
 : null
+: string
+| NO
 < row
 : string
 | app
@@ -663,6 +711,81 @@
 : string
 | timestamp
 : null
+: string
+| NO
+< row
+: string
+| audit
+: string
+| events
+: string
+| at
+: string
+| timestamp with time zone
+: null
+: null
+: null
+: int64 1
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| timestamptz
+: null
+: string
+| NO
+< row
+: string
+| audit
+: string
+| events
+: string
+| note
+: string
+| text
+: null
+: null
+: null
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: string
+| NO
+< row
+: string
+| audit
+: string
+| events
+: string
+| rowid
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 3
+: string
+| unique_rowid()
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| YES
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
@@ -776,6 +899,18 @@
 | primary
 : string
 | CREATE UNIQUE INDEX "primary" ON omni_testsyncdatabase.audit.big_seq USING btree (value ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| audit
+: string
+| events
+: string
+| events_pkey
+: string
+| CREATE UNIQUE INDEX events_pkey ON omni_testsyncdatabase.audit.events USING btree (rowid ASC)
 : string
 | PRIMARY KEY
 : null
@@ -920,6 +1055,13 @@
 : int64 0
 : string
 | an order
+< row
+: string
+| audit
+: string
+| events
+: int64 0
+: null
 > query
 |
 | SELECT

@@ -86,11 +86,12 @@ func tablePath(schema, name string) string { return walk.Path(schema, name) }
 // of a space: tables and materialized views, views, sequences, and
 // functions, procedures, and packages, whose source ALL_SOURCE holds; the
 // columns of a table whose columns it lists in full; whether a table has a
-// primary key; and the synonyms a name resolves through, the schema's and
-// the public ones. Constraint names, indexes, and triggers it lists only
-// in part, and the object namespace holds types and other objects the
-// sync does not list, so their absence is Unknown. Anything of another
-// schema is Unknown.
+// primary key; the synonyms a name resolves through, the schema's and
+// the public ones; and the schema's indexes, where the sync lists those it
+// owns on no table of its own too (indexesListed). Constraint names and
+// triggers it lists only in part, and the object namespace holds types and
+// other objects the sync does not list, so their absence is Unknown.
+// Anything of another schema is Unknown.
 type oracleSnapshot struct {
 	schema  string
 	objects map[string]string
@@ -111,6 +112,14 @@ type oracleSnapshot struct {
 	indexTypes        map[string]string
 	constraintIndexes map[string]bool
 	triggers          map[string]string
+	// otherIndexes maps an index the schema owns on another schema's
+	// table, or on a cluster, to the path of what it is on.
+	// indexesListed is set when the sync lists every index the schema
+	// owns, so that a name none holds is no index: a sync that lists
+	// those indexes gives a heap table or materialized view its
+	// tablespace too, and one of an older driver does neither.
+	otherIndexes  map[string]string
+	indexesListed bool
 	// domainTables holds the tables and materialized views with a domain
 	// index, and domainIndexes those indexes: an indextype's code runs on
 	// the table's DDL and DML, and can create and drop tables of its own,
@@ -140,7 +149,16 @@ type syncedCol struct {
 type syncedTable struct {
 	mview    bool
 	skipDump bool
-	columns  map[string]bool
+	// heap is set when the sync gives the table a tablespace, which Oracle
+	// gives no partitioned, index-organized, external, or temporary table
+	// (ALL_TABLES.TABLESPACE_NAME is null for each): the table is a heap
+	// table of no partitions. A materialized view's are its container's,
+	// which a sync gives it from this driver on; partsSynced is set when
+	// the partitions are a sync's: always for a table, and for a
+	// materialized view only when it has a tablespace or partitions.
+	heap        bool
+	partsSynced bool
+	columns     map[string]bool
 	// complete is set when the sync lists every column of the table.
 	complete    bool
 	primary     bool
@@ -204,6 +222,7 @@ func newOracleSnapshot(db *metadata.DatabaseSchemaMetadata) *oracleSnapshot {
 		indexTypes:           make(map[string]string),
 		constraintIndexes:    make(map[string]bool),
 		triggers:             make(map[string]string),
+		otherIndexes:         make(map[string]string),
 		domainTables:         make(map[string]bool),
 		domainIndexes:        make(map[string]bool),
 		synonyms:             make(map[string]bool),
@@ -239,6 +258,9 @@ func newOracleSnapshot(db *metadata.DatabaseSchemaMetadata) *oracleSnapshot {
 				s.logs = append(s.logs, t.GetName())
 			}
 			s.partitionsOf(st, t.GetPartitions())
+			st.heap = t.GetTablespace() != "" && len(t.GetPartitions()) == 0
+			st.partsSynced = true
+			s.indexesListed = s.indexesListed || st.heap
 			s.indexesOf(t.GetName(), st, t.GetIndexes())
 			for _, fk := range t.GetForeignKeys() {
 				st.constraints[fk.GetName()] = true
@@ -268,9 +290,16 @@ func newOracleSnapshot(db *metadata.DatabaseSchemaMetadata) *oracleSnapshot {
 			// materialized view's whatever its query names.
 			st.columnsOf(mv.GetColumns())
 			st.complete = !st.skipDump && len(st.columns) > 0
+			s.partitionsOf(st, mv.GetPartitions())
+			st.heap = mv.GetTablespace() != "" && len(mv.GetPartitions()) == 0
+			st.partsSynced = mv.GetTablespace() != "" || len(mv.GetPartitions()) > 0
+			s.indexesListed = s.indexesListed || st.heap
 			s.indexesOf(mv.GetName(), st, mv.GetIndexes())
 			s.triggersOf(mv.GetName(), mv.GetTriggers())
 			s.tables[mv.GetName()] = st
+		}
+		for _, o := range schema.GetOtherIndexes() {
+			s.otherIndexes[o.GetIndex().GetName()] = tablePath(o.GetSchema(), o.GetTable())
 		}
 		for _, seq := range schema.GetSequences() {
 			s.objects[seq.GetName()] = kindSequence
@@ -589,6 +618,14 @@ func (s *oracleSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 	case spaceIndex:
 		if table, ok := s.indexes[k.Name]; ok && !s.constraintIndexes[k.Name] {
 			return walk.Present, tablePath(s.schema, table)
+		}
+		if path, ok := s.otherIndexes[k.Name]; ok {
+			return walk.Present, path
+		}
+		// A constraint's entry may be named for the constraint or for
+		// its index, and the sync leaves out the indexes Oracle names.
+		if s.indexesListed && !s.constraintIndexes[k.Name] && !generated(spaceIndex, k.Name) {
+			return walk.Absent, ""
 		}
 	case spaceTrigger:
 		if table, ok := s.triggers[k.Name]; ok {

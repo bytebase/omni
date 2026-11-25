@@ -2527,12 +2527,12 @@
 | VIRTUAL_UK_IDX
 > query
 |
-| 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
+| 		SELECT INDEX_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
 | 		FROM sys.all_ind_columns
-| 		WHERE TABLE_OWNER = 'OMNI_APP'
+| 		WHERE INDEX_OWNER = 'OMNI_APP'
 | 		ORDER BY TABLE_NAME, INDEX_NAME, COLUMN_POSITION
 < result
-< column "TABLE_OWNER" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -2715,12 +2715,12 @@
 | ASC
 > query
 |
-| 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_EXPRESSION
+| 		SELECT INDEX_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_EXPRESSION
 | 		FROM sys.all_ind_expressions
-| 		WHERE TABLE_OWNER = 'OMNI_APP'
+| 		WHERE INDEX_OWNER = 'OMNI_APP'
 | 		ORDER BY TABLE_NAME, INDEX_NAME, COLUMN_POSITION
 < result
-< column "TABLE_OWNER" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_EXPRESSION" "LONG"
@@ -2744,13 +2744,15 @@
 | UPPER("EMAIL")
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, INDEX_NAME, UNIQUENESS, INDEX_TYPE, VISIBILITY
+| 		SELECT OWNER, TABLE_OWNER, TABLE_NAME, TABLE_TYPE, INDEX_NAME, UNIQUENESS, INDEX_TYPE, VISIBILITY
 | 		FROM sys.all_indexes
 | 		WHERE OWNER = 'OMNI_APP'
 | 		ORDER BY TABLE_NAME, INDEX_NAME
 < result
 < column "OWNER" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
+< column "TABLE_TYPE" "CHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "UNIQUENESS" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
@@ -2759,7 +2761,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | CHILD
+: string
+| TABLE
 : string
 | CHILD_PARENT_IDX
 : string
@@ -2772,7 +2778,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | CHILD
+: string
+| TABLE
 : string
 | CHILD_PK
 : string
@@ -2785,7 +2795,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | COMPOSITE
+: string
+| TABLE
 : string
 | COMPOSITE_C_UK
 : string
@@ -2798,7 +2812,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | COMPOSITE
+: string
+| TABLE
 : string
 | COMPOSITE_PK
 : string
@@ -2811,7 +2829,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | HIDDEN_IDX
+: string
+| TABLE
 : string
 | HIDDEN_IDX_PK_IDX
 : string
@@ -2824,7 +2846,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | IDENT
+: string
+| TABLE
 : string
 | IDENT_PK
 : string
@@ -2837,7 +2863,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | PARENT
+: string
+| TABLE
 : string
 | PARENT_NAME_UK
 : string
@@ -2850,7 +2880,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | PARENT
+: string
+| TABLE
 : string
 | PARENT_PK
 : string
@@ -2863,7 +2897,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | PARENT
+: string
+| TABLE
 : string
 | PARENT_UPPER_NAME_IDX
 : string
@@ -2876,7 +2914,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | PARENT_MV
+: string
+| TABLE
 : string
 | SYS_C_SNAP$_9000014PARENT_PK
 : string
@@ -2889,7 +2931,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | REUSED
+: string
+| TABLE
 : string
 | REUSED_CODE_IDX
 : string
@@ -2902,7 +2948,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | REUSED
+: string
+| TABLE
 : string
 | REUSED_ID_IDX
 : string
@@ -2915,7 +2965,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | TYPES
+: string
+| TABLE
 : string
 | TYPES_PK
 : string
@@ -2928,7 +2982,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | UNNAMED_UK
+: string
+| TABLE
 : string
 | SYS_C9000019
 : string
@@ -2941,7 +2999,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | VIRTUAL_UK
+: string
+| TABLE
 : string
 | VIRTUAL_UK_IDX
 : string
@@ -2950,6 +3012,24 @@
 | FUNCTION-BASED NORMAL
 : string
 | VISIBLE
+> query
+|
+| 		SELECT o.OBJECT_NAME, c.TABLE_OWNER, c.TABLE_NAME, k.CLUSTER_NAME
+| 		FROM sys.all_objects o
+| 		LEFT JOIN (
+| 			SELECT DISTINCT INDEX_NAME, TABLE_OWNER, TABLE_NAME
+| 			FROM sys.all_ind_columns
+| 			WHERE INDEX_OWNER = 'OMNI_APP'
+| 		) c ON c.INDEX_NAME = o.OBJECT_NAME
+| 		LEFT JOIN sys.all_clusters k ON k.OWNER = c.TABLE_OWNER AND k.CLUSTER_NAME = c.TABLE_NAME
+| 		WHERE o.OWNER = 'OMNI_APP' AND o.OBJECT_TYPE = 'INDEX'
+| 		AND o.OBJECT_NAME NOT IN (SELECT INDEX_NAME FROM sys.all_indexes WHERE OWNER = 'OMNI_APP')
+| 		ORDER BY o.OBJECT_NAME
+< result
+< column "OBJECT_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CLUSTER_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_NAME, PARTITIONING_TYPE, SUBPARTITIONING_TYPE, INTERVAL
@@ -3025,7 +3105,7 @@
 | types the sync reads
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, NUM_ROWS
+| 		SELECT OWNER, TABLE_NAME, NUM_ROWS, TABLESPACE_NAME
 | 		FROM all_tables
 | 		WHERE OWNER = 'OMNI_APP'
 | 		AND TABLE_NAME NOT IN (
@@ -3036,81 +3116,106 @@
 < column "OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
 < column "NUM_ROWS" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | OMNI_APP
 : string
 | CHILD
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | COMPOSITE
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | DISABLED_PK
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | HIDDEN_IDX
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | IDENT
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | IDENT_DEFAULT
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | NO_CONSTRAINTS
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | PARENT
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | REUSED
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | TYPES
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | UNNAMED_UK
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | VIRTUAL_UK
 : null
+: string
+| USERS
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, NUM_ROWS
+| 		SELECT OWNER, TABLE_NAME, NUM_ROWS, TABLESPACE_NAME
 | 		FROM all_object_tables
 | 		WHERE OWNER = 'OMNI_APP'
 | 		AND TABLE_NAME NOT IN (
@@ -3121,6 +3226,7 @@
 < column "OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
 < column "NUM_ROWS" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT OWNER, TABLE_NAME, COMMENTS
@@ -3466,10 +3572,11 @@
 | the parents, kept
 > query
 |
-| 		SELECT OWNER, MVIEW_NAME, QUERY, BUILD_MODE, REFRESH_METHOD, REFRESH_MODE
-| 		FROM sys.all_mviews
-| 		WHERE OWNER = 'OMNI_APP'
-| 		ORDER BY MVIEW_NAME
+| 		SELECT m.OWNER, m.MVIEW_NAME, m.QUERY, m.BUILD_MODE, m.REFRESH_METHOD, m.REFRESH_MODE, t.TABLESPACE_NAME
+| 		FROM sys.all_mviews m
+| 		LEFT JOIN sys.all_tables t ON t.OWNER = m.OWNER AND t.TABLE_NAME = m.MVIEW_NAME
+| 		WHERE m.OWNER = 'OMNI_APP'
+| 		ORDER BY m.MVIEW_NAME
 | 	
 < result
 < column "OWNER" "NCHAR" "string"
@@ -3478,6 +3585,7 @@
 < column "BUILD_MODE" "NCHAR" "string"
 < column "REFRESH_METHOD" "NCHAR" "string"
 < column "REFRESH_MODE" "NCHAR" "string"
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | OMNI_APP
@@ -3491,6 +3599,8 @@
 | COMPLETE
 : string
 | DEMAND
+: string
+| USERS
 > query
 |
 | 		SELECT 

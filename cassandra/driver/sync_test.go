@@ -65,6 +65,32 @@ func TestSyncDatabase(t *testing.T) {
 	writeOrCompareGolden(t, filepath.Join("testdata", "sync", "database.json"), got)
 }
 
+// TestSyncDatabaseColumnOrder holds the order a synced relation's columns are
+// in to the order Cassandra's SELECT * returns them, which is the order a
+// masking policy is applied by, and a materialized view to its base table:
+// testdata/sync/column_order.json. A static column sorts after the clustering
+// columns and before every regular one, whatever their names.
+func TestSyncDatabaseColumnOrder(t *testing.T) {
+	d := openDriver(t)
+	executeCorpus(t, d, `CREATE TABLE readings (
+    sensor text,
+    day date,
+    seq int,
+    alpha text,
+    zone text STATIC,
+    beta text,
+    PRIMARY KEY ((sensor, day), seq)
+);
+CREATE MATERIALIZED VIEW readings_by_alpha AS
+    SELECT sensor, day, seq, alpha, beta FROM readings
+    WHERE alpha IS NOT NULL AND sensor IS NOT NULL AND day IS NOT NULL AND seq IS NOT NULL
+    PRIMARY KEY (alpha, sensor, day, seq);`)
+
+	got, err := d.SyncDatabase(context.Background())
+	require.NoError(t, err)
+	writeOrCompareGolden(t, filepath.Join("testdata", "sync", "column_order.json"), got)
+}
+
 // TestSyncDatabaseMissing holds a keyspace the server no longer has to
 // driver.ErrNotFound, so a keyspace dropped after the driver opened is reported
 // as gone rather than as an empty schema. A driver opened on a keyspace the

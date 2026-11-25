@@ -21,6 +21,12 @@ type ResolveOptions struct {
 	SearchPath []string
 	// Catalog reads the instance's synced metadata. GetDatabase must be set.
 	Catalog Catalog
+	// ThroughViews follows a column read from a view into the view's
+	// definition, so its lineage names the view's column and every column
+	// the definition reads for it. CockroachDB's result-set metadata names
+	// the table column behind a view's column; PostgreSQL's stops at the
+	// view.
+	ThroughViews bool
 }
 
 // ResolveQuerySpan returns the column lineage of one PostgreSQL statement.
@@ -30,7 +36,9 @@ type ResolveOptions struct {
 // Statements that are not queries return their QueryType and the tables they
 // access, with no Results.
 func ResolveQuerySpan(ctx context.Context, statement string, opts ResolveOptions) (*ResolvedSpan, error) {
-	return newQuerySpanExtractor(opts.DefaultDatabase, opts.SearchPath, opts.Catalog).getQuerySpan(ctx, statement)
+	e := newQuerySpanExtractor(opts.DefaultDatabase, opts.SearchPath, opts.Catalog)
+	e.throughViews = opts.ThroughViews
+	return e.getQuerySpan(ctx, statement)
 }
 
 // querySpanExtractor extracts query span information using the omni parser
@@ -40,6 +48,8 @@ type querySpanExtractor struct {
 	catalog         Catalog
 	defaultDatabase string
 	searchPath      []string
+	// throughViews is ResolveOptions.ThroughViews.
+	throughViews bool
 	// metaCache is a lazy-load cache for database metadata.
 	// Use getDatabaseMetadata() instead of accessing directly.
 	metaCache     map[string]Database
@@ -889,6 +899,7 @@ func (e *querySpanExtractor) resolveVar(queryStack []*catalog.Query, v *catalog.
 		if rel.RelKind == 'c' {
 			return
 		}
+		e.resolveViewColumn(rel, v.AttNum, result, visited)
 		// A whole-row reference (AttNum == 0, e.g. to_jsonb(t1)) reads every
 		// column of the relation.
 		if v.AttNum == 0 {
@@ -1024,6 +1035,27 @@ func (e *querySpanExtractor) resolveVar(queryStack []*catalog.Query, v *catalog.
 
 	default:
 		// Unknown RTE kind — skip.
+	}
+}
+
+// resolveViewColumn adds, under ThroughViews, the columns view rel's
+// definition reads for its column attNum, or for all its columns when attNum
+// is 0. A materialized view stores its rows, so its columns are its own.
+func (e *querySpanExtractor) resolveViewColumn(rel *catalog.Relation, attNum int16, result ColumnSet, visited map[queryExprKey]bool) {
+	if !e.throughViews || rel.RelKind != 'v' || rel.AnalyzedQuery == nil {
+		return
+	}
+	stack := []*catalog.Query{rel.AnalyzedQuery}
+	if attNum != 0 {
+		if te := outputColumn(rel.AnalyzedQuery, int(attNum)); te != nil {
+			e.walkExprWithVisited(stack, te.Expr, result, visited)
+		}
+		return
+	}
+	for _, te := range rel.AnalyzedQuery.TargetList {
+		if !te.ResJunk {
+			e.walkExprWithVisited(stack, te.Expr, result, visited)
+		}
 	}
 }
 

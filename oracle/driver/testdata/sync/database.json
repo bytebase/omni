@@ -78,7 +78,8 @@
               "name":  "CHILD_QTY_CK",
               "expression":  "QTY > 0"
             }
-          ]
+          ],
+          "tablespace":  "USERS"
         },
         {
           "name":  "COMPOSITE",
@@ -149,7 +150,8 @@
                 }
               ]
             }
-          ]
+          ],
+          "tablespace":  "USERS"
         },
         {
           "name":  "DISABLED_PK",
@@ -180,7 +182,8 @@
                 }
               ]
             }
-          ]
+          ],
+          "tablespace":  "USERS"
         },
         {
           "name":  "HIDDEN_IDX",
@@ -213,7 +216,8 @@
                 }
               ]
             }
-          ]
+          ],
+          "tablespace":  "USERS"
         },
         {
           "name":  "IDENT",
@@ -281,7 +285,8 @@
                 }
               ]
             }
-          ]
+          ],
+          "tablespace":  "USERS"
         },
         {
           "name":  "IDENT_DEFAULT",
@@ -304,7 +309,8 @@
               "type":  "VARCHAR2(20 BYTE)",
               "collation":  "USING_NLS_COMP"
             }
-          ]
+          ],
+          "tablespace":  "USERS"
         },
         {
           "name":  "NO_CONSTRAINTS",
@@ -322,7 +328,8 @@
               "type":  "VARCHAR2(10 BYTE)",
               "collation":  "USING_NLS_COMP"
             }
-          ]
+          ],
+          "tablespace":  "USERS"
         },
         {
           "name":  "PARENT",
@@ -404,7 +411,8 @@
               "timing":  "BEFORE EACH ROW",
               "body":  "CREATE OR REPLACE TRIGGER OMNI_APP.PARENT_TRG BEFORE INSERT ON OMNI_APP.PARENT FOR EACH ROW BEGIN NULL; END;"
             }
-          ]
+          ],
+          "tablespace":  "USERS"
         },
         {
           "name":  "REUSED",
@@ -464,7 +472,8 @@
                 }
               ]
             }
-          ]
+          ],
+          "tablespace":  "USERS"
         },
         {
           "name":  "TYPES",
@@ -614,7 +623,8 @@
               ]
             }
           ],
-          "comment":  "types the sync reads"
+          "comment":  "types the sync reads",
+          "tablespace":  "USERS"
         },
         {
           "name":  "UNNAMED_UK",
@@ -648,7 +658,8 @@
                 }
               ]
             }
-          ]
+          ],
+          "tablespace":  "USERS"
         },
         {
           "name":  "VIRTUAL_UK",
@@ -693,7 +704,8 @@
                 }
               ]
             }
-          ]
+          ],
+          "tablespace":  "USERS"
         }
       ],
       "views":  [
@@ -783,7 +795,8 @@
               "type":  "VARCHAR2(40 BYTE)",
               "collation":  "USING_NLS_COMP"
             }
-          ]
+          ],
+          "tablespace":  "USERS"
         }
       ],
       "sequences":  [

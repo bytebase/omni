@@ -648,7 +648,7 @@ func (b *builder) alterCmd(r objRef, kind string, c *ast.AlterTableCmd, declared
 		}
 		if kind == kindTable {
 			pkFact, _ := b.look(r.childKey(spacePrimary, ""))
-			if b.checkIOTPartitionClause(r, pkFact == walk.Absent && !addedPK, c.Loc, rng) {
+			if b.checkIOTPartitionClause(r, pkFact == walk.Absent && !addedPK || b.heapTable(r), c.Loc, rng) {
 				return true
 			}
 			if b.checkPartitionMeta(r, b.syncedPartMeta(r), c.Loc, rng) {
@@ -658,11 +658,21 @@ func (b *builder) alterCmd(r objRef, kind string, c *ast.AlterTableCmd, declared
 				return true
 			}
 			b.mutatePartitions(r)
+		} else if kind == kindMView {
+			// A materialized view's container takes the clauses a table
+			// does, judged by its synced partitions (syncedPartMeta).
+			if b.checkIOTPartitionClause(r, b.heapTable(r), c.Loc, rng) {
+				return true
+			}
+			if b.checkPartitionMeta(r, b.syncedPartMeta(r), c.Loc, rng) {
+				return true
+			}
+			b.mutatePartitions(r)
 		}
 	case ast.AT_MOVE:
 		if kind == kindTable {
 			pkFact, _ := b.look(r.childKey(spacePrimary, ""))
-			if b.checkIOTMoveClause(r, pkFact == walk.Absent && !addedPK, c.Loc, rng) {
+			if b.checkIOTMoveClause(r, pkFact == walk.Absent && !addedPK || b.heapTable(r), c.Loc, rng) {
 				return true
 			}
 		}
@@ -673,7 +683,7 @@ func (b *builder) alterCmd(r objRef, kind string, c *ast.AlterTableCmd, declared
 			if b.checkPartitionTextContradictions(c.Loc, r, true, rng) {
 				return true
 			}
-			if kind == kindTable {
+			if kind == kindTable || kind == kindMView {
 				if b.checkPartitionMeta(r, b.syncedPartMeta(r), c.Loc, rng) {
 					return true
 				}

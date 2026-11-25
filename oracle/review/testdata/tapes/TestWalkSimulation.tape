@@ -2733,16 +2733,19 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -2794,7 +2797,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -2822,11 +2825,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | T
@@ -2834,6 +2839,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -18952,6 +18961,21 @@
 | CREATE TABLE t (b NUMBER CONSTRAINT pk_t PRIMARY KEY, c NUMBER)
 < ok 0 0
 > exec
+| INSERT INTO t@omni_lnk.example.com VALUES (1)
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| UPDATE t@omni_lnk@omni_inst SET a = 1
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| DELETE FROM t@omni_lnk.example.com@omni_inst
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
 | INSERT INTO t (a, b) VALUES (1, 2)
 < error
 | 904 ORA-00904: "A": invalid identifier
@@ -20500,21 +20524,26 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | A
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -20598,7 +20627,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -20648,11 +20677,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | A
@@ -20660,6 +20691,10 @@
 | A_C_IDX
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 < row
 : string
 | A
@@ -20667,6 +20702,10 @@
 | PK_A
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -20674,6 +20713,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -38682,6 +38725,21 @@
 | CREATE INDEX a_c_idx ON a (c)
 < ok 0 0
 > exec
+| INSERT INTO t@omni_lnk.example.com VALUES (1)
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| UPDATE t@omni_lnk@omni_inst SET a = 1
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| DELETE FROM t@omni_lnk.example.com@omni_inst
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
 | INSERT INTO t (a, b) VALUES (1, 2)
 < error
 | 904 ORA-00904: "A": invalid identifier
@@ -40905,21 +40963,26 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | A
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -41003,7 +41066,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -41040,11 +41103,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | T
@@ -41052,6 +41117,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -58581,6 +58650,21 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, CONSTRAINT a CHECK (a > 0))
 < ok 0 0
 > exec
+| INSERT INTO t@omni_lnk.example.com VALUES (1)
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| UPDATE t@omni_lnk@omni_inst SET a = 1
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| DELETE FROM t@omni_lnk.example.com@omni_inst
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
 | INSERT INTO t (a, b) VALUES (1, 2)
 < error
 | 904 ORA-00904: "A": invalid identifier
@@ -60465,21 +60549,25 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | A
 : string
 | 0
+: null
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -60622,7 +60710,7 @@
 : string
 | NO
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -60650,11 +60738,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | T
@@ -60662,6 +60752,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -78697,6 +78791,21 @@
 | CREATE TABLE a (b NUMBER, a NUMBER, c NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (100), PARTITION a VALUES LESS THAN (200))
 < ok 0 0
 > exec
+| INSERT INTO t@omni_lnk.example.com VALUES (1)
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| UPDATE t@omni_lnk@omni_inst SET a = 1
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| DELETE FROM t@omni_lnk.example.com@omni_inst
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
 | INSERT INTO t (a, b) VALUES (1, 2)
 < error
 | 904 ORA-00904: "A": invalid identifier
@@ -80584,16 +80693,19 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -80661,7 +80773,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -80696,11 +80808,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | T
@@ -80708,6 +80822,10 @@
 | A
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -80715,6 +80833,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -98666,6 +98788,21 @@
 | CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW BEGIN NULL; END;
 < ok 0 0
 > exec
+| INSERT INTO t@omni_lnk.example.com VALUES (1)
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| UPDATE t@omni_lnk@omni_inst SET a = 1
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| DELETE FROM t@omni_lnk.example.com@omni_inst
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
 | INSERT INTO t (a, b) VALUES (1, 2)
 < ok 1 0
 > exec
@@ -100973,16 +101110,19 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -101098,7 +101238,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -101126,11 +101266,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | T
@@ -101138,6 +101280,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -117133,6 +117279,21 @@
 | CREATE VIEW a AS SELECT b, a, d FROM t
 < ok 0 0
 > exec
+| INSERT INTO t@omni_lnk.example.com VALUES (1)
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| UPDATE t@omni_lnk@omni_inst SET a = 1
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| DELETE FROM t@omni_lnk.example.com@omni_inst
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
 | INSERT INTO t (a, b) VALUES (1, 2)
 < ok 1 0
 > exec
@@ -119083,21 +119244,26 @@
 : string
 | A
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | A
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -119213,7 +119379,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -119263,11 +119429,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | A
@@ -119275,6 +119443,10 @@
 | A_D_IDX
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 < row
 : string
 | A
@@ -119282,6 +119454,10 @@
 | SYS_C_SNAP$_9000001PK_T
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 < row
 : string
 | T
@@ -119289,6 +119465,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -137975,6 +138155,21 @@
 | CREATE INDEX a_d_idx ON a (d)
 < ok 0 0
 > exec
+| INSERT INTO t@omni_lnk.example.com VALUES (1)
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| UPDATE t@omni_lnk@omni_inst SET a = 1
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| DELETE FROM t@omni_lnk.example.com@omni_inst
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
 | INSERT INTO t (a, b) VALUES (1, 2)
 < ok 1 0
 > exec
@@ -140282,16 +140477,19 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -140343,7 +140541,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -140371,11 +140569,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | T
@@ -140383,6 +140583,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -156364,6 +156568,21 @@
 | CREATE SEQUENCE a
 < ok 0 0
 > exec
+| INSERT INTO t@omni_lnk.example.com VALUES (1)
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| UPDATE t@omni_lnk@omni_inst SET a = 1
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| DELETE FROM t@omni_lnk.example.com@omni_inst
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
 | INSERT INTO t (a, b) VALUES (1, 2)
 < error
 | 904 ORA-00904: "A": invalid identifier
@@ -158248,16 +158467,19 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -158325,7 +158547,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -158353,11 +158575,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | T
@@ -158365,6 +158589,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -174817,6 +175045,21 @@
 | CREATE SYNONYM a FOR t
 < ok 0 0
 > exec
+| INSERT INTO t@omni_lnk.example.com VALUES (1)
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| UPDATE t@omni_lnk@omni_inst SET a = 1
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| DELETE FROM t@omni_lnk.example.com@omni_inst
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
 | INSERT INTO t (a, b) VALUES (1, 2)
 < ok 1 0
 > exec
@@ -176761,16 +177004,19 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -176822,7 +177068,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -176850,11 +177096,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | T
@@ -176862,6 +177110,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -192775,6 +193027,21 @@
 | CREATE FUNCTION a RETURN NUMBER IS BEGIN RETURN 1; END;
 < ok 0 0
 > exec
+| INSERT INTO t@omni_lnk.example.com VALUES (1)
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| UPDATE t@omni_lnk@omni_inst SET a = 1
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| DELETE FROM t@omni_lnk.example.com@omni_inst
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
 | INSERT INTO t (a, b) VALUES (1, 2)
 < error
 | 904 ORA-00904: "A": invalid identifier
@@ -194666,16 +194933,19 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | T
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -194727,7 +194997,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -194755,11 +195025,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | T
@@ -194767,6 +195039,10 @@
 | PK_T
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -210767,6 +211043,21 @@
 | CREATE TYPE a AS OBJECT (a NUMBER)
 < ok 0 0
 > exec
+| INSERT INTO t@omni_lnk.example.com VALUES (1)
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| UPDATE t@omni_lnk@omni_inst SET a = 1
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
+| DELETE FROM t@omni_lnk.example.com@omni_inst
+< error
+| 2019 ORA-02019: connection description for remote database not found
+|
+> exec
 | INSERT INTO t (a, b) VALUES (1, 2)
 < error
 | 904 ORA-00904: "A": invalid identifier
@@ -212651,16 +212942,19 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | A
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -212728,7 +213022,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -212763,11 +213057,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | A
@@ -212775,6 +213071,10 @@
 | A_D_IDX
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 < row
 : string
 | A
@@ -212782,6 +213082,10 @@
 | A_PK
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -214165,26 +214469,33 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | DEPT
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | EMP
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | MISC
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -214668,7 +214979,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -214752,11 +215063,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | DEPT
@@ -214764,6 +215077,10 @@
 | DEPT_PK
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 < row
 : string
 | EMP
@@ -214771,6 +215088,10 @@
 | EMP_PK
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 < row
 : string
 | MISC
@@ -214778,6 +215099,10 @@
 | MISC_PK
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 < row
 : string
 | MISC
@@ -214785,6 +215110,10 @@
 | SYS_IL9000000004C00001$$
 : string
 | LOB
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result
@@ -218660,26 +218989,33 @@
 < result
 < column "MVIEW_NAME" "NCHAR" "string"
 > query
-| SELECT table_name, 0 FROM dba_tables WHERE owner = 'SIMSHOP'
-| UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = 'SIMSHOP'
+| UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "0" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | AUDIT_LOG
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | CUSTOMERS
 : string
 | 0
+: string
+| USERS
 < row
 : string
 | ORDERS
 : string
 | 0
+: string
+| USERS
 > query
 | SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = 'SIMSHOP' AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name
 < result
@@ -218891,7 +219227,7 @@
 < column "SUBPARTITIONING_TYPE" "NCHAR" "string"
 < column "INTERVAL" "NCHAR" "string"
 > query
-| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
+| SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = 'SIMSHOP' ORDER BY c.index_name, c.column_position
 < result
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -218951,11 +219287,13 @@
 | P
 : null
 > query
-| SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
+| SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = 'SIMSHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_TYPE" "NCHAR" "string"
 < row
 : string
 | CUSTOMERS
@@ -218963,6 +219301,10 @@
 | CUSTOMERS_PK
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 < row
 : string
 | ORDERS
@@ -218970,6 +219312,10 @@
 | ORDERS_PK
 : string
 | NORMAL
+: string
+| SIMSHOP
+: string
+| TABLE
 > query
 | SELECT view_name FROM dba_views WHERE owner = 'SIMSHOP' ORDER BY 1
 < result

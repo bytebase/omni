@@ -45,6 +45,10 @@ CREATE TABLE app.orders (
 COMMENT ON TABLE app.orders IS 'an order';
 CREATE INDEX orders_customer_idx ON app.orders (customer_id);
 
+-- No primary key: CockroachDB adds a hidden rowid, which the sync marks
+-- invisible.
+CREATE TABLE audit.events (at TIMESTAMPTZ, note STRING);
+
 CREATE VIEW app.customer_orders AS
     SELECT c.id, c.name, o.id AS order_id, o.amount
     FROM app.customer AS c JOIN app.orders AS o ON o.customer_id = c.id;

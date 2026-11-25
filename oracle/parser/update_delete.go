@@ -96,7 +96,7 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 		stmt.Hints = &nodes.List{}
 		stmt.Hints.Items = append(stmt.Hints.Items, &nodes.Hint{
 			Text: p.cur.Str,
-			Loc:  nodes.Loc{Start: p.pos(), End: p.prev.End},
+			Loc:  nodes.Loc{Start: p.pos(), End: p.cur.End},
 		})
 		p.advance()
 	}
@@ -333,7 +333,7 @@ func (p *Parser) parseSetClause() (*nodes.SetClause, error) {
 	if p.cur.Type == kwDEFAULT {
 		sc.Value = &nodes.ColumnRef{
 			Column: "DEFAULT",
-			Loc:    nodes.Loc{Start: p.pos(), End: p.prev.End},
+			Loc:    nodes.Loc{Start: p.pos(), End: p.cur.End},
 		}
 		p.advance()
 	} else {
@@ -396,14 +396,13 @@ func (p *Parser) parseDMLTarget(mode dmlTargetMode) (nodes.TableExpr, error) {
 			return nil, parseErr1151
 		}
 	}
-	if p.cur.Type == '@' {
+	// A name's own link ends at its connection qualifier: Oracle takes no
+	// second one (t@l@q@x).
+	if p.cur.Type == '@' && target.Name.DBLink == "" {
 		p.advance()
-		target.Dblink, parseErr1151 = p.parseIdentifier()
+		target.Dblink, parseErr1151 = p.parseDBLinkName(p.parseIdentifier)
 		if parseErr1151 != nil {
 			return nil, parseErr1151
-		}
-		if target.Dblink == "" {
-			return nil, p.syntaxErrorAtCur()
 		}
 	}
 	if parseErr1151 = p.parseDMLTargetAlias(target); parseErr1151 != nil {
@@ -629,7 +628,7 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 		stmt.Hints = &nodes.List{}
 		stmt.Hints.Items = append(stmt.Hints.Items, &nodes.Hint{
 			Text: p.cur.Str,
-			Loc:  nodes.Loc{Start: p.pos(), End: p.prev.End},
+			Loc:  nodes.Loc{Start: p.pos(), End: p.cur.End},
 		})
 		p.advance()
 	}

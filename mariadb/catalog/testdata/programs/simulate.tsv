@@ -66,7 +66,7 @@ ok:6bb2c649e917	ok:6bb2c649e917	engine	one_table@missing	procedure:body	CREATE P
 ok:a6d696cd564e	ok:a6d696cd564e	engine	one_table@missing	procedure:body	CREATE PROCEDURE a() BEGIN PREPARE s FROM 'SELECT 1'; EXECUTE s; DEALLOCATE PREPARE s; END
 1310	1310	engine	one_table@missing	procedure:refused	CREATE PROCEDURE a() l1: BEGIN END l2
 1308	1308	engine	one_table@missing	procedure:refused	CREATE PROCEDURE a() BEGIN LEAVE nope; END
-ok	1193	engine	one_table@missing	procedure:refused	CREATE PROCEDURE a() SET zzz = 1
+1193	1193	engine	one_table@missing	procedure:refused	CREATE PROCEDURE a() SET zzz = 1
 1313	1313	engine	one_table@missing	procedure:refused	CREATE PROCEDURE a() RETURN 1
 1331	1331	engine	one_table@missing	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE x INT; DECLARE x INT; END
 1319	1319	engine	one_table@missing	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE EXIT HANDLER FOR nope COMMIT; END
@@ -322,7 +322,7 @@ ok:7a22671482d5	ok:7a22671482d5	engine	one_table@table	procedure:body	CREATE PRO
 ok:4a105bbf9f96	ok:4a105bbf9f96	engine	one_table@table	procedure:body	CREATE PROCEDURE a() BEGIN PREPARE s FROM 'SELECT 1'; EXECUTE s; DEALLOCATE PREPARE s; END
 1310	1310	engine	one_table@table	procedure:refused	CREATE PROCEDURE a() l1: BEGIN END l2
 1308	1308	engine	one_table@table	procedure:refused	CREATE PROCEDURE a() BEGIN LEAVE nope; END
-ok	1193	engine	one_table@table	procedure:refused	CREATE PROCEDURE a() SET zzz = 1
+1193	1193	engine	one_table@table	procedure:refused	CREATE PROCEDURE a() SET zzz = 1
 1313	1313	engine	one_table@table	procedure:refused	CREATE PROCEDURE a() RETURN 1
 1331	1331	engine	one_table@table	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE x INT; DECLARE x INT; END
 1319	1319	engine	one_table@table	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE EXIT HANDLER FOR nope COMMIT; END
@@ -578,7 +578,7 @@ ok:77451905bfec	ok:77451905bfec	engine	objects@routine	procedure:create	CREATE P
 1304	1304	engine	objects@routine	procedure:body	CREATE PROCEDURE a() BEGIN PREPARE s FROM 'SELECT 1'; EXECUTE s; DEALLOCATE PREPARE s; END
 1310	1310	engine	objects@routine	procedure:refused	CREATE PROCEDURE a() l1: BEGIN END l2
 1308	1308	engine	objects@routine	procedure:refused	CREATE PROCEDURE a() BEGIN LEAVE nope; END
-1304	1193	engine	objects@routine	procedure:refused	CREATE PROCEDURE a() SET zzz = 1
+1193	1193	engine	objects@routine	procedure:refused	CREATE PROCEDURE a() SET zzz = 1
 1313	1313	engine	objects@routine	procedure:refused	CREATE PROCEDURE a() RETURN 1
 1331	1331	engine	objects@routine	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE x INT; DECLARE x INT; END
 1319	1319	engine	objects@routine	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE EXIT HANDLER FOR nope COMMIT; END
@@ -834,7 +834,7 @@ ok:ae2e96f0d82e	ok:ae2e96f0d82e	engine	objects@trigger	procedure:body	CREATE PRO
 ok:64e9134af86c	ok:64e9134af86c	engine	objects@trigger	procedure:body	CREATE PROCEDURE a() BEGIN PREPARE s FROM 'SELECT 1'; EXECUTE s; DEALLOCATE PREPARE s; END
 1310	1310	engine	objects@trigger	procedure:refused	CREATE PROCEDURE a() l1: BEGIN END l2
 1308	1308	engine	objects@trigger	procedure:refused	CREATE PROCEDURE a() BEGIN LEAVE nope; END
-ok	1193	engine	objects@trigger	procedure:refused	CREATE PROCEDURE a() SET zzz = 1
+1193	1193	engine	objects@trigger	procedure:refused	CREATE PROCEDURE a() SET zzz = 1
 1313	1313	engine	objects@trigger	procedure:refused	CREATE PROCEDURE a() RETURN 1
 1331	1331	engine	objects@trigger	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE x INT; DECLARE x INT; END
 1319	1319	engine	objects@trigger	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE EXIT HANDLER FOR nope COMMIT; END
@@ -1090,7 +1090,7 @@ ok:d33222ae069b	ok:d33222ae069b	engine	objects@event	procedure:body	CREATE PROCE
 ok:fe28ce7a7150	ok:fe28ce7a7150	engine	objects@event	procedure:body	CREATE PROCEDURE a() BEGIN PREPARE s FROM 'SELECT 1'; EXECUTE s; DEALLOCATE PREPARE s; END
 1310	1310	engine	objects@event	procedure:refused	CREATE PROCEDURE a() l1: BEGIN END l2
 1308	1308	engine	objects@event	procedure:refused	CREATE PROCEDURE a() BEGIN LEAVE nope; END
-ok	1193	engine	objects@event	procedure:refused	CREATE PROCEDURE a() SET zzz = 1
+1193	1193	engine	objects@event	procedure:refused	CREATE PROCEDURE a() SET zzz = 1
 1313	1313	engine	objects@event	procedure:refused	CREATE PROCEDURE a() RETURN 1
 1331	1331	engine	objects@event	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE x INT; DECLARE x INT; END
 1319	1319	engine	objects@event	procedure:refused	CREATE PROCEDURE a() BEGIN DECLARE EXIT HANDLER FOR nope COMMIT; END

@@ -94,7 +94,7 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 		stmt.Hints = &nodes.List{}
 		stmt.Hints.Items = append(stmt.Hints.Items, &nodes.Hint{
 			Text: p.cur.Str,
-			Loc:  nodes.Loc{Start: p.pos(), End: p.prev.End},
+			Loc:  nodes.Loc{Start: p.pos(), End: p.cur.End},
 		})
 		p.advance()
 	}
@@ -163,10 +163,12 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 		}
 	}
 
-	if p.cur.Type == '@' {
+	// A name's own link ends at its connection qualifier: Oracle takes no
+	// second one (t@l@q@x).
+	if p.cur.Type == '@' && (stmt.Table == nil || stmt.Table.DBLink == "") {
 		p.advance()
 		var parseErr777 error
-		stmt.Dblink, parseErr777 = p.parseIdentifier()
+		stmt.Dblink, parseErr777 = p.parseDBLinkName(p.parseIdentifier)
 		if parseErr777 !=
 
 			// Optional alias

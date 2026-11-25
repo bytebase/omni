@@ -1046,12 +1046,12 @@
 | UK_VIRTUAL_IDX
 > query
 |
-| 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
+| 		SELECT INDEX_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
 | 		FROM sys.all_ind_columns
-| 		WHERE TABLE_OWNER = 'OMNI_APP'
+| 		WHERE INDEX_OWNER = 'OMNI_APP'
 | 		ORDER BY TABLE_NAME, INDEX_NAME, COLUMN_POSITION
 < result
-< column "TABLE_OWNER" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_NAME" "NCHAR" "string"
@@ -1179,12 +1179,12 @@
 | ASC
 > query
 |
-| 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_EXPRESSION
+| 		SELECT INDEX_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_EXPRESSION
 | 		FROM sys.all_ind_expressions
-| 		WHERE TABLE_OWNER = 'OMNI_APP'
+| 		WHERE INDEX_OWNER = 'OMNI_APP'
 | 		ORDER BY TABLE_NAME, INDEX_NAME, COLUMN_POSITION
 < result
-< column "TABLE_OWNER" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_EXPRESSION" "LONG"
@@ -1217,13 +1217,15 @@
 | UPPER("EMAIL")
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, INDEX_NAME, UNIQUENESS, INDEX_TYPE, VISIBILITY
+| 		SELECT OWNER, TABLE_OWNER, TABLE_NAME, TABLE_TYPE, INDEX_NAME, UNIQUENESS, INDEX_TYPE, VISIBILITY
 | 		FROM sys.all_indexes
 | 		WHERE OWNER = 'OMNI_APP'
 | 		ORDER BY TABLE_NAME, INDEX_NAME
 < result
 < column "OWNER" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
+< column "TABLE_TYPE" "CHAR" "string"
 < column "INDEX_NAME" "NCHAR" "string"
 < column "UNIQUENESS" "NCHAR" "string"
 < column "INDEX_TYPE" "NCHAR" "string"
@@ -1232,7 +1234,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | PK_AUTO
+: string
+| TABLE
 : string
 | PK_AUTO_PK
 : string
@@ -1245,7 +1251,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | PK_DESC
+: string
+| TABLE
 : string
 | PK_DESC_IDX
 : string
@@ -1258,7 +1268,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | PK_INVISIBLE
+: string
+| TABLE
 : string
 | PK_INVISIBLE_IDX
 : string
@@ -1271,7 +1285,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | PK_REUSED
+: string
+| TABLE
 : string
 | PK_REUSED_IDX
 : string
@@ -1284,7 +1302,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | SHARED
+: string
+| TABLE
 : string
 | SHARED_IDX
 : string
@@ -1297,7 +1319,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | UK_AUTO
+: string
+| TABLE
 : string
 | UK_AUTO_UK
 : string
@@ -1310,7 +1336,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | UK_EXPRESSION
+: string
+| TABLE
 : string
 | UK_EXPRESSION_IDX
 : string
@@ -1323,7 +1353,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | UK_REUSED
+: string
+| TABLE
 : string
 | UK_REUSED_IDX
 : string
@@ -1336,7 +1370,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | UK_UNNAMED
+: string
+| TABLE
 : string
 | SYS_C9000009
 : string
@@ -1349,7 +1387,11 @@
 : string
 | OMNI_APP
 : string
+| OMNI_APP
+: string
 | UK_VIRTUAL
+: string
+| TABLE
 : string
 | UK_VIRTUAL_IDX
 : string
@@ -1358,6 +1400,24 @@
 | FUNCTION-BASED NORMAL
 : string
 | VISIBLE
+> query
+|
+| 		SELECT o.OBJECT_NAME, c.TABLE_OWNER, c.TABLE_NAME, k.CLUSTER_NAME
+| 		FROM sys.all_objects o
+| 		LEFT JOIN (
+| 			SELECT DISTINCT INDEX_NAME, TABLE_OWNER, TABLE_NAME
+| 			FROM sys.all_ind_columns
+| 			WHERE INDEX_OWNER = 'OMNI_APP'
+| 		) c ON c.INDEX_NAME = o.OBJECT_NAME
+| 		LEFT JOIN sys.all_clusters k ON k.OWNER = c.TABLE_OWNER AND k.CLUSTER_NAME = c.TABLE_NAME
+| 		WHERE o.OWNER = 'OMNI_APP' AND o.OBJECT_TYPE = 'INDEX'
+| 		AND o.OBJECT_NAME NOT IN (SELECT INDEX_NAME FROM sys.all_indexes WHERE OWNER = 'OMNI_APP')
+| 		ORDER BY o.OBJECT_NAME
+< result
+< column "OBJECT_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CLUSTER_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_NAME, PARTITIONING_TYPE, SUBPARTITIONING_TYPE, INTERVAL
@@ -1392,7 +1452,7 @@
 < column "COMMENTS" "NCHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, NUM_ROWS
+| 		SELECT OWNER, TABLE_NAME, NUM_ROWS, TABLESPACE_NAME
 | 		FROM all_tables
 | 		WHERE OWNER = 'OMNI_APP'
 | 		AND TABLE_NAME NOT IN (
@@ -1403,75 +1463,98 @@
 < column "OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
 < column "NUM_ROWS" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 < row
 : string
 | OMNI_APP
 : string
 | PK_AUTO
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | PK_DESC
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | PK_DISABLED
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | PK_INVISIBLE
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | PK_REUSED
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | SHARED
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | UK_AUTO
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | UK_EXPRESSION
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | UK_REUSED
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | UK_UNNAMED
 : null
+: string
+| USERS
 < row
 : string
 | OMNI_APP
 : string
 | UK_VIRTUAL
 : null
+: string
+| USERS
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, NUM_ROWS
+| 		SELECT OWNER, TABLE_NAME, NUM_ROWS, TABLESPACE_NAME
 | 		FROM all_object_tables
 | 		WHERE OWNER = 'OMNI_APP'
 | 		AND TABLE_NAME NOT IN (
@@ -1482,6 +1565,7 @@
 < column "OWNER" "NCHAR" "string"
 < column "TABLE_NAME" "NCHAR" "string"
 < column "NUM_ROWS" "NUMBER" "float64" precision 38 scale 255
+< column "TABLESPACE_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT OWNER, TABLE_NAME, COMMENTS
@@ -1628,10 +1712,11 @@
 < column "COMMENTS" "NCHAR" "string"
 > query
 |
-| 		SELECT OWNER, MVIEW_NAME, QUERY, BUILD_MODE, REFRESH_METHOD, REFRESH_MODE
-| 		FROM sys.all_mviews
-| 		WHERE OWNER = 'OMNI_APP'
-| 		ORDER BY MVIEW_NAME
+| 		SELECT m.OWNER, m.MVIEW_NAME, m.QUERY, m.BUILD_MODE, m.REFRESH_METHOD, m.REFRESH_MODE, t.TABLESPACE_NAME
+| 		FROM sys.all_mviews m
+| 		LEFT JOIN sys.all_tables t ON t.OWNER = m.OWNER AND t.TABLE_NAME = m.MVIEW_NAME
+| 		WHERE m.OWNER = 'OMNI_APP'
+| 		ORDER BY m.MVIEW_NAME
 | 	
 < result
 < column "OWNER" "NCHAR" "string"
@@ -1640,6 +1725,7 @@
 < column "BUILD_MODE" "NCHAR" "string"
 < column "REFRESH_METHOD" "NCHAR" "string"
 < column "REFRESH_MODE" "NCHAR" "string"
+< column "TABLESPACE_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT 

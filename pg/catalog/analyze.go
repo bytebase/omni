@@ -846,11 +846,14 @@ func (ac *analyzeCtx) transformRangeVar(rv *nodes.RangeVar) (JoinNode, error) {
 		eref = alias
 	}
 
-	colNames := make([]string, len(rel.Columns))
-	colTypes := make([]uint32, len(rel.Columns))
-	colTypMods := make([]int32, len(rel.Columns))
-	colCollations := make([]uint32, len(rel.Columns))
-	for i, col := range rel.Columns {
+	// A hidden column is not among the entry's columns, so * and a join
+	// leave it out; systemColumnVar resolves its name.
+	columns := rel.Columns[:visibleColumns(rel)]
+	colNames := make([]string, len(columns))
+	colTypes := make([]uint32, len(columns))
+	colTypMods := make([]int32, len(columns))
+	colCollations := make([]uint32, len(columns))
+	for i, col := range columns {
 		colNames[i] = col.Name
 		colTypes[i] = col.TypeOID
 		colTypMods[i] = col.TypeMod
@@ -2558,17 +2561,43 @@ func SystemColumnName(attNum int16) string {
 	return ""
 }
 
-// systemColumnVar returns the Var of system column name of range table
-// entry rtIdx, when it is a relation that has system columns (not a view or
-// a composite type) and has no column of its own of that name.
+// visibleColumns returns how many of rel's columns a range table entry for
+// it lists: all but the hidden columns that end it.
+func visibleColumns(rel *Relation) int {
+	n := len(rel.Columns)
+	for n > 0 && rel.Columns[n-1].Hidden {
+		n--
+	}
+	return n
+}
+
+// hiddenColumn reports whether rel's column colIdx (0-based) is hidden.
+func hiddenColumn(rel *Relation, colIdx int) bool {
+	return rel != nil && colIdx < len(rel.Columns) && colIdx >= visibleColumns(rel)
+}
+
+// systemColumnVar returns the Var of hidden or system column name of range
+// table entry rtIdx, when it is a relation that has one of that name (a
+// system column only for a relation that has them, not a view or a
+// composite type) and no column of its own of that name.
 //
 // pg: src/backend/parser/parse_relation.c — scanRTEForColumn
 func (ac *analyzeCtx) systemColumnVar(rtIdx int, name string) *VarExpr {
 	rte := ac.query.RangeTable[rtIdx]
-	if !ac.systemColumns || rte.Kind != RTERelation || slices.Contains(rte.ColNames, name) {
+	if rte.Kind != RTERelation || slices.Contains(rte.ColNames, name) {
 		return nil
 	}
 	rel := ac.catalog.relationByOID[rte.RelOID]
+	if rel != nil && len(rte.ColNames) == visibleColumns(rel) {
+		for i := len(rte.ColNames); i < len(rel.Columns); i++ {
+			if col := rel.Columns[i]; col.Name == name {
+				return &VarExpr{RangeIdx: rtIdx, AttNum: int16(i + 1), TypeOID: col.TypeOID, TypeMod: col.TypeMod, Collation: col.Collation}
+			}
+		}
+	}
+	if !ac.systemColumns {
+		return nil
+	}
 	if rel == nil || rel.RelKind == 'v' || rel.RelKind == 'c' {
 		return nil
 	}

@@ -139,7 +139,8 @@ or the `ORA-nnnnn` of a SQL statement in it. The catalog compiles a unit's
 names in `../plsql*.go` and keeps each unit's status, first error and what it
 reads in `../program.go`; `ExecResult` stays error-free for a unit Oracle
 creates `INVALID`. It reports only the errors the rows pin (`PLS-00049`,
-`00201`, `00302`, `00306`, `00323`, `00363`, `00372`, `00428`, `00503`,
+`00103` for a declaration after a subprogram body, `00113` for a package's
+`END` name, `00201`, `00302`, `00306`, `00323`, `00363`, `00372`, `00428`, `00503`,
 `00539`, `00590`, and `ORA-00904`, `00913`, `00942`, `00947` in static SQL) and
 takes a name it cannot place, such as another schema's or a public synonym's,
 as resolving. A change marks `INVALID` the units that read what it changed, as
@@ -148,19 +149,17 @@ modifying a column a unit names (not adding one, nor changing another),
 replacing a procedure, or a function under other parameters, and replacing a
 spec, which leaves its own body `INVALID` but not the spec's callers.
 
-**266 / 274 rows (97.08%) agree.** The 8 that do not:
+**268 / 274 rows (97.81%) agree** (up from 266 / 274 when the suite was
+first recorded). The 6 that do not:
 
 - `CREATE PROCEDURE p IS BEGIN NULL END;` and `CREATE TABLE` inside a body:
   omni's parser refuses the statement, and Oracle creates the unit `INVALID`
   with `PLS-00103`.
-- A variable declared after a local subprogram's body: Oracle reports
-  `PLS-00103`, and omni's parser takes the order.
 - `nope_pkg.p` and `g_missing.y`: the catalog takes an unknown first part as
-  another schema's or a public synonym's (Oracle: `PLS-00201`).
+  another schema's or a public synonym's (Oracle: `PLS-00201`), as it knows
+  neither the other users nor the public synonyms.
 - `RETURN 1` in a function returning `DATE`: the catalog checks no types
   (Oracle: `PLS-00382`).
-- `END nope;` closing package `p2`: the AST keeps no `END` label (Oracle:
-  `PLS-00113`).
 - `CREATE TABLE pts (p nope_type)`: the catalog takes an unknown column type,
   as a catalog loaded from metadata holds no types (Oracle: `ORA-00902`).
 

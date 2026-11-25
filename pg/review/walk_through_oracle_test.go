@@ -966,7 +966,14 @@ var relationWords = []string{"Table ", "View ", "Materialized view ", "Index ", 
 
 // walkStates lists the SQLSTATEs a finding's message stands for. A DROP
 // of an index that does not exist is 42704, a COMMENT on one 42P01.
+// catalogState reads the SQLSTATE of a refusal the walk took from
+// pg/catalog.
+var catalogState = regexp.MustCompile(`^PostgreSQL refuses this statement: .* \(SQLSTATE ([0-9A-Z]{5})\)\.$`)
+
 func walkStates(msg string) []string {
+	if c := catalogState.FindStringSubmatch(msg); c != nil {
+		return []string{c[1]}
+	}
 	relationWord := slices.ContainsFunc(relationWords, func(w string) bool { return strings.HasPrefix(msg, w) })
 	switch {
 	case strings.HasPrefix(msg, "The name ") && strings.HasSuffix(msg, " is already taken."),

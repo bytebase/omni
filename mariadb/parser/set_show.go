@@ -623,16 +623,22 @@ func (p *Parser) parseSetVariableAssignment(start int, scope string) (*nodes.Ass
 		return nil, err
 	}
 
+	// LEX::set_variable looks a bare name up among the stored program's variables first, and
+	// reads one it doesn't declare as a system variable (sql_lex.cc, mariadb-11.8.8).
+	sysvar := scope == "" && col.Table == "" && !strings.HasPrefix(col.Column, "@") &&
+		p.spChecks() && !p.routine.sp.hasVar(col.Column)
+
 	val, err := p.parseSetValue(col, scope)
 	if err != nil {
 		return nil, err
 	}
 
 	return &nodes.Assignment{
-		Loc:    nodes.Loc{Start: start, End: p.prev.End},
-		Scope:  scope,
-		Column: col,
-		Value:  val,
+		Loc:            nodes.Loc{Start: start, End: p.prev.End},
+		Scope:          scope,
+		Column:         col,
+		Value:          val,
+		SystemVariable: sysvar,
 	}, nil
 }
 

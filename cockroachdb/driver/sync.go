@@ -634,7 +634,8 @@ SELECT
 	cols.collation_name,
 	cols.udt_schema,
 	cols.udt_name,
-	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment
+	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
+	cols.is_hidden
 FROM INFORMATION_SCHEMA.COLUMNS AS cols
 LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')` + fmt.Sprintf(`
@@ -654,9 +655,13 @@ func getTableColumns(txn *sql.Tx) (map[tableKey][]*metadatapb.ColumnMetadata, er
 		var schemaName, tableName, nullable string
 		var characterMaxLength, defaultStr, collation, udtSchema, udtName, comment sql.NullString
 		var numericPrecision, numericScale sql.NullInt64
-		if err := rows.Scan(&schemaName, &tableName, &column.Name, &column.Type, &characterMaxLength, &numericPrecision, &numericScale, &column.Position, &defaultStr, &nullable, &collation, &udtSchema, &udtName, &comment); err != nil {
+		var hidden string
+		if err := rows.Scan(&schemaName, &tableName, &column.Name, &column.Type, &characterMaxLength, &numericPrecision, &numericScale, &column.Position, &defaultStr, &nullable, &collation, &udtSchema, &udtName, &comment, &hidden); err != nil {
 			return nil, err
 		}
+		// A hidden column, such as the rowid CockroachDB adds to a table with
+		// no primary key, is one * leaves out.
+		column.IsInvisible = hidden == "YES"
 		if defaultStr.Valid {
 			// Store in Default field (migration from DefaultExpression to Default)
 			column.Default = defaultStr.String

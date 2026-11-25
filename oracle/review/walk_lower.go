@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/oracle/ast"
+	"github.com/bytebase/omni/oracle/catalog"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
 )
@@ -876,7 +877,7 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 				if b.checkCreateIndexType(v, t, nil, r.rng) {
 					return true
 				}
-				if b.checkCreateIndexLocal(v, t, nil, r.rng) {
+				if b.checkCreateIndexLocal(v, t, b.syncedPartMeta(t), r.rng) {
 					return true
 				}
 			}
@@ -1729,7 +1730,7 @@ func (b *builder) alterMaterializedView(v *ast.AlterMaterializedViewStmt) bool {
 						}
 						if sr, _, sok := b.resolveSynonymTable(v.Name, r); sok {
 							pkFact, _ := b.look(sr.childKey(spacePrimary, ""))
-							if b.checkIOTPartitionClause(sr, pkFact == walk.Absent, partLoc, r.rng) {
+							if b.checkIOTPartitionClause(sr, pkFact == walk.Absent || b.heapTable(sr), partLoc, r.rng) {
 								return true
 							}
 							if b.checkPartitionMeta(sr, b.syncedPartMeta(sr), partLoc, r.rng) {
@@ -1766,9 +1767,9 @@ func (b *builder) alterMaterializedView(v *ast.AlterMaterializedViewStmt) bool {
 				if b.checkPartitionTextContradictions(partLoc, r, false, r.rng) {
 					return true
 				}
-				if kind == kindTable {
+				if kind == kindTable || kind == kindMView {
 					pkFact, _ := b.look(r.childKey(spacePrimary, ""))
-					if b.checkIOTPartitionClause(r, pkFact == walk.Absent, partLoc, r.rng) {
+					if b.checkIOTPartitionClause(r, kind == kindTable && pkFact == walk.Absent || b.heapTable(r), partLoc, r.rng) {
 						return true
 					}
 					if b.checkPartitionMeta(r, b.syncedPartMeta(r), partLoc, r.rng) {
@@ -1788,6 +1789,18 @@ func (b *builder) alterMaterializedView(v *ast.AlterMaterializedViewStmt) bool {
 		if f, kind := b.look(k); f == walk.Present && kind == kindTable {
 			b.need(k, walk.Present, []string{kindMView}, r.rng, "", wrongKind(r.written, kindTable, kindWord(kindMView)))
 			return true
+		}
+		// A heap container of no partitions takes no partitioning clause,
+		// and no OVERFLOW clause, which only an index-organized one has.
+		// INCLUDING OVERFLOW with no column between is accepted (verified).
+		if b.heapTable(r) && v.Name.Loc.End > 0 && v.Name.Loc.End < v.Loc.End {
+			loc := ast.Loc{Start: v.Name.Loc.End, End: v.Loc.End}
+			if v.Action == "PARTITION" && b.checkPartitionMeta(r, b.syncedPartMeta(r), loc, r.rng) {
+				return true
+			}
+			if tokWord(tokens(b.w.sql, loc), 0, "OVERFLOW") && b.checkIOTPartitionClause(r, true, loc, r.rng) {
+				return true
+			}
 		}
 	}
 	b.exists(k, []string{kindMView}, v.IfExists, r.rng, missingKind(kindMView, r.written), wrongKind(r.written, kindTable, kindWord(kindMView)))
@@ -1837,8 +1850,11 @@ func (b *builder) alterSequence(v *ast.AlterSequenceStmt) bool {
 // createTrigger follows CREATE [OR REPLACE] TRIGGER of a DML or INSTEAD OF
 // trigger: the name must be free among the schema's triggers (04081), and
 // OR REPLACE refuses another table's trigger (04095) (verified). The table
-// follows synonyms, so a missing one claims nothing. A trigger on SCHEMA
-// or DATABASE ends the walk.
+// must be one, a view, or a synonym (00942); an INSTEAD OF trigger takes no
+// table (25002); and oracle/catalog's TriggerFormError holds what the
+// statement says of its row (04077, 04082, 04084). Under IF NOT EXISTS an
+// existing trigger makes it a no-op, so none of these is claimed. A trigger
+// on SCHEMA or DATABASE ends the walk.
 func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 	if !dmlTrigger(v) {
 		return false
@@ -1862,7 +1878,15 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 		}
 	}
 	if !v.IfNotExists {
+		if err := catalog.TriggerFormError(v); err != nil {
+			b.fail(r.rng, review.UnsupportedForm, "Oracle refuses the trigger: ORA-"+err.Code+": "+err.Message+".")
+			return true
+		}
+		b.missingTarget(v.Table, t)
 		if f, kind := b.look(t.key(spaceTable)); f == walk.Present && kind == kindTable {
+			if v.Timing == ast.TRIGGER_INSTEAD_OF {
+				b.Fail([]walk.Key{t.key(spaceTable)}, walk.Present, noteOf(t.rng, review.UnsupportedForm, "Oracle refuses the trigger: ORA-25002: cannot create INSTEAD OF triggers on tables."))
+			}
 			b.checkTriggerUpdateOf(v, t)
 		}
 	}

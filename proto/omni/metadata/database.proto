@@ -193,6 +193,23 @@ message SchemaMetadata {
   // ... AS RANGE). A server creates the type's constructor functions and, from
   // PostgreSQL 14, its multirange type itself, so neither is in the lists here.
   repeated RangeTypeMetadata range_types = 20;
+
+  // The list of indexes the schema owns that are on none of its tables or
+  // materialized views (Oracle): an index on another schema's table, and a
+  // cluster index, whose type is CLUSTER.
+  repeated SchemaIndexMetadata other_indexes = 21;
+}
+
+// SchemaIndexMetadata is an index a schema owns on an object the schema's
+// tables and materialized views do not hold.
+message SchemaIndexMetadata {
+  // The schema of the table or cluster the index is on.
+  string schema = 1;
+
+  // The table or cluster the index is on.
+  string table = 2;
+
+  IndexMetadata index = 3;
 }
 
 // RangeTypeMetadata is a range type over a subtype (PostgreSQL CREATE TYPE
@@ -1031,6 +1048,13 @@ message MaterializedViewMetadata {
   // The ordered list of columns in the materialized view (Oracle and
   // PostgreSQL), with their types as the engine derived them.
   repeated ColumnMetadata columns = 8;
+
+  // The tablespace of the materialized view's container (Oracle), which
+  // Oracle gives no partitioned or index-organized container.
+  string tablespace = 9;
+
+  // The list of partitions of the materialized view's container (Oracle).
+  repeated TablePartitionMetadata partitions = 10;
 }
 
 message DependencyTable {

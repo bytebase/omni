@@ -1260,6 +1260,10 @@ type Assignment struct {
 	// CharsetForm is set for SET NAMES and the charset forms, where Column holds the form's word
 	// (NAMES, COLLATE or CHARACTER SET) and names no variable.
 	CharsetForm bool
+	// SystemVariable is set on a SET of a bare name inside a stored program that no variable or
+	// parameter of the program declares. MariaDB reads the name as a system variable while it
+	// parses the program, and refuses one the server does not have (1193).
+	SystemVariable bool
 }
 
 func (a *Assignment) nodeTag() {}

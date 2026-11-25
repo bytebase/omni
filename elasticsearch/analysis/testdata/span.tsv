@@ -1,0 +1,215 @@
+# pin: driver docker.elastic.co/elasticsearch/elasticsearch:8.19.25 sha256:5bfdf4313b9bc05c0d46fe219d6e67710eb0c7654ed6c275167bdf9beefc56f0 8.19.25
+# columns: omni, expected, source, fixture, session, aspect, statement
+address.city, address.zip, age, email, name, ssn, tags	address.city, address.zip, age, email, name, ssn, tags	engine	shop	elastic	results	GET /users/_search
+users.address.city | users.address.zip | users.age | users.email | users.name | users.ssn | users.tags	users.address.city ~ | users.address.zip ~ | users.age ~ | users.email ~ | users.name ~ | users.ssn ~ | users.tags ~	engine	shop	elastic	lineage	GET /users/_search
+users	users	engine	shop	elastic	tables	GET /users/_search
+address.city, address.zip, age, email, name, ssn, tags	address.city, address.zip, age, email, name, ssn, tags	engine	shop	elastic	results	POST /users/_search {"query":{"match_all":{}}}
+users.address.city | users.address.zip | users.age | users.email | users.name | users.ssn | users.tags	users.address.city ~ | users.address.zip ~ | users.age ~ | users.email ~ | users.name ~ | users.ssn ~ | users.tags ~	engine	shop	elastic	lineage	POST /users/_search {"query":{"match_all":{}}}
+users	users	engine	shop	elastic	tables	POST /users/_search {"query":{"match_all":{}}}
+items.qty, items.sku, order_id, total, user_email	items.qty, items.sku, order_id, total, user_email	engine	shop	elastic	results	GET /orders/_search
+orders.items.qty | orders.items.sku | orders.order_id | orders.total | orders.user_email	orders.items.qty ~ | orders.items.sku ~ | orders.order_id ~ | orders.total ~ | orders.user_email ~	engine	shop	elastic	lineage	GET /orders/_search
+orders	orders	engine	shop	elastic	tables	GET /orders/_search
+items.qty, items.sku, order_id, total, user_email	items.qty, items.sku, order_id, total, user_email	engine	shop	elastic	results	POST /orders/_search {"size":5}
+orders.items.qty | orders.items.sku | orders.order_id | orders.total | orders.user_email	orders.items.qty ~ | orders.items.sku ~ | orders.order_id ~ | orders.total ~ | orders.user_email ~	engine	shop	elastic	lineage	POST /orders/_search {"size":5}
+orders	orders	engine	shop	elastic	tables	POST /orders/_search {"size":5}
+archived_at, email, name	archived_at, email, name	engine	shop	elastic	results	GET /users_archive/_search
+users_archive.archived_at | users_archive.email | users_archive.name	users_archive.archived_at ~ | users_archive.email ~ | users_archive.name ~	engine	shop	elastic	lineage	GET /users_archive/_search
+users_archive	users_archive	engine	shop	elastic	tables	GET /users_archive/_search
+address.city, address.zip, age, email, name, ssn, tags	address.city, address.zip, age, email, name, ssn, tags	engine	shop	elastic	results	GET /users/_search?q=*
+users.address.city | users.address.zip | users.age | users.email | users.name | users.ssn | users.tags	users.address.city ~ | users.address.zip ~ | users.age ~ | users.email ~ | users.name ~ | users.ssn ~ | users.tags ~	engine	shop	elastic	lineage	GET /users/_search?q=*
+users	users	engine	shop	elastic	tables	GET /users/_search?q=*
+-	-	engine	shop	elastic	results	POST /users/_search {"_source":false}
+-	-	engine	shop	elastic	lineage	POST /users/_search {"_source":false}
+users	users	engine	shop	elastic	tables	POST /users/_search {"_source":false}
+address.city, address.zip, age, email, name, ssn, tags	address.city, address.zip, age, email, name, ssn, tags	engine	shop	elastic	results	POST /users/_search {"_source":true}
+users.address.city | users.address.zip | users.age | users.email | users.name | users.ssn | users.tags	users.address.city ~ | users.address.zip ~ | users.age ~ | users.email ~ | users.name ~ | users.ssn ~ | users.tags ~	engine	shop	elastic	lineage	POST /users/_search {"_source":true}
+users	users	engine	shop	elastic	tables	POST /users/_search {"_source":true}
+name	name	engine	shop	elastic	results	POST /users/_search {"_source":"name"}
+users.name	users.name ~	engine	shop	elastic	lineage	POST /users/_search {"_source":"name"}
+users	users	engine	shop	elastic	tables	POST /users/_search {"_source":"name"}
+email, name	email, name	engine	shop	elastic	results	POST /users/_search {"_source":["name","email"]}
+users.email | users.name	users.email ~ | users.name ~	engine	shop	elastic	lineage	POST /users/_search {"_source":["name","email"]}
+users	users	engine	shop	elastic	tables	POST /users/_search {"_source":["name","email"]}
+address.city, address.zip	address.city, address.zip	engine	shop	elastic	results	POST /users/_search {"_source":["address"]}
+users.address.city | users.address.zip	users.address.city ~ | users.address.zip ~	engine	shop	elastic	lineage	POST /users/_search {"_source":["address"]}
+users	users	engine	shop	elastic	tables	POST /users/_search {"_source":["address"]}
+address.city, address.zip	address.city, address.zip	engine	shop	elastic	results	POST /users/_search {"_source":["address.*"]}
+users.address.city | users.address.zip	users.address.city ~ | users.address.zip ~	engine	shop	elastic	lineage	POST /users/_search {"_source":["address.*"]}
+users	users	engine	shop	elastic	tables	POST /users/_search {"_source":["address.*"]}
+address.city, address.zip	address.city, address.zip	engine	shop	elastic	results	POST /users/_search {"_source":["addr*"]}
+users.address.city | users.address.zip	users.address.city ~ | users.address.zip ~	engine	shop	elastic	lineage	POST /users/_search {"_source":["addr*"]}
+users	users	engine	shop	elastic	tables	POST /users/_search {"_source":["addr*"]}
+address.city	address.city	engine	shop	elastic	results	POST /users/_search {"_source":["*.city"]}
+users.address.city	users.address.city ~	engine	shop	elastic	lineage	POST /users/_search {"_source":["*.city"]}
+users	users	engine	shop	elastic	tables	POST /users/_search {"_source":["*.city"]}
+address.city, name	address.city, name	engine	shop	elastic	results	POST /users/_search {"_source":{"includes":["name","address.city"]}}
+users.address.city | users.name	users.address.city ~ | users.name ~	engine	shop	elastic	lineage	POST /users/_search {"_source":{"includes":["name","address.city"]}}
+users	users	engine	shop	elastic	tables	POST /users/_search {"_source":{"includes":["name","address.city"]}}
+address.city, address.zip, age, email, name, tags	address.city, address.zip, age, email, name, tags	engine	shop	elastic	results	POST /users/_search {"_source":{"excludes":["ssn"]}}
+users.address.city | users.address.zip | users.age | users.email | users.name | users.tags	users.address.city ~ | users.address.zip ~ | users.age ~ | users.email ~ | users.name ~ | users.tags ~	engine	shop	elastic	lineage	POST /users/_search {"_source":{"excludes":["ssn"]}}
+users	users	engine	shop	elastic	tables	POST /users/_search {"_source":{"excludes":["ssn"]}}
+address.city, age, email, name, tags	address.city, age, email, name, tags	engine	shop	elastic	results	POST /users/_search {"_source":{"includes":["*"],"excludes":["ssn","address.zip"]}}
+users.address.city | users.age | users.email | users.name | users.tags	users.address.city ~ | users.age ~ | users.email ~ | users.name ~ | users.tags ~	engine	shop	elastic	lineage	POST /users/_search {"_source":{"includes":["*"],"excludes":["ssn","address.zip"]}}
+users	users	engine	shop	elastic	tables	POST /users/_search {"_source":{"includes":["*"],"excludes":["ssn","address.zip"]}}
+email	email	engine	shop	elastic	results	POST /users/_search {"_source":{"include":["email"]}}
+users.email	users.email ~	engine	shop	elastic	lineage	POST /users/_search {"_source":{"include":["email"]}}
+users	users	engine	shop	elastic	tables	POST /users/_search {"_source":{"include":["email"]}}
+address.city, address.zip, age, name, ssn, tags	address.city, address.zip, age, name, ssn, tags	engine	shop	elastic	results	POST /users/_search {"_source":{"exclude":["email"]}}
+users.address.city | users.address.zip | users.age | users.name | users.ssn | users.tags	users.address.city ~ | users.address.zip ~ | users.age ~ | users.name ~ | users.ssn ~ | users.tags ~	engine	shop	elastic	lineage	POST /users/_search {"_source":{"exclude":["email"]}}
+users	users	engine	shop	elastic	tables	POST /users/_search {"_source":{"exclude":["email"]}}
+age, email, name, ssn, tags	age, email, name, ssn, tags	engine	shop	elastic	results	POST /users/_search {"_source":{"excludes":"address"}}
+users.age | users.email | users.name | users.ssn | users.tags	users.age ~ | users.email ~ | users.name ~ | users.ssn ~ | users.tags ~	engine	shop	elastic	lineage	POST /users/_search {"_source":{"excludes":"address"}}
+users	users	engine	shop	elastic	tables	POST /users/_search {"_source":{"excludes":"address"}}
+items.sku	items.sku	engine	shop	elastic	results	POST /orders/_search {"_source":["items.sku"]}
+orders.items.sku	orders.items.sku ~	engine	shop	elastic	lineage	POST /orders/_search {"_source":["items.sku"]}
+orders	orders	engine	shop	elastic	tables	POST /orders/_search {"_source":["items.sku"]}
+order_id, total, user_email	order_id, total, user_email	engine	shop	elastic	results	POST /orders/_search {"_source":{"excludes":["items"]}}
+orders.order_id | orders.total | orders.user_email	orders.order_id ~ | orders.total ~ | orders.user_email ~	engine	shop	elastic	lineage	POST /orders/_search {"_source":{"excludes":["items"]}}
+orders	orders	engine	shop	elastic	tables	POST /orders/_search {"_source":{"excludes":["items"]}}
+address.city, address.zip, age, name, ssn, tags	address.city, address.zip, age, name, ssn, tags	engine	shop	elastic	results	POST /users/_search {"_source":{"excludes":["ssn"],"exclude":["email"]}}
+users.address.city | users.address.zip | users.age | users.name | users.ssn | users.tags	users.address.city ~ | users.address.zip ~ | users.age ~ | users.name ~ | users.ssn ~ | users.tags ~	engine	shop	elastic	lineage	POST /users/_search {"_source":{"excludes":["ssn"],"exclude":["email"]}}
+users	users	engine	shop	elastic	tables	POST /users/_search {"_source":{"excludes":["ssn"],"exclude":["email"]}}
+name	name	engine	shop	elastic	results	POST /users/_search {"_source":{"include":["email"],"includes":["name"]}}
+users.name	users.name ~	engine	shop	elastic	lineage	POST /users/_search {"_source":{"include":["email"],"includes":["name"]}}
+users	users	engine	shop	elastic	tables	POST /users/_search {"_source":{"include":["email"],"includes":["name"]}}
+-	-	engine	shop	elastic	results	GET /users/_search?_source=false
+-	-	engine	shop	elastic	lineage	GET /users/_search?_source=false
+users	users	engine	shop	elastic	tables	GET /users/_search?_source=false
+email, name	email, name	engine	shop	elastic	results	GET /users/_search?_source=name,email
+users.email | users.name	users.email ~ | users.name ~	engine	shop	elastic	lineage	GET /users/_search?_source=name,email
+users	users	engine	shop	elastic	tables	GET /users/_search?_source=name,email
+address.city	address.city	engine	shop	elastic	results	GET /users/_search?_source_includes=address.city
+users.address.city	users.address.city ~	engine	shop	elastic	lineage	GET /users/_search?_source_includes=address.city
+users	users	engine	shop	elastic	tables	GET /users/_search?_source_includes=address.city
+address.city, address.zip, age, email, name	address.city, address.zip, age, email, name	engine	shop	elastic	results	GET /users/_search?_source_excludes=ssn,tags
+users.address.city | users.address.zip | users.age | users.email | users.name	users.address.city ~ | users.address.zip ~ | users.age ~ | users.email ~ | users.name ~	engine	shop	elastic	lineage	GET /users/_search?_source_excludes=ssn,tags
+users	users	engine	shop	elastic	tables	GET /users/_search?_source_excludes=ssn,tags
+name	name	engine	shop	elastic	results	GET /users/_search?_source_includes=name,ssn&_source_excludes=ssn
+users.name	users.name ~	engine	shop	elastic	lineage	GET /users/_search?_source_includes=name,ssn&_source_excludes=ssn
+users	users	engine	shop	elastic	tables	GET /users/_search?_source_includes=name,ssn&_source_excludes=ssn
+address.city, address.zip, age, name, ssn, tags	address.city, address.zip, age, name, ssn, tags	engine	shop	elastic	results	GET /users/_search?_source_excludes=ssn&_source_excludes=email
+users.address.city | users.address.zip | users.age | users.name | users.ssn | users.tags	users.address.city ~ | users.address.zip ~ | users.age ~ | users.name ~ | users.ssn ~ | users.tags ~	engine	shop	elastic	lineage	GET /users/_search?_source_excludes=ssn&_source_excludes=email
+users	users	engine	shop	elastic	tables	GET /users/_search?_source_excludes=ssn&_source_excludes=email
+address.city, address.zip, age, name, ssn, tags	address.city, address.zip, age, name, ssn, tags	engine	shop	elastic	results	POST /users/_search?_source_excludes=email {"_source":["name","email"]}
+users.address.city | users.address.zip | users.age | users.name | users.ssn | users.tags	users.address.city ~ | users.address.zip ~ | users.age ~ | users.name ~ | users.ssn ~ | users.tags ~	engine	shop	elastic	lineage	POST /users/_search?_source_excludes=email {"_source":["name","email"]}
+users	users	engine	shop	elastic	tables	POST /users/_search?_source_excludes=email {"_source":["name","email"]}
+address.city, address.zip, age, email, name, ssn, tags	address.city, address.zip, age, email, name, ssn, tags	engine	shop	elastic	results	GET /users/_doc/1
+users.address.city | users.address.zip | users.age | users.email | users.name | users.ssn | users.tags	users.address.city ~ | users.address.zip ~ | users.age ~ | users.email ~ | users.name ~ | users.ssn ~ | users.tags ~	engine	shop	elastic	lineage	GET /users/_doc/1
+users	users	engine	shop	elastic	tables	GET /users/_doc/1
+name	name	engine	shop	elastic	results	GET /users/_doc/1?_source_includes=name
+users.name	users.name ~	engine	shop	elastic	lineage	GET /users/_doc/1?_source_includes=name
+users	users	engine	shop	elastic	tables	GET /users/_doc/1?_source_includes=name
+-	-	engine	shop	elastic	results	GET /users/_doc/1?_source=false
+-	-	engine	shop	elastic	lineage	GET /users/_doc/1?_source=false
+users	users	engine	shop	elastic	tables	GET /users/_doc/1?_source=false
+address.city, address.zip, age, email, name, tags	address.city, address.zip, age, email, name, tags	engine	shop	elastic	results	GET /users/_doc/1?_source_excludes=ssn
+users.address.city | users.address.zip | users.age | users.email | users.name | users.tags	users.address.city ~ | users.address.zip ~ | users.age ~ | users.email ~ | users.name ~ | users.tags ~	engine	shop	elastic	lineage	GET /users/_doc/1?_source_excludes=ssn
+users	users	engine	shop	elastic	tables	GET /users/_doc/1?_source_excludes=ssn
+address.city, address.zip, age, email, name, ssn, tags	address.city, address.zip, age, email, name, ssn, tags	engine	shop	elastic	results	GET /users/_source/1
+users.address.city | users.address.zip | users.age | users.email | users.name | users.ssn | users.tags	users.address.city ~ | users.address.zip ~ | users.age ~ | users.email ~ | users.name ~ | users.ssn ~ | users.tags ~	engine	shop	elastic	lineage	GET /users/_source/1
+users	users	engine	shop	elastic	tables	GET /users/_source/1
+email	email	engine	shop	elastic	results	GET /users/_source/1?_source_includes=email
+users.email	users.email ~	engine	shop	elastic	lineage	GET /users/_source/1?_source_includes=email
+users	users	engine	shop	elastic	tables	GET /users/_source/1?_source_includes=email
+address.city, address.zip, age, email, name, ssn, tags	address.city, address.zip, age, email, name, ssn, tags	engine	shop	elastic	results	GET /people/_doc/1
+users.address.city | users.address.zip | users.age | users.email | users.name | users.ssn | users.tags	users.address.city ~ | users.address.zip ~ | users.age ~ | users.email ~ | users.name ~ | users.ssn ~ | users.tags ~	engine	shop	elastic	lineage	GET /people/_doc/1
+users	users	engine	shop	elastic	tables	GET /people/_doc/1
+order_id, total	order_id, total	engine	shop	elastic	results	GET /orders/_doc/o1?_source=order_id,total
+orders.order_id | orders.total	orders.order_id ~ | orders.total ~	engine	shop	elastic	lineage	GET /orders/_doc/o1?_source=order_id,total
+orders	orders	engine	shop	elastic	tables	GET /orders/_doc/o1?_source=order_id,total
+address.city, address.zip, age, email, name, ssn, tags	address.city, address.zip, age, email, name, ssn, tags	engine	shop	elastic	results	POST /users/_mget {"ids":["1","2"]}
+users.address.city | users.address.zip | users.age | users.email | users.name | users.ssn | users.tags	users.address.city ~ | users.address.zip ~ | users.age ~ | users.email ~ | users.name ~ | users.ssn ~ | users.tags ~	engine	shop	elastic	lineage	POST /users/_mget {"ids":["1","2"]}
+users	users	engine	shop	elastic	tables	POST /users/_mget {"ids":["1","2"]}
+address.city, address.zip, age, email, items.qty, items.sku, name, order_id, ssn, tags, total, user_email	address.city, address.zip, age, email, items.qty, items.sku, name, order_id, ssn, tags, total, user_email	engine	shop	elastic	results	POST /_mget {"docs":[{"_index":"users","_id":"1"},{"_index":"orders","_id":"o1"}]}
+users.address.city | users.address.zip | users.age | users.email | orders.items.qty | orders.items.sku | users.name | orders.order_id | users.ssn | users.tags | orders.total | orders.user_email	users.address.city ~ | users.address.zip ~ | users.age ~ | users.email ~ | orders.items.qty ~ | orders.items.sku ~ | users.name ~ | orders.order_id ~ | users.ssn ~ | users.tags ~ | orders.total ~ | orders.user_email ~	engine	shop	elastic	lineage	POST /_mget {"docs":[{"_index":"users","_id":"1"},{"_index":"orders","_id":"o1"}]}
+orders, users	orders, users	engine	shop	elastic	tables	POST /_mget {"docs":[{"_index":"users","_id":"1"},{"_index":"orders","_id":"o1"}]}
+name	name	engine	shop	elastic	results	POST /users/_mget?_source_includes=name {"ids":["1"]}
+users.name	users.name ~	engine	shop	elastic	lineage	POST /users/_mget?_source_includes=name {"ids":["1"]}
+users	users	engine	shop	elastic	tables	POST /users/_mget?_source_includes=name {"ids":["1"]}
+address.city, address.zip, age, email, items.qty, items.sku, name, order_id, ssn, tags, total, user_email	address.city, address.zip, age, email, items.qty, items.sku, name, order_id, ssn, tags, total, user_email	engine	shop	elastic	results	GET /users,orders/_search
+users.address.city | users.address.zip | users.age | users.email | orders.items.qty | orders.items.sku | users.name | orders.order_id | users.ssn | users.tags | orders.total | orders.user_email	users.address.city ~ | users.address.zip ~ | users.age ~ | users.email ~ | orders.items.qty ~ | orders.items.sku ~ | users.name ~ | orders.order_id ~ | users.ssn ~ | users.tags ~ | orders.total ~ | orders.user_email ~	engine	shop	elastic	lineage	GET /users,orders/_search
+orders, users	orders, users	engine	shop	elastic	tables	GET /users,orders/_search
+name	name	engine	shop	elastic	results	GET /users,users_archive/_search?_source=name
+users.name users_archive.name	users.name users_archive.name ~	engine	shop	elastic	lineage	GET /users,users_archive/_search?_source=name
+users, users_archive	users, users_archive	engine	shop	elastic	tables	GET /users,users_archive/_search?_source=name
+address.city, address.zip, age, archived_at, email, name, ssn, tags	address.city, address.zip, age, archived_at, email, name, ssn, tags	engine	shop	elastic	results	GET /user*/_search
+users.address.city | users.address.zip | users.age | users_archive.archived_at | users.email users_archive.email | users.name users_archive.name | users.ssn | users.tags	users.address.city ~ | users.address.zip ~ | users.age ~ | users_archive.archived_at ~ | users.email users_archive.email ~ | users.name users_archive.name ~ | users.ssn ~ | users.tags ~	engine	shop	elastic	lineage	GET /user*/_search
+users, users_archive	users, users_archive	engine	shop	elastic	tables	GET /user*/_search
+address.city, address.zip, age, archived_at, email, items.qty, items.sku, name, order_id, ssn, tags, total, user_email, vip	@timestamp, address.city, address.zip, age, archived_at, email, items.qty, items.sku, message, name, order_id, ssn, tags, total, user, user_email, vip	engine	shop	elastic	results	GET /*/_search
+users.address.city | users.address.zip | users.age | users_archive.archived_at | users.email users_archive.email | orders.items.qty | orders.items.sku | users.name users_archive.name | orders.order_id | users.ssn | users.tags | orders.total | orders.user_email | .customers.vip	events-app.@timestamp ~ | users.address.city ~ | users.address.zip ~ | users.age ~ | users_archive.archived_at ~ | users.email users_archive.email ~ | orders.items.qty ~ | orders.items.sku ~ | events-app.message ~ | users.name users_archive.name ~ | orders.order_id ~ | users.ssn ~ | users.tags ~ | orders.total ~ | events-app.user ~ | orders.user_email ~ | .customers.vip ~	engine	shop	elastic	lineage	GET /*/_search
+.customers, orders, users, users_archive	.customers, events-app, orders, users, users_archive	engine	shop	elastic	tables	GET /*/_search
+address.city, address.zip, age, archived_at, email, items.qty, items.sku, name, order_id, ssn, tags, total, user_email, vip	@timestamp, address.city, address.zip, age, archived_at, email, items.qty, items.sku, message, name, order_id, ssn, tags, total, user, user_email, vip	engine	shop	elastic	results	GET /_all/_search
+users.address.city | users.address.zip | users.age | users_archive.archived_at | users.email users_archive.email | orders.items.qty | orders.items.sku | users.name users_archive.name | orders.order_id | users.ssn | users.tags | orders.total | orders.user_email | .customers.vip	events-app.@timestamp ~ | users.address.city ~ | users.address.zip ~ | users.age ~ | users_archive.archived_at ~ | users.email users_archive.email ~ | orders.items.qty ~ | orders.items.sku ~ | events-app.message ~ | users.name users_archive.name ~ | orders.order_id ~ | users.ssn ~ | users.tags ~ | orders.total ~ | events-app.user ~ | orders.user_email ~ | .customers.vip ~	engine	shop	elastic	lineage	GET /_all/_search
+.customers, orders, users, users_archive	.customers, events-app, orders, users, users_archive	engine	shop	elastic	tables	GET /_all/_search
+address.city, address.zip, age, archived_at, email, items.qty, items.sku, name, order_id, ssn, tags, total, user_email, vip	@timestamp, address.city, address.zip, age, archived_at, email, items.qty, items.sku, message, name, order_id, ssn, tags, total, user, user_email, vip	engine	shop	elastic	results	GET /_search
+users.address.city | users.address.zip | users.age | users_archive.archived_at | users.email users_archive.email | orders.items.qty | orders.items.sku | users.name users_archive.name | orders.order_id | users.ssn | users.tags | orders.total | orders.user_email | .customers.vip	events-app.@timestamp ~ | users.address.city ~ | users.address.zip ~ | users.age ~ | users_archive.archived_at ~ | users.email users_archive.email ~ | orders.items.qty ~ | orders.items.sku ~ | events-app.message ~ | users.name users_archive.name ~ | orders.order_id ~ | users.ssn ~ | users.tags ~ | orders.total ~ | events-app.user ~ | orders.user_email ~ | .customers.vip ~	engine	shop	elastic	lineage	GET /_search
+.customers, orders, users, users_archive	.customers, events-app, orders, users, users_archive	engine	shop	elastic	tables	GET /_search
+email	email	engine	shop	elastic	results	POST /_search {"_source":["email"]}
+users.email users_archive.email	users.email users_archive.email ~	engine	shop	elastic	lineage	POST /_search {"_source":["email"]}
+.customers, orders, users, users_archive	.customers, events-app, orders, users, users_archive	engine	shop	elastic	tables	POST /_search {"_source":["email"]}
+address.city, address.zip, age, email, name, ssn, tags	address.city, address.zip, age, email, name, ssn, tags	engine	shop	elastic	results	GET /user*,-users_archive/_search
+users.address.city | users.address.zip | users.age | users.email | users.name | users.ssn | users.tags	users.address.city ~ | users.address.zip ~ | users.age ~ | users.email ~ | users.name ~ | users.ssn ~ | users.tags ~	engine	shop	elastic	lineage	GET /user*,-users_archive/_search
+users	users	engine	shop	elastic	tables	GET /user*,-users_archive/_search
+address.city, address.zip, age, archived_at, email, name, ssn, tags, vip	address.city, address.zip, age, archived_at, email, name, ssn, tags, vip	engine	shop	elastic	results	GET /*,-orders,-events-*/_search
+users.address.city | users.address.zip | users.age | users_archive.archived_at | users.email users_archive.email | users.name users_archive.name | users.ssn | users.tags | .customers.vip	users.address.city ~ | users.address.zip ~ | users.age ~ | users_archive.archived_at ~ | users.email users_archive.email ~ | users.name users_archive.name ~ | users.ssn ~ | users.tags ~ | .customers.vip ~	engine	shop	elastic	lineage	GET /*,-orders,-events-*/_search
+.customers, users, users_archive	.customers, users, users_archive	engine	shop	elastic	tables	GET /*,-orders,-events-*/_search
+address.city, address.zip, age, email, name, ssn, tags	address.city, address.zip, age, email, name, ssn, tags	engine	shop	elastic	results	GET /people/_search
+users.address.city | users.address.zip | users.age | users.email | users.name | users.ssn | users.tags	users.address.city ~ | users.address.zip ~ | users.age ~ | users.email ~ | users.name ~ | users.ssn ~ | users.tags ~	engine	shop	elastic	lineage	GET /people/_search
+users	users	engine	shop	elastic	tables	GET /people/_search
+address.city, address.zip, age, archived_at, email, name, ssn, tags	address.city, address.zip, age, archived_at, email, name, ssn, tags	engine	shop	elastic	results	GET /everyone/_search
+users.address.city | users.address.zip | users.age | users_archive.archived_at | users.email users_archive.email | users.name users_archive.name | users.ssn | users.tags	users.address.city ~ | users.address.zip ~ | users.age ~ | users_archive.archived_at ~ | users.email users_archive.email ~ | users.name users_archive.name ~ | users.ssn ~ | users.tags ~	engine	shop	elastic	lineage	GET /everyone/_search
+users, users_archive	users, users_archive	engine	shop	elastic	tables	GET /everyone/_search
+address.city, address.zip, age, email, name, ssn, tags	address.city, address.zip, age, email, name, ssn, tags	engine	shop	elastic	results	GET /adults/_search
+users.address.city | users.address.zip | users.age | users.email | users.name | users.ssn | users.tags	users.address.city ~ | users.address.zip ~ | users.age ~ | users.email ~ | users.name ~ | users.ssn ~ | users.tags ~	engine	shop	elastic	lineage	GET /adults/_search
+users	users	engine	shop	elastic	tables	GET /adults/_search
+address.city, address.zip, age, email, items.qty, items.sku, name, order_id, ssn, tags, total, user_email	address.city, address.zip, age, email, items.qty, items.sku, name, order_id, ssn, tags, total, user_email	engine	shop	elastic	results	GET /people,orders/_search
+users.address.city | users.address.zip | users.age | users.email | orders.items.qty | orders.items.sku | users.name | orders.order_id | users.ssn | users.tags | orders.total | orders.user_email	users.address.city ~ | users.address.zip ~ | users.age ~ | users.email ~ | orders.items.qty ~ | orders.items.sku ~ | users.name ~ | orders.order_id ~ | users.ssn ~ | users.tags ~ | orders.total ~ | orders.user_email ~	engine	shop	elastic	lineage	GET /people,orders/_search
+orders, users	orders, users	engine	shop	elastic	tables	GET /people,orders/_search
+address.city, address.zip, age, email, name, ssn, tags	address.city, address.zip, age, email, name, ssn, tags	engine	shop	elastic	results	GET /peo*/_search
+users.address.city | users.address.zip | users.age | users.email | users.name | users.ssn | users.tags	users.address.city ~ | users.address.zip ~ | users.age ~ | users.email ~ | users.name ~ | users.ssn ~ | users.tags ~	engine	shop	elastic	lineage	GET /peo*/_search
+users	users	engine	shop	elastic	tables	GET /peo*/_search
+-	action, actor	engine	shop	elastic	results	GET /hidden_audit/_search
+-	hidden_audit.action ~ | hidden_audit.actor ~	engine	shop	elastic	lineage	GET /hidden_audit/_search
+hidden_audit	hidden_audit	engine	shop	elastic	tables	GET /hidden_audit/_search
+-	-	engine	shop	elastic	results	GET /hidden*/_search
+-	-	engine	shop	elastic	lineage	GET /hidden*/_search
+-	-	engine	shop	elastic	tables	GET /hidden*/_search
+-	@timestamp, message, user	engine	shop	elastic	results	GET /events-app/_search
+-	events-app.@timestamp ~ | events-app.message ~ | events-app.user ~	engine	shop	elastic	lineage	GET /events-app/_search
+events-app	events-app	engine	shop	elastic	tables	GET /events-app/_search
+-	@timestamp, message, user	engine	shop	elastic	results	GET /events-*/_search
+-	events-app.@timestamp ~ | events-app.message ~ | events-app.user ~	engine	shop	elastic	lineage	GET /events-*/_search
+-	events-app	engine	shop	elastic	tables	GET /events-*/_search
+address.city, address.zip, age, email, items.qty, items.sku, name, order_id, ssn, tags, total, user_email	address.city, address.zip, age, email, items.qty, items.sku, name, order_id, ssn, tags, total, user_email	engine	shop	elastic	results	GET /users%2Corders/_search
+users.address.city | users.address.zip | users.age | users.email | orders.items.qty | orders.items.sku | users.name | orders.order_id | users.ssn | users.tags | orders.total | orders.user_email	users.address.city ~ | users.address.zip ~ | users.age ~ | users.email ~ | orders.items.qty ~ | orders.items.sku ~ | users.name ~ | orders.order_id ~ | users.ssn ~ | users.tags ~ | orders.total ~ | orders.user_email ~	engine	shop	elastic	lineage	GET /users%2Corders/_search
+orders, users	orders, users	engine	shop	elastic	tables	GET /users%2Corders/_search
+vip	vip	engine	shop	elastic	results	GET /.customers/_search
+.customers.vip	.customers.vip ~	engine	shop	elastic	lineage	GET /.customers/_search
+.customers	.customers	engine	shop	elastic	tables	GET /.customers/_search
+vip	vip	engine	shop	elastic	results	GET /.cust*/_search
+.customers.vip	.customers.vip ~	engine	shop	elastic	lineage	GET /.cust*/_search
+.customers	.customers	engine	shop	elastic	tables	GET /.cust*/_search
+address.city, address.zip, age, email, items.qty, items.sku, name, order_id, ssn, tags, total, user_email	address.city, address.zip, age, email, name, ssn, tags, total	engine	shop	elastic	results	POST /_msearch {"index":"users"} \n {"query":{"match_all":{}}} \n {"index":"orders"} \n {"_source":["total"]}
+users.address.city | users.address.zip | users.age | users.email | orders.items.qty | orders.items.sku | users.name | orders.order_id | users.ssn | users.tags | orders.total | orders.user_email	users.address.city ~ | users.address.zip ~ | users.age ~ | users.email ~ | users.name ~ | users.ssn ~ | users.tags ~ | orders.total ~	engine	shop	elastic	lineage	POST /_msearch {"index":"users"} \n {"query":{"match_all":{}}} \n {"index":"orders"} \n {"_source":["total"]}
+orders, users	orders, users	engine	shop	elastic	tables	POST /_msearch {"index":"users"} \n {"query":{"match_all":{}}} \n {"index":"orders"} \n {"_source":["total"]}
+address.city, address.zip, age, email, name, ssn, tags	name	engine	shop	elastic	results	POST /users/_msearch {} \n {"_source":["name"]}
+users.address.city | users.address.zip | users.age | users.email | users.name | users.ssn | users.tags	users.name ~	engine	shop	elastic	lineage	POST /users/_msearch {} \n {"_source":["name"]}
+users	users	engine	shop	elastic	tables	POST /users/_msearch {} \n {"_source":["name"]}
+address.city, address.zip, age, archived_at, email, items.qty, items.sku, name, order_id, ssn, tags, total, user_email, vip	@timestamp, address.city, address.zip, age, archived_at, email, items.qty, items.sku, message, name, order_id, ssn, tags, total, user, user_email, vip	engine	shop	elastic	results	POST /_msearch {} \n {} \n {"index":"orders"} \n {}
+users.address.city | users.address.zip | users.age | users_archive.archived_at | users.email users_archive.email | orders.items.qty | orders.items.sku | users.name users_archive.name | orders.order_id | users.ssn | users.tags | orders.total | orders.user_email | .customers.vip	events-app.@timestamp ~ | users.address.city ~ | users.address.zip ~ | users.age ~ | users_archive.archived_at ~ | users.email users_archive.email ~ | orders.items.qty ~ | orders.items.sku ~ | events-app.message ~ | users.name users_archive.name ~ | orders.order_id ~ | users.ssn ~ | users.tags ~ | orders.total ~ | events-app.user ~ | orders.user_email ~ | .customers.vip ~	engine	shop	elastic	lineage	POST /_msearch {} \n {} \n {"index":"orders"} \n {}
+.customers, orders, users, users_archive	.customers, events-app, orders, users, users_archive	engine	shop	elastic	tables	POST /_msearch {} \n {} \n {"index":"orders"} \n {}
+items.qty, items.sku, order_id, total, user_email	items.qty, items.sku, order_id, total, user_email	engine	shop	elastic	results	POST /users/_msearch {"indices":"orders"} \n {}
+orders.items.qty | orders.items.sku | orders.order_id | orders.total | orders.user_email	orders.items.qty ~ | orders.items.sku ~ | orders.order_id ~ | orders.total ~ | orders.user_email ~	engine	shop	elastic	lineage	POST /users/_msearch {"indices":"orders"} \n {}
+orders	orders	engine	shop	elastic	tables	POST /users/_msearch {"indices":"orders"} \n {}
+address.city, address.zip, age, archived_at, email, items.qty, items.sku, name, order_id, ssn, tags, total, user_email, vip	@timestamp, address.city, address.zip, age, archived_at, email, items.qty, items.sku, message, name, order_id, ssn, tags, total, user, user_email, vip	engine	shop	elastic	results	POST /_msearch {"index":"users"} \n {} \n {"index":"*,-users"} \n {}
+users.address.city | users.address.zip | users.age | users_archive.archived_at | users.email users_archive.email | orders.items.qty | orders.items.sku | users.name users_archive.name | orders.order_id | users.ssn | users.tags | orders.total | orders.user_email | .customers.vip	events-app.@timestamp ~ | users.address.city ~ | users.address.zip ~ | users.age ~ | users_archive.archived_at ~ | users.email users_archive.email ~ | orders.items.qty ~ | orders.items.sku ~ | events-app.message ~ | users.name users_archive.name ~ | orders.order_id ~ | users.ssn ~ | users.tags ~ | orders.total ~ | events-app.user ~ | orders.user_email ~ | .customers.vip ~	engine	shop	elastic	lineage	POST /_msearch {"index":"users"} \n {} \n {"index":"*,-users"} \n {}
+.customers, orders, users, users_archive	.customers, events-app, orders, users, users_archive	engine	shop	elastic	tables	POST /_msearch {"index":"users"} \n {} \n {"index":"*,-users"} \n {}
+-	error:index_not_found_exception	engine	shop	elastic	results	GET /missing/_search
+-	error:index_not_found_exception	engine	shop	elastic	lineage	GET /missing/_search
+missing	error:index_not_found_exception	engine	shop	elastic	tables	GET /missing/_search
+address.city, address.zip, age, email, name, ssn, tags	error:index_not_found_exception	engine	shop	elastic	results	GET /users,missing/_search
+users.address.city | users.address.zip | users.age | users.email | users.name | users.ssn | users.tags	error:index_not_found_exception	engine	shop	elastic	lineage	GET /users,missing/_search
+missing, users	error:index_not_found_exception	engine	shop	elastic	tables	GET /users,missing/_search
+-	error:index_not_found_exception	engine	shop	elastic	results	GET /missing/_doc/1
+-	error:index_not_found_exception	engine	shop	elastic	lineage	GET /missing/_doc/1
+missing	error:index_not_found_exception	engine	shop	elastic	tables	GET /missing/_doc/1

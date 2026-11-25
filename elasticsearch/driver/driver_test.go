@@ -308,6 +308,8 @@ func TestGetIndicesFiltersHiddenAndSortsByName(t *testing.T) {
 				{"index":"hidden-one","docs.count":"1","store.size":"1kb"},
 				{"index":"alpha","docs.count":"4","store.size":"1.5kb"}
 			]`))
+		case "/_alias":
+			_, _ = w.Write([]byte(`{"alpha":{"aliases":{}},"beta":{"aliases":{}},"hidden-one":{"aliases":{}}}`))
 		}
 	}))
 	defer srv.Close()
@@ -339,6 +341,8 @@ func TestSyncInstanceFailsOpenOnUsers(t *testing.T) {
 			_, _ = w.Write([]byte(`{}`))
 		case "/_cat/indices?format=json&pretty":
 			_, _ = w.Write([]byte(`[]`))
+		case "/_alias":
+			_, _ = w.Write([]byte(`{}`))
 		case "/_security/user":
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(`{}`))

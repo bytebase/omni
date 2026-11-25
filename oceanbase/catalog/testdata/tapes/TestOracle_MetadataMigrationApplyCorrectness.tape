@@ -91,27 +91,27 @@
 | pa_mm_72b1de0e
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 > query
 | SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
 : string
 | pa_mm_72b1de0e
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_72b1de0e
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -120,12 +120,12 @@
 : string
 | pa_mm_72b1de0e
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -133,11 +133,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_72b1de0e_to
 < ok 0 0
@@ -147,27 +147,27 @@
 | pa_mm_72b1de0e_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 > query
 | SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
 : string
 | pa_mm_72b1de0e_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_72b1de0e_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -176,12 +176,12 @@
 : string
 | pa_mm_72b1de0e_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -189,11 +189,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_85ed181e
 < ok 0 0
@@ -287,7 +287,7 @@
 | pa_mm_85ed181e
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | posts
@@ -301,8 +301,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_85ed181e`.`posts`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | posts
@@ -320,8 +320,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_85ed181e`.`users`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | users
@@ -341,20 +341,20 @@
 | pa_mm_85ed181e
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_85ed181e
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -363,12 +363,12 @@
 : string
 | pa_mm_85ed181e
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -376,11 +376,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_85ed181e_to
 < ok 0 0
@@ -390,7 +390,7 @@
 | pa_mm_85ed181e_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | posts
@@ -404,8 +404,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_85ed181e_to`.`posts`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | posts
@@ -423,8 +423,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_85ed181e_to`.`users`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | users
@@ -444,20 +444,20 @@
 | pa_mm_85ed181e_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_85ed181e_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -466,12 +466,12 @@
 : string
 | pa_mm_85ed181e_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -479,11 +479,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_3fdeecb0
 < ok 0 0
@@ -548,6 +548,9 @@
 | DROP TABLE `pa_mm_3fdeecb0`.`comments`
 < ok 0 0
 > exec
+| ALTER TABLE `pa_mm_3fdeecb0`.`posts` DROP CHECK `chk_title_length`
+< ok 0 0
+> exec
 | ALTER TABLE `pa_mm_3fdeecb0`.`users` DROP INDEX `idx_email_active`
 < ok 0 0
 > exec
@@ -600,7 +603,7 @@
 | pa_mm_3fdeecb0
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | posts
@@ -614,8 +617,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_3fdeecb0`.`posts`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | posts
@@ -628,14 +631,13 @@
 |   `published_at` datetime DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `pa_mm_3fdeecb0`.`users`(`id`) ON UPDATE RESTRICT ON DELETE CASCADE ,
-|   KEY `idx_user_id` (`user_id`) BLOCK_SIZE 16384 LOCAL,
-|   CONSTRAINT `chk_title_length` CHECK ((CHAR_LENGTH(`title`) > 0))
+|   KEY `idx_user_id` (`user_id`) BLOCK_SIZE 16384 LOCAL
 | ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > query
 | SHOW CREATE TABLE `pa_mm_3fdeecb0`.`users`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | users
@@ -655,20 +657,20 @@
 | pa_mm_3fdeecb0
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_3fdeecb0
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -677,12 +679,12 @@
 : string
 | pa_mm_3fdeecb0
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -690,11 +692,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_3fdeecb0_to
 < ok 0 0
@@ -704,7 +706,7 @@
 | pa_mm_3fdeecb0_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | posts
@@ -718,8 +720,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_3fdeecb0_to`.`posts`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | posts
@@ -737,8 +739,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_3fdeecb0_to`.`users`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | users
@@ -758,20 +760,20 @@
 | pa_mm_3fdeecb0_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_3fdeecb0_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -780,12 +782,12 @@
 : string
 | pa_mm_3fdeecb0_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -793,11 +795,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_e11cc33a
 < ok 0 0
@@ -924,7 +926,7 @@
 | pa_mm_e11cc33a
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | orders
@@ -938,8 +940,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_e11cc33a`.`orders`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | orders
@@ -956,8 +958,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_e11cc33a`.`products`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | products
@@ -976,20 +978,20 @@
 | pa_mm_e11cc33a
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_e11cc33a
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -998,12 +1000,12 @@
 : string
 | pa_mm_e11cc33a
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -1011,11 +1013,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_e11cc33a_to
 < ok 0 0
@@ -1025,7 +1027,7 @@
 | pa_mm_e11cc33a_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | orders
@@ -1039,8 +1041,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_e11cc33a_to`.`orders`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | orders
@@ -1057,8 +1059,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_e11cc33a_to`.`products`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | products
@@ -1077,20 +1079,20 @@
 | pa_mm_e11cc33a_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_e11cc33a_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -1099,12 +1101,12 @@
 : string
 | pa_mm_e11cc33a_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -1112,11 +1114,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_78faf820
 < ok 0 0
@@ -1223,7 +1225,7 @@
 | pa_mm_78faf820
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | sales
@@ -1232,8 +1234,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_78faf820`.`sales`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | sales
@@ -1253,20 +1255,20 @@
 | pa_mm_78faf820
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_78faf820
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -1275,12 +1277,12 @@
 : string
 | pa_mm_78faf820
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -1288,11 +1290,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_78faf820_to
 < ok 0 0
@@ -1302,7 +1304,7 @@
 | pa_mm_78faf820_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | sales
@@ -1311,8 +1313,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_78faf820_to`.`sales`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | sales
@@ -1332,20 +1334,20 @@
 | pa_mm_78faf820_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_78faf820_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -1354,12 +1356,12 @@
 : string
 | pa_mm_78faf820_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -1367,11 +1369,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_1797b203
 < ok 0 0
@@ -1408,6 +1410,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_1797b203`.`products` ADD UNIQUE KEY `uk_sku` (`sku`)
+< ok 0 0
+> exec
+| ALTER TABLE `pa_mm_1797b203`.`products` ADD CONSTRAINT `chk_name_length` CHECK ((char_length(`name`) >= 3))
+< ok 0 0
+> exec
+| ALTER TABLE `pa_mm_1797b203`.`products` ADD CONSTRAINT `chk_price_positive` CHECK ((`price` > 0))
 < ok 0 0
 > exec
 | DROP DATABASE IF EXISTS pa_mm_1797b203_to
@@ -1449,7 +1457,7 @@
 | pa_mm_1797b203
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | products
@@ -1458,8 +1466,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_1797b203`.`products`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | products
@@ -1474,7 +1482,9 @@
 |   UNIQUE KEY `uk_sku` (`sku`) BLOCK_SIZE 16384 LOCAL,
 |   KEY `idx_category` (`category`) BLOCK_SIZE 16384 LOCAL,
 |   KEY `idx_name` (`name`) BLOCK_SIZE 16384 LOCAL,
-|   KEY `idx_price` (`price`) BLOCK_SIZE 16384 LOCAL
+|   KEY `idx_price` (`price`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_name_length` CHECK ((char_length(`name`) >= 3)),
+|   CONSTRAINT `chk_price_positive` CHECK ((`price` > 0))
 | ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > query
 | SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
@@ -1482,20 +1492,20 @@
 | pa_mm_1797b203
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_1797b203
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -1504,12 +1514,12 @@
 : string
 | pa_mm_1797b203
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -1517,11 +1527,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_1797b203_to
 < ok 0 0
@@ -1531,7 +1541,7 @@
 | pa_mm_1797b203_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | products
@@ -1540,8 +1550,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_1797b203_to`.`products`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | products
@@ -1566,20 +1576,20 @@
 | pa_mm_1797b203_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_1797b203_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -1588,12 +1598,12 @@
 : string
 | pa_mm_1797b203_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -1601,11 +1611,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_11bb39c3
 < ok 0 0
@@ -1725,7 +1735,7 @@
 | pa_mm_11bb39c3
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | monthly_sales
@@ -1744,10 +1754,10 @@
 > query
 | SHOW CREATE VIEW `pa_mm_11bb39c3`.`monthly_sales`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | monthly_sales
@@ -1760,8 +1770,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_11bb39c3`.`sales`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | sales
@@ -1776,10 +1786,10 @@
 > query
 | SHOW CREATE VIEW `pa_mm_11bb39c3`.`top_products`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | top_products
@@ -1795,13 +1805,13 @@
 | pa_mm_11bb39c3
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 < row
 : bytes
 | FUNCTION
@@ -1848,8 +1858,8 @@
 : string
 | pa_mm_11bb39c3
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -1906,12 +1916,12 @@
 : string
 | pa_mm_11bb39c3
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -1919,11 +1929,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_11bb39c3_to
 < ok 0 0
@@ -1933,7 +1943,7 @@
 | pa_mm_11bb39c3_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | monthly_sales
@@ -1952,10 +1962,10 @@
 > query
 | SHOW CREATE VIEW `pa_mm_11bb39c3_to`.`monthly_sales`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | monthly_sales
@@ -1968,8 +1978,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_11bb39c3_to`.`sales`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | sales
@@ -1984,10 +1994,10 @@
 > query
 | SHOW CREATE VIEW `pa_mm_11bb39c3_to`.`top_products`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | top_products
@@ -2003,13 +2013,13 @@
 | pa_mm_11bb39c3_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 < row
 : bytes
 | FUNCTION
@@ -2056,8 +2066,8 @@
 : string
 | pa_mm_11bb39c3_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -2114,12 +2124,12 @@
 : string
 | pa_mm_11bb39c3_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -2127,11 +2137,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_76d6ceec
 < ok 0 0
@@ -2169,6 +2179,12 @@
 | SET foreign_key_checks = 1
 < ok 0 0
 > exec
+| ALTER TABLE `pa_mm_76d6ceec`.`products` DROP CHECK `chk_price_positive`
+< ok 0 0
+> exec
+| ALTER TABLE `pa_mm_76d6ceec`.`products` DROP CHECK `chk_stock_non_negative`
+< ok 0 0
+> exec
 | ALTER TABLE `pa_mm_76d6ceec`.`products` DROP INDEX `idx_created_at`
 < ok 0 0
 > exec
@@ -2197,8 +2213,197 @@
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_76d6ceec`.`products` MODIFY COLUMN `price` decimal(8,2) NOT NULL
-< error
-| 1235 0A000 Alter column with check constraint not supported
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS pa_mm_76d6ceec_to
+< ok 0 0
+> exec
+| CREATE DATABASE pa_mm_76d6ceec_to
+< ok 1 0
+> exec
+| USE pa_mm_76d6ceec_to
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE products (
+|     id INT NOT NULL AUTO_INCREMENT,
+|     name VARCHAR(50) NOT NULL,
+|     price DECIMAL(8, 2) NOT NULL,
+|     description TEXT,
+|     category VARCHAR(30),
+|     is_active TINYINT(1) DEFAULT 1,
+|     PRIMARY KEY (id),
+|     INDEX idx_category (category),
+|     INDEX idx_price (price)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE pa_mm_76d6ceec
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| pa_mm_76d6ceec
+< result
+< column "TABLE_NAME" "CHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
+< row
+: bytes
+| products
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `pa_mm_76d6ceec`.`products`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| products
+: bytes
+| CREATE TABLE `products` (
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `name` varchar(50) NOT NULL,
+|   `price` decimal(8,2) NOT NULL,
+|   `description` text DEFAULT NULL,
+|   `category` varchar(30) DEFAULT NULL,
+|   `is_active` tinyint(1) DEFAULT '1',
+|   PRIMARY KEY (`id`),
+|   KEY `idx_category` (`category`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_price` (`price`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
+: string
+| pa_mm_76d6ceec
+< result
+< column "ROUTINE_TYPE" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< column "DTD_IDENTIFIER" "TEXT"
+< column "ROUTINE_DEFINITION" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
+> query
+| SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
+: string
+| pa_mm_76d6ceec
+< result
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
+< column "PARAMETER_MODE" "VARCHAR"
+< column "PARAMETER_NAME" "VARCHAR"
+< column "DTD_IDENTIFIER" "TEXT"
+> query
+| SELECT TRIGGER_NAME, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_TIMING, ACTION_ORDER, ACTION_STATEMENT FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = ? ORDER BY TRIGGER_NAME
+: string
+| pa_mm_76d6ceec
+< result
+< column "TRIGGER_NAME" "VARCHAR" "string"
+< column "EVENT_MANIPULATION" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
+< column "ACTION_TIMING" "VARCHAR"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
+> query
+| SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
+: string
+| pa_mm_76d6ceec
+< result
+< column "EVENT_NAME" "VARCHAR"
+< column "EVENT_DEFINITION" "TEXT"
+< column "EVENT_TYPE" "VARCHAR" "string"
+< column "INTERVAL_VALUE" "VARCHAR"
+< column "INTERVAL_FIELD" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
+> exec
+| USE pa_mm_76d6ceec_to
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| pa_mm_76d6ceec_to
+< result
+< column "TABLE_NAME" "CHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
+< row
+: bytes
+| products
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `pa_mm_76d6ceec_to`.`products`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| products
+: bytes
+| CREATE TABLE `products` (
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `name` varchar(50) NOT NULL,
+|   `price` decimal(8,2) NOT NULL,
+|   `description` text DEFAULT NULL,
+|   `category` varchar(30) DEFAULT NULL,
+|   `is_active` tinyint(1) DEFAULT '1',
+|   PRIMARY KEY (`id`),
+|   KEY `idx_category` (`category`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_price` (`price`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
+: string
+| pa_mm_76d6ceec_to
+< result
+< column "ROUTINE_TYPE" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< column "DTD_IDENTIFIER" "TEXT"
+< column "ROUTINE_DEFINITION" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
+> query
+| SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
+: string
+| pa_mm_76d6ceec_to
+< result
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
+< column "PARAMETER_MODE" "VARCHAR"
+< column "PARAMETER_NAME" "VARCHAR"
+< column "DTD_IDENTIFIER" "TEXT"
+> query
+| SELECT TRIGGER_NAME, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_TIMING, ACTION_ORDER, ACTION_STATEMENT FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = ? ORDER BY TRIGGER_NAME
+: string
+| pa_mm_76d6ceec_to
+< result
+< column "TRIGGER_NAME" "VARCHAR" "string"
+< column "EVENT_MANIPULATION" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
+< column "ACTION_TIMING" "VARCHAR"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
+> query
+| SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
+: string
+| pa_mm_76d6ceec_to
+< result
+< column "EVENT_NAME" "VARCHAR"
+< column "EVENT_DEFINITION" "TEXT"
+< column "EVENT_TYPE" "VARCHAR" "string"
+< column "INTERVAL_VALUE" "VARCHAR"
+< column "INTERVAL_FIELD" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_c711790b
 < ok 0 0
@@ -2251,6 +2456,12 @@
 | ALTER TABLE `pa_mm_c711790b`.`books` DROP FOREIGN KEY `fk_author_new`
 < ok 0 0
 > exec
+| ALTER TABLE `pa_mm_c711790b`.`books` DROP CHECK `chk_title_length`
+< ok 0 0
+> exec
+| ALTER TABLE `pa_mm_c711790b`.`books` DROP CHECK `chk_year_extended`
+< ok 0 0
+> exec
 | ALTER TABLE `pa_mm_c711790b`.`authors` DEFAULT CHARSET=utf8mb4
 < ok 0 0
 > exec
@@ -2267,8 +2478,266 @@
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_c711790b`.`books` MODIFY COLUMN `title` varchar(200) NOT NULL
-< error
-| 1235 0A000 Alter column with check constraint not supported
+< ok 0 0
+> exec
+| ALTER TABLE `pa_mm_c711790b`.`books` ADD CONSTRAINT `chk_year_valid` CHECK (((`published_year` >= 1000) and (`published_year` <= 2100)))
+< ok 0 0
+> exec
+| ALTER TABLE `pa_mm_c711790b`.`books` ADD CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`)
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS pa_mm_c711790b_to
+< ok 0 0
+> exec
+| CREATE DATABASE pa_mm_c711790b_to
+< ok 1 0
+> exec
+| USE pa_mm_c711790b_to
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE authors (
+|     id INT NOT NULL AUTO_INCREMENT,
+|     name VARCHAR(100) NOT NULL,
+|     email VARCHAR(100),
+|     PRIMARY KEY (id),
+|     UNIQUE KEY uk_email (email)
+| ) ENGINE=InnoDB
+< ok 0 0
+> exec
+| CREATE TABLE books (
+|     id INT NOT NULL AUTO_INCREMENT,
+|     title VARCHAR(200) NOT NULL,
+|     author_id INT NOT NULL,
+|     isbn VARCHAR(20),
+|     published_year INT,
+|     price DECIMAL(8, 2),
+|     PRIMARY KEY (id),
+|     UNIQUE KEY uk_isbn (isbn),
+|     INDEX idx_author (author_id),
+|     INDEX idx_year (published_year),
+|     CONSTRAINT fk_author FOREIGN KEY (author_id) REFERENCES authors(id),
+|     CONSTRAINT chk_year_valid CHECK (published_year >= 1000 AND published_year <= 2100),
+|     CONSTRAINT chk_price_positive CHECK (price > 0)
+| ) ENGINE=InnoDB
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE pa_mm_c711790b
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| pa_mm_c711790b
+< result
+< column "TABLE_NAME" "CHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
+< row
+: bytes
+| authors
+: bytes
+| BASE TABLE
+< row
+: bytes
+| books
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `pa_mm_c711790b`.`authors`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| authors
+: bytes
+| CREATE TABLE `authors` (
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `name` varchar(100) NOT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `pa_mm_c711790b`.`books`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| books
+: bytes
+| CREATE TABLE `books` (
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `title` varchar(200) NOT NULL,
+|   `author_id` int(11) NOT NULL,
+|   `isbn` varchar(20) DEFAULT NULL,
+|   `published_year` int(11) DEFAULT NULL,
+|   `price` decimal(8,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `pa_mm_c711790b`.`authors`(`id`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   UNIQUE KEY `uk_isbn` (`isbn`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_author` (`author_id`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_year` (`published_year`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_price_positive` CHECK ((`price` > 0)),
+|   CONSTRAINT `chk_year_valid` CHECK (((`published_year` >= 1000) and (`published_year` <= 2100)))
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
+: string
+| pa_mm_c711790b
+< result
+< column "ROUTINE_TYPE" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< column "DTD_IDENTIFIER" "TEXT"
+< column "ROUTINE_DEFINITION" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
+> query
+| SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
+: string
+| pa_mm_c711790b
+< result
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
+< column "PARAMETER_MODE" "VARCHAR"
+< column "PARAMETER_NAME" "VARCHAR"
+< column "DTD_IDENTIFIER" "TEXT"
+> query
+| SELECT TRIGGER_NAME, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_TIMING, ACTION_ORDER, ACTION_STATEMENT FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = ? ORDER BY TRIGGER_NAME
+: string
+| pa_mm_c711790b
+< result
+< column "TRIGGER_NAME" "VARCHAR" "string"
+< column "EVENT_MANIPULATION" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
+< column "ACTION_TIMING" "VARCHAR"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
+> query
+| SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
+: string
+| pa_mm_c711790b
+< result
+< column "EVENT_NAME" "VARCHAR"
+< column "EVENT_DEFINITION" "TEXT"
+< column "EVENT_TYPE" "VARCHAR" "string"
+< column "INTERVAL_VALUE" "VARCHAR"
+< column "INTERVAL_FIELD" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
+> exec
+| USE pa_mm_c711790b_to
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| pa_mm_c711790b_to
+< result
+< column "TABLE_NAME" "CHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
+< row
+: bytes
+| authors
+: bytes
+| BASE TABLE
+< row
+: bytes
+| books
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `pa_mm_c711790b_to`.`authors`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| authors
+: bytes
+| CREATE TABLE `authors` (
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `name` varchar(100) NOT NULL,
+|   `email` varchar(100) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_email` (`email`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `pa_mm_c711790b_to`.`books`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| books
+: bytes
+| CREATE TABLE `books` (
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `title` varchar(200) NOT NULL,
+|   `author_id` int(11) NOT NULL,
+|   `isbn` varchar(20) DEFAULT NULL,
+|   `published_year` int(11) DEFAULT NULL,
+|   `price` decimal(8,2) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `pa_mm_c711790b_to`.`authors`(`id`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
+|   UNIQUE KEY `uk_isbn` (`isbn`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_author` (`author_id`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_year` (`published_year`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_year_valid` CHECK (((`published_year` >= 1000) and (`published_year` <= 2100))),
+|   CONSTRAINT `chk_price_positive` CHECK ((`price` > 0))
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
+: string
+| pa_mm_c711790b_to
+< result
+< column "ROUTINE_TYPE" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< column "DTD_IDENTIFIER" "TEXT"
+< column "ROUTINE_DEFINITION" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
+> query
+| SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
+: string
+| pa_mm_c711790b_to
+< result
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
+< column "PARAMETER_MODE" "VARCHAR"
+< column "PARAMETER_NAME" "VARCHAR"
+< column "DTD_IDENTIFIER" "TEXT"
+> query
+| SELECT TRIGGER_NAME, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_TIMING, ACTION_ORDER, ACTION_STATEMENT FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = ? ORDER BY TRIGGER_NAME
+: string
+| pa_mm_c711790b_to
+< result
+< column "TRIGGER_NAME" "VARCHAR" "string"
+< column "EVENT_MANIPULATION" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
+< column "ACTION_TIMING" "VARCHAR"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
+> query
+| SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
+: string
+| pa_mm_c711790b_to
+< result
+< column "EVENT_NAME" "VARCHAR"
+< column "EVENT_DEFINITION" "TEXT"
+< column "EVENT_TYPE" "VARCHAR" "string"
+< column "INTERVAL_VALUE" "VARCHAR"
+< column "INTERVAL_FIELD" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_6858194b
 < ok 0 0
@@ -2306,27 +2775,243 @@
 | SET foreign_key_checks = 1
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_6858194b`.`articles` MODIFY COLUMN `content` text NOT NULL
+| ALTER TABLE `pa_mm_6858194b`.`articles` DROP INDEX `idx_fulltext_content`
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_6858194b`.`articles` MODIFY COLUMN `id` int NOT NULL AUTO_INCREMENT
+| ALTER TABLE `pa_mm_6858194b`.`articles` DROP INDEX `idx_fulltext_tags`
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_6858194b`.`articles` MODIFY COLUMN `tags` varchar(500) DEFAULT NULL
+| ALTER TABLE `pa_mm_6858194b`.`articles` DROP INDEX `idx_title_tags`
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_6858194b`.`articles` MODIFY COLUMN `title` varchar(200) NOT NULL
+| ALTER TABLE `pa_mm_6858194b`.`locations` DROP INDEX `idx_spatial_position`
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_6858194b`.`locations` MODIFY COLUMN `id` int NOT NULL AUTO_INCREMENT
+| DROP DATABASE IF EXISTS pa_mm_6858194b_to
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_6858194b`.`locations` MODIFY COLUMN `name` varchar(100) NOT NULL
+| CREATE DATABASE pa_mm_6858194b_to
+< ok 1 0
+> exec
+| USE pa_mm_6858194b_to
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_6858194b`.`locations` MODIFY COLUMN `position` point NOT NULL
-< error
-| 1138 22004 Invalid use of NULL value
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE articles (
+|     id INT NOT NULL AUTO_INCREMENT,
+|     title VARCHAR(200) NOT NULL,
+|     content TEXT NOT NULL,
+|     tags VARCHAR(500),
+|     PRIMARY KEY (id)
+| ) ENGINE=InnoDB
+< ok 0 0
+> exec
+| CREATE TABLE locations (
+|     id INT NOT NULL AUTO_INCREMENT,
+|     name VARCHAR(100) NOT NULL,
+|     position POINT NOT NULL,
+|     PRIMARY KEY (id)
+| ) ENGINE=InnoDB
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE pa_mm_6858194b
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| pa_mm_6858194b
+< result
+< column "TABLE_NAME" "CHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
+< row
+: bytes
+| articles
+: bytes
+| BASE TABLE
+< row
+: bytes
+| locations
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `pa_mm_6858194b`.`articles`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| articles
+: bytes
+| CREATE TABLE `articles` (
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `title` varchar(200) NOT NULL,
+|   `content` text NOT NULL,
+|   `tags` varchar(500) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `pa_mm_6858194b`.`locations`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| locations
+: bytes
+| CREATE TABLE `locations` (
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `name` varchar(100) NOT NULL,
+|   `position` point NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
+: string
+| pa_mm_6858194b
+< result
+< column "ROUTINE_TYPE" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< column "DTD_IDENTIFIER" "TEXT"
+< column "ROUTINE_DEFINITION" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
+> query
+| SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
+: string
+| pa_mm_6858194b
+< result
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
+< column "PARAMETER_MODE" "VARCHAR"
+< column "PARAMETER_NAME" "VARCHAR"
+< column "DTD_IDENTIFIER" "TEXT"
+> query
+| SELECT TRIGGER_NAME, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_TIMING, ACTION_ORDER, ACTION_STATEMENT FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = ? ORDER BY TRIGGER_NAME
+: string
+| pa_mm_6858194b
+< result
+< column "TRIGGER_NAME" "VARCHAR" "string"
+< column "EVENT_MANIPULATION" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
+< column "ACTION_TIMING" "VARCHAR"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
+> query
+| SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
+: string
+| pa_mm_6858194b
+< result
+< column "EVENT_NAME" "VARCHAR"
+< column "EVENT_DEFINITION" "TEXT"
+< column "EVENT_TYPE" "VARCHAR" "string"
+< column "INTERVAL_VALUE" "VARCHAR"
+< column "INTERVAL_FIELD" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
+> exec
+| USE pa_mm_6858194b_to
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| pa_mm_6858194b_to
+< result
+< column "TABLE_NAME" "CHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
+< row
+: bytes
+| articles
+: bytes
+| BASE TABLE
+< row
+: bytes
+| locations
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `pa_mm_6858194b_to`.`articles`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| articles
+: bytes
+| CREATE TABLE `articles` (
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `title` varchar(200) NOT NULL,
+|   `content` text NOT NULL,
+|   `tags` varchar(500) DEFAULT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `pa_mm_6858194b_to`.`locations`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| locations
+: bytes
+| CREATE TABLE `locations` (
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `name` varchar(100) NOT NULL,
+|   `position` point NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
+: string
+| pa_mm_6858194b_to
+< result
+< column "ROUTINE_TYPE" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< column "DTD_IDENTIFIER" "TEXT"
+< column "ROUTINE_DEFINITION" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
+> query
+| SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
+: string
+| pa_mm_6858194b_to
+< result
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
+< column "PARAMETER_MODE" "VARCHAR"
+< column "PARAMETER_NAME" "VARCHAR"
+< column "DTD_IDENTIFIER" "TEXT"
+> query
+| SELECT TRIGGER_NAME, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_TIMING, ACTION_ORDER, ACTION_STATEMENT FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = ? ORDER BY TRIGGER_NAME
+: string
+| pa_mm_6858194b_to
+< result
+< column "TRIGGER_NAME" "VARCHAR" "string"
+< column "EVENT_MANIPULATION" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
+< column "ACTION_TIMING" "VARCHAR"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
+> query
+| SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
+: string
+| pa_mm_6858194b_to
+< result
+< column "EVENT_NAME" "VARCHAR"
+< column "EVENT_DEFINITION" "TEXT"
+< column "EVENT_TYPE" "VARCHAR" "string"
+< column "INTERVAL_VALUE" "VARCHAR"
+< column "INTERVAL_FIELD" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_668e0e2b
 < ok 0 0
@@ -2465,7 +3150,7 @@
 | pa_mm_668e0e2b
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | customers
@@ -2479,8 +3164,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_668e0e2b`.`customers`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | customers
@@ -2494,8 +3179,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_668e0e2b`.`orders`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | orders
@@ -2513,20 +3198,20 @@
 | pa_mm_668e0e2b
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_668e0e2b
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -2535,12 +3220,12 @@
 : string
 | pa_mm_668e0e2b
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -2548,11 +3233,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_668e0e2b_to
 < ok 0 0
@@ -2562,7 +3247,7 @@
 | pa_mm_668e0e2b_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | customers
@@ -2576,8 +3261,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_668e0e2b_to`.`customers`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | customers
@@ -2591,8 +3276,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_668e0e2b_to`.`orders`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | orders
@@ -2610,20 +3295,20 @@
 | pa_mm_668e0e2b_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_668e0e2b_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -2632,12 +3317,12 @@
 : string
 | pa_mm_668e0e2b_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -2645,11 +3330,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_1a8e1c71
 < ok 0 0
@@ -2695,6 +3380,9 @@
 | SET foreign_key_checks = 1
 < ok 0 0
 > exec
+| ALTER TABLE `pa_mm_1a8e1c71`.`sales_data` DROP CHECK `chk_amount_positive`
+< ok 0 0
+> exec
 | ALTER TABLE `pa_mm_1a8e1c71`.`sales_data` DROP INDEX `idx_customer`
 < ok 0 0
 > exec
@@ -2711,6 +3399,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_1a8e1c71`.`sales_data` MODIFY COLUMN `region` varchar(50) NOT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `pa_mm_1a8e1c71`.`sales_data` /*!50100 PARTITION BY RANGE (year(`sale_date`))
+| (PARTITION p2020 VALUES LESS THAN (2021) ENGINE = innodb,
+|  PARTITION p2021 VALUES LESS THAN (2022) ENGINE = innodb,
+|  PARTITION p2022 VALUES LESS THAN (2023) ENGINE = innodb,
+|  PARTITION p2023 VALUES LESS THAN (2024) ENGINE = innodb,
+|  PARTITION p_future VALUES LESS THAN MAXVALUE ENGINE = innodb) */
 < ok 0 0
 > exec
 | DROP DATABASE IF EXISTS pa_mm_1a8e1c71_to
@@ -2754,7 +3450,7 @@
 | pa_mm_1a8e1c71
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | sales_data
@@ -2763,8 +3459,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_1a8e1c71`.`sales_data`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | sales_data
@@ -2776,29 +3472,34 @@
 |   `product_id` int(11) NOT NULL,
 |   `amount` decimal(10,2) NOT NULL,
 |   `region` varchar(50) NOT NULL,
-|   PRIMARY KEY (`id`, `sale_date`),
-|   CONSTRAINT `chk_amount_positive` CHECK ((`amount` > 0))
+|   PRIMARY KEY (`id`, `sale_date`)
 | ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(year(`sale_date`))
+| (partition `p2020` values less than (2021),
+| partition `p2021` values less than (2022),
+| partition `p2022` values less than (2023),
+| partition `p2023` values less than (2024),
+| partition `p_future` values less than (MAXVALUE))
 > query
 | SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
 : string
 | pa_mm_1a8e1c71
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_1a8e1c71
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -2807,12 +3508,12 @@
 : string
 | pa_mm_1a8e1c71
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -2820,11 +3521,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_1a8e1c71_to
 < ok 0 0
@@ -2834,7 +3535,7 @@
 | pa_mm_1a8e1c71_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | sales_data
@@ -2843,8 +3544,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_1a8e1c71_to`.`sales_data`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | sales_data
@@ -2870,20 +3571,20 @@
 | pa_mm_1a8e1c71_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_1a8e1c71_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -2892,12 +3593,12 @@
 : string
 | pa_mm_1a8e1c71_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -2905,11 +3606,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_a162ef44
 < ok 0 0
@@ -2941,6 +3642,14 @@
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_a162ef44`.`ads_member_asset_by_account_channel_d` ADD KEY `sindex` (`dt`,`member_id`,`account_type`)
+< ok 0 0
+> exec
+| ALTER TABLE `pa_mm_a162ef44`.`ads_member_asset_by_account_channel_d` /*!50100 PARTITION BY RANGE (to_days(`dt`))
+| (PARTITION p0 VALUES LESS THAN (739000) ENGINE = innodb,
+|  PARTITION p1 VALUES LESS THAN (739001) ENGINE = innodb,
+|  PARTITION p2 VALUES LESS THAN (739002) ENGINE = innodb,
+|  PARTITION p3 VALUES LESS THAN (739003) ENGINE = innodb,
+|  PARTITION p_future VALUES LESS THAN MAXVALUE ENGINE = innodb) */
 < ok 0 0
 > exec
 | DROP DATABASE IF EXISTS pa_mm_a162ef44_to
@@ -2983,7 +3692,7 @@
 | pa_mm_a162ef44
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | ads_member_asset_by_account_channel_d
@@ -2992,8 +3701,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_a162ef44`.`ads_member_asset_by_account_channel_d`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | ads_member_asset_by_account_channel_d
@@ -3006,26 +3715,32 @@
 |   PRIMARY KEY (`dt`, `member_id`, `account_type`),
 |   KEY `sindex` (`dt`, `member_id`, `account_type`) BLOCK_SIZE 16384 LOCAL
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(to_days(`dt`))
+| (partition `p0` values less than (739000),
+| partition `p1` values less than (739001),
+| partition `p2` values less than (739002),
+| partition `p3` values less than (739003),
+| partition `p_future` values less than (MAXVALUE))
 > query
 | SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
 : string
 | pa_mm_a162ef44
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_a162ef44
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -3034,12 +3749,12 @@
 : string
 | pa_mm_a162ef44
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -3047,11 +3762,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_a162ef44_to
 < ok 0 0
@@ -3061,7 +3776,7 @@
 | pa_mm_a162ef44_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | ads_member_asset_by_account_channel_d
@@ -3070,8 +3785,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_a162ef44_to`.`ads_member_asset_by_account_channel_d`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | ads_member_asset_by_account_channel_d
@@ -3096,20 +3811,20 @@
 | pa_mm_a162ef44_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_a162ef44_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -3118,12 +3833,12 @@
 : string
 | pa_mm_a162ef44_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -3131,11 +3846,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_d40c3e05
 < ok 0 0
@@ -3162,6 +3877,13 @@
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_d40c3e05`.`ads_member_asset_by_account_channel_d` ADD KEY `sindex` (`dt`,`member_id`,`account_type`)
+< ok 0 0
+> exec
+| ALTER TABLE `pa_mm_d40c3e05`.`ads_member_asset_by_account_channel_d` /*!50100 PARTITION BY RANGE (to_days(`dt`))
+| (PARTITION p0 VALUES LESS THAN (739000) ENGINE = innodb,
+|  PARTITION p1 VALUES LESS THAN (739001) ENGINE = innodb,
+|  PARTITION p2 VALUES LESS THAN (739002) ENGINE = innodb,
+|  PARTITION p_future VALUES LESS THAN MAXVALUE ENGINE = innodb) */
 < ok 0 0
 > exec
 | DROP DATABASE IF EXISTS pa_mm_d40c3e05_to
@@ -3203,7 +3925,7 @@
 | pa_mm_d40c3e05
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | ads_member_asset_by_account_channel_d
@@ -3212,8 +3934,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_d40c3e05`.`ads_member_asset_by_account_channel_d`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | ads_member_asset_by_account_channel_d
@@ -3226,26 +3948,31 @@
 |   PRIMARY KEY (`dt`, `member_id`, `account_type`),
 |   KEY `sindex` (`dt`, `member_id`, `account_type`) BLOCK_SIZE 16384 LOCAL
 | ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range(to_days(`dt`))
+| (partition `p0` values less than (739000),
+| partition `p1` values less than (739001),
+| partition `p2` values less than (739002),
+| partition `p_future` values less than (MAXVALUE))
 > query
 | SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
 : string
 | pa_mm_d40c3e05
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_d40c3e05
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -3254,12 +3981,12 @@
 : string
 | pa_mm_d40c3e05
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -3267,11 +3994,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_d40c3e05_to
 < ok 0 0
@@ -3281,7 +4008,7 @@
 | pa_mm_d40c3e05_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | ads_member_asset_by_account_channel_d
@@ -3290,8 +4017,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_d40c3e05_to`.`ads_member_asset_by_account_channel_d`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | ads_member_asset_by_account_channel_d
@@ -3315,20 +4042,20 @@
 | pa_mm_d40c3e05_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_d40c3e05_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -3337,12 +4064,12 @@
 : string
 | pa_mm_d40c3e05_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -3350,11 +4077,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_20cd7d09
 < ok 0 0
@@ -3445,7 +4172,7 @@
 | pa_mm_20cd7d09
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | products
@@ -3454,8 +4181,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_20cd7d09`.`products`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | products
@@ -3473,20 +4200,20 @@
 | pa_mm_20cd7d09
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_20cd7d09
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -3495,12 +4222,12 @@
 : string
 | pa_mm_20cd7d09
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -3508,11 +4235,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_20cd7d09_to
 < ok 0 0
@@ -3522,7 +4249,7 @@
 | pa_mm_20cd7d09_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | products
@@ -3531,8 +4258,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_20cd7d09_to`.`products`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | products
@@ -3550,20 +4277,20 @@
 | pa_mm_20cd7d09_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_20cd7d09_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -3572,12 +4299,12 @@
 : string
 | pa_mm_20cd7d09_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -3585,11 +4312,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_25188286
 < ok 0 0
@@ -3670,7 +4397,7 @@
 | pa_mm_25188286
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | users
@@ -3679,8 +4406,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_25188286`.`users`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | users
@@ -3697,20 +4424,20 @@
 | pa_mm_25188286
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_25188286
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -3719,12 +4446,12 @@
 : string
 | pa_mm_25188286
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -3732,11 +4459,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_25188286_to
 < ok 0 0
@@ -3746,7 +4473,7 @@
 | pa_mm_25188286_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | users
@@ -3755,8 +4482,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_25188286_to`.`users`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | users
@@ -3773,20 +4500,20 @@
 | pa_mm_25188286_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_25188286_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -3795,12 +4522,12 @@
 : string
 | pa_mm_25188286_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -3808,11 +4535,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_8cb89de1
 < ok 0 0
@@ -3944,7 +4671,7 @@
 | pa_mm_8cb89de1
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | inventory
@@ -3958,8 +4685,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_8cb89de1`.`inventory`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | inventory
@@ -3975,8 +4702,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_8cb89de1`.`inventory_log`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | inventory_log
@@ -3996,20 +4723,20 @@
 | pa_mm_8cb89de1
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_8cb89de1
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -4018,12 +4745,12 @@
 : string
 | pa_mm_8cb89de1
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -4031,11 +4758,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_8cb89de1_to
 < ok 0 0
@@ -4045,7 +4772,7 @@
 | pa_mm_8cb89de1_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | inventory
@@ -4059,8 +4786,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_8cb89de1_to`.`inventory`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | inventory
@@ -4076,8 +4803,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_8cb89de1_to`.`inventory_log`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | inventory_log
@@ -4097,20 +4824,20 @@
 | pa_mm_8cb89de1_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_8cb89de1_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -4119,12 +4846,12 @@
 : string
 | pa_mm_8cb89de1_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -4132,11 +4859,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_b3bd91bb
 < ok 0 0
@@ -4220,7 +4947,7 @@
 | pa_mm_b3bd91bb
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | messages
@@ -4229,8 +4956,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_b3bd91bb`.`messages`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | messages
@@ -4246,20 +4973,20 @@
 | pa_mm_b3bd91bb
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_b3bd91bb
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -4268,12 +4995,12 @@
 : string
 | pa_mm_b3bd91bb
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -4281,11 +5008,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_b3bd91bb_to
 < ok 0 0
@@ -4295,7 +5022,7 @@
 | pa_mm_b3bd91bb_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | messages
@@ -4304,8 +5031,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_b3bd91bb_to`.`messages`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | messages
@@ -4321,20 +5048,20 @@
 | pa_mm_b3bd91bb_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_b3bd91bb_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -4343,12 +5070,12 @@
 : string
 | pa_mm_b3bd91bb_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -4356,11 +5083,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_90b1f429
 < ok 0 0
@@ -4473,7 +5200,7 @@
 | pa_mm_90b1f429
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | system_stats
@@ -4482,8 +5209,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_90b1f429`.`system_stats`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | system_stats
@@ -4501,20 +5228,20 @@
 | pa_mm_90b1f429
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_90b1f429
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -4523,12 +5250,12 @@
 : string
 | pa_mm_90b1f429
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -4536,11 +5263,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_90b1f429_to
 < ok 0 0
@@ -4550,7 +5277,7 @@
 | pa_mm_90b1f429_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | system_stats
@@ -4559,8 +5286,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_90b1f429_to`.`system_stats`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | system_stats
@@ -4578,20 +5305,20 @@
 | pa_mm_90b1f429_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_90b1f429_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -4600,12 +5327,12 @@
 : string
 | pa_mm_90b1f429_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -4613,11 +5340,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_f38f765b
 < ok 0 0
@@ -4748,7 +5475,7 @@
 | pa_mm_f38f765b
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | categories
@@ -4762,8 +5489,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_f38f765b`.`categories`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | categories
@@ -4776,8 +5503,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_f38f765b`.`products`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | products
@@ -4797,20 +5524,20 @@
 | pa_mm_f38f765b
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_f38f765b
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -4819,12 +5546,12 @@
 : string
 | pa_mm_f38f765b
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -4832,11 +5559,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_f38f765b_to
 < ok 0 0
@@ -4846,7 +5573,7 @@
 | pa_mm_f38f765b_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | categories
@@ -4860,8 +5587,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_f38f765b_to`.`categories`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | categories
@@ -4874,8 +5601,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_f38f765b_to`.`products`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | products
@@ -4895,20 +5622,20 @@
 | pa_mm_f38f765b_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_f38f765b_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -4917,12 +5644,12 @@
 : string
 | pa_mm_f38f765b_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -4930,11 +5657,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_cd13c195
 < ok 0 0
@@ -5064,7 +5791,7 @@
 | pa_mm_cd13c195
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | orders
@@ -5078,8 +5805,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_cd13c195`.`orders`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | orders
@@ -5098,8 +5825,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_cd13c195`.`order_items`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | order_items
@@ -5119,20 +5846,20 @@
 | pa_mm_cd13c195
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_cd13c195
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -5141,12 +5868,12 @@
 : string
 | pa_mm_cd13c195
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -5154,11 +5881,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_cd13c195_to
 < ok 0 0
@@ -5168,7 +5895,7 @@
 | pa_mm_cd13c195_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | orders
@@ -5182,8 +5909,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_cd13c195_to`.`orders`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | orders
@@ -5202,8 +5929,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_cd13c195_to`.`order_items`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | order_items
@@ -5223,20 +5950,20 @@
 | pa_mm_cd13c195_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_cd13c195_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -5245,12 +5972,12 @@
 : string
 | pa_mm_cd13c195_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -5258,11 +5985,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_bfb1dfc0
 < ok 0 0
@@ -5408,7 +6135,7 @@
 | pa_mm_bfb1dfc0
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | posts
@@ -5422,8 +6149,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_bfb1dfc0`.`posts`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | posts
@@ -5440,8 +6167,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_bfb1dfc0`.`users`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | users
@@ -5461,20 +6188,20 @@
 | pa_mm_bfb1dfc0
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_bfb1dfc0
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -5483,12 +6210,12 @@
 : string
 | pa_mm_bfb1dfc0
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -5496,11 +6223,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_bfb1dfc0_to
 < ok 0 0
@@ -5510,7 +6237,7 @@
 | pa_mm_bfb1dfc0_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | posts
@@ -5524,8 +6251,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_bfb1dfc0_to`.`posts`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | posts
@@ -5542,8 +6269,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_bfb1dfc0_to`.`users`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | users
@@ -5563,20 +6290,20 @@
 | pa_mm_bfb1dfc0_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_bfb1dfc0_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -5585,12 +6312,12 @@
 : string
 | pa_mm_bfb1dfc0_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -5598,11 +6325,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_ffa6ed7d
 < ok 0 0
@@ -5665,6 +6392,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_ffa6ed7d`.`products` ADD KEY `idx_price` (`price`)
+< ok 0 0
+> exec
+| ALTER TABLE `pa_mm_ffa6ed7d`.`books` ADD CONSTRAINT `chk_price_positive` CHECK ((`price` > 0))
+< ok 0 0
+> exec
+| ALTER TABLE `pa_mm_ffa6ed7d`.`books` ADD CONSTRAINT `chk_year_valid` CHECK (((`published_year` >= 1000) and (`published_year` <= 2100)))
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_ffa6ed7d`.`books` ADD CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`)
@@ -5732,7 +6465,7 @@
 | pa_mm_ffa6ed7d
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | authors
@@ -5751,8 +6484,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_ffa6ed7d`.`authors`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | authors
@@ -5767,8 +6500,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_ffa6ed7d`.`books`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | books
@@ -5784,13 +6517,15 @@
 |   CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `pa_mm_ffa6ed7d`.`authors`(`id`) ON UPDATE RESTRICT ON DELETE RESTRICT ,
 |   UNIQUE KEY `uk_isbn` (`isbn`) BLOCK_SIZE 16384 LOCAL,
 |   KEY `idx_author` (`author_id`) BLOCK_SIZE 16384 LOCAL,
-|   KEY `idx_year` (`published_year`) BLOCK_SIZE 16384 LOCAL
+|   KEY `idx_year` (`published_year`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_price_positive` CHECK ((`price` > 0)),
+|   CONSTRAINT `chk_year_valid` CHECK (((`published_year` >= 1000) and (`published_year` <= 2100)))
 | ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > query
 | SHOW CREATE TABLE `pa_mm_ffa6ed7d`.`products`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | products
@@ -5812,20 +6547,20 @@
 | pa_mm_ffa6ed7d
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_ffa6ed7d
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -5834,12 +6569,12 @@
 : string
 | pa_mm_ffa6ed7d
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -5847,11 +6582,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_ffa6ed7d_to
 < ok 0 0
@@ -5861,7 +6596,7 @@
 | pa_mm_ffa6ed7d_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | authors
@@ -5880,8 +6615,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_ffa6ed7d_to`.`authors`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | authors
@@ -5896,8 +6631,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_ffa6ed7d_to`.`books`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | books
@@ -5920,8 +6655,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_ffa6ed7d_to`.`products`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | products
@@ -5943,20 +6678,20 @@
 | pa_mm_ffa6ed7d_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_ffa6ed7d_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -5965,12 +6700,12 @@
 : string
 | pa_mm_ffa6ed7d_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -5978,11 +6713,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_217cfbd9
 < ok 0 0
@@ -6054,27 +6789,27 @@
 | pa_mm_217cfbd9
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 > query
 | SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
 : string
 | pa_mm_217cfbd9
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_217cfbd9
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -6083,12 +6818,12 @@
 : string
 | pa_mm_217cfbd9
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -6096,11 +6831,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_217cfbd9_to
 < ok 0 0
@@ -6110,27 +6845,27 @@
 | pa_mm_217cfbd9_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 > query
 | SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
 : string
 | pa_mm_217cfbd9_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_217cfbd9_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -6139,12 +6874,12 @@
 : string
 | pa_mm_217cfbd9_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -6152,11 +6887,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_8c191378
 < ok 0 0
@@ -6213,6 +6948,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_8c191378`.`users` ADD KEY `idx_email_active` (`email`,`is_active`)
+< ok 0 0
+> exec
+| ALTER TABLE `pa_mm_8c191378`.`posts` ADD CONSTRAINT `chk_title_length` CHECK ((char_length(`title`) > 0))
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_8c191378`.`comments` ADD CONSTRAINT `fk_comment_post` FOREIGN KEY (`post_id`) REFERENCES `posts` (`id`) ON DELETE CASCADE
@@ -6283,7 +7021,7 @@
 | pa_mm_8c191378
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | comments
@@ -6302,8 +7040,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_8c191378`.`comments`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | comments
@@ -6322,8 +7060,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_8c191378`.`posts`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | posts
@@ -6336,13 +7074,14 @@
 |   `published_at` datetime DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `pa_mm_8c191378`.`users`(`id`) ON UPDATE RESTRICT ON DELETE CASCADE ,
-|   KEY `idx_user_id` (`user_id`) BLOCK_SIZE 16384 LOCAL
+|   KEY `idx_user_id` (`user_id`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_title_length` CHECK ((char_length(`title`) > 0))
 | ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > query
 | SHOW CREATE TABLE `pa_mm_8c191378`.`users`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | users
@@ -6364,20 +7103,20 @@
 | pa_mm_8c191378
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_8c191378
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -6386,12 +7125,12 @@
 : string
 | pa_mm_8c191378
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -6399,11 +7138,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_8c191378_to
 < ok 0 0
@@ -6413,7 +7152,7 @@
 | pa_mm_8c191378_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | comments
@@ -6432,8 +7171,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_8c191378_to`.`comments`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | comments
@@ -6452,8 +7191,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_8c191378_to`.`posts`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | posts
@@ -6472,8 +7211,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_8c191378_to`.`users`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | users
@@ -6495,20 +7234,20 @@
 | pa_mm_8c191378_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_8c191378_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -6517,12 +7256,12 @@
 : string
 | pa_mm_8c191378_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -6530,11 +7269,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_857bdb94
 < ok 0 0
@@ -6586,7 +7325,63 @@
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `pa_mm_857bdb94`.`product_inventory` AS select `p`.`id` AS `id`,`p`.`name` AS `name`,`p`.`price` AS `price`,`p`.`stock` AS `stock`,coalesce(sum(`o`.`quantity`),0) AS `total_ordered` from (`products` `p` left join `orders` `o` on((`p`.`id` = `o`.`product_id`))) group by `p`.`id`,`p`.`name`,`p`.`price`,`p`.`stock`
 < ok 0 0
 > exec
-| CREATE TRIGGER `pa_mm_857bdb94`.`update_order_total` BEFORE INSERT ON `pa_mm_857bdb94`.`orders` FOR EACH ROW TRIGGER update_order_total
+| CREATE TRIGGER `pa_mm_857bdb94`.`update_order_total` BEFORE INSERT ON `pa_mm_857bdb94`.`orders` FOR EACH ROW BEGIN
+|     DECLARE product_price DECIMAL(10, 2);
+|     SELECT price INTO product_price FROM products WHERE id = NEW.product_id;
+|     SET NEW.total = NEW.quantity * product_price;
+| END
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS pa_mm_857bdb94_to
+< ok 0 0
+> exec
+| CREATE DATABASE pa_mm_857bdb94_to
+< ok 1 0
+> exec
+| USE pa_mm_857bdb94_to
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE products (
+|     id INT NOT NULL AUTO_INCREMENT,
+|     name VARCHAR(100) NOT NULL,
+|     price DECIMAL(10, 2) NOT NULL,
+|     stock INT DEFAULT 0,
+|     PRIMARY KEY (id),
+|     INDEX idx_name (name)
+| ) ENGINE=InnoDB
+< ok 0 0
+> exec
+| CREATE TABLE orders (
+|     id INT NOT NULL AUTO_INCREMENT,
+|     product_id INT NOT NULL,
+|     quantity INT NOT NULL,
+|     total DECIMAL(10, 2),
+|     order_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+|     PRIMARY KEY (id),
+|     CONSTRAINT fk_product FOREIGN KEY (product_id) REFERENCES products(id)
+| ) ENGINE=InnoDB
+< ok 0 0
+> exec
+| CREATE VIEW product_inventory AS
+| SELECT
+|     p.id,
+|     p.name,
+|     p.price,
+|     p.stock,
+|     COALESCE(SUM(o.quantity), 0) AS total_ordered
+| FROM products p
+| LEFT JOIN orders o ON p.id = o.product_id
+| GROUP BY p.id, p.name, p.price, p.stock
+< ok 0 0
+> exec
+| CREATE VIEW low_stock_products AS
+| SELECT * FROM products WHERE stock < 10
+< ok 0 0
+> exec
+| CREATE TRIGGER update_order_total
 | BEFORE INSERT ON orders
 | FOR EACH ROW
 | BEGIN
@@ -6594,15 +7389,396 @@
 |     SELECT price INTO product_price FROM products WHERE id = NEW.product_id;
 |     SET NEW.total = NEW.quantity * product_price;
 | END
-< error
-| 1064 42000 …near 'TRIGGER update_order_total
+< ok 0 0
+> exec
+| CREATE PROCEDURE GetProductInventory(IN product_name VARCHAR(100))
+| BEGIN
+|     SELECT * FROM product_inventory
+|     WHERE name LIKE CONCAT('%', product_name, '%');
+| END
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE pa_mm_857bdb94
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| pa_mm_857bdb94
+< result
+< column "TABLE_NAME" "CHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
+< row
+: bytes
+| low_stock_products
+: bytes
+| VIEW
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| products
+: bytes
+| BASE TABLE
+< row
+: bytes
+| product_inventory
+: bytes
+| VIEW
+> query
+| SHOW CREATE VIEW `pa_mm_857bdb94`.`low_stock_products`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| low_stock_products
+: bytes
+| CREATE VIEW `low_stock_products` AS select `pa_mm_857bdb94`.`products`.`id` AS `id`,`pa_mm_857bdb94`.`products`.`name` AS `name`,`pa_mm_857bdb94`.`products`.`price` AS `price`,`pa_mm_857bdb94`.`products`.`stock` AS `stock` from `pa_mm_857bdb94`.`products` where (`pa_mm_857bdb94`.`products`.`stock` < 10)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `pa_mm_857bdb94`.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `product_id` int(11) NOT NULL,
+|   `quantity` int(11) NOT NULL,
+|   `total` decimal(10,2) DEFAULT NULL,
+|   `order_date` datetime DEFAULT CURRENT_TIMESTAMP,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) REFERENCES `pa_mm_857bdb94`.`products`(`id`) ON UPDATE RESTRICT ON DELETE RESTRICT 
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `pa_mm_857bdb94`.`products`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| products
+: bytes
+| CREATE TABLE `products` (
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `name` varchar(100) NOT NULL,
+|   `price` decimal(10,2) NOT NULL,
+|   `stock` int(11) DEFAULT '0',
+|   PRIMARY KEY (`id`),
+|   KEY `idx_name` (`name`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE VIEW `pa_mm_857bdb94`.`product_inventory`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| product_inventory
+: bytes
+| CREATE VIEW `product_inventory` AS select `p`.`id` AS `id`,`p`.`name` AS `name`,`p`.`price` AS `price`,`p`.`stock` AS `stock`,coalesce(sum(`o`.`quantity`),0) AS `total_ordered` from (`pa_mm_857bdb94`.`products` `p` left join `pa_mm_857bdb94`.`orders` `o` on (`p`.`id` = `o`.`product_id`)) group by `p`.`id`,`p`.`name`,`p`.`price`,`p`.`stock`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
+: string
+| pa_mm_857bdb94
+< result
+< column "ROUTINE_TYPE" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< column "DTD_IDENTIFIER" "TEXT"
+< column "ROUTINE_DEFINITION" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
+< row
+: bytes
+| PROCEDURE
+: bytes
+| GetProductInventory
+: null
+: bytes
+| BEGIN
+|     SELECT * FROM product_inventory
+|     WHERE name LIKE CONCAT('%', product_name, '%');
+| END
+: bytes
+| NO
+: bytes
+| CONTAINS_SQL
+: bytes
+| DEFINER
+: bytes
+|
+> query
+| SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
+: string
+| pa_mm_857bdb94
+< result
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
+< column "PARAMETER_MODE" "VARCHAR"
+< column "PARAMETER_NAME" "VARCHAR"
+< column "DTD_IDENTIFIER" "TEXT"
+< row
+: bytes
+| GetProductInventory
+: int64 1
+: bytes
+| IN
+: bytes
+| product_name
+: bytes
+| varchar(100)
+> query
+| SELECT TRIGGER_NAME, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_TIMING, ACTION_ORDER, ACTION_STATEMENT FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = ? ORDER BY TRIGGER_NAME
+: string
+| pa_mm_857bdb94
+< result
+< column "TRIGGER_NAME" "VARCHAR" "string"
+< column "EVENT_MANIPULATION" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
+< column "ACTION_TIMING" "VARCHAR"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
+< row
+: bytes
+| update_order_total
+: bytes
+| INSERT
+: bytes
+| orders
+: bytes
+| BEFORE
+: int64 1
+: bytes
+| TRIGGER `pa_mm_857bdb94`.`update_order_total` BEFORE INSERT ON `pa_mm_857bdb94`.`orders` FOR EACH ROW BEGIN
+|     DECLARE product_price DECIMAL(10, 2);
+|     SELECT price INTO product_price FROM products WHERE id = NEW.product_id;
+|     SET NEW.total = NEW.quantity * product_price;
+| END
+> query
+| SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
+: string
+| pa_mm_857bdb94
+< result
+< column "EVENT_NAME" "VARCHAR"
+< column "EVENT_DEFINITION" "TEXT"
+< column "EVENT_TYPE" "VARCHAR" "string"
+< column "INTERVAL_VALUE" "VARCHAR"
+< column "INTERVAL_FIELD" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
+> exec
+| USE pa_mm_857bdb94_to
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| pa_mm_857bdb94_to
+< result
+< column "TABLE_NAME" "CHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
+< row
+: bytes
+| low_stock_products
+: bytes
+| VIEW
+< row
+: bytes
+| orders
+: bytes
+| BASE TABLE
+< row
+: bytes
+| products
+: bytes
+| BASE TABLE
+< row
+: bytes
+| product_inventory
+: bytes
+| VIEW
+> query
+| SHOW CREATE VIEW `pa_mm_857bdb94_to`.`low_stock_products`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| low_stock_products
+: bytes
+| CREATE VIEW `low_stock_products` AS select `pa_mm_857bdb94_to`.`products`.`id` AS `id`,`pa_mm_857bdb94_to`.`products`.`name` AS `name`,`pa_mm_857bdb94_to`.`products`.`price` AS `price`,`pa_mm_857bdb94_to`.`products`.`stock` AS `stock` from `pa_mm_857bdb94_to`.`products` where (`pa_mm_857bdb94_to`.`products`.`stock` < 10)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `pa_mm_857bdb94_to`.`orders`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| orders
+: bytes
+| CREATE TABLE `orders` (
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `product_id` int(11) NOT NULL,
+|   `quantity` int(11) NOT NULL,
+|   `total` decimal(10,2) DEFAULT NULL,
+|   `order_date` datetime DEFAULT CURRENT_TIMESTAMP,
+|   PRIMARY KEY (`id`),
+|   CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) REFERENCES `pa_mm_857bdb94_to`.`products`(`id`) ON UPDATE RESTRICT ON DELETE RESTRICT 
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE TABLE `pa_mm_857bdb94_to`.`products`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| products
+: bytes
+| CREATE TABLE `products` (
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `name` varchar(100) NOT NULL,
+|   `price` decimal(10,2) NOT NULL,
+|   `stock` int(11) DEFAULT '0',
+|   PRIMARY KEY (`id`),
+|   KEY `idx_name` (`name`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE VIEW `pa_mm_857bdb94_to`.`product_inventory`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| product_inventory
+: bytes
+| CREATE VIEW `product_inventory` AS select `p`.`id` AS `id`,`p`.`name` AS `name`,`p`.`price` AS `price`,`p`.`stock` AS `stock`,coalesce(sum(`o`.`quantity`),0) AS `total_ordered` from (`pa_mm_857bdb94_to`.`products` `p` left join `pa_mm_857bdb94_to`.`orders` `o` on (`p`.`id` = `o`.`product_id`)) group by `p`.`id`,`p`.`name`,`p`.`price`,`p`.`stock`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
+: string
+| pa_mm_857bdb94_to
+< result
+< column "ROUTINE_TYPE" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< column "DTD_IDENTIFIER" "TEXT"
+< column "ROUTINE_DEFINITION" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
+< row
+: bytes
+| PROCEDURE
+: bytes
+| GetProductInventory
+: null
+: bytes
+| BEGIN
+|     SELECT * FROM product_inventory
+|     WHERE name LIKE CONCAT('%', product_name, '%');
+| END
+: bytes
+| NO
+: bytes
+| READS_SQL_DATA
+: bytes
+| DEFINER
+: bytes
+|
+> query
+| SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
+: string
+| pa_mm_857bdb94_to
+< result
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
+< column "PARAMETER_MODE" "VARCHAR"
+< column "PARAMETER_NAME" "VARCHAR"
+< column "DTD_IDENTIFIER" "TEXT"
+< row
+: bytes
+| GetProductInventory
+: int64 1
+: bytes
+| IN
+: bytes
+| product_name
+: bytes
+| varchar(100)
+> query
+| SELECT TRIGGER_NAME, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_TIMING, ACTION_ORDER, ACTION_STATEMENT FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = ? ORDER BY TRIGGER_NAME
+: string
+| pa_mm_857bdb94_to
+< result
+< column "TRIGGER_NAME" "VARCHAR" "string"
+< column "EVENT_MANIPULATION" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
+< column "ACTION_TIMING" "VARCHAR"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
+< row
+: bytes
+| update_order_total
+: bytes
+| INSERT
+: bytes
+| orders
+: bytes
+| BEFORE
+: int64 1
+: bytes
+| TRIGGER update_order_total
 | BEFORE INSERT ON orders
 | FOR EACH ROW
 | BEGIN
 |     DECLARE product_price DECIMAL(10, 2);
 |     SELECT price INTO product_price FROM products WHERE id = NEW.product_id;
 |     SET NEW.total = NEW.quantity * product_price;
-| END' at line 8
+| END
+> query
+| SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
+: string
+| pa_mm_857bdb94_to
+< result
+< column "EVENT_NAME" "VARCHAR"
+< column "EVENT_DEFINITION" "TEXT"
+< column "EVENT_TYPE" "VARCHAR" "string"
+< column "INTERVAL_VALUE" "VARCHAR"
+< column "INTERVAL_FIELD" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_a42f2c1
 < ok 0 0
@@ -6736,7 +7912,7 @@
 | pa_mm_a42f2c1
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | sales
@@ -6750,8 +7926,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_a42f2c1`.`sales`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | sales
@@ -6768,8 +7944,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_a42f2c1`.`sales_summary`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | sales_summary
@@ -6789,13 +7965,13 @@
 | pa_mm_a42f2c1
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 < row
 : bytes
 | FUNCTION
@@ -6846,8 +8022,8 @@
 : string
 | pa_mm_a42f2c1
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -6922,12 +8098,12 @@
 : string
 | pa_mm_a42f2c1
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -6935,11 +8111,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_a42f2c1_to
 < ok 0 0
@@ -6949,7 +8125,7 @@
 | pa_mm_a42f2c1_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | sales
@@ -6963,8 +8139,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_a42f2c1_to`.`sales`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | sales
@@ -6981,8 +8157,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_a42f2c1_to`.`sales_summary`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | sales_summary
@@ -7002,13 +8178,13 @@
 | pa_mm_a42f2c1_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 < row
 : bytes
 | FUNCTION
@@ -7059,8 +8235,8 @@
 : string
 | pa_mm_a42f2c1_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -7135,12 +8311,12 @@
 : string
 | pa_mm_a42f2c1_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -7148,11 +8324,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_1474c605
 < ok 0 0
@@ -7183,6 +8359,12 @@
 < ok 0 0
 > exec
 | SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| ALTER TABLE `pa_mm_1474c605`.`products` DROP CHECK `chk_name_length`
+< ok 0 0
+> exec
+| ALTER TABLE `pa_mm_1474c605`.`products` DROP CHECK `chk_price_positive`
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_1474c605`.`products` DROP INDEX `idx_category`
@@ -7230,7 +8412,7 @@
 | pa_mm_1474c605
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | products
@@ -7239,8 +8421,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_1474c605`.`products`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | products
@@ -7251,9 +8433,7 @@
 |   `category` varchar(50) DEFAULT NULL,
 |   `price` decimal(10,2) DEFAULT NULL,
 |   `sku` varchar(50) NOT NULL,
-|   PRIMARY KEY (`id`),
-|   CONSTRAINT `chk_price_positive` CHECK ((`price` > 0)),
-|   CONSTRAINT `chk_name_length` CHECK ((CHAR_LENGTH(`name`) >= 3))
+|   PRIMARY KEY (`id`)
 | ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > query
 | SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
@@ -7261,20 +8441,20 @@
 | pa_mm_1474c605
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_1474c605
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -7283,12 +8463,12 @@
 : string
 | pa_mm_1474c605
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -7296,11 +8476,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_1474c605_to
 < ok 0 0
@@ -7310,7 +8490,7 @@
 | pa_mm_1474c605_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | products
@@ -7319,8 +8499,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_1474c605_to`.`products`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | products
@@ -7339,20 +8519,20 @@
 | pa_mm_1474c605_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_1474c605_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -7361,12 +8541,12 @@
 : string
 | pa_mm_1474c605_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -7374,11 +8554,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_4dfac7b
 < ok 0 0
@@ -7411,7 +8591,7 @@
 | ALTER TABLE `pa_mm_4dfac7b`.`products` ADD COLUMN `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_4dfac7b`.`products` ADD COLUMN `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+| ALTER TABLE `pa_mm_4dfac7b`.`products` ADD COLUMN `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_4dfac7b`.`products` ADD COLUMN `stock_quantity` int DEFAULT '0'
@@ -7436,6 +8616,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_4dfac7b`.`products` ADD UNIQUE KEY `uk_name_category` (`name`,`category`)
+< ok 0 0
+> exec
+| ALTER TABLE `pa_mm_4dfac7b`.`products` ADD CONSTRAINT `chk_price_positive` CHECK ((`price` > 0))
+< ok 0 0
+> exec
+| ALTER TABLE `pa_mm_4dfac7b`.`products` ADD CONSTRAINT `chk_stock_non_negative` CHECK ((`stock_quantity` >= 0))
 < ok 0 0
 > exec
 | DROP DATABASE IF EXISTS pa_mm_4dfac7b_to
@@ -7482,7 +8668,7 @@
 | pa_mm_4dfac7b
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | products
@@ -7491,8 +8677,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_4dfac7b`.`products`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | products
@@ -7505,14 +8691,16 @@
 |   `category` varchar(50) DEFAULT NULL,
 |   `is_active` tinyint(1) DEFAULT '1',
 |   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-|   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+|   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 |   `stock_quantity` int(11) DEFAULT '0',
 |   `weight` decimal(5,2) DEFAULT NULL,
 |   PRIMARY KEY (`id`),
 |   UNIQUE KEY `uk_name_category` (`name`, `category`) BLOCK_SIZE 16384 LOCAL,
 |   KEY `idx_category` (`category`) BLOCK_SIZE 16384 LOCAL,
 |   KEY `idx_price` (`price`) BLOCK_SIZE 16384 LOCAL,
-|   KEY `idx_created_at` (`created_at`) BLOCK_SIZE 16384 LOCAL
+|   KEY `idx_created_at` (`created_at`) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_price_positive` CHECK ((`price` > 0)),
+|   CONSTRAINT `chk_stock_non_negative` CHECK ((`stock_quantity` >= 0))
 | ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > query
 | SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
@@ -7520,20 +8708,20 @@
 | pa_mm_4dfac7b
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_4dfac7b
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -7542,12 +8730,12 @@
 : string
 | pa_mm_4dfac7b
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -7555,11 +8743,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_4dfac7b_to
 < ok 0 0
@@ -7569,7 +8757,7 @@
 | pa_mm_4dfac7b_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | products
@@ -7578,8 +8766,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_4dfac7b_to`.`products`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | products
@@ -7609,20 +8797,20 @@
 | pa_mm_4dfac7b_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_4dfac7b_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -7631,12 +8819,12 @@
 : string
 | pa_mm_4dfac7b_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -7644,11 +8832,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_482448c6
 < ok 0 0
@@ -7682,31 +8870,16 @@
 | SET foreign_key_checks = 1
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_482448c6`.`articles` DROP PRIMARY KEY
+| ALTER TABLE `pa_mm_482448c6`.`articles` ADD FULLTEXT KEY `idx_fulltext_content` (`title`,`content`)
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_482448c6`.`locations` DROP PRIMARY KEY
+| ALTER TABLE `pa_mm_482448c6`.`articles` ADD FULLTEXT KEY `idx_fulltext_tags` (`tags`)
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_482448c6`.`articles` MODIFY COLUMN `content` text
+| ALTER TABLE `pa_mm_482448c6`.`articles` ADD KEY `idx_title_tags` (`title`(50),`tags`(50))
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_482448c6`.`articles` MODIFY COLUMN `id` text
-< ok 0 0
-> exec
-| ALTER TABLE `pa_mm_482448c6`.`articles` MODIFY COLUMN `tags` text
-< ok 0 0
-> exec
-| ALTER TABLE `pa_mm_482448c6`.`articles` MODIFY COLUMN `title` text
-< ok 0 0
-> exec
-| ALTER TABLE `pa_mm_482448c6`.`locations` MODIFY COLUMN `id` text
-< ok 0 0
-> exec
-| ALTER TABLE `pa_mm_482448c6`.`locations` MODIFY COLUMN `name` text
-< ok 0 0
-> exec
-| ALTER TABLE `pa_mm_482448c6`.`locations` MODIFY COLUMN `position` text
+| ALTER TABLE `pa_mm_482448c6`.`locations` ADD SPATIAL KEY `idx_spatial_position` (`position`)
 < ok 0 0
 > exec
 | DROP DATABASE IF EXISTS pa_mm_482448c6_to
@@ -7753,7 +8926,7 @@
 | pa_mm_482448c6
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | articles
@@ -7767,52 +8940,58 @@
 > query
 | SHOW CREATE TABLE `pa_mm_482448c6`.`articles`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | articles
 : bytes
 | CREATE TABLE `articles` (
-|   `id` text DEFAULT NULL,
-|   `title` text DEFAULT NULL,
-|   `content` text DEFAULT NULL,
-|   `tags` text DEFAULT NULL
-| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `title` varchar(200) NOT NULL,
+|   `content` text NOT NULL,
+|   `tags` varchar(500) DEFAULT NULL,
+|   PRIMARY KEY (`id`),
+|   FULLTEXT KEY `idx_fulltext_content` (`title`, `content`) WITH PARSER space PARSER_PROPERTIES=(min_token_size=3,max_token_size=84) BLOCK_SIZE 16384,
+|   FULLTEXT KEY `idx_fulltext_tags` (`tags`) WITH PARSER space PARSER_PROPERTIES=(min_token_size=3,max_token_size=84) BLOCK_SIZE 16384,
+|   KEY `idx_title_tags` (`title`(50), `tags`(50)) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > query
 | SHOW CREATE TABLE `pa_mm_482448c6`.`locations`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | locations
 : bytes
 | CREATE TABLE `locations` (
-|   `id` text DEFAULT NULL,
-|   `name` text DEFAULT NULL,
-|   `position` text DEFAULT NULL
-| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `name` varchar(100) NOT NULL,
+|   `position` point NOT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `idx_spatial_position` (`position`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > query
 | SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
 : string
 | pa_mm_482448c6
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_482448c6
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -7821,12 +9000,12 @@
 : string
 | pa_mm_482448c6
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -7834,11 +9013,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_482448c6_to
 < ok 0 0
@@ -7848,7 +9027,7 @@
 | pa_mm_482448c6_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | articles
@@ -7862,8 +9041,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_482448c6_to`.`articles`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | articles
@@ -7881,8 +9060,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_482448c6_to`.`locations`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | locations
@@ -7900,20 +9079,20 @@
 | pa_mm_482448c6_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_482448c6_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -7922,12 +9101,12 @@
 : string
 | pa_mm_482448c6_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -7935,11 +9114,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_970419a3
 < ok 0 0
@@ -8043,7 +9222,7 @@
 | pa_mm_970419a3
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | order_summary
@@ -8057,8 +9236,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_970419a3`.`order_summary`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | order_summary
@@ -8078,8 +9257,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_970419a3`.`products`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | products
@@ -8101,20 +9280,20 @@
 | pa_mm_970419a3
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_970419a3
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -8123,12 +9302,12 @@
 : string
 | pa_mm_970419a3
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -8136,11 +9315,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_970419a3_to
 < ok 0 0
@@ -8150,7 +9329,7 @@
 | pa_mm_970419a3_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | order_summary
@@ -8164,8 +9343,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_970419a3_to`.`order_summary`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | order_summary
@@ -8185,8 +9364,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_970419a3_to`.`products`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | products
@@ -8208,20 +9387,20 @@
 | pa_mm_970419a3_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_970419a3_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -8230,12 +9409,12 @@
 : string
 | pa_mm_970419a3_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -8243,11 +9422,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_de41a819
 < ok 0 0
@@ -8273,11 +9452,12 @@
 < ok 0 0
 > exec
 | CREATE TABLE `pa_mm_de41a819`.`products` (
-|   `id` text,
-|   `name` text,
-|   `details` text,
-|   `tags` text,
-|   `brand` text
+|   `id` int NOT NULL AUTO_INCREMENT,
+|   `name` varchar(100) NOT NULL,
+|   `details` json NOT NULL,
+|   `tags` json,
+|   `brand` varchar(50) GENERATED ALWAYS AS (json_unquote(json_extract(`details`,_utf8mb4'$.brand'))) VIRTUAL,
+|   PRIMARY KEY (`id`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 < ok 0 0
 > exec
@@ -8285,6 +9465,18 @@
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_de41a819`.`users` ADD COLUMN `metadata` json
+< ok 0 0
+> exec
+| ALTER TABLE `pa_mm_de41a819`.`products` ADD KEY `idx_brand` (`brand`)
+< ok 0 0
+> exec
+| ALTER TABLE `pa_mm_de41a819`.`products` ADD KEY `idx_product_brand` ((cast(json_unquote(json_extract(`details`,_utf8mb4'$.brand')) as char(50) charset utf8mb4)))
+< ok 0 0
+> exec
+| ALTER TABLE `pa_mm_de41a819`.`products` ADD KEY `idx_product_price` ((cast(json_unquote(json_extract(`details`,_utf8mb4'$.price')) as decimal(10,2))))
+< ok 0 0
+> exec
+| ALTER TABLE `pa_mm_de41a819`.`products` ADD CONSTRAINT `chk_details_not_empty` CHECK ((json_type(`details`) is not null))
 < ok 0 0
 > exec
 | DROP DATABASE IF EXISTS pa_mm_de41a819_to
@@ -8334,7 +9526,7 @@
 | pa_mm_de41a819
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | products
@@ -8348,24 +9540,29 @@
 > query
 | SHOW CREATE TABLE `pa_mm_de41a819`.`products`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | products
 : bytes
 | CREATE TABLE `products` (
-|   `id` text DEFAULT NULL,
-|   `name` text DEFAULT NULL,
-|   `details` text DEFAULT NULL,
-|   `tags` text DEFAULT NULL,
-|   `brand` text DEFAULT NULL
-| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `name` varchar(100) NOT NULL,
+|   `details` json NOT NULL,
+|   `tags` json DEFAULT NULL,
+|   `brand` varchar(50) GENERATED ALWAYS AS (json_unquote(json_extract(`details`,'$.brand'))) VIRTUAL,
+|   PRIMARY KEY (`id`),
+|   KEY `idx_brand` (`brand`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_product_brand` ((cast(json_unquote(json_extract(`details`,'$.brand')) as char(50) charset utf8mb4))) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_product_price` ((cast(json_unquote(json_extract(`details`,'$.price')) as number(10,2)))) BLOCK_SIZE 16384 LOCAL,
+|   CONSTRAINT `chk_details_not_empty` CHECK ((json_type(`details`) is not null))
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > query
 | SHOW CREATE TABLE `pa_mm_de41a819`.`users`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | users
@@ -8384,20 +9581,20 @@
 | pa_mm_de41a819
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_de41a819
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -8406,12 +9603,12 @@
 : string
 | pa_mm_de41a819
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -8419,11 +9616,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | USE pa_mm_de41a819_to
 < ok 0 0
@@ -8433,7 +9630,7 @@
 | pa_mm_de41a819_to
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < row
 : bytes
 | products
@@ -8447,8 +9644,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_de41a819_to`.`products`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | products
@@ -8468,8 +9665,8 @@
 > query
 | SHOW CREATE TABLE `pa_mm_de41a819_to`.`users`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "TEXT"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
 < row
 : bytes
 | users
@@ -8488,20 +9685,20 @@
 | pa_mm_de41a819_to
 < result
 < column "ROUTINE_TYPE" "VARCHAR"
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "DTD_IDENTIFIER" "TEXT"
 < column "ROUTINE_DEFINITION" "TEXT"
-< column "IS_DETERMINISTIC" "VARCHAR"
-< column "SQL_DATA_ACCESS" "VARCHAR"
-< column "SECURITY_TYPE" "VARCHAR"
-< column "ROUTINE_COMMENT" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
 > query
 | SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
 : string
 | pa_mm_de41a819_to
 < result
-< column "SPECIFIC_NAME" "VARCHAR"
-< column "ORDINAL_POSITION" "BIGINT"
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
 < column "PARAMETER_MODE" "VARCHAR"
 < column "PARAMETER_NAME" "VARCHAR"
 < column "DTD_IDENTIFIER" "TEXT"
@@ -8510,12 +9707,12 @@
 : string
 | pa_mm_de41a819_to
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_ORDER" "BIGINT"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
 > query
 | SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
 : string
@@ -8523,11 +9720,11 @@
 < result
 < column "EVENT_NAME" "VARCHAR"
 < column "EVENT_DEFINITION" "TEXT"
-< column "EVENT_TYPE" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
 < column "INTERVAL_VALUE" "VARCHAR"
 < column "INTERVAL_FIELD" "VARCHAR"
-< column "STATUS" "VARCHAR"
-< column "ON_COMPLETION" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_ed63de90
 < ok 0 0
@@ -8568,21 +9765,446 @@
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `pa_mm_ed63de90`.`inventory_changes` AS select `inventory_log`.`product_id` AS `product_id`,count(0) AS `change_count`,max(`inventory_log`.`changed_at`) AS `last_changed` from `inventory_log` group by `inventory_log`.`product_id`
 < ok 0 0
 > exec
-| CREATE TRIGGER `pa_mm_ed63de90`.`trg_inventory_delete` BEFORE DELETE ON `pa_mm_ed63de90`.`inventory` FOR EACH ROW TRIGGER trg_inventory_delete
+| CREATE TRIGGER `pa_mm_ed63de90`.`trg_inventory_delete` BEFORE DELETE ON `pa_mm_ed63de90`.`inventory` FOR EACH ROW BEGIN
+|     INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
+|     VALUES (OLD.product_id, OLD.quantity, NULL, 'DELETE');
+| END
+< ok 0 0
+> exec
+| CREATE TRIGGER `pa_mm_ed63de90`.`trg_inventory_insert` AFTER INSERT ON `pa_mm_ed63de90`.`inventory` FOR EACH ROW BEGIN
+|     INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
+|     VALUES (NEW.product_id, NULL, NEW.quantity, 'INSERT');
+| END
+< ok 0 0
+> exec
+| CREATE TRIGGER `pa_mm_ed63de90`.`trg_inventory_update` AFTER UPDATE ON `pa_mm_ed63de90`.`inventory` FOR EACH ROW BEGIN
+|     IF OLD.quantity != NEW.quantity THEN
+|         INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
+|         VALUES (NEW.product_id, OLD.quantity, NEW.quantity, 'UPDATE');
+|     END IF;
+| END
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS pa_mm_ed63de90_to
+< ok 0 0
+> exec
+| CREATE DATABASE pa_mm_ed63de90_to
+< ok 1 0
+> exec
+| USE pa_mm_ed63de90_to
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE inventory (
+|     id INT NOT NULL AUTO_INCREMENT,
+|     product_id INT NOT NULL,
+|     quantity INT NOT NULL DEFAULT 0,
+|     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+|     PRIMARY KEY (id),
+|     UNIQUE KEY uk_product (product_id)
+| ) ENGINE=InnoDB
+< ok 0 0
+> exec
+| CREATE TABLE inventory_log (
+|     id INT NOT NULL AUTO_INCREMENT,
+|     product_id INT NOT NULL,
+|     old_quantity INT,
+|     new_quantity INT,
+|     change_type VARCHAR(20),
+|     changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+|     PRIMARY KEY (id)
+| ) ENGINE=InnoDB
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_inventory_insert
+| AFTER INSERT ON inventory
+| FOR EACH ROW
+| BEGIN
+|     INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
+|     VALUES (NEW.product_id, NULL, NEW.quantity, 'INSERT');
+| END
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_inventory_update
+| AFTER UPDATE ON inventory
+| FOR EACH ROW
+| BEGIN
+|     IF OLD.quantity != NEW.quantity THEN
+|         INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
+|         VALUES (NEW.product_id, OLD.quantity, NEW.quantity, 'UPDATE');
+|     END IF;
+| END
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_inventory_delete
 | BEFORE DELETE ON inventory
 | FOR EACH ROW
 | BEGIN
 |     INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
 |     VALUES (OLD.product_id, OLD.quantity, NULL, 'DELETE');
 | END
-< error
-| 1064 42000 …near 'TRIGGER trg_inventory_delete
+< ok 0 0
+> exec
+| CREATE VIEW inventory_changes AS
+| SELECT
+|     product_id,
+|     COUNT(*) AS change_count,
+|     MAX(changed_at) AS last_changed
+| FROM inventory_log
+| GROUP BY product_id
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE pa_mm_ed63de90
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| pa_mm_ed63de90
+< result
+< column "TABLE_NAME" "CHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
+< row
+: bytes
+| inventory
+: bytes
+| BASE TABLE
+< row
+: bytes
+| inventory_changes
+: bytes
+| VIEW
+< row
+: bytes
+| inventory_log
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `pa_mm_ed63de90`.`inventory`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| inventory
+: bytes
+| CREATE TABLE `inventory` (
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `product_id` int(11) NOT NULL,
+|   `quantity` int(11) NOT NULL DEFAULT '0',
+|   `last_updated` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_product` (`product_id`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE VIEW `pa_mm_ed63de90`.`inventory_changes`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| inventory_changes
+: bytes
+| CREATE VIEW `inventory_changes` AS select `pa_mm_ed63de90`.`inventory_log`.`product_id` AS `product_id`,count(0) AS `change_count`,max(`pa_mm_ed63de90`.`inventory_log`.`changed_at`) AS `last_changed` from `pa_mm_ed63de90`.`inventory_log` group by `pa_mm_ed63de90`.`inventory_log`.`product_id`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `pa_mm_ed63de90`.`inventory_log`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| inventory_log
+: bytes
+| CREATE TABLE `inventory_log` (
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `product_id` int(11) NOT NULL,
+|   `old_quantity` int(11) DEFAULT NULL,
+|   `new_quantity` int(11) DEFAULT NULL,
+|   `change_type` varchar(20) DEFAULT NULL,
+|   `changed_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
+: string
+| pa_mm_ed63de90
+< result
+< column "ROUTINE_TYPE" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< column "DTD_IDENTIFIER" "TEXT"
+< column "ROUTINE_DEFINITION" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
+> query
+| SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
+: string
+| pa_mm_ed63de90
+< result
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
+< column "PARAMETER_MODE" "VARCHAR"
+< column "PARAMETER_NAME" "VARCHAR"
+< column "DTD_IDENTIFIER" "TEXT"
+> query
+| SELECT TRIGGER_NAME, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_TIMING, ACTION_ORDER, ACTION_STATEMENT FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = ? ORDER BY TRIGGER_NAME
+: string
+| pa_mm_ed63de90
+< result
+< column "TRIGGER_NAME" "VARCHAR" "string"
+< column "EVENT_MANIPULATION" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
+< column "ACTION_TIMING" "VARCHAR"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
+< row
+: bytes
+| trg_inventory_delete
+: bytes
+| DELETE
+: bytes
+| inventory
+: bytes
+| BEFORE
+: int64 1
+: bytes
+| TRIGGER `pa_mm_ed63de90`.`trg_inventory_delete` BEFORE DELETE ON `pa_mm_ed63de90`.`inventory` FOR EACH ROW BEGIN
+|     INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
+|     VALUES (OLD.product_id, OLD.quantity, NULL, 'DELETE');
+| END
+< row
+: bytes
+| trg_inventory_insert
+: bytes
+| INSERT
+: bytes
+| inventory
+: bytes
+| AFTER
+: int64 1
+: bytes
+| TRIGGER `pa_mm_ed63de90`.`trg_inventory_insert` AFTER INSERT ON `pa_mm_ed63de90`.`inventory` FOR EACH ROW BEGIN
+|     INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
+|     VALUES (NEW.product_id, NULL, NEW.quantity, 'INSERT');
+| END
+< row
+: bytes
+| trg_inventory_update
+: bytes
+| UPDATE
+: bytes
+| inventory
+: bytes
+| AFTER
+: int64 1
+: bytes
+| TRIGGER `pa_mm_ed63de90`.`trg_inventory_update` AFTER UPDATE ON `pa_mm_ed63de90`.`inventory` FOR EACH ROW BEGIN
+|     IF OLD.quantity != NEW.quantity THEN
+|         INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
+|         VALUES (NEW.product_id, OLD.quantity, NEW.quantity, 'UPDATE');
+|     END IF;
+| END
+> query
+| SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
+: string
+| pa_mm_ed63de90
+< result
+< column "EVENT_NAME" "VARCHAR"
+< column "EVENT_DEFINITION" "TEXT"
+< column "EVENT_TYPE" "VARCHAR" "string"
+< column "INTERVAL_VALUE" "VARCHAR"
+< column "INTERVAL_FIELD" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
+> exec
+| USE pa_mm_ed63de90_to
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| pa_mm_ed63de90_to
+< result
+< column "TABLE_NAME" "CHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
+< row
+: bytes
+| inventory
+: bytes
+| BASE TABLE
+< row
+: bytes
+| inventory_changes
+: bytes
+| VIEW
+< row
+: bytes
+| inventory_log
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `pa_mm_ed63de90_to`.`inventory`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| inventory
+: bytes
+| CREATE TABLE `inventory` (
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `product_id` int(11) NOT NULL,
+|   `quantity` int(11) NOT NULL DEFAULT '0',
+|   `last_updated` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+|   PRIMARY KEY (`id`),
+|   UNIQUE KEY `uk_product` (`product_id`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SHOW CREATE VIEW `pa_mm_ed63de90_to`.`inventory_changes`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| inventory_changes
+: bytes
+| CREATE VIEW `inventory_changes` AS select `pa_mm_ed63de90_to`.`inventory_log`.`product_id` AS `product_id`,count(*) AS `change_count`,max(`pa_mm_ed63de90_to`.`inventory_log`.`changed_at`) AS `last_changed` from `pa_mm_ed63de90_to`.`inventory_log` group by `pa_mm_ed63de90_to`.`inventory_log`.`product_id`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `pa_mm_ed63de90_to`.`inventory_log`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| inventory_log
+: bytes
+| CREATE TABLE `inventory_log` (
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `product_id` int(11) NOT NULL,
+|   `old_quantity` int(11) DEFAULT NULL,
+|   `new_quantity` int(11) DEFAULT NULL,
+|   `change_type` varchar(20) DEFAULT NULL,
+|   `changed_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
+: string
+| pa_mm_ed63de90_to
+< result
+< column "ROUTINE_TYPE" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< column "DTD_IDENTIFIER" "TEXT"
+< column "ROUTINE_DEFINITION" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
+> query
+| SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
+: string
+| pa_mm_ed63de90_to
+< result
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
+< column "PARAMETER_MODE" "VARCHAR"
+< column "PARAMETER_NAME" "VARCHAR"
+< column "DTD_IDENTIFIER" "TEXT"
+> query
+| SELECT TRIGGER_NAME, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_TIMING, ACTION_ORDER, ACTION_STATEMENT FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = ? ORDER BY TRIGGER_NAME
+: string
+| pa_mm_ed63de90_to
+< result
+< column "TRIGGER_NAME" "VARCHAR" "string"
+< column "EVENT_MANIPULATION" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
+< column "ACTION_TIMING" "VARCHAR"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
+< row
+: bytes
+| trg_inventory_delete
+: bytes
+| DELETE
+: bytes
+| inventory
+: bytes
+| BEFORE
+: int64 1
+: bytes
+| TRIGGER trg_inventory_delete
 | BEFORE DELETE ON inventory
 | FOR EACH ROW
 | BEGIN
 |     INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
 |     VALUES (OLD.product_id, OLD.quantity, NULL, 'DELETE');
-| END' at line 7
+| END
+< row
+: bytes
+| trg_inventory_insert
+: bytes
+| INSERT
+: bytes
+| inventory
+: bytes
+| AFTER
+: int64 1
+: bytes
+| TRIGGER trg_inventory_insert
+| AFTER INSERT ON inventory
+| FOR EACH ROW
+| BEGIN
+|     INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
+|     VALUES (NEW.product_id, NULL, NEW.quantity, 'INSERT');
+| END
+< row
+: bytes
+| trg_inventory_update
+: bytes
+| UPDATE
+: bytes
+| inventory
+: bytes
+| AFTER
+: int64 1
+: bytes
+| TRIGGER trg_inventory_update
+| AFTER UPDATE ON inventory
+| FOR EACH ROW
+| BEGIN
+|     IF OLD.quantity != NEW.quantity THEN
+|         INSERT INTO inventory_log (product_id, old_quantity, new_quantity, change_type)
+|         VALUES (NEW.product_id, OLD.quantity, NEW.quantity, 'UPDATE');
+|     END IF;
+| END
+> query
+| SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
+: string
+| pa_mm_ed63de90_to
+< result
+< column "EVENT_NAME" "VARCHAR"
+< column "EVENT_DEFINITION" "TEXT"
+< column "EVENT_TYPE" "VARCHAR" "string"
+< column "INTERVAL_VALUE" "VARCHAR"
+< column "INTERVAL_FIELD" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
 > exec
 | DROP DATABASE IF EXISTS pa_mm_2f3a1b76
 < ok 0 0
@@ -8641,9 +10263,451 @@
 | END
 < ok 0 0
 > exec
-| CREATE EVENT `evt_cleanup_old_stats` ON COMPLETION NOT PRESERVE ENABLE COMMENT ''
-< error
-| 1064 42000 …near 'COMPLETION' at line 1
+| CREATE EVENT `evt_cleanup_old_stats` ON SCHEDULE EVERY 1 DAY STARTS '2026-11-25 09:28:09' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO DELETE FROM system_stats
+|     WHERE recorded_at < DATE_SUB(NOW(), INTERVAL 30 DAY)
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS pa_mm_2f3a1b76_to
+< ok 0 0
+> exec
+| CREATE DATABASE pa_mm_2f3a1b76_to
+< ok 1 0
+> exec
+| USE pa_mm_2f3a1b76_to
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE system_stats (
+|     id INT NOT NULL AUTO_INCREMENT,
+|     stat_name VARCHAR(100) NOT NULL,
+|     stat_value DECIMAL(10, 2),
+|     recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+|     PRIMARY KEY (id)
+| ) ENGINE=InnoDB
+< ok 0 0
+> exec
+| CREATE EVENT IF NOT EXISTS evt_cleanup_old_stats
+| ON SCHEDULE EVERY 1 DAY
+| STARTS CURRENT_TIMESTAMP
+| DO
+| BEGIN
+|     DELETE FROM system_stats
+|     WHERE recorded_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
+| END
+< ok 0 0
+> exec
+| CREATE PROCEDURE RecordSystemStat(
+|     IN p_stat_name VARCHAR(100),
+|     IN p_stat_value DECIMAL(10, 2)
+| )
+| BEGIN
+|     DECLARE EXIT HANDLER FOR SQLEXCEPTION
+|     BEGIN
+|         ROLLBACK;
+|         RESIGNAL;
+|     END;
+|
+|     START TRANSACTION;
+|
+|     INSERT INTO system_stats (stat_name, stat_value)
+|     VALUES (p_stat_name, p_stat_value);
+|
+|     COMMIT;
+| END
+< ok 0 0
+> exec
+| CREATE FUNCTION GetAverageStat(p_stat_name VARCHAR(100))
+| RETURNS DECIMAL(10, 2)
+| DETERMINISTIC
+| READS SQL DATA
+| BEGIN
+|     DECLARE avg_value DECIMAL(10, 2);
+|
+|     SELECT AVG(stat_value) INTO avg_value
+|     FROM system_stats
+|     WHERE stat_name = p_stat_name
+|     AND recorded_at >= DATE_SUB(NOW(), INTERVAL 7 DAY);
+|
+|     RETURN COALESCE(avg_value, 0);
+| END
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE pa_mm_2f3a1b76
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| pa_mm_2f3a1b76
+< result
+< column "TABLE_NAME" "CHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
+< row
+: bytes
+| system_stats
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `pa_mm_2f3a1b76`.`system_stats`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| system_stats
+: bytes
+| CREATE TABLE `system_stats` (
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `stat_name` varchar(100) NOT NULL,
+|   `stat_value` decimal(10,2) DEFAULT NULL,
+|   `recorded_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
+: string
+| pa_mm_2f3a1b76
+< result
+< column "ROUTINE_TYPE" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< column "DTD_IDENTIFIER" "TEXT"
+< column "ROUTINE_DEFINITION" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
+< row
+: bytes
+| FUNCTION
+: bytes
+| GetAverageStat
+: bytes
+| decimal(10,2)
+: bytes
+| BEGIN
+|     DECLARE avg_value DECIMAL(10, 2);
+|
+|     SELECT AVG(stat_value) INTO avg_value
+|     FROM system_stats
+|     WHERE stat_name = p_stat_name
+|     AND recorded_at >= DATE_SUB(NOW(), INTERVAL 7 DAY);
+|
+|     RETURN COALESCE(avg_value, 0);
+| END
+: bytes
+| YES
+: bytes
+| READS_SQL_DATA
+: bytes
+| DEFINER
+: bytes
+|
+< row
+: bytes
+| PROCEDURE
+: bytes
+| RecordSystemStat
+: null
+: bytes
+| BEGIN
+|     DECLARE EXIT HANDLER FOR SQLEXCEPTION
+|     BEGIN
+|         ROLLBACK;
+|         RESIGNAL;
+|     END;
+|
+|     START TRANSACTION;
+|
+|     INSERT INTO system_stats (stat_name, stat_value)
+|     VALUES (p_stat_name, p_stat_value);
+|
+|     COMMIT;
+| END
+: bytes
+| NO
+: bytes
+| MODIFIES_SQL_DATA
+: bytes
+| DEFINER
+: bytes
+|
+> query
+| SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
+: string
+| pa_mm_2f3a1b76
+< result
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
+< column "PARAMETER_MODE" "VARCHAR"
+< column "PARAMETER_NAME" "VARCHAR"
+< column "DTD_IDENTIFIER" "TEXT"
+< row
+: bytes
+| GetAverageStat
+: int64 0
+: null
+: null
+: bytes
+| decimal(10,2)
+< row
+: bytes
+| GetAverageStat
+: int64 1
+: bytes
+| IN
+: bytes
+| p_stat_name
+: bytes
+| varchar(100)
+< row
+: bytes
+| RecordSystemStat
+: int64 1
+: bytes
+| IN
+: bytes
+| p_stat_name
+: bytes
+| varchar(100)
+< row
+: bytes
+| RecordSystemStat
+: int64 2
+: bytes
+| IN
+: bytes
+| p_stat_value
+: bytes
+| decimal(10,2)
+> query
+| SELECT TRIGGER_NAME, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_TIMING, ACTION_ORDER, ACTION_STATEMENT FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = ? ORDER BY TRIGGER_NAME
+: string
+| pa_mm_2f3a1b76
+< result
+< column "TRIGGER_NAME" "VARCHAR" "string"
+< column "EVENT_MANIPULATION" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
+< column "ACTION_TIMING" "VARCHAR"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
+> query
+| SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
+: string
+| pa_mm_2f3a1b76
+< result
+< column "EVENT_NAME" "VARCHAR"
+< column "EVENT_DEFINITION" "TEXT"
+< column "EVENT_TYPE" "VARCHAR" "string"
+< column "INTERVAL_VALUE" "VARCHAR"
+< column "INTERVAL_FIELD" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
+< row
+: bytes
+| evt_cleanup_old_stats
+: bytes
+| DELETE FROM system_stats
+|     WHERE recorded_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
+: bytes
+| RECURRING
+: bytes
+| 1
+: bytes
+| DAY
+: bytes
+| ENABLED
+: bytes
+| NOT PRESERVE
+> exec
+| USE pa_mm_2f3a1b76_to
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| pa_mm_2f3a1b76_to
+< result
+< column "TABLE_NAME" "CHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
+< row
+: bytes
+| system_stats
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `pa_mm_2f3a1b76_to`.`system_stats`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| system_stats
+: bytes
+| CREATE TABLE `system_stats` (
+|   `id` int(11) NOT NULL AUTO_INCREMENT,
+|   `stat_name` varchar(100) NOT NULL,
+|   `stat_value` decimal(10,2) DEFAULT NULL,
+|   `recorded_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+|   PRIMARY KEY (`id`)
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
+| SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
+: string
+| pa_mm_2f3a1b76_to
+< result
+< column "ROUTINE_TYPE" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< column "DTD_IDENTIFIER" "TEXT"
+< column "ROUTINE_DEFINITION" "TEXT"
+< column "IS_DETERMINISTIC" "VARCHAR" "string"
+< column "SQL_DATA_ACCESS" "VARCHAR" "string"
+< column "SECURITY_TYPE" "VARCHAR" "string"
+< column "ROUTINE_COMMENT" "TEXT" "string"
+< row
+: bytes
+| FUNCTION
+: bytes
+| GetAverageStat
+: bytes
+| decimal(10,2)
+: bytes
+| BEGIN
+|     DECLARE avg_value DECIMAL(10, 2);
+|
+|     SELECT AVG(stat_value) INTO avg_value
+|     FROM system_stats
+|     WHERE stat_name = p_stat_name
+|     AND recorded_at >= DATE_SUB(NOW(), INTERVAL 7 DAY);
+|
+|     RETURN COALESCE(avg_value, 0);
+| END
+: bytes
+| YES
+: bytes
+| READS_SQL_DATA
+: bytes
+| DEFINER
+: bytes
+|
+< row
+: bytes
+| PROCEDURE
+: bytes
+| RecordSystemStat
+: null
+: bytes
+| BEGIN
+|     DECLARE EXIT HANDLER FOR SQLEXCEPTION
+|     BEGIN
+|         ROLLBACK;
+|         RESIGNAL;
+|     END;
+|
+|     START TRANSACTION;
+|
+|     INSERT INTO system_stats (stat_name, stat_value)
+|     VALUES (p_stat_name, p_stat_value);
+|
+|     COMMIT;
+| END
+: bytes
+| NO
+: bytes
+| MODIFIES_SQL_DATA
+: bytes
+| DEFINER
+: bytes
+|
+> query
+| SELECT SPECIFIC_NAME, ORDINAL_POSITION, PARAMETER_MODE, PARAMETER_NAME, DTD_IDENTIFIER FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = ? ORDER BY SPECIFIC_NAME, ORDINAL_POSITION
+: string
+| pa_mm_2f3a1b76_to
+< result
+< column "SPECIFIC_NAME" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT" "int64"
+< column "PARAMETER_MODE" "VARCHAR"
+< column "PARAMETER_NAME" "VARCHAR"
+< column "DTD_IDENTIFIER" "TEXT"
+< row
+: bytes
+| GetAverageStat
+: int64 0
+: null
+: null
+: bytes
+| decimal(10,2)
+< row
+: bytes
+| GetAverageStat
+: int64 1
+: bytes
+| IN
+: bytes
+| p_stat_name
+: bytes
+| varchar(100)
+< row
+: bytes
+| RecordSystemStat
+: int64 1
+: bytes
+| IN
+: bytes
+| p_stat_name
+: bytes
+| varchar(100)
+< row
+: bytes
+| RecordSystemStat
+: int64 2
+: bytes
+| IN
+: bytes
+| p_stat_value
+: bytes
+| decimal(10,2)
+> query
+| SELECT TRIGGER_NAME, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_TIMING, ACTION_ORDER, ACTION_STATEMENT FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = ? ORDER BY TRIGGER_NAME
+: string
+| pa_mm_2f3a1b76_to
+< result
+< column "TRIGGER_NAME" "VARCHAR" "string"
+< column "EVENT_MANIPULATION" "VARCHAR"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
+< column "ACTION_TIMING" "VARCHAR"
+< column "ACTION_ORDER" "BIGINT" "int64"
+< column "ACTION_STATEMENT" "TEXT" "string"
+> query
+| SELECT EVENT_NAME, EVENT_DEFINITION, EVENT_TYPE, INTERVAL_VALUE, INTERVAL_FIELD, STATUS, ON_COMPLETION FROM information_schema.EVENTS WHERE EVENT_SCHEMA = ? ORDER BY EVENT_NAME
+: string
+| pa_mm_2f3a1b76_to
+< result
+< column "EVENT_NAME" "VARCHAR"
+< column "EVENT_DEFINITION" "TEXT"
+< column "EVENT_TYPE" "VARCHAR" "string"
+< column "INTERVAL_VALUE" "VARCHAR"
+< column "INTERVAL_FIELD" "VARCHAR"
+< column "STATUS" "VARCHAR" "string"
+< column "ON_COMPLETION" "VARCHAR" "string"
+< row
+: bytes
+| evt_cleanup_old_stats
+: bytes
+| DELETE FROM system_stats
+|     WHERE recorded_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
+: bytes
+| RECURRING
+: bytes
+| 1
+: bytes
+| DAY
+: bytes
+| ENABLED
+: bytes
+| NOT PRESERVE
 > exec
 | DROP DATABASE IF EXISTS pa_mm_4a125487
 < ok 0 0

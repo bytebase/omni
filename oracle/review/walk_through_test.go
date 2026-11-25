@@ -387,6 +387,38 @@ func TestWalkThroughOracle(t *testing.T) {
 	noFinding(t, "DELETE FROM nokey@remote LOG ERRORS;", shop)
 }
 
+// TestWalkThroughOracleHeapTable holds the walk to what a tablespace says:
+// Oracle gives one to no partitioned, index-organized, external, or
+// temporary table, so a table the sync gives one is a heap table of no
+// partitions.
+func TestWalkThroughOracleHeapTable(t *testing.T) {
+	schema := walkSchema(false)
+	heap := &metadata.TableMetadata{
+		Name:       "HEAP",
+		Tablespace: "USERS",
+		Columns:    []*metadata.ColumnMetadata{{Name: "ID", Type: "NUMBER"}, {Name: "A", Type: "NUMBER", Nullable: true}},
+		Indexes:    []*metadata.IndexMetadata{{Name: "PK_HEAP", Primary: true, Unique: true, IsConstraint: true}},
+	}
+	schema.Schemas[0].Tables = append(schema.Schemas[0].Tables, heap)
+	shop := review.Target{Schema: schema}
+	oneFinding(t, "ALTER TABLE heap ADD PARTITION p VALUES LESS THAN (10);", 0, "Table `HEAP` is not partitioned.", shop)
+	oneFinding(t, "ALTER TABLE heap MOVE PARTITION p;", 0, "Table `HEAP` is not partitioned.", shop)
+	oneFinding(t, "DELETE heap PARTITION (p);", 0, "Table `HEAP` is not partitioned.", shop)
+	oneFinding(t, "CREATE INDEX ix_a ON heap (a) LOCAL;", 0, "A LOCAL index needs a partitioned table, not `HEAP`.", shop)
+	oneFinding(t, "ALTER TABLE heap MOVE NOMAPPING;", 0, "MAPPING TABLE / NOMAPPING is only allowed on an index-organized table, not `HEAP`.", shop)
+	oneFinding(t, "ALTER TABLE heap REJECT LIMIT 1;", 0, "This clause is only allowed on an external table, not `HEAP`.", shop)
+	noFinding(t, "ALTER TABLE heap MODIFY PARTITION BY RANGE (a) (PARTITION p VALUES LESS THAN (10));", shop)
+	noFinding(t, "CREATE INDEX ix_a ON heap (a) GLOBAL PARTITION BY HASH (a) PARTITIONS 2;", shop)
+	noFinding(t, "ALTER TABLE heap MOVE;", shop)
+	// Once the change partitions it, its partitions are the change's.
+	noFinding(t, "ALTER TABLE heap MODIFY PARTITION BY RANGE (a) (PARTITION p VALUES LESS THAN (10));\nALTER TABLE heap ADD PARTITION q VALUES LESS THAN (20);", shop)
+	noFinding(t, "DROP TABLE heap;\nCREATE TABLE heap (a NUMBER) PARTITION BY RANGE (a) (PARTITION p VALUES LESS THAN (10));\nALTER TABLE heap ADD PARTITION q VALUES LESS THAN (20);", shop)
+	// No tablespace says nothing.
+	heap.Tablespace = ""
+	noFinding(t, "ALTER TABLE heap MOVE PARTITION p;", shop)
+	noFinding(t, "CREATE INDEX ix_a ON heap (a) LOCAL;", shop)
+}
+
 func TestWalkThroughOracleEffects(t *testing.T) {
 	shop := review.Target{Schema: walkSchema(false)}
 	// After IF [NOT] EXISTS on a name the walk does not know, the name is
@@ -1188,4 +1220,67 @@ func TestWalkThroughOracleMaterializedViewColumns(t *testing.T) {
 	rich := review.Target{Schema: db}
 	oneFinding(t, "ALTER TABLE mv MODIFY (val GENERATED ALWAYS AS IDENTITY);", 0, "Column `VAL` in `MV` is not an identity column.", rich)
 	noFinding(t, "MERGE INTO plain p USING mv PARTITION FOR (1) m ON (p.id = m.id) WHEN MATCHED THEN UPDATE SET p.val = m.val;", rich)
+}
+
+// TestWalkThroughOracleListedIndexes holds the walk to a sync that lists
+// every index the schema owns: one on another schema's table and a cluster's
+// are in other_indexes, so a name no index holds is refused (01418). A sync
+// that gives no table a tablespace, an older driver's, says nothing.
+func TestWalkThroughOracleListedIndexes(t *testing.T) {
+	schema := walkSchema(false)
+	s := schema.Schemas[0]
+	s.Tables[0].Tablespace = "USERS"
+	s.OtherIndexes = []*metadata.SchemaIndexMetadata{
+		{Schema: "OTHER", Table: "X", Index: &metadata.IndexMetadata{Name: "ON_OTHER"}},
+		{Schema: "SHOP", Table: "CL", Index: &metadata.IndexMetadata{Name: "CL_IDX", Type: "CLUSTER"}},
+	}
+	shop := review.Target{Schema: schema}
+	oneFinding(t, "ALTER INDEX nosuch REBUILD;", 0, "Index `NOSUCH` doesn't exist.", shop)
+	oneFinding(t, "DROP INDEX nosuch;", 0, "Index `NOSUCH` doesn't exist.", shop)
+	noFinding(t, "ALTER INDEX ix_n REBUILD;", shop)
+	noFinding(t, "ALTER INDEX mv_ix REBUILD;", shop)
+	noFinding(t, "ALTER INDEX on_other REBUILD;", shop)
+	noFinding(t, "DROP INDEX cl_idx;", shop)
+	noFinding(t, "DROP INDEX IF EXISTS nosuch;", shop)
+	// A constraint's index may have the constraint's name, and Oracle
+	// names some indexes itself.
+	noFinding(t, "ALTER INDEX pk_t REBUILD;", shop)
+	noFinding(t, "ALTER INDEX sys_c0012 REBUILD;", shop)
+	// What the change makes is the change's.
+	noFinding(t, "CREATE INDEX ix2 ON t (code);\nALTER INDEX ix2 REBUILD;", shop)
+	noFinding(t, "ALTER TABLE t ADD CONSTRAINT uk2 UNIQUE (n);\nALTER INDEX uk2 REBUILD;", shop)
+	oneFinding(t, "DROP INDEX on_other;\nALTER INDEX on_other REBUILD;", 1, "Index `ON_OTHER` doesn't exist.", shop)
+	s.Tables[0].Tablespace = ""
+	noFinding(t, "ALTER INDEX nosuch REBUILD;", shop)
+}
+
+// TestWalkThroughOracleHeapMaterializedView holds the walk to a materialized
+// view's synced tablespace and partitions, its container's: one with a
+// tablespace is a heap container of no partitions, which takes no
+// partitioning clause, and one with neither says nothing.
+func TestWalkThroughOracleHeapMaterializedView(t *testing.T) {
+	db := walkRichSchema()
+	var mv *metadata.MaterializedViewMetadata
+	for _, m := range db.Schemas[0].MaterializedViews {
+		if m.Name == "MV" {
+			mv = m
+		}
+	}
+	mv.Columns = []*metadata.ColumnMetadata{{Name: "ID", Type: "NUMBER"}, {Name: "VAL", Type: "NUMBER", Nullable: true}}
+	mv.Tablespace = "USERS"
+	shop := review.Target{Schema: db}
+	oneFinding(t, "ALTER MATERIALIZED VIEW mv ADD PARTITION p VALUES LESS THAN (10);", 0, "Table `MV` is not partitioned.", shop)
+	oneFinding(t, "ALTER TABLE mv ADD PARTITION p VALUES LESS THAN (10);", 0, "Table `MV` is not partitioned.", shop)
+	oneFinding(t, "ALTER MATERIALIZED VIEW mv SET SUBPARTITION TEMPLATE (SUBPARTITION s1);", 0, "Table `MV` is not partitioned.", shop)
+	oneFinding(t, "ALTER MATERIALIZED VIEW mv OVERFLOW LOGGING;", 0, "OVERFLOW is only allowed on an index-organized table, not `MV`.", shop)
+	oneFinding(t, "CREATE INDEX ix_val ON mv (val) LOCAL;", 0, "A LOCAL index needs a partitioned table, not `MV`.", shop)
+	noFinding(t, "ALTER MATERIALIZED VIEW mv COMPILE;", shop)
+	noFinding(t, "ALTER MATERIALIZED VIEW mv NOLOGGING;", shop)
+	mv.Tablespace = ""
+	mv.Partitions = []*metadata.TablePartitionMetadata{{Name: "P1", Type: metadata.TablePartitionMetadata_RANGE, Expression: "ID", Value: "10"}}
+	noFinding(t, "ALTER TABLE mv TRUNCATE PARTITION p1;", shop)
+	noFinding(t, "ALTER MATERIALIZED VIEW mv ADD PARTITION p2 VALUES LESS THAN (20);", shop)
+	mv.Partitions = nil
+	noFinding(t, "ALTER MATERIALIZED VIEW mv ADD PARTITION p VALUES LESS THAN (10);", shop)
+	noFinding(t, "CREATE INDEX ix_val ON mv (val) LOCAL;", shop)
 }

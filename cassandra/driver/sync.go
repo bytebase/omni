@@ -98,7 +98,7 @@ type primaryKey struct {
 
 type columnOrderInfo struct {
 	column   *metadatapb.ColumnMetadata
-	kind     string // "partition_key", "clustering", or "regular"
+	kind     string // "partition_key", "clustering", "static", or "regular"
 	position int    // Position within partition/clustering keys
 }
 
@@ -176,50 +176,31 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 		}
 	}
 
-	// Sort columns to match Cassandra's SELECT * order:
-	// 1. Partition keys (by position)
-	// 2. Clustering keys (by position)
-	// 3. Regular columns (alphabetically)
-	// This ensures masking is applied to the correct columns.
-	for tableName, columns := range columnOrderMap {
-		slices.SortFunc(columns, func(a, b columnOrderInfo) int {
-			// Primary key columns come before regular columns
-			aPrimary := (a.kind == "partition_key" || a.kind == "clustering")
-			bPrimary := (b.kind == "partition_key" || b.kind == "clustering")
-
-			if aPrimary && !bPrimary {
-				return -1
-			}
-			if !aPrimary && bPrimary {
-				return 1
-			}
-
-			// Within primary key columns, sort by type then position
-			if aPrimary && bPrimary {
-				// Partition keys before clustering keys
-				if a.kind == "partition_key" && b.kind == "clustering" {
-					return -1
-				}
-				if a.kind == "clustering" && b.kind == "partition_key" {
-					return 1
-				}
-				// Within same type, sort by position
-				if a.position < b.position {
-					return -1
-				}
-				if a.position > b.position {
-					return 1
-				}
-			}
-
-			// Regular columns are sorted alphabetically
-			if !aPrimary && !bPrimary {
-				return strings.Compare(a.column.Name, b.column.Name)
-			}
-
+	// Sort columns to match Cassandra's SELECT * order: the partition key
+	// columns by position, the clustering columns by position, then the static
+	// columns and last the regular columns, each by name. A masking policy is
+	// applied by position, so this order is what keeps it on its column.
+	kindRank := func(kind string) int {
+		switch kind {
+		case "partition_key":
 			return 0
+		case "clustering":
+			return 1
+		case "static":
+			return 2
+		}
+		return 3
+	}
+	for _, columns := range columnOrderMap {
+		slices.SortFunc(columns, func(a, b columnOrderInfo) int {
+			if ra, rb := kindRank(a.kind), kindRank(b.kind); ra != rb {
+				return ra - rb
+			}
+			if a.kind == "partition_key" || a.kind == "clustering" {
+				return a.position - b.position
+			}
+			return strings.Compare(a.column.Name, b.column.Name)
 		})
-		columnOrderMap[tableName] = columns
 	}
 
 	indexMap := map[string][]*metadatapb.IndexMetadata{}
@@ -306,6 +287,39 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 		table.Indexes = append(table.Indexes, indexMap[tableName]...)
 
 		schemaMetadata.Tables = append(schemaMetadata.Tables, table)
+	}
+
+	// A materialized view is listed in system_schema.views, never in
+	// system_schema.tables, and its columns are in system_schema.columns under
+	// its own name. It can only select columns of its base table, under their
+	// own names, so each of its columns depends on the base-table column of
+	// the same name: what a query of the view reads.
+	_, viewRows, _, err := c.Query(ctx, fmt.Sprintf(`
+		SELECT
+			view_name,
+			base_table_name
+		FROM system_schema.views
+		WHERE keyspace_name = %s
+		ORDER BY view_name
+	`, sqlLiteral(d.config.Database)), 0, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan materialized view: %w", err)
+	}
+	for _, row := range viewRows {
+		if len(row.Values) != 2 {
+			return nil, fmt.Errorf("failed to scan materialized view: want 2 values, got %d", len(row.Values))
+		}
+		viewName := stringValue(row.Values[0])
+		baseTable := stringValue(row.Values[1])
+		view := &metadatapb.MaterializedViewMetadata{Name: viewName}
+		for _, colInfo := range columnOrderMap[viewName] {
+			view.Columns = append(view.Columns, colInfo.column)
+			view.DependencyColumns = append(view.DependencyColumns, &metadatapb.DependencyColumn{
+				Table:  baseTable,
+				Column: colInfo.column.Name,
+			})
+		}
+		schemaMetadata.MaterializedViews = append(schemaMetadata.MaterializedViews, view)
 	}
 
 	return &metadatapb.DatabaseSchemaMetadata{

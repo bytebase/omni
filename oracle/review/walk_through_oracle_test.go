@@ -465,10 +465,12 @@ var wrongKindShape = regexp.MustCompile(`^N is an? (.+), not an? (.+)\.$`)
 // a CREATE makes, beyond the kinds walkCodes lists.
 var takenKindShape = regexp.MustCompile(`^[A-Z][a-z ]+ N already exists\.$`)
 
-var viewQueryCode = regexp.MustCompile(`^Oracle refuses the view's query: ORA-(\d{5}):`)
+// catalogRefusal is a finding that quotes the Oracle error a check refuses
+// the statement with.
+var catalogRefusal = regexp.MustCompile(`^Oracle refuses the (?:view's query|trigger): ORA-(\d{5}):`)
 
 func (e *oracleEngine) Codes(message string) []string {
-	if c := viewQueryCode.FindStringSubmatch(message); c != nil {
+	if c := catalogRefusal.FindStringSubmatch(message); c != nil {
 		return []string{c[1]}
 	}
 	m := walkShape(message)
@@ -662,8 +664,8 @@ func (e *oracleEngine) Same(claimed, stored walk.Key) bool { return claimed == s
 // back no constraint of their name, are not named SYS_, and hold a column
 // the user made; the triggers of the schema on its own tables and views;
 // its views, materialized views, sequences but identity ones, and
-// functions, procedures, and packages; and its synonyms and the public
-// ones.
+// functions, procedures, and packages; its synonyms and the public ones;
+// and each table's tablespace.
 //
 // Bytebase reads the ALL_ views; to SYSTEM they show the schema's rows as
 // the DBA_ views do, but their privilege checks cost seconds of hard parse
@@ -714,12 +716,17 @@ func walkSync(t testing.TB, conn *sql.Conn, schema, names string) *metadata.Data
 		s.MaterializedViews = append(s.MaterializedViews, mviews[v[0].String])
 	})
 	tables := make(map[string]*metadata.TableMetadata)
-	query(`SELECT table_name, 0 FROM dba_tables WHERE owner = :1
-UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = :1 ORDER BY 1, 2`, func(v []sql.NullString) {
-		if mviews[v[0].String] != nil {
+	query(`SELECT table_name, 0, tablespace_name FROM dba_tables WHERE owner = :1
+UNION ALL SELECT table_name, 1, tablespace_name FROM dba_object_tables WHERE owner = :1 ORDER BY 1, 2`, func(v []sql.NullString) {
+		// A materialized view's tablespace is its container's, as
+		// oracle/driver/sync.go's getMaterializedViews gives it.
+		if mv := mviews[v[0].String]; mv != nil {
+			if v[1].String == "0" {
+				mv.Tablespace = v[2].String
+			}
 			return
 		}
-		tables[v[0].String] = &metadata.TableMetadata{Name: v[0].String, SkipDump: v[1].String == "1"}
+		tables[v[0].String] = &metadata.TableMetadata{Name: v[0].String, SkipDump: v[1].String == "1", Tablespace: v[2].String}
 		s.Tables = append(s.Tables, tables[v[0].String])
 	})
 	query(`SELECT table_name, column_name, data_type, nullable, column_id, virtual_column, identity_column, data_default FROM dba_tab_cols WHERE owner = :1 AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name`, func(v []sql.NullString) {
@@ -811,18 +818,19 @@ UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = :1 ORDER BY 
 			if !ok || strings.EqualFold(strings.TrimSpace(v[3].String), "YES") {
 				return
 			}
-			tb, ok := tables[v[0].String]
-			if !ok {
-				return
-			}
-			tb.Partitions = append(tb.Partitions, &metadata.TablePartitionMetadata{
+			p := &metadata.TablePartitionMetadata{
 				Name:           v[1].String,
 				Type:           info.partType,
 				Expression:     strings.Join(partKeys[v[0].String], ", "),
 				Value:          strings.TrimSpace(v[2].String),
 				IntervalClause: info.interval,
 				Subpartitions:  subpartMap[partRef{table: v[0].String, partition: v[1].String}],
-			})
+			}
+			if tb, ok := tables[v[0].String]; ok {
+				tb.Partitions = append(tb.Partitions, p)
+			} else if mv, ok := mviews[v[0].String]; ok {
+				mv.Partitions = append(mv.Partitions, p)
+			}
 		})
 	}
 	// An index holds a column the user made unless every column it lists
@@ -830,7 +838,7 @@ UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = :1 ORDER BY 
 	userColumns := make(map[string]bool)
 	indexCols := make(map[string][]string)
 	indexHasExpr := make(map[string]bool)
-	query(`SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = :1 ORDER BY c.index_name, c.column_position`, func(v []sql.NullString) {
+	query(`SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.index_owner = :1 ORDER BY c.index_name, c.column_position`, func(v []sql.NullString) {
 		if !strings.HasPrefix(v[1].String, "SYS_NC") || v[2].String != "0" {
 			userColumns[v[0].String] = true
 		}
@@ -867,7 +875,10 @@ UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = :1 ORDER BY 
 			}
 		}
 	})
-	query(`SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = :1 ORDER BY 1, 2`, func(v []sql.NullString) {
+	// An index on another schema's table or on a cluster is the schema's
+	// and on none of its tables, as oracle/driver/sync.go's
+	// getIndexesAndConstraints gives it.
+	query(`SELECT table_name, index_name, index_type, table_owner, table_type FROM dba_indexes WHERE owner = :1 ORDER BY 1, 2`, func(v []sql.NullString) {
 		table, name := v[0].String, v[1].String
 		if indexed[table+"."+name] || strings.HasPrefix(name, "SYS_") || !userColumns[name] {
 			return
@@ -875,6 +886,10 @@ UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = :1 ORDER BY 
 		idx := &metadata.IndexMetadata{Name: name, Type: v[2].String}
 		if !indexHasExpr[name] {
 			idx.Expressions = indexCols[name]
+		}
+		if v[3].String != schema || v[4].String != "TABLE" {
+			s.OtherIndexes = append(s.OtherIndexes, &metadata.SchemaIndexMetadata{Schema: v[3].String, Table: table, Index: idx})
+			return
 		}
 		addIndex(table, idx)
 	})
