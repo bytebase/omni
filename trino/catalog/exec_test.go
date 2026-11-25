@@ -173,6 +173,8 @@ func TestExecParenJoinAndViewContext(t *testing.T) {
 		"CREATE TABLE cu (one, two, three, four) AS SELECT * FROM x, ul JOIN ur USING (id)",
 		"CREATE TABLE rowt (p ROW(\"a b\" integer))",
 		"CREATE VIEW rowv AS SELECT p.\"a b\" FROM rowt",
+		"CREATE TABLE uz (c varchar, id integer)",
+		"CREATE VIEW nested AS SELECT * FROM ul JOIN (ur JOIN uz USING (id)) USING (id)",
 		// Shapes Exec takes without typing them, as Trino takes them.
 		"CREATE TABLE pj AS SELECT l.a, r.b FROM (l CROSS JOIN r)",
 		"CREATE TABLE nj AS SELECT * FROM ul NATURAL JOIN ur",
@@ -203,6 +205,9 @@ func TestExecParenJoinAndViewContext(t *testing.T) {
 	}
 	if cols := s.GetView("rowv").Columns(); len(cols) != 1 || cols[0].Type != "integer" {
 		t.Errorf("rowv's columns = %+v, want an integer", cols)
+	}
+	if got := strings.Join(s.GetView("nested").ColumnNames(), ","); got != "id,a,b,c" {
+		t.Errorf("nested's columns = %s, want id,a,b,c", got)
 	}
 	if got := strings.Join(s.GetTable("pj").ColumnNames(), ","); got != "a,b" {
 		t.Errorf("pj's columns = %s, want a,b", got)
