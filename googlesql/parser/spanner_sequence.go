@@ -36,7 +36,7 @@ import (
 // cur is at the SEQUENCE keyword. Spanner rejects OR REPLACE on SEQUENCE, while
 // BigQuery/GoogleSQL's create_sequence_statement allows opt_or_replace.
 func (p *Parser) parseCreateSequence(create Token, orReplace bool, scope string) (ast.Node, error) {
-	if (orReplace && p.isSpanner()) || scope != "" {
+	if (orReplace) || scope != "" {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance() // SEQUENCE
@@ -91,19 +91,6 @@ func (p *Parser) parseAlterSequence(alter Token) (ast.Node, error) {
 	// SET OPTIONS ( … ) is the only ALTER SEQUENCE action Spanner takes.
 	if _, err := p.expect(kwSET); err != nil {
 		return nil, err
-	}
-	if !p.isSpanner() && p.cur.Type == kwAS {
-		// SET AS generic_entity_body (googlesql.tm:1462). BigQuery parses it on
-		// ALTER SEQUENCE and answers "Statement not supported:
-		// AlterSequenceStatement"; the Spanner emulator refuses it.
-		p.advance() // AS
-		body, err := p.parseGenericEntityBody()
-		if err != nil {
-			return nil, err
-		}
-		stmt.SetAsBody = body
-		stmt.Loc.End = p.prev.Loc.End
-		return stmt, nil
 	}
 	if p.cur.Type != kwOPTIONS {
 		return nil, p.syntaxErrorAtCur()
@@ -374,7 +361,7 @@ func (p *Parser) parseProtoTypeNameListWithParens() ([]ast.NamePath, error) {
 }
 
 // parseProtoTypeName parses one proto_type_name: a dotted name `identifier ('.'
-// identifier)*`. A backtick-quoted name (the common `\`my.package.Msg\`` form) is
+// identifier)*`. A backtick-quoted name (the common `\`my.package.Msg\“ form) is
 // a single identifier whose Str already holds the dotted body, so it lands in one
 // part; an unquoted dotted name spreads across parts.
 func (p *Parser) parseProtoTypeName() (ast.NamePath, error) {

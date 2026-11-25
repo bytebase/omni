@@ -25,20 +25,6 @@ func sviOf(t *testing.T, sql string) *ast.SearchVectorIndexStmt {
 	return svi
 }
 
-func TestCreateSearchIndex_AllColumns(t *testing.T) {
-	// DDL-022.
-	svi := sviOf(t, "CREATE SEARCH INDEX my_index ON mydataset.mytable(ALL COLUMNS)")
-	if svi.IsVector {
-		t.Error("IsVector = true, want false (SEARCH)")
-	}
-	if !svi.AllColumns {
-		t.Error("AllColumns = false, want true")
-	}
-	if svi.Name.String() != "my_index" || svi.Table.String() != "mydataset.mytable" {
-		t.Errorf("Name=%q Table=%q", svi.Name.String(), svi.Table.String())
-	}
-}
-
 func TestCreateSearchIndex_ColumnList(t *testing.T) {
 	// DDL-022.
 	svi := sviOf(t, "CREATE SEARCH INDEX my_index ON mydataset.mytable(name, description)")
@@ -47,13 +33,6 @@ func TestCreateSearchIndex_ColumnList(t *testing.T) {
 	}
 	if len(svi.Keys) != 2 {
 		t.Errorf("Keys = %d, want 2", len(svi.Keys))
-	}
-}
-
-func TestCreateSearchIndex_AllColumnsWithOptions(t *testing.T) {
-	svi := sviOf(t, "CREATE SEARCH INDEX i ON t(ALL COLUMNS WITH COLUMN OPTIONS(a))")
-	if !svi.AllColumns {
-		t.Error("AllColumns = false, want true")
 	}
 }
 
@@ -68,20 +47,6 @@ func TestCreateVectorIndex(t *testing.T) {
 	}
 	if len(svi.Options) != 2 {
 		t.Errorf("Options = %d, want 2", len(svi.Options))
-	}
-}
-
-func TestCreateVectorIndex_StoringPartition(t *testing.T) {
-	// DDL-023: STORING + PARTITION BY.
-	svi := sviOf(t, "CREATE OR REPLACE VECTOR INDEX i ON t(emb) STORING(a, b) PARTITION BY DATE(d) OPTIONS(distance_type='COSINE')")
-	if !svi.OrReplace {
-		t.Error("OrReplace = false, want true")
-	}
-	if len(svi.Storing) != 2 {
-		t.Errorf("Storing = %d, want 2", len(svi.Storing))
-	}
-	if len(svi.PartitionBy) != 1 {
-		t.Errorf("PartitionBy = %d, want 1", len(svi.PartitionBy))
 	}
 }
 
@@ -125,30 +90,6 @@ func TestCreateSearchVectorIndex_Rejects(t *testing.T) {
 
 // --- ALTER VECTOR INDEX REBUILD ---
 
-func TestAlterVectorIndex_Rebuild(t *testing.T) {
-	// DDL-041 (NOT in the legacy .g4; additive union form).
-	a := bqAlterOf(t, "ALTER VECTOR INDEX my_index ON mydataset.mytable REBUILD")
-	if a.Object != ast.BQAlterVectorIndex {
-		t.Errorf("Object = %v, want VECTOR INDEX", a.Object)
-	}
-	if !a.Rebuild {
-		t.Error("Rebuild = false, want true")
-	}
-	if a.OnTable == nil || a.OnTable.String() != "mydataset.mytable" {
-		t.Errorf("OnTable = %v", a.OnTable)
-	}
-}
-
-func TestAlterVectorIndex_RebuildOptions(t *testing.T) {
-	a := bqAlterOf(t, "ALTER VECTOR INDEX IF EXISTS i ON t REBUILD OPTIONS(x=1)")
-	if !a.IfExists || !a.Rebuild {
-		t.Errorf("IfExists=%v Rebuild=%v", a.IfExists, a.Rebuild)
-	}
-	if len(a.SetOptions) != 1 {
-		t.Errorf("SetOptions = %d, want 1", len(a.SetOptions))
-	}
-}
-
 func TestAlterVectorIndex_Rejects(t *testing.T) {
 	cases := []string{
 		"ALTER VECTOR INDEX i ON t",   // missing action
@@ -160,22 +101,3 @@ func TestAlterVectorIndex_Rejects(t *testing.T) {
 }
 
 // --- DROP SEARCH/VECTOR INDEX ---
-
-func TestDropSearchIndex(t *testing.T) {
-	// DDL-054.
-	d := bqDropOf(t, "DROP SEARCH INDEX IF EXISTS my_index ON mydataset.mytable")
-	if d.Object != ast.BQDropSearchIndex {
-		t.Errorf("Object = %v, want SEARCH INDEX", d.Object)
-	}
-	if d.OnTable == nil || d.OnTable.String() != "mydataset.mytable" {
-		t.Errorf("OnTable = %v", d.OnTable)
-	}
-}
-
-func TestDropVectorIndex(t *testing.T) {
-	// DDL-054.
-	d := bqDropOf(t, "DROP VECTOR INDEX IF EXISTS my_index ON mydataset.mytable")
-	if d.Object != ast.BQDropVectorIndex {
-		t.Errorf("Object = %v, want VECTOR INDEX", d.Object)
-	}
-}

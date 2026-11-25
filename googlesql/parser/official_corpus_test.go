@@ -54,13 +54,20 @@ import (
 // vector-length parameter; spanner/expressions.md#6 stays skipped as DOC-REJECTED
 // — its constructor statement is rejected by the oracle itself.)
 func TestOfficialCorpusParses(t *testing.T) {
-	blocks := collectOfficialCorpus(t)
+	all := collectOfficialCorpus(t)
 
 	// Drift guard: if the truth1 corpus gains/loses a ```sql block the index
 	// keys in officialCorpusSkips shift and must be re-baselined. 350 = the
 	// authoring-time block count across both dialects.
-	if len(blocks) != 350 {
-		t.Errorf("found %d official ```sql blocks, expected 350 — truth1 corpus changed; re-baseline officialCorpusSkips (keys are <file>#<index>)", len(blocks))
+	if len(all) != 350 {
+		t.Errorf("found %d official ```sql blocks, expected 350 — truth1 corpus changed; re-baseline officialCorpusSkips (keys are <file>#<index>)", len(all))
+	}
+	// googlesql parses Spanner's dialect; the BigQuery pages are bigquery's.
+	var blocks []parsertest.SQLBlock
+	for _, b := range all {
+		if strings.HasPrefix(b.File, "spanner/") {
+			blocks = append(blocks, b)
+		}
 	}
 
 	var clean, skipped int
@@ -145,8 +152,6 @@ var officialCorpusSkips = map[string]string{
 	// Reference-only blocks: identifier/path examples and bare `col TYPE`
 	// column-definition snippets from the lexical & datatype docs. These are not
 	// statements and never will be.
-	"bigquery/lexical.md#0":   "FRAGMENT: LEX-001 bare unquoted-identifier examples (abc5, _5abc, dataField), not statements",
-	"bigquery/lexical.md#2":   "FRAGMENT: LEX-003 path-expression examples (foo.bar, foo/bar:25), not statements",
 	"spanner/datatypes.md#0":  "FRAGMENT: DT-001 bare `col1 BOOL` column-def snippet, not a statement",
 	"spanner/datatypes.md#1":  "FRAGMENT: DT-002 bare `col1 INT64` column-def snippet, not a statement",
 	"spanner/datatypes.md#2":  "FRAGMENT: DT-003 bare `col1 FLOAT32` column-def snippet, not a statement",
@@ -168,8 +173,7 @@ var officialCorpusSkips = map[string]string{
 	// Pure-ZetaSQL / dialect-extension forms the legacy bytebase ANTLR grammar
 	// never implemented and no migration node owns. omni's reject preserves
 	// legacy parity.
-	"bigquery/datatypes.md#0": "OUT-OF-SCOPE: DT-001 BigQuery-extended typed literals (INT64 '42', BOOL 'TRUE', STRING 'hello', BYTES, FLOAT64) — legacy .g4 only has DATE/TIME/DATETIME/TIMESTAMP/NUMERIC/JSON typed literals; live Spanner oracle also REJECTS `SELECT INT64 '42'` (Syntax error). NUMERIC/DATE/TIMESTAMP literals in the same block parse; the INT64/BOOL/STRING ones do not.",
-	"spanner/ddl.md#38":       "OUT-OF-SCOPE: ALTER MODEL … SET OPTIONS — ML model DDL, no migration node",
+	"spanner/ddl.md#38": "OUT-OF-SCOPE: ALTER MODEL … SET OPTIONS — ML model DDL, no migration node",
 
 	// ========================== DOC-REJECTED (6) ==========================
 	// One statement in the block is REJECTED by the live Spanner oracle too, so
@@ -182,11 +186,8 @@ var officialCorpusSkips = map[string]string{
 	"spanner/expressions.md#38": "DOC-REJECTED: EXPR-… proto construction `NEW \\`pkg.Msg\\`(field: value)` rejected by Spanner oracle (Syntax error: got ':'); omni rejects too (parity).",
 	"spanner/expressions.md#34": "DOC-REJECTED: EXPR block — `SELECT TIMESTAMP '…' AT TIME ZONE '…'` (bare AT TIME ZONE select item) rejected by Spanner oracle (\"Expected end of input but got AT\"); omni rejects too (parity). The EXTRACT(… AT TIME ZONE …) form in the same block parses on both.",
 
-	// =========================== RESIDUAL GAP (2) ==========================
-	// Genuine union-grammar gaps: the live oracle ACCEPTS the form, omni rejects.
-	// Mirrored as flagged divergences in the v2 migration store; the to-do list
-	// for a future grammar fix (out of corpus-closure's writes scope).
-	// (9 RESIDUAL GAP total = these 2 + 6 pipe/FROM-first/MATCH_RECOGNIZE + 1 scripting Split.)
+	// =========================== RESIDUAL GAP ==========================
+	// Genuine grammar gaps: the live oracle ACCEPTS the form, omni rejects.
 	// NOTE: spanner/expressions.md#33 (quantified comparison `expr {>|=|…}
 	// {ALL|ANY|SOME} (subquery)`, divergence #201) was CLOSED by the
 	// googlesql/maint-quantified-comparison node — it now parses clean and is
@@ -212,15 +213,15 @@ var officialCorpusSkips = map[string]string{
 	// same block parses fine.
 	"spanner/expressions.md#6": "DOC-REJECTED: `SELECT ARRAY<FLOAT32>(vector_length => 128)` — the live Spanner oracle REJECTS a typed-ARRAY value constructor (\"Expected '[' but got '('\"); omni's reject (\"syntax error at or near =>\") matches. vector_length is a column-schema parameter, not an expression form. (The first statement, TOKENIZE_NGRAMS named args, parses.)",
 
-	// ===== RESIDUAL GAP / pipe & FROM-first (BigQuery) (5) =====
-	// BigQuery-only query forms; the Spanner oracle is non-authoritative, so
-	// these are triangulated against the legacy .g4 + truth1.
-	"bigquery/query.md#16": "RESIDUAL GAP: QUERY-… FROM-first query (`FROM A JOIN B …` with no leading SELECT) — legacy .g4 only error-marks this (query_without_pipe_operators / bad_keyword_after_from_query); omni rejects (\"a query must begin with SELECT\"). FROM-first / pipe syntax not implemented (P1).",
-	"bigquery/query.md#17": "RESIDUAL GAP: QUERY-… FROM-first query (FROM A CROSS JOIN B …) — same pipe/FROM-first gap as #16.",
-	"bigquery/query.md#18": "RESIDUAL GAP: QUERY-… FROM-first query (FROM A FULL OUTER JOIN B …) — same pipe/FROM-first gap as #16.",
-	"bigquery/query.md#19": "RESIDUAL GAP: QUERY-… FROM-first query (FROM A LEFT OUTER JOIN B …) — same pipe/FROM-first gap as #16.",
-	"bigquery/query.md#20": "RESIDUAL GAP: QUERY-… FROM-first query (FROM A RIGHT OUTER JOIN B …) — same pipe/FROM-first gap as #16.",
+	// ============ RESIDUAL GAP: Spanner forms omni rejects (3) ============
+	// The live Spanner oracle ACCEPTS these and omni rejects them. The union
+	// parser accepted them through BigQuery's grammar (generic entities, the ML
+	// OPTIONS clause), which googlesql no longer parses; Spanner's own forms need
+	// a parser of their own.
+	"spanner/ddl.md#37": "RESIDUAL GAP: CREATE MODEL … REMOTE OPTIONS (endpoints = […]) — oracle accepts; omni rejects the OPTIONS clause after REMOTE. Fix: parse a non-empty OPTIONS list in parseCreateModel.",
+	"spanner/ddl.md#43": "RESIDUAL GAP: CREATE PLACEMENT us_placement OPTIONS (instance_partition = '…') — oracle accepts; omni has no CREATE PLACEMENT. Fix: parse CREATE PLACEMENT name [OPTIONS (…)].",
+	"spanner/ddl.md#44": "RESIDUAL GAP: DROP PLACEMENT us_placement — oracle accepts (semantic: Placement not found); omni has no DROP PLACEMENT. Fix: parse DROP PLACEMENT name.",
 
-	// ============== RESIDUAL GAP: scripting Split edge case (1) ==============
-	"bigquery/scripting.md#15": "RESIDUAL GAP: a procedural `BEGIN … END;` block that contains a nested `BEGIN TRANSACTION;` AND a trailing terminator — the block-aware Split keeps the ';' on the block segment and parseSingle then rejects it (\"syntax error at or near ';'\"). Verified narrow: `BEGIN SELECT 1; END;` parses (Split strips the ';'); the nested transaction-statement defeats the block-depth tracking. Split/scripting edge case, not an expression gap.",
+	// =========== DOC-REJECTED: QUALIFY (1) ===========
+	"spanner/query.md#22": "DOC-REJECTED: SELECT … QUALIFY rn = 1 — Spanner's docs show QUALIFY, but the pinned emulator leaves FEATURE_QUALIFY off and GoogleSQL's grammar refuses it (\"QUALIFY is not supported\", googlesql.tm:8461); omni rejects too (parity).",
 }

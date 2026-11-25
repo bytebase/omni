@@ -33,7 +33,7 @@ import (
 // prefix (OR REPLACE / scope) and an optional RECURSIVE have been consumed and
 // cur is at the VIEW keyword.
 func (p *Parser) parseCreateView(create Token, orReplace bool, scope string, recursive bool) (ast.Node, error) {
-	if p.isSpanner() && (recursive || scope != "") {
+	if recursive || scope != "" {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance() // consume VIEW
@@ -45,7 +45,7 @@ func (p *Parser) parseCreateView(create Token, orReplace bool, scope string, rec
 	// REPLACE VIEW } view_name SQL SECURITY ...`
 	// (https://cloud.google.com/spanner/docs/reference/standard-sql/data-definition-language#create_view);
 	// the emulator answers "Encountered 'IF' while parsing: identifier".
-	if p.isSpanner() && p.cur.Type == kwIF {
+	if p.cur.Type == kwIF {
 		return nil, p.syntaxErrorAtCur()
 	}
 	ifNotExists, err := p.parseIfNotExists()
@@ -64,14 +64,7 @@ func (p *Parser) parseCreateView(create Token, orReplace bool, scope string, rec
 	// `identifier opt_options_list?`. Distinguished from anything else by the
 	// leading '('. Not supported in Spanner views.
 	if p.cur.Type == int('(') {
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		cols, err := p.parseViewColumnList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Columns = cols
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// opt_sql_security_clause?  — SQL SECURITY {INVOKER | DEFINER}.
@@ -85,14 +78,7 @@ func (p *Parser) parseCreateView(create Token, orReplace bool, scope string, rec
 
 	// opt_options_list? (not supported in Spanner views).
 	if p.cur.Type == kwOPTIONS {
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		opts, err := p.parseOptionsList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Options = opts
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// as_query  — AS query (required).
@@ -107,43 +93,6 @@ func (p *Parser) parseCreateView(create Token, orReplace bool, scope string, rec
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
-}
-
-// parseViewColumnList parses a column_with_options_list: `( column_with_options
-// (, column_with_options)* )` where cur is the opening '(' and each entry is
-// `identifier opt_options_list?`. Requires at least one column (the grammar's
-// list is non-empty).
-func (p *Parser) parseViewColumnList() ([]*ast.ViewColumn, error) {
-	p.advance() // consume '('
-	var cols []*ast.ViewColumn
-	for {
-		tok, err := p.expectIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		name, err := p.identifierText(tok)
-		if err != nil {
-			return nil, err
-		}
-		col := &ast.ViewColumn{Name: name, Loc: tok.Loc}
-		if p.cur.Type == kwOPTIONS {
-			opts, err := p.parseOptionsList()
-			if err != nil {
-				return nil, err
-			}
-			col.Options = opts
-		}
-		col.Loc.End = p.prev.Loc.End
-		cols = append(cols, col)
-		if _, ok := p.match(int(',')); ok {
-			continue
-		}
-		break
-	}
-	if _, err := p.expect(int(')')); err != nil {
-		return nil, err
-	}
-	return cols, nil
 }
 
 // parseSQLSecurityClause parses an opt_sql_security_clause: `SQL SECURITY

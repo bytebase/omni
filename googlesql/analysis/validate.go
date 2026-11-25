@@ -9,8 +9,8 @@ import (
 // mode, and whether every statement in it returns rows:
 // (readOnly, returnsData, error).
 //
-// Decision is AST-based and parsed with the requested dialect's strict grammar
-// rules (DialectBigQuery or DialectSpanner). Every non-empty top-level
+// Decision is AST-based and parsed with the strict grammar.
+// Every non-empty top-level
 // statement in a script must be read-only (SELECT/WITH/TABLE/set-op queries,
 // read-only pipe queries, GQL graph reads, SHOW, DESCRIBE, or EXPLAIN over a
 // read-only statement). Locking reads (FOR UPDATE), writing or exporting pipe
@@ -19,8 +19,8 @@ import (
 // and procedural scripting blocks are rejected. Empty, whitespace-only, or
 // comment-only input carries no statements to refuse and returns
 // (true, true, nil). Syntax and lex errors are returned so callers fail closed.
-func ValidateQuery(statement string, dialect Dialect) (readOnly bool, returnsData bool, err error) {
-	file, err := parser.ParseWithDialect(statement, parserDialect(dialect))
+func ValidateQuery(statement string) (readOnly bool, returnsData bool, err error) {
+	file, err := parser.Parse(statement)
 	if err != nil {
 		return false, false, err
 	}
@@ -33,17 +33,6 @@ func ValidateQuery(statement string, dialect Dialect) (readOnly bool, returnsDat
 		}
 	}
 	return true, true, nil
-}
-
-func parserDialect(dialect Dialect) parser.Dialect {
-	switch dialect {
-	case DialectBigQuery:
-		return parser.DialectBigQuery
-	case DialectSpanner:
-		return parser.DialectSpanner
-	default:
-		return parser.DialectDefault
-	}
 }
 
 func isReadOnlyNode(node ast.Node) bool {

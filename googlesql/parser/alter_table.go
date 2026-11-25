@@ -54,9 +54,6 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 	case kwINDEX:
 		kind = ast.AlterIndex
 	case kwSEARCH:
-		if p.isBigQuery() || (!p.isSpanner() && !p.isSpannerAlterSearchIndexAhead()) {
-			return p.parseBQAlterSearchVectorIndex(alter)
-		}
 		if p.peekNext().Type != kwINDEX {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -68,25 +65,12 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 		kind = ast.AlterDatabase
 	// --- BigQuery-only ALTER objects (parser-ddl-bigquery node) ---
 	case kwMATERIALIZED, kwAPPROX:
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		// ALTER MATERIALIZED|APPROX VIEW SET OPTIONS (bq_materialized_view.go).
-		return p.parseBQAlterMaterializedView(alter)
+		return nil, p.syntaxErrorAtCur()
 	case kwVECTOR:
-		if !p.isSpanner() {
-			return p.parseBQAlterSearchVectorIndex(alter)
-		}
 		return nil, p.syntaxErrorAtCur()
 	case kwPRIVILEGE:
-		if !p.isSpanner() {
-			return p.parseAlterPrivilegeRestriction(alter)
-		}
 		return p.unsupported("ALTER PRIVILEGE")
 	case kwROW, kwALL:
-		if !p.isSpanner() {
-			return p.parseAlterRowAccessPolicy(alter)
-		}
 		return p.unsupported("ALTER")
 	// --- Spanner-only ALTER objects (parser-ddl-spanner node) ---
 	case kwSEQUENCE:
@@ -107,14 +91,6 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 		}
 		if p.tokIsWord(p.cur, "LOCALITY") && p.tokIsWord(p.peekNext(), "GROUP") {
 			return p.parseAlterLocalityGroup(alter) // spanner_sequence.go
-		}
-		// ALTER <generic-entity> (CAPACITY / RESERVATION / ASSIGNMENT — the keyword
-		// lexes as an identifier) routes to the generic-entity alter
-		// (bq_capacity.go). ALTER FUNCTION / PROCEDURE / MODEL / PRIVILEGE
-		// RESTRICTION / ROW ACCESS POLICY / ALL ROW ACCESS POLICIES are not owned
-		// here.
-		if !p.isSpanner() && isGenericEntityType(p.cur) {
-			return p.parseBQAlterEntity(alter)
 		}
 		return p.unsupported("ALTER")
 	}
@@ -145,26 +121,10 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		var action *ast.AlterAction
-		if kind == ast.AlterDatabase && !p.isSpanner() && p.cur.Type == kwSET && p.peekNext().Type == kwAS {
-			// SET AS generic_entity_body (googlesql.tm:1462), an alter_action
-			// of every kind. BigQuery parses it on ALTER DATABASE and answers
-			// "Statement not supported: AlterDatabaseStatement"; on TABLE,
-			// VIEW and SCHEMA it answers "ALTER <kind> SET AS is not
-			// supported" and the judge reads that as a refusal.
-			start := p.cur.Loc
-			p.advance() // SET
-			p.advance() // AS
-			body, err := p.parseGenericEntityBody()
-			if err != nil {
-				return nil, err
-			}
-			action = &ast.AlterAction{Kind: ast.AlterSetAs, SetAsBody: body, Loc: locTo(start, p.prev)}
-		} else {
-			var err error
-			action, err = p.parseAlterAction()
-			if err != nil {
-				return nil, err
-			}
+		var err error
+		action, err = p.parseAlterAction()
+		if err != nil {
+			return nil, err
 		}
 		if kind == ast.AlterSearchIndex &&
 			action.Kind != ast.AlterAddStoredColumn && action.Kind != ast.AlterDropStoredColumn {
@@ -797,11 +757,7 @@ func (p *Parser) parseStoredColumn() (string, error) {
 func (p *Parser) parseOptionsListBody() ([]*ast.OptionsEntry, error) {
 	var entries []*ast.OptionsEntry
 	if p.cur.Type == int(')') {
-		if p.isSpanner() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance()
-		return entries, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 	for {
 		entry, err := p.parseOptionsEntry()
@@ -818,46 +774,6 @@ func (p *Parser) parseOptionsListBody() ([]*ast.OptionsEntry, error) {
 		return nil, err
 	}
 	return entries, nil
-}
-
-// isSpannerAlterSearchIndexAhead reports whether the current `SEARCH ...`
-// tokens form a Spanner DDL-049 `ALTER SEARCH INDEX [IF EXISTS] <path>
-// {ADD|DROP} STORED ...` statement rather than BigQuery's `ALTER SEARCH INDEX`.
-func (p *Parser) isSpannerAlterSearchIndexAhead() bool {
-	startIdx := absIndex(p, p.cur.Loc.Start)
-	if startIdx < 0 || startIdx > len(p.input) {
-		return false
-	}
-	lx := NewLexerWithOffset(p.input[startIdx:], 0)
-	if lx.NextToken().Type != kwSEARCH {
-		return false
-	}
-	if lx.NextToken().Type != kwINDEX {
-		return false
-	}
-	tok := lx.NextToken()
-	if tok.Type == kwIF {
-		if lx.NextToken().Type != kwEXISTS {
-			return false
-		}
-		tok = lx.NextToken()
-	}
-	// Path expression: ident (. ident)* (also allow dashed segments for safety).
-	if !isIdentifierStart(tok.Type) {
-		return false
-	}
-	tok = lx.NextToken()
-	for tok.Type == int('.') {
-		seg := lx.NextToken()
-		if seg.Type == tokEOF {
-			return false
-		}
-		tok = lx.NextToken()
-	}
-	if tok.Type != kwADD && tok.Type != kwDROP {
-		return false
-	}
-	return lx.NextToken().Type == kwSTORED
 }
 
 // locTo builds a Loc from a start Loc through the end of an end token.

@@ -31,7 +31,7 @@ func querySpanWithin(t *testing.T, sql string, limit time.Duration) *QuerySpan {
 	var span *QuerySpan
 	var err error
 	cputime.Within(t, limit, "GetQuerySpan", func() {
-		span, err = GetQuerySpan(sql, DialectBigQuery)
+		span, err = GetQuerySpan(sql)
 	})
 	if err != nil {
 		t.Fatalf("GetQuerySpan: %v", err)

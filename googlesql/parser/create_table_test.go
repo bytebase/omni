@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/googlesql/ast"
@@ -316,61 +315,7 @@ func TestCreateTable_TrailingCommaInElementList(t *testing.T) {
 	}
 }
 
-func TestCreateTable_NoPrimaryKey(t *testing.T) {
-	// A table without any PRIMARY KEY clause parses (the union grammar permits it
-	// — BigQuery tables have no PK; Spanner's PK-required rule is semantic, not
-	// syntactic).
-	ct := createTableOf(t, "CREATE TABLE T (x INT64)")
-	if ct.HasPrimaryKey {
-		t.Error("HasPrimaryKey = true, want false (no PK clause)")
-	}
-}
-
 // --- BigQuery-only CREATE TABLE forms (Spanner-emulator non-authoritative) ---
-
-func TestCreateTable_OrReplaceTemp(t *testing.T) {
-	ct := createTableOf(t, "CREATE OR REPLACE TEMP TABLE t (n INT64)")
-	if !ct.OrReplace {
-		t.Error("OrReplace = false, want true")
-	}
-	if ct.Scope != "TEMP" {
-		t.Errorf("Scope = %q, want TEMP", ct.Scope)
-	}
-}
-
-func TestCreateTable_PartitionClusterOptions(t *testing.T) {
-	ct := createTableOf(t, "CREATE TABLE t (ts TIMESTAMP, v INT64) PARTITION BY TIMESTAMP_TRUNC(ts, DAY) CLUSTER BY v OPTIONS (description = 'd')")
-	if len(ct.PartitionBy) != 1 {
-		t.Errorf("PartitionBy = %d exprs, want 1", len(ct.PartitionBy))
-	}
-	if len(ct.ClusterBy) != 1 {
-		t.Errorf("ClusterBy = %d exprs, want 1", len(ct.ClusterBy))
-	}
-	if len(ct.Options) != 1 || ct.Options[0].Name != "description" {
-		t.Errorf("Options = %+v, want [description]", ct.Options)
-	}
-}
-
-func TestCreateTable_CTAS(t *testing.T) {
-	ct := createTableOf(t, "CREATE OR REPLACE TABLE t AS SELECT a, b FROM src")
-	if ct.AsQuery == nil {
-		t.Fatal("AsQuery = nil, want the SELECT body")
-	}
-	if _, ok := ct.AsQuery.(*ast.QueryStmt); !ok {
-		t.Errorf("AsQuery is %T, want *ast.QueryStmt", ct.AsQuery)
-	}
-}
-
-func TestCreateTable_LikeCopy(t *testing.T) {
-	ct := createTableOf(t, "CREATE TABLE t LIKE src.tbl")
-	if ct.Like == nil || ct.Like.String() != "src.tbl" {
-		t.Errorf("Like = %+v, want src.tbl", ct.Like)
-	}
-	ct2 := createTableOf(t, "CREATE TABLE t COPY src.tbl")
-	if ct2.Copy == nil || ct2.Copy.String() != "src.tbl" {
-		t.Errorf("Copy = %+v, want src.tbl", ct2.Copy)
-	}
-}
 
 func TestCreateTable_InlinePrimaryKeyNotEnforced(t *testing.T) {
 	// BigQuery inline PRIMARY KEY NOT ENFORCED (Spanner rejects inline PK).
@@ -380,23 +325,6 @@ func TestCreateTable_InlinePrimaryKeyNotEnforced(t *testing.T) {
 	}
 	if ct.Columns[0].Enforced != "NOT ENFORCED" {
 		t.Errorf("column id: Enforced = %q, want NOT ENFORCED", ct.Columns[0].Enforced)
-	}
-}
-
-func TestCreateTable_DefaultCollate(t *testing.T) {
-	ct := createTableOf(t, "CREATE TABLE t (s STRING) DEFAULT COLLATE 'und:ci'")
-	if !strings.Contains(ct.DefaultCollate, "und:ci") {
-		t.Errorf("DefaultCollate = %q, want it to contain und:ci", ct.DefaultCollate)
-	}
-}
-
-func TestCreateTable_StructArrayColumns(t *testing.T) {
-	ct := createTableOf(t, "CREATE TABLE t (info STRUCT<a INT64, b STRING>, tags ARRAY<STRING>)")
-	if ct.Columns[0].Type.Text != "STRUCT<a INT64, b STRING>" {
-		t.Errorf("STRUCT column type = %q", ct.Columns[0].Type.Text)
-	}
-	if ct.Columns[1].Type.Text != "ARRAY<STRING>" {
-		t.Errorf("ARRAY column type = %q", ct.Columns[1].Type.Text)
 	}
 }
 
@@ -456,7 +384,7 @@ func TestCreateTable_Rejects(t *testing.T) {
 		assertReject(t, sql)
 	}
 	// Untyped columns are valid in BigQuery/union mode, rejected in DialectSpanner.
-	if _, err := ParseWithDialect("CREATE TABLE T (x)", DialectSpanner); err == nil {
-		t.Errorf("ParseWithDialect(CREATE TABLE T (x), DialectSpanner): want error, got nil")
+	if _, err := Parse("CREATE TABLE T (x)"); err == nil {
+		t.Errorf("Parse(CREATE TABLE T (x)): want error, got nil")
 	}
 }

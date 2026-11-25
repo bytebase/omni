@@ -3,8 +3,6 @@ package parser
 import (
 	"strings"
 	"testing"
-
-	"github.com/bytebase/omni/googlesql/ast"
 )
 
 // TestParse_EmptyInput verifies that parsing empty or whitespace/comment-only
@@ -295,8 +293,6 @@ var dispatchPrefixes = []struct{ prefix, tail string }{
 	// be parsed as an invalid body statement, not a leading-keyword miss).
 	{"IF", "x"}, {"CASE", "x"}, {"WHILE", "x"}, {"LOOP", "END LOOP"},
 	{"REPEAT", "UNTIL TRUE END REPEAT"}, {"FOR", "x"}, {"DECLARE", "x"},
-	{"BREAK", "x"}, {"LEAVE", "x"}, {"CONTINUE", "x"}, {"ITERATE", "x"},
-	{"RETURN", "x"}, {"RAISE", "x"}, {"BEGIN", "END"},
 }
 
 // TestParse_DispatchKeywordsRecognized verifies every documented top-level
@@ -362,32 +358,10 @@ func TestParse_QueryStatementsParse(t *testing.T) {
 	}
 }
 
-// TestParse_ProceduralBodyParsedAsOneSegment verifies the parse driver feeds a
-// procedural BEGIN/END body to a single parseSingle call (block-aware Split): a
-// stored procedure whose body has an inner ';' must be ONE segment, not split at
-// the inner statement boundary. Now that the parser-ddl-bigquery node parses
-// CREATE PROCEDURE, the whole block parses to exactly ONE statement with no
-// errors — had Split cut at the inner ';', the trailing fragments
-// (`SELECT 2`, `END`) would have failed to parse, so a clean single-statement
-// parse is the proof the block stayed whole.
-func TestParse_ProceduralBodyParsedAsOneSegment(t *testing.T) {
-	res := ParseBestEffort("CREATE PROCEDURE p() BEGIN SELECT 1; SELECT 2; END")
-	if len(res.Errors) != 0 {
-		t.Fatalf("got %d errors, want 0 (block is one segment, CREATE PROCEDURE parses): %v", len(res.Errors), res.Errors)
-	}
-	if len(res.File.Stmts) != 1 {
-		t.Fatalf("got %d statements, want 1 (the whole procedure)", len(res.File.Stmts))
-	}
-	if _, ok := res.File.Stmts[0].(*ast.CreateProcedureStmt); !ok {
-		t.Errorf("statement is %T, want *ast.CreateProcedureStmt", res.File.Stmts[0])
-	}
-}
-
 func TestParse_StrictGrammarTightenings(t *testing.T) {
 	valid := []string{
 		"@{a.b = 1, hash = 2, proto = 'x', partition = true} SELECT 1",
 		"SELECT {(ext.path)[0].sub : 1, (ext.other)? { a : 2 }}",
-		"CREATE INDEX idx ON t(ALL COLUMNS WITH COLUMN OPTIONS (c1 OPTIONS (k = 1)))",
 		"CREATE PROPERTY GRAPH g NODE TABLES (t OPTIONS (k = 1) DEFAULT LABEL OPTIONS (k = 2) PROPERTIES (x AS y OPTIONS (k = 3)) DYNAMIC LABEL(lbl) DYNAMIC PROPERTIES(p))",
 		"DROP PROPERTY GRAPH IF EXISTS g CASCADE",
 	}

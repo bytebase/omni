@@ -78,76 +78,7 @@ func (p *Parser) parseAnalyzeStmt() (ast.Node, error) {
 	stmt.Loc.End = p.prev.Loc.End
 
 	// Spanner only supports bare `ANALYZE` with no options or target list.
-	if p.isSpanner() {
-		return stmt, nil
-	}
-
-	// opt_options_list?
-	// In GoogleSQL's grammar, `ANALYZE OPTIONS(...)` always shifts into
-	// opt_options_list rather than falling back to a table named OPTIONS with a
-	// column list (both BigQuery and Spanner reject `ANALYZE OPTIONS(zzz)`).
-	if p.cur.Type == kwOPTIONS && p.peekNext().Type == int('(') {
-		opts, err := p.parseOptionsList()
-		if err != nil {
-			return nil, err
-		}
-		// Distinguish a present-but-empty OPTIONS() from an absent clause: keep a
-		// non-nil (possibly zero-length) slice so the clause's presence round-trips.
-		if opts == nil {
-			opts = []*ast.OptionsEntry{}
-		}
-		stmt.Options = opts
-		stmt.Loc.End = p.prev.Loc.End
-	}
-
-	// table_and_column_info_list?  — present iff a table path follows.
-	if isIdentifierStart(p.cur.Type) {
-		targets, err := p.parseTableAndColumnInfoList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Targets = targets
-		stmt.Loc.End = targets[len(targets)-1].Loc.End
-	}
 	return stmt, nil
-}
-
-// parseTableAndColumnInfoList parses table_and_column_info_list:
-// table_and_column_info (',' table_and_column_info)*. The first token is a table
-// path start. A trailing comma is a syntax error.
-func (p *Parser) parseTableAndColumnInfoList() ([]*ast.TableAndColumnInfo, error) {
-	var targets []*ast.TableAndColumnInfo
-	for {
-		target, err := p.parseTableAndColumnInfo()
-		if err != nil {
-			return nil, err
-		}
-		targets = append(targets, target)
-		if _, ok := p.match(int(',')); ok {
-			continue
-		}
-		break
-	}
-	return targets, nil
-}
-
-// parseTableAndColumnInfo parses table_and_column_info:
-// maybe_dashed_path_expression column_list?.
-func (p *Parser) parseTableAndColumnInfo() (*ast.TableAndColumnInfo, error) {
-	path, err := p.parseTablePath()
-	if err != nil {
-		return nil, err
-	}
-	info := &ast.TableAndColumnInfo{Path: path, Loc: path.Loc}
-	if p.cur.Type == int('(') {
-		cols, err := p.parseColumnList()
-		if err != nil {
-			return nil, err
-		}
-		info.Columns = cols
-		info.Loc.End = p.prev.Loc.End
-	}
-	return info, nil
 }
 
 // parseDescribeStmt parses `describe_keyword describe_info`:
@@ -223,7 +154,7 @@ func (p *Parser) parseDescribeStmt() (ast.Node, error) {
 func (p *Parser) parseRenameStmt() (ast.Node, error) {
 	rename := p.advance() // RENAME
 
-	if p.isSpanner() && p.cur.Type != kwTABLE {
+	if p.cur.Type != kwTABLE {
 		return nil, p.syntaxErrorAtCur()
 	}
 	typeTok, err := p.expectIdentifier()

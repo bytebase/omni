@@ -26,19 +26,15 @@
 //
 // # Where it lives
 //
-// The statements are GoogleSQL, which omni's googlesql tree parses, classifies
-// and wraps a LIMIT in, and this package is the conversation with BigQuery's
-// service, so it lives in a tree of its own beside googlesql, as spanner/driver
-// does and dynamodb/driver does beside partiql. Bytebase's alias table maps
-// BigQuery onto googlesql for the parser and the analysis, not for a service
-// client: a googlesql/driver would hold BigQuery's client and Spanner's, and
-// googlesql holds no catalog for either. The driver calls googlesql/analysis for
-// its judgment rather than carrying a copy of it.
+// The statements are BigQuery's GoogleSQL dialect, which bigquery/parser
+// parses and bigquery/analysis classifies and wraps a LIMIT in; this package is
+// the conversation with BigQuery's service. The driver calls bigquery/analysis
+// for its judgment rather than carrying a copy of it.
 //
 // # What it implements
 //
 // It implements Driver, Syncer, Querier and Executor, and Dumper as a no-op.
-// Dump writes nothing: googlesql has no catalog that turns a synced schema back
+// Dump writes nothing: bigquery has no catalog that turns a synced schema back
 // into DDL, and Bytebase's BigQuery Dump wrote nothing either, so a caller that
 // dumps a BigQuery database writes an empty dump, which is what the product does
 // today. VERIFY.md says what a metadata-rendered dump would need.
@@ -96,10 +92,10 @@
 // shape Bytebase's driver returned. QueryOptions.ExplainFormat does nothing.
 //
 // QueryOptions.Limit rewrites each statement that returns rows through
-// googlesql/analysis.StatementWithResultLimit, which wraps it in a CTE — BigQuery
+// bigquery/analysis.StatementWithResultLimit, which wraps it in a CTE — BigQuery
 // has no LIMIT to splice into an arbitrary query — and leaves a statement that
 // returns no rows as written. Which statements return rows is
-// googlesql/analysis.ClassifySQL's verdict for the BigQuery dialect.
+// bigquery/analysis.ClassifySQL's verdict.
 //
 // QueryOptions.MaxResultBytes stops reading a statement's rows once their
 // encoded size passes it, sets Result.Truncated, and keeps the row that went
