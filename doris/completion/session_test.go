@@ -175,6 +175,7 @@ func TestCompleteSession(t *testing.T) {
 		{name: "alias in group by", text: "SELECT amount AS total FROM orders GROUP BY tot|", want: typed(CandidateColumn, "total")},
 		{name: "alias not in where", text: "SELECT amount AS total FROM orders WHERE tot|", want: nil},
 		{name: "fallback reads after the caret", text: "SELECT ((am| FROM orders", want: typed(CandidateColumn, "amount")},
+		{name: "cte name case-insensitive", text: "WITH Orders AS (SELECT 1 AS x) SELECT am| FROM orders", want: nil},
 		{name: "unclosed subquery keywords", text: "SELECT * FROM (SELECT id |", has: kw("FROM"), not: kw("ON")},
 		{name: "derived table", text: "SELECT * FROM (SELECT * FROM cu|", want: typed(CandidateTable, "customers")},
 

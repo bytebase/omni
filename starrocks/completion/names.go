@@ -320,14 +320,29 @@ func qualifierBefore(stmt string, end int) ([]string, int) {
 	toks = toks[:len(toks)-1] // EOF
 	var parts []string
 	start := end
-	for i := len(toks) - 1; i >= 1; i -= 2 {
-		dot, part := toks[i], toks[i-1]
-		// Tokens, not bytes, are adjacent: the parser reads db . t too.
-		if dot.Kind != '.' || !isName(part) {
+	// Read back dot, part, dot, part, ... Tokens, not bytes, are adjacent:
+	// the parser reads db . t too. A DOT_IDENTIFIER (.1a) is a dot and a
+	// part in one token.
+	wantDot := true
+	for i := len(toks) - 1; i >= 0; i-- {
+		t := toks[i]
+		if wantDot {
+			if t.Kind != '.' {
+				break
+			}
+			wantDot = false
+			continue
+		}
+		dotIdent := parser.TokenName(t.Kind) == "DOT_IDENTIFIER"
+		if !dotIdent && !isName(t) {
 			break
 		}
-		parts = append([]string{part.Str}, parts...)
-		start = part.Loc.Start
+		parts = append([]string{t.Str}, parts...)
+		start = t.Loc.Start
+		if dotIdent {
+			start++ // the part after the token's own dot
+		}
+		wantDot = !dotIdent
 	}
 	return parts, start
 }

@@ -109,7 +109,7 @@ func (c *catalog) columns(parts []string, ctes []string) []Candidate {
 	switch len(parts) {
 	case 1:
 		for _, cte := range ctes {
-			if cte == parts[0] {
+			if strings.EqualFold(cte, parts[0]) { // CTE names resolve case-insensitively
 				return nil
 			}
 		}

@@ -30,6 +30,9 @@ func testDatabases() map[string]*metadatapb.DatabaseSchemaMetadata {
 		"otherdb": {Name: "otherdb", Schemas: []*metadatapb.SchemaMetadata{{
 			Tables: []*metadatapb.TableMetadata{{Name: "other_t", Columns: []*metadatapb.ColumnMetadata{col("other_col", "INT")}}},
 		}}},
+		"1db": {Name: "1db", Schemas: []*metadatapb.SchemaMetadata{{
+			Tables: []*metadatapb.TableMetadata{{Name: "other_t", Columns: []*metadatapb.ColumnMetadata{col("other_col", "INT")}}},
+		}}},
 	}
 }
 
@@ -177,6 +180,8 @@ func TestCompleteSession(t *testing.T) {
 		{name: "alias not in where", text: "SELECT amount AS total FROM orders WHERE tot|", want: nil},
 		{name: "insert overwrite target", text: "INSERT OVERWRITE ord|", want: typed(CandidateTable, "`order items`", "orders")},
 		{name: "fallback reads after the caret", text: "SELECT ((am| FROM orders", want: typed(CandidateColumn, "amount")},
+		{name: "cte name case-insensitive", text: "WITH Orders AS (SELECT 1 AS x) SELECT am| FROM orders", want: nil},
+		{name: "dot identifier qualifier", text: "SELECT * FROM default_catalog.1db.oth|", want: typed(CandidateTable, "other_t")},
 		{name: "unclosed subquery keywords", text: "SELECT * FROM (SELECT id |", has: kw("FROM"), not: kw("ON")},
 		{name: "derived table", text: "SELECT * FROM (SELECT * FROM cu|", want: typed(CandidateTable, "customers")},
 
