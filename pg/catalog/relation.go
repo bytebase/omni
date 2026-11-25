@@ -56,6 +56,11 @@ type Column struct {
 	UserCollationOID uint32       // user collation OID when CollationName names a user collation
 	ForeignOptions   []string     // per-column FDW options
 	Ndims            int16        // attndims — declared array dimensions
+	// Hidden marks a column * leaves out and only its name reaches, as
+	// CockroachDB hides the rowid of a table with no primary key. It comes
+	// from ColumnMetadata.IsInvisible, and a table's hidden columns follow
+	// all of its other columns.
+	Hidden bool
 }
 
 // Relation represents a table, view, or other relation.

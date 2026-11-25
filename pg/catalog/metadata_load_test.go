@@ -1125,3 +1125,46 @@ func TestLoadMetadataInstallsComments(t *testing.T) {
 		t.Errorf("comments = %q, want %q", got, want)
 	}
 }
+
+// An invisible column, as CockroachDB syncs the rowid of a table with no
+// primary key, installs hidden and last: * leaves it out, its name reaches
+// it, and a view over it deparses it by name. A view's synced column names
+// rename its definition's, which CockroachDB stores without its column list.
+func TestLoadMetadataHiddenColumnsAndViewColumnNames(t *testing.T) {
+	c, report := loadSnapshot(t, false, &metadata.SchemaMetadata{
+		Name: "public",
+		Tables: []*metadata.TableMetadata{{Name: "h", Columns: []*metadata.ColumnMetadata{
+			{Name: "a", Type: "int4", Nullable: true},
+			{Name: "rowid", Type: "int8", IsInvisible: true},
+			{Name: "b", Type: "text", Nullable: true},
+		}}},
+		Views: []*metadata.ViewMetadata{
+			{Name: "star", Definition: "SELECT * FROM public.h"},
+			{Name: "ids", Definition: "SELECT rowid, a FROM public.h", Columns: []*metadata.ColumnMetadata{{Name: "rid", Type: "int8"}, {Name: "a", Type: "int4"}}},
+		},
+	})
+	requireCleanReport(t, report)
+	columns := func(name string) []string {
+		var out []string
+		for _, col := range c.GetRelation("public", name).Columns {
+			out = append(out, col.Name)
+		}
+		return out
+	}
+	if got, want := columns("h"), []string{"a", "b", "rowid"}; !slices.Equal(got, want) {
+		t.Errorf("h columns = %v, want %v", got, want)
+	}
+	if got, want := columns("star"), []string{"a", "b"}; !slices.Equal(got, want) {
+		t.Errorf("star columns = %v, want %v", got, want)
+	}
+	if got, want := columns("ids"), []string{"rid", "a"}; !slices.Equal(got, want) {
+		t.Errorf("ids columns = %v, want %v", got, want)
+	}
+	def, err := c.GetViewDefinition("public", "ids")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := " SELECT rowid AS rid,\n    a\n   FROM h;"; def != want {
+		t.Errorf("ids definition = %q, want %q", def, want)
+	}
+}

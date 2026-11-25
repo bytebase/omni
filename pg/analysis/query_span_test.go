@@ -251,6 +251,74 @@ func TestResolveQuerySpanThroughViews(t *testing.T) {
 	require.Equal(t, []string{"db.public.mv.ssn"}, columnNames(span.Results[0].SourceColumns))
 }
 
+// ThroughViews follows a view's column to the table column behind it, as
+// CockroachDB does, and keeps the view's column; a materialized view stores
+// its rows.
+func TestResolveQuerySpanThroughViewsOption(t *testing.T) {
+	resolve := func(statement string) *ResolvedSpan {
+		t.Helper()
+		span, err := ResolveQuerySpan(context.Background(), statement, ResolveOptions{
+			DefaultDatabase: "db",
+			Catalog:         testCatalog(healthySchema()),
+			ThroughViews:    true,
+		})
+		require.NoError(t, err)
+		return span
+	}
+	span := resolve("SELECT email FROM v")
+	require.Equal(t, []string{"db.public.v"}, columnNames(span.SourceColumns))
+	require.Len(t, span.Results, 1)
+	require.Equal(t, []string{"db.public.t.email", "db.public.v.email"}, columnNames(span.Results[0].SourceColumns))
+
+	span = resolve("SELECT to_jsonb(x) FROM v x")
+	require.Len(t, span.Results, 1)
+	require.Equal(t, []string{"db.public.t.email", "db.public.t.id", "db.public.v.email", "db.public.v.id"}, columnNames(span.Results[0].SourceColumns))
+
+	span = resolve("SELECT ssn FROM mv")
+	require.Len(t, span.Results, 1)
+	require.Equal(t, []string{"db.public.mv.ssn"}, columnNames(span.Results[0].SourceColumns))
+}
+
+// A view's columns take the names its synced columns have, which
+// CockroachDB's stored definition leaves out of CREATE VIEW v (a, b).
+func TestResolveQuerySpanViewColumnNames(t *testing.T) {
+	meta := healthySchema()
+	meta.Schemas[0].Views = append(meta.Schemas[0].Views, &metadatapb.ViewMetadata{
+		Name:       "renamed",
+		Definition: "SELECT id, email FROM db.public.t",
+		Columns:    []*metadatapb.ColumnMetadata{column("cid", "int4"), column("mail", "text")},
+	})
+	span := spanFor(t, "SELECT * FROM renamed", meta)
+	require.Len(t, span.Results, 2)
+	require.Equal(t, "cid", span.Results[0].Name)
+	require.Equal(t, []string{"db.public.renamed.mail"}, columnNames(span.Results[1].SourceColumns))
+}
+
+// An invisible column, as CockroachDB's hidden rowid, is left out of * and
+// of a join's columns, and its name still reaches it.
+func TestResolveQuerySpanHiddenColumns(t *testing.T) {
+	meta := healthySchema()
+	meta.Schemas[0].Tables = append(meta.Schemas[0].Tables, &metadatapb.TableMetadata{Name: "h", Columns: []*metadatapb.ColumnMetadata{
+		column("a", "int4"),
+		{Name: "rowid", Type: "int8", IsInvisible: true},
+		column("b", "text"),
+	}})
+	names := func(span *ResolvedSpan) []string {
+		var out []string
+		for _, r := range span.Results {
+			out = append(out, r.Name)
+		}
+		return out
+	}
+	require.Equal(t, []string{"a", "b"}, names(spanFor(t, "SELECT * FROM h", meta)))
+	require.Equal(t, []string{"a", "b", "id", "amt"}, names(spanFor(t, "SELECT * FROM h JOIN o ON o.id = h.a", meta)))
+	require.Equal(t, []string{"a", "b", "id", "amt"}, names(spanFor(t, "SELECT * FROM h NATURAL JOIN o", meta)))
+	span := spanFor(t, "SELECT x.rowid, b FROM h x", meta)
+	require.Len(t, span.Results, 2)
+	require.Equal(t, []string{"db.public.h.rowid"}, columnNames(span.Results[0].SourceColumns))
+	require.Equal(t, []string{"db.public.h.b"}, columnNames(span.Results[1].SourceColumns))
+}
+
 func TestResolveQuerySpanAliasedJoinPlainField(t *testing.T) {
 	span := spanFor(t, "SELECT * FROM (t CROSS JOIN o) j", healthySchema())
 	require.Len(t, span.Results, 5)

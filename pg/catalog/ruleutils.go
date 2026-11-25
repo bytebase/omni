@@ -1114,12 +1114,17 @@ func (d *deparseCtx) getVariableTarget(v *VarExpr, isTopLevel bool) string {
 		d.buf.WriteString(quoteIdentifier(name))
 		return name
 	}
-	if colIdx < 0 || colIdx >= len(colNames) {
+	var colName string
+	switch {
+	case colIdx >= 0 && colIdx < len(colNames):
+		colName = colNames[colIdx]
+	case colIdx >= 0 && rte.Kind == RTERelation && hiddenColumn(d.catalog.relationByOID[rte.RelOID], colIdx):
+		// A hidden column, which only its name reaches.
+		colName = d.catalog.relationByOID[rte.RelOID].Columns[colIdx].Name
+	default:
 		d.buf.WriteString("???")
 		return "???"
 	}
-
-	colName := colNames[colIdx]
 
 	// pg: get_variable — a column of an unnamed join prints as the input
 	// column it stands for, or bare when it stands for none, as a FULL JOIN
