@@ -187,11 +187,15 @@ func (c *Catalog) checkSQLFunctionBody(body string, fn *sqlFnParams, kind byte, 
 }
 
 // checkFunctionBodies reports the session's check_function_bodies, which
-// pg_dump turns off so a function may name what is created after it.
+// pg_dump turns off so a function may name what is created after it. A
+// catalog loaded from a snapshot checks no body unless the session sets it
+// on: a name the snapshot does not hold may still exist on the server.
 func (c *Catalog) checkFunctionBodies() bool {
 	switch strings.Trim(strings.ToLower(c.sessionSettings["check_function_bodies"]), "'\" ") {
 	case "off", "false", "0", "no", "f", "n":
 		return false
+	case "on", "true", "1", "yes", "t", "y":
+		return !c.installingSnapshot
 	}
 	return !c.snapshot && !c.installingSnapshot
 }

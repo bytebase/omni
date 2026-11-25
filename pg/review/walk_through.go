@@ -59,6 +59,9 @@ func walkThrough(ctx context.Context, stmts []statement, plan *run, target revie
 		w.pg.viewCols = nil
 	}
 	v, err := walk.Run(ctx, len(plan.steps), snap, w.lower)
+	if v == nil && err == nil {
+		v = catalogRefusal(ctx, stmts, plan, target, w.path)
+	}
 	if v != nil {
 		v.Statement = plan.steps[v.Statement].stmt
 	}
