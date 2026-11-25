@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"slices"
@@ -958,54 +959,39 @@ func outputNames(query *tree.Select) []string {
 }
 
 // outputName is the name CockroachDB gives an output column it is not told
-// one for, as v25.2.3 names them.
-func outputName(expr tree.Expr) (string, bool) {
-	switch e := expr.(type) {
-	case *tree.UnresolvedName:
-		if e.Star {
-			return "", false
-		}
-		return e.Parts[0], true
-	case *tree.ColumnItem:
-		return string(e.ColumnName), true
-	case *tree.ParenExpr:
-		return outputName(e.Expr)
-	case *tree.CastExpr:
-		// A cast keeps a column's name; a cast constant is named after its
-		// type, which is left unknown here.
-		return columnName(e.Expr)
-	case *tree.AnnotateTypeExpr:
-		return columnName(e.Expr)
-	case *tree.FuncExpr:
-		if e.Func.FunctionReference == nil {
-			return "", false
-		}
-		name, ok := e.Func.FunctionReference.(*tree.UnresolvedName)
-		if !ok {
-			return "", false
-		}
-		// The parser has folded an unquoted name already.
-		return name.Parts[0], true
-	case *tree.CaseExpr:
-		return "case", true
-	case *tree.DBool:
-		return "bool", true
-	case *tree.StrVal, *tree.NumVal, *tree.BinaryExpr, *tree.UnaryExpr:
-		return "?column?", true
+// one, by its own GetRenderColName (PostgreSQL's FigureColname): a column's
+// name, a function's, a cast constant's type, case, coalesce, ?column?. A
+// star has none.
+func outputName(expr tree.Expr) (name string, ok bool) {
+	if star(expr) {
+		return "", false
 	}
-	return "", false
+	// A function named by OID ([FUNCTION 1234]) reaches the resolver
+	// callNames leaves out; its name is then unknown.
+	defer func() {
+		if recover() != nil {
+			name, ok = "", false
+		}
+	}()
+	// GetRenderColName resolves a call's name into the tree it reads, so it
+	// reads a copy.
+	copied, err := crparser.ParseExpr(tree.AsString(expr))
+	if err != nil {
+		return "", false
+	}
+	name, err = tree.GetRenderColName(context.Background(), tree.EmptySearchPath, tree.SelectExpr{Expr: copied}, callNames{})
+	if err != nil {
+		return "", false
+	}
+	return name, true
 }
 
-// columnName is the name of an expression that is a column, in parentheses
-// or not.
-func columnName(expr tree.Expr) (string, bool) {
-	switch e := expr.(type) {
-	case *tree.UnresolvedName, *tree.ColumnItem:
-		return outputName(e)
-	case *tree.ParenExpr:
-		return columnName(e.Expr)
-	}
-	return "", false
+// callNames resolves a function to its name alone, which is all naming
+// needs. It resolves no function by OID.
+type callNames struct{ tree.FunctionReferenceResolver }
+
+func (callNames) ResolveFunction(_ context.Context, name tree.UnresolvedRoutineName, _ tree.SearchPath) (*tree.ResolvedFunctionDefinition, error) {
+	return &tree.ResolvedFunctionDefinition{Name: name.UnresolvedName().Parts[0]}, nil
 }
 
 func (l *sdlLoader) createRoutine(n *tree.CreateRoutine) error {

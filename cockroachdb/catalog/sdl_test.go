@@ -285,7 +285,7 @@ func TestSDLViewColumns(t *testing.T) {
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8); CREATE VIEW v (renamed, a) AS SELECT * FROM t AS x (renamed);",
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8); CREATE VIEW v AS SELECT * FROM t AS x (renamed);",
 		},
-		"cast constant": {"CREATE VIEW v (x) AS SELECT 'x'::STRING;", "CREATE VIEW v AS SELECT 'x'::STRING;"},
+		"cast constant": {"CREATE VIEW v (text) AS SELECT 'x'::STRING;", "CREATE VIEW v AS SELECT 'x'::STRING;"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			plan, err := catalog.BuildSDLMigrationPlan(pair[0], pair[1], catalog.SDLMigrationOptions{})
@@ -543,4 +543,21 @@ func TestSDLQuotedFunctionColumn(t *testing.T) {
 		names = append(names, column.Name)
 	}
 	require.Equal(t, []string{"Quoted", "lower"}, names)
+}
+
+// TestSDLViewColumnsByCockroachDB names view outputs as CockroachDB's own
+// GetRenderColName does, for the forms v25.2.3 answered.
+func TestSDLViewColumnsByCockroachDB(t *testing.T) {
+	loaded, err := catalog.LoadSDL(`CREATE TABLE t (a INT8, b INT8);
+CREATE VIEW v AS SELECT 1, t.b, lower('x'), a::STRING, CASE WHEN a > 0 THEN 1 END, count(*) OVER (), 'x'::STRING, true, 2.5:::DECIMAL, COALESCE(a, 0), NULLIF(a, 1) FROM t;`)
+	require.NoError(t, err)
+	var names []string
+	for _, column := range loaded.Schemas[0].Views[0].Columns {
+		names = append(names, column.Name)
+	}
+	require.Equal(t, []string{"?column?", "b", "lower", "a", "case", "count", "text", "bool", "numeric", "coalesce", "nullif"}, names)
+
+	plan, err := catalog.BuildSDLMigrationPlan("CREATE VIEW v (old_name) AS SELECT COALESCE(1, 0);", "CREATE VIEW v AS SELECT COALESCE(1, 0);", catalog.SDLMigrationOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, plan)
 }
