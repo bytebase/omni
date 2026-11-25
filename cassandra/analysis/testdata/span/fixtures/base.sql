@@ -1,0 +1,14 @@
+CREATE KEYSPACE shop WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};
+CREATE KEYSPACE crm WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};
+CREATE KEYSPACE "Audit" WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};
+CREATE TYPE shop.address (street text, city text, zip text);
+CREATE TABLE shop.users (id int PRIMARY KEY, name text, email text, phone text, ssn text, score double, created timestamp, tags set<text>, prefs map<text, text>, history list<int>, home frozen<address>);
+CREATE TABLE shop.orders (customer_id int, order_id timeuuid, amount decimal, status text, note text, PRIMARY KEY ((customer_id), order_id)) WITH CLUSTERING ORDER BY (order_id DESC);
+CREATE TABLE shop.events (tenant text, day date, seq int, kind text, payload blob, region text STATIC, PRIMARY KEY ((tenant, day), seq));
+CREATE TABLE shop."Accounts" ("AccountId" int PRIMARY KEY, "DisplayName" text, "eMail" text, plain text);
+CREATE TABLE shop.counters (id int PRIMARY KEY, hits counter);
+CREATE TABLE shop.pairs (id int PRIMARY KEY, pair tuple<int, text>);
+CREATE MATERIALIZED VIEW shop.users_by_email AS SELECT email, id, name, phone FROM shop.users WHERE email IS NOT NULL AND id IS NOT NULL PRIMARY KEY (email, id);
+CREATE MATERIALIZED VIEW shop.orders_by_status AS SELECT * FROM shop.orders WHERE status IS NOT NULL AND customer_id IS NOT NULL AND order_id IS NOT NULL PRIMARY KEY (status, customer_id, order_id);
+CREATE TABLE crm.contacts (id uuid PRIMARY KEY, full_name text, email text, owner text, vec vector<float, 3>);
+CREATE TABLE "Audit"."Log" (id int PRIMARY KEY, "Who" text, what text);

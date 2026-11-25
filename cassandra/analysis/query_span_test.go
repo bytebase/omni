@@ -16,10 +16,12 @@ import (
 // corpusCase is one row of testdata/query_span.yaml. The goldens were recorded
 // from the query-span extractor Bytebase shipped for Cassandra — the behavior
 // this package replaces — so they are the parity bar, never re-recorded against
-// this implementation. The trailing `SELECT * FROM user_summary` rows are the
-// exception: they pin the later behavior change that expands a star over a view,
-// so they were written against what Cassandra records for a materialized view,
-// not recorded from the old extractor.
+// this implementation. Two kinds of row are exceptions, written rather than
+// recorded from the old extractor: the trailing `SELECT * FROM user_summary`
+// rows pin the later behavior change that expands a star over a view, against
+// what Cassandra records for a materialized view, and the WRITETIME row takes
+// the column name and lineage Cassandra's result metadata gives
+// (testdata/span.tsv).
 type corpusCase struct {
 	Statement        string           `yaml:"statement"`
 	DefaultKeyspace  string           `yaml:"defaultKeyspace"`
