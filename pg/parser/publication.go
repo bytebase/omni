@@ -790,9 +790,6 @@ func (p *Parser) parseRuleEvent() (int, error) {
 		p.advance()
 		return int(nodes.CMD_SELECT), nil
 	case UPDATE:
-		if p.isSpannerPG() {
-			return 0, p.syntaxErrorAtCur()
-		}
 		p.advance()
 		return int(nodes.CMD_UPDATE), nil
 	case DELETE_P:

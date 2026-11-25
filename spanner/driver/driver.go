@@ -5,35 +5,18 @@
 // queries and change scripts.
 //
 // It implements Driver, Syncer, Dumper, Querier and Executor. The statements are
-// the database's dialect: GoogleSQL, which omni's googlesql tree parses and
-// analyses, or PostgreSQL, which omni's pg tree splits and lowers a LIMIT in.
-// This package is the conversation with a Spanner service, so it lives in a tree
-// of its own beside googlesql, as dynamodb does beside partiql; a service tree
-// consults the language tree of each dialect it serves.
+// GoogleSQL, which omni's googlesql tree parses and analyses. This package is
+// the conversation with a Spanner service, so it lives in a tree of its own
+// beside googlesql, as dynamodb does beside partiql.
 //
-// Dialects. A database's dialect is fixed when it is created, and the two answer
-// different SQL and different INFORMATION_SCHEMA spellings. SyncInstance lists
-// both kinds by default, or only GoogleSQL (and unspecified-dialect) databases
-// when opened with Options.GoogleSQLOnly; SyncDatabase reads the database's
-// dialect from the admin API and asks the matching catalog — PostgreSQL names
-// its system schemas in lower case and states SPANNER_IS_MANAGED as text, where
-// GoogleSQL upper-cases the schemas and states a boolean. A script is split,
-// and a query's LIMIT lowered, by the dialect's own grammar: googlesql/parser
-// for GoogleSQL and pg for PostgreSQL, whose dollar-quoted strings hold
-// semicolons and whose `#>` operator GoogleSQL reads as a comment. A GoogleSQL
-// database takes the queries and the split it took before PostgreSQL was
-// supported.
-//
-// Reading the dialect is the one way this driver departs from the contract's
-// "Open does not reach the server": Open asks the admin API for the database,
-// because every statement is split by the dialect's grammar and a query must not
-// wait for a schema sync to learn which. A database that is not there leaves the
-// dialect GoogleSQL instead of failing Open, so a caller can still open a
-// database to drop it; SyncDatabase reports it as driver.ErrNotFound. A
-// creation script that names its database in double quotes creates a PostgreSQL
-// database — the admin API requires the script to be written in the dialect it
-// creates — and anything else, including a backtick-quoted or unquoted name,
-// creates a GoogleSQL one.
+// Dialects. A database's dialect is fixed when it is created, and the driver
+// serves GoogleSQL only. SyncInstance skips PostgreSQL-dialect databases, and
+// Open and SyncDatabase refuse one with an error rather than split its scripts
+// by the wrong grammar. Reading the dialect is the one way this driver departs
+// from the contract's "Open does not reach the server": Open asks the admin API
+// for the database. A database that is not there does not fail Open, so a
+// caller can still open a database to create or drop it; SyncDatabase reports
+// it as driver.ErrNotFound. A creation creates a GoogleSQL database.
 //
 // Config.Params carry the two parts of the resource name the contract has no
 // field for:
@@ -160,7 +143,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"sync/atomic"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -186,13 +168,6 @@ const (
 	ParamInstance = "instance"
 )
 
-// Options are Spanner's own settings for Open.
-type Options struct {
-	// GoogleSQLOnly makes SyncInstance skip PostgreSQL-dialect databases,
-	// listing only GoogleSQL (and unspecified-dialect) databases.
-	GoogleSQLOnly bool
-}
-
 // Driver is an open Spanner driver: one database of one instance, with a client
 // for its data and one for its schema.
 type Driver struct {
@@ -202,32 +177,12 @@ type Driver struct {
 	databaseName string
 	// instancePath is projects/<project>/instances/<instance>.
 	instancePath string
-	// googleSQLOnly makes SyncInstance skip PostgreSQL-dialect databases.
-	googleSQLOnly bool
-	// dialect is the database's dialect. Open reads it, and a creation or a sync
-	// of the database refreshes it, so it is read atomically: a Driver is safe
-	// for concurrent use.
-	dialect atomic.Int32
-}
-
-// getDialect returns the database's dialect.
-func (d *Driver) getDialect() dialect {
-	return dialect(d.dialect.Load())
-}
-
-// setDialect records the database's dialect.
-func (d *Driver) setDialect(value dialect) {
-	d.dialect.Store(int32(value))
 }
 
 // Open returns a driver for the instance and database cfg names. It reads the
-// database's dialect, which decides the catalog a sync reads and the grammar a
-// script is split by, and does not otherwise reach the server; Ping does.
-func Open(ctx context.Context, cfg driver.Config, opts ...Options) (*Driver, error) {
-	var opt Options
-	if len(opts) > 0 {
-		opt = opts[0]
-	}
+// database's dialect and refuses a PostgreSQL-dialect database, and does not
+// otherwise reach the server; Ping does.
+func Open(ctx context.Context, cfg driver.Config) (*Driver, error) {
 	if cfg.Params[ParamProject] == "" {
 		return nil, errors.New("project ID cannot be empty")
 	}
@@ -239,21 +194,22 @@ func Open(ctx context.Context, cfg driver.Config, opts ...Options) (*Driver, err
 		return nil, err
 	}
 	d := &Driver{
-		client:        c,
-		databaseName:  cfg.Database,
-		instancePath:  InstancePath(cfg.Params[ParamProject], cfg.Params[ParamInstance]),
-		googleSQLOnly: opt.GoogleSQLOnly,
+		client:       c,
+		databaseName: cfg.Database,
+		instancePath: InstancePath(cfg.Params[ParamProject], cfg.Params[ParamInstance]),
 	}
 	if cfg.Database != "" {
 		database, err := c.GetDatabase(ctx, d.databasePath(""))
 		switch {
 		case err == nil:
-			d.setDialect(dialectOf(database.Dialect))
+			if database.Dialect == DialectPostgresSQL {
+				_ = c.Close()
+				return nil, errPostgres(cfg.Database)
+			}
 		case status.Code(err) == codes.NotFound:
 			// A database that is not there is not Open's error: a caller may open
-			// one to drop it, and SyncDatabase reports it as driver.ErrNotFound.
-			// Its dialect stays GoogleSQL until a creation or a sync of that
-			// database reads it.
+			// one to create or drop it, and SyncDatabase reports it as
+			// driver.ErrNotFound.
 		default:
 			_ = c.Close()
 			return nil, fmt.Errorf("failed to read the dialect of database %q: %w", cfg.Database, err)

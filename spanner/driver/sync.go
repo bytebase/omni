@@ -21,10 +21,7 @@ type tableKey struct {
 	Table  string
 }
 
-// catalog is the sync query set of one dialect. GoogleSQL and PostgreSQL spell
-// the system schemas' case and SPANNER_IS_MANAGED's type differently, and
-// PostgreSQL states IS_UNIQUE as text, so the queries are written per dialect;
-// every other query is the same text.
+// catalog is the sync query set: GoogleSQL's INFORMATION_SCHEMA spellings.
 type catalog struct {
 	tables      string
 	columns     string
@@ -33,8 +30,8 @@ type catalog struct {
 	views       string
 }
 
-// foreignKeyQuery is the same text for both dialects: TABLE_CONSTRAINTS,
-// REFERENTIAL_CONSTRAINTS and KEY_COLUMN_USAGE spell their columns alike.
+// foreignKeyQuery reads the foreign keys from TABLE_CONSTRAINTS,
+// REFERENTIAL_CONSTRAINTS and KEY_COLUMN_USAGE.
 const foreignKeyQuery = `
     WITH t AS (
       SELECT DISTINCT
@@ -81,60 +78,9 @@ const foreignKeyQuery = `
     FROM t
   `
 
-// catalogFor returns the sync queries of d.
-func catalogFor(d dialect) catalog {
-	if d == postgresSQL {
-		return catalog{
-			tables: `
-    SELECT
-      TABLE_SCHEMA,
-      TABLE_NAME
-    FROM INFORMATION_SCHEMA.TABLES
-    WHERE LOWER(TABLE_SCHEMA) NOT IN ('information_schema', 'spanner_sys') AND TABLE_TYPE = 'BASE TABLE'
-    ORDER BY TABLE_SCHEMA, TABLE_NAME
-  `,
-			columns: `
-    SELECT 
-      TABLE_SCHEMA,
-      TABLE_NAME,
-      COLUMN_NAME,
-      ORDINAL_POSITION,
-      COLUMN_DEFAULT,
-      IS_NULLABLE = 'YES',
-      SPANNER_TYPE
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE LOWER(TABLE_SCHEMA) NOT IN ('information_schema', 'spanner_sys')
-    ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION
-  `,
-			indexes: `
-    SELECT
-      TABLE_SCHEMA,
-      TABLE_NAME,
-      INDEX_NAME,
-      IS_UNIQUE = 'YES' AS IS_UNIQUE,
-      INDEX_TYPE = 'PRIMARY_KEY' AS IS_PRIMARY,
-      ARRAY (
-        SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.INDEX_COLUMNS AS ic
-        WHERE ic.TABLE_SCHEMA = i.TABLE_SCHEMA AND ic.TABLE_NAME = i.TABLE_NAME AND ic.INDEX_NAME = i.INDEX_NAME
-        ORDER BY ic.ORDINAL_POSITION
-      )
-    FROM INFORMATION_SCHEMA.INDEXES as i
-    WHERE LOWER(TABLE_SCHEMA) NOT IN ('information_schema', 'spanner_sys') AND SPANNER_IS_MANAGED = 'NO'
-    ORDER BY TABLE_SCHEMA, TABLE_NAME, INDEX_NAME
-  `,
-			foreignKeys: foreignKeyQuery,
-			views: `
-  SELECT
-    TABLE_SCHEMA,
-    TABLE_NAME,
-    VIEW_DEFINITION
-  FROM INFORMATION_SCHEMA.VIEWS
-  WHERE LOWER(TABLE_SCHEMA) NOT IN ('information_schema', 'spanner_sys')
-  `,
-		}
-	}
-	return catalog{
-		tables: `
+// syncQueries are the queries a sync asks.
+var syncQueries = catalog{
+	tables: `
     SELECT
       TABLE_SCHEMA,
       TABLE_NAME
@@ -142,7 +88,7 @@ func catalogFor(d dialect) catalog {
     WHERE TABLE_SCHEMA NOT IN ('INFORMATION_SCHEMA', 'SPANNER_SYS') AND TABLE_TYPE = 'BASE TABLE'
     ORDER BY TABLE_SCHEMA, TABLE_NAME
   `,
-		columns: `
+	columns: `
     SELECT 
       TABLE_SCHEMA,
       TABLE_NAME,
@@ -155,7 +101,7 @@ func catalogFor(d dialect) catalog {
     WHERE TABLE_SCHEMA NOT IN ('INFORMATION_SCHEMA', 'SPANNER_SYS')
     ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION
   `,
-		indexes: `
+	indexes: `
     SELECT
       TABLE_SCHEMA,
       TABLE_NAME,
@@ -171,8 +117,8 @@ func catalogFor(d dialect) catalog {
     WHERE TABLE_SCHEMA NOT IN ('INFORMATION_SCHEMA', 'SPANNER_SYS') AND SPANNER_IS_MANAGED = FALSE
     ORDER BY TABLE_SCHEMA, TABLE_NAME, INDEX_NAME
   `,
-		foreignKeys: foreignKeyQuery,
-		views: `
+	foreignKeys: foreignKeyQuery,
+	views: `
   SELECT
     TABLE_SCHEMA,
     TABLE_NAME,
@@ -180,14 +126,12 @@ func catalogFor(d dialect) catalog {
   FROM INFORMATION_SCHEMA.VIEWS
   WHERE TABLE_SCHEMA NOT IN ('INFORMATION_SCHEMA', 'SPANNER_SYS')
   `,
-	}
 }
 
 // SyncInstance reads the instance's databases with their names and nothing else:
 // Spanner reports no version and no roles, and a database's schema is a
-// SyncDatabase of its own. Every database is listed by default, whichever
-// dialect it states; when opened with Options.GoogleSQLOnly, PostgreSQL-dialect
-// databases are skipped.
+// SyncDatabase of its own. PostgreSQL-dialect databases are skipped: the driver
+// serves GoogleSQL only.
 func (d *Driver) SyncInstance(ctx context.Context) (*driver.Instance, error) {
 	databases, err := d.client.ListDatabases(ctx)
 	if err != nil {
@@ -195,7 +139,7 @@ func (d *Driver) SyncInstance(ctx context.Context) (*driver.Instance, error) {
 	}
 	metadata := make([]*metadatapb.DatabaseSchemaMetadata, 0, len(databases))
 	for _, database := range databases {
-		if d.googleSQLOnly && dialectOf(database.Dialect) == postgresSQL {
+		if database.Dialect == DialectPostgresSQL {
 			continue
 		}
 		// database.Name is of the form
@@ -223,6 +167,9 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 		}
 		return nil, fmt.Errorf("failed to check if database exists: %w", err)
 	}
+	if database.Dialect == DialectPostgresSQL {
+		return nil, errPostgres(d.databaseName)
+	}
 
 	tx, err := d.client.Snapshot(ctx)
 	if err != nil {
@@ -230,13 +177,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	}
 	defer tx.Close()
 
-	// A PostgreSQL database answers a catalog of its own spelling, and the sync
-	// asks the one the server just named. The answer is also what a query splits
-	// by afterwards, so the driver records it: Open may have found no database to
-	// ask, and a sync is the later truth.
-	parsed := dialectOf(database.Dialect)
-	d.setDialect(parsed)
-	queries := catalogFor(parsed)
+	queries := syncQueries
 	databaseMetadata := &metadatapb.DatabaseSchemaMetadata{
 		Name: d.databaseName,
 	}

@@ -91,21 +91,19 @@ func (n *DeleteStmt) Tag() NodeTag { return T_DeleteStmt }
 
 // CreateStmt represents a CREATE TABLE statement.
 type CreateStmt struct {
-	Relation       *RangeVar                // relation to create
-	TableElts      *List                    // column definitions (ColumnDef)
-	InhRelations   *List                    // relations to inherit from (RangeVar)
-	Partbound      Node                     // FOR VALUES clause
-	Partspec       *PartitionSpec           // PARTITION BY clause
-	OfTypename     *TypeName                // OF typename
-	Constraints    *List                    // constraints (Constraint)
-	Options        *List                    // options from WITH clause
-	OnCommit       OnCommitAction           // what to do at commit time
-	Tablespacename string                   // table space to use, or NULL
-	AccessMethod   string                   // table access method
-	IfNotExists    bool                     // just do nothing if it already exists?
-	Interleave     *SpannerInterleaveClause // Spanner PG: INTERLEAVE IN [PARENT] ...
-	TTL            *SpannerTTLClause        // Spanner PG: TTL INTERVAL ... ON col
-	Loc            Loc                      // token location
+	Relation       *RangeVar      // relation to create
+	TableElts      *List          // column definitions (ColumnDef)
+	InhRelations   *List          // relations to inherit from (RangeVar)
+	Partbound      Node           // FOR VALUES clause
+	Partspec       *PartitionSpec // PARTITION BY clause
+	OfTypename     *TypeName      // OF typename
+	Constraints    *List          // constraints (Constraint)
+	Options        *List          // options from WITH clause
+	OnCommit       OnCommitAction // what to do at commit time
+	Tablespacename string         // table space to use, or NULL
+	AccessMethod   string         // table access method
+	IfNotExists    bool           // just do nothing if it already exists?
+	Loc            Loc            // token location
 }
 
 func (n *CreateStmt) Tag() NodeTag { return T_CreateStmt }
@@ -118,7 +116,6 @@ type ViewStmt struct {
 	Replace         bool      // replace an existing view?
 	Options         *List     // options from WITH clause
 	WithCheckOption int       // WITH CHECK OPTION
-	SqlSecurity     string    // Spanner PG: SQL SECURITY INVOKER|DEFINER
 	Loc             Loc       // token location
 }
 
@@ -150,10 +147,6 @@ type IndexStmt struct {
 	Concurrent                  bool      // should this be a concurrent index build?
 	IfNotExists                 bool      // just do nothing if index already exists?
 	ResetDefaultTblspc          bool      // reset default_tablespace prior to executing
-	InterleaveParent            *RangeVar // Spanner PG: INTERLEAVE IN parent
-	IsSearch                    bool      // Spanner PG: CREATE SEARCH INDEX
-	PartitionBy                 *List     // Spanner PG: SEARCH INDEX PARTITION BY columns
-	OrderBy                     *List     // Spanner PG: SEARCH INDEX ORDER BY sortby list
 	Loc                         Loc       // token location
 }
 
@@ -385,8 +378,6 @@ type ColumnDef struct {
 	CollOid          Oid            // collation OID
 	Constraints      *List          // other constraints on column
 	Fdwoptions       *List          // per-column FDW options
-	IsHidden         bool           // Spanner PG: HIDDEN column
-	IsVirtual        bool           // Spanner PG: GENERATED ALWAYS AS (...) VIRTUAL
 	Loc              Loc            // parse location, or -1 if none/unknown
 }
 
@@ -2654,71 +2645,3 @@ type JsonIsPredicate struct {
 }
 
 func (n *JsonIsPredicate) Tag() NodeTag { return T_JsonIsPredicate }
-
-// ---------------------------------------------------------------------------
-// Cloud Spanner PostgreSQL dialect DDL nodes
-// ---------------------------------------------------------------------------
-
-// SpannerInterleaveClause represents INTERLEAVE IN [PARENT] parent [ON DELETE action].
-type SpannerInterleaveClause struct {
-	Parent   *RangeVar // parent table
-	InParent bool      // true for INTERLEAVE IN PARENT, false for INTERLEAVE IN
-	OnDelete byte      // key action ('c'=CASCADE, 'a'=NO ACTION, etc.; 0 if omitted)
-	Loc      Loc
-}
-
-func (n *SpannerInterleaveClause) Tag() NodeTag { return T_SpannerInterleaveClause }
-
-// SpannerTTLClause represents TTL INTERVAL <interval> ON <column>.
-type SpannerTTLClause struct {
-	Interval Node   // interval expression
-	Column   string // timestamp column name
-	Loc      Loc
-}
-
-func (n *SpannerTTLClause) Tag() NodeTag { return T_SpannerTTLClause }
-
-// CreateChangeStreamStmt represents CREATE CHANGE STREAM [IF NOT EXISTS] name ...
-type CreateChangeStreamStmt struct {
-	Name           *RangeVar // change stream name
-	IfNotExists    bool
-	ForAll         bool  // FOR ALL
-	WatchedObjects *List // list of *ChangeStreamForItem
-	Options        *List // WITH (...) options (DefElem)
-	Loc            Loc
-}
-
-func (n *CreateChangeStreamStmt) Tag() NodeTag { return T_CreateChangeStreamStmt }
-
-// ChangeStreamForItem represents a watched table entry in a CHANGE STREAM FOR list:
-// table_name [ '(' [col1, col2, ...] ')' ].
-type ChangeStreamForItem struct {
-	Table      *RangeVar
-	AllColumns bool  // true when no '(...)' column list was given
-	Columns    *List // list of *String column names (empty list for table())
-	Loc        Loc
-}
-
-func (n *ChangeStreamForItem) Tag() NodeTag { return T_ChangeStreamForItem }
-
-// AlterChangeStreamStmt represents ALTER CHANGE STREAM name SET/RESET/DROP ...
-type AlterChangeStreamStmt struct {
-	Name           *RangeVar
-	Action         string // "set_for", "set_options", "reset_options", "drop_for"
-	ForAll         bool
-	WatchedObjects *List // list of *ChangeStreamForItem
-	Options        *List // SET (...) options
-	ResetOptions   *List // RESET (...) option names
-	Loc            Loc
-}
-
-func (n *AlterChangeStreamStmt) Tag() NodeTag { return T_AlterChangeStreamStmt }
-
-// CreateLocalityGroupStmt represents CREATE LOCALITY GROUP [IF NOT EXISTS] name.
-type CreateLocalityGroupStmt struct {
-	Name        *RangeVar
-	IfNotExists bool
-	Loc         Loc
-}
-
-func (n *CreateLocalityGroupStmt) Tag() NodeTag { return T_CreateLocalityGroupStmt }
