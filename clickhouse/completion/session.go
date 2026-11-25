@@ -57,14 +57,35 @@ var bareIdentifier = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
 // QuoteIdentifierIfNeeded backquotes name unless ClickHouse reads it back
 // bare: a name with other characters is quoted, and so is a keyword the
-// grammar does not read as a column and a table name, as it reads id.
+// grammar does not read as a column and a table name, as it reads id. TRUE
+// and NULL parse there, but as literals, so they are quoted too.
 func QuoteIdentifierIfNeeded(name string) string {
-	if bareIdentifier.MatchString(name) {
-		if _, err := parser.Parse("SELECT " + name + ", " + name + " FROM " + name + " WHERE " + name); err == nil {
-			return name
-		}
+	if bareIdentifier.MatchString(name) && readsAsName(name) {
+		return name
 	}
 	return "`" + strings.ReplaceAll(strings.ReplaceAll(name, `\`, `\\`), "`", "``") + "`"
+}
+
+// readsAsName reports whether the parser reads name, unquoted, as a column
+// in a select list and a WHERE clause, and as a table.
+func readsAsName(name string) bool {
+	stmts, err := parser.Parse("SELECT " + name + ", " + name + " FROM " + name + " WHERE " + name)
+	if err != nil || len(stmts) != 1 {
+		return false
+	}
+	sel, ok := stmts[0].(*parser.SelectStmt)
+	if u, isUnion := stmts[0].(*parser.SelectUnionStmt); isUnion && len(u.Items) == 1 {
+		sel, ok = u.Items[0], true
+	}
+	if !ok || len(sel.Columns) != 2 {
+		return false
+	}
+	for _, e := range append(slices.Clone(sel.Columns), sel.Where) {
+		if id, ok := e.(*parser.IdentExpr); !ok || len(id.Parts) != 1 || id.Parts[0] != name {
+			return false
+		}
+	}
+	return true
 }
 
 // lineOffsetToBytePos converts a 1-based line and 0-based UTF-16 code-unit

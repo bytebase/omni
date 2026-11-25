@@ -186,13 +186,14 @@ func nameKindAfter(before []parser.Token) nameKind {
 }
 
 // inFromList reports whether the tokens end with a FROM list's table: FROM,
-// then names, dots, aliases and commas only.
+// then names, dots, aliases and commas only. A clause keyword such as ORDER
+// or BY, which can be no alias, ends the list.
 func inFromList(toks []parser.Token) bool {
 	for i := len(toks) - 1; i >= 0; i-- {
 		switch {
 		case toks[i].Type == parser.KwFrom:
 			return true
-		case isName(toks[i]), toks[i].Type == parser.TokDot, toks[i].Type == parser.TokComma:
+		case parser.IsBareAlias(toks[i]), toks[i].Type == parser.KwAs, toks[i].Type == parser.TokDot, toks[i].Type == parser.TokComma:
 		default:
 			return false
 		}
