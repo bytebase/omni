@@ -1,8 +1,10 @@
 // Package analysis is CockroachDB's statement judgment: the statement types a
-// script changes, the tables it writes, and its system catalogs. The wire
+// script changes, the tables it writes, its system catalogs, and the editor's
+// splitting, diagnostics, read-only check, result limit and EXPLAIN. The wire
 // protocol is PostgreSQL's, but CockroachDB's grammar is not: UPSERT,
-// statement sources, regional DDL, zone configuration and IMPORT INTO have no
-// PostgreSQL node, so the judgment walks CockroachDB's own AST.
+// statement sources, AS OF SYSTEM TIME, index hints, regional DDL, zone
+// configuration and IMPORT INTO have no PostgreSQL node, so the judgment walks
+// CockroachDB's own AST.
 package analysis
 
 import (
@@ -96,42 +98,78 @@ func Parse(script string) (statements.Statements, error) {
 // Split returns each statement of script with its terminating semicolon,
 // lexically, so a script the parser rejects still splits. A segment that holds
 // no statement, such as a lone ";", is "" so a caller can account for every
-// boundary.
+// boundary; trailing text holding no statement is dropped.
 func Split(script string) []string {
-	var result []string
-	for {
-		pos, ok := crrawparser.SplitFirstStatement(script)
-		if !ok {
-			break
+	segments := SplitSegments(script)
+	result := make([]string, 0, len(segments))
+	for i, segment := range segments {
+		switch {
+		case !segment.Empty():
+			result = append(result, strings.TrimLeftFunc(segment.Text, unicode.IsSpace))
+		case i < len(segments)-1 || strings.HasSuffix(segment.Text, ";"):
+			result = append(result, "")
 		}
-		segment := strings.TrimLeftFunc(script[:pos], unicode.IsSpace)
-		if !holdsStatement(segment) {
-			segment = ""
-		}
-		result = append(result, segment)
-		script = script[pos:]
-	}
-	if segment := strings.TrimLeftFunc(script, unicode.IsSpace); holdsStatement(segment) {
-		result = append(result, segment)
 	}
 	return result
 }
 
-func holdsStatement(segment string) bool {
-	if strings.TrimSpace(segment) == "" {
-		return false
-	}
-	tokens, ok := crrawparser.Tokens(segment)
-	if !ok {
-		// A lexical error still leaves text worth reporting as one segment.
-		return true
-	}
-	for _, token := range tokens {
-		if token.Str != ";" {
-			return true
+// Segment is one statement's span of a script: the text from the end of the
+// previous segment through its terminating semicolon.
+type Segment struct {
+	Text      string
+	ByteStart int
+	ByteEnd   int
+	empty     bool
+}
+
+// Empty reports whether the segment holds no statement: only whitespace,
+// comments and semicolons.
+func (s Segment) Empty() bool {
+	return s.empty
+}
+
+// SplitSegments splits script lexically into segments that tile it, as
+// CockroachDB's parser bounds statements: a semicolon inside a BEGIN ATOMIC
+// body does not end its CREATE FUNCTION. After a lexical error, such as an
+// unterminated string, the rest of the script is one segment.
+func SplitSegments(script string) []Segment {
+	var sc scanner.SQLScanner
+	sc.Init(script)
+	defer sc.Cleanup()
+
+	var segments []Segment
+	var lval scanSym
+	start, holds, bodyDepth := 0, false, 0
+	var prevID int32
+	for {
+		sc.Scan(&lval)
+		if lval.id == 0 || lval.id == lexbase.ERROR {
+			holds = holds || lval.id == lexbase.ERROR
+			break
 		}
+		if lval.id == ';' && bodyDepth == 0 {
+			end := sc.Pos()
+			segments = append(segments, Segment{Text: script[start:end], ByteStart: start, ByteEnd: end, empty: !holds})
+			start, holds = end, false
+			prevID = lval.id
+			continue
+		}
+		if lval.id != ';' {
+			holds = true
+		}
+		// The same body tracking as cockroachdb-parser's scanOneStmt.
+		if prevID == lexbase.BEGIN && lval.id == lexbase.ATOMIC {
+			bodyDepth++
+		}
+		if bodyDepth > 0 && lval.id == lexbase.END {
+			bodyDepth--
+		}
+		prevID = lval.id
 	}
-	return false
+	if start < len(script) {
+		segments = append(segments, Segment{Text: script[start:], ByteStart: start, ByteEnd: len(script), empty: !holds})
+	}
+	return segments
 }
 
 func isSpaceOrSemicolon(r rune) bool {

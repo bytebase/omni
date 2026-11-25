@@ -77,6 +77,7 @@ func TestStatementTypes(t *testing.T) {
 		},
 		{statement: `WITH d AS (DELETE FROM t RETURNING id) SELECT count(*) FROM d`, want: []StatementType{Delete}},
 		{statement: `SELECT * FROM [UPDATE t SET c = 1 RETURNING id]`, want: []StatementType{Update}},
+		{statement: `SELECT * FROM [EXPLAIN ANALYZE DELETE FROM t]`, want: []StatementType{Delete}},
 		{
 			statement: `WITH d AS (DELETE FROM t RETURNING *) INSERT INTO t2 SELECT * FROM d`,
 			want:      []StatementType{Insert, Delete},
