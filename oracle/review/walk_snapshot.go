@@ -140,7 +140,12 @@ type syncedCol struct {
 type syncedTable struct {
 	mview    bool
 	skipDump bool
-	columns  map[string]bool
+	// heap is set when the sync gives the table a tablespace, which Oracle
+	// gives no partitioned, index-organized, external, or temporary table
+	// (ALL_TABLES.TABLESPACE_NAME is null for each): the table is a heap
+	// table of no partitions.
+	heap    bool
+	columns map[string]bool
 	// complete is set when the sync lists every column of the table.
 	complete    bool
 	primary     bool
@@ -239,6 +244,7 @@ func newOracleSnapshot(db *metadata.DatabaseSchemaMetadata) *oracleSnapshot {
 				s.logs = append(s.logs, t.GetName())
 			}
 			s.partitionsOf(st, t.GetPartitions())
+			st.heap = t.GetTablespace() != "" && len(t.GetPartitions()) == 0
 			s.indexesOf(t.GetName(), st, t.GetIndexes())
 			for _, fk := range t.GetForeignKeys() {
 				st.constraints[fk.GetName()] = true

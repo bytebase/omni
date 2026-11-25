@@ -194,6 +194,55 @@ CREATE TABLE OMNI_APP.REL (A NUMBER);
 	}
 }
 
+// TestSyncTablespace pins the tablespace the sync gives each kind of table.
+// WALK_THROUGH reads one as a heap table of no partitions, which holds only
+// while Oracle gives none to a partitioned (system- and reference-partitioned
+// ones too, whose partitions the sync leaves out), index-organized, or
+// external table.
+func TestSyncTablespace(t *testing.T) {
+	d := openTestDriver(t)
+	t.Cleanup(func() { _, _ = d.db.ExecContext(context.Background(), "DROP DIRECTORY OMNI_TS_DIR") })
+	execCorpus(t, d.db, `
+CREATE USER OMNI_APP NO AUTHENTICATION QUOTA UNLIMITED ON USERS;
+GRANT CREATE SESSION, CREATE TABLE, CREATE TYPE TO OMNI_APP;
+CREATE OR REPLACE DIRECTORY OMNI_TS_DIR AS '/tmp';
+CREATE TABLE OMNI_APP.HEAP (A NUMBER) TABLESPACE USERS;
+CREATE TABLE OMNI_APP.DEFERRED (A NUMBER) SEGMENT CREATION DEFERRED;
+CREATE GLOBAL TEMPORARY TABLE OMNI_APP.GTT (A NUMBER);
+CREATE TABLE OMNI_APP.IOT (A NUMBER PRIMARY KEY) ORGANIZATION INDEX;
+CREATE TABLE OMNI_APP.EXT (A NUMBER) ORGANIZATION EXTERNAL (TYPE ORACLE_LOADER DEFAULT DIRECTORY OMNI_TS_DIR LOCATION ('omni_ts.csv'));
+CREATE TABLE OMNI_APP.RANGED (A NUMBER PRIMARY KEY) PARTITION BY RANGE (A) (PARTITION P1 VALUES LESS THAN (10));
+CREATE TABLE OMNI_APP.SYSTEMED (A NUMBER) PARTITION BY SYSTEM (PARTITION P1, PARTITION P2);
+CREATE TABLE OMNI_APP.REFERENCED (A NUMBER NOT NULL, CONSTRAINT REFERENCED_FK FOREIGN KEY (A) REFERENCES OMNI_APP.RANGED (A)) PARTITION BY REFERENCE (REFERENCED_FK);
+CREATE TYPE OMNI_APP.TY AS OBJECT (X NUMBER);
+CREATE TABLE OMNI_APP.OT OF OMNI_APP.TY;
+CREATE TABLE OMNI_APP.OT_HASHED OF OMNI_APP.TY PARTITION BY HASH (X) PARTITIONS 2;
+`)
+	metadata, err := d.SyncDatabase(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]string{}
+	for _, table := range onlySchema(t, metadata).Tables {
+		got[table.Name] = table.Tablespace
+	}
+	want := map[string]string{
+		"HEAP":       "USERS",
+		"DEFERRED":   "USERS",
+		"GTT":        "",
+		"IOT":        "",
+		"EXT":        "",
+		"RANGED":     "",
+		"SYSTEMED":   "",
+		"REFERENCED": "",
+		"OT":         "USERS",
+		"OT_HASHED":  "",
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("tablespaces (-want +got):\n%s", diff)
+	}
+}
+
 // TestSyncInvisibleColumns pins which columns the sync lists: the invisible ones
 // and the virtual ones are listed, and the system columns an index or an unused
 // column leaves behind are not.

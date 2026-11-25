@@ -648,7 +648,7 @@ func (b *builder) alterCmd(r objRef, kind string, c *ast.AlterTableCmd, declared
 		}
 		if kind == kindTable {
 			pkFact, _ := b.look(r.childKey(spacePrimary, ""))
-			if b.checkIOTPartitionClause(r, pkFact == walk.Absent && !addedPK, c.Loc, rng) {
+			if b.checkIOTPartitionClause(r, pkFact == walk.Absent && !addedPK || b.heapTable(r), c.Loc, rng) {
 				return true
 			}
 			if b.checkPartitionMeta(r, b.syncedPartMeta(r), c.Loc, rng) {
@@ -662,7 +662,7 @@ func (b *builder) alterCmd(r objRef, kind string, c *ast.AlterTableCmd, declared
 	case ast.AT_MOVE:
 		if kind == kindTable {
 			pkFact, _ := b.look(r.childKey(spacePrimary, ""))
-			if b.checkIOTMoveClause(r, pkFact == walk.Absent && !addedPK, c.Loc, rng) {
+			if b.checkIOTMoveClause(r, pkFact == walk.Absent && !addedPK || b.heapTable(r), c.Loc, rng) {
 				return true
 			}
 		}

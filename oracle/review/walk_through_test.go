@@ -387,6 +387,38 @@ func TestWalkThroughOracle(t *testing.T) {
 	noFinding(t, "DELETE FROM nokey@remote LOG ERRORS;", shop)
 }
 
+// TestWalkThroughOracleHeapTable holds the walk to what a tablespace says:
+// Oracle gives one to no partitioned, index-organized, external, or
+// temporary table, so a table the sync gives one is a heap table of no
+// partitions.
+func TestWalkThroughOracleHeapTable(t *testing.T) {
+	schema := walkSchema(false)
+	heap := &metadata.TableMetadata{
+		Name:       "HEAP",
+		Tablespace: "USERS",
+		Columns:    []*metadata.ColumnMetadata{{Name: "ID", Type: "NUMBER"}, {Name: "A", Type: "NUMBER", Nullable: true}},
+		Indexes:    []*metadata.IndexMetadata{{Name: "PK_HEAP", Primary: true, Unique: true, IsConstraint: true}},
+	}
+	schema.Schemas[0].Tables = append(schema.Schemas[0].Tables, heap)
+	shop := review.Target{Schema: schema}
+	oneFinding(t, "ALTER TABLE heap ADD PARTITION p VALUES LESS THAN (10);", 0, "Table `HEAP` is not partitioned.", shop)
+	oneFinding(t, "ALTER TABLE heap MOVE PARTITION p;", 0, "Table `HEAP` is not partitioned.", shop)
+	oneFinding(t, "DELETE heap PARTITION (p);", 0, "Table `HEAP` is not partitioned.", shop)
+	oneFinding(t, "CREATE INDEX ix_a ON heap (a) LOCAL;", 0, "A LOCAL index needs a partitioned table, not `HEAP`.", shop)
+	oneFinding(t, "ALTER TABLE heap MOVE NOMAPPING;", 0, "MAPPING TABLE / NOMAPPING is only allowed on an index-organized table, not `HEAP`.", shop)
+	oneFinding(t, "ALTER TABLE heap REJECT LIMIT 1;", 0, "This clause is only allowed on an external table, not `HEAP`.", shop)
+	noFinding(t, "ALTER TABLE heap MODIFY PARTITION BY RANGE (a) (PARTITION p VALUES LESS THAN (10));", shop)
+	noFinding(t, "CREATE INDEX ix_a ON heap (a) GLOBAL PARTITION BY HASH (a) PARTITIONS 2;", shop)
+	noFinding(t, "ALTER TABLE heap MOVE;", shop)
+	// Once the change partitions it, its partitions are the change's.
+	noFinding(t, "ALTER TABLE heap MODIFY PARTITION BY RANGE (a) (PARTITION p VALUES LESS THAN (10));\nALTER TABLE heap ADD PARTITION q VALUES LESS THAN (20);", shop)
+	noFinding(t, "DROP TABLE heap;\nCREATE TABLE heap (a NUMBER) PARTITION BY RANGE (a) (PARTITION p VALUES LESS THAN (10));\nALTER TABLE heap ADD PARTITION q VALUES LESS THAN (20);", shop)
+	// No tablespace says nothing.
+	heap.Tablespace = ""
+	noFinding(t, "ALTER TABLE heap MOVE PARTITION p;", shop)
+	noFinding(t, "CREATE INDEX ix_a ON heap (a) LOCAL;", shop)
+}
+
 func TestWalkThroughOracleEffects(t *testing.T) {
 	shop := review.Target{Schema: walkSchema(false)}
 	// After IF [NOT] EXISTS on a name the walk does not know, the name is
