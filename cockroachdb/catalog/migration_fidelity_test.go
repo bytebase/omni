@@ -63,6 +63,7 @@ CREATE TABLE fid_m.owners (id INT8 PRIMARY KEY, a INT8, b INT8);
 CREATE SEQUENCE fid_m.owned_seq OWNED BY fid_m.owners.a;
 CREATE TABLE fid_m.gone_owner (id INT8 PRIMARY KEY, n INT8);
 CREATE SEQUENCE fid_m.gone_owner_seq OWNED BY fid_m.gone_owner.n;
+CREATE TABLE fid_m.calc (id INT8 PRIMARY KEY, a INT8, b INT8 AS (a + 1) STORED);
 `,
 			target: `CREATE SCHEMA fid_m;
 CREATE SCHEMA fid_new;
@@ -106,6 +107,7 @@ COMMENT ON CONSTRAINT prices_price_check ON fid_m.prices IS 'positive';
 CREATE FUNCTION fid_m.price_text() RETURNS STRING LANGUAGE SQL STABLE AS $$ SELECT max(price)::STRING FROM fid_m.prices $$;
 CREATE TABLE fid_m.owners (id INT8 PRIMARY KEY, b INT8);
 CREATE SEQUENCE fid_m.owned_seq OWNED BY fid_m.owners.b;
+CREATE TABLE fid_m.calc (id INT8 PRIMARY KEY);
 `,
 		},
 		{
@@ -125,6 +127,8 @@ CREATE TABLE fid_v.tagged (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_v.gone());
 CREATE TABLE fid_v.old_items (id INT8 PRIMARY KEY);
 CREATE FUNCTION fid_v.count_old() RETURNS INT8 LANGUAGE SQL STABLE AS $$ SELECT count(*) FROM fid_v.old_items $$;
 CREATE VIEW fid_v.named (renamed) AS SELECT id FROM fid_v.items;
+CREATE FUNCTION fid_v.ra() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$;
+CREATE FUNCTION fid_v.rb() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_v.ra() $$;
 `,
 			target: `CREATE SCHEMA fid_v;
 CREATE TABLE fid_v.items (id INT8 PRIMARY KEY, name STRING, price DECIMAL(10, 2), bonus INT8);

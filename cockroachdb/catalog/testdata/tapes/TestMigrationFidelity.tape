@@ -97,6 +97,9 @@
 > exec
 | CREATE SEQUENCE fid_m.owned_seq OWNED BY fid_m.owners.b;
 < ok 0 -
+> exec
+| CREATE TABLE fid_m.calc (id INT8 PRIMARY KEY);
+< ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
 < result
@@ -262,6 +265,34 @@
 | pg_catalog
 : string
 | text
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| calc
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
 : null
 : string
 | NO
@@ -1082,6 +1113,18 @@
 : string
 | fid_m
 : string
+| calc
+: string
+| calc_pkey
+: string
+| CREATE UNIQUE INDEX calc_pkey ON omni_testmigrationfidelity.fid_m.calc USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | codes
 : string
 | codes_code_key
@@ -1425,6 +1468,13 @@
 | fid_m
 : string
 | amounts
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
+| calc
 : int64 0
 : null
 < row
@@ -1849,6 +1899,9 @@
 > exec
 | CREATE SEQUENCE fid_m.gone_owner_seq OWNED BY fid_m.gone_owner.n;
 < ok 0 -
+> exec
+| CREATE TABLE fid_m.calc (id INT8 PRIMARY KEY, a INT8, b INT8 AS (a + 1) STORED);
+< ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
 < result
@@ -2016,6 +2069,90 @@
 |
 : string
 |
+< row
+: string
+| fid_m
+: string
+| calc
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| calc
+: string
+| a
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| calc
+: string
+| b
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 3
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+| a + 1
+: string
+| s
 < row
 : string
 | fid_m
@@ -2797,6 +2934,18 @@
 : string
 | fid_m
 : string
+| calc
+: string
+| calc_pkey
+: string
+| CREATE UNIQUE INDEX calc_pkey ON omni_testmigrationfidelity.fid_m.calc USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | codes
 : string
 | codes_code_key
@@ -3153,6 +3302,13 @@
 | fid_m
 : string
 | amounts
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
+| calc
 : int64 0
 : null
 < row
@@ -3536,6 +3692,12 @@
 | DROP TABLE "fid_m"."gone_owner";
 < ok 0 -
 > exec
+| ALTER TABLE "fid_m"."calc" DROP COLUMN "b";
+< ok 0 -
+> exec
+| ALTER TABLE "fid_m"."calc" DROP COLUMN "a";
+< ok 0 -
+> exec
 | ALTER TABLE "fid_m"."customers" DROP COLUMN "legacy";
 < ok 0 -
 > exec
@@ -3855,6 +4017,34 @@
 | pg_catalog
 : string
 | text
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| calc
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
 : null
 : string
 | NO
@@ -4675,6 +4865,18 @@
 : string
 | fid_m
 : string
+| calc
+: string
+| calc_pkey
+: string
+| CREATE UNIQUE INDEX calc_pkey ON omni_testmigrationfidelity.fid_m.calc USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | codes
 : string
 | codes_code_key
@@ -5018,6 +5220,13 @@
 | fid_m
 : string
 | amounts
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
+| calc
 : int64 0
 : null
 < row
@@ -6718,6 +6927,12 @@
 > exec
 | CREATE VIEW fid_v.named (renamed) AS SELECT id FROM fid_v.items;
 < ok 0 -
+> exec
+| CREATE FUNCTION fid_v.ra() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.rb() RETURNS INT8 LANGUAGE SQL AS $$ SELECT fid_v.ra() $$;
+< ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
 < result
@@ -7889,6 +8104,42 @@
 | 	AS $$
 | 	SELECT 1;
 | $$
+< row
+: string
+| fid_v
+: string
+| ra
+: string
+| ra()
+: string
+| CREATE FUNCTION fid_v.ra()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 1;
+| $$
+< row
+: string
+| fid_v
+: string
+| rb
+: string
+| rb()
+: string
+| CREATE FUNCTION fid_v.rb()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT fid_v.ra();
+| $$
 > query
 |
 | 		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
@@ -7966,6 +8217,12 @@
 < ok 0 -
 > exec
 | DROP FUNCTION "fid_v"."gone"();
+< ok 0 -
+> exec
+| DROP FUNCTION "fid_v"."rb"();
+< ok 0 -
+> exec
+| DROP FUNCTION "fid_v"."ra"();
 < ok 0 -
 > exec
 | DROP VIEW "fid_v"."priced_names";

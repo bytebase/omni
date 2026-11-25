@@ -505,16 +505,17 @@ func (d *differ) rebuiltViews() map[string]bool {
 		}
 	}
 	type relation struct {
-		id   string
-		deps []*metadatapb.DependencyColumn
-		same bool
+		id    string
+		deps  []*metadatapb.DependencyColumn
+		same  bool
+		query string
 	}
 	var relations []relation
 	for _, schema := range d.from.schemas {
 		for _, view := range schema.Views {
 			target := findView(d.to.byName[schema.Name], view.Name)
 			same := target != nil && relationQuery(target.Definition, d.to.database) == relationQuery(view.Definition, d.from.database) && sameColumnNames(view.Columns, target.Columns)
-			relations = append(relations, relation{getObjectID(schema.Name, view.Name), view.DependencyColumns, same})
+			relations = append(relations, relation{getObjectID(schema.Name, view.Name), view.DependencyColumns, same, view.Definition})
 			if target == nil {
 				dropped[getObjectID(schema.Name, view.Name)] = true
 			}
@@ -522,7 +523,7 @@ func (d *differ) rebuiltViews() map[string]bool {
 		for _, view := range schema.MaterializedViews {
 			target := findMaterializedView(d.to.byName[schema.Name], view.Name)
 			same := target != nil && relationQuery(target.Definition, d.to.database) == relationQuery(view.Definition, d.from.database)
-			relations = append(relations, relation{getObjectID(schema.Name, view.Name), view.DependencyColumns, same})
+			relations = append(relations, relation{getObjectID(schema.Name, view.Name), view.DependencyColumns, same, view.Definition})
 			if target == nil {
 				dropped[getObjectID(schema.Name, view.Name)] = true
 			}
@@ -536,6 +537,11 @@ func (d *differ) rebuiltViews() map[string]bool {
 				continue
 			}
 			need := !r.same
+			// The relations a query reads without naming a column have no
+			// dependency row of their own.
+			for _, relationID := range queryRelations(r.query) {
+				need = need || dropped[relationID] || rebuilt[relationID]
+			}
 			for _, dep := range r.deps {
 				relationID := getObjectID(dep.Schema, dep.Table)
 				if dropped[relationID] || rebuilt[relationID] || changedColumns[relationID+objectIDSeparator+dep.Column] {
@@ -727,8 +733,13 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 	}
 	// A column of a primary key that changes is dropped once the new key is
 	// in place.
+	// A computed column goes before the columns its expression reads.
 	var afterKey []string
-	for _, column := range oldColumns {
+	dropOrder := slices.Clone(oldColumns)
+	slices.SortStableFunc(dropOrder, func(a, b *metadatapb.ColumnMetadata) int {
+		return boolOrder(b.Generation != nil) - boolOrder(a.Generation != nil)
+	})
+	for _, column := range dropOrder {
 		if findColumnIn(newColumns, column.Name) != nil {
 			continue
 		}
@@ -851,6 +862,13 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 		}
 	}
 	return nil
+}
+
+func boolOrder(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 func generationText(column *metadatapb.ColumnMetadata) string {
@@ -1112,27 +1130,64 @@ func (d *differ) diffRoutines() {
 			}
 		}
 	}
+	// A routine that calls another goes first: CockroachDB keeps a called
+	// routine while a caller remains.
+	graph := newDefinitionGraph()
+	dropping := make(map[string]*metadatapb.FunctionMetadata)
+	schemaOfID := make(map[string]string)
+	byName := make(map[string][]string)
 	for _, schema := range d.from.schemas {
 		for _, function := range schema.Functions {
-			recreated := d.recreated[getObjectID(schema.Name, metadataFuncIdentity(function))]
-			if !recreated && findFunction(d.to.byName[schema.Name], metadataFuncIdentity(function)) != nil {
+			id := getObjectID(schema.Name, metadataFuncIdentity(function))
+			if !d.recreated[id] && findFunction(d.to.byName[schema.Name], metadataFuncIdentity(function)) != nil {
 				continue
 			}
-			kind := "FUNCTION"
-			if isProcedure(function.Definition) {
-				kind = "PROCEDURE"
-			}
-			phase := phaseDropRoutinesFirst
-			if late[function.Name] || late[schema.Name+"."+function.Name] {
-				phase = phaseDropRoutines
-			}
-			typ := OpDropFunction
-			if recreated {
-				typ = OpAlterFunction
-			}
-			d.add(phase, MigrationOp{Type: typ, SchemaName: schema.Name, ObjectName: function.Name,
-				SQL: fmt.Sprintf("DROP %s %s.%s", kind, quoteIdent(schema.Name), routineSignature(function))})
+			dropping[id], schemaOfID[id] = function, schema.Name
+			graph.AddNode(id)
+			byName[function.Name] = append(byName[function.Name], id)
 		}
+	}
+	for _, id := range sortedMapIDs(dropping) {
+		tokens, _ := crparser.Tokens(routineBody(dropping[id].Definition))
+		for i, token := range tokens {
+			if i+1 < len(tokens) && tokens[i+1].Str == "(" {
+				for _, callee := range byName[token.Str] {
+					graph.AddEdge(id, callee)
+				}
+			}
+		}
+	}
+	ordered, err := graph.TopologicalSort()
+	if err != nil {
+		ordered = sortedMapIDs(dropping)
+	}
+	// A routine a late-dropped routine calls is late too.
+	isLate := make(map[string]bool)
+	for _, id := range ordered {
+		function, schema := dropping[id], schemaOfID[id]
+		isLate[id] = isLate[id] || late[function.Name] || late[schema+"."+function.Name]
+		if isLate[id] {
+			for _, callee := range graph.edges[id] {
+				isLate[callee] = true
+			}
+		}
+	}
+	for _, id := range ordered {
+		function, schema := dropping[id], schemaOfID[id]
+		kind := "FUNCTION"
+		if isProcedure(function.Definition) {
+			kind = "PROCEDURE"
+		}
+		phase := phaseDropRoutinesFirst
+		if isLate[id] {
+			phase = phaseDropRoutines
+		}
+		typ := OpDropFunction
+		if d.recreated[id] {
+			typ = OpAlterFunction
+		}
+		d.add(phase, MigrationOp{Type: typ, SchemaName: schema, ObjectName: function.Name,
+			SQL: fmt.Sprintf("DROP %s %s.%s", kind, quoteIdent(schema), routineSignature(function))})
 	}
 }
 

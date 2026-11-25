@@ -119,6 +119,9 @@ CREATE FUNCTION fid_routines.z_read() RETURNS INT8 LANGUAGE SQL AS $$ SELECT cou
 CREATE TABLE fid_routines.t2 (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_routines.z_read());
 CREATE FUNCTION fid_routines."Quoted"() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 2 $$;
 CREATE TABLE fid_routines.t3 (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_routines."Quoted"());
+CREATE TABLE fid_routines.z_rel (id INT8 PRIMARY KEY);
+CREATE VIEW fid_routines.a_count AS SELECT count(*) AS n FROM fid_routines.z_rel;
+CREATE MATERIALIZED VIEW fid_routines.a_mcount AS SELECT count(*) AS n FROM fid_routines.z_rel;
 `,
 		},
 		{

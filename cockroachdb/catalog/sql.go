@@ -61,6 +61,22 @@ func relationQuery(query, database string) string {
 	return tree.AsString(stmt)
 }
 
+// queryRelations returns the relations a view's query names, by object ID.
+func queryRelations(query string) []string {
+	stmt, err := parseOne(strings.TrimSuffix(strings.TrimSpace(query), ";"))
+	if err != nil {
+		return nil
+	}
+	var relations []string
+	ctx := tree.NewFmtCtx(tree.FmtSimple, tree.FmtReformatTableNames(func(ctx *tree.FmtCtx, tn *tree.TableName) {
+		relations = append(relations, getObjectID(schemaOf(tn), string(tn.ObjectName)))
+		ctx.WithReformatTableNames(nil, func() { ctx.FormatNode(tn) })
+	}))
+	ctx.FormatNode(stmt)
+	ctx.Close()
+	return relations
+}
+
 // routineDefinition returns a CREATE FUNCTION or CREATE PROCEDURE with the
 // database's own name dropped from the relations its body names, SQL or
 // PL/pgSQL. A definition that names no relation in database, or that does not

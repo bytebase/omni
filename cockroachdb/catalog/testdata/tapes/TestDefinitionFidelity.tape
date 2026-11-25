@@ -2911,6 +2911,15 @@
 > exec
 | CREATE TABLE fid_routines.t3 (id INT8 PRIMARY KEY, v INT8 DEFAULT fid_routines."Quoted"());
 < ok 0 -
+> exec
+| CREATE TABLE fid_routines.z_rel (id INT8 PRIMARY KEY);
+< ok 0 -
+> exec
+| CREATE VIEW fid_routines.a_count AS SELECT count(*) AS n FROM fid_routines.z_rel;
+< ok 0 -
+> exec
+| CREATE MATERIALIZED VIEW fid_routines.a_mcount AS SELECT count(*) AS n FROM fid_routines.z_rel;
+< ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
 < result
@@ -3022,6 +3031,91 @@
 < column "is_hidden" "TEXT"
 < column "generation_expression" "TEXT"
 < column "attgenerated" "CHAR"
+< row
+: string
+| fid_routines
+: string
+| a_count
+: string
+| n
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| a_mcount
+: string
+| n
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| a_mcount
+: string
+| rowid
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| unique_rowid()
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| YES
+: string
+|
+: string
+|
 < row
 : string
 | fid_routines
@@ -3672,6 +3766,34 @@
 |
 : string
 |
+< row
+: string
+| fid_routines
+: string
+| z_rel
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
@@ -3694,6 +3816,18 @@
 < column "indexdef" "TEXT"
 < column "constraint_type" "TEXT"
 < column "comment" "TEXT"
+< row
+: string
+| fid_routines
+: string
+| a_mcount
+: string
+| a_mcount_pkey
+: string
+| CREATE UNIQUE INDEX a_mcount_pkey ON omni_testdefinitionfidelity.fid_routines.a_mcount USING btree (rowid ASC)
+: string
+| PRIMARY KEY
+: null
 < row
 : string
 | fid_routines
@@ -3825,6 +3959,18 @@
 : string
 | PRIMARY KEY
 : null
+< row
+: string
+| fid_routines
+: string
+| z_rel
+: string
+| z_rel_pkey
+: string
+| CREATE UNIQUE INDEX z_rel_pkey ON omni_testdefinitionfidelity.fid_routines.z_rel USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid), obj_description(con.oid, 'pg_constraint')
@@ -3943,6 +4089,13 @@
 | tickets
 : int64 0
 : null
+< row
+: string
+| fid_routines
+: string
+| z_rel
+: int64 0
+: null
 > query
 |
 | SELECT
@@ -3990,6 +4143,14 @@
 : string
 | fid_routines
 : string
+| a_count
+: string
+| SELECT count(*) AS n FROM omni_testdefinitionfidelity.fid_routines.z_rel
+: null
+< row
+: string
+| fid_routines
+: string
 | v_item_names
 : string
 | SELECT name FROM omni_testdefinitionfidelity.fid_routines.v_items
@@ -4031,6 +4192,15 @@
 | 	  		AND pg_rewrite.ev_type = '1'
 | 	  	ORDER BY 1,2,3;
 | 	
+: string
+| fid_routines
+: string
+| a_count
+< result
+< column "source_schema" "NAME"
+< column "source_table" "NAME"
+< column "column_name" "NAME"
+> query ^
 : string
 | fid_routines
 : string
@@ -4123,6 +4293,14 @@
 : string
 | fid_routines
 : string
+| a_mcount
+: string
+| SELECT count(*) AS n FROM omni_testdefinitionfidelity.fid_routines.z_rel
+: null
+< row
+: string
+| fid_routines
+: string
 | item_totals
 : string
 | SELECT name, sum(price) AS total FROM omni_testdefinitionfidelity.fid_routines.items GROUP BY name
@@ -4148,6 +4326,15 @@
 | 	  		AND pg_rewrite.ev_type = '1'
 | 	  	ORDER BY 1,2,3;
 | 	
+: string
+| fid_routines
+: string
+| a_mcount
+< result
+< column "source_schema" "NAME"
+< column "source_table" "NAME"
+< column "column_name" "NAME"
+> query ^
 : string
 | fid_routines
 : string
@@ -4682,6 +4869,20 @@
 | );
 < ok 0 -
 > exec
+| CREATE TABLE "fid_routines"."z_rel" (
+|     "id" bigint NOT NULL,
+|     CONSTRAINT "z_rel_pkey" PRIMARY KEY (id ASC)
+| );
+< ok 0 -
+> exec
+| CREATE VIEW "fid_routines"."a_count" ("n") AS 
+| SELECT count(*) AS n FROM fid_routines.z_rel;
+< ok 0 -
+> exec
+| CREATE MATERIALIZED VIEW "fid_routines"."a_mcount" AS 
+| SELECT count(*) AS n FROM fid_routines.z_rel;
+< ok 0 -
+> exec
 | ALTER SEQUENCE "fid_routines"."ticket_seq" OWNED BY "fid_routines"."tickets"."n";
 < ok 0 -
 > query
@@ -4795,6 +4996,91 @@
 < column "is_hidden" "TEXT"
 < column "generation_expression" "TEXT"
 < column "attgenerated" "CHAR"
+< row
+: string
+| fid_routines
+: string
+| a_count
+: string
+| n
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| a_mcount
+: string
+| n
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| a_mcount
+: string
+| rowid
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| unique_rowid()
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| YES
+: string
+|
+: string
+|
 < row
 : string
 | fid_routines
@@ -5445,6 +5731,34 @@
 |
 : string
 |
+< row
+: string
+| fid_routines
+: string
+| z_rel
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
@@ -5467,6 +5781,18 @@
 < column "indexdef" "TEXT"
 < column "constraint_type" "TEXT"
 < column "comment" "TEXT"
+< row
+: string
+| fid_routines
+: string
+| a_mcount
+: string
+| a_mcount_pkey
+: string
+| CREATE UNIQUE INDEX a_mcount_pkey ON omni_testdefinitionfidelity.fid_routines.a_mcount USING btree (rowid ASC)
+: string
+| PRIMARY KEY
+: null
 < row
 : string
 | fid_routines
@@ -5598,6 +5924,18 @@
 : string
 | PRIMARY KEY
 : null
+< row
+: string
+| fid_routines
+: string
+| z_rel
+: string
+| z_rel_pkey
+: string
+| CREATE UNIQUE INDEX z_rel_pkey ON omni_testdefinitionfidelity.fid_routines.z_rel USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid), obj_description(con.oid, 'pg_constraint')
@@ -5716,6 +6054,13 @@
 | tickets
 : int64 0
 : null
+< row
+: string
+| fid_routines
+: string
+| z_rel
+: int64 0
+: null
 > query
 |
 | SELECT
@@ -5763,6 +6108,14 @@
 : string
 | fid_routines
 : string
+| a_count
+: string
+| SELECT count(*) AS n FROM omni_testdefinitionfidelity.fid_routines.z_rel
+: null
+< row
+: string
+| fid_routines
+: string
 | v_item_names
 : string
 | SELECT name FROM omni_testdefinitionfidelity.fid_routines.v_items
@@ -5804,6 +6157,15 @@
 | 	  		AND pg_rewrite.ev_type = '1'
 | 	  	ORDER BY 1,2,3;
 | 	
+: string
+| fid_routines
+: string
+| a_count
+< result
+< column "source_schema" "NAME"
+< column "source_table" "NAME"
+< column "column_name" "NAME"
+> query ^
 : string
 | fid_routines
 : string
@@ -5896,6 +6258,14 @@
 : string
 | fid_routines
 : string
+| a_mcount
+: string
+| SELECT count(*) AS n FROM omni_testdefinitionfidelity.fid_routines.z_rel
+: null
+< row
+: string
+| fid_routines
+: string
 | item_totals
 : string
 | SELECT name, sum(price) AS total FROM omni_testdefinitionfidelity.fid_routines.items GROUP BY name
@@ -5921,6 +6291,15 @@
 | 	  		AND pg_rewrite.ev_type = '1'
 | 	  	ORDER BY 1,2,3;
 | 	
+: string
+| fid_routines
+: string
+| a_mcount
+< result
+< column "source_schema" "NAME"
+< column "source_table" "NAME"
+< column "column_name" "NAME"
+> query ^
 : string
 | fid_routines
 : string

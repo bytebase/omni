@@ -294,6 +294,11 @@ func orderObjects(schemas []*metadatapb.SchemaMetadata) []objectRef {
 			for _, dependency := range view.DependencyColumns {
 				graph.AddEdge(getObjectID(dependency.Schema, dependency.Table), id)
 			}
+			// The sync states a dependency per column read, so a relation the
+			// query reads without naming a column comes from the query.
+			for _, relation := range queryRelations(view.Definition) {
+				graph.AddEdge(relation, id)
+			}
 		}
 		for _, view := range schema.MaterializedViews {
 			if view.SkipDump {
@@ -304,6 +309,11 @@ func orderObjects(schemas []*metadatapb.SchemaMetadata) []objectRef {
 			graph.AddNode(id)
 			for _, dependency := range view.DependencyColumns {
 				graph.AddEdge(getObjectID(dependency.Schema, dependency.Table), id)
+			}
+			// The sync states a dependency per column read, so a relation the
+			// query reads without naming a column comes from the query.
+			for _, relation := range queryRelations(view.Definition) {
+				graph.AddEdge(relation, id)
 			}
 		}
 	}
