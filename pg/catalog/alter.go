@@ -62,17 +62,24 @@ func applyForeignOptionChanges(existing []string, opts *nodes.List) ([]string, e
 //	10: AT_PASS_MISC      — miscellaneous
 //
 // pg: src/backend/commands/tablecmds.c — ATRewriteTables pass ordering
-func atCmdPass(subtype nodes.AlterTableType) int {
-	switch subtype {
+func atCmdPass(cmd *nodes.AlterTableCmd) int {
+	switch subtype := nodes.AlterTableType(cmd.Subtype); subtype {
 	case nodes.AT_DropColumn, nodes.AT_DropConstraint:
 		return 0 // AT_PASS_DROP
+	case nodes.AT_ColumnDefault:
+		// pg: src/backend/commands/tablecmds.c — ATPrepCmd
+		// (pass = cmd->def ? AT_PASS_ADD_OTHERCONSTR : AT_PASS_DROP)
+		if cmd.Def == nil {
+			return 0 // AT_PASS_DROP
+		}
+		return 6
 	case nodes.AT_AlterColumnType:
 		return 1 // AT_PASS_ALTER_TYPE
 	case nodes.AT_AddColumn:
 		return 3 // AT_PASS_ADD_COL
 	case nodes.AT_AddConstraint:
 		return 5 // AT_PASS_ADD_CONSTR
-	case nodes.AT_SetNotNull, nodes.AT_DropNotNull, nodes.AT_ColumnDefault:
+	case nodes.AT_SetNotNull, nodes.AT_DropNotNull:
 		return 6 // AT_PASS_COL_ATTRS
 	case nodes.AT_AddIndexConstraint:
 		return 7 // AT_PASS_ADD_INDEXCONSTR
@@ -89,6 +96,8 @@ type pendingATCmd struct {
 	origIdx         int
 	cmd             *nodes.AlterTableCmd
 	identityOptions *nodes.List
+	// using is the analyzed USING expression of ALTER COLUMN TYPE.
+	using AnalyzedExpr
 }
 
 func alterTableRecurse(rv *nodes.RangeVar) bool {
@@ -275,7 +284,7 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 			return err
 		}
 		pending = append(pending, pendingATCmd{
-			pass:            atCmdPass(nodes.AlterTableType(transformed.Subtype)),
+			pass:            atCmdPass(transformed),
 			origIdx:         i,
 			cmd:             transformed,
 			identityOptions: identityOptions,
@@ -331,6 +340,21 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 		}
 	}
 
+	// Analyze each ALTER COLUMN TYPE ... USING against the table as it stands
+	// before any subcommand runs, so one USING may read a column another
+	// subcommand retypes.
+	// pg: src/backend/commands/tablecmds.c — ATPrepAlterColumnType
+	for i, p := range pending {
+		if nodes.AlterTableType(p.cmd.Subtype) != nodes.AT_AlterColumnType {
+			continue
+		}
+		using, err := c.prepAlterColumnUsing(rel, relName, p.cmd)
+		if err != nil {
+			return err
+		}
+		pending[i].using = using
+	}
+
 	// A failed subcommand leaves PostgreSQL's ALTER wholly undone. Snapshot
 	// catalog state (preserving pre-existing object pointer identities on
 	// restore) whenever multiple subcommands run or a command recurses to
@@ -359,7 +383,7 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 				dropColWasNotNull = true
 			}
 		}
-		if err := c.execAlterTableCmd(schema, rel, relName, p.cmd, p.identityOptions, recurse, false); err != nil {
+		if err := c.execAlterTableCmd(schema, rel, relName, p.cmd, p.identityOptions, p.using, recurse, false); err != nil {
 			restore()
 			return err
 		}
@@ -410,7 +434,7 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 					continue
 				}
 				childBeforeCons := len(c.consByRel[childRel.OID])
-				if err := c.execAlterTableCmd(childRel.Schema, childRel, childRel.Name, p.cmd, p.identityOptions, recurse, true); err != nil {
+				if err := c.execAlterTableCmd(childRel.Schema, childRel, childRel.Name, p.cmd, p.identityOptions, p.using, recurse, true); err != nil {
 					restore()
 					return err
 				}
@@ -800,8 +824,9 @@ func (c *Catalog) atExecAttachIndexPartition(parentIdx *Index, pc *nodes.Partiti
 	return nil
 }
 
-// execAlterTableCmd executes a single ALTER TABLE subcommand.
-func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName string, atc *nodes.AlterTableCmd, identityOptions *nodes.List, recurse, recursing bool) error {
+// execAlterTableCmd executes a single ALTER TABLE subcommand. using is the
+// analyzed USING expression of ALTER COLUMN TYPE, nil without one.
+func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName string, atc *nodes.AlterTableCmd, identityOptions *nodes.List, using AnalyzedExpr, recurse, recursing bool) error {
 	cascade := atc.Behavior == int(nodes.DROP_CASCADE)
 
 	switch nodes.AlterTableType(atc.Subtype) {
@@ -1052,7 +1077,7 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		if !ok {
 			return fmt.Errorf("AT_AlterColumnType: expected ColumnDef")
 		}
-		return c.atAlterColumnType(rel, atc.Name, cd)
+		return c.atAlterColumnType(rel, atc.Name, cd, using)
 
 	case nodes.AT_AddIdentity:
 		cd, ok := atc.Def.(*nodes.ColumnDef)
@@ -3166,10 +3191,39 @@ func (c *Catalog) clearColumnDefaultDeps(rel *Relation, col *Column) {
 	c.deps = c.deps[:n]
 }
 
-// atAlterColumnType changes the type of a column.
+// prepAlterColumnUsing analyzes the USING expression of an ALTER COLUMN TYPE
+// subcommand, or returns nil without one. A missing column or type is left
+// for atAlterColumnType to report, as PostgreSQL looks both up first.
 //
-// pg: src/backend/commands/tablecmds.c — ATExecAlterColumnType
-func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.ColumnDef) error {
+// pg: src/backend/commands/tablecmds.c — ATPrepAlterColumnType
+func (c *Catalog) prepAlterColumnUsing(rel *Relation, relName string, atc *nodes.AlterTableCmd) (AnalyzedExpr, error) {
+	cd, ok := atc.Def.(*nodes.ColumnDef)
+	if !ok || cd.RawDefault == nil {
+		return nil, nil
+	}
+	idx, exists := rel.colByName[atc.Name]
+	if !exists {
+		return nil, nil
+	}
+	if _, _, err := c.ResolveType(convertTypeNameToInternal(cd.TypeName)); err != nil {
+		return nil, nil
+	}
+	if rel.Columns[idx].Generated != 0 {
+		return nil, &Error{Code: CodeInvalidColumnDefinition,
+			Message: "cannot specify USING when altering type of generated column"}
+	}
+	if rel.RelKind != 'r' && rel.RelKind != 'p' {
+		return nil, errWrongObjectType(relName, "a table")
+	}
+	return c.analyzeAlterColumnTransform(cd.RawDefault, rel)
+}
+
+// atAlterColumnType changes the type of a column. using is the analyzed USING
+// expression, which must cast to the new type by assignment; without one the
+// column itself must.
+//
+// pg: src/backend/commands/tablecmds.c — ATPrepAlterColumnType, ATExecAlterColumnType
+func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.ColumnDef, using AnalyzedExpr) error {
 	newType := convertTypeNameToInternal(cd.TypeName)
 	idx, exists := rel.colByName[colName]
 	if !exists {
@@ -3256,7 +3310,20 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 		return err
 	}
 
-	if col.TypeOID != newOID && !c.CanCoerce(col.TypeOID, newOID, 'a') {
+	if using != nil {
+		if src := using.exprType(); src != newOID && src != UNKNOWNOID && !c.CanCoerce(src, newOID, 'a') {
+			return errDatatypeMismatch(fmt.Sprintf(
+				"result of USING clause for column %q cannot be cast automatically to type %s",
+				colName, c.typeName(newOID),
+			))
+		}
+		// An untyped literal takes the new type, so it must read as one.
+		if k, ok := using.(*ConstExpr); ok && k.TypeOID == UNKNOWNOID && !k.IsNull {
+			if err := c.validateLiteralForType(k.Value, newOID); err != nil {
+				return err
+			}
+		}
+	} else if col.TypeOID != newOID && !c.CanCoerce(col.TypeOID, newOID, 'a') {
 		oldType := c.typeByOID[col.TypeOID]
 		newTyp := c.typeByOID[newOID]
 		oldName, newName := "unknown", "unknown"
@@ -3270,6 +3337,22 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 			"column %q cannot be cast automatically to type %s from %s",
 			colName, newName, oldName,
 		))
+	}
+
+	// USING rewrites the rows, not the default or generation expression,
+	// which must cast to the new type by assignment on its own.
+	// pg: src/backend/commands/tablecmds.c — ATExecAlterColumnType
+	if col.HasDefault && col.DefaultAnalyzed != nil {
+		if src := stripImplicitCoercions(col.DefaultAnalyzed).exprType(); src != newOID && src != UNKNOWNOID && !c.CanCoerce(src, newOID, 'a') {
+			what := "default"
+			if col.Generated != 0 {
+				what = "generation expression"
+			}
+			return errDatatypeMismatch(fmt.Sprintf(
+				"%s for column %q cannot be cast automatically to type %s",
+				what, colName, c.typeName(newOID),
+			))
+		}
 	}
 
 	oldTypeOID := col.TypeOID

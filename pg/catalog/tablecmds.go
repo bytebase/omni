@@ -1317,7 +1317,7 @@ func (c *Catalog) convertColumnDef(cd *nodes.ColumnDef, relName string, schema *
 		rawMods := extractRawTypmods(cd.TypeName.Typmods)
 		typmod := int32(-1)
 		if len(rawMods) > 0 {
-			typmod = encodeTypModByName(resolveAlias(name), rawMods)
+			typmod = encodeTypModByName(name, rawMods)
 		}
 		// pgparser sets Typemod=0 (Go zero value) when no modifier is specified,
 		// while PG uses -1. Accept both as "no modifier".
@@ -1338,7 +1338,7 @@ func (c *Catalog) convertColumnDef(cd *nodes.ColumnDef, relName string, schema *
 
 		result.Type = TypeName{
 			Schema:  typSchema,
-			Name:    resolveAlias(name),
+			Name:    name,
 			TypeMod: typmod,
 			IsArray: isArray,
 		}

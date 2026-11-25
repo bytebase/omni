@@ -224,12 +224,14 @@ func TestDropSchemaCascadeDropsAll(t *testing.T) {
 
 // --- Table AST helpers ---
 
+// makeTypeNameNode builds the TypeName the grammar would, which spells an
+// SQL-standard name (integer) by its catalog name (int4).
 func makeTypeNameNode(tn TypeName) *nodes.TypeName {
 	var items []nodes.Node
 	if tn.Schema != "" {
 		items = append(items, &nodes.String{Str: tn.Schema})
 	}
-	items = append(items, &nodes.String{Str: tn.Name})
+	items = append(items, &nodes.String{Str: resolveAlias(tn.Name)})
 	result := &nodes.TypeName{
 		Names:   &nodes.List{Items: items},
 		Typemod: tn.TypeMod,

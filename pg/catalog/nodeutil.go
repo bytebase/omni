@@ -196,8 +196,6 @@ func (c *Catalog) resolveTypeName(tn *nodes.TypeName) (uint32, int32, error) {
 		schema = ""
 	}
 
-	name = resolveAlias(name)
-
 	// Compute typmod from Typmods list.
 	hasTypmods := tn.Typmods != nil && len(tn.Typmods.Items) > 0
 	rawMods, badModItem := parseRawTypmods(tn.Typmods)
@@ -537,7 +535,7 @@ func convertTypeNameToInternal(tn *nodes.TypeName) TypeName {
 	isArray := tn.ArrayBounds != nil && len(tn.ArrayBounds.Items) > 0
 	return TypeName{
 		Schema:  schema,
-		Name:    resolveAlias(name),
+		Name:    name,
 		TypeMod: typmod,
 		IsArray: isArray,
 	}

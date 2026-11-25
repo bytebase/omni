@@ -43,14 +43,18 @@ func TestWalkSimulation(t *testing.T) {
 		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 0.988},
 		{"pg18_queries", filepath.Join("..", "catalog", "testdata", "pg18", "queries", "simulate.tsv"), 0.988},
 		// Functions, procedures, triggers, event triggers, CALL and DO on
-		// programs@objects, and quoted type names on programs@quoted.
+		// programs@objects, quoted type names on programs@quoted, and ALTER
+		// COLUMN TYPE ... USING on programs@retype and programs@generated.
 		// pg/catalog checks a routine's body; what is left is a missing name
-		// in one (42P01, 42703, 42704, 42883), a missing column type (42704),
-		// dependencies on a dropped table or column (2BP01), and what a
-		// catalog loaded from a snapshot does not hold: a procedure's
-		// identity, an event trigger.
-		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 0.542},
-		{"pg18_programs", filepath.Join("..", "catalog", "testdata", "pg18", "programs", "simulate.tsv"), 0.542},
+		// in one (42P01, 42703, 42704, 42883), a missing column type such as
+		// a quoted "integer" (42704), a retyped column, default or USING
+		// result that does not cast to the new type (42804, 42846, 22P02),
+		// what a USING expression may not hold (42703, 42704, 0A000, 42803,
+		// 42P20, 42P02, 42611 on a generated column), dependencies on a
+		// dropped table or column (2BP01), and what a catalog loaded from a
+		// snapshot does not hold: a procedure's identity, an event trigger.
+		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 0.427},
+		{"pg18_programs", filepath.Join("..", "catalog", "testdata", "pg18", "programs", "simulate.tsv"), 0.427},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
 			res := walktest.CheckSimulation(t, walktest.Simulation{

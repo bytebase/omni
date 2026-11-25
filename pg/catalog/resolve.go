@@ -2,9 +2,13 @@ package catalog
 
 import "fmt"
 
-// ResolveType resolves a TypeName to an OID and typmod.
+// ResolveType resolves a TypeName to an OID and typmod. The name is matched
+// as written, as PostgreSQL's catalog lookup matches it: the grammar has
+// already turned an unquoted SQL-standard spelling (integer, double
+// precision) into its catalog name (int4, float8), and a quoted one names a
+// type of that exact name.
 func (c *Catalog) ResolveType(tn TypeName) (oid uint32, typmod int32, err error) {
-	return c.lookupType(tn.Schema, resolveAlias(tn.Name), tn.Name, tn.IsArray, tn.TypeMod)
+	return c.lookupType(tn.Schema, tn.Name, tn.Name, tn.IsArray, tn.TypeMod)
 }
 
 // lookupType finds the type named name, in schema or on the search path,

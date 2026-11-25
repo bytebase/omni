@@ -60,7 +60,7 @@ func buildRichCatalog(t *testing.T) *Catalog {
 	// Domain type.
 	if err := c.DefineDomain(&nodes.CreateDomainStmt{
 		Domainname: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "posint"}}},
-		Typname:    &nodes.TypeName{Names: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "integer"}}}},
+		Typname:    &nodes.TypeName{Names: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "int4"}}}},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -71,11 +71,11 @@ func buildRichCatalog(t *testing.T) *Catalog {
 		Parameters: &nodes.List{Items: []nodes.Node{
 			&nodes.FunctionParameter{
 				Name:    "x",
-				ArgType: &nodes.TypeName{Names: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "integer"}}}},
+				ArgType: &nodes.TypeName{Names: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "int4"}}}},
 				Mode:    nodes.FUNC_PARAM_IN,
 			},
 		}},
-		ReturnType: &nodes.TypeName{Names: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "integer"}}}},
+		ReturnType: &nodes.TypeName{Names: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "int4"}}}},
 		Options: &nodes.List{Items: []nodes.Node{
 			&nodes.DefElem{Defname: "language", Arg: &nodes.String{Str: "sql"}},
 			&nodes.DefElem{Defname: "as", Arg: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "SELECT x + 1"}}}},
