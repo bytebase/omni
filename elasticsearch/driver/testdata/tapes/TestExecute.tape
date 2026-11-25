@@ -14,7 +14,7 @@
 < raw
 | {"status":200,"contentType":"application/json","body":"{\"_shards\":{\"failed\":0,\"successful\":1,\"total\":1}}"}
 > raw
-| {"method":"GET","route":"/*/_settings?filter_path=**.hidden\u0026expand_wildcards=open,hidden"}
+| {"method":"GET","route":"/*/_settings?filter_path=**.hidden\u0026expand_wildcards=all"}
 < raw
 | {"status":200,"contentType":"application/json","body":"{\".security-7\":{\"settings\":{\"index\":{\"hidden\":\"true\"}}}}"}
 > raw
