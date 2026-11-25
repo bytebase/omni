@@ -785,7 +785,7 @@ func (l *sdlLoader) createView(n *tree.CreateView) error {
 	definition := tree.AsString(n.AsSource)
 	var dependencies []*metadatapb.DependencyColumn
 	seen := make(map[string]bool)
-	storedRelations(n.AsSource, nil, func(tn *tree.TableName) {
+	storedRelations(n.AsSource, func(tn *tree.TableName) {
 		dep := &metadatapb.DependencyColumn{Schema: schemaOf(tn), Table: string(tn.ObjectName)}
 		if id := getObjectID(dep.Schema, dep.Table); !seen[id] {
 			seen[id] = true

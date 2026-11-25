@@ -179,6 +179,10 @@ func TestSDLKeysKeepValues(t *testing.T) {
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a TIMESTAMP DEFAULT '2020-01-01 10:00:00.5'::TIMESTAMP(0));",
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a TIMESTAMP DEFAULT '2020-01-01 10:00:00.5'::TIMESTAMP);",
 		},
+		"cast through a type": {
+			"CREATE TABLE t (id INT8 PRIMARY KEY, a STRING DEFAULT '01'::INT8::STRING);",
+			"CREATE TABLE t (id INT8 PRIMARY KEY, a STRING DEFAULT '01'::STRING);",
+		},
 		"grouping": {
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 DEFAULT (1 + 2) * 3);",
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 DEFAULT 1 + 2 * 3);",
@@ -396,4 +400,24 @@ func TestSDLIfNotExists(t *testing.T) {
 func TestLoadSDLOneFamily(t *testing.T) {
 	_, err := catalog.LoadSDL("CREATE TABLE t (id INT8 PRIMARY KEY, a STRING, FAMILY f1 (id, a))")
 	require.NoError(t, err)
+}
+
+// TestSDLNestedCTEScope keeps a nested WITH's names inside the subquery that
+// holds it.
+func TestSDLNestedCTEScope(t *testing.T) {
+	plan, err := catalog.BuildSDLMigrationPlan("", `CREATE TABLE public.t (id INT8 PRIMARY KEY);
+CREATE VIEW public.a AS SELECT z.id FROM z CROSS JOIN (WITH z AS (SELECT 1 AS n) SELECT n FROM z) AS q;
+CREATE VIEW public.z AS SELECT id FROM public.t;`, catalog.SDLMigrationOptions{})
+	require.NoError(t, err)
+	sql := plan.SQL()
+	require.Less(t, strings.Index(sql, `CREATE VIEW "public"."z"`), strings.Index(sql, `CREATE VIEW "public"."a"`), sql)
+
+	// The same query, written with the stored view qualified, is the same view.
+	plan, err = catalog.BuildSDLMigrationPlan(`CREATE TABLE public.t (id INT8 PRIMARY KEY);
+CREATE VIEW public.z AS SELECT id FROM public.t;
+CREATE VIEW public.a AS SELECT z.id FROM public.z CROSS JOIN (WITH z AS (SELECT 1 AS n) SELECT n FROM z) AS q;`, `CREATE TABLE public.t (id INT8 PRIMARY KEY);
+CREATE VIEW public.z AS SELECT id FROM public.t;
+CREATE VIEW public.a AS SELECT z.id FROM z CROSS JOIN (WITH z AS (SELECT 1 AS n) SELECT n FROM z) AS q;`, catalog.SDLMigrationOptions{})
+	require.NoError(t, err)
+	require.Nil(t, plan, "%v", plan)
 }

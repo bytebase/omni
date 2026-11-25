@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	crparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser"
@@ -68,51 +69,141 @@ func queryRelations(query string) []string {
 		return nil
 	}
 	var relations []string
-	storedRelations(stmt, nil, func(tn *tree.TableName) {
+	storedRelations(stmt, func(tn *tree.TableName) {
 		relations = append(relations, getObjectID(schemaOf(tn), string(tn.ObjectName)))
 	})
 	return relations
 }
 
 // storedRelations calls visit for each relation a statement names that is
-// not a CTE in scope. A WITH's names are in scope in the query it heads and
-// in each CTE after its own, or in every CTE when RECURSIVE; a CTE's own
-// body reads the stored relation of its name. The names a WITH nested deeper
-// binds are left out wherever they appear.
-func storedRelations(stmt tree.Statement, visible map[string]bool, visit func(*tree.TableName)) {
-	if sel, ok := stmt.(*tree.Select); ok && sel.With != nil {
-		inner := make(map[string]bool)
-		for name := range visible {
-			inner[name] = true
-		}
-		for _, cte := range sel.With.CTEList {
-			if sel.With.Recursive {
-				inner[string(cte.Name.Alias)] = true
-			}
-		}
-		for _, cte := range sel.With.CTEList {
-			scope := make(map[string]bool)
-			for name := range inner {
-				scope[name] = true
-			}
-			storedRelations(cte.Stmt, scope, visit)
-			inner[string(cte.Name.Alias)] = true
-		}
-		body := *sel
-		body.With = nil
-		storedRelations(&body, inner, visit)
-		return
-	}
-	nested := cteNames(tree.AsString(stmt))
+// not a CTE in scope.
+func storedRelations(stmt tree.NodeFormatter, visit func(*tree.TableName)) {
+	refs := cteReferences(stmt)
+	i := 0
 	ctx := tree.NewFmtCtx(tree.FmtSimple, tree.FmtReformatTableNames(func(ctx *tree.FmtCtx, tn *tree.TableName) {
-		name := string(tn.ObjectName)
-		if tn.ExplicitSchema || !visible[name] && !nested[name] {
+		if i >= len(refs) || !refs[i] {
 			visit(tn)
 		}
+		i++
 		ctx.WithReformatTableNames(nil, func() { ctx.FormatNode(tn) })
 	}))
 	ctx.FormatNode(stmt)
 	ctx.Close()
+}
+
+// tableMarker stands in for a table name while cteReferences scopes them.
+const tableMarker = "omni_table_name_"
+
+// cteReferences reports, for each table name a statement holds in the order
+// its formatter writes them, whether it names a CTE in scope. A WITH's names
+// are in scope from the WITH to the parenthesis that closes around it, which
+// takes in nested queries; a CTE's own body sees the CTEs before it, and
+// itself only under RECURSIVE.
+func cteReferences(stmt tree.NodeFormatter) []bool {
+	var names []string
+	ctx := tree.NewFmtCtx(tree.FmtSimple, tree.FmtReformatTableNames(func(ctx *tree.FmtCtx, tn *tree.TableName) {
+		ctx.WriteString(tableMarker + strconv.Itoa(len(names)))
+		name := ""
+		if !tn.ExplicitSchema {
+			name = string(tn.ObjectName)
+		}
+		names = append(names, name)
+	}))
+	ctx.FormatNode(stmt)
+	text := ctx.CloseAndGetString()
+	refs := make([]bool, len(names))
+	tokens, ok := crparser.Tokens(text)
+	if !ok {
+		return refs
+	}
+	type frame struct {
+		names     map[string]bool
+		cte       string // the CTE whose body this parenthesis holds
+		recursive bool   // the frame's WITH list is RECURSIVE
+	}
+	stack := []*frame{{names: make(map[string]bool)}}
+	is := func(i int, word string) bool { return i < len(tokens) && strings.EqualFold(tokens[i].Str, word) }
+	// cteHeader reads "name [(columns)] AS [[NOT] MATERIALIZED] (" at i and
+	// returns the CTE's name and the index of its body's parenthesis.
+	cteHeader := func(i int) (string, int, bool) {
+		if i >= len(tokens) {
+			return "", 0, false
+		}
+		name := tokens[i].Str
+		i++
+		if is(i, "(") {
+			for i < len(tokens) && !is(i, ")") {
+				i++
+			}
+			i++
+		}
+		if !is(i, "as") {
+			return "", 0, false
+		}
+		i++
+		if is(i, "not") {
+			i++
+		}
+		if is(i, "materialized") {
+			i++
+		}
+		if !is(i, "(") {
+			return "", 0, false
+		}
+		return name, i, true
+	}
+	openCTE := func(i int) int {
+		name, body, ok := cteHeader(i)
+		if !ok {
+			return i
+		}
+		top := stack[len(stack)-1]
+		if top.recursive {
+			top.names[name] = true
+		}
+		stack = append(stack, &frame{names: make(map[string]bool), cte: name})
+		return body + 1
+	}
+	for i := 0; i < len(tokens); {
+		t := tokens[i]
+		switch {
+		case t.Str == "(":
+			stack = append(stack, &frame{names: make(map[string]bool)})
+			i++
+		case t.Str == ")":
+			closed := stack[len(stack)-1]
+			if len(stack) > 1 {
+				stack = stack[:len(stack)-1]
+			}
+			i++
+			if closed.cte != "" {
+				stack[len(stack)-1].names[closed.cte] = true
+				if is(i, ",") {
+					i = openCTE(i + 1)
+				}
+			}
+		case is(i, "with"):
+			i++
+			if is(i, "recursive") {
+				stack[len(stack)-1].recursive = true
+				i++
+			}
+			i = openCTE(i)
+		case strings.HasPrefix(t.Str, tableMarker):
+			if n, err := strconv.Atoi(strings.TrimPrefix(t.Str, tableMarker)); err == nil && n < len(names) && names[n] != "" {
+				for _, f := range stack {
+					if f.names[names[n]] {
+						refs[n] = true
+						break
+					}
+				}
+			}
+			i++
+		default:
+			i++
+		}
+	}
+	return refs
 }
 
 // cteNames returns the names a query's WITH clauses bind: a word followed by

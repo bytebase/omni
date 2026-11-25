@@ -33,7 +33,24 @@ func exprKey(expr string) string {
 
 type literalCastStripper struct{}
 
-func (literalCastStripper) VisitPre(expr tree.Expr) (bool, tree.Expr) { return true, expr }
+// VisitPre keeps a cast of a cast whole: '01'::INT8::STRING is '1', and
+// stripping its inner cast would make it '01'::STRING.
+func (literalCastStripper) VisitPre(expr tree.Expr) (bool, tree.Expr) {
+	if cast, ok := expr.(*tree.CastExpr); ok {
+		inner := cast.Expr
+		for {
+			paren, ok := inner.(*tree.ParenExpr)
+			if !ok {
+				break
+			}
+			inner = paren.Expr
+		}
+		if _, ok := inner.(*tree.CastExpr); ok {
+			return false, expr
+		}
+	}
+	return true, expr
+}
 
 func (literalCastStripper) VisitPost(expr tree.Expr) tree.Expr {
 	switch e := expr.(type) {
@@ -132,12 +149,14 @@ func queryKey(query, database string) string {
 	if err != nil {
 		return query
 	}
-	ctes := cteNames(query)
+	refs := cteReferences(stmt)
+	i := 0
 	ctx := tree.NewFmtCtx(tree.FmtSimple, tree.FmtReformatTableNames(func(ctx *tree.FmtCtx, tn *tree.TableName) {
 		name := *tn
-		if !name.ExplicitSchema && !ctes[string(name.ObjectName)] {
+		if !name.ExplicitSchema && (i >= len(refs) || !refs[i]) {
 			name.SchemaName, name.ExplicitSchema = "public", true
 		}
+		i++
 		ctx.WithReformatTableNames(nil, func() { ctx.FormatNode(&name) })
 	}))
 	defer ctx.Close()
