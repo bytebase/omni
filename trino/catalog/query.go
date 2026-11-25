@@ -196,8 +196,9 @@ func (c *Catalog) addRelation(scope *queryScope, rel parser.Relation, ctes map[s
 		if len(n.Using) > 0 {
 			if len(scope.rels) != before+1 {
 				// The right side is a join: an entry with no columns of
-				// its own coalesces the keys of both sides.
-				scope.rels = append(scope.rels, scopeRel{})
+				// its own (empty, not unknown) coalesces the keys of
+				// both sides.
+				scope.rels = append(scope.rels, scopeRel{cols: []*Column{}})
 			}
 			// A USING column is the join's once, from its left side.
 			r := &scope.rels[len(scope.rels)-1]

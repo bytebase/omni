@@ -148,11 +148,19 @@ func typeName(dt *parser.DataType) (string, error) {
 }
 
 // sqlType writes a stored type name as SHOW CREATE TABLE prints it: a
-// parameter list spaced after each comma, and ROW in upper case.
+// parameter list spaced after each comma, and ROW in upper case, outside
+// quoted field names.
 func sqlType(name string) string {
 	var b strings.Builder
+	quoted := false
 	for i := 0; i < len(name); i++ {
 		switch {
+		case name[i] == '"':
+			// A doubled quote inside a name closes and reopens it.
+			quoted = !quoted
+			b.WriteByte('"')
+		case quoted:
+			b.WriteByte(name[i])
 		case name[i] == ',' && i+1 < len(name) && name[i+1] != ' ':
 			b.WriteString(", ")
 		case strings.HasPrefix(name[i:], "row(") && (i == 0 || !isNameByte(name[i-1])):

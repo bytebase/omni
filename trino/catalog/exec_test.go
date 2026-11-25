@@ -175,6 +175,8 @@ func TestExecParenJoinAndViewContext(t *testing.T) {
 		"CREATE VIEW rowv AS SELECT p.\"a b\" FROM rowt",
 		"CREATE TABLE uz (c varchar, id integer)",
 		"CREATE VIEW nested AS SELECT * FROM ul JOIN (ur JOIN uz USING (id)) USING (id)",
+		"CREATE VIEW nestedcols AS SELECT id, a, b, c FROM ul JOIN (ur JOIN uz USING (id)) USING (id)",
+		"CREATE TABLE quoted (p ROW(\"a,b\" integer, \"row(x)\" bigint))",
 		// Shapes Exec takes without typing them, as Trino takes them.
 		"CREATE TABLE pj AS SELECT l.a, r.b FROM (l CROSS JOIN r)",
 		"CREATE TABLE nj AS SELECT * FROM ul NATURAL JOIN ur",
@@ -208,6 +210,16 @@ func TestExecParenJoinAndViewContext(t *testing.T) {
 	}
 	if got := strings.Join(s.GetView("nested").ColumnNames(), ","); got != "id,a,b,c" {
 		t.Errorf("nested's columns = %s, want id,a,b,c", got)
+	}
+	var nestedTypes []string
+	for _, col := range s.GetView("nestedcols").Columns() {
+		nestedTypes = append(nestedTypes, col.Type)
+	}
+	if got := strings.Join(nestedTypes, ","); got != "integer,varchar,bigint,varchar" {
+		t.Errorf("nestedcols's types = %s", got)
+	}
+	if got, want := s.GetTable("quoted").ShowCreate("memory"), "CREATE TABLE memory.s.quoted (\n   p ROW(\"a,b\" integer, \"row(x)\" bigint)\n)"; got != want {
+		t.Errorf("quoted = %q, want %q", got, want)
 	}
 	if got := strings.Join(s.GetTable("pj").ColumnNames(), ","); got != "a,b" {
 		t.Errorf("pj's columns = %s, want a,b", got)
