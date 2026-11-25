@@ -28,6 +28,9 @@
 > exec
 | CREATE TABLE t_storing (a INT, b INT, c INT, KEY k_cover (a) STORING (b, c));
 < ok 0 0
+> exec
+| CREATE TABLE t_spatial (id INT PRIMARY KEY, position POINT NOT NULL, SPATIAL KEY sk (position));
+< ok 0 0
 > query
 | SELECT VERSION()
 < result
@@ -242,6 +245,60 @@
 : int64 -1
 : null
 : uint64 1
+: bytes
+| BTREE
+: int64 1
+: int64 1
+: bytes
+|
+< row
+: bytes
+| t_spatial
+: bytes
+| PRIMARY
+: bytes
+| id
+: bytes
+| A
+: int64 -1
+: null
+: uint64 1
+: bytes
+| BTREE
+: int64 0
+: int64 1
+: bytes
+|
+< row
+: bytes
+| t_spatial
+: bytes
+| sk
+: bytes
+| __cellid_17
+: bytes
+| A
+: int64 -1
+: null
+: uint64 1
+: bytes
+| BTREE
+: int64 1
+: int64 1
+: bytes
+|
+< row
+: bytes
+| t_spatial
+: bytes
+| sk
+: bytes
+| __mbr_17
+: bytes
+| A
+: int64 -1
+: null
+: uint64 2
 : bytes
 | BTREE
 : int64 1
@@ -767,6 +824,50 @@
 : null
 < row
 : bytes
+| t_spatial
+: bytes
+| id
+: uint64 1
+: null
+: bytes
+| NO
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| t_spatial
+: bytes
+| position
+: uint64 2
+: null
+: bytes
+| NO
+: bytes
+| point
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
 | t_storing
 : bytes
 | a
@@ -1329,6 +1430,29 @@
 | utf8mb4
 < row
 : bytes
+| t_spatial
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
 | t_storing
 : bytes
 | BASE TABLE
@@ -1502,6 +1626,21 @@
 | (partition `p0`,
 | partition `p1`)
 > query
+| SHOW CREATE TABLE `omni_ob_show_create_roundtrip`.`t_spatial`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t_spatial
+: bytes
+| CREATE TABLE `t_spatial` (
+|   `id` int(11) NOT NULL,
+|   `position` point NOT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sk` (`position`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> query
 | SHOW CREATE TABLE `omni_ob_show_create_roundtrip`.`t_storing`
 < result
 < column "Table" "VARCHAR" "string"
@@ -1625,6 +1764,14 @@
 | /*!50100 PARTITION BY HASH (`a`)
 | (PARTITION `p0` ENGINE=InnoDB,
 |  PARTITION `p1` ENGINE=InnoDB) */
+< ok 0 0
+> exec
+| CREATE TABLE `t_spatial` (
+|   `id` int NOT NULL,
+|   `position` point NOT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sk` (`position`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
 < ok 0 0
 > exec
 | CREATE TABLE `t_storing` (
@@ -1862,6 +2009,60 @@
 : int64 -1
 : null
 : uint64 1
+: bytes
+| BTREE
+: int64 1
+: int64 1
+: bytes
+|
+< row
+: bytes
+| t_spatial
+: bytes
+| PRIMARY
+: bytes
+| id
+: bytes
+| A
+: int64 -1
+: null
+: uint64 1
+: bytes
+| BTREE
+: int64 0
+: int64 1
+: bytes
+|
+< row
+: bytes
+| t_spatial
+: bytes
+| sk
+: bytes
+| __cellid_17
+: bytes
+| A
+: int64 -1
+: null
+: uint64 1
+: bytes
+| BTREE
+: int64 1
+: int64 1
+: bytes
+|
+< row
+: bytes
+| t_spatial
+: bytes
+| sk
+: bytes
+| __mbr_17
+: bytes
+| A
+: int64 -1
+: null
+: uint64 2
 : bytes
 | BTREE
 : int64 1
@@ -2387,6 +2588,50 @@
 : null
 < row
 : bytes
+| t_spatial
+: bytes
+| id
+: uint64 1
+: null
+: bytes
+| NO
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| t_spatial
+: bytes
+| position
+: uint64 2
+: null
+: bytes
+| NO
+: bytes
+| point
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
 | t_storing
 : bytes
 | a
@@ -2949,6 +3194,29 @@
 | utf8mb4
 < row
 : bytes
+| t_spatial
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
 | t_storing
 : bytes
 | BASE TABLE
@@ -3121,6 +3389,21 @@
 |  partition by hash(`a`)
 | (partition `p0`,
 | partition `p1`)
+> query
+| SHOW CREATE TABLE `omni_ob_show_create_roundtrip_restored`.`t_spatial`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| t_spatial
+: bytes
+| CREATE TABLE `t_spatial` (
+|   `id` int(11) NOT NULL,
+|   `position` point NOT NULL,
+|   PRIMARY KEY (`id`),
+|   SPATIAL KEY `sk` (`position`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > query
 | SHOW CREATE TABLE `omni_ob_show_create_roundtrip_restored`.`t_storing`
 < result

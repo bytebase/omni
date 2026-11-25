@@ -972,11 +972,7 @@ func TestMetadataMigration(t *testing.T) {
 // syncedSnapshotGaps lists, by fixture and snapshot, the tables oceanbase/driver's sync reports
 // in a form LoadMetadata cannot install as defined. A listed table that installs fails,
 // so a sync fix removes its entry.
-var syncedSnapshotGaps = map[string][]string{
-	// A SPATIAL key part names the hidden column OceanBase builds the index on.
-	"FULLTEXT and SPATIAL indexes (old)":               {"table:locations"},
-	"Reverse: Drop FULLTEXT and SPATIAL indexes (new)": {"table:locations"},
-}
+var syncedSnapshotGaps = map[string][]string{}
 
 // loadSyncedFixture is loadMetadataFixture for a snapshot synced from OceanBase. The
 // tables syncedSnapshotGaps lists under label (the fixture's description and which

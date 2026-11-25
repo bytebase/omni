@@ -31,9 +31,6 @@ type migrationGap struct {
 var metadataMigrationGaps = map[string]migrationGap{
 	// OceanBase refuses MODIFY COLUMN on a table that has a CHECK constraint (1235).
 	"Verify no migration generated for identical schemas (tests primary key, index, check constraints, DEFAULT NULL fixes)": {reason: "MODIFY COLUMN refused next to a CHECK", refusal: "Error 1235 (0A000): Alter column with check constraint not supported"},
-	// sync: a SPATIAL key names OceanBase's hidden column, so the table stands in.
-	"FULLTEXT and SPATIAL indexes":               {reason: "sync: hidden key columns", refusal: "Error 1138 (22004): Invalid use of NULL value"},
-	"Reverse: Drop FULLTEXT and SPATIAL indexes": {reason: "sync: hidden key columns"},
 	// The plan writes count(*) as count(0) and function names in lower case;
 	// OceanBase stores view, generation, CHECK and partitioning text as written.
 	"Drop views and stored routines":                                                    {reason: "count(*) written as count(0)"},
