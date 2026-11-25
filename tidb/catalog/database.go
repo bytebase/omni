@@ -24,6 +24,15 @@ type Database struct {
 	// DDL path). Omni stores it as declared metadata only.
 	TiFlashReplica        int
 	TiFlashLocationLabels []string
+
+	// TempTables are the session's local temporary tables (CREATE TEMPORARY
+	// TABLE), by lowered name. TiDB keeps them apart from the schema's
+	// objects: one may share a name with a table, view or sequence, and then
+	// it shadows the table wherever a statement names it (SHOW CREATE TABLE,
+	// DROP TABLE, a query), while SHOW TABLES and information_schema list none
+	// (read on v8.5.5). A global temporary table is a schema object and lives
+	// in Tables.
+	TempTables map[string]*Table
 }
 
 func newDatabase(name, charset, collation string) *Database {
@@ -32,6 +41,7 @@ func newDatabase(name, charset, collation string) *Database {
 		Charset:    charset,
 		Collation:  collation,
 		Tables:     make(map[string]*Table),
+		TempTables: make(map[string]*Table),
 		Views:      make(map[string]*View),
 		Functions:  make(map[string]*Routine),
 		Procedures: make(map[string]*Routine),
@@ -41,8 +51,14 @@ func newDatabase(name, charset, collation string) *Database {
 	}
 }
 
+// GetTable returns the table a statement naming name reads: a local temporary
+// table of that name before the schema's table it shadows.
 func (db *Database) GetTable(name string) *Table {
-	return db.Tables[toLower(name)]
+	key := toLower(name)
+	if tbl := db.TempTables[key]; tbl != nil {
+		return tbl
+	}
+	return db.Tables[key]
 }
 
 func toLower(s string) string {

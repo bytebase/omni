@@ -24,8 +24,8 @@ func (s Statement) Text() string {
 }
 
 // ParseError represents a syntax or lexical error from CockroachDB's parser.
-// Position is the byte offset into the parsed SQL, or -1 when CockroachDB
-// reports no source location.
+// Position is the byte offset into the parsed SQL; when CockroachDB reports
+// no source location it is the start of the statement that failed.
 type ParseError struct {
 	Message  string
 	Position int
@@ -41,7 +41,7 @@ func (e *ParseError) Error() string {
 }
 
 // Parse parses one or more CockroachDB SQL statements. On failure it returns a
-// *ParseError carrying Message, byte-offset Position (-1 if unavailable), and
+// *ParseError carrying Message, byte-offset Position, and
 // SQLSTATE Code.
 func Parse(sql string) ([]Statement, error) {
 	parsed, info, err := analysis.ParseRaw(sql)
@@ -55,7 +55,7 @@ func Parse(sql string) ([]Statement, error) {
 		}
 		return nil, &ParseError{
 			Message:  err.Error(),
-			Position: -1,
+			Position: 0,
 		}
 	}
 	out := make([]Statement, len(parsed))

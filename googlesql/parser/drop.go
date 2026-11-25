@@ -90,13 +90,16 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		return p.unsupported("DROP")
 	default:
 		// Spanner objects whose leading word lexes as a BARE IDENTIFIER (CHANGE
-		// STREAM, LOCALITY GROUP) and ROLE — matched by spelling before the
-		// generic-entity fallback (parser-ddl-spanner node).
+		// STREAM, LOCALITY GROUP, PLACEMENT) and ROLE — matched by spelling before
+		// the generic-entity fallback (parser-ddl-spanner node).
 		if p.tokIsWord(p.cur, "CHANGE") && p.tokIsWord(p.peekNext(), "STREAM") {
 			return p.parseDropChangeStream(drop) // spanner_change_stream.go
 		}
 		if p.tokIsWord(p.cur, "LOCALITY") && p.tokIsWord(p.peekNext(), "GROUP") {
 			return p.parseDropLocalityGroup(drop) // spanner_sequence.go
+		}
+		if p.tokIsWord(p.cur, "PLACEMENT") {
+			return p.parseDropPlacement(drop) // spanner_placement.go
 		}
 		if p.curIsWord("ROLE") {
 			// DROP ROLE name (spanner_schema_role.go). First-class — supersedes the

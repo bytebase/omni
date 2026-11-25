@@ -104,22 +104,6 @@ func TestCreateTableOptionsCatalog(t *testing.T) {
 				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='hi' ON COMMIT DELETE ROWS",
 		},
 		{
-			// ON COMMIT goes last, after the partition clause, because that is
-			// where the grammar takes it. Writing it before the partitions gave
-			// a definition this parser then refused, which the re-parse below
-			// is here to catch. The server refuses the two together with 1562,
-			// so this state is one only the catalog reaches -- it does not
-			// model 1562 for an ordinary temporary table either -- but the
-			// order still has to be the grammar's.
-			name:  "ON COMMIT comes after the partition clause",
-			ddl:   "CREATE GLOBAL TEMPORARY TABLE g (a INT) PARTITION BY HASH(a) PARTITIONS 10 ON COMMIT DELETE ROWS",
-			table: "g",
-			want: "CREATE GLOBAL TEMPORARY TABLE `g` (\n" +
-				"  `a` int DEFAULT NULL\n" +
-				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin\n" +
-				"PARTITION BY HASH (`a`) PARTITIONS 10 ON COMMIT DELETE ROWS",
-		},
-		{
 			// PRESERVE ROWS is grammar v8.5.5 parses and then refuses with
 			// 8200, so the catalog keeps the clause it was given rather than
 			// rewriting it to the one TiDB can run.

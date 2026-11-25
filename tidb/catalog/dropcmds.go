@@ -16,6 +16,7 @@ func (c *Catalog) dropTable(stmt *nodes.DropTableStmt) error {
 		db  *Database
 		key string
 		ref string
+		tbl *Table
 	}
 	var targets []target
 	var missing error
@@ -29,7 +30,25 @@ func (c *Catalog) dropTable(stmt *nodes.DropTableStmt) error {
 			return err
 		}
 		key := toLower(ref.Name)
-		tbl := db.Tables[key]
+		// DROP TABLE takes the local temporary table that shadows a table of
+		// the name first, DROP TEMPORARY TABLE only a local temporary table,
+		// and DROP GLOBAL TEMPORARY TABLE only a global one that no local
+		// temporary table shadows: anything else of the name is 8007 there
+		// (read on v8.5.5).
+		var tbl *Table
+		switch {
+		case stmt.Temporary:
+			tbl = db.TempTables[key]
+		case stmt.Global:
+			if db.TempTables[key] == nil && db.Tables[key] == nil && db.Views[key] == nil && db.Sequences[key] == nil {
+				break
+			}
+			if tbl = db.Tables[key]; db.TempTables[key] != nil || tbl == nil || !tbl.GlobalTemporary {
+				return errDropNotGlobalTemporary()
+			}
+		default:
+			tbl = db.GetTable(key)
+		}
 		if tbl == nil {
 			if !stmt.IfExists && missing == nil {
 				missing = errUnknownTable(db.Name, ref.Name)
@@ -41,8 +60,10 @@ func (c *Catalog) dropTable(stmt *nodes.DropTableStmt) error {
 		if tbl.Cached {
 			return errCachedTable("Drop Table")
 		}
-		targets = append(targets, target{db, key, ref.Name})
-		dropping[toLower(db.Name)+"."+key] = true
+		targets = append(targets, target{db, key, ref.Name, tbl})
+		if !tbl.Temporary {
+			dropping[toLower(db.Name)+"."+key] = true
+		}
 	}
 	// Check if any other table in any database has a FK referencing this table
 	// (unless foreign_key_checks=0).
@@ -50,13 +71,26 @@ func (c *Catalog) dropTable(stmt *nodes.DropTableStmt) error {
 		c.droppingTables = dropping
 		defer func() { c.droppingTables = nil }()
 		for _, t := range targets {
+			// No foreign key references a local temporary table.
+			if t.tbl.Temporary {
+				continue
+			}
 			if err := c.checkFKReferences(t.db.Name, t.ref); err != nil {
 				return err
 			}
 		}
 	}
+	// DROP TEMPORARY TABLE is all or nothing: `DROP TEMPORARY TABLE t, nope`
+	// is 1051 and leaves t (read on v8.5.5).
+	if stmt.Temporary && missing != nil {
+		return missing
+	}
 	for _, t := range targets {
-		delete(t.db.Tables, t.key)
+		if t.tbl.Temporary {
+			delete(t.db.TempTables, t.key)
+		} else {
+			delete(t.db.Tables, t.key)
+		}
 	}
 	return missing
 }
@@ -109,8 +143,8 @@ func (c *Catalog) truncateTable(stmt *nodes.TruncateStmt) error {
 		// A table another table's foreign key references is not truncated
 		// while foreign_key_checks is on (v8.5.5: TRUNCATE TABLE customers
 		// under orders' fk_customer is 1701). A key of the table to itself
-		// does not count.
-		if c.foreignKeyChecks {
+		// does not count, and no key references a local temporary table.
+		if c.foreignKeyChecks && !tbl.Temporary {
 			for _, ref := range c.referencingForeignKeys(tbl) {
 				if ref.child == tbl {
 					continue
