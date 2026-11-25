@@ -693,9 +693,15 @@
 < column "definition" "TEXT"
 > query
 |
-| 		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
-| 		FROM information_schema.sequences
-| 		ORDER BY sequence_schema, sequence_name;
+| 		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
+| 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1)
+| 		FROM information_schema.sequences s
+| 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
+| 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
+| 		ORDER BY s.sequence_schema, s.sequence_name;
 < result
 < column "sequence_schema" "TEXT"
 < column "sequence_name" "TEXT"
@@ -705,6 +711,8 @@
 < column "maximum_value" "TEXT"
 < column "increment" "TEXT"
 < column "cycle_option" "TEXT"
+< column "relname" "NAME"
+< column "attname" "NAME"
 < row
 : string
 | app
@@ -722,6 +730,8 @@
 | 2
 : string
 | NO
+: null
+: null
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel
@@ -1528,9 +1538,15 @@
 < column "definition" "TEXT"
 > query
 |
-| 		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
-| 		FROM information_schema.sequences
-| 		ORDER BY sequence_schema, sequence_name;
+| 		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
+| 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1)
+| 		FROM information_schema.sequences s
+| 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
+| 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
+| 		ORDER BY s.sequence_schema, s.sequence_name;
 < result
 < column "sequence_schema" "TEXT"
 < column "sequence_name" "TEXT"
@@ -1540,6 +1556,8 @@
 < column "maximum_value" "TEXT"
 < column "increment" "TEXT"
 < column "cycle_option" "TEXT"
+< column "relname" "NAME"
+< column "attname" "NAME"
 < row
 : string
 | app
@@ -1557,6 +1575,8 @@
 | 2
 : string
 | NO
+: null
+: null
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel

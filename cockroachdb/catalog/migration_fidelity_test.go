@@ -59,6 +59,10 @@ CREATE TABLE fid_m.amounts (id INT8 PRIMARY KEY, amount DECIMAL, INDEX amounts_a
 CREATE TABLE fid_m.prices (id INT8 PRIMARY KEY, price DECIMAL, CONSTRAINT prices_price_check CHECK (price > 0));
 COMMENT ON CONSTRAINT prices_price_check ON fid_m.prices IS 'positive';
 CREATE FUNCTION fid_m.price_text() RETURNS STRING LANGUAGE SQL STABLE AS $$ SELECT max(price)::STRING FROM fid_m.prices $$;
+CREATE TABLE fid_m.owners (id INT8 PRIMARY KEY, a INT8, b INT8);
+CREATE SEQUENCE fid_m.owned_seq OWNED BY fid_m.owners.a;
+CREATE TABLE fid_m.gone_owner (id INT8 PRIMARY KEY, n INT8);
+CREATE SEQUENCE fid_m.gone_owner_seq OWNED BY fid_m.gone_owner.n;
 `,
 			target: `CREATE SCHEMA fid_m;
 CREATE SCHEMA fid_new;
@@ -99,6 +103,8 @@ CREATE TABLE fid_m.amounts (id INT8 PRIMARY KEY, amount STRING, INDEX amounts_am
 CREATE TABLE fid_m.prices (id INT8 PRIMARY KEY, price FLOAT8, CONSTRAINT prices_price_check CHECK (price > 0));
 COMMENT ON CONSTRAINT prices_price_check ON fid_m.prices IS 'positive';
 CREATE FUNCTION fid_m.price_text() RETURNS STRING LANGUAGE SQL STABLE AS $$ SELECT max(price)::STRING FROM fid_m.prices $$;
+CREATE TABLE fid_m.owners (id INT8 PRIMARY KEY, b INT8);
+CREATE SEQUENCE fid_m.owned_seq OWNED BY fid_m.owners.b;
 `,
 		},
 		{

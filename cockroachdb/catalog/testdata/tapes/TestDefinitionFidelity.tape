@@ -1272,9 +1272,15 @@
 < column "definition" "TEXT"
 > query
 |
-| 		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
-| 		FROM information_schema.sequences
-| 		ORDER BY sequence_schema, sequence_name;
+| 		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
+| 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1)
+| 		FROM information_schema.sequences s
+| 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
+| 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
+| 		ORDER BY s.sequence_schema, s.sequence_name;
 < result
 < column "sequence_schema" "TEXT"
 < column "sequence_name" "TEXT"
@@ -1284,6 +1290,8 @@
 < column "maximum_value" "TEXT"
 < column "increment" "TEXT"
 < column "cycle_option" "TEXT"
+< column "relname" "NAME"
+< column "attname" "NAME"
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel
@@ -2701,9 +2709,15 @@
 < column "definition" "TEXT"
 > query
 |
-| 		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
-| 		FROM information_schema.sequences
-| 		ORDER BY sequence_schema, sequence_name;
+| 		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
+| 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1)
+| 		FROM information_schema.sequences s
+| 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
+| 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
+| 		ORDER BY s.sequence_schema, s.sequence_name;
 < result
 < column "sequence_schema" "TEXT"
 < column "sequence_name" "TEXT"
@@ -2713,6 +2727,8 @@
 < column "maximum_value" "TEXT"
 < column "increment" "TEXT"
 < column "cycle_option" "TEXT"
+< column "relname" "NAME"
+< column "attname" "NAME"
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel
@@ -2813,6 +2829,12 @@
 < ok 0 -
 > exec
 | CREATE SEQUENCE fid_routines.plain;
+< ok 0 -
+> exec
+| CREATE TABLE fid_routines.tickets (id INT8 PRIMARY KEY, n INT8);
+< ok 0 -
+> exec
+| CREATE SEQUENCE fid_routines.ticket_seq OWNED BY fid_routines.tickets.n;
 < ok 0 -
 > exec
 | CREATE TABLE fid_routines.items (
@@ -3255,6 +3277,62 @@
 : string
 | fid_routines
 : string
+| tickets
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| tickets
+: string
+| n
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
 | v_item_names
 : string
 | name
@@ -3484,6 +3562,30 @@
 : string
 | PRIMARY KEY
 : null
+< row
+: string
+| fid_routines
+: string
+| ticket_seq
+: string
+| primary
+: string
+| CREATE UNIQUE INDEX "primary" ON omni_testdefinitionfidelity.fid_routines.ticket_seq USING btree (value ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_routines
+: string
+| tickets
+: string
+| tickets_pkey
+: string
+| CREATE UNIQUE INDEX tickets_pkey ON omni_testdefinitionfidelity.fid_routines.tickets USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid), obj_description(con.oid, 'pg_constraint')
@@ -3572,6 +3674,13 @@
 | fid_routines
 : string
 | scored
+: int64 0
+: null
+< row
+: string
+| fid_routines
+: string
+| tickets
 : int64 0
 : null
 > query
@@ -3913,9 +4022,15 @@
 | $$
 > query
 |
-| 		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
-| 		FROM information_schema.sequences
-| 		ORDER BY sequence_schema, sequence_name;
+| 		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
+| 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1)
+| 		FROM information_schema.sequences s
+| 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
+| 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
+| 		ORDER BY s.sequence_schema, s.sequence_name;
 < result
 < column "sequence_schema" "TEXT"
 < column "sequence_name" "TEXT"
@@ -3925,6 +4040,8 @@
 < column "maximum_value" "TEXT"
 < column "increment" "TEXT"
 < column "cycle_option" "TEXT"
+< column "relname" "NAME"
+< column "attname" "NAME"
 < row
 : string
 | fid_routines
@@ -3942,6 +4059,8 @@
 | 5
 : string
 | NO
+: null
+: null
 < row
 : string
 | fid_routines
@@ -3959,6 +4078,29 @@
 | 1
 : string
 | NO
+: null
+: null
+< row
+: string
+| fid_routines
+: string
+| ticket_seq
+: string
+| INT8
+: string
+| 1
+: string
+| 1
+: string
+| 9223372036854775807
+: string
+| 1
+: string
+| NO
+: string
+| tickets
+: string
+| n
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel
@@ -4055,6 +4197,15 @@
 | 	NO CYCLE;
 < ok 0 -
 > exec
+| CREATE SEQUENCE "fid_routines"."ticket_seq"
+|     AS INT8
+| 	START WITH 1
+| 	INCREMENT BY 1
+| 	MINVALUE 1
+| 	MAXVALUE 9223372036854775807
+| 	NO CYCLE;
+< ok 0 -
+> exec
 | SET default_tablespace = '';
 < ok 0 -
 > exec
@@ -4073,6 +4224,13 @@
 < ok 0 -
 > exec
 | CREATE INDEX item_totals_name_idx ON fid_routines.item_totals (name ASC);
+< ok 0 -
+> exec
+| CREATE TABLE "fid_routines"."tickets" (
+|     "id" bigint NOT NULL,
+|     "n" bigint,
+|     CONSTRAINT "tickets_pkey" PRIMARY KEY (id ASC)
+| );
 < ok 0 -
 > exec
 | CREATE VIEW "fid_routines"."v_items" ("id", "name") AS 
@@ -4151,6 +4309,9 @@
 | END;
 |
 | $$;
+< ok 0 -
+> exec
+| ALTER SEQUENCE "fid_routines"."ticket_seq" OWNED BY "fid_routines"."tickets"."n";
 < ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
@@ -4547,6 +4708,62 @@
 : string
 | fid_routines
 : string
+| tickets
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
+| tickets
+: string
+| n
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_routines
+: string
 | v_item_names
 : string
 | name
@@ -4776,6 +4993,30 @@
 : string
 | PRIMARY KEY
 : null
+< row
+: string
+| fid_routines
+: string
+| ticket_seq
+: string
+| primary
+: string
+| CREATE UNIQUE INDEX "primary" ON omni_testdefinitionfidelity.fid_routines.ticket_seq USING btree (value ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_routines
+: string
+| tickets
+: string
+| tickets_pkey
+: string
+| CREATE UNIQUE INDEX tickets_pkey ON omni_testdefinitionfidelity.fid_routines.tickets USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid), obj_description(con.oid, 'pg_constraint')
@@ -4864,6 +5105,13 @@
 | fid_routines
 : string
 | scored
+: int64 0
+: null
+< row
+: string
+| fid_routines
+: string
+| tickets
 : int64 0
 : null
 > query
@@ -5205,9 +5453,15 @@
 | $$
 > query
 |
-| 		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
-| 		FROM information_schema.sequences
-| 		ORDER BY sequence_schema, sequence_name;
+| 		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
+| 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1)
+| 		FROM information_schema.sequences s
+| 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
+| 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
+| 		ORDER BY s.sequence_schema, s.sequence_name;
 < result
 < column "sequence_schema" "TEXT"
 < column "sequence_name" "TEXT"
@@ -5217,6 +5471,8 @@
 < column "maximum_value" "TEXT"
 < column "increment" "TEXT"
 < column "cycle_option" "TEXT"
+< column "relname" "NAME"
+< column "attname" "NAME"
 < row
 : string
 | fid_routines
@@ -5234,6 +5490,8 @@
 | 5
 : string
 | NO
+: null
+: null
 < row
 : string
 | fid_routines
@@ -5251,6 +5509,29 @@
 | 1
 : string
 | NO
+: null
+: null
+< row
+: string
+| fid_routines
+: string
+| ticket_seq
+: string
+| INT8
+: string
+| 1
+: string
+| 1
+: string
+| 9223372036854775807
+: string
+| 1
+: string
+| NO
+: string
+| tickets
+: string
+| n
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel
@@ -5890,9 +6171,15 @@
 < column "definition" "TEXT"
 > query
 |
-| 		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
-| 		FROM information_schema.sequences
-| 		ORDER BY sequence_schema, sequence_name;
+| 		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
+| 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1)
+| 		FROM information_schema.sequences s
+| 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
+| 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
+| 		ORDER BY s.sequence_schema, s.sequence_name;
 < result
 < column "sequence_schema" "TEXT"
 < column "sequence_name" "TEXT"
@@ -5902,6 +6189,8 @@
 < column "maximum_value" "TEXT"
 < column "increment" "TEXT"
 < column "cycle_option" "TEXT"
+< column "relname" "NAME"
+< column "attname" "NAME"
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel
@@ -6604,9 +6893,15 @@
 < column "definition" "TEXT"
 > query
 |
-| 		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
-| 		FROM information_schema.sequences
-| 		ORDER BY sequence_schema, sequence_name;
+| 		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
+| 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1)
+| 		FROM information_schema.sequences s
+| 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
+| 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
+| 		ORDER BY s.sequence_schema, s.sequence_name;
 < result
 < column "sequence_schema" "TEXT"
 < column "sequence_name" "TEXT"
@@ -6616,6 +6911,8 @@
 < column "maximum_value" "TEXT"
 < column "increment" "TEXT"
 < column "cycle_option" "TEXT"
+< column "relname" "NAME"
+< column "attname" "NAME"
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel

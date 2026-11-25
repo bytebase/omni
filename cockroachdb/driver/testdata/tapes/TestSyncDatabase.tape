@@ -17,6 +17,9 @@
 |
 | CREATE SEQUENCE app.counter AS INT8 INCREMENT BY 5 MINVALUE -100 MAXVALUE 1000 START WITH 10 CACHE 3;
 | CREATE SEQUENCE audit.big_seq AS INT8;
+| -- A sequence the column it numbers owns.
+| CREATE TABLE audit.tickets (id INT8 PRIMARY KEY, n INT8);
+| CREATE SEQUENCE audit.ticket_seq OWNED BY audit.tickets.n;
 |
 | CREATE FUNCTION app.add(a INT8, b INT8) RETURNS INT8 LANGUAGE SQL IMMUTABLE AS $$ SELECT a + b $$;
 |
@@ -952,6 +955,62 @@
 |
 : string
 |
+< row
+: string
+| audit
+: string
+| tickets
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| audit
+: string
+| tickets
+: string
+| n
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
 > query
 |
 | SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT constraint_type
@@ -1077,6 +1136,30 @@
 | events_pkey
 : string
 | CREATE UNIQUE INDEX events_pkey ON omni_testsyncdatabase.audit.events USING btree (rowid ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| audit
+: string
+| ticket_seq
+: string
+| primary
+: string
+| CREATE UNIQUE INDEX "primary" ON omni_testsyncdatabase.audit.ticket_seq USING btree (value ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| audit
+: string
+| tickets
+: string
+| tickets_pkey
+: string
+| CREATE UNIQUE INDEX tickets_pkey ON omni_testsyncdatabase.audit.tickets USING btree (id ASC)
 : string
 | PRIMARY KEY
 : null
@@ -1226,6 +1309,13 @@
 | audit
 : string
 | events
+: int64 0
+: null
+< row
+: string
+| audit
+: string
+| tickets
 : int64 0
 : null
 > query
@@ -1463,9 +1553,15 @@
 | $$
 > query
 |
-| 		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
-| 		FROM information_schema.sequences
-| 		ORDER BY sequence_schema, sequence_name;
+| 		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
+| 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1)
+| 		FROM information_schema.sequences s
+| 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
+| 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
+| 		ORDER BY s.sequence_schema, s.sequence_name;
 < result
 < column "sequence_schema" "TEXT"
 < column "sequence_name" "TEXT"
@@ -1475,6 +1571,8 @@
 < column "maximum_value" "TEXT"
 < column "increment" "TEXT"
 < column "cycle_option" "TEXT"
+< column "relname" "NAME"
+< column "attname" "NAME"
 < row
 : string
 | app
@@ -1492,6 +1590,8 @@
 | 5
 : string
 | NO
+: null
+: null
 < row
 : string
 | audit
@@ -1509,6 +1609,29 @@
 | 1
 : string
 | NO
+: null
+: null
+< row
+: string
+| audit
+: string
+| ticket_seq
+: string
+| INT8
+: string
+| 1
+: string
+| 1
+: string
+| 9223372036854775807
+: string
+| 1
+: string
+| NO
+: string
+| tickets
+: string
+| n
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel

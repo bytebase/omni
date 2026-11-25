@@ -409,14 +409,36 @@ func (d *differ) diffSequences() {
 		for _, sequence := range schema.Sequences {
 			if findSequence(d.to.byName[schema.Name], sequence.Name) == nil {
 				d.droppedSequences[schema.Name+"."+sequence.Name] = true
+				// IF EXISTS: dropping the column or table that owns a
+				// sequence drops the sequence with it.
 				d.add(phaseDropSequences, MigrationOp{Type: OpDropSequence, SchemaName: schema.Name, ObjectName: sequence.Name,
-					SQL: fmt.Sprintf("DROP SEQUENCE %s.%s", quoteIdent(schema.Name), quoteIdent(sequence.Name))})
+					SQL: fmt.Sprintf("DROP SEQUENCE IF EXISTS %s.%s", quoteIdent(schema.Name), quoteIdent(sequence.Name))})
 			}
 		}
 	}
 	for _, schema := range d.to.schemas {
 		for _, sequence := range schema.Sequences {
 			old := findSequence(d.from.byName[schema.Name], sequence.Name)
+			name := quoteIdent(schema.Name) + "." + quoteIdent(sequence.Name)
+			oldOwner, newOwner := "", ""
+			if old != nil && old.OwnerTable != "" && old.OwnerColumn != "" {
+				oldOwner = old.OwnerTable + "." + old.OwnerColumn
+			}
+			if sequence.OwnerTable != "" && sequence.OwnerColumn != "" {
+				newOwner = sequence.OwnerTable + "." + sequence.OwnerColumn
+			}
+			if oldOwner != newOwner {
+				// The old owner lets go first, since dropping it would drop the
+				// sequence; the new one takes it once its column exists.
+				if oldOwner != "" {
+					d.add(phaseDetachDefaults, MigrationOp{Type: OpAlterSequence, SchemaName: schema.Name, ObjectName: sequence.Name,
+						SQL: "ALTER SEQUENCE " + name + " OWNED BY NONE"})
+				}
+				if newOwner != "" {
+					d.add(phaseCreateIndexes, MigrationOp{Type: OpAlterSequence, SchemaName: schema.Name, ObjectName: sequence.Name,
+						SQL: fmt.Sprintf("ALTER SEQUENCE %s OWNED BY %s.%s.%s", name, quoteIdent(schema.Name), quoteIdent(sequence.OwnerTable), quoteIdent(sequence.OwnerColumn))})
+				}
+			}
 			if old == nil {
 				var buf strings.Builder
 				writeCreateSequence(&buf, schema.Name, sequence)

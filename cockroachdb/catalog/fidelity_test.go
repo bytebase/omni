@@ -89,6 +89,8 @@ CREATE TABLE fid_cols.sharded (id INT8 NOT NULL, small INT4, PRIMARY KEY (id) US
 			sql: `CREATE SCHEMA fid_routines;
 CREATE SEQUENCE fid_routines.counter AS INT8 INCREMENT BY 5 MINVALUE -100 MAXVALUE 1000 START WITH 10 CACHE 3;
 CREATE SEQUENCE fid_routines.plain;
+CREATE TABLE fid_routines.tickets (id INT8 PRIMARY KEY, n INT8);
+CREATE SEQUENCE fid_routines.ticket_seq OWNED BY fid_routines.tickets.n;
 CREATE TABLE fid_routines.items (
     id INT8 PRIMARY KEY DEFAULT nextval('fid_routines.plain'),
     name STRING NOT NULL,

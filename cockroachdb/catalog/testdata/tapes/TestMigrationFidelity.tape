@@ -88,6 +88,12 @@
 > exec
 | CREATE FUNCTION fid_m.price_text() RETURNS STRING LANGUAGE SQL STABLE AS $$ SELECT max(price)::STRING FROM fid_m.prices $$;
 < ok 0 -
+> exec
+| CREATE TABLE fid_m.owners (id INT8 PRIMARY KEY, b INT8);
+< ok 0 -
+> exec
+| CREATE SEQUENCE fid_m.owned_seq OWNED BY fid_m.owners.b;
+< ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
 < result
@@ -657,6 +663,62 @@
 : string
 | fid_m
 : string
+| owners
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| owners
+: string
+| b
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
 | prices
 : string
 | id
@@ -1106,6 +1168,30 @@
 : string
 | fid_m
 : string
+| owned_seq
+: string
+| primary
+: string
+| CREATE UNIQUE INDEX "primary" ON omni_testmigrationfidelity.fid_m.owned_seq USING btree (value ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| owners
+: string
+| owners_pkey
+: string
+| CREATE UNIQUE INDEX owners_pkey ON omni_testmigrationfidelity.fid_m.owners USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | prices
 : string
 | prices_pkey
@@ -1366,6 +1452,13 @@
 : string
 | fid_m
 : string
+| owners
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
 | prices
 : int64 0
 : null
@@ -1498,9 +1591,15 @@
 | $$
 > query
 |
-| 		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
-| 		FROM information_schema.sequences
-| 		ORDER BY sequence_schema, sequence_name;
+| 		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
+| 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1)
+| 		FROM information_schema.sequences s
+| 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
+| 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
+| 		ORDER BY s.sequence_schema, s.sequence_name;
 < result
 < column "sequence_schema" "TEXT"
 < column "sequence_name" "TEXT"
@@ -1510,6 +1609,8 @@
 < column "maximum_value" "TEXT"
 < column "increment" "TEXT"
 < column "cycle_option" "TEXT"
+< column "relname" "NAME"
+< column "attname" "NAME"
 < row
 : string
 | fid_m
@@ -1527,6 +1628,29 @@
 | 2
 : string
 | NO
+: null
+: null
+< row
+: string
+| fid_m
+: string
+| owned_seq
+: string
+| INT8
+: string
+| 1
+: string
+| 1
+: string
+| 9223372036854775807
+: string
+| 1
+: string
+| NO
+: string
+| owners
+: string
+| b
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel
@@ -1704,6 +1828,18 @@
 < ok 0 -
 > exec
 | CREATE FUNCTION fid_m.price_text() RETURNS STRING LANGUAGE SQL STABLE AS $$ SELECT max(price)::STRING FROM fid_m.prices $$;
+< ok 0 -
+> exec
+| CREATE TABLE fid_m.owners (id INT8 PRIMARY KEY, a INT8, b INT8);
+< ok 0 -
+> exec
+| CREATE SEQUENCE fid_m.owned_seq OWNED BY fid_m.owners.a;
+< ok 0 -
+> exec
+| CREATE TABLE fid_m.gone_owner (id INT8 PRIMARY KEY, n INT8);
+< ok 0 -
+> exec
+| CREATE SEQUENCE fid_m.gone_owner_seq OWNED BY fid_m.gone_owner.n;
 < ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
@@ -2155,6 +2291,62 @@
 : string
 | fid_m
 : string
+| gone_owner
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| gone_owner
+: string
+| n
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
 | orders
 : string
 | id
@@ -2229,6 +2421,90 @@
 | fid_m
 : string
 | status
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| owners
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| owners
+: string
+| a
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| owners
+: string
+| b
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 3
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
 : null
 : string
 | NO
@@ -2579,6 +2855,30 @@
 : string
 | fid_m
 : string
+| gone_owner
+: string
+| gone_owner_pkey
+: string
+| CREATE UNIQUE INDEX gone_owner_pkey ON omni_testmigrationfidelity.fid_m.gone_owner USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| gone_owner_seq
+: string
+| primary
+: string
+| CREATE UNIQUE INDEX "primary" ON omni_testmigrationfidelity.fid_m.gone_owner_seq USING btree (value ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | ids
 : string
 | primary
@@ -2596,6 +2896,30 @@
 | orders_pkey
 : string
 | CREATE UNIQUE INDEX orders_pkey ON omni_testmigrationfidelity.fid_m.orders USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| owned_seq
+: string
+| primary
+: string
+| CREATE UNIQUE INDEX "primary" ON omni_testmigrationfidelity.fid_m.owned_seq USING btree (value ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| owners
+: string
+| owners_pkey
+: string
+| CREATE UNIQUE INDEX owners_pkey ON omni_testmigrationfidelity.fid_m.owners USING btree (id ASC)
 : string
 | PRIMARY KEY
 : null
@@ -2846,7 +3170,21 @@
 : string
 | fid_m
 : string
+| gone_owner
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
 | orders
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
+| owners
 : int64 0
 : null
 < row
@@ -2975,9 +3313,15 @@
 | $$
 > query
 |
-| 		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
-| 		FROM information_schema.sequences
-| 		ORDER BY sequence_schema, sequence_name;
+| 		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
+| 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1)
+| 		FROM information_schema.sequences s
+| 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
+| 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
+| 		ORDER BY s.sequence_schema, s.sequence_name;
 < result
 < column "sequence_schema" "TEXT"
 < column "sequence_name" "TEXT"
@@ -2987,6 +3331,29 @@
 < column "maximum_value" "TEXT"
 < column "increment" "TEXT"
 < column "cycle_option" "TEXT"
+< column "relname" "NAME"
+< column "attname" "NAME"
+< row
+: string
+| fid_m
+: string
+| gone_owner_seq
+: string
+| INT8
+: string
+| 1
+: string
+| 1
+: string
+| 9223372036854775807
+: string
+| 1
+: string
+| NO
+: string
+| gone_owner
+: string
+| n
 < row
 : string
 | fid_m
@@ -3004,6 +3371,29 @@
 | 1
 : string
 | NO
+: null
+: null
+< row
+: string
+| fid_m
+: string
+| owned_seq
+: string
+| INT8
+: string
+| 1
+: string
+| 1
+: string
+| 9223372036854775807
+: string
+| 1
+: string
+| NO
+: string
+| owners
+: string
+| a
 < row
 : string
 | fid_m
@@ -3021,6 +3411,8 @@
 | 1
 : string
 | NO
+: null
+: null
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel
@@ -3091,6 +3483,9 @@
 > commit
 < ok
 > exec
+| ALTER SEQUENCE "fid_m"."owned_seq" OWNED BY NONE;
+< ok 0 -
+> exec
 | ALTER TABLE "fid_m"."tickets" ALTER COLUMN "n" DROP DEFAULT;
 < ok 0 -
 > exec
@@ -3127,10 +3522,19 @@
 | DROP TABLE "fid_m"."gone";
 < ok 0 -
 > exec
+| DROP TABLE "fid_m"."gone_owner";
+< ok 0 -
+> exec
 | ALTER TABLE "fid_m"."customers" DROP COLUMN "legacy";
 < ok 0 -
 > exec
-| DROP SEQUENCE "fid_m"."ticket_seq";
+| ALTER TABLE "fid_m"."owners" DROP COLUMN "a";
+< ok 0 -
+> exec
+| DROP SEQUENCE IF EXISTS "fid_m"."gone_owner_seq";
+< ok 0 -
+> exec
+| DROP SEQUENCE IF EXISTS "fid_m"."ticket_seq";
 < ok 0 -
 > exec
 | CREATE SCHEMA "fid_new";
@@ -3214,6 +3618,9 @@
 | 	AS $$
 | SELECT max(price)::STRING FROM fid_m.prices;
 | $$;
+< ok 0 -
+> exec
+| ALTER SEQUENCE "fid_m"."owned_seq" OWNED BY "fid_m"."owners"."b";
 < ok 0 -
 > exec
 | CREATE INDEX amounts_amount_idx ON fid_m.amounts (amount ASC);
@@ -3838,6 +4245,62 @@
 : string
 | fid_m
 : string
+| owners
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
+| owners
+: string
+| b
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 3
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_m
+: string
 | prices
 : string
 | id
@@ -4287,6 +4750,30 @@
 : string
 | fid_m
 : string
+| owned_seq
+: string
+| primary
+: string
+| CREATE UNIQUE INDEX "primary" ON omni_testmigrationfidelity.fid_m.owned_seq USING btree (value ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
+| owners
+: string
+| owners_pkey
+: string
+| CREATE UNIQUE INDEX owners_pkey ON omni_testmigrationfidelity.fid_m.owners USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_m
+: string
 | prices
 : string
 | prices_pkey
@@ -4547,6 +5034,13 @@
 : string
 | fid_m
 : string
+| owners
+: int64 0
+: null
+< row
+: string
+| fid_m
+: string
 | prices
 : int64 0
 : null
@@ -4679,9 +5173,15 @@
 | $$
 > query
 |
-| 		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
-| 		FROM information_schema.sequences
-| 		ORDER BY sequence_schema, sequence_name;
+| 		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
+| 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1)
+| 		FROM information_schema.sequences s
+| 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
+| 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
+| 		ORDER BY s.sequence_schema, s.sequence_name;
 < result
 < column "sequence_schema" "TEXT"
 < column "sequence_name" "TEXT"
@@ -4691,6 +5191,8 @@
 < column "maximum_value" "TEXT"
 < column "increment" "TEXT"
 < column "cycle_option" "TEXT"
+< column "relname" "NAME"
+< column "attname" "NAME"
 < row
 : string
 | fid_m
@@ -4708,6 +5210,29 @@
 | 2
 : string
 | NO
+: null
+: null
+< row
+: string
+| fid_m
+: string
+| owned_seq
+: string
+| INT8
+: string
+| 1
+: string
+| 1
+: string
+| 9223372036854775807
+: string
+| 1
+: string
+| NO
+: string
+| owners
+: string
+| b
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel
@@ -6062,9 +6587,15 @@
 | $$
 > query
 |
-| 		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
-| 		FROM information_schema.sequences
-| 		ORDER BY sequence_schema, sequence_name;
+| 		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
+| 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1)
+| 		FROM information_schema.sequences s
+| 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
+| 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
+| 		ORDER BY s.sequence_schema, s.sequence_name;
 < result
 < column "sequence_schema" "TEXT"
 < column "sequence_name" "TEXT"
@@ -6074,6 +6605,8 @@
 < column "maximum_value" "TEXT"
 < column "increment" "TEXT"
 < column "cycle_option" "TEXT"
+< column "relname" "NAME"
+< column "attname" "NAME"
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel
@@ -7333,9 +7866,15 @@
 | $$
 > query
 |
-| 		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
-| 		FROM information_schema.sequences
-| 		ORDER BY sequence_schema, sequence_name;
+| 		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
+| 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1)
+| 		FROM information_schema.sequences s
+| 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
+| 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
+| 		ORDER BY s.sequence_schema, s.sequence_name;
 < result
 < column "sequence_schema" "TEXT"
 < column "sequence_name" "TEXT"
@@ -7345,6 +7884,8 @@
 < column "maximum_value" "TEXT"
 < column "increment" "TEXT"
 < column "cycle_option" "TEXT"
+< column "relname" "NAME"
+< column "attname" "NAME"
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel
@@ -8708,9 +9249,15 @@
 | $$
 > query
 |
-| 		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
-| 		FROM information_schema.sequences
-| 		ORDER BY sequence_schema, sequence_name;
+| 		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
+| 			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+| 			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+| 				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1)
+| 		FROM information_schema.sequences s
+| 		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
+| 		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
+| 		ORDER BY s.sequence_schema, s.sequence_name;
 < result
 < column "sequence_schema" "TEXT"
 < column "sequence_name" "TEXT"
@@ -8720,6 +9267,8 @@
 < column "maximum_value" "TEXT"
 < column "increment" "TEXT"
 < column "cycle_option" "TEXT"
+< column "relname" "NAME"
+< column "attname" "NAME"
 > query
 |
 | SELECT pn.nspname, pt.typname, pe.enumlabel

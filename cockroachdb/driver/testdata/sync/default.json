@@ -415,6 +415,37 @@
               "definition": "CREATE UNIQUE INDEX events_pkey ON omni_testsyncdatabase.audit.events USING btree (rowid ASC)"
             }
           ]
+        },
+        {
+          "name": "tickets",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "type": "bigint"
+            },
+            {
+              "name": "n",
+              "position": 2,
+              "nullable": true,
+              "type": "bigint"
+            }
+          ],
+          "indexes": [
+            {
+              "name": "tickets_pkey",
+              "expressions": [
+                "id"
+              ],
+              "descending": [
+                false
+              ],
+              "type": "btree",
+              "unique": true,
+              "primary": true,
+              "definition": "CREATE UNIQUE INDEX tickets_pkey ON omni_testsyncdatabase.audit.tickets USING btree (id ASC)"
+            }
+          ]
         }
       ],
       "sequences": [
@@ -425,6 +456,16 @@
           "minValue": "1",
           "maxValue": "9223372036854775807",
           "increment": "1"
+        },
+        {
+          "name": "ticket_seq",
+          "dataType": "INT8",
+          "start": "1",
+          "minValue": "1",
+          "maxValue": "9223372036854775807",
+          "increment": "1",
+          "ownerTable": "tickets",
+          "ownerColumn": "n"
         }
       ]
     },

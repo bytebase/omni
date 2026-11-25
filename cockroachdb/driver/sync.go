@@ -1017,10 +1017,18 @@ func getCompositeTypes(txn *sql.Tx) (map[string][]*metadatapb.CompositeTypeMetad
 
 // getSequences gets all sequences of a database.
 func getSequences(txn *sql.Tx) (map[string][]*metadatapb.SequenceMetadata, error) {
+	// A sequence's OWNED BY column is its pg_depend row of type 'a': the
+	// owning table and, as refobjsubid, the column's attnum.
 	query := `
-		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
-		FROM information_schema.sequences
-		ORDER BY sequence_schema, sequence_name;`
+		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
+			(SELECT t.relname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_class t ON t.oid = d.refobjid
+				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1),
+			(SELECT a.attname FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_attribute a ON a.attrelid = d.refobjid AND a.attnum = d.refobjsubid
+				WHERE d.objid = c.oid AND d.deptype = 'a' AND d.refobjsubid > 0 LIMIT 1)
+		FROM information_schema.sequences s
+		LEFT JOIN pg_catalog.pg_namespace n ON n.nspname = s.sequence_schema
+		LEFT JOIN pg_catalog.pg_class c ON c.relname = s.sequence_name AND c.relnamespace = n.oid AND c.relkind = 'S'
+		ORDER BY s.sequence_schema, s.sequence_name;`
 	rows, err := txn.Query(query)
 	if err != nil {
 		return nil, err
@@ -1031,9 +1039,11 @@ func getSequences(txn *sql.Tx) (map[string][]*metadatapb.SequenceMetadata, error
 	for rows.Next() {
 		sequence := &metadatapb.SequenceMetadata{}
 		var schemaName, cycleOption string
-		if err := rows.Scan(&schemaName, &sequence.Name, &sequence.DataType, &sequence.Start, &sequence.MinValue, &sequence.MaxValue, &sequence.Increment, &cycleOption); err != nil {
+		var ownerTable, ownerColumn sql.NullString
+		if err := rows.Scan(&schemaName, &sequence.Name, &sequence.DataType, &sequence.Start, &sequence.MinValue, &sequence.MaxValue, &sequence.Increment, &cycleOption, &ownerTable, &ownerColumn); err != nil {
 			return nil, err
 		}
+		sequence.OwnerTable, sequence.OwnerColumn = ownerTable.String, ownerColumn.String
 		sequence.Cycle = strings.EqualFold(cycleOption, "YES")
 		sequenceMap[schemaName] = append(sequenceMap[schemaName], sequence)
 	}

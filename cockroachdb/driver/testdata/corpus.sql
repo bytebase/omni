@@ -13,6 +13,9 @@ CREATE TYPE app.address AS (street STRING, city VARCHAR(50), zip INT8);
 
 CREATE SEQUENCE app.counter AS INT8 INCREMENT BY 5 MINVALUE -100 MAXVALUE 1000 START WITH 10 CACHE 3;
 CREATE SEQUENCE audit.big_seq AS INT8;
+-- A sequence the column it numbers owns.
+CREATE TABLE audit.tickets (id INT8 PRIMARY KEY, n INT8);
+CREATE SEQUENCE audit.ticket_seq OWNED BY audit.tickets.n;
 
 CREATE FUNCTION app.add(a INT8, b INT8) RETURNS INT8 LANGUAGE SQL IMMUTABLE AS $$ SELECT a + b $$;
 
