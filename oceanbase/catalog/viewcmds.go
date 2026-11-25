@@ -1949,7 +1949,7 @@ func (c *Catalog) resolveQueryFirst(sel *nodes.SelectStmt, isView bool, targetDB
 	if errors.As(err, &refusal) {
 		switch refusal.Code {
 		case ErrNoSuchTable, ErrNoSuchColumn, ErrUnknownTable, ErrUnknownTableInFieldList,
-			ErrNoTablesUsed, 1066, 1052, ErrWrongParamCount, 1583, ErrWrongArguments:
+			ErrNoTablesUsed, 1066, 1052, ErrWrongParamCount, 1583, ErrWrongArguments, ErrUnknownCharacterSet:
 			return nil, refusal
 		}
 	}
@@ -2101,6 +2101,10 @@ func validateViewQueryPreAnalysis(blocks []*nodes.SelectStmt) error {
 						}
 					}
 				}
+				if derr := checkDistinctAllowed(e); derr != nil {
+					err = derr
+					return false
+				}
 				if e.Over != nil {
 					if werr := validateWindowDefPreAnalysis(e.Over, declaredWindows); werr != nil {
 						err = werr
@@ -2113,7 +2117,7 @@ func validateViewQueryPreAnalysis(blocks []*nodes.SelectStmt) error {
 						return false
 					}
 				}
-				if e.Using != "" {
+				if e.Using != "" && !e.UsingQuoted {
 					if cerr := checkCharsetName(e.Using); cerr != nil {
 						err = cerr
 						return false
@@ -2131,7 +2135,8 @@ func validateViewQueryPreAnalysis(blocks []*nodes.SelectStmt) error {
 					}
 				}
 			case *nodes.ConvertExpr:
-				if e.Charset != "" {
+				// A quoted name is checked after the argument (analyzeExpr).
+				if e.Charset != "" && !e.CharsetQuoted {
 					if cerr := checkCharsetName(e.Charset); cerr != nil {
 						err = cerr
 						return false

@@ -874,8 +874,11 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			Visible:   true,
 		}
 		// The CREATE TABLE path reads these; this one used to drop them, so an index
-		// added by ALTER lost its comment, visibility, block size and scope.
+		// added by ALTER lost its comment, block size and scope.
 		applyIndexOptions(keyIdx, con.IndexOptions)
+		// OceanBase takes INVISIBLE here, in either spelling, and leaves the index
+		// visible (TestOracle_OceanBaseInvisibleIndex); ALTER INDEX hides it.
+		keyIdx.Visible = true
 		dropStoringKeyColumns(keyIdx)
 		tbl.Indexes = append(tbl.Indexes, keyIdx)
 

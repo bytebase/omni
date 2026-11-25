@@ -196,6 +196,9 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 			}
 			args = append(args, a)
 		}
+		if err := checkQuotedCharset(n.Charset, n.CharsetQuoted); err != nil {
+			return nil, err
+		}
 		return &RawExprQ{Text: deparse.Deparse(n), Args: args}, nil
 	case *nodes.ExtractExpr:
 		var args []AnalyzedExpr
@@ -359,6 +362,33 @@ func rebaseAnalyzedLevels(expr AnalyzedExpr, levels int) AnalyzedExpr {
 	return expr
 }
 
+// checkDistinctAllowed refuses DISTINCT or UNIQUE in JSON_ARRAYAGG and PERCENTILE_CONT
+// with OceanBase's 5798. The grammar takes opt_distinct_or_all in both
+// (sql_parser_mysql_mode.y, v4.3.5_CE_BP6), and the resolver refuses it before it
+// resolves the arguments (1054) or the window's name (5929).
+func checkDistinctAllowed(fc *nodes.FuncCallExpr) error {
+	if fc.Schema != "" || !fc.Quantifier.RemovesDuplicates() {
+		return nil
+	}
+	switch strings.ToLower(fc.Name) {
+	case "json_arrayagg", "percentile_cont":
+		return &Error{Code: ErrOBDistinctNotAllowed, SQLState: "HY000", Message: "DISTINCT not allowed here"}
+	}
+	return nil
+}
+
+// checkQuotedCharset checks a CONVERT or CHAR ... USING character set written as a
+// string. charset_name's STRING_VALUE arm makes it a parameter (sql_parser_mysql_mode.y,
+// v4.3.5_CE_BP6), so OceanBase reads the argument first: CONVERT(a USING 's') with no
+// column a is 1054, where CONVERT(a USING s) is 1115. A name written bare is checked
+// before the query is resolved (validateViewQueryPreAnalysis).
+func checkQuotedCharset(charset string, quoted bool) error {
+	if charset == "" || !quoted {
+		return nil
+	}
+	return checkCharsetName(charset)
+}
+
 // analyzeFuncCall resolves a function call expression.
 func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (AnalyzedExpr, error) {
 	lower := strings.ToLower(fc.Name)
@@ -397,6 +427,9 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 		if len(fc.Args) == 0 && builtinRequiresArgs(lower) {
 			return nil, errWrongParamCount(lower)
 		}
+		if err := checkDistinctAllowed(fc); err != nil {
+			return nil, err
+		}
 	}
 	args := make([]AnalyzedExpr, 0, len(fc.Args))
 	for _, arg := range fc.Args {
@@ -405,6 +438,9 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 			return nil, err
 		}
 		args = append(args, a)
+	}
+	if err := checkQuotedCharset(fc.Using, fc.UsingQuoted); err != nil {
+		return nil, err
 	}
 	if lower == "coalesce" || lower == "ifnull" {
 		return &CoalesceExprQ{Args: args, IsIfNull: lower == "ifnull"}, nil
