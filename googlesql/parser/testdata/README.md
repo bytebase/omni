@@ -6,7 +6,7 @@ judged by BigQuery itself (`../../../bigquery/parser/testdata/README.md`).
 ## `compat.tsv`: pinned Spanner emulator verdicts
 
 `compat.tsv` holds a statement for each alternative of each rule in
-`../../testdata/GoogleSQL.g4`, then its near-misses, plus 626 hand-written
+`../../testdata/GoogleSQL.g4`, then its near-misses, plus 700 hand-written
 `suite:` rows, with omni's verdict (`googlesql/parser.Parse`) and the pinned
 Cloud Spanner emulator's (`../../testdata/pins.tsv`, `parser` role, judge
 revision 5: `gcr.io/cloud-spanner-emulator/emulator:1.5.54`, through
@@ -20,11 +20,19 @@ server in offline replay.
 | --- | ---: | ---: | ---: | ---: | ---: |
 | One per alternative | 2,864 | 2,864 | 0 | 0 | 100.00% |
 | Near-misses | 6,573 | 6,573 | 0 | 0 | 100.00% |
-| Suites (`suite:*`) | 626 | 624 | 0 | 2 | 99.68% |
-| **All** | **10,063** | **10,061** | **0** | **2** | **99.98%** |
+| Suites (`suite:*`) | 700 | 697 | 0 | 3 | 99.57% |
+| **All** | **10,137** | **10,134** | **0** | **3** | **99.97%** |
 
-The two rows only omni accepts are `ALTER SEARCH INDEX idx {ADD|DROP} STORED
-COLUMN c`, a documented Spanner form (DDL-049) the emulator's DDL parser lags.
+The three rows only omni accepts are documented Spanner forms the emulator's
+DDL parser lags: `ALTER SEARCH INDEX idx {ADD|DROP} STORED COLUMN c` (DDL-049)
+and `CREATE PLACEMENT`'s `read_lease_regions` option (DDL-044).
+
+Spanner's DDL parser checks option names and values while it parses, and the
+harness reads one such refusal ("Error parsing Spanner DDL statement: ...")
+as a rejection but two at once ("Errors parsing ... has errors:") as a
+semantic error, which the judge accepts. So `CREATE PLACEMENT p OPTIONS (x =
+1)` reads as accepted while `CREATE PLACEMENT p` does not; the rows avoid
+statements with two such refusals.
 
 The rows start from `unterminated_statement`, a statement of a script, so
 they cover GoogleSQL's scripting and BigQuery statements too; Spanner refuses
@@ -393,7 +401,7 @@ go test ./googlesql/parser/ -run '^TestCompatibility$'
 ```
 
 Live recording against pinned `gcr.io/cloud-spanner-emulator/emulator:1.5.54`
-(about a minute for all 10,063 rows):
+(about a minute for all 10,137 rows):
 
 ```bash
 OMNI_RECORD=1 go test -v -timeout 60m ./googlesql/parser/ -run '^TestCompatibility$'

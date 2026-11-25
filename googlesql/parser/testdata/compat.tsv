@@ -9821,6 +9821,80 @@ reject	reject	engine	suite:spanner-ddl	CREATE OR REPLACE LOCALITY GROUP g_or
 reject	reject	engine	suite:spanner-ddl	CREATE OR REPLACE PROTO BUNDLE (`a.b.C`)
 reject	reject	engine	suite:spanner-ddl	CREATE OR REPLACE ROLE r_or
 reject	reject	engine	suite:spanner-ddl	DROP SEQUENCE s_dm RESTRICT
+accept	accept	engine	suite:spanner-ddl	CREATE MODEL m REMOTE OPTIONS (endpoint = '//aiplatform.googleapis.com/projects/p/locations/us-central1/endpoints/e')
+accept	accept	engine	suite:spanner-ddl	CREATE MODEL TextEmbedder INPUT (text STRING(MAX)) OUTPUT (embeddings ARRAY<FLOAT64>) REMOTE OPTIONS (endpoints = ['//aiplatform.googleapis.com/projects/my_project/locations/us-central1/publishers/google/models/textembedding-gecko'])
+accept	accept	engine	suite:spanner-ddl	CREATE MODEL m INPUT (a INT64) OUTPUT (b INT64) REMOTE OPTIONS (endpoint = '//x')
+accept	accept	engine	suite:spanner-ddl	CREATE MODEL m INPUT (a INT64) OUTPUT (b INT64) REMOTE OPTIONS (endpoints = ['//a', '//b'])
+accept	accept	engine	suite:spanner-ddl	CREATE MODEL m INPUT (a INT64) OUTPUT (b INT64) REMOTE OPTIONS (endpoint = '//x', default_batch_size = NULL)
+accept	accept	engine	suite:spanner-ddl	CREATE MODEL m INPUT (a INT64) OUTPUT (b INT64) REMOTE OPTIONS (default_batch_size = 100)
+accept	accept	engine	suite:spanner-ddl	CREATE MODEL m INPUT (a INT64) OUTPUT (b INT64) REMOTE OPTIONS (endpoints = NULL)
+accept	accept	engine	suite:spanner-ddl	CREATE MODEL m INPUT (a INT64) OUTPUT (b INT64) REMOTE OPTIONS (endpoint = '//x', endpoints = ['//y'])
+reject	reject	engine	suite:spanner-ddl	CREATE MODEL m INPUT (a INT64) OUTPUT (b INT64) REMOTE OPTIONS (endpoint = '//x', endpoint = '//y')
+reject	reject	engine	suite:spanner-ddl	CREATE MODEL m INPUT (a INT64) OUTPUT (b INT64) REMOTE OPTIONS (endpoints = ['//a', 1])
+reject	reject	engine	suite:spanner-ddl	CREATE MODEL m INPUT (a INT64) OUTPUT (b INT64) REMOTE OPTIONS (endpoints = ARRAY['//a'])
+accept	accept	engine	suite:spanner-ddl	CREATE MODEL m INPUT (a INT64) OUTPUT (b INT64) REMOTE
+accept	accept	engine	suite:spanner-ddl	CREATE MODEL m INPUT (a INT64) OUTPUT (b INT64) OPTIONS (endpoint = '//x')
+accept	accept	engine	suite:spanner-ddl	CREATE MODEL m OPTIONS (endpoint = '//x')
+reject	reject	engine	suite:spanner-ddl	CREATE MODEL m REMOTE OPTIONS ()
+accept	accept	engine	suite:spanner-ddl	CREATE MODEL m REMOTE OPTIONS (endpoint = '//x', default_batch_size = 10)
+reject	reject	engine	suite:spanner-ddl	CREATE MODEL m REMOTE OPTIONS (endpoint = '//x',)
+accept	accept	engine	suite:spanner-ddl	CREATE MODEL m REMOTE OPTIONS (endpoint = NULL)
+reject	reject	engine	suite:spanner-ddl	CREATE MODEL m OPTIONS (endpoint = '//x') REMOTE
+accept	accept	engine	suite:spanner-ddl	CREATE OR REPLACE MODEL m REMOTE OPTIONS (endpoint = '//x')
+accept	accept	engine	suite:spanner-ddl	CREATE MODEL IF NOT EXISTS m REMOTE OPTIONS (endpoint = '//x')
+reject	reject	engine	suite:spanner-ddl	CREATE MODEL m REMOTE OPTIONS (x = 1)
+reject	reject	engine	suite:spanner-ddl	CREATE MODEL m REMOTE OPTIONS (ENDPOINT = '//x')
+reject	reject	engine	suite:spanner-ddl	CREATE MODEL m REMOTE OPTIONS (endpoint = '//x') OPTIONS (endpoint = '//y')
+reject	reject	engine	suite:spanner-ddl	CREATE MODEL m REMOTE OPTIONS endpoint = '//x'
+reject	reject	engine	suite:spanner-ddl	CREATE MODEL m REMOTE OPTIONS (endpoint = '//x') zzz
+reject	reject	engine	suite:spanner-ddl	CREATE MODEL m REMOTE OPTIONS (endpoint = 1 + 1)
+reject	reject	engine	suite:spanner-ddl	CREATE MODEL m REMOTE OPTIONS (endpoint = 1)
+reject	reject	engine	suite:spanner-ddl	CREATE MODEL m REMOTE OPTIONS (endpoint = TRUE)
+reject	reject	engine	suite:spanner-ddl	CREATE MODEL m REMOTE OPTIONS (endpoints = [])
+reject	reject	engine	suite:spanner-ddl	CREATE MODEL m REMOTE OPTIONS (endpoints = '//x')
+accept	accept	engine	suite:spanner-ddl	CREATE MODEL m REMOTE OPTIONS (default_batch_size = -1)
+reject	reject	engine	suite:spanner-ddl	CREATE MODEL m REMOTE OPTIONS (default_batch_size = 'x')
+reject	reject	engine	suite:spanner-ddl	CREATE MODEL m REMOTE OPTIONS (default_batch_size = 1.5)
+accept	accept	engine	suite:spanner-ddl	CREATE PLACEMENT us_placement OPTIONS (instance_partition = 'us-partition')
+accept	accept	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (instance_partition = 'x', default_leader = 'y')
+accept	accept	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (default_leader = 'y', instance_partition = 'x')
+accept	accept	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (instance_partition = 'x', default_leader = NULL)
+accept	accept	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (instance_partition = "x")
+accept	accept	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (instance_partition = '''x''')
+accept	accept	engine	suite:spanner-ddl	CREATE PLACEMENT IF NOT EXISTS p OPTIONS (instance_partition = 'x')
+accept	accept	engine	suite:spanner-ddl	CREATE PLACEMENT `p` OPTIONS (instance_partition = 'x')
+accept	accept	engine	suite:spanner-ddl	CREATE PLACEMENT s.p OPTIONS (instance_partition = 'x')
+accept	reject	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (instance_partition = 'x', read_lease_regions = 'a')
+reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT p
+reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT IF NOT EXISTS p
+reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT s.p
+reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT `p`
+reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (default_leader = 'us-east1')
+reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS ()
+reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (instance_partition = NULL)
+reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (instance_partition = 'x', x = 1)
+reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (instance_partition = 'x',)
+reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (instance_partition = 'x', instance_partition = 'y')
+reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (instance_partition = 'x', default_leader = 'y', default_leader = 'z')
+reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (instance_partition = 1)
+reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (instance_partition = -1)
+reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (instance_partition = TRUE)
+reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (instance_partition = ['x'])
+reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (instance_partition = b'x')
+reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (instance_partition = 'x', default_leader = 1)
+reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS (instance_partition = 'x') OPTIONS (default_leader = 'y')
+reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT p OPTIONS instance_partition = 'x'
+reject	reject	engine	suite:spanner-ddl	CREATE OR REPLACE PLACEMENT p
+reject	reject	engine	suite:spanner-ddl	CREATE TEMP PLACEMENT p
+reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT
+reject	reject	engine	suite:spanner-ddl	CREATE PLACEMENT p zzz
+accept	accept	engine	suite:spanner-ddl	DROP PLACEMENT us_placement
+accept	accept	engine	suite:spanner-ddl	DROP PLACEMENT IF EXISTS p
+accept	accept	engine	suite:spanner-ddl	DROP PLACEMENT s.p
+accept	accept	engine	suite:spanner-ddl	DROP PLACEMENT `p`
+reject	reject	engine	suite:spanner-ddl	DROP PLACEMENT
+reject	reject	engine	suite:spanner-ddl	DROP PLACEMENT p CASCADE
+reject	reject	engine	suite:spanner-ddl	DROP PLACEMENT p zzz
 accept	accept	engine	suite:utility	BEGIN
 accept	accept	engine	suite:utility	BEGIN TRANSACTION
 accept	accept	engine	suite:utility	START TRANSACTION

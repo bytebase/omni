@@ -130,7 +130,7 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		return p.unsupported("CREATE")
 	default:
 		// Spanner objects whose leading word lexes as a BARE IDENTIFIER (CHANGE
-		// STREAM, LOCALITY GROUP) and ROLE — matched by spelling before the
+		// STREAM, LOCALITY GROUP, PLACEMENT) and ROLE — matched by spelling before the
 		// generic-entity fallback below, since the entity path would otherwise
 		// misparse the two-word object type.
 		if p.tokIsWord(p.cur, "CHANGE") && p.tokIsWord(p.peekNext(), "STREAM") {
@@ -138,6 +138,9 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		}
 		if p.tokIsWord(p.cur, "LOCALITY") && p.tokIsWord(p.peekNext(), "GROUP") {
 			return p.parseCreateLocalityGroup(create, orReplace, scope) // spanner_sequence.go
+		}
+		if p.tokIsWord(p.cur, "PLACEMENT") {
+			return p.parseCreatePlacement(create, orReplace, scope) // spanner_placement.go
 		}
 		if p.curIsRoleKeyword() {
 			// CREATE ROLE name (spanner_schema_role.go). First-class — supersedes the

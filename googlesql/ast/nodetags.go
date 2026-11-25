@@ -211,6 +211,8 @@ const (
 	T_DropLocalityGroupStmt
 	T_CreateProtoBundleStmt
 	T_AlterProtoBundleStmt
+	T_CreatePlacementStmt
+	T_DropPlacementStmt
 
 	// DML — INSERT / UPDATE / DELETE / MERGE / TRUNCATE (parser-dml node).
 	//
@@ -653,6 +655,10 @@ func (t NodeTag) String() string {
 		return "CreateProtoBundleStmt"
 	case T_AlterProtoBundleStmt:
 		return "AlterProtoBundleStmt"
+	case T_CreatePlacementStmt:
+		return "CreatePlacementStmt"
+	case T_DropPlacementStmt:
+		return "DropPlacementStmt"
 	case T_DefaultExpr:
 		return "DefaultExpr"
 	case T_InsertStmt:

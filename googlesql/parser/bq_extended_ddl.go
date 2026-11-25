@@ -73,18 +73,27 @@ func (p *Parser) parseDefineStmt() (ast.Node, error) {
 	return stmt, nil
 }
 
+// modelOptions are the options a Spanner model takes: endpoint (a string),
+// endpoints (an array of strings) and default_batch_size (an integer).
+var modelOptions = map[string]spannerOptionKind{
+	"endpoint":           spannerOptionString,
+	"endpoints":          spannerOptionStringArray,
+	"default_batch_size": spannerOptionInt,
+}
+
 // parseCreateModel parses:
 //
-//	CREATE [OR REPLACE] [scope] MODEL [IF NOT EXISTS] path_expression
-//	  [INPUT table_element_list OUTPUT table_element_list]
-//	  [TRANSFORM ( select_list )]
-//	  [REMOTE [WITH CONNECTION ...] | WITH CONNECTION ...]
-//	  [OPTIONS options_list]
-//	  [AS query | AS ( aliased_query_list )]
+//	CREATE [OR REPLACE] MODEL [IF NOT EXISTS] model_name
+//	  [INPUT ( column_list ) OUTPUT ( column_list )]
+//	  REMOTE
+//	  [OPTIONS ( model_option [, ...] )]
 //
-// In Spanner, only the shared base clauses (OR REPLACE, IF NOT EXISTS,
-// non-empty INPUT/OUTPUT, REMOTE) are accepted. In the old union grammar and
-// BigQuery, all BigQuery ML clauses are accepted.
+// (https://cloud.google.com/spanner/docs/reference/standard-sql/data-definition-language#create_model).
+// None of BigQuery's ML clauses (TRANSFORM, WITH CONNECTION, AS) apply, and
+// the options are checked as Spanner's DDL parser checks them
+// (checkSpannerOptions). The pinned emulator parses a model without REMOTE and
+// refuses it afterwards ("Model m must specify REMOTE attribute."), so REMOTE
+// stays optional here.
 func (p *Parser) parseCreateModel(create Token, orReplace bool, scope string) (ast.Node, error) {
 	if scope != "" {
 		return nil, p.syntaxErrorAtCur()
@@ -139,6 +148,17 @@ func (p *Parser) parseCreateModel(create Token, orReplace bool, scope string) (a
 	if p.cur.Type == kwREMOTE {
 		p.advance() // REMOTE
 		stmt.Remote = true
+	}
+
+	if p.cur.Type == kwOPTIONS {
+		opts, err := p.parseDDLOptionsList()
+		if err != nil {
+			return nil, err
+		}
+		if err := p.checkSpannerOptions(opts, modelOptions); err != nil {
+			return nil, err
+		}
+		stmt.Options = opts
 	}
 
 	stmt.Loc.End = p.prev.Loc.End
