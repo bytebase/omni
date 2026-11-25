@@ -59,6 +59,11 @@ func (literalCastStripper) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 	if cmp, ok := expr.(*tree.ComparisonExpr); ok && literalOperand(cmp.Left) && literalOperand(cmp.Right) {
 		return false, expr
 	}
+	// So does arithmetic on literals: the casts choose the operator's type
+	// (FLOAT8 addition rounds where DECIMAL's does not).
+	if binary, ok := expr.(*tree.BinaryExpr); ok && literalOperand(binary) {
+		return false, expr
+	}
 	// A cast argument chooses the function's overload (length('é'::BYTES)
 	// is 2, length('é'::STRING) 1), so a call with one is kept whole; the
 	// REGCLASS CockroachDB adds to nextval's argument is the one it states.
@@ -165,10 +170,14 @@ func groupedKey(node tree.NodeFormatter) string {
 	return tree.AsStringWithFlags(node, tree.FmtAlwaysGroupExprs)
 }
 
-// literalOperand reports whether a comparison operand is a literal, cast or
-// annotated or not, or a tuple of them.
+// literalOperand reports whether an operand is a literal, cast or annotated
+// or not, or a tuple or arithmetic of them.
 func literalOperand(expr tree.Expr) bool {
 	switch e := unparen(expr).(type) {
+	case *tree.BinaryExpr:
+		return literalOperand(e.Left) && literalOperand(e.Right)
+	case *tree.UnaryExpr:
+		return literalOperand(e.Expr)
 	case *tree.CastExpr:
 		return literalOperand(e.Expr)
 	case *tree.AnnotateTypeExpr:

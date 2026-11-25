@@ -199,6 +199,10 @@ func TestSDLKeysKeepValues(t *testing.T) {
 			"CREATE TABLE t (id INT8 PRIMARY KEY, n INT8 DEFAULT length('é'::BYTES));",
 			"CREATE TABLE t (id INT8 PRIMARY KEY, n INT8 DEFAULT length('é'::STRING));",
 		},
+		"arithmetic type": {
+			"CREATE TABLE t (id INT8 PRIMARY KEY, a FLOAT8 DEFAULT 9007199254740992::FLOAT8 + 1::FLOAT8 - 9007199254740992::FLOAT8);",
+			"CREATE TABLE t (id INT8 PRIMARY KEY, a FLOAT8 DEFAULT 9007199254740992::DECIMAL + 1::DECIMAL - 9007199254740992::DECIMAL);",
+		},
 		"grouping": {
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 DEFAULT (1 + 2) * 3);",
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 DEFAULT 1 + 2 * 3);",
@@ -451,4 +455,17 @@ func TestLoadSDLSchemaAuthorization(t *testing.T) {
 	require.Equal(t, "root", loaded.Schemas[0].Name)
 	_, err = catalog.LoadSDL("CREATE SCHEMA AUTHORIZATION CURRENT_USER;")
 	require.Error(t, err)
+}
+
+// TestLoadSDLMarkerLikeNames loads a query whose own identifiers look like
+// the markers cteReferences writes.
+func TestLoadSDLMarkerLikeNames(t *testing.T) {
+	for _, sdl := range []string{
+		`CREATE VIEW v AS SELECT 1 AS "omni_table_name_-1";`,
+		`CREATE TABLE "omni_table_name_0" (id INT8 PRIMARY KEY); CREATE VIEW v AS SELECT 1 AS "omni_table_name_7" FROM "omni_table_name_0";`,
+	} {
+		loaded, err := catalog.LoadSDL(sdl)
+		require.NoError(t, err)
+		require.NotNil(t, loaded)
+	}
 }

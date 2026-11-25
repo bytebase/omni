@@ -91,15 +91,19 @@ func storedRelations(stmt tree.NodeFormatter, visit func(*tree.TableName)) {
 	ctx.Close()
 }
 
-// tableMarker stands in for a table name while cteReferences scopes them.
-const tableMarker = "omni_table_name_"
-
 // cteReferences reports, for each table name a statement holds in the order
 // its formatter writes them, whether it names a CTE in scope. A WITH's names
 // are in scope from the WITH to the parenthesis that closes around it, which
 // takes in nested queries; a CTE's own body sees the CTEs before it, and
 // itself only under RECURSIVE.
 func cteReferences(stmt tree.NodeFormatter) []bool {
+	// A marker stands in for each table name; its prefix is one the text
+	// holds nowhere, so no identifier the query writes can pass for one.
+	plain := tree.AsString(stmt)
+	tableMarker := "omni_table_name_"
+	for strings.Contains(plain, tableMarker) {
+		tableMarker = "x" + tableMarker
+	}
 	var names []string
 	ctx := tree.NewFmtCtx(tree.FmtSimple, tree.FmtReformatTableNames(func(ctx *tree.FmtCtx, tn *tree.TableName) {
 		ctx.WriteString(tableMarker + strconv.Itoa(len(names)))
@@ -190,7 +194,7 @@ func cteReferences(stmt tree.NodeFormatter) []bool {
 			}
 			i = openCTE(i)
 		case strings.HasPrefix(t.Str, tableMarker):
-			if n, err := strconv.Atoi(strings.TrimPrefix(t.Str, tableMarker)); err == nil && n < len(names) && names[n] != "" {
+			if n, err := strconv.Atoi(strings.TrimPrefix(t.Str, tableMarker)); err == nil && n >= 0 && n < len(names) && names[n] != "" {
 				for _, f := range stack {
 					if f.names[names[n]] {
 						refs[n] = true
