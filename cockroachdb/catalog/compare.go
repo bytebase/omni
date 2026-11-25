@@ -157,6 +157,12 @@ func routineKey(definition string) string {
 		return definition
 	}
 	routine.Replace = false
+	// An unqualified routine is created in public; the database's name is not
+	// part of it.
+	if !routine.Name.ExplicitSchema {
+		routine.Name.SchemaName, routine.Name.ExplicitSchema = "public", true
+	}
+	routine.Name.CatalogName, routine.Name.ExplicitCatalog = "", false
 	// A parameter default is stored annotated (0:::INT8).
 	for i := range routine.Params {
 		if routine.Params[i].DefaultVal != nil {

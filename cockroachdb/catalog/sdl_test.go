@@ -294,3 +294,14 @@ func TestSDLOrReplace(t *testing.T) {
 		})
 	}
 }
+
+// TestSDLUnqualifiedRoutine compares an unqualified routine with the one in
+// public.
+func TestSDLUnqualifiedRoutine(t *testing.T) {
+	plan, err := catalog.BuildSDLMigrationPlan(
+		"CREATE FUNCTION public.f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$;",
+		"CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$;",
+		catalog.SDLMigrationOptions{})
+	require.NoError(t, err)
+	require.Nil(t, plan, "%v", plan)
+}
