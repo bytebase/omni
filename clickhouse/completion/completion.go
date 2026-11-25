@@ -78,7 +78,8 @@ func complete(ctx context.Context, stmt string, caret int, cat *catalog) []Candi
 	refs := tableRefs(significantTokens(stmt[:word.start] + " " + stmt[word.end:]))
 	for _, c := range nameCandidates(before, qualifier, refs, cat) {
 		if word.quote != 0 {
-			c.Text = strings.ReplaceAll(c.Text, string(word.quote), string(word.quote)+string(word.quote))
+			q := string(word.quote)
+			c.Text = strings.ReplaceAll(strings.ReplaceAll(c.Text, `\`, `\\`), q, q+q)
 		} else {
 			c.Text = QuoteIdentifierIfNeeded(c.Text)
 		}
@@ -97,8 +98,11 @@ func nameCandidates(before []parser.Token, qualifier []string, refs []tableRef, 
 	switch len(qualifier) {
 	case 0:
 	case 1:
-		// q. is a table alias, a table in scope or of the current database,
-		// or a database.
+		// q. where a table is named is a database. Elsewhere it is a table
+		// alias, a table in scope or of the current database, or a database.
+		if nameKindAfter(before[:len(before)-2]) == kindRelation {
+			return relationCandidates(cat.database(qualifier[0]))
+		}
 		for _, ref := range refs {
 			if rel := cat.relation(ref.database, ref.table); rel != nil && ref.addressedBy(qualifier[0]) {
 				return columnCandidates(rel)
