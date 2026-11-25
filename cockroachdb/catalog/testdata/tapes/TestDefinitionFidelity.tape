@@ -2637,6 +2637,9 @@
 | CREATE FUNCTION fid_routines.add(a INT8, b INT8) RETURNS INT8 LANGUAGE SQL IMMUTABLE AS $$ SELECT a + b $$;
 < ok 0 -
 > exec
+| CREATE FUNCTION fid_routines.add(a STRING, b STRING) RETURNS STRING LANGUAGE SQL IMMUTABLE AS $$ SELECT a || b $$;
+< ok 0 -
+> exec
 | CREATE FUNCTION fid_routines.item_count() RETURNS INT8 LANGUAGE SQL STABLE AS $$ SELECT count(*) FROM fid_routines.v_items $$;
 < ok 0 -
 > exec
@@ -3446,6 +3449,24 @@
 : string
 | fid_routines
 : string
+| add
+: string
+| add(text, text)
+: string
+| CREATE FUNCTION fid_routines.add(a STRING, b STRING)
+| 	RETURNS STRING
+| 	IMMUTABLE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT a || b;
+| $$
+< row
+: string
+| fid_routines
+: string
 | item_count
 : string
 | item_count()
@@ -3673,6 +3694,18 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT a + b;
+| $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_routines.add(a STRING, b STRING)
+| 	RETURNS STRING
+| 	IMMUTABLE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT a || b;
 | $$;
 < ok 0 -
 > exec
@@ -4506,6 +4539,24 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT a + b;
+| $$
+< row
+: string
+| fid_routines
+: string
+| add
+: string
+| add(text, text)
+: string
+| CREATE FUNCTION fid_routines.add(a STRING, b STRING)
+| 	RETURNS STRING
+| 	IMMUTABLE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT a || b;
 | $$
 < row
 : string

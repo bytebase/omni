@@ -28,6 +28,7 @@ func migrationCases() []migrationCase {
 			name: "tables",
 			source: `CREATE SCHEMA fid_m;
 CREATE TYPE fid_m.status AS ENUM ('new', 'done');
+CREATE TYPE fid_m.level AS ENUM ('high');
 CREATE SEQUENCE fid_m.ids START WITH 10;
 CREATE TABLE fid_m.customers (
     id INT8 PRIMARY KEY,
@@ -52,6 +53,7 @@ CREATE TABLE fid_m.gone (id INT8 PRIMARY KEY, customer_id INT8 REFERENCES fid_m.
 			target: `CREATE SCHEMA fid_m;
 CREATE SCHEMA fid_new;
 CREATE TYPE fid_m.status AS ENUM ('new', 'paid', 'done', 'void');
+CREATE TYPE fid_m.level AS ENUM ('low', 'mid', 'high');
 CREATE SEQUENCE fid_m.ids START WITH 10 INCREMENT BY 2 CACHE 4;
 CREATE TABLE fid_m.customers (
     id INT8 PRIMARY KEY,
@@ -76,12 +78,13 @@ CREATE TABLE fid_m.orders (
     CONSTRAINT orders_customer_fk FOREIGN KEY (customer_id) REFERENCES fid_m.customers (id) ON DELETE CASCADE
 );
 CREATE TABLE fid_new.audit (at TIMESTAMPTZ, customer_id INT8 REFERENCES fid_m.customers (id), id INT8 DEFAULT nextval('fid_m.ids'));
+COMMENT ON TABLE fid_new.audit IS e'first;\n\nsecond';
 `,
 		},
 		{
 			name: "views-routines",
 			source: `CREATE SCHEMA fid_v;
-CREATE TABLE fid_v.items (id INT8 PRIMARY KEY, name STRING, price DECIMAL(10, 2), legacy INT8);
+CREATE TABLE fid_v.items (id INT8 PRIMARY KEY, name STRING, price DECIMAL(10, 2), legacy INT8, bonus INT8);
 CREATE VIEW fid_v.priced AS SELECT id, name, legacy FROM fid_v.items WHERE price > 0;
 CREATE VIEW fid_v.priced_names AS SELECT name FROM fid_v.priced;
 CREATE VIEW fid_v.unchanged AS SELECT id FROM fid_v.items;
@@ -93,7 +96,7 @@ CREATE FUNCTION fid_v.gone() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 $$;
 CREATE FUNCTION fid_v.count_items() RETURNS INT8 LANGUAGE SQL STABLE AS $$ SELECT count(*) FROM fid_v.items $$;
 `,
 			target: `CREATE SCHEMA fid_v;
-CREATE TABLE fid_v.items (id INT8 PRIMARY KEY, name STRING, price DECIMAL(10, 2));
+CREATE TABLE fid_v.items (id INT8 PRIMARY KEY, name STRING, price DECIMAL(10, 2), bonus INT8);
 CREATE VIEW fid_v.priced AS SELECT id, name FROM fid_v.items WHERE price > 1;
 CREATE VIEW fid_v.priced_names AS SELECT name FROM fid_v.priced;
 CREATE VIEW fid_v.unchanged AS SELECT id FROM fid_v.items;
@@ -102,6 +105,8 @@ CREATE INDEX totals_total_idx ON fid_v.totals (total);
 CREATE FUNCTION fid_v.add(a INT8, b INT8) RETURNS INT8 LANGUAGE SQL IMMUTABLE AS $$ SELECT a + b + 0 $$;
 CREATE FUNCTION fid_v.count_items() RETURNS INT8 LANGUAGE SQL STABLE AS $$ SELECT count(*) FROM fid_v.priced $$;
 CREATE FUNCTION fid_v.touch() RETURNS INT8 LANGUAGE PLPGSQL AS $$ BEGIN RETURN (SELECT count(*) FROM fid_v.items); END $$;
+CREATE FUNCTION fid_v.bonus() RETURNS INT8 LANGUAGE SQL IMMUTABLE AS $$ SELECT 5 $$;
+ALTER TABLE fid_v.items ALTER COLUMN bonus SET DEFAULT fid_v.bonus();
 CREATE TABLE fid_v.scored (id INT8 PRIMARY KEY, score INT8 DEFAULT fid_v.add(1, 2));
 CREATE VIEW fid_v.cheap AS SELECT p.id FROM fid_v.priced AS p JOIN fid_v.items AS i ON i.id = p.id;
 `,

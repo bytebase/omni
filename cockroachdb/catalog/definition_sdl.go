@@ -240,6 +240,9 @@ func MultiFileDefinition(metadata *metadatapb.DatabaseSchemaMetadata) ([]Definit
 				r.writeMaterializedViewSDL(buf, schema.Name, view)
 			})
 		}
+		// Overloads of one name share its file.
+		var routineFiles []string
+		routines := make(map[string][]*metadatapb.FunctionMetadata)
 		for _, function := range schema.Functions {
 			if function.SkipDump {
 				continue
@@ -248,8 +251,17 @@ func MultiFileDefinition(metadata *metadatapb.DatabaseSchemaMetadata) ([]Definit
 			if isProcedure(function.Definition) {
 				folder = "procedures"
 			}
-			add(fmt.Sprintf("schemas/%s/%s/%s.sql", schema.Name, folder, function.Name), func(buf *strings.Builder) {
-				r.writeFunction(buf, schema.Name, function)
+			name := fmt.Sprintf("schemas/%s/%s/%s.sql", schema.Name, folder, function.Name)
+			if routines[name] == nil {
+				routineFiles = append(routineFiles, name)
+			}
+			routines[name] = append(routines[name], function)
+		}
+		for _, name := range routineFiles {
+			add(name, func(buf *strings.Builder) {
+				for _, function := range routines[name] {
+					r.writeFunction(buf, schema.Name, function)
+				}
 			})
 		}
 		add(fmt.Sprintf("schemas/%s/sequences.sql", schema.Name), func(buf *strings.Builder) {

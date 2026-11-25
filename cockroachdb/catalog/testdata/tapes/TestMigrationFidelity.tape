@@ -11,6 +11,9 @@
 | CREATE TYPE fid_m.status AS ENUM ('new', 'paid', 'done', 'void');
 < ok 0 -
 > exec
+| CREATE TYPE fid_m.level AS ENUM ('low', 'mid', 'high');
+< ok 0 -
+> exec
 | CREATE SEQUENCE fid_m.ids START WITH 10 INCREMENT BY 2 CACHE 4;
 < ok 0 -
 > exec
@@ -51,6 +54,9 @@
 < ok 0 -
 > exec
 | CREATE TABLE fid_new.audit (at TIMESTAMPTZ, customer_id INT8 REFERENCES fid_m.customers (id), id INT8 DEFAULT nextval('fid_m.ids'));
+< ok 0 -
+> exec
+| COMMENT ON TABLE fid_new.audit IS e'first;\n\nsecond';
 < ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
@@ -726,7 +732,10 @@
 : string
 | audit
 : int64 0
-: null
+: string
+| first;
+|
+| second
 > query
 |
 | SELECT
@@ -852,6 +861,27 @@
 : string
 | fid_m
 : string
+| level
+: string
+| low
+< row
+: string
+| fid_m
+: string
+| level
+: string
+| mid
+< row
+: string
+| fid_m
+: string
+| level
+: string
+| high
+< row
+: string
+| fid_m
+: string
 | status
 : string
 | new
@@ -916,6 +946,9 @@
 < ok 0 -
 > exec
 | CREATE TYPE fid_m.status AS ENUM ('new', 'done');
+< ok 0 -
+> exec
+| CREATE TYPE fid_m.level AS ENUM ('high');
 < ok 0 -
 > exec
 | CREATE SEQUENCE fid_m.ids START WITH 10;
@@ -1663,6 +1696,13 @@
 : string
 | fid_m
 : string
+| level
+: string
+| high
+< row
+: string
+| fid_m
+: string
 | status
 : string
 | new
@@ -1725,6 +1765,12 @@
 < ok 0 -
 > exec
 | CREATE SCHEMA "fid_new";
+< ok 0 -
+> exec
+| ALTER TYPE "fid_m"."level" ADD VALUE 'low' BEFORE 'high';
+< ok 0 -
+> exec
+| ALTER TYPE "fid_m"."level" ADD VALUE 'mid' AFTER 'low';
 < ok 0 -
 > exec
 | ALTER TYPE "fid_m"."status" ADD VALUE 'paid' AFTER 'new';
@@ -1800,6 +1846,11 @@
 < ok 0 -
 > exec
 | COMMENT ON COLUMN "fid_m"."customers"."email" IS 'login';
+< ok 0 -
+> exec
+| COMMENT ON TABLE "fid_new"."audit" IS 'first;
+|
+| second';
 < ok 0 -
 > query
 | SHOW CLUSTER SETTING version;
@@ -2475,7 +2526,10 @@
 : string
 | audit
 : int64 0
-: null
+: string
+| first;
+|
+| second
 > query
 |
 | SELECT
@@ -2601,6 +2655,27 @@
 : string
 | fid_m
 : string
+| level
+: string
+| low
+< row
+: string
+| fid_m
+: string
+| level
+: string
+| mid
+< row
+: string
+| fid_m
+: string
+| level
+: string
+| high
+< row
+: string
+| fid_m
+: string
 | status
 : string
 | new
@@ -2670,7 +2745,7 @@
 | CREATE SCHEMA fid_v;
 < ok 0 -
 > exec
-| CREATE TABLE fid_v.items (id INT8 PRIMARY KEY, name STRING, price DECIMAL(10, 2));
+| CREATE TABLE fid_v.items (id INT8 PRIMARY KEY, name STRING, price DECIMAL(10, 2), bonus INT8);
 < ok 0 -
 > exec
 | CREATE VIEW fid_v.priced AS SELECT id, name FROM fid_v.items WHERE price > 1;
@@ -2695,6 +2770,12 @@
 < ok 0 -
 > exec
 | CREATE FUNCTION fid_v.touch() RETURNS INT8 LANGUAGE PLPGSQL AS $$ BEGIN RETURN (SELECT count(*) FROM fid_v.items); END $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.bonus() RETURNS INT8 LANGUAGE SQL IMMUTABLE AS $$ SELECT 5 $$;
+< ok 0 -
+> exec
+| ALTER TABLE fid_v.items ALTER COLUMN bonus SET DEFAULT fid_v.bonus();
 < ok 0 -
 > exec
 | CREATE TABLE fid_v.scored (id INT8 PRIMARY KEY, score INT8 DEFAULT fid_v.add(1, 2));
@@ -2899,6 +2980,31 @@
 | pg_catalog
 : string
 | numeric
+: null
+: string
+| NO
+< row
+: string
+| fid_v
+: string
+| items
+: string
+| bonus
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 4
+: string
+| fid_v.bonus()
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
 : null
 : string
 | NO
@@ -3581,6 +3687,24 @@
 : string
 | fid_v
 : string
+| bonus
+: string
+| bonus()
+: string
+| CREATE FUNCTION fid_v.bonus()
+| 	RETURNS INT8
+| 	IMMUTABLE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 5;
+| $$
+< row
+: string
+| fid_v
+: string
 | count_items
 : string
 | count_items()
@@ -3677,7 +3801,7 @@
 | CREATE SCHEMA fid_v;
 < ok 0 -
 > exec
-| CREATE TABLE fid_v.items (id INT8 PRIMARY KEY, name STRING, price DECIMAL(10, 2), legacy INT8);
+| CREATE TABLE fid_v.items (id INT8 PRIMARY KEY, name STRING, price DECIMAL(10, 2), legacy INT8, bonus INT8);
 < ok 0 -
 > exec
 | CREATE VIEW fid_v.priced AS SELECT id, name, legacy FROM fid_v.items WHERE price > 0;
@@ -3919,6 +4043,30 @@
 : int64 64
 : int64 0
 : int64 4
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+< row
+: string
+| fid_v
+: string
+| items
+: string
+| bonus
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 5
 : null
 : string
 | YES
@@ -4702,6 +4850,18 @@
 | );
 < ok 0 -
 > exec
+| CREATE FUNCTION fid_v.bonus()
+| 	RETURNS INT8
+| 	IMMUTABLE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 5;
+| $$;
+< ok 0 -
+> exec
 | CREATE OR REPLACE FUNCTION fid_v.count_items()
 | 	RETURNS INT8
 | 	STABLE
@@ -4727,6 +4887,9 @@
 | END;
 |
 | $$;
+< ok 0 -
+> exec
+| ALTER TABLE "fid_v"."items" ALTER COLUMN "bonus" SET DEFAULT fid_v.bonus();
 < ok 0 -
 > exec
 | CREATE INDEX totals_total_idx ON fid_v.totals (total ASC);
@@ -4928,6 +5091,31 @@
 | pg_catalog
 : string
 | numeric
+: null
+: string
+| NO
+< row
+: string
+| fid_v
+: string
+| items
+: string
+| bonus
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 5
+: string
+| fid_v.bonus()
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
 : null
 : string
 | NO
@@ -5605,6 +5793,24 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT (a + b) + 0;
+| $$
+< row
+: string
+| fid_v
+: string
+| bonus
+: string
+| bonus()
+: string
+| CREATE FUNCTION fid_v.bonus()
+| 	RETURNS INT8
+| 	IMMUTABLE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 5;
 | $$
 < row
 : string

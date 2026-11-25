@@ -130,8 +130,34 @@ func TestMultiFileDefinition(t *testing.T) {
 	}, names)
 	require.True(t, strings.HasPrefix(files[1].Content, "CREATE TABLE \"app\".\"items\" (\n    \"id\" bigint NOT NULL,\n    \"qty\" INT4,\n    CONSTRAINT \"items_pkey\" PRIMARY KEY (id ASC)\n);"))
 
+	overloaded := snapshotOf("db")
+	overloaded.Schemas[0].Functions = append(overloaded.Schemas[0].Functions, &metadata.FunctionMetadata{
+		Name: "total", Signature: "total(int8)", Definition: "CREATE FUNCTION app.total(n INT8) RETURNS INT8 LANGUAGE SQL AS $$ SELECT n $$",
+	})
+	files, err = catalog.MultiFileDefinition(overloaded)
+	require.NoError(t, err)
+	last := files[len(files)-1]
+	require.Equal(t, "schemas/app/functions/total.sql", last.Name)
+	require.Contains(t, last.Content, "app.total()")
+	require.Contains(t, last.Content, "app.total(n INT8)")
+
 	files, err = catalog.MultiFileDefinition(&metadata.DatabaseSchemaMetadata{})
 	require.NoError(t, err)
 	require.NotNil(t, files)
 	require.Empty(t, files)
+}
+
+// TestMetadataMigrationDropsTypesDependentsFirst drops a composite type before
+// the enum its attribute uses. CockroachDB refuses such a composite today, so
+// no recording holds this order.
+func TestMetadataMigrationDropsTypesDependentsFirst(t *testing.T) {
+	source := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name:           "app",
+		EnumTypes:      []*metadata.EnumTypeMetadata{{Name: "e", Values: []string{"x"}}},
+		CompositeTypes: []*metadata.CompositeTypeMetadata{{Name: "c", Attributes: []*metadata.CompositeTypeAttribute{{Name: "v", Type: "app.e"}}}},
+	}}}
+	target := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{Name: "app"}}}
+	migration, err := catalog.MetadataMigration(source, target, catalog.MetadataMigrationOptions{})
+	require.NoError(t, err)
+	require.Equal(t, "DROP TYPE \"app\".\"c\";\nDROP TYPE \"app\".\"e\"", migration)
 }

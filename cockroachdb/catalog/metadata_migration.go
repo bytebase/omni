@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	crparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser"
 	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
 
 	metadatapb "github.com/bytebase/omni/metadata"
@@ -166,6 +167,7 @@ const (
 	phaseCreateSequences
 	phaseAlterTables
 	phaseCreateObjects
+	phaseLateColumns
 	phaseCreateIndexes
 	phaseAddForeignKeys
 	phaseComments
@@ -178,6 +180,9 @@ type differ struct {
 	// rebuilt holds the views and materialized views a change drops and
 	// creates again, keyed by object ID.
 	rebuilt map[string]bool
+	// newRoutines holds the names, bare and schema-qualified, of the routines
+	// the target adds.
+	newRoutines map[string]bool
 }
 
 func (d *differ) add(phase int, op MigrationOp) {
@@ -192,6 +197,15 @@ func (d *differ) diff() error {
 	}
 	d.diffSequences()
 	d.rebuilt = d.rebuiltViews()
+	d.newRoutines = make(map[string]bool)
+	for _, schema := range d.to.schemas {
+		for _, function := range schema.Functions {
+			if findFunction(d.from.byName[schema.Name], metadataFuncIdentity(function)) == nil {
+				d.newRoutines[function.Name] = true
+				d.newRoutines[schema.Name+"."+function.Name] = true
+			}
+		}
+	}
 	if err := d.diffTables(); err != nil {
 		return err
 	}
@@ -245,12 +259,23 @@ func (d *differ) diffExtensions() {
 }
 
 func (d *differ) diffTypes() error {
+	// Types drop dependents first: a composite type before the types its
+	// attributes use.
+	dropped := make(map[string]bool)
 	for _, schema := range d.from.schemas {
 		for _, t := range collectTypes([]*metadatapb.SchemaMetadata{schema}, false) {
-			if d.toType(schema.Name, t) == nil {
-				d.add(phaseDropTypes, MigrationOp{Type: OpDropType, SchemaName: schema.Name, ObjectName: t.name(),
-					SQL: fmt.Sprintf("DROP TYPE %s.%s", quoteIdent(schema.Name), quoteIdent(t.name()))})
+			old := d.toType(schema.Name, t)
+			if old == nil || (t.enum == nil || old.enum == nil) && typeDefinition(*old) != typeDefinition(t) {
+				dropped[getObjectID(schema.Name, t.name())] = true
 			}
+		}
+	}
+	all := collectTypes(d.from.schemas, false)
+	for i := len(all) - 1; i >= 0; i-- {
+		t := all[i]
+		if dropped[getObjectID(t.schema, t.name())] {
+			d.add(phaseDropTypes, MigrationOp{Type: OpDropType, SchemaName: t.schema, ObjectName: t.name(),
+				SQL: fmt.Sprintf("DROP TYPE %s.%s", quoteIdent(t.schema), quoteIdent(t.name()))})
 		}
 	}
 	var created []qualifiedType
@@ -265,9 +290,8 @@ func (d *differ) diffTypes() error {
 					return err
 				}
 			case typeDefinition(*old) != typeDefinition(t):
-				// A composite type has no ALTER that CockroachDB supports.
-				d.add(phaseDropTypes, MigrationOp{Type: OpDropType, SchemaName: schema.Name, ObjectName: t.name(),
-					SQL: fmt.Sprintf("DROP TYPE %s.%s", quoteIdent(schema.Name), quoteIdent(t.name()))})
+				// A composite type has no ALTER that CockroachDB supports:
+				// it was dropped above and is created again.
 				created = append(created, t)
 			}
 			oldComment := ""
@@ -344,6 +368,8 @@ func (d *differ) alterEnum(schema string, old, new *metadatapb.EnumTypeMetadata)
 	if !slices.Equal(kept, common) {
 		return fmt.Errorf("enum %s.%s reorders its values, which CockroachDB cannot do in place", schema, new.Name)
 	}
+	// Each value is placed after the one before it, which is kept or was
+	// added just before; leading values go before the first kept value.
 	for i, value := range new.Values {
 		if slices.Contains(old.Values, value) {
 			continue
@@ -351,8 +377,8 @@ func (d *differ) alterEnum(schema string, old, new *metadatapb.EnumTypeMetadata)
 		position := ""
 		if i > 0 {
 			position = fmt.Sprintf(" AFTER '%s'", escapeSingleQuote(new.Values[i-1]))
-		} else if len(new.Values) > 1 {
-			position = fmt.Sprintf(" BEFORE '%s'", escapeSingleQuote(new.Values[1]))
+		} else if len(common) > 0 {
+			position = fmt.Sprintf(" BEFORE '%s'", escapeSingleQuote(common[0]))
 		}
 		d.add(phaseCreateTypes, MigrationOp{Type: OpAlterType, SchemaName: schema, ObjectName: new.Name,
 			SQL: fmt.Sprintf("ALTER TYPE %s ADD VALUE '%s'%s", name, escapeSingleQuote(value), position)})
@@ -592,10 +618,17 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 	}
 	for _, column := range newColumns {
 		oldColumn := findColumnIn(oldColumns, column.Name)
+		// A default that calls a routine the target adds waits for it.
+		defaultPhase := phaseAlterTables
+		for _, name := range calledFunctions(column.Default) {
+			if d.newRoutines[name] {
+				defaultPhase = phaseLateColumns
+			}
+		}
 		if oldColumn == nil {
 			var buf strings.Builder
 			writeColumnDefinition(&buf, column)
-			alter(phaseAlterTables, OpAddColumn, column.Name, "ADD COLUMN "+buf.String())
+			alter(defaultPhase, OpAddColumn, column.Name, "ADD COLUMN "+buf.String())
 			continue
 		}
 		col := "ALTER COLUMN " + quoteIdent(column.Name) + " "
@@ -613,7 +646,7 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 			if column.Default == "" {
 				alter(phaseAlterTables, OpAlterColumn, column.Name, col+"DROP DEFAULT")
 			} else {
-				alter(phaseAlterTables, OpAlterColumn, column.Name, col+"SET DEFAULT "+defaultExpression(column.Default))
+				alter(defaultPhase, OpAlterColumn, column.Name, col+"SET DEFAULT "+defaultExpression(column.Default))
 			}
 		}
 		if oldColumn.Nullable != column.Nullable {
@@ -919,12 +952,19 @@ func replaceRoutine(definition string) string {
 	return tree.AsString(routine)
 }
 
-// addScript adds the statements a definition writer wrote, one op each. The
-// first is the object's own; the rest (comments, indexes) are typed by their
-// leading keywords.
+// addScript adds the statements a definition writer wrote, one op each, split
+// by CockroachDB's parser so a quoted semicolon stays inside its statement.
+// The first is the object's own; the rest (comments, indexes) are typed by
+// their leading keywords.
 func (d *differ) addScript(phase int, typ MigrationOpType, schema, object, script string) {
-	for i, stmt := range strings.Split(strings.TrimSpace(script), ";\n\n") {
-		stmt = statement(stmt)
+	stmts, err := crparser.Parse(script)
+	if err != nil {
+		// The renderer wrote the script; keep it whole rather than guess.
+		d.add(phase, MigrationOp{Type: typ, SchemaName: schema, ObjectName: object, SQL: statement(script)})
+		return
+	}
+	for i, parsed := range stmts {
+		stmt := statement(parsed.SQL)
 		if stmt == "" {
 			continue
 		}

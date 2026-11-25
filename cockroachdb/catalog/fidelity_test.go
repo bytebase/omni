@@ -99,6 +99,7 @@ CREATE VIEW fid_routines.v_item_names AS SELECT name FROM fid_routines.v_items;
 CREATE MATERIALIZED VIEW fid_routines.item_totals AS SELECT name, sum(price) AS total FROM fid_routines.items GROUP BY name;
 CREATE INDEX item_totals_name_idx ON fid_routines.item_totals (name);
 CREATE FUNCTION fid_routines.add(a INT8, b INT8) RETURNS INT8 LANGUAGE SQL IMMUTABLE AS $$ SELECT a + b $$;
+CREATE FUNCTION fid_routines.add(a STRING, b STRING) RETURNS STRING LANGUAGE SQL IMMUTABLE AS $$ SELECT a || b $$;
 CREATE FUNCTION fid_routines.item_count() RETURNS INT8 LANGUAGE SQL STABLE AS $$ SELECT count(*) FROM fid_routines.v_items $$;
 CREATE FUNCTION fid_routines.touch() RETURNS INT8 LANGUAGE PLPGSQL AS $$
 BEGIN
