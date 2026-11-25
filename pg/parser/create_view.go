@@ -118,9 +118,15 @@ func (p *Parser) parseViewStmt(replace bool) (*nodes.ViewStmt, error) {
 	}
 
 	// opt_check_option
+	checkLoc := p.cur.Loc
 	checkOption, err := p.parseOptCheckOption()
 	if err != nil {
 		return nil, err
+	}
+	// gram.y:11218 and 11237: a recursive view's action refuses a check
+	// option, at the option.
+	if recursive && checkOption != VIEW_CHECK_OPTION_NONE {
+		return nil, &ParseError{Code: "0A000", Message: "WITH CHECK OPTION not supported on recursive views", Position: checkLoc}
 	}
 
 	return &nodes.ViewStmt{
