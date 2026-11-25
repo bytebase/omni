@@ -133,13 +133,14 @@ func Classify(node ast.Node) QueryType {
 		*ast.CreateEntityStmt, *ast.BQAlterStmt, *ast.BQDropStmt,
 		*ast.DropAllRowAccessPoliciesStmt,
 		// Spanner-only object DDL (parser-ddl-spanner node): CHANGE STREAM,
-		// SEQUENCE, ROLE, LOCALITY GROUP, PROTO BUNDLE. Same DDL classification as
+		// SEQUENCE, ROLE, LOCALITY GROUP, PROTO BUNDLE, PLACEMENT. Same DDL classification as
 		// every other CREATE/ALTER/DROP form.
 		*ast.CreateChangeStreamStmt, *ast.AlterChangeStreamStmt, *ast.DropChangeStreamStmt,
 		*ast.CreateSequenceStmt, *ast.AlterSequenceStmt, *ast.DropSequenceStmt,
 		*ast.CreateRoleStmt, *ast.DropRoleStmt,
 		*ast.CreateLocalityGroupStmt, *ast.AlterLocalityGroupStmt, *ast.DropLocalityGroupStmt,
 		*ast.CreateProtoBundleStmt, *ast.AlterProtoBundleStmt,
+		*ast.CreatePlacementStmt, *ast.DropPlacementStmt,
 		// CREATE PROPERTY GRAPH (parser-gql node) is DDL — the legacy
 		// queryTypeListener lists create_property_graph_statement directly among the
 		// DDL forms (plugin/parser/{bigquery,spanner}/query_type.go), same as every
