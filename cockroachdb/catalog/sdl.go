@@ -364,6 +364,10 @@ func (l *sdlLoader) createTable(n *tree.CreateTable) error {
 		// The sync reads no locality, so a migration could not keep one.
 		return fmt.Errorf("table %s: LOCALITY is not supported", n.Table.String())
 	}
+	if len(n.StorageParams) > 0 {
+		// Nor storage parameters, row-level TTL among them.
+		return fmt.Errorf("table %s: storage parameters are not supported", n.Table.String())
+	}
 	schema := schemaOf(&n.Table)
 	s := l.schema(schema)
 	table := &metadatapb.TableMetadata{Name: string(n.Table.ObjectName)}
@@ -432,7 +436,9 @@ func (l *sdlLoader) addColumn(schema string, table *metadatapb.TableMetadata, co
 		if column.PrimaryKey.Sharded {
 			index.Sharded = &tree.ShardedIndexDef{ShardBuckets: column.PrimaryKey.ShardBuckets}
 		}
-		addPrimaryKey(schema, table, "", index)
+		// An inline primary key's CONSTRAINT name is the parser's
+		// Unique.ConstraintName.
+		addPrimaryKey(schema, table, string(column.Unique.ConstraintName), index)
 	}
 	if column.Unique.IsUnique {
 		index := &tree.CreateIndex{Unique: true, Columns: tree.IndexElemList{{Column: column.Name}}, Name: column.Unique.ConstraintName}

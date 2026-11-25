@@ -28,7 +28,7 @@ func exprKey(expr string) string {
 		return expr
 	}
 	parsed, _ = tree.WalkExpr(literalCastStripper{}, parsed)
-	return sdlExpr(parsed)
+	return groupedKey(parsed)
 }
 
 type literalCastStripper struct{}
@@ -96,6 +96,13 @@ func (v *numVisitor) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 
 func (*numVisitor) VisitPost(expr tree.Expr) tree.Expr { return expr }
 
+// groupedKey formats a node with every expression in parentheses. The keys
+// drop the parentheses an expression was written with, and the tree keeps
+// its grouping, so (1 + 2) * 3 and 1 + 2 * 3 stay apart.
+func groupedKey(node tree.NodeFormatter) string {
+	return tree.AsStringWithFlags(node, tree.FmtAlwaysGroupExprs)
+}
+
 func isLiteral(expr tree.Expr) bool {
 	switch e := expr.(type) {
 	case *tree.StrVal, *tree.NumVal, tree.Datum:
@@ -141,7 +148,7 @@ func indexKey(schema, table string, index *metadataIndex) string {
 		return statement
 	}
 	parsed.Predicate, _ = tree.WalkExpr(literalCastStripper{}, parsed.Predicate)
-	return tree.AsString(parsed)
+	return groupedKey(parsed)
 }
 
 // routineKey is a routine definition without the options CockroachDB states
@@ -206,7 +213,7 @@ func routineKey(definition string) string {
 		}
 	}
 	routine.Options = normalized
-	return tree.AsString(routine)
+	return groupedKey(routine)
 }
 
 func bodyKey(body string, language tree.RoutineLanguage) string {

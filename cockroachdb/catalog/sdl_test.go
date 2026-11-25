@@ -20,6 +20,7 @@ func TestLoadSDLRefuses(t *testing.T) {
 		"table as select":  "CREATE TABLE t AS SELECT 1",
 		"unknown sequence": "ALTER SEQUENCE s INCREMENT BY 2",
 		"locality":         "CREATE TABLE t (id INT8 PRIMARY KEY) LOCALITY GLOBAL",
+		"storage params":   "CREATE TABLE t (id INT8 PRIMARY KEY, expires_at TIMESTAMPTZ) WITH (ttl_expiration_expression = 'expires_at')",
 		"on update":        "CREATE TABLE t (id INT8 PRIMARY KEY, updated TIMESTAMPTZ DEFAULT now() ON UPDATE now())",
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -142,6 +143,10 @@ func TestSDLKeysKeepValues(t *testing.T) {
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.5::INT8);",
 			"CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.5::DECIMAL);",
 		},
+		"grouping": {
+			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 DEFAULT (1 + 2) * 3);",
+			"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 DEFAULT 1 + 2 * 3);",
+		},
 		"string in a body": {
 			"CREATE FUNCTION f() RETURNS STRING LANGUAGE SQL AS $$ SELECT 'a:::INT8' $$;",
 			"CREATE FUNCTION f() RETURNS STRING LANGUAGE SQL AS $$ SELECT 'a' $$;",
@@ -154,9 +159,10 @@ func TestSDLKeysKeepValues(t *testing.T) {
 		})
 	}
 	for name, pair := range map[string][2]string{
-		"stored cast":       {"CREATE TABLE t (id INT8 PRIMARY KEY, a STRING DEFAULT 'x'::STRING);", "CREATE TABLE t (id INT8 PRIMARY KEY, a STRING DEFAULT 'x');"},
-		"stored annotation": {"CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.5:::DECIMAL);", "CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.5);"},
-		"annotated body":    {"CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1:::INT8 + 2:::DECIMAL(10,2)::INT8 $$;", "CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 + 2::INT8 $$;"},
+		"stored cast":           {"CREATE TABLE t (id INT8 PRIMARY KEY, a STRING DEFAULT 'x'::STRING);", "CREATE TABLE t (id INT8 PRIMARY KEY, a STRING DEFAULT 'x');"},
+		"redundant parentheses": {"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8, CHECK (((a > 0) AND (a < 9))));", "CREATE TABLE t (id INT8 PRIMARY KEY, a INT8, CHECK (a > 0 AND a < 9));"},
+		"stored annotation":     {"CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.5:::DECIMAL);", "CREATE TABLE t (id INT8 PRIMARY KEY, a DECIMAL DEFAULT 1.5);"},
+		"annotated body":        {"CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1:::INT8 + 2:::DECIMAL(10,2)::INT8 $$;", "CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 1 + 2::INT8 $$;"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			plan, err := catalog.BuildSDLMigrationPlan(pair[0], pair[1], catalog.SDLMigrationOptions{})
@@ -316,4 +322,12 @@ CREATE VIEW public.z AS SELECT id FROM public.t;`, catalog.SDLMigrationOptions{}
 	require.NoError(t, err)
 	sql := plan.SQL()
 	require.Less(t, strings.Index(sql, `CREATE VIEW "public"."z"`), strings.Index(sql, `CREATE VIEW "public"."a"`), sql)
+}
+
+// TestLoadSDLInlinePrimaryKeyName keeps an inline primary key's CONSTRAINT
+// name, as v25.2.3 does.
+func TestLoadSDLInlinePrimaryKeyName(t *testing.T) {
+	loaded, err := catalog.LoadSDL("CREATE TABLE t (id INT8 CONSTRAINT custom_pk PRIMARY KEY); COMMENT ON CONSTRAINT custom_pk ON t IS 'key';")
+	require.NoError(t, err)
+	require.Equal(t, "custom_pk", loaded.Schemas[0].Tables[0].Indexes[0].Name)
 }
