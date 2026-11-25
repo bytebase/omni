@@ -6404,6 +6404,33 @@
 | CREATE TABLE fid_v.pab (id INT8 PRIMARY KEY, b INT8);
 < ok 0 -
 > exec
+| CREATE TABLE fid_v.grow (id INT8 PRIMARY KEY);
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.seven() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 7 $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.eight() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 8 $$;
+< ok 0 -
+> exec
+| ALTER TABLE fid_v.grow ADD COLUMN s INT8;
+< ok 0 -
+> exec
+| ALTER TABLE fid_v.grow ALTER COLUMN s SET DEFAULT fid_v.seven();
+< ok 0 -
+> exec
+| ALTER TABLE fid_v.grow ADD COLUMN e INT8;
+< ok 0 -
+> exec
+| ALTER TABLE fid_v.grow ALTER COLUMN e SET DEFAULT fid_v.eight();
+< ok 0 -
+> exec
+| UPDATE fid_v.grow SET e = 8;
+< ok 0 -
+> exec
+| ALTER TABLE fid_v.grow ALTER COLUMN e SET NOT NULL;
+< ok 0 -
+> exec
 | CREATE FUNCTION fid_v.pf() RETURNS INT8 LANGUAGE SQL AS $$ SELECT COALESCE(max(b), 0) FROM fid_v.pab $$;
 < ok 0 -
 > exec
@@ -6630,6 +6657,92 @@
 : null
 : string
 | YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| grow
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| grow
+: string
+| s
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| fid_v.seven()
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| grow
+: string
+| e
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 3
+: string
+| fid_v.eight()
+: string
+| NO
 : null
 : string
 | pg_catalog
@@ -7300,6 +7413,18 @@
 : string
 | fid_v
 : string
+| grow
+: string
+| grow_pkey
+: string
+| CREATE UNIQUE INDEX grow_pkey ON omni_testmigrationfidelity.fid_v.grow USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
 | items
 : string
 | items_pkey
@@ -7482,6 +7607,13 @@
 | fid_v
 : string
 | ab
+: int64 0
+: null
+< row
+: string
+| fid_v
+: string
+| grow
 : int64 0
 : null
 < row
@@ -7960,6 +8092,24 @@
 : string
 | fid_v
 : string
+| eight
+: string
+| eight()
+: string
+| CREATE FUNCTION fid_v.eight()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 8;
+| $$
+< row
+: string
+| fid_v
+: string
 | pf
 : string
 | pf()
@@ -8009,6 +8159,24 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT 'x';
+| $$
+< row
+: string
+| fid_v
+: string
+| seven
+: string
+| seven()
+: string
+| CREATE FUNCTION fid_v.seven()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 7;
 | $$
 < row
 : string
@@ -8223,6 +8391,15 @@
 < ok 0 -
 > exec
 | CREATE TABLE fid_v.pab (id INT8 PRIMARY KEY, a INT8, b INT8);
+< ok 0 -
+> exec
+| CREATE TABLE fid_v.grow (id INT8 PRIMARY KEY);
+< ok 0 -
+> exec
+| INSERT INTO fid_v.grow VALUES (1), (2);
+< ok 2 -
+> exec
+| CREATE FUNCTION fid_v.seven() RETURNS INT8 LANGUAGE SQL AS $$ SELECT 7 $$;
 < ok 0 -
 > exec
 | CREATE FUNCTION fid_v.pf() RETURNS INT8 LANGUAGE SQL AS $$ SELECT COALESCE(max(a), 0) FROM fid_v.pab $$;
@@ -8560,6 +8737,34 @@
 | pg_catalog
 : string
 | text
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| grow
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
 : null
 : string
 | NO
@@ -9305,6 +9510,18 @@
 : string
 | fid_v
 : string
+| grow
+: string
+| grow_pkey
+: string
+| CREATE UNIQUE INDEX grow_pkey ON omni_testmigrationfidelity.fid_v.grow USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
 | items
 : string
 | items_pkey
@@ -9501,6 +9718,13 @@
 | fid_v
 : string
 | ct2
+: int64 0
+: null
+< row
+: string
+| fid_v
+: string
+| grow
 : int64 0
 : null
 < row
@@ -10119,6 +10343,24 @@
 | 	AS $$
 | 	SELECT 1;
 | $$
+< row
+: string
+| fid_v
+: string
+| seven
+: string
+| seven()
+: string
+| CREATE FUNCTION fid_v.seven()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 7;
+| $$
 > query
 |
 | 		SELECT s.sequence_schema, s.sequence_name, s.data_type, s.start_value, s.minimum_value, s.maximum_value, s.increment, s.cycle_option,
@@ -10269,6 +10511,15 @@
 | ALTER TABLE "fid_v"."ab" ADD COLUMN "x" bigint;
 < ok 0 -
 > exec
+| ALTER TABLE "fid_v"."grow" ADD COLUMN "s" bigint;
+< ok 0 -
+> exec
+| ALTER TABLE "fid_v"."grow" ALTER COLUMN "s" SET DEFAULT fid_v.seven();
+< ok 0 -
+> exec
+| ALTER TABLE "fid_v"."grow" ADD COLUMN "e" bigint;
+< ok 0 -
+> exec
 | ALTER TABLE "fid_v"."items" ADD COLUMN "doubled" numeric AS (price * 2) VIRTUAL;
 < ok 0 -
 > exec
@@ -10305,6 +10556,18 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT 2;
+| $$;
+< ok 0 -
+> exec
+| CREATE FUNCTION fid_v.eight()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 8;
 | $$;
 < ok 0 -
 > exec
@@ -10443,6 +10706,15 @@
 < ok 0 -
 > exec
 | ALTER TABLE "fid_v"."ab" ALTER COLUMN "x" SET DEFAULT fid_v.xa();
+< ok 0 -
+> exec
+| ALTER TABLE "fid_v"."grow" ALTER COLUMN "e" SET DEFAULT fid_v.eight();
+< ok 0 -
+> exec
+| UPDATE "fid_v"."grow" SET "e" = fid_v.eight() WHERE "e" IS NULL;
+< ok 2 -
+> exec
+| ALTER TABLE "fid_v"."grow" ALTER COLUMN "e" SET NOT NULL;
 < ok 0 -
 > exec
 | ALTER TABLE "fid_v"."items" ALTER COLUMN "bonus" SET DEFAULT fid_v.bonus();
@@ -10668,6 +10940,92 @@
 : null
 : string
 | YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| grow
+: string
+| id
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| grow
+: string
+| s
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 2
+: string
+| fid_v.seven()
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+: string
+| NO
+: string
+|
+: string
+|
+< row
+: string
+| fid_v
+: string
+| grow
+: string
+| e
+: string
+| bigint
+: null
+: int64 64
+: int64 0
+: int64 3
+: string
+| fid_v.eight()
+: string
+| NO
 : null
 : string
 | pg_catalog
@@ -11338,6 +11696,18 @@
 : string
 | fid_v
 : string
+| grow
+: string
+| grow_pkey
+: string
+| CREATE UNIQUE INDEX grow_pkey ON omni_testmigrationfidelity.fid_v.grow USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| fid_v
+: string
 | items
 : string
 | items_pkey
@@ -11520,6 +11890,13 @@
 | fid_v
 : string
 | ab
+: int64 0
+: null
+< row
+: string
+| fid_v
+: string
+| grow
 : int64 0
 : null
 < row
@@ -11998,6 +12375,24 @@
 : string
 | fid_v
 : string
+| eight
+: string
+| eight()
+: string
+| CREATE FUNCTION fid_v.eight()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 8;
+| $$
+< row
+: string
+| fid_v
+: string
 | pf
 : string
 | pf()
@@ -12047,6 +12442,24 @@
 | 	SECURITY INVOKER
 | 	AS $$
 | 	SELECT 'x';
+| $$
+< row
+: string
+| fid_v
+: string
+| seven
+: string
+| seven()
+: string
+| CREATE FUNCTION fid_v.seven()
+| 	RETURNS INT8
+| 	VOLATILE
+| 	NOT LEAKPROOF
+| 	CALLED ON NULL INPUT
+| 	LANGUAGE SQL
+| 	SECURITY INVOKER
+| 	AS $$
+| 	SELECT 7;
 | $$
 < row
 : string

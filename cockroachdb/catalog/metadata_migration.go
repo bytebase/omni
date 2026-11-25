@@ -814,22 +814,24 @@ func (d *differ) alterTable(schema string, old, new *metadatapb.TableMetadata) e
 		}
 		if oldColumn == nil {
 			var buf strings.Builder
-			if defaultPhase == phaseAlterTables {
+			if !d.callsRoutine(column.Default) {
 				d.r.writeColumnDefinition(&buf, column)
 				alter(phaseAlterTables, OpAddColumn, column.Name, "ADD COLUMN "+buf.String())
 				continue
 			}
-			// A default calling a routine the migration creates is set once
-			// the routine exists; the column comes first, since another new
-			// routine may read it. CockroachDB also takes no routine in an
-			// ADD COLUMN default.
+			// CockroachDB takes no routine in an ADD COLUMN default, so the
+			// column is added bare, before any new routine that reads it, and
+			// the default is set once its routine exists. Rows already there
+			// get the default as ADD COLUMN would give it, before NOT NULL.
 			bare := proto.CloneOf(column)
 			bare.Default, bare.Nullable = "", true
 			d.r.writeColumnDefinition(&buf, bare)
 			alter(phaseAlterTables, OpAddColumn, column.Name, "ADD COLUMN "+buf.String())
-			alter(phaseLateColumns, OpAlterColumn, column.Name, "ALTER COLUMN "+quoteIdent(column.Name)+" SET DEFAULT "+defaultExpression(column.Default))
+			alter(defaultPhase, OpAlterColumn, column.Name, "ALTER COLUMN "+quoteIdent(column.Name)+" SET DEFAULT "+defaultExpression(column.Default))
 			if !column.Nullable {
-				alter(phaseLateColumns, OpAlterColumn, column.Name, "ALTER COLUMN "+quoteIdent(column.Name)+" SET NOT NULL")
+				d.add(defaultPhase, MigrationOp{Type: OpAlterTable, SchemaName: schema, ObjectName: column.Name, ParentObject: new.Name,
+					SQL: fmt.Sprintf("UPDATE %s SET %s = %s WHERE %s IS NULL", name, quoteIdent(column.Name), defaultExpression(column.Default), quoteIdent(column.Name))})
+				alter(defaultPhase, OpAlterColumn, column.Name, "ALTER COLUMN "+quoteIdent(column.Name)+" SET NOT NULL")
 			}
 			continue
 		}
@@ -945,6 +947,22 @@ func boolOrder(b bool) int {
 		return 1
 	}
 	return 0
+}
+
+// callsRoutine reports whether expr calls a routine of either snapshot.
+func (d *differ) callsRoutine(expr string) bool {
+	for _, name := range calledFunctions(expr) {
+		for _, snapshot := range []*snapshot{d.from, d.to} {
+			for _, schema := range snapshot.schemas {
+				for _, function := range schema.Functions {
+					if name == function.Name || name == schema.Name+"."+function.Name {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
 }
 
 // callsDropped reports whether expr calls a routine the migration drops.
