@@ -76,10 +76,6 @@ omni gives a query on one no lineage.
 
 ### Known differences
 
-- A view: omni names the view and not the tables beneath it. Oracle checks a
-  reader's privilege on the view alone, and a Bytebase grant on the view
-  names it; naming the tables too would refuse that reader. Lineage, which
-  masking reads, names the tables' columns either way.
 - DUAL: omni names no table for it. It holds no data, and naming `SYS.DUAL`
   would make a query that reads a user table and DUAL a mix of user and
   system tables, which Bytebase refuses. Oracle's plan of an `UNPIVOT` reads
@@ -92,4 +88,6 @@ omni gives a query on one no lineage.
 
 ## query-span/*.yaml
 
-Bytebase's query-span corpora; `TestQuerySpanCorpus` reproduces them.
+Bytebase's query-span corpora; `TestQuerySpanCorpus` reproduces them. Two
+view cases named only the view among the tables read; span.tsv shows Oracle
+reads the tables beneath it too, and those were added.

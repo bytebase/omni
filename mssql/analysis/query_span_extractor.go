@@ -273,19 +273,16 @@ func (q *querySpanExtractor) findRelation(database, schema, name string) (*catal
 // the catalog names it, which is the name a grant or a policy on it holds:
 // SQL Server reads dbo.SALARIES as dbo.salaries. A name the catalog does not
 // have, or that cannot be looked up, stays as written; resolving the
-// statement's columns reports the failure. A view is not expanded into the
-// tables of its own database: SQL Server checks a reader's permission on the
-// view alone when its owner owns the tables too. It is expanded into what it
-// reads in another database or on another server, since ownership chains do
-// not cross databases by default (the `cross db ownership chaining` server
-// option is off), so SQL Server checks the reader's permission there.
+// statement's columns reports the failure. A view also names the tables
+// and views it reads, as SQL Server's plan and references do, so an access
+// check on a table holds whichever view reads it.
 func (q *querySpanExtractor) resolveAccessTables(tables ColumnSet) ColumnSet {
 	out := make(ColumnSet, len(tables))
 	seen := map[string]bool{}
 	for r := range tables {
 		r, rel := q.resolveAccessTable(r)
 		out[r] = true
-		q.addViewCrossDatabaseReads(rel, out, seen)
+		q.addViewReads(rel, out, seen)
 	}
 	return out
 }
@@ -303,11 +300,11 @@ func (q *querySpanExtractor) resolveAccessTable(r ColumnResource) (ColumnResourc
 	return r, rel
 }
 
-// addViewCrossDatabaseReads adds to out what the view rel reads on another
-// server or in a user database other than its own, through any view in
-// between. A view in seen was expanded already, so a cycle ends; resolving
-// the view's columns reports it, and a definition that does not parse.
-func (q *querySpanExtractor) addViewCrossDatabaseReads(rel *catalogRelation, out ColumnSet, seen map[string]bool) {
+// addViewReads adds to out the user tables and views the view rel reads,
+// through any view in between. A view in seen was expanded already, so a
+// cycle ends; resolving the view's columns reports it, and a definition that
+// does not parse.
+func (q *querySpanExtractor) addViewReads(rel *catalogRelation, out ColumnSet, seen map[string]bool) {
 	if rel == nil || rel.view == nil {
 		return
 	}
@@ -328,10 +325,10 @@ func (q *querySpanExtractor) addViewCrossDatabaseReads(rel *catalogRelation, out
 		viewQ := newQuerySpanExtractor(rel.database, rel.schema, q.catalog, q.tempTables, q.ignoreCaseSensitive)
 		for t := range viewQ.collectAccessTables(cv.Query) {
 			t, tRel := viewQ.resolveAccessTable(t)
-			if t.Server != "" || (!q.isIdentifierEqual(t.Database, rel.database) && !isSystemResource(t, q.ignoreCaseSensitive)) {
+			if !isSystemResource(t, q.ignoreCaseSensitive) {
 				out[t] = true
 			}
-			viewQ.addViewCrossDatabaseReads(tRel, out, seen)
+			viewQ.addViewReads(tRel, out, seen)
 		}
 	}
 }
