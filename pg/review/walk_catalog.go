@@ -70,16 +70,27 @@ func catalogRefusal(ctx context.Context, stmts []statement, steps []step, sessio
 			c.SetRole(user)
 		}
 		node := stmts[st.stmt].node
-		switch node.(type) {
-		case *ast.SelectStmt, *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.MergeStmt:
+		switch v := node.(type) {
+		case *ast.SelectStmt:
+			if v.IntoClause != nil {
+				// SELECT INTO creates a table, which the replay does not.
+				return nil
+			}
+			continue
+		case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.MergeStmt:
 			// DML changes no schema the walk followed it past.
 			continue
+		case *ast.VariableSetStmt:
+			// The catalog keeps a SET LOCAL past the end of its transaction.
+			if v.IsLocal {
+				return nil
+			}
 		}
 		err := processUtility(c, node)
 		var refusal *pgcatalog.Error
 		if errors.As(err, &refusal) {
 			code, ok := catalogCodes[refusal.Code]
-			if !ok || !catalogJudges(node) || castCurable(refusal) || namesUntrustedRoutine(node) {
+			if !ok || !catalogJudges(node) || castCurable(refusal) || namesUntrustedRoutine(node) || setsOwnSettings(node) {
 				return nil
 			}
 			message := "PostgreSQL refuses this statement: " + refusal.Message + " (SQLSTATE " + refusal.Code + ")."
@@ -134,6 +145,30 @@ func namesUntrustedRoutine(node ast.Node) bool {
 		return !untrusted
 	})
 	return untrusted
+}
+
+// setsOwnSettings reports whether node defines or changes a routine with
+// its own SET clause, under which PostgreSQL checks the body and the
+// catalog does not.
+func setsOwnSettings(node ast.Node) bool {
+	var options *ast.List
+	switch v := node.(type) {
+	case *ast.CreateFunctionStmt:
+		options = v.Options
+	case *ast.AlterFunctionStmt:
+		options = v.Actions
+	default:
+		return false
+	}
+	if options == nil {
+		return false
+	}
+	for _, item := range options.Items {
+		if de, ok := item.(*ast.DefElem); ok && strings.EqualFold(de.Defname, "set") {
+			return true
+		}
+	}
+	return false
 }
 
 // castCurable reports whether a cast the sync does not list could cure the

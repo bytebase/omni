@@ -60,6 +60,12 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 		"CREATE SCHEMA s;\nSELECT pg_catalog.set_config('search_path', 's', false);\nCREATE FUNCTION f_double(y int) RETURNS int LANGUAGE sql AS 'SELECT y';",
 		// The sync leaves out a routine named as a system one may be.
 		"CALL now();",
+		// SELECT INTO creates a table the replay does not.
+		"CREATE SCHEMA s;\nSELECT 1 AS a INTO s.t2;\nCREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1 END $$;",
+		// A SET LOCAL of check_function_bodies ends with its transaction.
+		"SET check_function_bodies = off;\nBEGIN;\nSET LOCAL check_function_bodies = on;\nCOMMIT;\nCREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'not SQL';",
+		// A routine's own SET applies while PostgreSQL checks its body.
+		"CREATE FUNCTION f() RETURNS int LANGUAGE sql SET search_path = public AS 'SELECT n, n FROM t';",
 		// A cast the sync does not list may allow the coercion.
 		"CREATE FUNCTION f() RETURNS date LANGUAGE sql AS 'SELECT 20260101';",
 		// A refusal of another statement ends the replay.
